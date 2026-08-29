@@ -455,3 +455,31 @@
     0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent),
     0 12px 32px color-mix(in srgb, #000000 68%, transparent);
 }
+
+/* Compact NLE zoom scrubber shared by timeline surfaces. */
+.timeline-zoom {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+}
+
+.timeline-zoom::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-200);
+}
+
+.timeline-zoom::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-600);
+}
+
+.timeline-zoom:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}

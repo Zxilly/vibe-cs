@@ -17,7 +17,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
@@ -27,6 +27,7 @@ import {
   BASE_PIXELS_PER_SECOND,
   createTimeScale,
   formatMillisecondTimecode,
+  pxToTime,
   rulerTicks,
   timeToPx,
 } from '../../design/timeline/timeScale';
@@ -36,15 +37,26 @@ import type {
   EditingDocument,
   EditorMarker,
   TimelineClip,
+  TimelineTrack,
 } from '../../shared/desktop/dto';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import {
+  clipMediaDuration,
+  moveTimelineClip,
+  snapTimeToFrame,
+  trimTimelineClip,
+} from './timelineInteraction';
 
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly previewOffsetSeconds: number;
+  readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
+  readonly onSeek: (seconds: number) => void;
+  readonly onReplaceClip: (clip: TimelineClip) => void;
+  readonly onReplaceTrack: (track: TimelineTrack) => void;
 }
 
 interface RenderedTrack {
@@ -55,6 +67,8 @@ interface RenderedTrack {
   readonly clips: readonly TimelineClip[];
   readonly controls: 'video' | 'audio' | 'none';
   readonly icon: React.ReactNode;
+  readonly track: TimelineTrack;
+  readonly derivedAudio: boolean;
 }
 
 /**
@@ -67,12 +81,17 @@ export function ProjectTimeline({
   document,
   selectedClipId,
   previewOffsetSeconds,
+  readOnly,
   onSelectClip,
   onInspectClip,
+  onSeek,
+  onReplaceClip,
+  onReplaceTrack,
 }: ProjectTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const story = document.tracks.find((track) => track.id === document.story_track_id) ?? null;
   const clips = story?.clips ?? [];
   const selectedClip = document.tracks
@@ -113,6 +132,15 @@ export function ProjectTimeline({
     '24fr',
   ].join(' ');
 
+  const seekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+    const viewport = viewportRef.current;
+    if (viewport === null) return;
+    const bounds = viewport.getBoundingClientRect();
+    const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+    const contentX = event.clientX - bounds.left - trackHead + viewport.scrollLeft;
+    onSeek(Math.min(document.duration_seconds, snapTimeToFrame(pxToTime(scale, contentX), document.fps)));
+  };
+
   return (
     <ReviewPanel className="relative flex min-h-0 flex-col" aria-label={t`时间轴`}>
       <header className="flex h-[clamp(25px,2.9vh,28px)] flex-none items-center gap-3 border-b border-divider px-3">
@@ -126,9 +154,16 @@ export function ProjectTimeline({
           >
             <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>
-          <span className="h-1 w-12 rounded-full bg-neutral-200">
-            <span className="block h-1 rounded-full bg-accent-500" style={{ width: `${Math.min(100, zoomMultiplier * 55)}%` }} />
-          </span>
+          <input
+            type="range"
+            aria-label={t`时间轴缩放`}
+            min="0.5"
+            max="4"
+            step="0.25"
+            value={zoomMultiplier}
+            className="timeline-zoom w-14"
+            onChange={(event) => setZoomMultiplier(Number(event.currentTarget.value))}
+          />
           <button
             type="button"
             className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
@@ -143,8 +178,15 @@ export function ProjectTimeline({
 
       <div className="grid h-[clamp(25px,2.9vh,28px)] flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
         <span />
-        <div className="relative min-w-0 overflow-hidden">
-          <div className="relative h-full" style={{ width: contentWidth }}>
+        <div
+          className="relative min-w-0 cursor-text overflow-hidden"
+          onPointerDown={(event) => {
+            if (event.button === 0 && !(event.target instanceof Element && event.target.closest('button'))) {
+              seekFromPointer(event);
+            }
+          }}
+        >
+          <div className="relative h-full" style={{ width: contentWidth, transform: `translateX(${-scrollLeft}px)` }}>
             {ticks.filter((tick) => tick.major).map((tick) => (
               <span key={tick.time} className="absolute inset-y-0 -translate-x-1/2 border-l border-divider px-1 py-1" style={{ left: tick.px }}>{tick.label}</span>
             ))}
@@ -152,8 +194,28 @@ export function ProjectTimeline({
         </div>
       </div>
 
-      <div ref={viewportRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="grid h-full" style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}>
+      <div
+        ref={viewportRef}
+        className={cn(
+          'min-h-0 flex-1 overflow-y-hidden',
+          contentWidth <= viewportWidth + 0.5 ? 'overflow-x-hidden' : 'overflow-x-auto',
+        )}
+        role="region"
+        aria-label={t`时间轴内容`}
+        onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
+        onPointerDown={(event) => {
+          if (event.button === 0 && event.target === event.currentTarget) seekFromPointer(event);
+        }}
+      >
+        <div
+          className="grid h-full"
+          style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}
+          onPointerDown={(event) => {
+            if (event.button === 0 && !(event.target instanceof Element && event.target.closest('button'))) {
+              seekFromPointer(event);
+            }
+          }}
+        >
           {renderedTracks.map((track) => (
             <TimelineTrackRow
               key={track.id}
@@ -161,8 +223,12 @@ export function ProjectTimeline({
               scale={scale}
               contentWidth={contentWidth}
               selectedClipId={selectedClipId}
+              fps={document.fps}
+              readOnly={readOnly}
               onSelectClip={onSelectClip}
               onInspectClip={onInspectClip}
+              onReplaceClip={onReplaceClip}
+              onReplaceTrack={onReplaceTrack}
             />
           ))}
           <TimelineMarkerRow markers={document.markers} scale={scale} contentWidth={contentWidth} ticks={ticks} />
@@ -183,13 +249,38 @@ export function ProjectTimeline({
       </footer>
 
       <div
-        className="pointer-events-none absolute bottom-[clamp(40px,5.2vh,50px)] top-[clamp(25px,2.9vh,28px)] z-20 w-px bg-accent-600"
-        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, playheadSeconds)}px)` }}
-        aria-hidden="true"
+        className="absolute bottom-[clamp(40px,5.2vh,50px)] top-[clamp(25px,2.9vh,28px)] z-20 w-px bg-accent-600"
+        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, playheadSeconds) - scrollLeft}px)` }}
       >
         <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
           {formatMillisecondTimecode(playheadSeconds)}
         </span>
+        <button
+          type="button"
+          role="slider"
+          aria-label={t`时间轴播放头`}
+          aria-valuemin={0}
+          aria-valuemax={document.duration_seconds}
+          aria-valuenow={playheadSeconds}
+          aria-valuetext={formatMillisecondTimecode(playheadSeconds)}
+          className="absolute -left-2 top-0 h-full w-4 cursor-col-resize bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            seekFromPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture?.(event.pointerId)) seekFromPointer(event);
+          }}
+          onPointerUp={(event) => event.currentTarget.releasePointerCapture?.(event.pointerId)}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            const step = event.shiftKey ? 1 : 1 / document.fps;
+            onSeek(Math.min(document.duration_seconds, Math.max(0, playheadSeconds + direction * step)));
+          }}
+        />
       </div>
     </ReviewPanel>
   );
@@ -202,8 +293,8 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   const rows: RenderedTrack[] = [];
   for (const track of visible) {
     if (track.id === document.story_track_id) {
-      rows.push({ id: `${track.id}:video`, kind: 'video', label: t`视频轨道 1`, ariaLabel: track.name, clips: track.clips, controls: 'video', icon: <Camera className="size-4" /> });
-      rows.push({ id: `${track.id}:audio`, kind: 'audio', label: t`音频轨道 1`, ariaLabel: t`${track.name} 音频`, clips: track.clips, controls: 'audio', icon: <SquarePlus className="size-4" /> });
+      rows.push({ id: `${track.id}:video`, kind: 'video', label: t`视频轨道 1`, ariaLabel: track.name, clips: track.clips, controls: 'video', icon: <Camera className="size-4" />, track, derivedAudio: false });
+      rows.push({ id: `${track.id}:audio`, kind: 'audio', label: t`音频轨道 1`, ariaLabel: t`${track.name} 音频`, clips: track.clips, controls: 'audio', icon: <SquarePlus className="size-4" />, track, derivedAudio: true });
       continue;
     }
     rows.push({
@@ -214,22 +305,35 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
       clips: track.clips,
       controls: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'none' : 'video',
       icon: track.kind === 'audio' ? <Volume2 className="size-4" /> : <Camera className="size-4" />,
+      track,
+      derivedAudio: false,
     });
   }
   return rows;
 }
 
-function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, onSelectClip, onInspectClip }: {
+function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
+  readonly fps: number;
+  readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
+  readonly onReplaceClip: (clip: TimelineClip) => void;
+  readonly onReplaceTrack: (track: TimelineTrack) => void;
 }) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
-      <TimelineTrackHead icon={track.icon} label={track.label} controls={track.controls} />
+      <TimelineTrackHead
+        icon={track.icon}
+        label={track.label}
+        controls={track.controls}
+        track={track.track}
+        readOnly={readOnly}
+        onReplaceTrack={onReplaceTrack}
+      />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         {track.clips.map((clip) => (
           <TimelineClipCell
@@ -237,10 +341,12 @@ function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, onSelect
             clip={clip}
             kind={track.kind}
             selected={selectedClipId === clip.id}
-            left={timeToPx(scale, clip.placement.start)}
-            width={Math.max(2, timeToPx(scale, clip.placement.duration))}
+            scale={scale}
+            fps={fps}
+            readOnly={readOnly || track.track.locked || track.derivedAudio}
             onSelect={() => onSelectClip(clip.id)}
             onInspect={() => onInspectClip(clip.id)}
+            onReplace={onReplaceClip}
           />
         ))}
       </div>
@@ -248,27 +354,91 @@ function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, onSelect
   );
 }
 
-function TimelineClipCell({ clip, kind, selected, left, width, onSelect, onInspect }: {
+function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect, onInspect, onReplace }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly selected: boolean;
-  readonly left: number;
-  readonly width: number;
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly fps: number;
+  readonly readOnly: boolean;
   readonly onSelect: () => void;
   readonly onInspect: () => void;
+  readonly onReplace: (clip: TimelineClip) => void;
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
+  const [visualClip, setVisualClip] = useState(clip);
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly mode: 'move' | 'start' | 'end';
+    readonly clip: TimelineClip;
+  } | null>(null);
+  useEffect(() => setVisualClip(clip), [clip]);
   if (kind === 'audio') {
-    return <div className="absolute inset-y-0 border-r border-divider" style={{ left, width }}><TimelineClipWaveform clip={clip} /></div>;
+    return (
+      <div
+        className="absolute inset-y-0 border-r border-divider"
+        style={{
+          left: timeToPx(scale, clip.placement.start),
+          width: Math.max(2, timeToPx(scale, clip.placement.duration)),
+        }}
+      >
+        <TimelineClipWaveform clip={clip} />
+      </div>
+    );
   }
+  const visualLeft = timeToPx(scale, visualClip.placement.start);
+  const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
+  const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end') => {
+    if (readOnly || event.button !== 0) return;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    gesture.current = { pointerId: event.pointerId, clientX: event.clientX, mode, clip };
+    onSelect();
+  };
+  const updateGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    const deltaSeconds = pxToTime(scale, event.clientX - active.clientX);
+    const next = active.mode === 'move'
+      ? moveTimelineClip(active.clip, active.clip.placement.start + deltaSeconds, fps)
+      : trimTimelineClip(
+        active.clip,
+        active.mode,
+        active.mode === 'start'
+          ? active.clip.placement.start + deltaSeconds
+          : active.clip.placement.start + active.clip.placement.duration + deltaSeconds,
+        fps,
+        clipMediaDuration(active.clip),
+      );
+    setVisualClip(next);
+  };
+  const finishGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    gesture.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (JSON.stringify(visualClip.placement) !== JSON.stringify(clip.placement)) onReplace(visualClip);
+  };
   return (
     <button
       type="button"
       className={cn('absolute inset-y-0.5 overflow-hidden border-r border-divider bg-neutral-100 text-left outline-none', selected && 'ring-1 ring-inset ring-accent-500')}
-      style={{ left, width }}
+      style={{ left: visualLeft, width: visualWidth }}
+      aria-disabled={readOnly}
       onClick={onSelect}
       onDoubleClick={onInspect}
+      onPointerDown={(event) => beginGesture(event, 'move')}
+      onPointerMove={updateGesture}
+      onPointerUp={finishGesture}
+      onPointerCancel={() => { gesture.current = null; setVisualClip(clip); }}
+      onKeyDown={(event) => {
+        if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        onReplace(moveTimelineClip(clip, clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps), fps));
+      }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'planned' ? t`未录制` : t`已录制`}`}
     >
       {kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
@@ -281,6 +451,26 @@ function TimelineClipCell({ clip, kind, selected, left, width, onSelect, onInspe
         </>
       )}
       <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span>
+      {selected && !readOnly ? (
+        <>
+          <span
+            role="separator"
+            aria-label={t`裁切片段起点`}
+            className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize border-l-2 border-accent-500 bg-accent-100/20"
+            onPointerDown={(event) => beginGesture(event, 'start')}
+            onPointerMove={updateGesture}
+            onPointerUp={finishGesture}
+          />
+          <span
+            role="separator"
+            aria-label={t`裁切片段终点`}
+            className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize border-r-2 border-accent-500 bg-accent-100/20"
+            onPointerDown={(event) => beginGesture(event, 'end')}
+            onPointerMove={updateGesture}
+            onPointerUp={finishGesture}
+          />
+        </>
+      ) : null}
     </button>
   );
 }
@@ -302,11 +492,41 @@ function TimelineClipWaveform({ clip }: { readonly clip: TimelineClip }) {
   );
 }
 
-function TimelineTrackHead({ icon, label, controls }: { readonly icon: React.ReactNode; readonly label: string; readonly controls: RenderedTrack['controls'] }) {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onReplaceTrack }: {
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly controls: RenderedTrack['controls'];
+  readonly track?: TimelineTrack | undefined;
+  readonly readOnly?: boolean | undefined;
+  readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
+}) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-r border-divider px-3 text-xs font-medium">
       <span className="text-neutral-600">{icon}</span><span className="truncate">{label}</span>
-      {controls === 'none' ? null : <span className="ml-auto flex items-center gap-2 text-neutral-500">{controls === 'audio' ? <Volume2 className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}<LockKeyhole className="size-3.5" aria-hidden="true" /></span>}
+      {controls === 'none' || track === undefined ? null : (
+        <span className="ml-auto flex items-center gap-1 text-neutral-500">
+          <button
+            type="button"
+            className={cn('grid size-6 place-items-center rounded-sm hover:bg-neutral-100', track.muted && 'text-fail-text')}
+            aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道输出`}
+            aria-pressed={track.muted}
+            disabled={readOnly}
+            onClick={() => onReplaceTrack?.({ ...track, muted: !track.muted })}
+          >
+            {controls === 'audio' ? <Volume2 className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
+            className={cn('grid size-6 place-items-center rounded-sm hover:bg-neutral-100', track.locked && 'text-accent-text')}
+            aria-label={t`切换轨道锁定`}
+            aria-pressed={track.locked}
+            disabled={readOnly && !track.locked}
+            onClick={() => onReplaceTrack?.({ ...track, locked: !track.locked })}
+          >
+            <LockKeyhole className="size-3.5" aria-hidden="true" />
+          </button>
+        </span>
+      )}
     </div>
   );
 }
@@ -315,7 +535,7 @@ function TimelineMarkerRow({ markers, scale, contentWidth, ticks }: { readonly m
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
-      <div className="relative min-h-0" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{markers.map((marker) => <span key={marker.id} className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, marker.time) }}><span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" /><span className="whitespace-nowrap">{marker.label}</span></span>)}</div>
+      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{markers.map((marker) => <span key={marker.id} className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, marker.time) }}><span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" /><span className="whitespace-nowrap">{marker.label}</span></span>)}</div>
     </div>
   );
 }
@@ -324,7 +544,7 @@ function TimelineEventRow({ clips, scale, contentWidth, ticks }: { readonly clip
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`事件`}>
       <TimelineTrackHead icon={<Star className="size-4" />} label={t`事件`} controls="none" />
-      <div className="relative min-h-0" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{clips.map((clip) => <span key={`event:${clip.id}`} className="absolute inset-y-0 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, clip.placement.start) }}><span className="h-3 w-1.5 bg-ok" aria-hidden="true" /><span>{clip.name.split(' · ')[0]}</span></span>)}</div>
+      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{clips.map((clip) => <span key={`event:${clip.id}`} className="absolute inset-y-0 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, clip.placement.start) }}><span className="h-3 w-1.5 bg-ok" aria-hidden="true" /><span>{clip.name.split(' · ')[0]}</span></span>)}</div>
     </div>
   );
 }

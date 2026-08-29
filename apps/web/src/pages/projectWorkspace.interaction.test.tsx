@@ -68,12 +68,14 @@ function renderWorkspace({
   session = null,
   lease = null,
   groups = [],
+  agentConfigured = true,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
   readonly session?: AgentSession | null;
   readonly lease?: ProjectEditLease | null;
   readonly groups?: readonly ProjectChangeGroup[];
+  readonly agentConfigured?: boolean;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
@@ -82,6 +84,7 @@ function renderWorkspace({
       getProject: () => Promise.resolve(PROJECT),
       listProjectChangeGroups: () => Promise.resolve(groups),
       getProjectEditLease: () => Promise.resolve(lease),
+      agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
       ...(session === null ? {} : { getAgentSession: () => Promise.resolve(session) }),
       applyProjectPatch,
     },
@@ -124,6 +127,87 @@ describe('unified project workspace', () => {
     expect(screen.getByText('未录制 1')).toBeTruthy();
     expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u })).toBeTruthy();
     expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
+  });
+
+  it('seeks by dragging the timeline playhead', async () => {
+    renderWorkspace();
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    const timeline = screen.getByRole('region', { name: '时间轴内容' });
+    vi.spyOn(timeline, 'getBoundingClientRect').mockReturnValue({
+      x: 190,
+      y: 0,
+      top: 0,
+      right: 910,
+      bottom: 300,
+      left: 190,
+      width: 720,
+      height: 300,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(playhead, { clientX: 310, pointerId: 7, button: 0 });
+    fireEvent.pointerMove(playhead, { clientX: 550, pointerId: 7 });
+    fireEvent.pointerUp(playhead, { clientX: 550, pointerId: 7 });
+
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  });
+
+  it('writes a clip move from direct manipulation against the current Project revision', async () => {
+    const applyProjectPatch = vi.fn(() => Promise.resolve({
+      project: { ...PROJECT, revision: 2 },
+      change_group: {
+        id: '00000000-0000-4000-8000-000000000020', project_id: PROJECT.id,
+        from_revision: 1, to_revision: 2, author: { kind: 'human' as const }, status: 'completed' as const,
+        summary: '移动 A', reverts_change_group_id: null, operations: [], inverse_operations: [],
+        created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+      },
+    }));
+    renderWorkspace({ applyProjectPatch });
+
+    const clipButton = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    fireEvent.keyDown(clipButton, { key: 'ArrowRight', shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      project_id: PROJECT.id,
+      base_revision: 1,
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ placement: expect.objectContaining({ start: 1 }) }),
+      })],
+    })));
+  });
+
+  it('commits one clip replacement after a pointer drag and exposes trim handles on selection', async () => {
+    const applyProjectPatch = vi.fn(() => Promise.resolve({
+      project: { ...PROJECT, revision: 2 },
+      change_group: {
+        id: '00000000-0000-4000-8000-000000000021', project_id: PROJECT.id,
+        from_revision: 1, to_revision: 2, author: { kind: 'human' as const }, status: 'completed' as const,
+        summary: '调整 A', reverts_change_group_id: null, operations: [], inverse_operations: [],
+        created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+      },
+    }));
+    renderWorkspace({ applyProjectPatch });
+
+    const clipButton = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    fireEvent.click(clipButton);
+    expect(screen.getByRole('separator', { name: '裁切片段起点' })).toBeTruthy();
+    expect(screen.getByRole('separator', { name: '裁切片段终点' })).toBeTruthy();
+
+    fireEvent.pointerDown(clipButton, { clientX: 200, pointerId: 9, button: 0 });
+    fireEvent.pointerMove(clipButton, { clientX: 320, pointerId: 9 });
+    fireEvent.pointerUp(clipButton, { clientX: 320, pointerId: 9 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ placement: expect.objectContaining({ start: expect.any(Number) }) }),
+      })],
+    }));
   });
 
   it('plays the selected recorded asset through the desktop media bridge', async () => {
@@ -235,6 +319,14 @@ describe('unified project workspace', () => {
     expect(screen.getByText('需要你的确认')).toBeTruthy();
     expect(screen.getByRole('button', { name: '允许录制' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '拒绝' })).toBeTruthy();
+  });
+
+  it('blocks sending and points to model settings when Agent configuration is missing', async () => {
+    renderWorkspace({ agentConfigured: false });
+
+    expect(await screen.findByText('Agent 尚未配置模型')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开模型设置' })).toBeTruthy();
+    expect((screen.getByPlaceholderText('先配置 Agent 模型') as HTMLInputElement).disabled).toBe(true);
   });
 
   it('offers delivery only for a change made by the current session after its latest instruction', async () => {

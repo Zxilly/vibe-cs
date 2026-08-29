@@ -15,6 +15,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import {
@@ -27,6 +28,8 @@ import {
   useStartProjectRecording,
 } from '../data/projects';
 import { useDemo } from '../data/demos';
+import { useAgentStatus } from '../data/config';
+import { useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { mediaAssetStreamPath } from '../data/mediaAssets';
 import { useNativeShell } from '../data/nativeShell';
@@ -54,6 +57,7 @@ import type {
   TimelineClip,
   TimelineTrack,
 } from '../shared/desktop/dto';
+import type { ActivityItem } from '../shared/desktop/viewModels';
 import { RouteLink } from './RouteLink';
 import { PlayerLayer } from './match/views/ReplayCanvas';
 import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay } from './match/views/replayModel';
@@ -84,6 +88,34 @@ export function ProjectWorkspacePage() {
     sessionId: agentSessionId,
     history: agentSession.data?.entries ?? [],
   });
+  const agentStatus = useAgentStatus();
+  const recordingTask = useTask('recording', startRecording.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
+  const exportTask = useTask('export', exportProject.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
+  const reportedExecutionIds = useRef(new Set<string>());
+
+  useEffect(() => {
+    const projectId = project.data?.id;
+    if (projectId === undefined || agentSessionId === null || agentChat.streaming) return;
+    const terminal = [recordingTask.data, exportTask.data].filter(
+      (item): item is ActivityItem => item !== undefined
+        && (item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled')
+        && !reportedExecutionIds.current.has(item.id),
+    );
+    const next = terminal[0];
+    if (next === undefined) return;
+    reportedExecutionIds.current.add(next.id);
+    const outcome = next.status === 'completed'
+      ? t`${next.kind === 'recording' ? '录制' : '导出'}任务已完成。请读取最新 Project Head，检查结果并继续当前交付。`
+      : t`${next.kind === 'recording' ? '录制' : '导出'}任务${next.status === 'cancelled' ? '已取消' : '失败'}：${next.error ?? '未提供错误详情'}。请说明影响和下一步。`;
+    void agentChat.send({
+      sessionId: agentSessionId,
+      projectId,
+      mode: 'hlae',
+      autoMode: true,
+      message: outcome,
+      workspaceContext: { projectId, lens: 'multitrack', selectedClipId },
+    }).catch(() => reportedExecutionIds.current.delete(next.id));
+  }, [agentChat, agentSessionId, exportTask.data, project.data?.id, recordingTask.data, selectedClipId]);
 
   useEffect(() => {
     if (projectId !== 'new' || create.isPending || create.data !== undefined) return;
@@ -133,7 +165,7 @@ export function ProjectWorkspacePage() {
   const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
   const allClips = current.document.tracks.flatMap((track) => track.clips);
   const mutate = (summary: string, scope: ProjectPatchScope, operations: ProjectEditOperation[]) => {
-    if (readOnly) return;
+    if (readOnly || apply.isPending) return;
     apply.mutate({
       project_id: current.id,
       base_revision: current.revision,
@@ -143,6 +175,18 @@ export function ProjectWorkspacePage() {
       summary,
       operations,
     });
+  };
+  const seekTimeline = (seconds: number) => {
+    const target = current.document.tracks
+      .find((track) => track.id === current.document.story_track_id)
+      ?.clips.find((clip) => seconds >= clip.placement.start
+        && seconds <= clip.placement.start + clip.placement.duration);
+    if (target !== undefined) {
+      setSelectedClipId(target.id);
+      setPreviewOffsetSeconds(Math.max(0, seconds - target.placement.start));
+      return;
+    }
+    setPreviewOffsetSeconds(Math.max(0, seconds - (selected?.clip.placement.start ?? 0)));
   };
   const sendToAgent = async (message: string) => {
     let sessionId = agentSessionId;
@@ -212,11 +256,23 @@ export function ProjectWorkspacePage() {
             document={current.document}
             selectedClipId={selectedClipId}
             previewOffsetSeconds={previewOffsetSeconds}
+            readOnly={readOnly || apply.isPending}
             onSelectClip={setSelectedClipId}
             onInspectClip={(clipId) => {
               setSelectedClipId(clipId);
               setInspectorOpen(true);
             }}
+            onSeek={seekTimeline}
+            onReplaceClip={(clip) => mutate(
+              `调整 ${clip.name}`,
+              { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
+              [{ op: 'replace_clip', clip_id: clip.id, clip }],
+            )}
+            onReplaceTrack={(track) => mutate(
+              `修改轨道 ${track.name}`,
+              { kind: 'track', track_id: track.id },
+              [{ op: 'replace_track', track_id: track.id, track }],
+            )}
           />
         </div>
         <AgentPanel
@@ -226,16 +282,20 @@ export function ProjectWorkspacePage() {
             onSend={sendToAgent}
             changeGroups={groups.data ?? []}
             readOnly={readOnly}
+            agentReady={agentStatus.data?.configured === true}
+            agentStatusPending={agentStatus.isPending}
+            externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
+            onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
             confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
             onConfirmRecording={async (clipIds) => {
               await appendHumanDecision(t`允许 Agent 请求的录制操作。`);
-              startRecording.mutate({ projectId: current.id, clipIds });
+              await startRecording.mutateAsync({ projectId: current.id, clipIds });
             }}
             onConfirmExport={async () => {
               await appendHumanDecision(t`允许 Agent 请求的导出操作。`);
-              exportProject.mutate({ projectId: current.id });
+              await exportProject.mutateAsync({ projectId: current.id });
             }}
-            onRejectConfirmation={() => appendHumanDecision(t`拒绝这次操作请求。`)}
+            onRejectConfirmation={() => sendToAgent(t`拒绝这次外部执行请求。请保留当前时间线并说明还能交付什么。`)}
             onAcceptDelivery={() => appendHumanDecision(t`接受交付。`)}
             onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
             onDirectEdit={() => {
@@ -580,6 +640,10 @@ function AgentPanel({
   onSend,
   changeGroups,
   readOnly,
+  agentReady,
+  agentStatusPending,
+  externalExecutions,
+  onOpenAgentSettings,
   confirming,
   onConfirmRecording,
   onConfirmExport,
@@ -594,6 +658,10 @@ function AgentPanel({
   readonly onSend: (message: string) => Promise<void>;
   readonly changeGroups: readonly ProjectChangeGroup[];
   readonly readOnly: boolean;
+  readonly agentReady: boolean;
+  readonly agentStatusPending: boolean;
+  readonly externalExecutions: readonly ActivityItem[];
+  readonly onOpenAgentSettings: () => void;
   readonly confirming: boolean;
   readonly onConfirmRecording: (clipIds: string[]) => Promise<void>;
   readonly onConfirmExport: () => Promise<void>;
@@ -617,7 +685,7 @@ function AgentPanel({
     && [...entries].reverse().some((entry) => entry.kind === 'assistant' && entry.status === 'completed');
   const submit = () => {
     const next = message.trim();
-    if (next === '' || chat.streaming || creatingSession || readOnly) return;
+    if (next === '' || chat.streaming || creatingSession || readOnly || !agentReady) return;
     setMessage('');
     void onSend(next);
   };
@@ -638,6 +706,16 @@ function AgentPanel({
                 <p className="text-xs leading-5 text-neutral-600"><Trans>让我分析当前 Demo，并直接在左侧时间轴上准备一份可审阅的修改。</Trans></p>
               </ConversationShell>
             ) : null}
+            {!agentStatusPending && !agentReady ? (
+              <ConversationShell actor={t`系统`} tone="error">
+                <div className="flex items-center gap-2 text-xs font-medium text-fail-text">
+                  <CircleAlert className="size-4" aria-hidden="true" />
+                  <Trans>Agent 尚未配置模型</Trans>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>配置提供方、模型、API 地址和密钥后即可在这里继续。</Trans></p>
+                <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
+              </ConversationShell>
+            ) : null}
             {entries.map((entry) => (
               <ConversationEntry
                 key={`entry:${entry.id}`}
@@ -651,12 +729,32 @@ function AgentPanel({
             ))}
             {chat.draft === '' ? null : (
               <ConversationShell actor="Agent" tone="agent">
-                <p className="line-clamp-5 whitespace-pre-wrap text-xs leading-5">{chat.draft}</p>
+                <AgentMarkdown>{chat.draft}</AgentMarkdown>
               </ConversationShell>
             )}
             {chat.activity?.map((call, index) => (
               <ConversationShell key={`live-tool:${index}:${call.name}`} actor={t`Agent · 工具`} tone="tool">
-                <ToolCallCard call={call} running />
+                <ToolCallCard call={call} />
+              </ConversationShell>
+            ))}
+            {externalExecutions.map((execution) => (
+              <ConversationShell key={`execution:${execution.id}`} actor={t`外部执行`} tone={execution.status === 'failed' ? 'error' : 'status'}>
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  {execution.status === 'completed'
+                    ? <CheckCircle2 className="size-4 text-ok" aria-hidden="true" />
+                    : execution.status === 'failed'
+                      ? <CircleAlert className="size-4 text-fail-text" aria-hidden="true" />
+                      : <LoaderCircle className="size-4 animate-spin text-accent-text" aria-hidden="true" />}
+                  <span>{execution.kind === 'recording' ? <Trans>录制片段</Trans> : <Trans>导出成片</Trans>}</span>
+                  <span className="ml-auto text-2xs text-neutral-500">{execution.progress_percent ?? 0}%</span>
+                </div>
+                <p className="mt-1 text-2xs text-neutral-600">
+                  {execution.status === 'completed'
+                    ? <Trans>已完成，Agent 将自动读取结果并继续。</Trans>
+                    : execution.status === 'failed'
+                      ? execution.error
+                      : <Trans>任务由本地执行器处理，完成后会回到同一对话流。</Trans>}
+                </p>
               </ConversationShell>
             ))}
             {readOnly ? (
@@ -687,15 +785,15 @@ function AgentPanel({
           <input
             className="h-10 min-w-0 flex-1 rounded-sm border border-divider bg-neutral-50 px-3 text-xs outline-none focus:border-accent-400"
             value={message}
-            disabled={chat.streaming || creatingSession || readOnly}
-            placeholder={t`例如：重新规划成 3 分钟 NiKo 集锦`}
+            disabled={chat.streaming || creatingSession || readOnly || !agentReady}
+            placeholder={agentReady ? t`例如：重新规划成 3 分钟 NiKo 集锦` : t`先配置 Agent 模型`}
             onChange={(event) => setMessage(event.currentTarget.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') submit(); }}
           />
           {chat.streaming ? (
             <Button variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
           ) : (
-            <Button aria-label={t`发送给 Agent`} disabled={message.trim() === '' || creatingSession || readOnly} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
+            <Button aria-label={t`发送给 Agent`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
           )}
         </div>
       </footer>
@@ -727,7 +825,7 @@ function ConversationEntry({
   }
   return (
     <ConversationShell actor="Agent" at={entry.at} tone={entry.status === 'failed' ? 'error' : 'agent'}>
-      {entry.content.trim() === '' ? null : <p className="line-clamp-3 whitespace-pre-wrap text-xs leading-5">{entry.content}</p>}
+      {entry.content.trim() === '' ? null : <AgentMarkdown>{entry.content}</AgentMarkdown>}
       {entry.tool_calls.map((call, index) => (
         <ToolCallCard
           key={`${entry.id}:tool:${index}:${call.name}`}
@@ -741,6 +839,22 @@ function ConversationEntry({
       ))}
       {entry.status === 'failed' && entry.error !== null ? <p className="mt-2 text-xs text-fail-text">{entry.error}</p> : null}
     </ConversationShell>
+  );
+}
+
+function AgentMarkdown({ children }: { readonly children: string }) {
+  return (
+    <ReactMarkdown
+      components={{
+        p: ({ children: content }) => <p className="mb-2 whitespace-pre-wrap text-xs leading-5 last:mb-0">{content}</p>,
+        ul: ({ children: content }) => <ul className="mb-2 list-disc space-y-1 pl-4 text-xs leading-5 last:mb-0">{content}</ul>,
+        ol: ({ children: content }) => <ol className="mb-2 list-decimal space-y-1 pl-4 text-xs leading-5 last:mb-0">{content}</ol>,
+        strong: ({ children: content }) => <strong className="font-semibold text-text">{content}</strong>,
+        code: ({ children: content }) => <code className="rounded-sm bg-neutral-100 px-1 font-mono text-2xs">{content}</code>,
+      }}
+    >
+      {children}
+    </ReactMarkdown>
   );
 }
 
@@ -781,7 +895,6 @@ function ConversationShell({
 
 function ToolCallCard({
   call,
-  running = false,
   confirmationActive = false,
   confirming = false,
   onConfirmRecording,
@@ -789,7 +902,6 @@ function ToolCallCard({
   onRejectConfirmation,
 }: {
   readonly call: AgentToolCall;
-  readonly running?: boolean | undefined;
   readonly confirmationActive?: boolean | undefined;
   readonly confirming?: boolean | undefined;
   readonly onConfirmRecording?: ((clipIds: string[]) => Promise<void>) | undefined;
@@ -800,10 +912,10 @@ function ToolCallCard({
   return (
     <article className={cn('mt-2 rounded-md border p-3 text-xs shadow-sm', confirmation === null ? 'border-divider bg-bg' : 'border-warn-border bg-warn-surface')}>
       <div className="flex items-center gap-2">
-        {running ? <LoaderCircle className="size-4 animate-spin text-accent-text" aria-hidden="true" /> : confirmation === null ? <Wrench className="size-4 text-neutral-500" aria-hidden="true" /> : <CircleAlert className="size-4 text-warn-text" aria-hidden="true" />}
+        {confirmation === null ? <Wrench className="size-4 text-neutral-500" aria-hidden="true" /> : <CircleAlert className="size-4 text-warn-text" aria-hidden="true" />}
         <span className="font-medium">{toolLabel(call.name)}</span>
-        <span className={cn('ml-auto', running ? 'text-accent-text' : confirmation === null ? 'text-ok' : 'text-warn-text')}>
-          {running ? <Trans>执行中</Trans> : confirmation === null ? <Trans>已完成</Trans> : confirmationActive ? <Trans>等待你确认</Trans> : <Trans>已处理</Trans>}
+        <span className={cn('ml-auto', confirmation === null ? 'text-ok' : 'text-warn-text')}>
+          {confirmation === null ? <Trans>已完成</Trans> : confirmationActive ? <Trans>等待你确认</Trans> : <Trans>已处理</Trans>}
         </span>
       </div>
       <p className="mt-1 text-2xs leading-4 text-neutral-600">{toolSummary(call)}</p>

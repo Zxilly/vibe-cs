@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TimelineClip } from '../../shared/desktop/dto';
+import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
 import {
   deleteRippleClip,
+  insertRippleClipAtTime,
   moveRippleClip,
   splitRippleClip,
+  timelineClipFromMediaAsset,
   trimRippleClip,
 } from './timelineEditing';
 
@@ -62,5 +64,41 @@ describe('ripple Story Track edits', () => {
     const deleted = deleteRippleClip(CLIPS, 'b');
     expect(deleted.map((item) => item.id)).toEqual(['a', 'c']);
     expect(deleted.map((item) => item.placement.start)).toEqual([0, 10]);
+  });
+
+  it('inserts a full media asset at the playhead and ripples the split tail', () => {
+    const asset: MediaAsset = {
+      id: 'asset-new',
+      project_id: 'project',
+      path: 'D:\\media\\new.mp4',
+      name: 'New angle',
+      kind: 'video',
+      duration_seconds: 6,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: '2026-08-29T00:00:00Z',
+    };
+    const inserted = insertRippleClipAtTime(
+      CLIPS,
+      timelineClipFromMediaAsset(asset, 'inserted'),
+      14,
+      'b-tail',
+    );
+
+    expect(inserted.map((item) => item.id)).toEqual(['a', 'b', 'inserted', 'b-tail', 'c']);
+    expect(inserted.map((item) => item.placement.start)).toEqual([0, 10, 14, 20, 26]);
+    expect(inserted[1]?.placement.duration).toBe(4);
+    expect(inserted[2]).toMatchObject({
+      name: 'New angle',
+      material: { kind: 'asset', asset_id: 'asset-new', media_duration_seconds: 6 },
+      placement: { start: 14, duration: 6, source_in: 0, source_out: 6 },
+    });
+    expect(inserted[3]?.placement).toMatchObject({ duration: 6, source_in: 4, source_out: 10 });
   });
 });

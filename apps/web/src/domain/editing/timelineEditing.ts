@@ -1,4 +1,4 @@
-import type { TimelineClip } from '../../shared/desktop/dto';
+import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
 
 const TIME_EPSILON = 1e-6;
 
@@ -90,4 +90,59 @@ export function deleteRippleClip(
   clipId: string,
 ): TimelineClip[] {
   return reflow(clips.filter((clip) => clip.id !== clipId));
+}
+
+export function timelineClipFromMediaAsset(asset: MediaAsset, clipId: string): TimelineClip {
+  const duration = asset.duration_seconds ?? 0;
+  return {
+    id: clipId,
+    name: asset.name,
+    capture_intent: null,
+    material: { kind: 'asset', asset_id: asset.id, media_duration_seconds: duration },
+    placement: {
+      start: 0,
+      duration,
+      source_in: 0,
+      source_out: duration,
+      speed: 1,
+      volume: 1,
+      enabled: true,
+    },
+    transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
+    effects: [],
+    transition_in: null,
+    transition_out: null,
+    text: null,
+    metadata: { media_asset_id: asset.id },
+    group_id: null,
+    link_group_id: null,
+    keyframes: [],
+    speed_segments: [],
+  };
+}
+
+export function insertRippleClipAtTime(
+  clips: readonly TimelineClip[],
+  inserted: TimelineClip,
+  timelineTime: number,
+  splitTailId: string,
+): TimelineClip[] {
+  const containingIndex = clips.findIndex((clip) => timelineTime > clip.placement.start + TIME_EPSILON
+    && timelineTime < clip.placement.start + clip.placement.duration - TIME_EPSILON);
+  let next = [...clips];
+  let insertionIndex: number;
+  if (containingIndex >= 0) {
+    const containing = clips[containingIndex]!;
+    next = splitRippleClip(clips, containing.id, timelineTime, splitTailId);
+    insertionIndex = containingIndex + 1;
+  } else {
+    const boundaryIndex = clips.findIndex((clip) => clip.placement.start >= timelineTime - TIME_EPSILON);
+    insertionIndex = boundaryIndex < 0 ? clips.length : boundaryIndex;
+  }
+  next.splice(insertionIndex, 0, {
+    ...inserted,
+    placement: { ...inserted.placement, start: timelineTime },
+  });
+  const origin = Math.min(clips[0]?.placement.start ?? timelineTime, timelineTime);
+  return reflow(next, origin);
 }

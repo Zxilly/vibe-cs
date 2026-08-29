@@ -71,6 +71,11 @@ import type {
   AgentChatInput,
   AgentChatHistoryMessage,
   AgentEvent,
+  AgentSession,
+  AgentSessionEntry,
+  AgentToolCall,
+  AgentToolCallStarted,
+  AgentToolCallStatus,
   AgentSessionEntryDraft,
   AgentSessionQuery,
   AgentSessionRetention,
@@ -315,9 +320,17 @@ export interface AgentChatStream {
   /** The service's message when the stream failed, for an in-place Notice. */
   readonly error: string | null;
   /** Completed structured tool calls from the in-flight turn, in execution order. */
-  readonly activity?: readonly Extract<AgentEvent, { type: 'toolCall' }>['toolCall'][] | undefined;
+  readonly activity?: readonly AgentToolActivity[] | undefined;
   send: (input: AgentChatSend) => Promise<void>;
   cancel: () => void;
+}
+
+export interface AgentToolActivity {
+  readonly id: string;
+  readonly name: string;
+  readonly input: import('../shared/desktop/dto').JsonValue;
+  readonly output: import('../shared/desktop/dto').JsonValue | null;
+  readonly status: AgentToolCallStatus | 'running';
 }
 
 export interface AgentChatStreamOptions {
@@ -339,13 +352,14 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const [streaming, setStreaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [activity, setActivity] = useState<readonly Extract<AgentEvent, { type: 'toolCall' }>['toolCall'][]>([]);
+  const [activity, setActivity] = useState<readonly AgentToolActivity[]>([]);
   const requestIdRef = useRef<string | null>(null);
   const turnRef = useRef<{
     readonly sessionId: string;
     readonly entryId: string;
     readonly status: 'pending' | 'streaming';
   } | null>(null);
+  const inflightRef = useRef<{ text: string; toolCalls: AgentToolCall[] }>({ text: '', toolCalls: [] });
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -360,11 +374,12 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       const turn = turnRef.current;
       turnRef.current = null;
       if (turn !== null) {
+        const inflight = inflightRef.current;
         void client.updateAgentTurn(turn.sessionId, turn.entryId, {
           expected_status: turn.status,
           status: 'cancelled',
-          content: '',
-          tool_calls: [],
+          content: inflight.text,
+          tool_calls: inflight.toolCalls,
           error: null,
           metadata: null,
         }).then(() => invalidateSessions(queryClient));
@@ -377,19 +392,23 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     if (requestId === null) return;
     requestIdRef.current = null;
     setStreaming(false);
+    setDraft('');
+    setActivity([]);
     void client.cancelAgentChat(requestId);
     const turn = turnRef.current;
     turnRef.current = null;
     if (turn !== null) {
+      const inflight = inflightRef.current;
       void client.updateAgentTurn(turn.sessionId, turn.entryId, {
         expected_status: turn.status,
         status: 'cancelled',
-        content: '',
-        tool_calls: [],
+        content: inflight.text,
+        tool_calls: inflight.toolCalls,
         error: null,
         metadata: null,
       }).then(() => invalidateSessions(queryClient));
     }
+    inflightRef.current = { text: '', toolCalls: [] };
   }, [client, queryClient]);
 
   const sessionId = options.sessionId;
@@ -406,6 +425,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       setDraft('');
       setError(null);
       setActivity([]);
+      inflightRef.current = { text: '', toolCalls: [] };
 
       // The user entry is written first, so a failed stream still leaves the
       // question in the transcript rather than losing what the user typed.
@@ -440,12 +460,21 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         switch (event.type) {
           case 'textDelta':
             text += event.delta;
+            inflightRef.current = { ...inflightRef.current, text };
             if (mountedRef.current) setDraft(text);
             break;
-          case 'toolCall':
-            toolCalls.push(event.toolCall);
+          case 'toolCallStarted': {
+            const running = runningToolActivity(event.toolCall);
             if (mountedRef.current) {
-              setActivity((current) => [...current, event.toolCall]);
+              setActivity((current) => upsertToolActivity(current, running));
+            }
+            break;
+          }
+          case 'toolCallFinished':
+            upsertTerminalToolCall(toolCalls, event.toolCall);
+            inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
+            if (mountedRef.current) {
+              setActivity((current) => upsertToolActivity(current, event.toolCall));
             }
             break;
           case 'error':
@@ -469,9 +498,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       }
 
       // `cancel` clears the ref, so this is how a cancelled request is told
-      // apart from one that finished. A cancelled reply is not written to the
-      // session: the user stopped it, and half an answer stored as the Agent's
-      // word would be read back as the Agent's word.
+      // apart from one that finished. `cancel` has already persisted the exact
+      // partial text and terminal tool calls under a cancelled turn status;
+      // this branch only prevents the stream task from overwriting that state.
       const cancelled = requestIdRef.current !== requestId;
       requestIdRef.current = null;
 
@@ -479,6 +508,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         if (mountedRef.current) {
           setStreaming(false);
           setDraft('');
+          setActivity([]);
         }
         return;
       }
@@ -487,21 +517,22 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         const turn = turnRef.current;
         turnRef.current = null;
         if (turn !== null) {
-          await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+          const failedTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
             expected_status: turn.status,
             status: 'failed',
             content: text,
-            tool_calls: toolCalls.map((call) => ({
-              name: call.name, input: call.input, output: call.output,
-            })),
+            tool_calls: toolCalls,
             error: failure,
             metadata: null,
           });
+          cacheAgentTurn(queryClient, turn.sessionId, failedTurn);
+          if (mountedRef.current) {
+            setError(failure);
+            setStreaming(false);
+            setActivity([]);
+          }
+          inflightRef.current = { text: '', toolCalls: [] };
           await invalidateSessions(queryClient);
-        }
-        if (mountedRef.current) {
-          setError(failure);
-          setStreaming(false);
         }
         return;
       }
@@ -509,15 +540,11 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       const turn = turnRef.current;
       turnRef.current = null;
       if (turn === null) return;
-      await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+      const completedTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
         expected_status: turn.status,
         status: 'completed',
         content: text,
-        tool_calls: toolCalls.map((call) => ({
-          name: call.name,
-          input: call.input,
-          output: call.output,
-        })),
+        tool_calls: toolCalls,
         error: null,
         metadata: completionMetadata.current === null ? null : {
           provider: completionMetadata.current.provider,
@@ -530,18 +557,19 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
         },
       });
+      cacheAgentTurn(queryClient, turn.sessionId, completedTurn);
+      if (mountedRef.current) {
+        setStreaming(false);
+        setDraft('');
+        setActivity([]);
+      }
+      inflightRef.current = { text: '', toolCalls: [] };
       await Promise.all([
         invalidateSessions(queryClient),
         queryClient.invalidateQueries({ queryKey: qk.projects.detail(input.projectId) }),
         queryClient.invalidateQueries({ queryKey: qk.projects.changeGroups(input.projectId) }),
         queryClient.invalidateQueries({ queryKey: qk.projects.editLease(input.projectId) }),
       ]);
-
-      if (mountedRef.current) {
-        setStreaming(false);
-        setDraft('');
-        setActivity([]);
-      }
     },
     [client, history, queryClient, sessionId, streaming],
   );
@@ -550,8 +578,44 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 }
 
 type AgentChatEventPayload = {
-  toolCalls: Array<Extract<AgentEvent, { type: 'toolCall' }>['toolCall']>;
+  toolCalls: AgentToolCall[];
 };
+
+function runningToolActivity(call: AgentToolCallStarted): AgentToolActivity {
+  return { ...call, output: null, status: 'running' };
+}
+
+function upsertToolActivity(
+  activity: readonly AgentToolActivity[],
+  call: AgentToolActivity | AgentToolCall,
+): AgentToolActivity[] {
+  const next = [...activity];
+  const index = next.findIndex((candidate) => candidate.id === call.id);
+  if (index < 0) next.push(call);
+  else next[index] = call;
+  return next;
+}
+
+function upsertTerminalToolCall(toolCalls: AgentToolCall[], call: AgentToolCall): void {
+  const index = toolCalls.findIndex((candidate) => candidate.id === call.id);
+  if (index < 0) toolCalls.push(call);
+  else toolCalls[index] = call;
+}
+
+function cacheAgentTurn(
+  queryClient: QueryClient,
+  sessionId: string,
+  turn: AgentSessionEntry,
+): void {
+  queryClient.setQueryData<AgentSession>(qk.sessions.detail(sessionId), (session) => {
+    if (session === undefined) return session;
+    const index = session.entries.findIndex((entry) => entry.id === turn.id);
+    const entries = [...session.entries];
+    if (index < 0) entries.push(turn);
+    else entries[index] = turn;
+    return { ...session, updated_at: turn.at, entries };
+  });
+}
 
 function buildChatInput(
   requestId: string,
@@ -585,6 +649,16 @@ function sessionHistory(
   for (const entry of entries) {
     if (entry.kind === 'user' && entry.content.trim() !== '') {
       history.push({ role: 'user', content: entry.content });
+    } else if (entry.kind === 'tool_decision') {
+      history.push({
+        role: 'user',
+        content: boundedCheckpointHistory({
+          type: 'human_tool_decision',
+          tool_call_id: entry.tool_call_id,
+          decision: entry.decision,
+          content: entry.content,
+        }),
+      });
     } else if (
       entry.kind === 'assistant'
       && (entry.status === undefined || entry.status === null || entry.status === 'completed')

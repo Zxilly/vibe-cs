@@ -2120,8 +2120,9 @@ describe('unified project workspace', () => {
           at: '2026-08-28T10:01:00Z',
           content: '时间线已经重排，接下来需要录制缺失片段。',
           tool_calls: [
-            { name: 'read_workspace', input: {}, output: { revision: 1 } },
+            { id: 'request-1:tool:1', name: 'read_workspace', input: {}, output: { revision: 1 }, status: 'completed' },
             {
+              id: 'request-1:tool:2',
               name: 'request_project_recording',
               input: { projectId: PROJECT.id, baseRevision: 1, clipIds: [CLIP_A] },
               output: {
@@ -2131,6 +2132,7 @@ describe('unified project workspace', () => {
                 baseRevision: 1,
                 request: {},
               },
+              status: 'awaiting_confirmation',
             },
           ],
           status: 'completed',
@@ -2150,6 +2152,39 @@ describe('unified project workspace', () => {
     expect(screen.getByText('需要你的确认')).toBeTruthy();
     expect(screen.getByRole('button', { name: '允许录制' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '拒绝' })).toBeTruthy();
+  });
+
+  it('binds a persisted HITL decision to one tool call instead of clearing it with arbitrary text', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000031',
+      title: 'Agent · HITL',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:02:00Z',
+      entries: [
+        {
+          kind: 'assistant', id: 'a-hitl', at: '2026-08-28T10:01:00Z', content: '',
+          tool_calls: [{
+            id: 'request-hitl:tool:1',
+            name: 'request_project_export',
+            input: { projectId: PROJECT.id },
+            output: { status: 'requires_human_confirmation', action: 'export' },
+            status: 'awaiting_confirmation',
+          }],
+          status: 'completed', request_id: 'request-hitl', retry_of: null, error: null, metadata: null,
+        },
+        { kind: 'user', id: 'unrelated', at: '2026-08-28T10:01:30Z', content: '这是一条无关文本。' },
+        {
+          kind: 'tool_decision', id: 'decision-1', at: '2026-08-28T10:02:00Z',
+          tool_call_id: 'request-hitl:tool:1', decision: 'approved', content: '允许导出。',
+        },
+      ],
+    };
+    renderWorkspace({ session });
+
+    expect(await screen.findByText('已允许外部执行')).toBeTruthy();
+    expect(screen.getByText('request-hitl:tool:1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '允许导出' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '拒绝' })).toBeNull();
   });
 
   it('blocks sending and points to model settings when Agent configuration is missing', async () => {
@@ -2173,7 +2208,7 @@ describe('unified project workspace', () => {
           id: 'a-2',
           at: '2026-08-28T10:02:00Z',
           content: '已读取，没有修改。',
-          tool_calls: [{ name: 'read_workspace', input: {}, output: { revision: 1 } }],
+          tool_calls: [{ id: 'request-2:tool:1', name: 'read_workspace', input: {}, output: { revision: 1 }, status: 'completed' }],
           status: 'completed',
           request_id: 'request-2',
           retry_of: null,
@@ -2215,7 +2250,7 @@ describe('unified project workspace', () => {
           id: 'a-3',
           at: '2026-08-28T10:02:00Z',
           content: '已经完成。',
-          tool_calls: [{ name: 'replace_story_timeline', input: {}, output: { revision: 2 } }],
+          tool_calls: [{ id: 'request-3:tool:1', name: 'replace_story_timeline', input: {}, output: { revision: 2 }, status: 'completed' }],
           status: 'completed',
           request_id: 'request-3',
           retry_of: null,

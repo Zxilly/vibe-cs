@@ -1789,4 +1789,173 @@ mod tests {
         assert!((plan.duration_seconds - 5.0).abs() < f64::EPSILON);
         assert!(plan.command.args.contains(&source.into_os_string()));
     }
+
+    #[test]
+    fn independent_audio_tracks_mix_with_gain_fades_and_mute_in_final_export() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let first_source = directory.path().join("first.wav");
+        let second_source = directory.path().join("second.wav");
+        std::fs::write(&first_source, b"first").expect("first source");
+        std::fs::write(&second_source, b"second").expect("second source");
+        let story_id = Uuid::new_v4();
+        let first_asset = Uuid::new_v4();
+        let second_asset = Uuid::new_v4();
+        let audio_clip = |name: &str, asset_id: Uuid, volume: f64, fade: bool| TimelineClip {
+            id: Uuid::new_v4(),
+            name: name.to_owned(),
+            capture_intent: None,
+            material: TimelineClipMaterial::Asset {
+                asset_id,
+                media_duration_seconds: 8.0,
+            },
+            placement: TimelinePlacement {
+                start: 0.0,
+                duration: 8.0,
+                source_in: 0.0,
+                source_out: 8.0,
+                speed: 1.0,
+                volume,
+                enabled: true,
+            },
+            transform: Transform::default(),
+            effects: Vec::new(),
+            transition_in: fade.then(|| "fade".to_owned()),
+            transition_out: fade.then(|| "fade".to_owned()),
+            text: None,
+            metadata: serde_json::json!({ "transition_duration": 1.5 }),
+            group_id: None,
+            link_group_id: None,
+            keyframes: if fade {
+                vec![EditorKeyframe {
+                    id: Uuid::new_v4(),
+                    time: 4.0,
+                    property: EditorKeyframeProperty::Volume,
+                    value: 0.5,
+                }]
+            } else {
+                Vec::new()
+            },
+            speed_segments: Vec::new(),
+        };
+        let mut project = Project {
+            id: Uuid::new_v4(),
+            name: "Audio-only export".to_owned(),
+            revision: 1,
+            document: EditingDocument {
+                width: 1920,
+                height: 1080,
+                fps: 60,
+                duration_seconds: 8.0,
+                story_track_id: story_id,
+                tracks: vec![
+                    TimelineTrack {
+                        id: story_id,
+                        name: "Story".to_owned(),
+                        kind: TrackKind::Video,
+                        order: 0,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: Vec::new(),
+                    },
+                    TimelineTrack {
+                        id: Uuid::new_v4(),
+                        name: "A1".to_owned(),
+                        kind: TrackKind::Audio,
+                        order: 1,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: vec![audio_clip("First", first_asset, 1.0, true)],
+                    },
+                    TimelineTrack {
+                        id: Uuid::new_v4(),
+                        name: "A2".to_owned(),
+                        kind: TrackKind::Audio,
+                        order: 2,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: vec![audio_clip("Second", second_asset, 0.25, false)],
+                    },
+                ],
+                markers: Vec::new(),
+                settings: serde_json::json!({}),
+            },
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let sources = HashMap::from([
+            (
+                first_asset.to_string(),
+                EditorMediaSource {
+                    path: first_source.clone(),
+                    kind: EditorMediaKind::Audio,
+                    has_audio: true,
+                },
+            ),
+            (
+                second_asset.to_string(),
+                EditorMediaSource {
+                    path: second_source.clone(),
+                    kind: EditorMediaKind::Audio,
+                    has_audio: true,
+                },
+            ),
+        ]);
+        let options = EditorRenderOptions {
+            encoder: EncoderSelection {
+                primary: "libopenh264".to_owned(),
+                fallback: None,
+            },
+            quality: 80,
+            range_start: None,
+            range_end: None,
+        };
+        let plan = build_project_plan_with_sources(
+            &project,
+            &sources,
+            &directory.path().join("mixed.mp4"),
+            &options,
+        )
+        .expect("mixed audio plan");
+        let filter = filter_graph(&plan.command).expect("filter graph");
+
+        assert!(filter.contains("volume='") && filter.contains("eval=frame"));
+        assert!(filter.contains("afade=t=in:st=0:d=1.500000"));
+        assert!(filter.contains("afade=t=out:st=6.500000:d=1.500000"));
+        assert!(filter.contains("volume=0.250000"));
+        assert!(filter.contains("amix=inputs=2"));
+        assert!(
+            plan.command
+                .args
+                .contains(&first_source.clone().into_os_string())
+        );
+        assert!(
+            plan.command
+                .args
+                .contains(&second_source.clone().into_os_string())
+        );
+
+        project.document.tracks[2].muted = true;
+        let muted = build_project_plan_with_sources(
+            &project,
+            &sources,
+            &directory.path().join("muted.mp4"),
+            &options,
+        )
+        .expect("muted audio plan");
+        let muted_filter = filter_graph(&muted.command).expect("muted filter graph");
+        assert!(!muted.command.args.contains(&second_source.into_os_string()));
+        assert!(!muted_filter.contains("amix="));
+        assert!(muted_filter.contains("afade=t=in"));
+    }
+
+    fn filter_graph(command: &CommandSpec) -> Option<String> {
+        command
+            .args
+            .windows(2)
+            .find(|pair| pair[0] == OsString::from("-filter_complex"))
+            .map(|pair| pair[1].to_string_lossy().into_owned())
+    }
 }

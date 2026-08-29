@@ -6,6 +6,8 @@ import {
   deleteRippleClips,
   insertRippleClipAtTime,
   moveRippleClip,
+  moveRippleClipGroup,
+  moveFreeClipGroup,
   overwriteStoryClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
@@ -50,6 +52,20 @@ describe('ripple Story Track edits', () => {
     const moved = moveRippleClip(CLIPS, 'a', 24);
     expect(moved.map((item) => item.id)).toEqual(['b', 'c', 'a']);
     expect(moved.map((item) => item.placement.start)).toEqual([0, 10, 20]);
+  });
+
+  it('moves selected Story clips as one ordered ripple group', () => {
+    const moved = moveRippleClipGroup(CLIPS, new Set(['a', 'b']), 'b', 26);
+    expect(moved.map((item) => item.id)).toEqual(['c', 'a', 'b']);
+    expect(moved.map((item) => item.placement.start)).toEqual([0, 10, 20]);
+  });
+
+  it('moves free-track clips by one frame-snapped delta without changing gaps', () => {
+    const moved = moveFreeClipGroup(CLIPS, new Set(['a', 'c']), 'c', 25.019, 60);
+    expect(moved.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+    expect(moved[0]?.placement.start).toBeCloseTo(5.016_666_667);
+    expect(moved[1]?.placement.start).toBe(10);
+    expect(moved[2]?.placement.start).toBeCloseTo(25.016_666_667);
   });
 
   it('ripples following placements after a trim', () => {

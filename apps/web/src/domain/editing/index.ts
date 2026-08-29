@@ -7,6 +7,8 @@ export {
   deleteRippleClips,
   insertRippleClipAtTime,
   moveRippleClip,
+  moveRippleClipGroup,
+  moveFreeClipGroup,
   overwriteStoryClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,

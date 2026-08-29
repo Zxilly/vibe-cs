@@ -36,6 +36,49 @@ export function moveRippleClip(
   return reflow(ordered, origin);
 }
 
+export function moveRippleClipGroup(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+  anchorClipId: string,
+  proposedAnchorStart: number,
+): TimelineClip[] {
+  const moving = clips.filter((clip) => clipIds.has(clip.id));
+  const anchorIndex = moving.findIndex((clip) => clip.id === anchorClipId);
+  if (moving.length === 0 || anchorIndex < 0) return [...clips];
+  const anchorOffset = moving
+    .slice(0, anchorIndex)
+    .reduce((total, clip) => total + clip.placement.duration, 0);
+  const groupDuration = moving.reduce((total, clip) => total + clip.placement.duration, 0);
+  const proposedCentre = proposedAnchorStart - anchorOffset + groupDuration / 2;
+  const remaining = clips.filter((clip) => !clipIds.has(clip.id));
+  const before = remaining.findIndex(
+    (clip) => proposedCentre < clip.placement.start + clip.placement.duration / 2,
+  );
+  const index = before < 0 ? remaining.length : before;
+  const ordered = [...remaining];
+  ordered.splice(index, 0, ...moving);
+  return reflow(ordered, clips[0]?.placement.start ?? 0);
+}
+
+export function moveFreeClipGroup(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+  anchorClipId: string,
+  proposedAnchorStart: number,
+  fps: number,
+): TimelineClip[] {
+  const anchor = clips.find((clip) => clip.id === anchorClipId);
+  const moving = clips.filter((clip) => clipIds.has(clip.id));
+  if (anchor === undefined || moving.length === 0) return [...clips];
+  const snappedAnchorStart = Math.round(Math.max(0, proposedAnchorStart) * Math.max(1, fps)) / Math.max(1, fps);
+  const requestedDelta = snappedAnchorStart - anchor.placement.start;
+  const minimumStart = Math.min(...moving.map((clip) => clip.placement.start));
+  const delta = Math.max(requestedDelta, -minimumStart);
+  return clips.map((clip) => clipIds.has(clip.id)
+    ? { ...clip, placement: { ...clip.placement, start: clip.placement.start + delta } }
+    : clip).sort((left, right) => left.placement.start - right.placement.start);
+}
+
 export function trimRippleClip(
   clips: readonly TimelineClip[],
   replacement: TimelineClip,

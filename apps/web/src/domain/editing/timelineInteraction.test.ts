@@ -7,12 +7,15 @@ import {
   gainToTrackPercent,
   linearGainToDb,
   clipFadeDuration,
+  canSlipTimelineClip,
+  constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
   maximumClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
   snapTimeToFrame,
   setClipFadeDuration,
+  slipTimelineClip,
   trimTimelineClip,
   timelineEdgeScrollStep,
 } from './timelineInteraction';
@@ -120,5 +123,34 @@ describe('timeline direct manipulation', () => {
     };
     expect(constrainClipGroupTrimDelta([CLIP, second], 'start', -5, 60)).toBe(-1);
     expect(constrainClipGroupTrimDelta([CLIP, second], 'end', 10, 60)).toBe(2);
+  });
+
+  it('slips source In and Out without changing timeline position or duration', () => {
+    const slipped = slipTimelineClip(CLIP, 1.5, 60);
+    expect(slipped.placement).toEqual({
+      ...CLIP.placement,
+      source_in: 3.5,
+      source_out: 11.5,
+    });
+  });
+
+  it('constrains a shared slip delta by every selected media boundary', () => {
+    const second = {
+      ...CLIP,
+      id: 'second',
+      material: { kind: 'asset' as const, asset_id: 'second', media_duration_seconds: 20 },
+      placement: { ...CLIP.placement, source_in: 0.5, source_out: 9 },
+    };
+    expect(constrainClipGroupSlipDelta([CLIP, second], -5, 60)).toBe(-0.5);
+    expect(constrainClipGroupSlipDelta([CLIP, second], 5, 60)).toBe(2);
+  });
+
+  it('does not slip planned clips without a bounded media source', () => {
+    const planned = { ...CLIP, material: { kind: 'planned' as const } };
+    expect(canSlipTimelineClip(CLIP, 60)).toBe(true);
+    expect(canSlipTimelineClip({ ...CLIP, placement: { ...CLIP.placement, source_in: 0, source_out: 12 } }, 60)).toBe(false);
+    expect(canSlipTimelineClip(planned, 60)).toBe(false);
+    expect(constrainClipGroupSlipDelta([planned], 1, 60)).toBe(0);
+    expect(slipTimelineClip(planned, 1, 60)).toBe(planned);
   });
 });

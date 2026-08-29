@@ -146,6 +146,54 @@ export function moveTimelineClip(clip: TimelineClip, start: number, fps: number)
   };
 }
 
+export function canSlipTimelineClip(clip: TimelineClip, fps: number): boolean {
+  const mediaDuration = clipMediaDuration(clip);
+  if (mediaDuration === null) return false;
+  const frame = 1 / Math.max(1, fps);
+  return clip.placement.source_in >= frame - 1e-9
+    || mediaDuration - clip.placement.source_out >= frame - 1e-9;
+}
+
+/**
+ * Constrain one source-time delta so every selected clip can slip without
+ * crossing its media In/Out boundaries. Timeline position and duration are
+ * deliberately absent from this calculation.
+ */
+export function constrainClipGroupSlipDelta(
+  clips: readonly TimelineClip[],
+  requestedSourceDelta: number,
+  fps: number,
+): number {
+  if (clips.length === 0) return 0;
+  let minimum = Number.NEGATIVE_INFINITY;
+  let maximum = Number.POSITIVE_INFINITY;
+  for (const clip of clips) {
+    const mediaDuration = clipMediaDuration(clip);
+    if (mediaDuration === null) return 0;
+    minimum = Math.max(minimum, -clip.placement.source_in);
+    maximum = Math.min(maximum, mediaDuration - clip.placement.source_out);
+  }
+  const frameRate = Math.max(1, fps);
+  const minimumFrames = Math.ceil(minimum * frameRate - 1e-6);
+  const maximumFrames = Math.floor(maximum * frameRate + 1e-6);
+  if (minimumFrames > maximumFrames) return 0;
+  const requestedFrames = Math.round(requestedSourceDelta * frameRate);
+  return Math.min(maximumFrames, Math.max(minimumFrames, requestedFrames)) / frameRate;
+}
+
+export function slipTimelineClip(clip: TimelineClip, sourceDelta: number, fps: number): TimelineClip {
+  const delta = constrainClipGroupSlipDelta([clip], sourceDelta, fps);
+  if (Math.abs(delta) <= 1e-9) return clip;
+  return {
+    ...clip,
+    placement: {
+      ...clip.placement,
+      source_in: clip.placement.source_in + delta,
+      source_out: clip.placement.source_out + delta,
+    },
+  };
+}
+
 export function constrainClipGroupTrimDelta(
   clips: readonly TimelineClip[],
   edge: 'start' | 'end',

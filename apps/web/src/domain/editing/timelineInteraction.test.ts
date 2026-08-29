@@ -13,6 +13,7 @@ import {
   snapTimeToFrame,
   setClipFadeDuration,
   trimTimelineClip,
+  timelineEdgeScrollStep,
 } from './timelineInteraction';
 
 const CLIP: TimelineClip = {
@@ -96,5 +97,12 @@ describe('timeline direct manipulation', () => {
     const faded = setClipFadeDuration(withOut, 'in', 5, 60);
     expect(clipFadeDuration(faded, 'in')).toBeCloseTo(3.983_333_333);
     expect(setClipFadeDuration(faded, 'in', 0.01, 60).transition_in).toBeNull();
+  });
+
+  it('derives bounded drag auto-scroll from pointer edge penetration', () => {
+    expect(timelineEdgeScrollStep(500, 200, 1_000)).toBe(0);
+    expect(timelineEdgeScrollStep(224, 200, 1_000)).toBe(-12);
+    expect(timelineEdgeScrollStep(976, 200, 1_000)).toBe(12);
+    expect(timelineEdgeScrollStep(1_100, 200, 1_000)).toBe(24);
   });
 });

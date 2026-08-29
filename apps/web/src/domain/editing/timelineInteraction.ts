@@ -12,6 +12,24 @@ export interface TimelineSnapResult {
   readonly snapTime: number | null;
 }
 
+export function timelineEdgeScrollStep(
+  pointerX: number,
+  contentLeft: number,
+  contentRight: number,
+  edgeZone = 48,
+  maximumStep = 24,
+): number {
+  if (pointerX < contentLeft + edgeZone) {
+    const penetration = Math.min(1, Math.max(0, (contentLeft + edgeZone - pointerX) / Math.max(1, edgeZone)));
+    return -maximumStep * penetration;
+  }
+  if (pointerX > contentRight - edgeZone) {
+    const penetration = Math.min(1, Math.max(0, (pointerX - (contentRight - edgeZone)) / Math.max(1, edgeZone)));
+    return maximumStep * penetration;
+  }
+  return 0;
+}
+
 export function snapTimeToFrame(seconds: number, fps: number): number {
   const safeFps = Math.max(1, fps);
   return Math.round(Math.max(0, seconds) * safeFps) / safeFps;

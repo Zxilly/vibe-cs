@@ -52,6 +52,7 @@ import {
   insertRippleClipAtTime,
   overwriteStoryClipAtTime,
   ProjectTimeline,
+  snapTimeToFrame,
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
   trimRippleClip,
@@ -132,8 +133,10 @@ export function ProjectWorkspacePage() {
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
   const initializedSelectionProjectId = useRef<string | null>(null);
+  const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
@@ -198,6 +201,13 @@ export function ProjectWorkspacePage() {
       return next.length === currentSelection.length ? currentSelection : next;
     });
   }, [project.data]);
+
+  useEffect(() => {
+    const document = project.data?.document;
+    if (document === undefined) return;
+    if (targetTrackId !== null && document.tracks.some((track) => track.id === targetTrackId)) return;
+    setTargetTrackId(document.story_track_id);
+  }, [project.data?.document, targetTrackId]);
 
   useEffect(() => {
     const duration = project.data?.document.duration_seconds;
@@ -273,6 +283,25 @@ export function ProjectWorkspacePage() {
       Math.max(0, seconds),
     ));
   };
+  const togglePlayback = () => {
+    setPlaybackRate((rate) => rate === 0 ? 1 : rate);
+    setPlaying((value) => !value);
+  };
+  const shuttlePlayback = (direction: -1 | 0 | 1) => {
+    if (direction === 0) {
+      setPlaying(false);
+      return;
+    }
+    setPlaybackRate((rate) => {
+      if (!playing || Math.sign(rate) !== direction) return direction;
+      return direction * Math.min(4, Math.max(1, Math.abs(rate) * 2));
+    });
+    setPlaying(true);
+  };
+  const stepTimelineFrame = (direction: -1 | 1) => {
+    setPlaying(false);
+    seekTimeline(transportTimeSeconds + direction / current.document.fps);
+  };
   const selectTimelineClip = (clipId: string, additive = false) => {
     setSelectedClipIds((currentSelection) => {
       if (!additive) return currentSelection.length === 1 && currentSelection[0] === clipId
@@ -287,17 +316,18 @@ export function ProjectWorkspacePage() {
     if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
     const insertedClipId = globalThis.crypto.randomUUID();
     const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
+    const editTimeSeconds = snapTimeToFrame(transportTimeSeconds, current.document.fps);
     const clips = mode === 'insert'
       ? insertRippleClipAtTime(
         storyTrack.clips,
         inserted,
-        transportTimeSeconds,
+        editTimeSeconds,
         globalThis.crypto.randomUUID(),
       )
       : overwriteStoryClipAtTime(
         storyTrack.clips,
         inserted,
-        transportTimeSeconds,
+        editTimeSeconds,
         globalThis.crypto.randomUUID(),
       );
     mutate(
@@ -405,7 +435,10 @@ export function ProjectWorkspacePage() {
             transportClip={transportClip}
             timelineTimeSeconds={transportTimeSeconds}
             playing={playing}
-            onTogglePlayback={() => setPlaying((value) => !value)}
+            playbackRate={playbackRate}
+            onTogglePlayback={togglePlayback}
+            onShuttle={shuttlePlayback}
+            onStepFrame={stepTimelineFrame}
             onTimelineTimeChange={seekTimeline}
             onPlaybackEnd={() => setPlaying(false)}
           />
@@ -413,10 +446,12 @@ export function ProjectWorkspacePage() {
             document={current.document}
             selectedClipId={selectedClipId}
             selectedClipIds={selectedClipIds}
+            targetTrackId={targetTrackId ?? current.document.story_track_id}
             timelineTimeSeconds={transportTimeSeconds}
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={selectTimelineClip}
+            onTargetTrack={setTargetTrackId}
             onInspectClip={(clipId) => {
               setSelectedClipIds([clipId]);
               setInspectorOpen(true);
@@ -425,7 +460,8 @@ export function ProjectWorkspacePage() {
               setPlaying(false);
               seekTimeline(seconds);
             }}
-            onTogglePlayback={() => setPlaying((value) => !value)}
+            onTogglePlayback={togglePlayback}
+            onShuttle={shuttlePlayback}
             onReplaceClip={(clip) => mutate(
               `调整 ${clip.name}`,
               { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
@@ -629,7 +665,10 @@ function PreviewSplit({
   transportClip,
   timelineTimeSeconds,
   playing,
+  playbackRate,
   onTogglePlayback,
+  onShuttle,
+  onStepFrame,
   onTimelineTimeChange,
   onPlaybackEnd,
 }: {
@@ -637,7 +676,10 @@ function PreviewSplit({
   readonly transportClip: TimelineClip | null;
   readonly timelineTimeSeconds: number;
   readonly playing: boolean;
+  readonly playbackRate: number;
   readonly onTogglePlayback: () => void;
+  readonly onShuttle: (direction: -1 | 0 | 1) => void;
+  readonly onStepFrame: (direction: -1 | 1) => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
 }) {
@@ -651,7 +693,10 @@ function PreviewSplit({
           project={project}
           timelineTimeSeconds={timelineTimeSeconds}
           playing={playing}
+          playbackRate={playbackRate}
           onTogglePlayback={onTogglePlayback}
+          onShuttle={onShuttle}
+          onStepFrame={onStepFrame}
           onTimelineTimeChange={onTimelineTimeChange}
           onPlaybackEnd={onPlaybackEnd}
         />

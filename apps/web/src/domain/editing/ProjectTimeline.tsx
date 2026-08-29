@@ -78,13 +78,16 @@ export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
+  readonly targetTrackId: string;
   readonly timelineTimeSeconds: number;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean) => void;
+  readonly onTargetTrack: (trackId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onTogglePlayback: () => void;
+  readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
@@ -103,7 +106,7 @@ interface RenderedTrack {
   readonly label: string;
   readonly ariaLabel: string;
   readonly clips: readonly TimelineClip[];
-  readonly controls: 'video' | 'audio' | 'none';
+  readonly controls: 'video' | 'audio' | 'text' | 'none';
   readonly icon: React.ReactNode;
   readonly track: TimelineTrack;
   readonly derivedAudio: boolean;
@@ -119,13 +122,16 @@ export function ProjectTimeline({
   document,
   selectedClipId,
   selectedClipIds,
+  targetTrackId,
   timelineTimeSeconds,
   reviewGroup,
   readOnly,
   onSelectClip,
+  onTargetTrack,
   onInspectClip,
   onSeek,
   onTogglePlayback,
+  onShuttle,
   onReplaceClip,
   onReplaceTrack,
   onReplaceTrackClips,
@@ -160,7 +166,8 @@ export function ProjectTimeline({
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
-  const rangeTargetTrack = selectedTrack ?? story;
+  const targetTrack = document.tracks.find((track) => track.id === targetTrackId) ?? story;
+  const rangeTargetTrack = targetTrack;
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
   const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
     const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
@@ -173,6 +180,7 @@ export function ProjectTimeline({
     document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
+  const editPlayheadSeconds = snapTimeToFrame(playheadSeconds, document.fps);
   const snapPoints = useMemo(() => [
     ...document.tracks.flatMap((track) => track.clips.flatMap((clip) => [
       { time: clip.placement.start, clipId: clip.id },
@@ -241,13 +249,15 @@ export function ProjectTimeline({
     && selectedTrackClipIds.size === 1
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
-    && playheadSeconds > selectedClip.placement.start + 1 / document.fps
-    && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
+    && editPlayheadSeconds > selectedClip.placement.start + 1 / document.fps
+    && editPlayheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
   const canDelete = !readOnly && selectedTrackGroups.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
   const clipboardTracks = clipboard === null
     ? []
-    : clipboard.groups.map((group) => document.tracks.find((track) => track.id === group.trackId) ?? null);
+    : clipboard.groups.length === 1
+      ? [targetTrack]
+      : clipboard.groups.map((group) => document.tracks.find((track) => track.id === group.trackId) ?? null);
   const canPaste = !readOnly
     && clipboard !== null
     && clipboardTracks.length === clipboard.groups.length
@@ -267,8 +277,8 @@ export function ProjectTimeline({
   const canRippleTrimToPlayhead = !readOnly
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
-    && playheadSeconds > selectedClip.placement.start + 1 / document.fps
-    && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
+    && editPlayheadSeconds > selectedClip.placement.start + 1 / document.fps
+    && editPlayheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
 
   const selectAdjacentChange = (direction: -1 | 1) => {
     if (directChanges.length === 0) return;
@@ -287,7 +297,7 @@ export function ProjectTimeline({
     const clips = splitRippleClip(
       selectedTrack.clips,
       selectedClip.id,
-      playheadSeconds,
+      editPlayheadSeconds,
       globalThis.crypto.randomUUID(),
     );
     onReplaceTrackClips(selectedTrack.id, clips);
@@ -320,15 +330,15 @@ export function ProjectTimeline({
   const pasteClipboard = () => {
     if (!canPaste || clipboard === null) return;
     const pastedIds: string[] = [];
-    const updates = clipboard.groups.map((group) => {
-      const track = document.tracks.find((candidate) => candidate.id === group.trackId)!;
+    const updates = clipboard.groups.map((group, groupIndex) => {
+      const track = clipboardTracks[groupIndex]!;
       const clipIds = group.clips.map(() => globalThis.crypto.randomUUID());
       pastedIds.push(...clipIds);
       return {
         trackId: track.id,
         clips: track.id === document.story_track_id
-          ? pasteRippleClipsAtTime(track.clips, group.clips, playheadSeconds, clipIds, globalThis.crypto.randomUUID())
-          : pasteFreePositionedClipsAtTime(track.clips, group.clips, playheadSeconds, clipIds),
+          ? pasteRippleClipsAtTime(track.clips, group.clips, editPlayheadSeconds, clipIds, globalThis.crypto.randomUUID())
+          : pasteFreePositionedClipsAtTime(track.clips, group.clips, editPlayheadSeconds, clipIds),
       };
     });
     onReplaceTrackClipGroups(updates);
@@ -364,7 +374,7 @@ export function ProjectTimeline({
     const number = document.markers.length + 1;
     onReplaceMarkers([...document.markers, {
       id: globalThis.crypto.randomUUID(),
-      time: playheadSeconds,
+      time: editPlayheadSeconds,
       label: t`标记 ${number}`,
       color: DEFAULT_TIMELINE_MARKER_COLOR,
     }]);
@@ -389,7 +399,7 @@ export function ProjectTimeline({
     const replacement = trimTimelineClip(
       selectedClip,
       edge,
-      playheadSeconds,
+      editPlayheadSeconds,
       document.fps,
       clipMediaDuration(selectedClip),
     );
@@ -438,6 +448,21 @@ export function ProjectTimeline({
           onTogglePlayback();
           return;
         }
+        if (event.key.toLowerCase() === 'j' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          onShuttle(-1);
+          return;
+        }
+        if (event.key.toLowerCase() === 'k' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          onShuttle(0);
+          return;
+        }
+        if (event.key.toLowerCase() === 'l' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          onShuttle(1);
+          return;
+        }
         if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
           copySelected();
@@ -460,12 +485,12 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'i' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
-          setRangeInSeconds(playheadSeconds);
+          setRangeInSeconds(editPlayheadSeconds);
           return;
         }
         if (event.key.toLowerCase() === 'o' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
-          setRangeOutSeconds(playheadSeconds);
+          setRangeOutSeconds(editPlayheadSeconds);
           return;
         }
         if (event.key.toLowerCase() === 'q' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -507,9 +532,10 @@ export function ProjectTimeline({
             { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
           ]}
         />
+        <span className="max-w-40 truncate text-2xs text-neutral-500"><Trans>目标：</Trans>{targetTrack?.name ?? '—'}</span>
         <span className="flex items-center overflow-hidden rounded-sm border border-divider text-2xs">
-          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => setRangeInSeconds(playheadSeconds)}>I</button>
-          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => setRangeOutSeconds(playheadSeconds)}>O</button>
+          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => setRangeInSeconds(editPlayheadSeconds)}>I</button>
+          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => setRangeOutSeconds(editPlayheadSeconds)}>O</button>
           {rangeStart === null || rangeEnd === null ? null : (
             <span className="border-l border-divider px-2 font-mono text-accent-text">{formatMillisecondTimecode(rangeStart)}–{formatMillisecondTimecode(rangeEnd)}</span>
           )}
@@ -671,6 +697,8 @@ export function ProjectTimeline({
               onSnapChange={setSnapGuideTime}
               nonStoryTrackIds={nonStoryTrackIds}
               onReorderTrack={reorderTrack}
+              targetTrackId={targetTrackId}
+              onTargetTrack={onTargetTrack}
             />
           ))}
           <TimelineMarkerRow
@@ -733,6 +761,19 @@ export function ProjectTimeline({
             event.currentTarget.releasePointerCapture?.(event.pointerId);
           }}
           onKeyDown={(event) => {
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              const editPoints = [...new Set([
+                0,
+                document.duration_seconds,
+                ...clips.flatMap((clip) => [clip.placement.start, clip.placement.start + clip.placement.duration]),
+              ])].sort((left, right) => left - right);
+              const next = event.key === 'ArrowDown'
+                ? editPoints.find((time) => time > playheadSeconds + 0.5 / document.fps)
+                : [...editPoints].reverse().find((time) => time < playheadSeconds - 0.5 / document.fps);
+              if (next !== undefined) onSeek(next);
+              return;
+            }
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
             event.preventDefault();
             const direction = event.key === 'ArrowRight' ? 1 : -1;
@@ -834,7 +875,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
       label: track.name,
       ariaLabel: track.name,
       clips: track.clips,
-      controls: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'none' : 'video',
+      controls: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'text' : 'video',
       icon: track.kind === 'audio' ? <Volume2 className="size-4" /> : <Camera className="size-4" />,
       track,
       derivedAudio: false,
@@ -843,7 +884,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -865,6 +906,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onSnapChange: (time: number | null) => void;
   readonly nonStoryTrackIds: readonly string[];
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
+  readonly targetTrackId: string;
+  readonly onTargetTrack: (trackId: string) => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   return (
@@ -881,6 +924,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         canMoveUp={!track.derivedAudio && nonStoryIndex > 0}
         canMoveDown={!track.derivedAudio && nonStoryIndex >= 0 && nonStoryIndex < nonStoryTrackIds.length - 1}
         onMoveTrack={onReorderTrack}
+        targeted={targetTrackId === track.track.id}
+        onTargetTrack={onTargetTrack}
       />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         {track.track.id === storyTrackId ? (
@@ -934,7 +979,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.ghostChanges === next.ghostChanges
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds
-  && previous.nonStoryTrackIds === next.nonStoryTrackIds);
+  && previous.nonStoryTrackIds === next.nonStoryTrackIds
+  && previous.targetTrackId === next.targetTrackId);
 
 const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
   readonly clip: TimelineClip;
@@ -1421,7 +1467,7 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, onReplaceTrack, onRemoveTrack, onMoveTrack }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
@@ -1430,23 +1476,34 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly removable?: boolean | undefined;
   readonly canMoveUp?: boolean | undefined;
   readonly canMoveDown?: boolean | undefined;
+  readonly targeted?: boolean | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
   readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
+  readonly onTargetTrack?: ((trackId: string) => void) | undefined;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2 border-r border-divider py-2 pl-12 pr-2 text-xs font-medium">
       {controls === 'none' ? (
         <span className="flex-none text-neutral-600">{icon}</span>
       ) : (
-        <span className="grid h-[var(--h-ctl-sm)] w-7 flex-none place-items-center rounded-sm bg-accent-600 font-mono text-2xs font-semibold text-bg">
-          {controls === 'video' ? 'V1' : 'A1'}
-        </span>
+        <button
+          type="button"
+          className={cn(
+            'grid h-[var(--h-ctl-sm)] w-7 flex-none place-items-center rounded-sm border font-mono text-2xs font-semibold',
+            targeted ? 'border-accent-600 bg-accent-600 text-bg' : 'border-divider bg-bg text-neutral-500 hover:bg-neutral-100',
+          )}
+          aria-label={t`设为目标轨道 ${label}`}
+          aria-pressed={targeted}
+          onClick={() => track === undefined ? undefined : onTargetTrack?.(track.id)}
+        >
+          {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : 'T1'}
+        </button>
       )}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {track === undefined ? null : (
         <span className="flex flex-none items-center text-neutral-500">
-          {controls === 'none' ? null : (
+          {controls === 'none' || controls === 'text' ? null : (
             <button
               type="button"
               className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.muted && 'text-fail-text')}

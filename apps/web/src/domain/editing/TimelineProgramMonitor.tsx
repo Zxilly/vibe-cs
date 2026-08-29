@@ -1,6 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { LoaderCircle, Pause, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LoaderCircle, Pause, Play } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
@@ -18,7 +18,10 @@ export interface TimelineProgramMonitorProps {
   readonly project: Project;
   readonly timelineTimeSeconds: number;
   readonly playing: boolean;
+  readonly playbackRate: number;
   readonly onTogglePlayback: () => void;
+  readonly onShuttle: (direction: -1 | 0 | 1) => void;
+  readonly onStepFrame: (direction: -1 | 1) => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
 }
@@ -35,7 +38,10 @@ export function TimelineProgramMonitor({
   project,
   timelineTimeSeconds,
   playing,
+  playbackRate,
   onTogglePlayback,
+  onShuttle,
+  onStepFrame,
   onTimelineTimeChange,
   onPlaybackEnd,
 }: TimelineProgramMonitorProps) {
@@ -46,8 +52,10 @@ export function TimelineProgramMonitor({
     project.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
-  const selectedIndex = clips.findIndex((clip) => targetTimelineTime >= clip.placement.start
-    && targetTimelineTime < clip.placement.start + clip.placement.duration);
+  const selectedIndex = targetTimelineTime >= project.document.duration_seconds - 0.5 / project.document.fps
+    ? clips.length - 1
+    : clips.findIndex((clip) => targetTimelineTime >= clip.placement.start
+      && targetTimelineTime < clip.placement.start + clip.placement.duration);
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const targetId = selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
@@ -55,6 +63,12 @@ export function TimelineProgramMonitor({
     ? 0
     : targetTimelineTime - selected.placement.start;
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
+  const timelineTimeRef = useRef(targetTimelineTime);
+  const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
+  const onPlaybackEndRef = useRef(onPlaybackEnd);
+  timelineTimeRef.current = targetTimelineTime;
+  onTimelineTimeChangeRef.current = onTimelineTimeChange;
+  onPlaybackEndRef.current = onPlaybackEnd;
 
   const media = useMemo(() => {
     const result: PreviewMedia[] = [];
@@ -70,6 +84,26 @@ export function TimelineProgramMonitor({
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
   }, [targetId]);
+
+  useEffect(() => {
+    if (!playing || playbackRate >= 0) return undefined;
+    let frame = 0;
+    let previous = performance.now();
+    const tick = (now: number) => {
+      const elapsed = Math.max(0, now - previous) / 1_000;
+      previous = now;
+      const next = Math.max(0, timelineTimeRef.current + elapsed * playbackRate);
+      timelineTimeRef.current = next;
+      onTimelineTimeChangeRef.current(next);
+      if (next <= 0) {
+        onPlaybackEndRef.current();
+        return;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playbackRate, playing]);
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg" aria-label={t`视频预览`}>
@@ -100,6 +134,7 @@ export function TimelineProgramMonitor({
                   target={isTarget}
                   presented={isPresented}
                   playing={playing && isTarget && isPresented}
+                  transportRate={playbackRate}
                   onTimelineTimeChange={(sourceSeconds) => {
                     const timelineSeconds = clip.placement.start
                       + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
@@ -130,12 +165,24 @@ export function TimelineProgramMonitor({
             <button
               type="button"
               className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
-              aria-label={playing ? t`暂停时间轴` : t`播放时间轴`}
-              onClick={onTogglePlayback}
+              aria-label={t`上一帧`}
+              onClick={() => onStepFrame(-1)}
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+            </button>
+            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
+            <button
+              type="button"
+              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+              aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
+              onClick={playing ? () => onShuttle(0) : onTogglePlayback}
             >
               {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
             </button>
+            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
+            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
             <span className="min-w-0 truncate font-medium">{selected?.name}</span>
+            <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
             <span className="ml-auto font-mono">{formatMillisecondTimecode(targetTimelineTime)}</span>
           </div>
         </div>
@@ -152,6 +199,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   target,
   presented,
   playing,
+  transportRate,
   onTimelineTimeChange,
   onEnded,
   onReady,
@@ -163,6 +211,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly target: boolean;
   readonly presented: boolean;
   readonly playing: boolean;
+  readonly transportRate: number;
   readonly onTimelineTimeChange: (sourceSeconds: number) => void;
   readonly onEnded: () => void;
   readonly onReady: () => void;
@@ -195,8 +244,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   useEffect(() => {
     const video = videoRef.current;
     if (video === null) return;
-    video.playbackRate = clip.placement.speed;
-    if (!playing) {
+    video.playbackRate = Math.min(16, clip.placement.speed * Math.max(1, transportRate));
+    if (!playing || transportRate < 0) {
       if (!video.paused) video.pause();
       return;
     }
@@ -206,7 +255,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     return () => {
       if (!video.paused) video.pause();
     };
-  }, [clip.placement.speed, playing]);
+  }, [clip.placement.speed, playing, transportRate]);
 
   return (
     <video
@@ -248,7 +297,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   && previous.offsetSeconds === next.offsetSeconds
   && previous.target === next.target
   && previous.presented === next.presented
-  && previous.playing === next.playing);
+  && previous.playing === next.playing
+  && previous.transportRate === next.transportRate);
 
 function sourceTime(clip: TimelineClip, offsetSeconds: number): number {
   const placement = clip.placement;

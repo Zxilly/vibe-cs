@@ -574,6 +574,26 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('pastes a single clipboard group to the explicitly targeted track', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '复制所选片段' }));
+    const musicTarget = screen.getByRole('button', { name: '设为目标轨道 Music' });
+    fireEvent.click(musicTarget);
+    expect(musicTarget.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('目标：Music')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '在播放头粘贴片段' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        clips: [expect.objectContaining({ name: 'A', placement: expect.objectContaining({ start: 0, duration: 5 }) })],
+      }],
+    })));
+  });
+
 
   it('undoes the latest completed human Change Group', async () => {
     const revertProjectChangeGroup = vi.fn(() => Promise.resolve({
@@ -654,7 +674,7 @@ describe('unified project workspace', () => {
     fireEvent.loadedData(first);
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     await waitFor(() => expect(play).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: '暂停时间轴' }));
+    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
 
     for (let second = 0; second < 5; second += 1) {
       fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
@@ -667,6 +687,87 @@ describe('unified project workspace', () => {
       expect(active?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
       expect(active?.currentTime).toBe(1);
     });
+  });
+
+  it('uses one J/K/L transport with frame and edit-point navigation', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    const play = vi.fn(() => Promise.resolve());
+    const pause = vi.fn();
+    Object.defineProperties(preview, {
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: pause },
+    });
+    fireEvent.loadedData(preview);
+
+    const timeline = screen.getByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'l' });
+    fireEvent.keyDown(timeline, { key: 'l' });
+    await waitFor(() => expect(screen.getByText('2.0x')).toBeTruthy());
+    expect(preview.playbackRate).toBe(2);
+
+    fireEvent.keyDown(timeline, { key: 'k' });
+    expect(screen.getByText('0.0x')).toBeTruthy();
+
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowDown' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
+    fireEvent.keyDown(playhead, { key: 'ArrowDown' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(10);
+    expect(screen.getByRole('button', { name: 'J 反向播放' })).toBeTruthy();
+    fireEvent.keyDown(playhead, { key: 'ArrowUp' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
+    fireEvent.keyDown(playhead, { key: 'ArrowUp' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '下一帧' }));
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeCloseTo(1 / 60);
+    fireEvent.click(screen.getByRole('button', { name: '上一帧' }));
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
+
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'j' });
+    await waitFor(() => expect(screen.getByText('-1.0x')).toBeTruthy());
+    fireEvent.keyDown(timeline, { key: 'k' });
+  });
+
+  it('frame-snaps edits made from a continuous playback position', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    Object.defineProperties(preview, {
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      currentTime: { configurable: true, writable: true, value: 1.007 },
+    });
+    fireEvent.loadedData(preview);
+    preview.currentTime = 1.007;
+    fireEvent.timeUpdate(preview);
+    fireEvent.click(screen.getByRole('button', { name: '在播放头添加标记' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_markers',
+        markers: [expect.objectContaining({ time: 1 })],
+      }],
+    })));
   });
 
   it('shows the whole editing document without mode-switch chrome', async () => {

@@ -11,6 +11,7 @@ final result: passed
 - Overwrite and marker pass: `target/editor-iteration/05-overwrite-marker.png`.
 - In/Out range pass: `target/editor-iteration/06-in-out.png`.
 - Ripple trim pass: `target/editor-iteration/07-ripple-trim.png`.
+- Transport and track-target pass: `target/editor-iteration/08-transport-target.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -38,6 +39,9 @@ No actionable P0, P1, or P2 mismatch remains.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
 - I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
 - Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
+- One Timeline Transport now owns J/K/L shuttle state, 1×/2×/4× direction changes, pause, frame stepping, and previous/next edit-point navigation. Forward playback drives the warm media pool; reverse playback advances the same timeline through an rAF clock without assigning an invalid negative HTML video rate.
+- Exact sequence end retains the last clip and presented frame, so transport controls remain available for reverse playback. Continuous playback time is frame-snapped only at edit commit seams, keeping monitoring smooth while preventing sub-frame placements and markers.
+- V/A/T track-head badges are real target controls. Single-group paste and In/Out extraction use the explicit target; multi-track clipboard groups retain their original tracks. Targeting remains navigational while an Agent edit lease makes mutation read-only.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -67,6 +71,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A second live pass reordered the two Story clips as revision 27, then held a clip five pixels off its neighbour. The editor visibly snapped it back to `00:14.000`; releasing the unchanged placement created no extra revision. Page errors remained empty.
 - A third live pass overwrote the first 15.767 seconds at revision 28. Sequence duration stayed exactly 28 seconds and the covered Hook tail became 12.233 seconds without ripple. Revisions 29 and 30 added a marker and edited it to `开场` at `00:03.000`; page errors remained empty.
 - A fourth live pass marked `00:00.000–00:01.000` and extracted it as revision 31, reducing the sequence to 27 seconds and clearing the range. Q then ripple-trimmed another second as revision 32, producing a 13.8-second first clip and 26-second sequence. Page errors remained empty.
+- A fifth live pass shuttled forward at 2× to the 26-second endpoint, retained the last frame and controls, then reversed across clips to 18.71 seconds at −1×. A new audio track became the explicit target and received the selected Build clip at frame-aligned 2.600 seconds as revision 34. Page errors remained empty.
 
 ## Comparison history
 
@@ -84,10 +89,11 @@ No actionable P0, P1, or P2 mismatch remains.
 12. `target/editor-iteration/05-overwrite-marker.png`: the live sequence preserves duration after overwrite and renders the edited `开场` marker at three seconds.
 13. `target/editor-iteration/06-in-out.png`: the one-second In/Out overlay shares the ruler and all track rows without intercepting editing.
 14. `target/editor-iteration/07-ripple-trim.png`: the live Q trim closes the Story gap while keeping the playhead and marker independent.
+15. `target/editor-iteration/08-transport-target.png`: the Program Monitor exposes the shared shuttle controls while an independently targeted audio track receives a frame-aligned paste.
 
 ## Verification
 
-- Focused timeline editing and workbench interaction tests: 45 passed.
-- Full web suite: 256 files and 2900 tests passed.
+- Focused Project workbench interaction tests: 35 passed.
+- Full web suite: 256 files and 2903 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

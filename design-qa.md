@@ -21,6 +21,7 @@ final result: passed
 - Marquee auto-scroll pass: `target/editor-iteration/15-marquee-scroll.png`.
 - Linked selection pass: `target/editor-iteration/16-linked-selection.png`.
 - Linked group trim pass: `target/editor-iteration/17-linked-trim.png`.
+- Transform keyframe pass: `target/editor-iteration/18-transform-keyframes.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -63,6 +64,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Active marquee gestures reuse bounded edge velocity on both axes. Their box and clip intersections are resolved in timeline content coordinates rather than stale client rectangles, so clips entering through horizontal or vertical scroll join the selection immediately. Window mouse-up clears the box and both scroll loops without a Project edit.
 - Canonical `link_group_id` now drives Linked Selection across click, Shift, Ctrl/Cmd, marquee, and target-track select-all. Ctrl/Cmd+L or the visible action atomically links/unlinks selected clips. Dragging any member submits Story ripple reordering and free-track movement together in one multi-track Project Patch; disabling Linked Selection leaves link data intact but stops automatic expansion.
 - Multi-selection trim computes one frame-snapped delta constrained by every member's source start, media end, and one-frame minimum. Story members apply that delta then reflow once; free-track members keep absolute semantics. Linked cross-track trims submit all affected tracks in one Project Patch, and start extension can no longer produce a negative `source_in`.
+- Clip Inspector now exposes renderer-supported Transform properties by track kind and authors canonical linear keyframes at clip-local frame times. Same-property frames are unique and sorted; values hold before the first keyframe, interpolate linearly, and hold after the last exactly like the production FFmpeg expression. Timeline diamonds group properties at one time and seek the shared transport when activated.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -102,6 +104,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - An eleventh live pass began a marquee at vertical scrollTop 104 on the empty video track and held at the upper-right edge under 2.25× zoom. It reached scrollLeft 1234 and scrollTop 0, expanded to 1429×279px in content space, and selected both Story clips plus the independent audio clip. Mouse-up stopped both axes, removed the box, preserved revision 41, and left page errors empty.
 - A twelfth live pass linked Story Build and independent-audio Build as one revision 42. Selecting Story Build after Hook expanded to exactly the two linked Build clips. Dragging the Story member then reordered Story to Hook→Build and moved the audio member in the same revision 43, with page errors empty.
 - A thirteenth live pass dragged the linked audio primary's start handle 30px. Both Story Build and audio Build changed from 13.8 to 12.9 seconds; Story remained ripple-closed after Hook while the audio absolute start moved right by the same delta. The two track replacements committed only revision 44, with page errors empty.
+- A fourteenth live pass authored Story Build X keyframes at clip-local 0s=100 and 1s=200 through Effect Controls, committing one revision 45. Two canonical timeline diamonds appeared; activating the 0s diamond sought global transport to the Build start at 12.2333333 seconds. Page errors remained empty.
 
 ## Comparison history
 
@@ -129,10 +132,11 @@ No actionable P0, P1, or P2 mismatch remains.
 22. `target/editor-iteration/15-marquee-scroll.png`: one content-space marquee grows across horizontal and vertical pages while newly revealed clips join the selection.
 23. `target/editor-iteration/16-linked-selection.png`: the linked Story and audio members remain selected while one gesture prepares their cross-track move.
 24. `target/editor-iteration/17-linked-trim.png`: the linked Story and free-track Build clips preview the same constrained start trim before their single commit.
+25. `target/editor-iteration/18-transform-keyframes.png`: two keyframe diamonds sit on the canonical Build clip while Program Monitor and timeline share its global transport position.
 
 ## Verification
 
-- Focused timeline editing and Project workbench tests: 76 passed.
-- Full web suite: 256 files and 2926 tests passed.
+- Focused keyframe editing and Project workbench tests: 53 passed.
+- Full web suite: 257 files and 2932 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

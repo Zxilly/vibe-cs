@@ -1037,6 +1037,35 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('trims linked clips across Story and free tracks with one constrained delta', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: linkedProject(), applyProjectPatch });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    const startHandle = screen.getByRole('separator', { name: '裁切片段起点' });
+    fireEvent.pointerDown(startHandle, { pointerId: 93, button: 0, clientX: 200 });
+    fireEvent.pointerMove(startHandle, { pointerId: 93, clientX: 250 });
+    fireEvent.pointerUp(startHandle, { pointerId: 93, clientX: 250 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations;
+    expect(operations).toHaveLength(2);
+    const storyOperation = operations?.[0];
+    const audioOperation = operations?.[1];
+    if (storyOperation?.op !== 'replace_track_clips' || audioOperation?.op !== 'replace_track_clips') {
+      throw new Error('expected linked track replacements');
+    }
+    expect(storyOperation.track_id).toBe(STORY_ID);
+    expect(storyOperation.clips[0]?.placement).toEqual(expect.objectContaining({ start: 0, source_in: expect.any(Number) }));
+    expect(storyOperation.clips[0]?.placement.source_in).toBeGreaterThan(0);
+    expect(storyOperation.clips[1]?.placement.start).toBeLessThan(5);
+    expect(audioOperation.track_id).toBe('00000000-0000-4000-8000-000000000013');
+    expect(audioOperation.clips[0]?.placement.start).toBeGreaterThan(12);
+    expect(audioOperation.clips[0]?.placement.source_in).toBeGreaterThan(0);
+    clientWidth.mockRestore();
+  });
+
   it('drags selected Story clips as one ordered ripple group', async () => {
     const project: Project = {
       ...PROJECT,

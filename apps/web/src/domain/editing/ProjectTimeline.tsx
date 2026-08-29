@@ -62,6 +62,8 @@ import {
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
+  trimFreeClipGroup,
+  trimRippleClipGroup,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
   removeTimelineRange,
@@ -70,6 +72,7 @@ import {
 } from './timelineEditing';
 import {
   clipMediaDuration,
+  constrainClipGroupTrimDelta,
   adjustLinearGainByTrackDelta,
   dbToLinearGain,
   gainToTrackPercent,
@@ -1327,6 +1330,27 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             scrollLeftRef={scrollLeftRef}
             onDragAutoScroll={onDragAutoScroll}
             onReplace={(replacement, mode) => {
+              if ((mode === 'start' || mode === 'end')
+                && selectedClipIds.has(replacement.id)
+                && selectedTrackGroups.reduce((total, group) => total + group.clips.length, 0) > 1) {
+                const original = track.track.clips.find((candidate) => candidate.id === replacement.id);
+                if (original === undefined) return;
+                const requestedDelta = mode === 'start'
+                  ? replacement.placement.start - original.placement.start
+                  : replacement.placement.duration - original.placement.duration;
+                const allSelected = selectedTrackGroups.flatMap((group) => group.clips);
+                const delta = constrainClipGroupTrimDelta(allSelected, mode, requestedDelta, fps);
+                onReplaceTrackClipGroups(selectedTrackGroups.map((group) => {
+                  const ids = new Set(group.clips.map((candidate) => candidate.id));
+                  return {
+                    trackId: group.track.id,
+                    clips: group.track.id === storyTrackId
+                      ? trimRippleClipGroup(group.track.clips, ids, mode, delta, fps)
+                      : trimFreeClipGroup(group.track.clips, ids, mode, delta, fps),
+                  };
+                }));
+                return;
+              }
               if (mode === 'move'
                 && selectedClipIds.has(replacement.id)
                 && selectedTrackGroups.length > 1) {

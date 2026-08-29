@@ -50,6 +50,7 @@ import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import { ReviewPanel } from '../design/review';
 import {
+  canAnimateTransformProperty,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
@@ -1011,6 +1012,7 @@ function ClipInspector({
           {visualProperties.map(({ property, label, step, min, max }) => {
             const propertyKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === property);
             const current = clipKeyframeAtTime(draft, property, localTime, fps);
+            const animationAllowed = canAnimateTransformProperty(draft, property);
             const fallback = draft.transform[property];
             const value = evaluateClipKeyframeProperty(draft, property, localTime, fallback);
             return (
@@ -1022,7 +1024,7 @@ function ClipInspector({
                   {...(min === undefined ? {} : { min })}
                   {...(max === undefined ? {} : { max })}
                   className="min-w-0 border border-divider px-2 py-1.5 font-mono"
-                  disabled={readOnly}
+                  disabled={readOnly || (!animationAllowed && (property === 'rotation' || propertyKeyframes.length > 0))}
                   value={value}
                   onChange={(event) => {
                     const nextValue = Number(event.currentTarget.value);
@@ -1040,7 +1042,7 @@ function ClipInspector({
                     'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
                     current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
                   )}
-                  disabled={readOnly}
+                  disabled={readOnly || (current === null && !animationAllowed)}
                   aria-label={current === null ? t`在播放头添加 ${label} 关键帧` : t`删除播放头的 ${label} 关键帧`}
                   onClick={() => setDraft(current === null
                     ? upsertClipKeyframe(draft, property, localTime, value, globalThis.crypto.randomUUID(), fps)
@@ -1051,6 +1053,9 @@ function ClipInspector({
               </div>
             );
           })}
+          {draft.keyframes.some((keyframe) => ['scale_x', 'scale_y', 'rotation'].includes(keyframe.property))
+            ? <p className="mt-2 text-2xs text-neutral-500"><Trans>动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。</Trans></p>
+            : null}
         </section>
       )}
       {(['transition_in', 'transition_out'] as const).map((field) => (

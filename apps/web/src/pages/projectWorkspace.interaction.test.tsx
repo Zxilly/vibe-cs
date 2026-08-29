@@ -900,6 +900,59 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('scales and rotates the selected Program clip with dedicated handles', async () => {
+    const scalePatch = vi.fn();
+    const scaleRender = renderWorkspace({
+      project: RECORDED_PROJECT,
+      applyProjectPatch: scalePatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+    const stage = await screen.findByLabelText('节目画布');
+    vi.spyOn(stage, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 960, bottom: 540, left: 0, width: 960, height: 540, toJSON: () => ({}),
+    });
+    const scale = screen.getByRole('slider', { name: '缩放节目画面 A' });
+    fireEvent.pointerDown(scale, { pointerId: 102, button: 0, clientX: 900, clientY: 500 });
+    fireEvent.pointerMove(scale, { pointerId: 102, clientX: 942, clientY: 526 });
+    await waitFor(() => expect(Number((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewScaleX)).toBeGreaterThan(1.09));
+    expect(scalePatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(scale, { pointerId: 102, clientX: 942, clientY: 526 });
+    await waitFor(() => expect(scalePatch).toHaveBeenCalledTimes(1));
+
+    scaleRender.unmount();
+    const rotationPatch = vi.fn();
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      applyProjectPatch: rotationPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+    const rotationStage = await screen.findByLabelText('节目画布');
+    vi.spyOn(rotationStage, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 960, bottom: 540, left: 0, width: 960, height: 540, toJSON: () => ({}),
+    });
+    const rotation = screen.getByRole('slider', { name: '旋转节目画面 A' });
+    fireEvent.pointerDown(rotation, { pointerId: 103, button: 0, clientX: 800, clientY: 270 });
+    fireEvent.pointerMove(rotation, { pointerId: 103, clientX: 480, clientY: 500 });
+    await waitFor(() => expect(Number((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewRotation)).toBeCloseTo(90));
+    expect(rotationPatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(rotation, { pointerId: 103, clientX: 480, clientY: 500 });
+    await waitFor(() => expect(rotationPatch).toHaveBeenCalledTimes(1));
+    expect(rotationPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip: expect.objectContaining({ transform: expect.objectContaining({ rotation: expect.closeTo(90, 5) }) }),
+      })],
+    }));
+  });
+
   it('uses one J/K/L transport with frame and edit-point navigation', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

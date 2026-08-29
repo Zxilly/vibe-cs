@@ -267,8 +267,26 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     readonly stageWidth: number;
     readonly stageHeight: number;
   } | null>(null);
+  const scaleGesture = useRef<{
+    readonly pointerId: number;
+    readonly transform: typeof evaluatedTransform;
+    readonly centerX: number;
+    readonly centerY: number;
+    readonly distance: number;
+  } | null>(null);
+  const rotationGesture = useRef<{
+    readonly pointerId: number;
+    readonly transform: typeof evaluatedTransform;
+    readonly centerX: number;
+    readonly centerY: number;
+    readonly angle: number;
+  } | null>(null);
   const windowMouseUpRef = useRef<(() => void) | null>(null);
   const transform = draftTransform ?? evaluatedTransform;
+  const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
+  const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
+  const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
+  const canRotateDirectly = !hasScaleKeyframes;
 
   const seekLatest = () => {
     const video = videoRef.current;
@@ -311,21 +329,59 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
   }, []);
 
+  const clearWindowMouseUp = () => {
+    if (windowMouseUpRef.current === null) return;
+    window.removeEventListener('mouseup', windowMouseUpRef.current);
+    windowMouseUpRef.current = null;
+  };
+
   const commitTransformMove = () => {
     const gesture = moveGesture.current;
     const draft = draftTransformRef.current;
     if (gesture === null || draft === null) return;
     moveGesture.current = null;
-    if (windowMouseUpRef.current !== null) {
-      window.removeEventListener('mouseup', windowMouseUpRef.current);
-      windowMouseUpRef.current = null;
-    }
+    clearWindowMouseUp();
     setDraftTransform(null);
     if (Math.abs(draft.x - gesture.transform.x) <= 1e-6 && Math.abs(draft.y - gesture.transform.y) <= 1e-6) return;
     onReplaceClip(setClipTransformAtTime(
       clip,
       offsetSeconds,
       { x: draft.x, y: draft.y },
+      fps,
+      () => globalThis.crypto.randomUUID(),
+    ));
+  };
+
+  const commitTransformScale = () => {
+    const gesture = scaleGesture.current;
+    const draft = draftTransformRef.current;
+    if (gesture === null || draft === null) return;
+    scaleGesture.current = null;
+    clearWindowMouseUp();
+    setDraftTransform(null);
+    if (Math.abs(draft.scaleX - gesture.transform.scaleX) <= 1e-6
+      && Math.abs(draft.scaleY - gesture.transform.scaleY) <= 1e-6) return;
+    onReplaceClip(setClipTransformAtTime(
+      clip,
+      offsetSeconds,
+      { scale_x: draft.scaleX, scale_y: draft.scaleY },
+      fps,
+      () => globalThis.crypto.randomUUID(),
+    ));
+  };
+
+  const commitTransformRotation = () => {
+    const gesture = rotationGesture.current;
+    const draft = draftTransformRef.current;
+    if (gesture === null || draft === null) return;
+    rotationGesture.current = null;
+    clearWindowMouseUp();
+    setDraftTransform(null);
+    if (Math.abs(draft.rotation - gesture.transform.rotation) <= 1e-6) return;
+    onReplaceClip(setClipTransformAtTime(
+      clip,
+      offsetSeconds,
+      { rotation: draft.rotation },
       fps,
       () => globalThis.crypto.randomUUID(),
     ));
@@ -376,8 +432,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       onEnded={onEnded}
     />
     {editable ? (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className="absolute inset-0 z-30 touch-none cursor-move border border-accent-400 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         style={{
           transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
@@ -427,8 +484,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         }}
         onPointerCancel={() => {
           moveGesture.current = null;
-          if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
-          windowMouseUpRef.current = null;
+          clearWindowMouseUp();
           draftTransformRef.current = null;
           setDraftTransform(null);
         }}
@@ -446,7 +502,148 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
             () => globalThis.crypto.randomUUID(),
           ));
         }}
-      />
+      >
+        {canRotateDirectly ? (
+          <span
+            role="slider"
+            tabIndex={0}
+            aria-label={t`旋转节目画面 ${clip.name}`}
+            aria-valuemin={-360}
+            aria-valuemax={360}
+            aria-valuenow={transform.rotation}
+            aria-valuetext={`${transform.rotation.toFixed(1)}°`}
+            className="absolute left-1/2 top-2 z-40 size-4 -translate-x-1/2 rounded-full border border-accent-600 bg-bg cursor-crosshair outline-none focus-visible:ring-2 focus-visible:ring-accent-500 before:absolute before:left-1/2 before:top-full before:h-4 before:border-l before:border-accent-500"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const stage = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+              if (stage === undefined) return;
+              const centerX = stage.left + stage.width / 2 + transform.x / projectWidth * stage.width;
+              const centerY = stage.top + stage.height / 2 + transform.y / projectHeight * stage.height;
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+              rotationGesture.current = {
+                pointerId: event.pointerId,
+                transform,
+                centerX,
+                centerY,
+                angle: Math.atan2(event.clientY - centerY, event.clientX - centerX),
+              };
+              draftTransformRef.current = transform;
+              setDraftTransform(transform);
+              const finishFromWindow = () => commitTransformRotation();
+              windowMouseUpRef.current = finishFromWindow;
+              window.addEventListener('mouseup', finishFromWindow, { once: true });
+            }}
+            onPointerMove={(event) => {
+              const gesture = rotationGesture.current;
+              if (gesture === null || gesture.pointerId !== event.pointerId) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const angle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
+              const next = { ...gesture.transform, rotation: gesture.transform.rotation + (angle - gesture.angle) * 180 / Math.PI };
+              draftTransformRef.current = next;
+              setDraftTransform(next);
+            }}
+            onPointerUp={(event) => {
+              if (rotationGesture.current?.pointerId !== event.pointerId) return;
+              event.preventDefault();
+              event.stopPropagation();
+              commitTransformRotation();
+              event.currentTarget.releasePointerCapture?.(event.pointerId);
+            }}
+            onPointerCancel={() => {
+              rotationGesture.current = null;
+              clearWindowMouseUp();
+              draftTransformRef.current = null;
+              setDraftTransform(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+              event.preventDefault();
+              event.stopPropagation();
+              const rotation = transform.rotation + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 15 : 1);
+              onReplaceClip(setClipTransformAtTime(clip, offsetSeconds, { rotation }, fps, () => globalThis.crypto.randomUUID()));
+            }}
+          />
+        ) : null}
+        {canScaleDirectly ? (
+          <span
+            role="slider"
+            tabIndex={0}
+            aria-label={t`缩放节目画面 ${clip.name}`}
+            aria-valuemin={0.01}
+            aria-valuemax={10}
+            aria-valuenow={Math.max(transform.scaleX, transform.scaleY)}
+            aria-valuetext={`${Math.max(transform.scaleX, transform.scaleY).toFixed(2)}×`}
+            className="absolute bottom-1 right-1 z-40 size-4 rounded-sm border border-accent-600 bg-bg cursor-nwse-resize outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const stage = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+              if (stage === undefined) return;
+              const centerX = stage.left + stage.width / 2 + transform.x / projectWidth * stage.width;
+              const centerY = stage.top + stage.height / 2 + transform.y / projectHeight * stage.height;
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+              scaleGesture.current = {
+                pointerId: event.pointerId,
+                transform,
+                centerX,
+                centerY,
+                distance: Math.max(1, Math.hypot(event.clientX - centerX, event.clientY - centerY)),
+              };
+              draftTransformRef.current = transform;
+              setDraftTransform(transform);
+              const finishFromWindow = () => commitTransformScale();
+              windowMouseUpRef.current = finishFromWindow;
+              window.addEventListener('mouseup', finishFromWindow, { once: true });
+            }}
+            onPointerMove={(event) => {
+              const gesture = scaleGesture.current;
+              if (gesture === null || gesture.pointerId !== event.pointerId) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const distance = Math.hypot(event.clientX - gesture.centerX, event.clientY - gesture.centerY);
+              const factor = distance / gesture.distance;
+              const next = {
+                ...gesture.transform,
+                scaleX: Math.min(10, Math.max(0.01, gesture.transform.scaleX * factor)),
+                scaleY: Math.min(10, Math.max(0.01, gesture.transform.scaleY * factor)),
+              };
+              draftTransformRef.current = next;
+              setDraftTransform(next);
+            }}
+            onPointerUp={(event) => {
+              if (scaleGesture.current?.pointerId !== event.pointerId) return;
+              event.preventDefault();
+              event.stopPropagation();
+              commitTransformScale();
+              event.currentTarget.releasePointerCapture?.(event.pointerId);
+            }}
+            onPointerCancel={() => {
+              scaleGesture.current = null;
+              clearWindowMouseUp();
+              draftTransformRef.current = null;
+              setDraftTransform(null);
+            }}
+            onKeyDown={(event) => {
+              if (!['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(event.key)) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const direction = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 1 : -1;
+              const delta = direction * (event.shiftKey ? 0.1 : 0.01);
+              onReplaceClip(setClipTransformAtTime(
+                clip,
+                offsetSeconds,
+                { scale_x: Math.min(10, Math.max(0.01, transform.scaleX + delta)), scale_y: Math.min(10, Math.max(0.01, transform.scaleY + delta)) },
+                fps,
+                () => globalThis.crypto.randomUUID(),
+              ));
+            }}
+          />
+        ) : null}
+      </div>
     ) : null}
     </>
   );

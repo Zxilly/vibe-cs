@@ -429,6 +429,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-canonical-volume={audio.canonicalVolume}
       data-preview-fade-factor={audio.fadeFactor}
       data-preview-output-volume={audio.outputVolume}
+      data-preview-source-time={desiredTimeRef.current}
       data-preview-effects={previewFilter.kinds.join(',')}
       data-preview-filter={previewFilter.filter}
       onLoadedMetadata={seekLatest}

@@ -158,6 +158,7 @@ export function ProjectWorkspacePage() {
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
@@ -243,6 +244,10 @@ export function ProjectWorkspacePage() {
     setTimelineTimeSeconds((time) => Math.min(duration, Math.max(0, time)));
   }, [project.data?.document.duration_seconds]);
 
+  useEffect(() => {
+    setTimelinePreviewClips([]);
+  }, [project.data?.revision]);
+
   if (projectId === 'new' || project.isPending) {
     return (
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
@@ -268,14 +273,15 @@ export function ProjectWorkspacePage() {
   }
 
   const current = project.data;
+  const previewProject = projectWithPreviewClips(current, timelinePreviewClips);
   const readOnly = lease.data !== null && lease.data !== undefined;
   const selected = findClip(current, selectedClipId);
   const transportTimeSeconds = Math.min(
     current.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
-  const transportClip = current.document.tracks
-    .find((track) => track.id === current.document.story_track_id)
+  const transportClip = previewProject.document.tracks
+    .find((track) => track.id === previewProject.document.story_track_id)
     ?.clips.find((clip) => transportTimeSeconds >= clip.placement.start
       && transportTimeSeconds < clip.placement.start + clip.placement.duration) ?? null;
   const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
@@ -485,7 +491,7 @@ export function ProjectWorkspacePage() {
           style={{ gridTemplateRows: 'minmax(320px,47%) minmax(360px,1fr)' }}
         >
           <PreviewSplit
-            project={current}
+            project={previewProject}
             transportClip={transportClip}
             timelineTimeSeconds={transportTimeSeconds}
             selectedClipId={selectedClipId}
@@ -547,6 +553,7 @@ export function ProjectWorkspacePage() {
               { kind: 'project' },
               clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
             )}
+            onPreviewClips={setTimelinePreviewClips}
             onInsertTrack={(track, index) => mutate(
               `添加轨道 ${track.name}`,
               { kind: 'project' },
@@ -1632,6 +1639,21 @@ function toolSummary(call: AgentToolCall): string {
 function conversationTime(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function projectWithPreviewClips(project: Project, clips: readonly TimelineClip[]): Project {
+  if (clips.length === 0) return project;
+  const previews = new Map(clips.map((clip) => [clip.id, clip]));
+  return {
+    ...project,
+    document: {
+      ...project.document,
+      tracks: project.document.tracks.map((track) => ({
+        ...track,
+        clips: track.clips.map((clip) => previews.get(clip.id) ?? clip),
+      })),
+    },
+  };
 }
 
 function findClip(project: Project, clipId: string | null) {

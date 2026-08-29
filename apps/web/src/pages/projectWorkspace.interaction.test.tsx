@@ -1333,6 +1333,110 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('previews a Slip edit without moving the clip and commits once on release', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const clipB = await screen.findByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.click(clipB);
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('button', { name: '滑移工具 (Y)' }));
+    expect(screen.getByRole('button', { name: '滑移工具 (Y)' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('separator', { name: '裁切片段起点' })).toBeNull();
+
+    const preview = await screen.findByLabelText('B 视频预览') as HTMLVideoElement;
+    expect(Number(preview.dataset.previewSourceTime)).toBeCloseTo(1);
+    fireEvent.pointerDown(clipB, { pointerId: 111, button: 0, clientX: 400 });
+    fireEvent.pointerMove(clipB, { pointerId: 111, clientX: 500 });
+
+    await waitFor(() => {
+      expect(Number(clipB.dataset.sourceIn)).toBeCloseTo(0);
+      expect(Number(clipB.dataset.sourceOut)).toBeCloseTo(5);
+      expect(Number(preview.dataset.previewSourceTime)).toBeCloseTo(0);
+    });
+    expect(clipB.style.left).toBe('500px');
+    expect(clipB.style.width).toBe('500px');
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+
+    fireEvent.pointerUp(clipB, { pointerId: 111, clientX: 500 });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_B,
+        clip: expect.objectContaining({
+          placement: expect.objectContaining({ start: 5, duration: 5, source_in: 0, source_out: 5 }),
+        }),
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    clientWidth.mockRestore();
+  });
+
+  it('slips a linked cross-track selection by one shared constrained delta', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    const base = linkedProject();
+    const project: Project = {
+      ...base,
+      document: {
+        ...base.document,
+        tracks: base.document.tracks.map((track) => ({
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id === CLIP_A
+            ? {
+                ...candidate,
+                material: { kind: 'asset', asset_id: 'story-source', media_duration_seconds: 10 },
+                placement: { ...candidate.placement, source_in: 1, source_out: 6 },
+              }
+            : candidate.id === LINKED_AUDIO_CLIP_ID
+              ? { ...candidate, placement: { ...candidate.placement, source_in: 0.5, source_out: 5.5 } }
+              : candidate),
+        })),
+      },
+    };
+    renderWorkspace({ project, applyProjectPatch });
+
+    const story = await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'y' });
+    fireEvent.pointerDown(story, { pointerId: 112, button: 0, clientX: 400 });
+    fireEvent.pointerMove(story, { pointerId: 112, clientX: 700 });
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(story, { pointerId: 112, clientX: 700 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations;
+    expect(operations).toHaveLength(2);
+    const storyOperation = operations?.find((operation: { track_id?: string }) => operation.track_id === STORY_ID);
+    const audioOperation = operations?.find((operation: { track_id?: string }) => operation.track_id === '00000000-0000-4000-8000-000000000013');
+    if (storyOperation?.op !== 'replace_track_clips' || audioOperation?.op !== 'replace_track_clips') {
+      throw new Error('expected linked Slip track replacements');
+    }
+    expect(storyOperation.clips.find((candidate: TimelineClip) => candidate.id === CLIP_A)?.placement).toEqual(expect.objectContaining({
+      start: 0,
+      duration: 5,
+      source_in: 0.5,
+      source_out: 5.5,
+    }));
+    expect(audioOperation.clips[0]?.placement).toEqual(expect.objectContaining({
+      start: 12,
+      duration: 5,
+      source_in: 0,
+      source_out: 5,
+    }));
+    clientWidth.mockRestore();
+  });
+
   it('drags selected Story clips as one ordered ripple group', async () => {
     const project: Project = {
       ...PROJECT,

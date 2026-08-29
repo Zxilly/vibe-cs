@@ -104,6 +104,10 @@ missing.
   file a few frames shorter than the planned source range, preserve Timeline duration by fitting
   source-out and constant speed to the probed media truth; files that still cannot cover the range
   remain visibly stale and require another recording.
+- Edit a planned clip's capture camera, tick range and pre/post-roll in the same Timeline Inspector.
+  A recorded clip with a Capture Intent can be returned to Planned for a verified re-record without
+  deleting the old media file. Recording terminal state refreshes both the Project Head and Project
+  Media projection, so partial queues immediately show their recorded prefix and remaining suffix.
 - Apply validated camera FOV, viewmodel FOV, flash alpha, HUD/radar and voice policy for the whole
   capture. The isolated process and job-scoped configuration are torn down on success, failure or
   cancellation.
@@ -130,7 +134,9 @@ missing.
   when an auto-selected QSV/NVENC/AMF encoder fails.
 - Create multi-track editor projects with video, audio, image, text and overlay tracks. Rendering
   supports source trim, transform, opacity, volume, colour adjustment, fades, bounded export ranges,
-  keyframed supported properties and validated speed segments.
+  keyframed supported properties and validated speed segments. Audio carried by sequential video or
+  audio clips is positioned with sample-exact silence before mixing; clip audio therefore follows
+  Timeline placement instead of overlapping at zero and padding the remainder of the export silent.
 - Create projects from typed templates, duplicate projects or clips with fresh identities, record
   bounded microphone narration, import validated custom fonts, or atomically detach a source audio
   stream into a linked, time-aligned audio clip while muting the source video. Repeated detach is an

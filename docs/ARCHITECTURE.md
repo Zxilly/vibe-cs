@@ -106,7 +106,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   process lifecycle.
 - `web` keeps DTOs at the desktop command boundary and uses feature-local state for analysis, queue,
   editor and settings workflows. Library query and current column-visibility state are URL-owned;
-  the column contract accepts only unique keys for fields present in the current DTO and exposes
+  the canonical Timeline Inspector edits Capture Intent alongside clip timing and can explicitly
+  return an attachment to Planned for re-recording; terminal recording activity refetches the same
+  Project Head and Project Media query rather than maintaining a second materialization cache.
+  The column contract accepts only unique keys for fields present in the current DTO and exposes
   unavailable data such as file size as a capability gap instead of a placeholder column. Search,
   filter, stable sort and page selection stay at the SQLite boundary and never imply a client-side
   full-library sort. Library batch Analysis selection keeps at most twelve explicit canonical IDs in

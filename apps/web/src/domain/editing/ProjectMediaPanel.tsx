@@ -14,16 +14,18 @@ import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { Button, Input, NativeSelect, cn } from '../../design/primitives';
-import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
+import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 export interface ProjectMediaPanelProps {
   readonly assets: readonly MediaAsset[];
-  readonly timelineClips: readonly TimelineClip[];
+  readonly timelineTracks: readonly TimelineTrack[];
   readonly selectedTimelineClipId: string | null;
   readonly pending: boolean;
   readonly readOnly: boolean;
   readonly busy: boolean;
+  readonly canEditAsset: (asset: MediaAsset) => boolean;
+  readonly editTargetLabel: (asset: MediaAsset) => string;
   readonly importAvailable: boolean;
   readonly importing: boolean;
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
@@ -49,11 +51,13 @@ type ProjectMediaItem = {
 
 export function ProjectMediaPanel({
   assets,
-  timelineClips,
+  timelineTracks,
   selectedTimelineClipId,
   pending,
   readOnly,
   busy,
+  canEditAsset,
+  editTargetLabel,
   importAvailable,
   importing,
   onSelectTimelineClip,
@@ -66,7 +70,7 @@ export function ProjectMediaPanel({
   const [query, setQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<MediaStateFilter>('all');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const items = useMemo(() => projectMediaItems(timelineClips, assets), [assets, timelineClips]);
+  const items = useMemo(() => projectMediaItems(timelineTracks, assets), [assets, timelineTracks]);
 
   useEffect(() => {
     if (selectedTimelineClipId !== null) setSelectedKey(`clip:${selectedTimelineClipId}`);
@@ -88,7 +92,8 @@ export function ProjectMediaPanel({
     && selectedAsset.duration_seconds !== null
     && selectedAsset.duration_seconds > 0
     && !readOnly
-    && !busy;
+    && !busy
+    && canEditAsset(selectedAsset);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -107,7 +112,7 @@ export function ProjectMediaPanel({
 
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_178px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
+      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_196px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
       aria-label={t`项目素材`}
     >
       <header className="flex items-center gap-2 border-b border-divider px-2.5">
@@ -161,9 +166,9 @@ export function ProjectMediaPanel({
         </NativeSelect>
       </div>
 
-      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_36px]">
+      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_54px]">
         <SourceStillPreview item={selected} />
-        <div className="border-t border-divider bg-bg p-1.5">
+        <div className="border-t border-divider bg-bg p-1">
           {selected?.state === 'planned' && selected.timelineClip !== null ? (
             <Button
               className="w-full"
@@ -178,33 +183,36 @@ export function ProjectMediaPanel({
               <Trans>录制此片段</Trans>
             </Button>
           ) : selectedAsset === null ? (
-            <p className="truncate px-0.5 py-1 text-2xs text-neutral-500">
+            <p className="truncate px-0.5 py-2 text-2xs text-neutral-500">
               {selected?.state === 'recorded' ? t`该片段已录制并位于时间线中。` : t`选择导入素材可插入或覆盖。`}
             </p>
           ) : (
-            <div className="flex items-center gap-1.5">
-              <Button
-                className="flex-1"
-                size="sm"
-                variant="secondary"
-                disabled={!canEditSource}
-                aria-label={t`在播放头插入 ${selectedAsset.name}`}
-                onClick={() => onInsert(selectedAsset)}
-              >
-                <Trans>插入</Trans>
-                <span className="text-2xs text-neutral-500">,</span>
-              </Button>
-              <Button
-                className="flex-1"
-                size="sm"
-                variant="ghost"
-                disabled={!canEditSource}
-                aria-label={t`在播放头覆盖 ${selectedAsset.name}`}
-                onClick={() => onOverwrite(selectedAsset)}
-              >
-                <Trans>覆盖</Trans>
-                <span className="text-2xs text-neutral-500">.</span>
-              </Button>
+            <div>
+              <p className="mb-0.5 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedAsset)}</Trans></p>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!canEditSource}
+                  aria-label={t`在播放头插入 ${selectedAsset.name}`}
+                  onClick={() => onInsert(selectedAsset)}
+                >
+                  <Trans>插入</Trans>
+                  <span className="text-2xs text-neutral-500">,</span>
+                </Button>
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!canEditSource}
+                  aria-label={t`在播放头覆盖 ${selectedAsset.name}`}
+                  onClick={() => onOverwrite(selectedAsset)}
+                >
+                  <Trans>覆盖</Trans>
+                  <span className="text-2xs text-neutral-500">.</span>
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -378,24 +386,26 @@ function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }
 }
 
 function projectMediaItems(
-  clips: readonly TimelineClip[],
+  tracks: readonly TimelineTrack[],
   assets: readonly MediaAsset[],
 ): ProjectMediaItem[] {
   const referencedAssetIds = new Set<string>();
-  const timelineItems = clips.map((clip): ProjectMediaItem => {
-    const material = resolveTimelineMaterial(clip.material);
-    if (material.streamAssetId !== null) referencedAssetIds.add(material.streamAssetId);
-    return {
-      key: `clip:${clip.id}`,
-      name: clip.name,
-      durationSeconds: clip.placement.duration,
-      kind: 'video',
-      state: material.state,
-      previewAssetId: material.streamAssetId,
-      timelineClip: clip,
-      asset: null,
-    };
-  });
+  const timelineItems = tracks
+    .filter((track) => track.kind !== 'text')
+    .flatMap((track) => track.clips.map((clip): ProjectMediaItem => {
+      const material = resolveTimelineMaterial(clip.material);
+      if (material.streamAssetId !== null) referencedAssetIds.add(material.streamAssetId);
+      return {
+        key: `clip:${clip.id}`,
+        name: clip.name,
+        durationSeconds: clip.placement.duration,
+        kind: track.kind === 'audio' ? 'audio' : 'video',
+        state: material.state,
+        previewAssetId: material.streamAssetId,
+        timelineClip: clip,
+        asset: null,
+      };
+    }));
   const importedItems = assets
     .filter((asset) => !referencedAssetIds.has(asset.id))
     .map((asset): ProjectMediaItem => ({

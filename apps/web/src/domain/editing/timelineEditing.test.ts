@@ -8,7 +8,8 @@ import {
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
-  overwriteStoryClipAtTime,
+  overwriteClipsAtTime,
+  placeFreeClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
   removeTimelineRange,
@@ -166,7 +167,7 @@ describe('ripple Story Track edits', () => {
 
   it('overwrites a same-clip interval without moving the surviving tail', () => {
     const inserted = clip('inserted', 0, 6);
-    const overwritten = overwriteStoryClipAtTime(CLIPS, inserted, 12, 'b-tail');
+    const overwritten = overwriteClipsAtTime(CLIPS, inserted, 12, 'b-tail');
 
     expect(overwritten.map((item) => item.id)).toEqual(['a', 'b', 'inserted', 'b-tail', 'c']);
     expect(overwritten.map((item) => item.placement.start)).toEqual([0, 10, 12, 18, 20]);
@@ -176,7 +177,7 @@ describe('ripple Story Track edits', () => {
 
   it('overwrites across clip boundaries while preserving the later timeline', () => {
     const inserted = clip('inserted', 0, 12);
-    const overwritten = overwriteStoryClipAtTime(CLIPS, inserted, 4, 'b-tail');
+    const overwritten = overwriteClipsAtTime(CLIPS, inserted, 4, 'b-tail');
 
     expect(overwritten.map((item) => item.id)).toEqual(['a', 'inserted', 'b', 'c']);
     expect(overwritten.map((item) => item.placement.start)).toEqual([0, 4, 16, 20]);
@@ -206,6 +207,17 @@ describe('ripple Story Track edits', () => {
     expect(pasted.map((item) => [item.id, item.placement.start])).toEqual([
       ['a', 0],
       ['b-copy', 4],
+      ['b', 10],
+      ['c', 20],
+    ]);
+  });
+
+  it('places one imported clip on a free track without moving existing clips', () => {
+    const inserted = placeFreeClipAtTime(CLIPS, clip('music', 0, 6), 4);
+
+    expect(inserted.map((item) => [item.id, item.placement.start])).toEqual([
+      ['a', 0],
+      ['music', 4],
       ['b', 10],
       ['c', 20],
     ]);

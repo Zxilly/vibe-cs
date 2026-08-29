@@ -62,7 +62,8 @@ import {
   EDITOR_EFFECT_SCHEMAS,
   editorEffectParameter,
   insertRippleClipAtTime,
-  overwriteStoryClipAtTime,
+  overwriteClipsAtTime,
+  placeFreeClipAtTime,
   ProjectMediaPanel,
   ProjectTimeline,
   MAX_TIMELINE_CLIP_SPEED,
@@ -87,6 +88,7 @@ import type {
   Project,
   ProjectChangeGroup,
   ProjectEditOperation,
+  ProjectPatchResult,
   ProjectPatchScope,
   RadarTransformResponse,
   AgentSessionEntry,
@@ -317,7 +319,12 @@ export function ProjectWorkspacePage() {
   const plannedClipIds = storyTrack?.clips
     .filter((clip) => clip.material.kind === 'planned')
     .map((clip) => clip.id) ?? [];
-  const mutate = (summary: string, scope: ProjectPatchScope, operations: ProjectEditOperation[]) => {
+  const mutate = (
+    summary: string,
+    scope: ProjectPatchScope,
+    operations: ProjectEditOperation[],
+    onSuccess?: (result: ProjectPatchResult) => void,
+  ) => {
     if (readOnly || apply.isPending) return;
     apply.mutate({
       project_id: current.id,
@@ -327,7 +334,7 @@ export function ProjectWorkspacePage() {
       reverts_change_group_id: null,
       summary,
       operations,
-    });
+    }, onSuccess === undefined ? undefined : { onSuccess });
   };
   const seekTimeline = (seconds: number) => {
     setTimelineTimeSeconds(Math.min(
@@ -390,28 +397,70 @@ export function ProjectWorkspacePage() {
     { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
     [{ op: 'replace_clip', clip_id: clip.id, clip }],
   );
+  const mediaTargetTrack = (asset: MediaAsset): TimelineTrack | null => {
+    const desiredKind = mediaAssetTrackKind(asset);
+    const explicit = current.document.tracks.find((track) => track.id === targetTrackId) ?? null;
+    if (explicit?.kind === desiredKind) return explicit;
+    if (desiredKind === 'video') return storyTrack;
+    return current.document.tracks.find((track) => track.kind === 'audio') ?? null;
+  };
   const addMediaAsset = (asset: MediaAsset, mode: 'insert' | 'overwrite') => {
-    if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
+    if (asset.duration_seconds === null || asset.duration_seconds <= 0) return;
     const insertedClipId = globalThis.crypto.randomUUID();
     const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
     const editTimeSeconds = snapTimeToFrame(transportTimeSeconds, current.document.fps);
+    const target = mediaTargetTrack(asset);
+    if (target === null) {
+      if (mediaAssetTrackKind(asset) !== 'audio') return;
+      const trackId = globalThis.crypto.randomUUID();
+      const track: TimelineTrack = {
+        id: trackId,
+        name: t`音频轨道 ${current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1}`,
+        kind: 'audio',
+        order: current.document.tracks.length,
+        muted: false,
+        locked: false,
+        hidden: false,
+        clips: [placeFreeClipAtTime([], inserted, editTimeSeconds)[0]!],
+      };
+      const insertionIndex = current.document.tracks.length;
+      mutate(
+        `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
+        { kind: 'project' },
+        [{ op: 'insert_track', index: insertionIndex, track }],
+        ({ project: updated }) => {
+          const insertedTrack = updated.document.tracks[insertionIndex];
+          const insertedClip = insertedTrack?.clips.find((clip) => (
+            clip.material.kind === 'asset' && clip.material.asset_id === asset.id
+          ));
+          if (insertedTrack === undefined || insertedClip === undefined) return;
+          setTargetTrackId(insertedTrack.id);
+          setSelectedClipIds([insertedClip.id]);
+        },
+      );
+      return;
+    }
+    if (target.locked) return;
+    const storyEdit = target.id === current.document.story_track_id;
     const clips = mode === 'insert'
-      ? insertRippleClipAtTime(
-        storyTrack.clips,
-        inserted,
-        editTimeSeconds,
-        globalThis.crypto.randomUUID(),
-      )
-      : overwriteStoryClipAtTime(
-        storyTrack.clips,
+      ? storyEdit
+        ? insertRippleClipAtTime(
+          target.clips,
+          inserted,
+          editTimeSeconds,
+          globalThis.crypto.randomUUID(),
+        )
+        : placeFreeClipAtTime(target.clips, inserted, editTimeSeconds)
+      : overwriteClipsAtTime(
+        target.clips,
         inserted,
         editTimeSeconds,
         globalThis.crypto.randomUUID(),
       );
     mutate(
       `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
-      { kind: 'track', track_id: storyTrack.id },
-      [{ op: 'replace_track_clips', track_id: storyTrack.id, clips }],
+      { kind: 'track', track_id: target.id },
+      [{ op: 'replace_track_clips', track_id: target.id, clips }],
     );
     setSelectedClipIds([insertedClipId]);
   };
@@ -552,11 +601,20 @@ export function ProjectWorkspacePage() {
               <div className="min-h-0 min-w-0 max-[1279px]:absolute max-[1279px]:inset-y-0 max-[1279px]:left-0 max-[1279px]:z-20 max-[1279px]:w-[340px] max-[1279px]:shadow-xl">
                 <ProjectMediaPanel
                   assets={mediaAssets.data?.items ?? []}
-                  timelineClips={storyTrack?.clips ?? []}
+                  timelineTracks={current.document.tracks}
                   selectedTimelineClipId={selectedClipId}
                   pending={mediaAssets.isPending}
                   readOnly={readOnly}
                   busy={apply.isPending}
+                  canEditAsset={(asset) => {
+                    const target = mediaTargetTrack(asset);
+                    return target === null ? mediaAssetTrackKind(asset) === 'audio' : !target.locked;
+                  }}
+                  editTargetLabel={(asset) => {
+                    const target = mediaTargetTrack(asset);
+                    if (target === null) return t`新建音频轨道`;
+                    return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
+                  }}
                   importAvailable={nativeShell.available}
                   importing={importMedia.isPending}
                   onSelectTimelineClip={(clipId, startSeconds) => {
@@ -1745,6 +1803,10 @@ function toolSummary(call: AgentToolCall | AgentToolActivity): string {
 function conversationTime(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function mediaAssetTrackKind(asset: MediaAsset): 'video' | 'audio' {
+  return asset.kind.toLocaleLowerCase().includes('audio') ? 'audio' : 'video';
 }
 
 function projectWithPreviewClips(project: Project, clips: readonly TimelineClip[]): Project {

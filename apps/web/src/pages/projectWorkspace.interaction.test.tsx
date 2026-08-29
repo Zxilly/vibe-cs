@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, TimelineClip } from '../shared/desktop/dto';
+import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -148,6 +148,7 @@ function renderWorkspace({
   assets = [],
   agentConfigured = true,
   project = PROJECT,
+  getProject,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
@@ -158,12 +159,13 @@ function renderWorkspace({
   readonly assets?: readonly MediaAsset[];
   readonly agentConfigured?: boolean;
   readonly project?: Project;
+  readonly getProject?: (() => Promise<Project>) | undefined;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
     element: <ProjectWorkspacePage />,
     client: {
-      getProject: () => Promise.resolve(project),
+      getProject: getProject ?? (() => Promise.resolve(project)),
       listProjectChangeGroups: () => Promise.resolve(groups),
       listMediaAssets: () => Promise.resolve({ items: assets }),
       getProjectEditLease: () => Promise.resolve(lease),
@@ -1929,6 +1931,138 @@ describe('unified project workspace', () => {
         ],
       })],
     })));
+  });
+
+  it('routes imported audio to the audio target without rippling Story', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-audio',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\bed.wav',
+      name: 'Bed',
+      kind: 'audio',
+      duration_seconds: 6,
+      width: null,
+      height: null,
+      file_size: 4_096,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.1, 0.5, 0.2],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], applyProjectPatch });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Bed' }));
+    expect(within(panel).getByText('目标：Music')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Bed' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: '00000000-0000-4000-8000-000000000013' },
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        clips: [expect.objectContaining({
+          name: 'Bed',
+          placement: expect.objectContaining({ start: 0, duration: 6 }),
+        })],
+      }],
+    })));
+  });
+
+  it('creates one audio track in the same Project Patch when an imported audio asset has no target', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.filter((track) => track.id === STORY_ID),
+      },
+    };
+    const asset: MediaAsset = {
+      id: 'asset-voice',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\voice.wav',
+      name: 'Voice',
+      kind: 'audio',
+      duration_seconds: 3,
+      width: null,
+      height: null,
+      file_size: 2_048,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.2, 0.8],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    let serverProject = project;
+    const applyProjectPatch = vi.fn(async (patch: ProjectPatch): Promise<ProjectPatchResult> => {
+      const operation = patch.operations[0];
+      if (operation?.op !== 'insert_track') throw new Error('expected one inserted track');
+      const actualTrack = {
+        ...operation.track,
+        id: '00000000-0000-4000-8000-000000000098',
+        clips: operation.track.clips.map((clip) => ({
+          ...clip,
+          id: '00000000-0000-4000-8000-000000000097',
+        })),
+      };
+      const updatedProject: Project = {
+        ...project,
+        revision: 2,
+        document: {
+          ...project.document,
+          tracks: [...project.document.tracks, actualTrack],
+        },
+      };
+      serverProject = updatedProject;
+      return {
+        project: updatedProject,
+        change_group: {
+          id: '00000000-0000-4000-8000-000000000099',
+          project_id: project.id,
+          from_revision: 1,
+          to_revision: 2,
+          author: patch.author,
+          status: 'completed',
+          summary: patch.summary,
+          reverts_change_group_id: null,
+          operations: [{ ...operation, track: actualTrack }],
+          inverse_operations: [{ op: 'remove_track', track_id: actualTrack.id }],
+          created_at: PROJECT.updated_at,
+          completed_at: PROJECT.updated_at,
+        },
+      };
+    });
+    renderWorkspace({
+      project,
+      assets: [asset],
+      applyProjectPatch,
+      getProject: () => Promise.resolve(serverProject),
+    });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Voice' }));
+    expect(within(panel).getByText('目标：新建音频轨道')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Voice' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [{
+        op: 'insert_track',
+        index: 1,
+        track: expect.objectContaining({
+          kind: 'audio',
+          clips: [expect.objectContaining({ name: 'Voice', placement: expect.objectContaining({ start: 0, duration: 3 }) })],
+        }),
+      }],
+    })));
+    expect(await screen.findByText('目标：音频轨道 1')).toBeTruthy();
+    const voiceItems = within(panel).getAllByRole('option', { name: '选择素材 Voice' });
+    expect(voiceItems).toHaveLength(1);
+    expect(voiceItems[0]?.textContent).toContain('已录制');
   });
 
   it('adds and removes real timeline tracks through Project operations', async () => {

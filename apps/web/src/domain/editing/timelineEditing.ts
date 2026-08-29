@@ -242,7 +242,18 @@ export function insertRippleClipAtTime(
   return reflow(next, origin);
 }
 
-export function overwriteStoryClipAtTime(
+export function placeFreeClipAtTime(
+  clips: readonly TimelineClip[],
+  inserted: TimelineClip,
+  timelineTime: number,
+): TimelineClip[] {
+  return [...clips, {
+    ...inserted,
+    placement: { ...inserted.placement, start: timelineTime },
+  }].sort((left, right) => left.placement.start - right.placement.start);
+}
+
+export function overwriteClipsAtTime(
   clips: readonly TimelineClip[],
   inserted: TimelineClip,
   timelineTime: number,

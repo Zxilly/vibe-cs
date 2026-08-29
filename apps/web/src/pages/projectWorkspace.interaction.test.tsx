@@ -157,6 +157,54 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
   });
 
+  it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
+    const previousClips = PROJECT.document.tracks[0]!.clips;
+    const replacement = {
+      ...previousClips[0]!,
+      name: 'A Hold 重构',
+      placement: { ...previousClips[0]!.placement, duration: 7, source_out: 7 },
+    };
+    const currentClips = [
+      replacement,
+      { ...previousClips[1]!, placement: { ...previousClips[1]!.placement, start: 7 } },
+    ];
+    const project: Project = {
+      ...PROJECT,
+      revision: 2,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 12,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID ? { ...track, clips: currentClips } : track),
+      },
+    };
+    const group: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000070',
+      project_id: PROJECT.id,
+      from_revision: 1,
+      to_revision: 2,
+      author: { kind: 'agent', session_id: 'session', turn_id: 'turn' },
+      status: 'completed',
+      summary: '替换片段并波纹调整',
+      reverts_change_group_id: null,
+      operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: currentClips }],
+      inverse_operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: previousClips }],
+      created_at: PROJECT.updated_at,
+      completed_at: PROJECT.updated_at,
+    };
+
+    renderWorkspace({ project, groups: [group] });
+
+    expect(await screen.findByRole('heading', { name: '时间轴（变更审阅）' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '变更摘要' })).toBeNull();
+    expect(screen.getByText('1 处变更')).toBeTruthy();
+    expect(screen.getByLabelText('时间轴变更 1').textContent).toContain('5.000s');
+    expect(screen.getByLabelText('时间轴变更 1').textContent).toContain('7.000s');
+    expect(screen.getByLabelText('时间轴变更 1').textContent).toContain('波纹 +2.000s');
+    expect(screen.getByLabelText('后续片段移动 +2.000s')).toBeTruthy();
+    expect(screen.getByText('00:12.000')).toBeTruthy();
+    expect(screen.getByText('00:10.000')).toBeTruthy();
+  });
+
   it('seeks by dragging the timeline playhead', async () => {
     renderWorkspace();
 
@@ -174,11 +222,12 @@ describe('unified project workspace', () => {
       toJSON: () => ({}),
     });
 
-    fireEvent.pointerDown(playhead, { clientX: 310, pointerId: 7, button: 0 });
+    expect(fireEvent.pointerDown(playhead, { clientX: 310, pointerId: 7, button: 0 })).toBe(false);
     fireEvent.pointerMove(playhead, { clientX: 550, pointerId: 7 });
     fireEvent.pointerUp(playhead, { clientX: 550, pointerId: 7 });
 
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    expect(screen.getByRole('region', { name: '时间轴' }).classList.contains('select-none')).toBe(true);
   });
 
   it('writes a clip move from direct manipulation against the current Project revision', async () => {
@@ -244,7 +293,7 @@ describe('unified project workspace', () => {
     }));
   });
 
-+  it('splits the selected Story clip at the global playhead', async () => {
+  it('splits the selected Story clip at the global playhead', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
       change_group: {
@@ -298,7 +347,7 @@ describe('unified project workspace', () => {
   });
 
 
-+  it('undoes the latest completed human Change Group', async () => {
+  it('undoes the latest completed human Change Group', async () => {
     const revertProjectChangeGroup = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 3 },
       change_group: {

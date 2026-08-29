@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeftRight,
   CircleAlert,
   CircleHelp,
   LoaderCircle,
@@ -292,7 +293,7 @@ export function ProjectWorkspacePage() {
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_420px] overflow-hidden bg-neutral-100">
         <div
           className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-[8px] overflow-hidden pl-[14px] pr-[8px] pt-[12px]"
-          style={{ gridTemplateRows: 'minmax(320px, 46%) 182px minmax(250px, 1fr)' }}
+          style={{ gridTemplateRows: 'minmax(320px,47%) minmax(360px,1fr)' }}
         >
           <PreviewSplit
             project={current}
@@ -303,11 +304,11 @@ export function ProjectWorkspacePage() {
             onTimelineTimeChange={seekTimeline}
             onPlaybackEnd={() => setPlaying(false)}
           />
-          <ChangeSummary project={current} group={latestAgentGroup} />
           <ProjectTimeline
             document={current.document}
             selectedClipId={selectedClipId}
             previewOffsetSeconds={previewOffsetSeconds}
+            reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={setSelectedClipId}
             onInspectClip={(clipId) => {
@@ -484,7 +485,7 @@ function PreviewSplit({
           }}
         >
           <span className="absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-neutral-400 bg-bg text-neutral-700 shadow-sm group-hover:border-accent-500 group-hover:text-accent-text">
-            <span className="text-sm leading-none">↔</span>
+            <ChevronsLeftRight className="size-4" aria-hidden="true" />
           </span>
         </div>
         <TacticalPreview selected={selected} />
@@ -631,7 +632,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
                 <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>
                 <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
               </ul>
-              <div className="absolute inset-x-0 bottom-0 z-20 flex h-8 items-center border-t border-neutral-600 bg-accent-900/95 px-3 text-xs text-neutral-100">
+              <div className="absolute inset-x-0 bottom-0 z-20 flex h-8 items-center border-t border-divider bg-bg/95 px-3 text-xs text-text backdrop-blur-sm">
                 <span><Trans>回合: 15</Trans></span><span className="ml-4"><Trans>时间: 01:08</Trans></span>
               </div>
             </>
@@ -641,86 +642,6 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
     </section>
   );
 });
-
-const ChangeSummary = memo(function ChangeSummary({ project, group }: { readonly project: Project; readonly group: ProjectChangeGroup | null }) {
-  const story = project.document.tracks.find((track) => track.id === project.document.story_track_id);
-  const currentClips = story?.clips ?? [];
-  const previousClips = previousStoryClips(group, project.document.story_track_id) ?? currentClips;
-  const previousIds = new Set(previousClips.map((clip) => clip.id));
-  const currentIds = new Set(currentClips.map((clip) => clip.id));
-  const removed = new Set(previousClips.filter((clip) => !currentIds.has(clip.id)).map((clip) => clip.id));
-  const added = new Set(currentClips.filter((clip) => !previousIds.has(clip.id)).map((clip) => clip.id));
-  return (
-    <ReviewPanel className="flex min-h-0 flex-col" aria-label={t`变更摘要`}>
-      <header className="flex h-11 flex-none items-center gap-3 border-b border-divider px-4 text-xs">
-        <ChevronRight className="size-3.5 rotate-90 text-neutral-500" strokeWidth={1.6} aria-hidden="true" />
-        <h2 className="text-sm font-semibold"><Trans>变更摘要</Trans></h2>
-        <span className="text-neutral-400"><Trans>共 {Math.max(group?.operations.length ?? 0, added.size + removed.size)} 处变更</Trans></span>
-        <span className="text-neutral-300">·</span>
-        <span className="min-w-0 truncate text-neutral-500">{group?.summary ?? t`当前没有 Agent 时间线变更`}</span>
-        <span className="ml-auto flex items-center gap-3 text-2xs text-neutral-500">
-          <span className="flex items-center gap-1"><span className="size-2 bg-ok" /><Trans>新增或调整</Trans></span>
-          <span className="flex items-center gap-1"><span className="size-2 bg-fail" /><Trans>原版本</Trans></span>
-        </span>
-      </header>
-      <div className="grid min-h-0 flex-1 grid-rows-[24px_28px_22px_28px_1fr] text-xs">
-        <div className="grid grid-cols-[96px_repeat(7,minmax(0,1fr))] border-b border-divider font-mono text-2xs text-neutral-500">
-          <span />
-          {[0, 30, 60, 90, 120, 150, 180].map((seconds) => <span key={seconds} className="px-1 py-1 text-center">{formatTimelinePoint(seconds)}</span>)}
-        </div>
-        <ReviewStrip label={t`当前版本`} clips={previousClips} changed={removed} tone="before" />
-        <div aria-hidden="true" />
-        <ReviewStrip label={t`Agent 提案`} clips={currentClips} changed={added} tone="after" />
-        <div aria-hidden="true" />
-      </div>
-    </ReviewPanel>
-  );
-});
-
-function ReviewStrip({
-  label,
-  clips,
-  changed,
-  tone,
-}: {
-  readonly label: string;
-  readonly clips: readonly TimelineClip[];
-  readonly changed: ReadonlySet<string>;
-  readonly tone: 'before' | 'after';
-}) {
-  return (
-    <div className="grid min-h-0 grid-cols-[96px_minmax(0,1fr)] border-b border-divider last:border-b-0">
-      <div className="flex items-center px-4 font-semibold">{label}</div>
-      <ol className="flex min-w-0 list-none items-stretch overflow-hidden p-0.5">
-        {clips.map((clip) => {
-          const isChanged = changed.has(clip.id);
-          return (
-            <li
-              key={`${tone}:${clip.id}`}
-              className={cn(
-                'mx-px flex min-w-20 flex-1 items-center border border-divider bg-neutral-100 px-2 text-2xs',
-                isChanged && tone === 'after' && 'border-ok-border bg-ok-surface text-ok',
-                isChanged && tone === 'before' && 'border-fail-border bg-fail-surface text-fail-text',
-              )}
-            >
-              <span className="truncate">{clip.name}</span>
-              <span className="ml-auto pl-2 text-neutral-500">{clip.placement.duration.toFixed(0)}s</span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function previousStoryClips(group: ProjectChangeGroup | null, storyTrackId: string): readonly TimelineClip[] | null {
-  if (group === null) return null;
-  for (const operation of group.inverse_operations) {
-    if (operation.op === 'replace_track_clips' && operation.track_id === storyTrackId) return operation.clips;
-    if (operation.op === 'replace_track' && operation.track_id === storyTrackId) return operation.track.clips;
-  }
-  return null;
-}
 
 function ClipInspector({
   selected,
@@ -765,11 +686,6 @@ function ClipInspector({
       <Button className="mt-5 w-full" variant="primary" disabled={readOnly} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
   );
-}
-
-function formatTimelinePoint(seconds: number): string {
-  const value = Math.max(0, Math.round(seconds));
-  return `${Math.floor(value / 60).toString().padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 }
 
 interface AgentPanelProps {

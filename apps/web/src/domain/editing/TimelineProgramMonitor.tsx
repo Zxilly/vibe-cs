@@ -121,10 +121,10 @@ export function TimelineProgramMonitor({
               <Trans>正在定位帧</Trans>
             </span>
           )}
-          <div className="absolute inset-x-0 bottom-0 flex h-[var(--h-panel-head)] items-center gap-3 border-t border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100">
+          <div className="absolute inset-x-0 bottom-0 flex h-[var(--h-panel-head)] items-center gap-3 border-t border-divider bg-bg/95 px-3 text-xs text-text backdrop-blur-sm">
             <button
               type="button"
-              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm hover:bg-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
               aria-label={playing ? t`暂停时间轴` : t`播放时间轴`}
               onClick={onTogglePlayback}
             >

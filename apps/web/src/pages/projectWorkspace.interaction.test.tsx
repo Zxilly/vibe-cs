@@ -1025,6 +1025,38 @@ describe('unified project workspace', () => {
     expect(screen.queryByLabelText('框选范围')).toBeNull();
   });
 
+  it('auto-scrolls marquee selection horizontally and vertically in content coordinates', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace();
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 600 },
+    });
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 300, left: 0, width: 1_000, height: 300, toJSON: () => ({}),
+    });
+    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    fireEvent.pointerDown(grid, { pointerId: 64, button: 0, clientX: 500, clientY: 100 });
+    fireEvent.pointerMove(grid, { pointerId: 64, clientX: 990, clientY: 295 });
+
+    await waitFor(() => {
+      expect(viewport.scrollLeft).toBeGreaterThan(0);
+      expect(viewport.scrollTop).toBeGreaterThan(0);
+    });
+    const marquee = screen.getByLabelText('框选范围');
+    expect(Number.parseFloat(marquee.style.width)).toBeGreaterThan(490);
+    expect(Number.parseFloat(marquee.style.height)).toBeGreaterThan(195);
+    fireEvent.pointerUp(grid, { pointerId: 64, clientX: 990, clientY: 295 });
+    const stoppedAt = { left: viewport.scrollLeft, top: viewport.scrollTop };
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect({ left: viewport.scrollLeft, top: viewport.scrollTop }).toEqual(stoppedAt);
+    clientWidth.mockRestore();
+  });
+
   it('opens the project media bin and inserts a full asset at the transport time', async () => {
     const asset: MediaAsset = {
       id: 'asset-new',

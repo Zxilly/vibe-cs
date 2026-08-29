@@ -195,7 +195,11 @@ export function ProjectTimeline({
     readonly additive: boolean;
     readonly initialSelection: readonly string[];
     active: boolean;
+    lastClientX: number;
+    lastClientY: number;
   } | null>(null);
+  const marqueeScrollFrameRef = useRef<number | null>(null);
+  const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
   const [clipboard, setClipboard] = useState<{
     readonly groups: readonly {
       readonly trackId: string;
@@ -499,6 +503,8 @@ export function ProjectTimeline({
   useEffect(() => () => {
     if (seekFrameRef.current !== null) cancelAnimationFrame(seekFrameRef.current);
     if (dragScrollFrameRef.current !== null) cancelAnimationFrame(dragScrollFrameRef.current);
+    if (marqueeScrollFrameRef.current !== null) cancelAnimationFrame(marqueeScrollFrameRef.current);
+    if (marqueeWindowMouseUpRef.current !== null) window.removeEventListener('mouseup', marqueeWindowMouseUpRef.current);
   }, []);
 
   const pointerTime = (event: React.PointerEvent<HTMLElement>) => {
@@ -515,27 +521,22 @@ export function ProjectTimeline({
     if (time !== null) onSeek(time);
   };
 
-  const marqueeContentPosition = (event: React.PointerEvent<HTMLElement>) => {
+  const marqueeContentPosition = (clientX: number, clientY: number) => {
     const viewport = viewportRef.current;
     if (viewport === null) return null;
     const bounds = viewport.getBoundingClientRect();
     return {
-      x: event.clientX - bounds.left + viewport.scrollLeft,
-      y: event.clientY - bounds.top + viewport.scrollTop,
+      x: clientX - bounds.left + viewport.scrollLeft,
+      y: clientY - bounds.top + viewport.scrollTop,
     };
   };
 
-  const updateMarqueeSelection = (event: React.PointerEvent<HTMLElement>) => {
+  const refreshMarqueeSelection = (clientX: number, clientY: number) => {
     const gesture = marqueeGesture.current;
     const viewport = viewportRef.current;
-    if (gesture === null || viewport === null || gesture.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const position = marqueeContentPosition(event);
+    if (gesture === null || viewport === null) return;
+    const position = marqueeContentPosition(clientX, clientY);
     if (position === null) return;
-    const deltaX = Math.abs(event.clientX - gesture.startClientX);
-    const deltaY = Math.abs(event.clientY - gesture.startClientY);
-    if (!gesture.active && deltaX <= 5 && deltaY <= 5) return;
-    gesture.active = true;
     const bounds = {
       left: Math.min(gesture.startContentX, position.x),
       top: Math.min(gesture.startContentY, position.y),
@@ -543,25 +544,99 @@ export function ProjectTimeline({
       height: Math.abs(position.y - gesture.startContentY),
     };
     setMarqueeBounds(bounds);
-    const selectionRect = {
-      left: Math.min(gesture.startClientX, event.clientX),
-      right: Math.max(gesture.startClientX, event.clientX),
-      top: Math.min(gesture.startClientY, event.clientY),
-      bottom: Math.max(gesture.startClientY, event.clientY),
-    };
+    const viewportBounds = viewport.getBoundingClientRect();
     const intersected = [...viewport.querySelectorAll<HTMLElement>('[data-timeline-clip-id]')]
       .filter((element) => {
         const rect = element.getBoundingClientRect();
-        return rect.right >= selectionRect.left
-          && rect.left <= selectionRect.right
-          && rect.bottom >= selectionRect.top
-          && rect.top <= selectionRect.bottom;
+        const contentRect = {
+          left: rect.left - viewportBounds.left + viewport.scrollLeft,
+          right: rect.right - viewportBounds.left + viewport.scrollLeft,
+          top: rect.top - viewportBounds.top + viewport.scrollTop,
+          bottom: rect.bottom - viewportBounds.top + viewport.scrollTop,
+        };
+        return contentRect.right >= bounds.left
+          && contentRect.left <= bounds.left + bounds.width
+          && contentRect.bottom >= bounds.top
+          && contentRect.top <= bounds.top + bounds.height;
       })
       .map((element) => element.dataset.timelineClipId)
       .filter((clipId): clipId is string => clipId !== undefined);
     onSelectClips(gesture.additive
       ? [...new Set([...gesture.initialSelection, ...intersected])]
       : [...new Set(intersected)]);
+  };
+
+  const stopMarqueeAutoScroll = () => {
+    if (marqueeScrollFrameRef.current !== null) cancelAnimationFrame(marqueeScrollFrameRef.current);
+    marqueeScrollFrameRef.current = null;
+  };
+
+  const ensureMarqueeAutoScroll = () => {
+    if (marqueeScrollFrameRef.current !== null) return;
+    const tick = () => {
+      const gesture = marqueeGesture.current;
+      const viewport = viewportRef.current;
+      if (gesture === null || !gesture.active || viewport === null) {
+        marqueeScrollFrameRef.current = null;
+        return;
+      }
+      const bounds = viewport.getBoundingClientRect();
+      const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+      const horizontalStep = timelineEdgeScrollStep(
+        gesture.lastClientX,
+        bounds.left + trackHead,
+        bounds.right,
+      );
+      const verticalStep = timelineEdgeScrollStep(
+        gesture.lastClientY,
+        bounds.top,
+        bounds.bottom,
+        40,
+        18,
+      );
+      const maximumLeft = Math.max(0, trackHead + contentWidth - viewport.clientWidth);
+      const maximumTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      const nextLeft = Math.min(maximumLeft, Math.max(0, viewport.scrollLeft + horizontalStep));
+      const nextTop = Math.min(maximumTop, Math.max(0, viewport.scrollTop + verticalStep));
+      if (Math.abs(nextLeft - viewport.scrollLeft) > 0.01 || Math.abs(nextTop - viewport.scrollTop) > 0.01) {
+        viewport.scrollLeft = nextLeft;
+        viewport.scrollTop = nextTop;
+        timelineScrollLeftRef.current = nextLeft;
+        setScrollLeft(nextLeft);
+        refreshMarqueeSelection(gesture.lastClientX, gesture.lastClientY);
+      }
+      marqueeScrollFrameRef.current = requestAnimationFrame(tick);
+    };
+    marqueeScrollFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  const finishMarqueeSelection = () => {
+    stopMarqueeAutoScroll();
+    if (marqueeWindowMouseUpRef.current !== null) {
+      window.removeEventListener('mouseup', marqueeWindowMouseUpRef.current);
+      marqueeWindowMouseUpRef.current = null;
+    }
+    marqueeGesture.current = null;
+    setMarqueeBounds(null);
+  };
+
+  const updateMarqueeSelection = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = marqueeGesture.current;
+    if (gesture === null || gesture.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    gesture.lastClientX = event.clientX;
+    gesture.lastClientY = event.clientY;
+    const deltaX = Math.abs(event.clientX - gesture.startClientX);
+    const deltaY = Math.abs(event.clientY - gesture.startClientY);
+    if (!gesture.active && deltaX <= 5 && deltaY <= 5) return;
+    gesture.active = true;
+    refreshMarqueeSelection(event.clientX, event.clientY);
+    ensureMarqueeAutoScroll();
+    if (marqueeWindowMouseUpRef.current === null) {
+      const finishFromWindow = () => finishMarqueeSelection();
+      marqueeWindowMouseUpRef.current = finishFromWindow;
+      window.addEventListener('mouseup', finishFromWindow, { once: true });
+    }
   };
 
   const queueSeekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
@@ -854,7 +929,7 @@ export function ProjectTimeline({
           onPointerDown={(event) => {
             if (event.button !== 0 || !(event.target instanceof Element)) return;
             if (event.target.closest('button,[role="separator"]')) return;
-            const position = marqueeContentPosition(event);
+            const position = marqueeContentPosition(event.clientX, event.clientY);
             const viewport = viewportRef.current;
             if (position === null || viewport === null) return;
             const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
@@ -870,6 +945,8 @@ export function ProjectTimeline({
               additive: event.ctrlKey || event.metaKey,
               initialSelection: selectedClipIds,
               active: false,
+              lastClientX: event.clientX,
+              lastClientY: event.clientY,
             };
           }}
           onPointerMove={updateMarqueeSelection}
@@ -881,15 +958,13 @@ export function ProjectTimeline({
               if (!gesture.additive) onSelectClips([]);
               seekFromPointer(event);
             }
-            marqueeGesture.current = null;
-            setMarqueeBounds(null);
+            finishMarqueeSelection();
             event.currentTarget.releasePointerCapture?.(event.pointerId);
           }}
           onPointerCancel={() => {
             const gesture = marqueeGesture.current;
             if (gesture !== null) onSelectClips(gesture.initialSelection);
-            marqueeGesture.current = null;
-            setMarqueeBounds(null);
+            finishMarqueeSelection();
           }}
         >
           {renderedTracks.map((track) => (

@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TimelineClip } from '../../shared/desktop/dto';
-import { moveTimelineClip, resolveTimelineSnap, snapTimeToFrame, trimTimelineClip } from './timelineInteraction';
+import {
+  adjustLinearGainByTrackDelta,
+  dbToLinearGain,
+  gainToTrackPercent,
+  linearGainToDb,
+  moveTimelineClip,
+  resolveTimelineSnap,
+  snapTimeToFrame,
+  trimTimelineClip,
+} from './timelineInteraction';
 
 const CLIP: TimelineClip = {
   id: 'clip',
@@ -54,5 +63,19 @@ describe('timeline direct manipulation', () => {
       anchorTime: 9.7,
       snapTime: null,
     });
+  });
+
+  it('maps canonical linear volume to the Premiere-style dB rubber band', () => {
+    expect(linearGainToDb(1)).toBe(0);
+    expect(linearGainToDb(0)).toBe(-60);
+    expect(dbToLinearGain(0)).toBe(1);
+    expect(dbToLinearGain(-60)).toBe(0);
+    expect(gainToTrackPercent(1)).toBeCloseTo(16.715, 2);
+  });
+
+  it('adjusts gain from vertical track movement and clamps to the renderer range', () => {
+    expect(linearGainToDb(adjustLinearGainByTrackDelta(1, -5.35, 64))).toBeCloseTo(6.02, 1);
+    expect(adjustLinearGainByTrackDelta(4, -64, 64)).toBe(4);
+    expect(adjustLinearGainByTrackDelta(0, 64, 64)).toBe(0);
   });
 });

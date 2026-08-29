@@ -1,6 +1,8 @@
 import type { TimelineClip } from '../../shared/desktop/dto';
 
 const MINIMUM_CLIP_FRAMES = 1;
+export const MIN_CLIP_GAIN_DB = -60;
+export const MAX_CLIP_GAIN_DB = 20 * Math.log10(4);
 
 export interface TimelineSnapResult {
   readonly anchorTime: number;
@@ -33,6 +35,27 @@ export function resolveTimelineSnap(
     }
   }
   return { anchorTime: Math.max(0, anchorTime + adjustment), snapTime };
+}
+
+export function linearGainToDb(volume: number): number {
+  if (volume <= 0) return MIN_CLIP_GAIN_DB;
+  return Math.min(MAX_CLIP_GAIN_DB, Math.max(MIN_CLIP_GAIN_DB, 20 * Math.log10(volume)));
+}
+
+export function dbToLinearGain(db: number): number {
+  if (db <= MIN_CLIP_GAIN_DB) return 0;
+  return Math.min(4, Math.max(0, 10 ** (Math.min(MAX_CLIP_GAIN_DB, db) / 20)));
+}
+
+export function gainToTrackPercent(volume: number): number {
+  const db = linearGainToDb(volume);
+  return (MAX_CLIP_GAIN_DB - db) / (MAX_CLIP_GAIN_DB - MIN_CLIP_GAIN_DB) * 100;
+}
+
+export function adjustLinearGainByTrackDelta(volume: number, deltaY: number, trackHeight: number): number {
+  const dbRange = MAX_CLIP_GAIN_DB - MIN_CLIP_GAIN_DB;
+  const nextDb = linearGainToDb(volume) - deltaY / Math.max(1, trackHeight) * dbRange;
+  return dbToLinearGain(nextDb);
 }
 
 export function moveTimelineClip(clip: TimelineClip, start: number, fps: number): TimelineClip {

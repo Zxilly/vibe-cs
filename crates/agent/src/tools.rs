@@ -33,11 +33,7 @@ pub(crate) struct ToolState {
 }
 
 impl ToolState {
-    pub(crate) fn new(
-        context: AgentContext,
-        tool_host: Option<Arc<dyn AgentToolHost>>,
-        _auto_mode: bool,
-    ) -> Self {
+    pub(crate) fn new(context: AgentContext, tool_host: Option<Arc<dyn AgentToolHost>>) -> Self {
         Self {
             context: Arc::new(context),
             tool_host,

@@ -122,6 +122,15 @@ describe('useAgentChatStream', () => {
           decision: 'rejected', content: '拒绝这次外部执行请求。',
         },
       });
+      await result.current.append.mutateAsync({
+        sessionId: SESSION_ID,
+        draft: {
+          kind: 'tool_decision',
+          tool_call_id: 'delivery:00000000-0000-4000-8000-000000000099',
+          decision: 'approved',
+          content: '已接受这组 Agent 变更。',
+        },
+      });
       await sendFromConfirmationRender({ message: '保留时间线并继续。', projectId: PROJECT_ID });
     });
 
@@ -130,6 +139,13 @@ describe('useAgentChatStream', () => {
       type: 'human_tool_decision',
       tool_call_id: pendingToolCall.id,
       decision: 'rejected',
+    });
+    const deliveryReview = captured.current?.history.find((message) => message.content.includes('human_delivery_review'));
+    expect(JSON.parse(deliveryReview?.content ?? '{}')).toEqual({
+      type: 'human_delivery_review',
+      change_group_id: '00000000-0000-4000-8000-000000000099',
+      decision: 'accepted',
+      content: '已接受这组 Agent 变更。',
     });
   });
 

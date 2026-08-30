@@ -109,6 +109,7 @@ import type {
   ProjectPatchResult,
   ProjectPatchScope,
   RadarTransformResponse,
+  AgentSession,
   AgentSessionEntry,
   AgentToolCall,
   AgentToolDecisionKind,
@@ -119,6 +120,7 @@ import type {
   TimelineTrack,
 } from '../shared/desktop/dto';
 import type { ActivityItem } from '../shared/desktop/viewModels';
+import { deliveryDecisionChangeGroupId, deliveryDecisionToolCallId } from '../shared/desktop/deliveryReview';
 import { RouteLink } from './RouteLink';
 import { PlayerLayer } from './match/views/ReplayCanvas';
 import { buildPlayerTracks, clampTick, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
@@ -374,7 +376,8 @@ export function ProjectWorkspacePage() {
     .find((track) => track.id === previewProject.document.story_track_id)
     ?.clips.find((clip) => transportTimeSeconds >= clip.placement.start
       && transportTimeSeconds < clip.placement.start + clip.placement.duration) ?? null;
-  const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
+  const latestAgentChangeGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
+  const pendingAgentReviewGroup = pendingDeliveryGroup(groups.data ?? [], agentSession.data ?? null);
   const revertedChangeGroupIds = new Set(
     (groups.data ?? []).flatMap((group) => group.reverts_change_group_id === null ? [] : [group.reverts_change_group_id]),
   );
@@ -575,13 +578,6 @@ export function ProjectWorkspacePage() {
       workspaceContext: { projectId: current.id, lens, selectedClipId },
     });
   };
-  const appendHumanDecision = async (content: string) => {
-    if (agentSessionId === null) return;
-    await appendAgentEntry.mutateAsync({
-      sessionId: agentSessionId,
-      draft: { kind: 'user', content },
-    });
-  };
   const appendToolDecision = async (
     toolCallId: string,
     decision: AgentToolDecisionKind,
@@ -687,7 +683,7 @@ export function ProjectWorkspacePage() {
       rangeInSeconds={rangeInSeconds}
       rangeOutSeconds={rangeOutSeconds}
       transportPlaying={playing}
-      reviewGroup={latestAgentGroup}
+      reviewGroup={latestAgentChangeGroup}
       readOnly={readOnly || apply.isPending || revertChange.isPending}
       onSelectClip={selectTimelineClip}
       onSelectClips={selectTimelineClips}
@@ -804,10 +800,25 @@ export function ProjectWorkspacePage() {
       onRejectConfirmation={async (toolCallId) => {
         await appendToolDecision(toolCallId, 'rejected', t`拒绝这次外部执行请求。`);
       }}
-      onAcceptDelivery={() => appendHumanDecision(t`接受交付。`)}
-      onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
-      onDirectEdit={() => {
-        void appendHumanDecision(t`我将直接修改这份作品。`);
+      onAcceptDelivery={(groupId) => appendToolDecision(
+        deliveryDecisionToolCallId(groupId),
+        'approved',
+        t`已接受这组 Agent 变更。`,
+      )}
+      onReturnDelivery={async (groupId) => {
+        await appendToolDecision(
+          deliveryDecisionToolCallId(groupId),
+          'rejected',
+          t`已退回这组 Agent 变更并要求继续修改。`,
+        );
+        await sendToAgent(t`退回修改，请继续调整这份作品。`);
+      }}
+      onDirectEdit={(groupId) => {
+        void appendToolDecision(
+          deliveryDecisionToolCallId(groupId),
+          'rejected',
+          t`人类已接管并直接修改这组 Agent 变更。`,
+        );
         const clipId = selectedClipId ?? allClips[0]?.id ?? null;
         setSelectedClipIds(clipId === null ? [] : [clipId]);
         setInspectorOpen(clipId !== null);
@@ -836,12 +847,12 @@ export function ProjectWorkspacePage() {
           <h1 className="min-w-0 truncate text-sm font-semibold">{current.name}</h1>
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
           <span className="whitespace-nowrap text-sm font-semibold"><Trans>变更 #{current.revision}</Trans></span>
-          {latestAgentGroup === null ? null : (
+          {pendingAgentReviewGroup === null ? null : (
             <>
               <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
                 <Trans>Agent 修改待审阅</Trans>
               </span>
-              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {latestAgentGroup.operations.length} 处变更</Trans></span>
+              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {pendingAgentReviewGroup.operations.length} 处变更</Trans></span>
             </>
           )}
           {deliveryGatePending ? (
@@ -1902,9 +1913,9 @@ interface AgentPanelProps {
   readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
   readonly onConfirmExport: (toolCallId: string) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
-  readonly onAcceptDelivery: () => Promise<void>;
-  readonly onReturnDelivery: () => Promise<void>;
-  readonly onDirectEdit: () => void;
+  readonly onAcceptDelivery: (changeGroupId: string) => Promise<void>;
+  readonly onReturnDelivery: (changeGroupId: string) => Promise<void>;
+  readonly onDirectEdit: (changeGroupId: string) => void;
 }
 
 const AgentPanel = memo(function AgentPanel({
@@ -1940,14 +1951,10 @@ const AgentPanel = memo(function AgentPanel({
   for (const entry of entries) {
     if (entry.kind === 'tool_decision') toolDecisions.set(entry.tool_call_id, entry);
   }
-  const latestUserAt = [...entries].reverse().find((entry) => entry.kind === 'user')?.at ?? null;
+  const reviewGroup = pendingDeliveryGroup(changeGroups, session);
   const hasDelivery = !chat.streaming
     && pendingConfirmationToolCallId === null
-    && session !== null
-    && latestUserAt !== null
-    && changeGroups.some((group) => group.author.kind === 'agent'
-      && group.author.session_id === session.id
-      && group.created_at >= latestUserAt)
+    && reviewGroup !== null
     && [...entries].reverse().some((entry) => entry.kind === 'assistant' && entry.status === 'completed');
   const submit = () => {
     const next = message.trim();
@@ -2055,9 +2062,9 @@ const AgentPanel = memo(function AgentPanel({
               <ConversationShell actor="Agent" tone="delivery">
                 <p className="text-xs font-medium"><Trans>所有变更已完成，输出已准备好交付。</Trans></p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Button size="sm" variant="primary" disabled={confirming} onClick={() => void onAcceptDelivery()}><Trans>接受交付</Trans></Button>
-                  <Button size="sm" variant="secondary" disabled={confirming} onClick={() => void onReturnDelivery()}><Trans>退回修改</Trans></Button>
-                  <Button size="sm" variant="secondary" disabled={readOnly || confirming} onClick={onDirectEdit}><Trans>直接修改</Trans></Button>
+                  <Button size="sm" variant="primary" disabled={confirming} onClick={() => reviewGroup === null ? undefined : void onAcceptDelivery(reviewGroup.id)}><Trans>接受交付</Trans></Button>
+                  <Button size="sm" variant="secondary" disabled={confirming} onClick={() => reviewGroup === null ? undefined : void onReturnDelivery(reviewGroup.id)}><Trans>退回修改</Trans></Button>
+                  <Button size="sm" variant="secondary" disabled={readOnly || confirming} onClick={() => { if (reviewGroup !== null) onDirectEdit(reviewGroup.id); }}><Trans>直接修改</Trans></Button>
                 </div>
               </ConversationShell>
             ) : null}
@@ -2138,7 +2145,17 @@ function ConversationEntry({
     );
   }
   if (entry.kind === 'tool_decision') {
-    return null;
+    const changeGroupId = deliveryDecisionChangeGroupId(entry);
+    if (changeGroupId === null) return null;
+    return (
+      <ConversationShell actor={t`你 · 交付审阅`} at={entry.at} tone="human">
+        <p className="text-xs font-medium">
+          {entry.decision === 'approved' ? <Trans>已接受 Agent 变更</Trans> : <Trans>已要求 Agent 继续修改</Trans>}
+        </p>
+        <p className="mt-1 text-2xs leading-4 text-neutral-600">{entry.content}</p>
+        <span className="mt-1 block font-mono text-2xs text-neutral-400">{changeGroupId}</span>
+      </ConversationShell>
+    );
   }
   return (
     <ConversationShell actor="Agent" at={entry.at} tone={entry.status === 'failed' ? 'error' : 'agent'}>
@@ -2311,6 +2328,25 @@ function ToolCallCard({
 }
 
 type ToolDecisionEntry = Extract<AgentSessionEntry, { readonly kind: 'tool_decision' }>;
+
+function pendingDeliveryGroup(
+  changeGroups: readonly ProjectChangeGroup[],
+  session: AgentSession | null,
+): ProjectChangeGroup | null {
+  if (session === null) return null;
+  const latestUserAt = [...session.entries].reverse().find((entry) => entry.kind === 'user')?.at ?? null;
+  if (latestUserAt === null) return null;
+  const decidedGroupIds = new Set(session.entries.flatMap((entry) => {
+    const groupId = deliveryDecisionChangeGroupId(entry);
+    return groupId === null ? [] : [groupId];
+  }));
+  return changeGroups.find((group) => (
+    group.author.kind === 'agent'
+      && group.author.session_id === session.id
+      && group.created_at >= latestUserAt
+      && !decidedGroupIds.has(group.id)
+  )) ?? null;
+}
 
 function pendingConfirmationToolCall(entries: readonly AgentSessionEntry[]): string | null {
   const decided = new Set(entries.flatMap((entry) => entry.kind === 'tool_decision' ? [entry.tool_call_id] : []));

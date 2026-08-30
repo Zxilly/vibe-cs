@@ -81,6 +81,7 @@ import type {
   AgentSessionRetention,
   AgentWorkspaceSettings,
 } from '../shared/desktop/dto';
+import { deliveryDecisionChangeGroupId } from '../shared/desktop/deliveryReview';
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
@@ -687,14 +688,22 @@ function sessionHistory(
     if (entry.kind === 'user' && entry.content.trim() !== '') {
       history.push({ role: 'user', content: entry.content });
     } else if (entry.kind === 'tool_decision') {
+      const changeGroupId = deliveryDecisionChangeGroupId(entry);
       history.push({
         role: 'user',
-        content: boundedCheckpointHistory({
-          type: 'human_tool_decision',
-          tool_call_id: entry.tool_call_id,
-          decision: entry.decision,
-          content: entry.content,
-        }),
+        content: boundedCheckpointHistory(changeGroupId === null
+          ? {
+              type: 'human_tool_decision',
+              tool_call_id: entry.tool_call_id,
+              decision: entry.decision,
+              content: entry.content,
+            }
+          : {
+              type: 'human_delivery_review',
+              change_group_id: changeGroupId,
+              decision: entry.decision === 'approved' ? 'accepted' : 'changes_requested',
+              content: entry.content,
+            }),
       });
     } else if (
       entry.kind === 'assistant'

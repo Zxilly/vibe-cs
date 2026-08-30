@@ -2833,12 +2833,22 @@ describe('unified project workspace', () => {
       completed_at: '2026-08-28T10:01:31Z',
     };
     const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
-      if (draft.kind !== 'user') throw new Error('expected direct-edit decision');
-      return { kind: 'user' as const, id: 'direct-edit', at: '2026-08-28T10:03:00Z', content: draft.content };
+      if (draft.kind !== 'tool_decision') throw new Error('expected direct-edit decision');
+      return {
+        kind: 'tool_decision' as const,
+        id: 'direct-edit',
+        at: '2026-08-28T10:03:00Z',
+        tool_call_id: draft.tool_call_id,
+        decision: draft.decision,
+        content: draft.content,
+      };
     });
     renderWorkspace({ project: lockedProject, session, groups: [group], appendAgentSessionEntry });
 
     fireEvent.click(await screen.findByRole('button', { name: '直接修改' }));
+    await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(session.id, expect.objectContaining({
+      kind: 'tool_decision', tool_call_id: `delivery:${group.id}`, decision: 'rejected',
+    })));
     const inspector = await screen.findByRole('dialog', { name: '片段属性' });
     expect((within(inspector).getByLabelText('名称') as HTMLInputElement).disabled).toBe(true);
     expect((within(inspector).getByRole('button', { name: '保存修改' }) as HTMLButtonElement).disabled).toBe(true);
@@ -4250,10 +4260,69 @@ describe('unified project workspace', () => {
       completed_at: '2026-08-28T10:01:31Z',
     };
 
-    renderWorkspace({ session, groups: [currentGroup] });
+    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
+      if (draft.kind !== 'tool_decision') throw new Error('expected delivery decision');
+      return {
+        kind: 'tool_decision' as const,
+        id: 'delivery-review',
+        at: '2026-08-28T10:03:00Z',
+        tool_call_id: draft.tool_call_id,
+        decision: draft.decision,
+        content: draft.content,
+      };
+    });
+    renderWorkspace({ session, groups: [currentGroup], appendAgentSessionEntry });
     expect(await screen.findByRole('button', { name: '接受交付' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '退回修改' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '直接修改' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '接受交付' }));
+    await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(session.id, {
+      kind: 'tool_decision',
+      tool_call_id: `delivery:${currentGroup.id}`,
+      decision: 'approved',
+      content: '已接受这组 Agent 变更。',
+    }));
+  });
+
+  it('restores an accepted delivery review against its exact Agent Change Group', async () => {
+    const groupId = '00000000-0000-4000-8000-000000000063';
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000062',
+      title: 'Agent · accepted review',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:03:00Z',
+      entries: [
+        { kind: 'user', id: 'u-review', at: '2026-08-28T10:01:00Z', content: '重排时间线' },
+        {
+          kind: 'assistant', id: 'a-review', at: '2026-08-28T10:02:00Z', content: '已经完成。',
+          tool_calls: [], status: 'completed', request_id: 'request-review', retry_of: null, error: null, metadata: null,
+        },
+        {
+          kind: 'tool_decision', id: 'delivery-review', at: '2026-08-28T10:03:00Z',
+          tool_call_id: `delivery:${groupId}`, decision: 'approved', content: '已接受这组 Agent 变更。',
+        },
+      ],
+    };
+    const group: ProjectChangeGroup = {
+      id: groupId,
+      project_id: PROJECT.id,
+      from_revision: 1,
+      to_revision: 2,
+      author: { kind: 'agent', session_id: session.id, turn_id: 'request-review' },
+      status: 'completed',
+      summary: '重排时间线',
+      reverts_change_group_id: null,
+      operations: [],
+      inverse_operations: [],
+      created_at: '2026-08-28T10:01:30Z',
+      completed_at: '2026-08-28T10:01:31Z',
+    };
+
+    renderWorkspace({ session, groups: [group] });
+    expect(await screen.findByText('已接受 Agent 变更')).toBeTruthy();
+    expect(screen.getByText(groupId)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '接受交付' })).toBeNull();
+    expect(screen.queryByText('Agent 修改待审阅')).toBeNull();
   });
 
   it('locks human timeline controls immediately when Agent streaming starts before Lease polling', async () => {

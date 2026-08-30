@@ -69,4 +69,13 @@ describe('Project Media drag payload', () => {
     clearProjectMediaDrag();
     expect(readProjectMediaDrag(data)).toBeNull();
   });
+
+  it('gives still images a bounded editing duration without inventing source media time', () => {
+    expect(writeProjectMediaDrag(transfer(), asset('image/png', 0.04))).toEqual({
+      assetId: 'asset-1',
+      kind: 'video',
+      durationSeconds: 5,
+    });
+    clearProjectMediaDrag();
+  });
 });

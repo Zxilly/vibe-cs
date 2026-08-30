@@ -22,6 +22,8 @@ import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
 import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import {
   clearProjectMediaDrag,
+  isStillImageMediaAsset,
+  mediaAssetEditDuration,
   projectMediaAssetKind,
   writeProjectMediaDrag,
 } from './mediaDrag';
@@ -60,6 +62,7 @@ type ProjectMediaItem = {
   readonly kind: 'video' | 'audio';
   readonly state: 'planned' | 'recorded' | 'stale' | 'imported';
   readonly previewAssetId: string | null;
+  readonly isStillImage: boolean;
   readonly timelineClip: TimelineClip | null;
   readonly sourceAsset: MediaAsset | null;
   readonly importedAsset: MediaAsset | null;
@@ -489,35 +492,50 @@ function MediaItemSection({
 
 function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }) {
   const shell = useNativeShell();
-  const [mountedAssetIds, setMountedAssetIds] = useState<readonly string[]>([]);
+  const [mountedAssets, setMountedAssets] = useState<readonly { readonly id: string; readonly image: boolean }[]>([]);
   const [displayedAssetId, setDisplayedAssetId] = useState<string | null>(null);
   const previewAssetId = item?.previewAssetId ?? null;
 
   useEffect(() => {
     if (item !== null) return;
-    setMountedAssetIds([]);
+    setMountedAssets([]);
     setDisplayedAssetId(null);
   }, [item]);
 
   useEffect(() => {
     if (previewAssetId === null) return;
-    setMountedAssetIds((current) => current.includes(previewAssetId)
+    setMountedAssets((current) => current.some((asset) => asset.id === previewAssetId)
       ? current
-      : [...current.slice(-2), previewAssetId]);
-  }, [previewAssetId]);
+      : [...current.slice(-2), { id: previewAssetId, image: item?.isStillImage === true }]);
+  }, [item?.isStillImage, previewAssetId]);
 
   const selectedPreviewReady = previewAssetId !== null && displayedAssetId === previewAssetId;
   return (
     <div className="relative min-h-0 overflow-hidden bg-neutral-900" aria-label={t`源素材预览`}>
-      {mountedAssetIds.map((assetId) => {
+      {mountedAssets.map(({ id: assetId, image }) => {
         const source = shell.mediaSrc(mediaAssetStreamPath(assetId));
-        return (
+        const className = cn(
+          'pointer-events-none absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity',
+          displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
+        );
+        return image ? (
+          <img
+            key={assetId}
+            className={className}
+            src={source ?? undefined}
+            alt=""
+            draggable={false}
+            aria-hidden="true"
+            data-source-preview-asset-id={assetId}
+            data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
+            onLoad={() => {
+              if (previewAssetId === assetId) setDisplayedAssetId(assetId);
+            }}
+          />
+        ) : (
           <video
             key={assetId}
-            className={cn(
-              'pointer-events-none absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity',
-              displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
-            )}
+            className={className}
             src={source ?? undefined}
             preload="auto"
             muted
@@ -594,6 +612,10 @@ function projectMediaItems(
         kind: track.kind === 'audio' ? 'audio' : 'video',
         state: material.state,
         previewAssetId: sourceAsset?.metadata_status.status === 'unavailable' ? null : material.streamAssetId,
+        isStillImage: sourceAsset === null
+          ? typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)
+            && typeof clip.metadata.media_kind === 'string' && clip.metadata.media_kind.toLowerCase().startsWith('image')
+          : isStillImageMediaAsset(sourceAsset),
         timelineClip: clip,
         sourceAsset,
         importedAsset: null,
@@ -604,10 +626,11 @@ function projectMediaItems(
     .map((asset): ProjectMediaItem => ({
       key: `asset:${asset.id}`,
       name: asset.name,
-      durationSeconds: asset.duration_seconds,
+      durationSeconds: mediaAssetEditDuration(asset),
       kind: projectMediaAssetKind(asset),
       state: 'imported',
       previewAssetId: projectMediaAssetKind(asset) === 'video' && asset.metadata_status.status === 'ready' ? asset.id : null,
+      isStillImage: isStillImageMediaAsset(asset),
       timelineClip: null,
       sourceAsset: asset,
       importedAsset: asset,

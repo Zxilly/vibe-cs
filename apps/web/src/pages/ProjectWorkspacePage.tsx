@@ -70,6 +70,7 @@ import {
   overwriteClipsAtTime,
   placeFreeClipAtTime,
   projectMediaAssetKind,
+  mediaAssetEditDuration,
   ProjectMediaPanel,
   ProjectTimeline,
   ProjectWorkspaceDock,
@@ -429,7 +430,7 @@ export function ProjectWorkspacePage() {
     mode: 'insert' | 'overwrite',
     placement?: { readonly trackId: string; readonly timeSeconds: number },
   ) => {
-    if (asset.duration_seconds === null || asset.duration_seconds <= 0) return;
+    if (mediaAssetEditDuration(asset) === null) return;
     const insertedClipId = globalThis.crypto.randomUUID();
     const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
     const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);

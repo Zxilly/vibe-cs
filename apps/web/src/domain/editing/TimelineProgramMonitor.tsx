@@ -31,6 +31,11 @@ interface OverlayPreviewMedia extends PreviewMedia {
   readonly trackMuted: boolean;
 }
 
+interface ImagePreviewMedia extends PreviewMedia {
+  readonly trackId: string;
+  readonly layer: number;
+}
+
 interface PreviewReadiness {
   readonly previewKey: string;
   readonly readyKeys: ReadonlySet<string>;
@@ -107,7 +112,11 @@ export function TimelineProgramMonitor({
   );
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
-  const targetId = !storyOutputEnabled || selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
+  const targetId = !storyOutputEnabled
+    || selectedMaterial?.streamAssetId === null
+    || (selected !== null && isStillImageTimelineClip(selected))
+    ? null
+    : selected?.id ?? null;
   const previewOffsetSeconds = selected === null
     ? 0
     : targetTimelineTime - selected.placement.start;
@@ -128,6 +137,7 @@ export function TimelineProgramMonitor({
     && [slidePrevious, slideClip, slideNext].every((clip) => resolveTimelineMaterial(clip.material).streamAssetId !== null);
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
   const [overlayReadyIds, setOverlayReadyIds] = useState<ReadonlySet<string>>(new Set());
+  const [imageReadyIds, setImageReadyIds] = useState<ReadonlySet<string>>(new Set());
   const rollingPreviewKey = rollingPreview === null ? '' : `${rollingPreview.leftClipId}:${rollingPreview.rightClipId}`;
   const slidePreviewKey = slidePreview === null ? '' : `${slidePreview.previousClipId}:${slidePreview.clipId}:${slidePreview.nextClipId}`;
   const [rollingReadiness, setRollingReadiness] = useState<PreviewReadiness>({ previewKey: '', readyKeys: new Set() });
@@ -151,6 +161,7 @@ export function TimelineProgramMonitor({
   const media = useMemo(() => {
     const result: PreviewMedia[] = [];
     for (const clip of clips) {
+      if (isStillImageTimelineClip(clip)) continue;
       const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
       if (assetId === null) continue;
       const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
@@ -169,7 +180,7 @@ export function TimelineProgramMonitor({
         || track.hidden
         || (track.kind !== 'video' && track.kind !== 'overlay')) continue;
       for (const clip of track.clips) {
-        if (!clip.placement.enabled) continue;
+        if (!clip.placement.enabled || isStillImageTimelineClip(clip)) continue;
         const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
         if (assetId === null) continue;
         const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
@@ -184,8 +195,27 @@ export function TimelineProgramMonitor({
     }
     return result;
   }, [project.document.story_track_id, project.document.tracks, shell]);
+  const imageMedia = useMemo(() => {
+    const result: ImagePreviewMedia[] = [];
+    for (const track of project.document.tracks) {
+      if (track.hidden) continue;
+      for (const clip of track.clips) {
+        if (!clip.placement.enabled || !isStillImageTimelineClip(clip)) continue;
+        const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
+        if (assetId === null) continue;
+        const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
+        if (src !== null) result.push({
+          trackId: track.id,
+          layer: track.id === project.document.story_track_id ? 0 : 1 + track.order,
+          clip,
+          src,
+        });
+      }
+    }
+    return result;
+  }, [project.document.story_track_id, project.document.tracks, shell]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
-  const hasProgramStage = media.length > 0 || overlayMedia.length > 0 || textOverlays.length > 0;
+  const hasProgramStage = media.length > 0 || overlayMedia.length > 0 || imageMedia.length > 0 || textOverlays.length > 0;
 
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
@@ -408,6 +438,27 @@ export function TimelineProgramMonitor({
                   />
                 );
               })}
+              {imageMedia.map(({ trackId, layer, clip, src }) => {
+                const active = timelineClipActiveAt(clip, targetTimelineTime);
+                const poolKey = `${trackId}:${clip.id}`;
+                return (
+                  <PooledPreviewImage
+                    key={poolKey}
+                    clip={clip}
+                    src={src}
+                    localTime={active ? targetTimelineTime - clip.placement.start : 0}
+                    active={active}
+                    presented={active && imageReadyIds.has(poolKey)}
+                    projectWidth={project.document.width}
+                    projectHeight={project.document.height}
+                    layer={layer}
+                    trackId={trackId}
+                    onReady={() => setImageReadyIds((current) => current.has(poolKey)
+                      ? current
+                      : new Set([...current, poolKey]))}
+                  />
+                );
+              })}
               {textOverlays.map((overlay) => (
                 <ProgramTextOverlayView
                   key={overlay.clip.id}
@@ -482,6 +533,82 @@ function timelineClipActiveAt(clip: TimelineClip, timelineTime: number): boolean
   return timelineTime + epsilon >= clip.placement.start
     && timelineTime < clip.placement.start + clip.placement.duration - epsilon;
 }
+
+function isStillImageTimelineClip(clip: TimelineClip): boolean {
+  if (typeof clip.metadata !== 'object' || clip.metadata === null || Array.isArray(clip.metadata)) return false;
+  const kind = clip.metadata.media_kind;
+  return typeof kind === 'string' && (kind.toLowerCase() === 'image' || kind.toLowerCase().startsWith('image/'));
+}
+
+const PooledPreviewImage = memo(function PooledPreviewImage({
+  clip,
+  src,
+  localTime,
+  active,
+  presented,
+  projectWidth,
+  projectHeight,
+  layer,
+  trackId,
+  onReady,
+}: {
+  readonly clip: TimelineClip;
+  readonly src: string;
+  readonly localTime: number;
+  readonly active: boolean;
+  readonly presented: boolean;
+  readonly projectWidth: number;
+  readonly projectHeight: number;
+  readonly layer: number;
+  readonly trackId: string;
+  readonly onReady: () => void;
+}) {
+  const transform = evaluatePreviewTransform(clip, localTime);
+  const previewFilter = evaluatePreviewFilter(clip, projectWidth);
+  const transition = evaluatePreviewTransition(clip, localTime, projectWidth);
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ zIndex: layer }}
+      data-preview-image-track-id={trackId}
+    >
+      <img
+        className="absolute inset-0 size-full bg-neutral-900 object-contain"
+        src={src}
+        alt=""
+        draggable={false}
+        aria-hidden={!active}
+        style={{
+          opacity: presented ? transform.opacity * transition.opacityFactor : 0,
+          visibility: presented ? 'visible' : 'hidden',
+          transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation + transition.rotation}deg) scale(${transform.scaleX * transition.scale}, ${transform.scaleY * transition.scale})`,
+          transformOrigin: 'center',
+          filter: [previewFilter.filter === 'none' ? '' : previewFilter.filter, transition.filter].filter(Boolean).join(' ') || 'none',
+          clipPath: transition.clipPath,
+        }}
+        data-preview-image-clip-id={clip.id}
+        data-preview-image-active={presented}
+        data-preview-transform-x={transform.x}
+        data-preview-transform-y={transform.y}
+        data-preview-scale-x={transform.scaleX}
+        data-preview-scale-y={transform.scaleY}
+        data-preview-rotation={transform.rotation}
+        data-preview-opacity={transform.opacity}
+        data-preview-transition={transition.kind}
+        data-preview-transition-progress={transition.progress}
+        onLoad={onReady}
+      />
+    </div>
+  );
+}, (previous, next) => previous.clip === next.clip
+  && previous.src === next.src
+  && previous.localTime === next.localTime
+  && previous.active === next.active
+  && previous.presented === next.presented
+  && previous.projectWidth === next.projectWidth
+  && previous.projectHeight === next.projectHeight
+  && previous.layer === next.layer
+  && previous.trackId === next.trackId);
 
 function ProgramTextOverlayView({ overlay, projectWidth, projectHeight }: {
   readonly overlay: ProgramTextOverlay;

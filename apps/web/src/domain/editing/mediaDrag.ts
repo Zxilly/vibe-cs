@@ -1,6 +1,7 @@
 import type { MediaAsset } from '../../shared/desktop/dto';
 
 export const PROJECT_MEDIA_DRAG_TYPE = 'application/x-vibe-cs-media-asset';
+export const DEFAULT_STILL_IMAGE_DURATION_SECONDS = 5;
 
 export interface ProjectMediaDragPayload {
   readonly assetId: string;
@@ -22,11 +23,23 @@ export function projectMediaAssetKind(asset: MediaAsset): 'video' | 'audio' {
   return asset.kind.toLocaleLowerCase().includes('audio') ? 'audio' : 'video';
 }
 
+export function isStillImageMediaAsset(asset: MediaAsset): boolean {
+  const kind = asset.kind.trim().toLocaleLowerCase();
+  return kind === 'image' || kind.startsWith('image/');
+}
+
+export function mediaAssetEditDuration(asset: MediaAsset): number | null {
+  if (isStillImageMediaAsset(asset)) return DEFAULT_STILL_IMAGE_DURATION_SECONDS;
+  const duration = asset.duration_seconds;
+  if (duration !== null && Number.isFinite(duration) && duration > 0) return duration;
+  return null;
+}
+
 export function writeProjectMediaDrag(
   transfer: ProjectMediaDataTransfer,
   asset: MediaAsset,
 ): ProjectMediaDragPayload | null {
-  const durationSeconds = asset.duration_seconds;
+  const durationSeconds = mediaAssetEditDuration(asset);
   if (asset.metadata_status.status !== 'ready'
     || durationSeconds === null
     || !Number.isFinite(durationSeconds)

@@ -1,4 +1,5 @@
 import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
+import { mediaAssetEditDuration } from './mediaDrag';
 import { clipMediaDuration, constrainClipGroupTrimDelta, trimTimelineClip } from './timelineInteraction';
 
 const TIME_EPSILON = 1e-6;
@@ -188,7 +189,7 @@ export function deleteRippleClips(
 }
 
 export function timelineClipFromMediaAsset(asset: MediaAsset, clipId: string): TimelineClip {
-  const duration = asset.duration_seconds ?? 0;
+  const duration = mediaAssetEditDuration(asset) ?? 0;
   return {
     id: clipId,
     name: asset.name,
@@ -208,7 +209,7 @@ export function timelineClipFromMediaAsset(asset: MediaAsset, clipId: string): T
     transition_in: null,
     transition_out: null,
     text: null,
-    metadata: { media_asset_id: asset.id },
+    metadata: { media_asset_id: asset.id, media_kind: asset.kind },
     group_id: null,
     link_group_id: null,
     keyframes: [],

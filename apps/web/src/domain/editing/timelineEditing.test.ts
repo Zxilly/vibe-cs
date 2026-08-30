@@ -157,6 +157,32 @@ describe('ripple Story Track edits', () => {
     expect(inserted[3]?.placement).toMatchObject({ duration: 6, source_in: 4, source_out: 10 });
   });
 
+  it('creates a five-second canonical still-image clip when the source has no duration', () => {
+    const image: MediaAsset = {
+      id: 'asset-image',
+      project_id: 'project',
+      path: 'D:\\media\\title.png',
+      name: 'Title card',
+      kind: 'image/png',
+      duration_seconds: 0.04,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: false,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: '2026-08-29T00:00:00Z',
+    };
+
+    expect(timelineClipFromMediaAsset(image, 'image-clip')).toMatchObject({
+      material: { kind: 'asset', asset_id: 'asset-image', media_duration_seconds: 5 },
+      placement: { duration: 5, source_in: 0, source_out: 5, speed: 1 },
+      metadata: { media_asset_id: 'asset-image', media_kind: 'image/png' },
+    });
+  });
+
   it('pastes multiple Story clips at the playhead and ripples the existing tail', () => {
     const pasted = pasteRippleClipsAtTime(CLIPS, [CLIPS[0]!, CLIPS[2]!], 14, ['a-copy', 'c-copy'], 'b-tail');
 

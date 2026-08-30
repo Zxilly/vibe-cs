@@ -1445,6 +1445,43 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
   });
 
+  it('previews still-image Story clips without creating a video clock', async () => {
+    const imageClip: TimelineClip = {
+      ...clip(CLIP_A, 'Title card'),
+      material: { kind: 'asset', asset_id: 'asset-image', media_duration_seconds: 5 },
+      placement: { ...clip(CLIP_A, 'Title card').placement, duration: 5, source_out: 5 },
+      transform: { ...clip(CLIP_A, 'Title card').transform, x: 96, y: 54, opacity: 0.8 },
+      metadata: { media_asset_id: 'asset-image', media_kind: 'image/png' },
+    };
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        duration_seconds: 5,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, clips: [imageClip] }
+          : track),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const monitor = await screen.findByRole('region', { name: '视频预览' });
+    const image = monitor.querySelector<HTMLImageElement>(`img[data-preview-image-clip-id="${CLIP_A}"]`);
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-image/stream');
+    expect(image?.dataset.previewTransformX).toBe('96');
+    expect(image?.dataset.previewOpacity).toBe('0.8');
+    expect(monitor.dataset.monitorTargetClipId).toBe('');
+    expect(monitor.querySelectorAll('video[data-preview-active="true"]')).toHaveLength(0);
+  });
+
   it('previews Volume keyframes and the canonical fade envelope on Program audio', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,
@@ -2568,6 +2605,47 @@ describe('unified project workspace', () => {
     fireEvent.loadedData(sourceB!);
     expect(sourceA?.dataset.sourcePreviewVisible).toBe('false');
     expect(sourceB?.dataset.sourcePreviewVisible).toBe('true');
+  });
+
+  it('treats imported images as five-second visual media with an image source preview', async () => {
+    const image: MediaAsset = {
+      id: 'asset-image',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\title.png',
+      name: 'Title card',
+      kind: 'image',
+      duration_seconds: 0.04,
+      width: 1920,
+      height: 1080,
+      file_size: 4_096,
+      has_audio: false,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    renderWorkspace({
+      assets: [image],
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const option = await screen.findByRole('option', { name: '选择素材 Title card' });
+    expect(option.textContent).toContain('00:05.000');
+    fireEvent.click(option);
+    const preview = await waitFor(() => {
+      const element = document.querySelector<HTMLImageElement>('img[data-source-preview-asset-id="asset-image"]');
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-image/stream');
+    fireEvent.load(preview);
+    expect(preview.dataset.sourcePreviewVisible).toBe('true');
+    expect(screen.getByRole('button', { name: '在播放头插入 Title card' })).toBeTruthy();
   });
 
   it('relinks and removes only an unreferenced imported asset while preserving its source file', async () => {

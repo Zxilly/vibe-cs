@@ -106,6 +106,15 @@ function mediaDragEvent(
   return event;
 }
 
+function openTimelineCommands(): void {
+  fireEvent.pointerDown(screen.getByRole('button', { name: '剪辑操作' }), { button: 0, ctrlKey: false });
+}
+
+function runTimelineCommand(name: string): void {
+  openTimelineCommands();
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+}
+
 const PROJECT: Project = {
   id: '00000000-0000-4000-8000-000000000001',
   name: '统一作品',
@@ -843,7 +852,7 @@ describe('unified project workspace', () => {
       expect(storyClip.className).toContain('ring-accent');
       expect(audioButton.className).toContain('ring-accent');
     });
-    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+    runTimelineCommand('删除所选片段并闭合间隙');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       scope: { kind: 'project' },
@@ -878,10 +887,12 @@ describe('unified project workspace', () => {
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    expect((screen.getByRole('button', { name: '在播放头添加剪辑点' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '删除所选片段并闭合间隙' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '波纹裁切片段起点到播放头' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '波纹裁切播放头到片段终点' }) as HTMLButtonElement).disabled).toBe(true);
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', { name: '在播放头添加剪辑点' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: '删除所选片段并闭合间隙' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: '波纹裁切片段起点到播放头' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: '波纹裁切播放头到片段终点' }).getAttribute('aria-disabled')).toBe('true');
+    fireEvent.keyDown(screen.getByRole('menu', { name: '剪辑操作' }), { key: 'Escape' });
     expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(false);
 
     const timeline = screen.getByRole('region', { name: '时间轴' });
@@ -914,7 +925,7 @@ describe('unified project workspace', () => {
     fireEvent.pointerDown(await screen.findByRole('button', { name: /Unlocked bed 5\.0s · 已录制/u }), {
       pointerId: 97, button: 0, ctrlKey: true, clientX: 400,
     });
-    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+    runTimelineCommand('删除所选片段并闭合间隙');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -1006,7 +1017,7 @@ describe('unified project workspace', () => {
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    fireEvent.click(screen.getByRole('button', { name: '在播放头添加剪辑点' }));
+    runTimelineCommand('在播放头添加剪辑点');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1127,7 +1138,8 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
-    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加标记' }));
+    await screen.findByRole('button', { name: '剪辑操作' });
+    runTimelineCommand('在播放头添加标记');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -1276,7 +1288,10 @@ describe('unified project workspace', () => {
       ],
     })));
     expect(screen.queryByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeNull();
-    expect((screen.getByRole('button', { name: '在播放头粘贴片段' }) as HTMLButtonElement).disabled).toBe(false);
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', { name: '在播放头粘贴覆盖' }).getAttribute('aria-disabled')).not.toBe('true');
+    expect(screen.getByRole('menuitem', { name: '在播放头插入粘贴' }).getAttribute('aria-disabled')).not.toBe('true');
+    fireEvent.keyDown(screen.getByRole('menu', { name: '剪辑操作' }), { key: 'Escape' });
   });
 
   it('extracts an In/Out range from every targeted track and preserves external gaps', async () => {
@@ -1358,7 +1373,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ applyProjectPatch });
 
     fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
-    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+    runTimelineCommand('删除所选片段并闭合间隙');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -1383,7 +1398,7 @@ describe('unified project workspace', () => {
     });
     expect(clipB.hasPointerCapture(31)).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+    runTimelineCommand('删除所选片段并闭合间隙');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: [] }],
@@ -1398,7 +1413,7 @@ describe('unified project workspace', () => {
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
     fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
-    fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true });
+    fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true, shiftKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1416,20 +1431,39 @@ describe('unified project workspace', () => {
   });
 
   it('pastes a single clipboard group to the explicitly targeted track', async () => {
+    const bRollTrackId = '00000000-0000-4000-8000-000000000095';
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: [...PROJECT.document.tracks, {
+          id: bRollTrackId,
+          name: 'B-Roll',
+          kind: 'video',
+          order: 2,
+          muted: false,
+          locked: false,
+          hidden: false,
+          clips: [],
+        }],
+      },
+    };
     const applyProjectPatch = vi.fn();
-    renderWorkspace({ applyProjectPatch });
+    renderWorkspace({ project, applyProjectPatch });
 
-    fireEvent.click(await screen.findByRole('button', { name: '复制所选片段' }));
-    const musicTarget = screen.getByRole('button', { name: '设为目标轨道 Music' });
-    fireEvent.click(musicTarget);
-    expect(musicTarget.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByText('目标：Story、Music')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '在播放头粘贴片段' }));
+    await screen.findByRole('button', { name: '剪辑操作' });
+    runTimelineCommand('复制所选片段');
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 视频轨道 1' }));
+    const bRollTarget = screen.getByRole('button', { name: '设为目标轨道 B-Roll' });
+    fireEvent.click(bRollTarget);
+    expect(bRollTarget.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('目标：B-Roll')).toBeTruthy();
+    runTimelineCommand('在播放头粘贴覆盖');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
         op: 'replace_track_clips',
-        track_id: '00000000-0000-4000-8000-000000000013',
+        track_id: bRollTrackId,
         clips: [expect.objectContaining({ name: 'A', placement: expect.objectContaining({ start: 0, duration: 5 }) })],
       }],
     })));
@@ -1491,7 +1525,8 @@ describe('unified project workspace', () => {
     };
     renderWorkspace({ groups: [group], revertProjectChangeGroup });
 
-    fireEvent.click(await screen.findByRole('button', { name: '撤销上一次剪辑' }));
+    await screen.findByRole('button', { name: '剪辑操作' });
+    runTimelineCommand('撤销上一次剪辑');
 
     await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(
       PROJECT.id,
@@ -2254,9 +2289,9 @@ describe('unified project workspace', () => {
   it('lets Space activate a focused Timeline button without also toggling transport', async () => {
     renderWorkspace();
 
-    const marker = await screen.findByRole('button', { name: '在播放头添加标记' });
-    marker.focus();
-    fireEvent.keyDown(marker, { key: ' ' });
+    const trackSelect = await screen.findByRole('button', { name: '向前选择轨道工具 (A)' });
+    trackSelect.focus();
+    fireEvent.keyDown(trackSelect, { key: ' ' });
 
     expect(screen.getByRole('button', { name: '播放时间轴' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'K 暂停时间轴' })).toBeNull();
@@ -2456,7 +2491,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     preview.currentTime = 1.007;
     fireEvent.timeUpdate(preview);
-    fireEvent.click(screen.getByRole('button', { name: '在播放头添加标记' }));
+    runTimelineCommand('在播放头添加标记');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -2527,6 +2562,54 @@ describe('unified project workspace', () => {
       expect(clipB.className).toContain('ring-accent');
       expect(audio.className).toContain('ring-accent');
     });
+  });
+
+  it('uses Track Select Forward for one track and Shift-click for all tracks', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: targetedRangeProject() });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'a' });
+    expect(screen.getByRole('button', { name: '向前选择轨道工具 (A)' }).getAttribute('aria-pressed')).toBe('true');
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    const audio = screen.getByRole('button', { name: /Range audio 10\.0s · 已录制/u });
+    vi.spyOn(clipB, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 500, bottom: 84, left: 0, width: 500, height: 84, toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(clipB, { pointerId: 122, button: 0, clientX: 200 });
+    await waitFor(() => {
+      expect(clipA.className).not.toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+      expect(audio.className).not.toContain('ring-accent');
+    });
+
+    fireEvent.pointerDown(clipB, { pointerId: 123, button: 0, clientX: 200, shiftKey: true });
+    await waitFor(() => {
+      expect(clipB.className).toContain('ring-accent');
+      expect(audio.className).toContain('ring-accent');
+    });
+    clientWidth.mockRestore();
+  });
+
+  it('uses Track Select Backward to select the clicked clip and earlier clips', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace();
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'A', shiftKey: true });
+    expect(screen.getByRole('button', { name: '向后选择轨道工具 (Shift+A)' }).getAttribute('aria-pressed')).toBe('true');
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    vi.spyOn(clipB, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 500, bottom: 84, left: 0, width: 500, height: 84, toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(clipB, { pointerId: 124, button: 0, clientX: 200 });
+    await waitFor(() => {
+      expect(clipA.className).toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+    });
+    clientWidth.mockRestore();
   });
 
   it('expands linked selection and atomically unlinks the selected clips', async () => {
@@ -2600,8 +2683,10 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: linkedProject(), applyProjectPatch });
 
-    fireEvent.click(await screen.findByRole('button', { name: '复制所选片段' }));
-    fireEvent.click(screen.getByRole('button', { name: '在播放头粘贴片段' }));
+    await screen.findByRole('button', { name: '剪辑操作' });
+    runTimelineCommand('复制所选片段');
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
+    runTimelineCommand('在播放头粘贴覆盖');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
     const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations ?? [];
@@ -4729,11 +4814,15 @@ describe('unified project workspace', () => {
 
     expect(screen.getByText('Agent 操作中 · 人类只读')).toBeTruthy();
     expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '在播放头添加标记' }) as HTMLButtonElement).disabled).toBe(true);
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', { name: '在播放头添加标记' }).getAttribute('aria-disabled')).toBe('true');
+    fireEvent.keyDown(screen.getByRole('menu', { name: '剪辑操作' }), { key: 'Escape' });
 
     finishStream();
     await waitFor(() => expect(updateAgentTurn).toHaveBeenCalled());
     await waitFor(() => expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(false));
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', { name: '在播放头添加标记' }).getAttribute('aria-disabled')).not.toBe('true');
   });
 
   it('shows the Agent lease inside the conversation and makes human controls read-only', async () => {

@@ -2,7 +2,6 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
   Bookmark,
-  BookmarkPlus,
   BetweenHorizontalEnd,
   BetweenHorizontalStart,
   Camera,
@@ -11,14 +10,13 @@ import {
   ChevronDown,
   ChevronUp,
   Clapperboard,
-  ClipboardPaste,
-  Copy,
   Eye,
   Gauge,
   Link2,
   LockKeyhole,
   Magnet,
   MoveHorizontal,
+  MoveLeft,
   MoveRight,
   MousePointer2,
   SquarePlus,
@@ -26,7 +24,6 @@ import {
   Type,
   Scissors,
   Trash2,
-  Undo2,
   Volume2,
   ZoomIn,
   ZoomOut,
@@ -68,6 +65,13 @@ import {
 } from './timelineChangeProjection';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
+import { timelineTrackSelection } from './timelineTrackSelection';
+import {
+  planTimelinePasteInsert,
+  planTimelinePasteOverwrite,
+  resolveTimelinePasteTargets,
+  type TimelineClipboard,
+} from './timelinePaste';
 import {
   clearProjectMediaDrag,
   hasProjectMediaDrag,
@@ -84,8 +88,6 @@ import {
   moveFreeClipGroup,
   trimFreeClipGroup,
   trimRippleClipGroup,
-  pasteFreePositionedClipsAtTime,
-  pasteRippleClipsAtTime,
   timelineClipsInRange,
   trimRippleClip,
 } from './timelineEditing';
@@ -122,7 +124,7 @@ import {
   type TimelineSlidePreview,
 } from './timelineInteraction';
 
-type TimelineEditTool = 'selection' | 'razor' | 'slip' | 'rolling' | 'rate' | 'slide';
+type TimelineEditTool = 'selection' | 'track_forward' | 'track_backward' | 'razor' | 'slip' | 'rolling' | 'rate' | 'slide';
 
 export interface TimelineMediaDrop {
   readonly assetId: string;
@@ -193,32 +195,6 @@ function defaultTrackHeight(track: RenderedTrack): number {
   if (track.kind === 'video') return 84;
   if (track.kind === 'audio') return 64;
   return 52;
-}
-
-interface ClipboardIdentities {
-  readonly group_id: string | null;
-  readonly link_group_id: string | null;
-}
-
-function identityCounts(values: readonly (string | null)[]): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
-  for (const value of values) {
-    if (value !== null) counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function remapClipboardIdentity(
-  source: string | null,
-  counts: ReadonlyMap<string, number>,
-  remapped: Map<string, string>,
-): string | null {
-  if (source === null || (counts.get(source) ?? 0) < 2) return null;
-  const existing = remapped.get(source);
-  if (existing !== undefined) return existing;
-  const created = globalThis.crypto.randomUUID();
-  remapped.set(source, created);
-  return created;
 }
 
 /**
@@ -313,13 +289,7 @@ export function ProjectTimeline({
   } | null>(null);
   const marqueeScrollFrameRef = useRef<number | null>(null);
   const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
-  const [clipboard, setClipboard] = useState<{
-    readonly originTime: number;
-    readonly groups: readonly {
-      readonly trackId: string;
-      readonly clips: readonly TimelineClip[];
-    }[];
-  } | null>(null);
+  const [clipboard, setClipboard] = useState<TimelineClipboard | null>(null);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
   const pendingZoomScrollRef = useRef<number | null>(null);
@@ -334,9 +304,6 @@ export function ProjectTimeline({
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
-  const targetTrack = targetTrackId === null
-    ? null
-    : document.tracks.find((track) => track.id === targetTrackId) ?? null;
   const targetTrackIdSet = useMemo(() => new Set(targetTrackIds), [targetTrackIds]);
   const targetedTracks = useMemo(
     () => document.tracks.filter((track) => targetTrackIdSet.has(track.id)),
@@ -549,15 +516,9 @@ export function ProjectTimeline({
   ));
   const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
-  const clipboardTracks = clipboard === null
-    ? []
-    : clipboard.groups.length === 1
-      ? [targetTrack]
-      : clipboard.groups.map((group) => document.tracks.find((track) => track.id === group.trackId) ?? null);
   const canPaste = !readOnly
     && clipboard !== null
-    && clipboardTracks.length === clipboard.groups.length
-    && clipboardTracks.every((track) => track !== null && !track.locked);
+    && resolveTimelinePasteTargets(document.tracks, targetTrackIdSet, clipboard) !== null;
   const rangeStart = rangeInSeconds === null || rangeOutSeconds === null
     ? null
     : Math.min(rangeInSeconds, rangeOutSeconds);
@@ -648,9 +609,15 @@ export function ProjectTimeline({
 
   const copySelected = () => {
     if (!canCopy) return;
+    const originTime = Math.min(...selectedClips.map((clip) => clip.placement.start));
     setClipboard({
-      originTime: Math.min(...selectedClips.map((clip) => clip.placement.start)),
-      groups: selectedTrackGroups.map(({ track, clips: selected }) => ({ trackId: track.id, clips: selected })),
+      originTime,
+      duration: Math.max(...selectedClips.map((clip) => clip.placement.start + clip.placement.duration)) - originTime,
+      groups: selectedTrackGroups.map(({ track, clips: selected }) => ({
+        trackId: track.id,
+        trackKind: track.kind,
+        clips: selected,
+      })),
     });
   };
   const toggleSelectedClipLinks = () => {
@@ -659,42 +626,21 @@ export function ProjectTimeline({
     onReplaceClips(selectedClips.map((clip) => ({ ...clip, link_group_id: linkGroupId })));
   };
 
-  const pasteClipboard = () => {
+  const pasteClipboard = (mode: 'overwrite' | 'insert') => {
     if (!canPaste || clipboard === null) return;
-    const pastedIds: string[] = [];
-    const copiedClips = clipboard.groups.flatMap((group) => group.clips);
-    const groupCounts = identityCounts(copiedClips.map((clip) => clip.group_id));
-    const linkCounts = identityCounts(copiedClips.map((clip) => clip.link_group_id));
-    const groupIds = new Map<string, string>();
-    const linkIds = new Map<string, string>();
-    const updates = clipboard.groups.map((group, groupIndex) => {
-      const track = clipboardTracks[groupIndex]!;
-      const clipIds = group.clips.map(() => globalThis.crypto.randomUUID());
-      const copiedIdentities = new Map<string, ClipboardIdentities>(
-        clipIds.map((clipId, index) => {
-          const source = group.clips[index]!;
-          return [clipId, {
-            group_id: remapClipboardIdentity(source.group_id, groupCounts, groupIds),
-            link_group_id: remapClipboardIdentity(source.link_group_id, linkCounts, linkIds),
-          }] as const;
-        }),
-      );
-      pastedIds.push(...clipIds);
-      const groupOrigin = Math.min(...group.clips.map((clip) => clip.placement.start));
-      const groupPasteTime = editPlayheadSeconds + groupOrigin - clipboard.originTime;
-      const placed = track.id === document.story_track_id
-        ? pasteRippleClipsAtTime(track.clips, group.clips, groupPasteTime, clipIds, globalThis.crypto.randomUUID())
-        : pasteFreePositionedClipsAtTime(track.clips, group.clips, groupPasteTime, clipIds);
-      return {
-        trackId: track.id,
-        clips: placed.map((clip) => {
-          const identities = copiedIdentities.get(clip.id);
-          return identities === undefined ? clip : { ...clip, ...identities };
-        }),
-      };
-    });
-    onReplaceTrackClipGroups(updates);
-    pastedIds.forEach((clipId, index) => onSelectClip(clipId, index > 0));
+    const input = {
+      tracks: document.tracks,
+      targetTrackIds: targetTrackIdSet,
+      clipboard,
+      timelineTime: editPlayheadSeconds,
+      createId: () => globalThis.crypto.randomUUID(),
+    };
+    const plan = mode === 'insert'
+      ? planTimelinePasteInsert({ ...input, fps: document.fps })
+      : planTimelinePasteOverwrite(input);
+    if (plan === null) return;
+    onReplaceTrackClipGroups(plan.updates);
+    onSelectClips(plan.pastedClipIds);
   };
 
   const addTrack = (kind: TimelineTrack['kind']) => {
@@ -814,10 +760,11 @@ export function ProjectTimeline({
     if (!canEditRange || rangeStart === null || rangeEnd === null) return;
     const copiedGroups = editableTargetedTracks.flatMap((track) => {
       const copied = timelineClipsInRange(track.clips, rangeStart, rangeEnd);
-      return copied.length === 0 ? [] : [{ trackId: track.id, clips: copied }];
+      return copied.length === 0 ? [] : [{ trackId: track.id, trackKind: track.kind, clips: copied }];
     });
     setClipboard(copiedGroups.length === 0 ? null : {
       originTime: rangeStart,
+      duration: rangeEnd - rangeStart,
       groups: copiedGroups,
     });
     onReplaceTrackClipGroups(editableTargetedTracks.map((track) => ({
@@ -1162,6 +1109,17 @@ export function ProjectTimeline({
           onPreviewSlideEdit(null);
           return;
         }
+        if (event.key.toLowerCase() === 'a' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          setEditTool(event.shiftKey ? 'track_backward' : 'track_forward');
+          onPreviewClips([]);
+          setRollingPreviewTime(null);
+          setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
+          onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
+          return;
+        }
         if (event.key.toLowerCase() === 'y' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
           event.preventDefault();
           onShuttle(0);
@@ -1246,7 +1204,7 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey && canPaste) {
           event.preventDefault();
-          pasteClipboard();
+          pasteClipboard(event.shiftKey ? 'insert' : 'overwrite');
           return;
         }
         if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -1323,6 +1281,25 @@ export function ProjectTimeline({
         >
           <Type className="size-3.5" aria-hidden="true" />
         </button>
+        <OverflowMenu
+          label={t`剪辑操作`}
+          triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
+          align="start"
+          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
+          items={[
+            { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
+            { id: 'marker', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
+            { id: 'lift', label: t`提升入出点范围`, disabled: !canLiftRange, onSelect: liftRange },
+            { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
+            { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
+            { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
+            { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
+            { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
+            { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
+            { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
+            { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
+          ]}
+        />
         <span className="max-w-48 truncate text-2xs text-neutral-500">
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
         </span>
@@ -1398,25 +1375,6 @@ export function ProjectTimeline({
         canRollTool={!readOnly && document.tracks.some((track) => !track.locked && rollingEditPoints(track.clips, document.fps).length > 0)}
         canRateTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some(canRateStretchTimelineClip))}
         canSlideTool={!readOnly && document.tracks.some((track) => !track.locked && slideEditTriples(track.clips, document.fps).length > 0)}
-        canAddEdit={canAddEdit}
-        canDelete={canDelete}
-        canCopy={canCopy}
-        canPaste={canPaste}
-        canUndo={canUndo && !readOnly}
-        canAddMarker={!readOnly}
-        canLiftRange={canLiftRange}
-        canExtractRange={canExtractRange}
-        canRippleTrim={canRippleTrimToPlayhead}
-        onAddEdit={addEdit}
-        onDelete={deleteSelected}
-        onCopy={copySelected}
-        onPaste={pasteClipboard}
-        onUndo={onUndo}
-        onAddMarker={addMarker}
-        onLiftRange={liftRange}
-        onExtractRange={extractRange}
-        onRippleTrimStart={() => rippleTrimToPlayhead('start')}
-        onRippleTrimEnd={() => rippleTrimToPlayhead('end')}
         onChangeTool={(tool) => {
           if (tool === 'slip') onShuttle(0);
           if (tool === 'rolling') onShuttle(0);
@@ -1581,6 +1539,13 @@ export function ProjectTimeline({
                 explicitTrackId: allTracks ? null : track.track.id,
                 snap: true,
               })}
+              onTrackSelect={(time, direction, allTracks) => onSelectClips(timelineTrackSelection({
+                tracks: document.tracks,
+                trackId: track.track.id,
+                timelineTime: time,
+                direction,
+                allTracks,
+              }))}
               onReplaceClip={onReplaceClip}
               onReplaceTrack={onReplaceTrack}
               onReplaceTrackClips={onReplaceTrackClips}
@@ -2094,7 +2059,7 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -2109,6 +2074,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
+  readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
@@ -2302,6 +2268,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onSeek={onSeek}
             razorEnabled={!readOnly && !track.track.locked}
             onRazor={onRazor}
+            onTrackSelect={onTrackSelect}
             snapPoints={snapPoints}
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
@@ -2708,7 +2675,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onRazor, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -2731,6 +2698,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onInspect: () => void;
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
+  readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'fade' | 'speed_remap') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
@@ -2979,6 +2947,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         change?.kind === 'added' && 'border-ok-border bg-ok-surface',
         change?.kind === 'modified' && 'border-accent-400 bg-accent-100',
         selected && 'ring-1 ring-inset ring-accent-600',
+        editTool === 'track_forward' && 'cursor-e-resize',
+        editTool === 'track_backward' && 'cursor-w-resize',
         editTool === 'razor' && razorEnabled && 'cursor-crosshair',
         editTool === 'razor' && !razorEnabled && 'cursor-not-allowed',
         editTool === 'slip' && canSlip && 'cursor-ew-resize',
@@ -2987,14 +2957,16 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         editTool === 'slide' && !canSlide && 'cursor-not-allowed',
       )}
       style={{ left: visualLeft, width: visualWidth }}
-      aria-disabled={editTool === 'razor' ? !razorEnabled : readOnly}
+      aria-disabled={editTool === 'razor'
+        ? !razorEnabled
+        : editTool === 'track_forward' || editTool === 'track_backward' ? false : readOnly}
       onClick={(event) => {
-        if (editTool === 'razor') return;
+        if (editTool === 'razor' || editTool === 'track_forward' || editTool === 'track_backward') return;
         if (event.detail === 0) onSelect(event.ctrlKey || event.metaKey, event.shiftKey);
         else if (selected && !lastGestureWasDragRef.current) onPromote();
       }}
       onDoubleClick={(event) => {
-        if (editTool === 'razor') {
+        if (editTool === 'razor' || editTool === 'track_forward' || editTool === 'track_backward') {
           event.preventDefault();
           event.stopPropagation();
           return;
@@ -3002,6 +2974,20 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         onInspect();
       }}
       onPointerDown={(event) => {
+        if (editTool === 'track_forward' || editTool === 'track_backward') {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const fraction = Math.min(1, Math.max(0, (event.clientX - bounds.left) / Math.max(1, bounds.width)));
+          lastGestureWasDragRef.current = true;
+          onTrackSelect(
+            clip.placement.start + clip.placement.duration * fraction,
+            editTool === 'track_forward' ? 'forward' : 'backward',
+            event.shiftKey,
+          );
+          return;
+        }
         if (editTool === 'razor') {
           if (!razorEnabled || event.button !== 0) return;
           event.preventDefault();
@@ -3039,7 +3025,11 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         onClearPreview();
       }}
       onKeyDown={(event) => {
-        if (editTool === 'razor' || readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        if (editTool === 'razor'
+          || editTool === 'track_forward'
+          || editTool === 'track_backward'
+          || readOnly
+          || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
         event.preventDefault();
         const direction = event.key === 'ArrowRight' ? 1 : -1;
         if (editTool === 'rolling' || editTool === 'rate') return;
@@ -3602,25 +3592,6 @@ function TimelineToolStrip({
   canRollTool,
   canRateTool,
   canSlideTool,
-  canAddEdit,
-  canDelete,
-  canCopy,
-  canPaste,
-  canUndo,
-  canAddMarker,
-  canLiftRange,
-  canExtractRange,
-  canRippleTrim,
-  onAddEdit,
-  onDelete,
-  onCopy,
-  onPaste,
-  onUndo,
-  onAddMarker,
-  onLiftRange,
-  onExtractRange,
-  onRippleTrimStart,
-  onRippleTrimEnd,
   onChangeTool,
 }: {
   readonly editTool: TimelineEditTool;
@@ -3628,44 +3599,17 @@ function TimelineToolStrip({
   readonly canRollTool: boolean;
   readonly canRateTool: boolean;
   readonly canSlideTool: boolean;
-  readonly canAddEdit: boolean;
-  readonly canDelete: boolean;
-  readonly canCopy: boolean;
-  readonly canPaste: boolean;
-  readonly canUndo: boolean;
-  readonly canAddMarker: boolean;
-  readonly canLiftRange: boolean;
-  readonly canExtractRange: boolean;
-  readonly canRippleTrim: boolean;
-  readonly onAddEdit: () => void;
-  readonly onDelete: () => void;
-  readonly onCopy: () => void;
-  readonly onPaste: () => void;
-  readonly onUndo: () => void;
-  readonly onAddMarker: () => void;
-  readonly onLiftRange: () => void;
-  readonly onExtractRange: () => void;
-  readonly onRippleTrimStart: () => void;
-  readonly onRippleTrimEnd: () => void;
   readonly onChangeTool: (tool: TimelineEditTool) => void;
 }) {
   const tools = [
     { label: t`选择工具 (V)`, icon: <MousePointer2 className="size-4" aria-hidden="true" />, enabled: true, pressed: editTool === 'selection', action: () => onChangeTool('selection') },
+    { label: t`向前选择轨道工具 (A)`, icon: <MoveRight className="size-4" aria-hidden="true" />, enabled: true, pressed: editTool === 'track_forward', action: () => onChangeTool('track_forward') },
+    { label: t`向后选择轨道工具 (Shift+A)`, icon: <MoveLeft className="size-4" aria-hidden="true" />, enabled: true, pressed: editTool === 'track_backward', action: () => onChangeTool('track_backward') },
     { label: t`剃刀工具 (C)`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: true, pressed: editTool === 'razor', action: () => onChangeTool('razor') },
     { label: t`滑移工具 (Y)`, icon: <MoveHorizontal className="size-4" aria-hidden="true" />, enabled: canSlipTool, pressed: editTool === 'slip', action: () => onChangeTool('slip') },
     { label: t`滚动编辑工具 (N)`, icon: <BetweenHorizontalEnd className="size-4" aria-hidden="true" />, enabled: canRollTool, pressed: editTool === 'rolling', action: () => onChangeTool('rolling') },
     { label: t`比率伸缩工具 (R)`, icon: <Gauge className="size-4" aria-hidden="true" />, enabled: canRateTool, pressed: editTool === 'rate', action: () => onChangeTool('rate') },
     { label: t`滑动工具 (U)`, icon: <BetweenHorizontalStart className="size-4" aria-hidden="true" />, enabled: canSlideTool, pressed: editTool === 'slide', action: () => onChangeTool('slide') },
-    { label: t`在播放头添加剪辑点`, icon: <span className="font-mono text-2xs" aria-hidden="true">K</span>, enabled: canAddEdit, pressed: false, action: onAddEdit },
-    { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
-    { label: t`提升入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">;</span>, enabled: canLiftRange, pressed: false, action: onLiftRange },
-    { label: t`提取入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">'</span>, enabled: canExtractRange, pressed: false, action: onExtractRange },
-    { label: t`波纹裁切片段起点到播放头`, icon: <span className="font-mono text-xs" aria-hidden="true">Q</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimStart },
-    { label: t`波纹裁切播放头到片段终点`, icon: <span className="font-mono text-xs" aria-hidden="true">W</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimEnd },
-    { label: t`复制所选片段`, icon: <Copy className="size-4" aria-hidden="true" />, enabled: canCopy, pressed: false, action: onCopy },
-    { label: t`在播放头粘贴片段`, icon: <ClipboardPaste className="size-4" aria-hidden="true" />, enabled: canPaste, pressed: false, action: onPaste },
-    { label: t`删除所选片段并闭合间隙`, icon: <Trash2 className="size-4" aria-hidden="true" />, enabled: canDelete, pressed: false, action: onDelete },
-    { label: t`撤销上一次剪辑`, icon: <Undo2 className="size-4" aria-hidden="true" />, enabled: canUndo, pressed: false, action: onUndo },
   ] as const;
   return (
     <aside className="absolute bottom-14 left-0 top-[var(--h-panel-head)] z-50 flex w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
@@ -3674,7 +3618,7 @@ function TimelineToolStrip({
           key={tool.label}
           type="button"
           className={cn(
-            'grid size-8 place-items-center rounded-sm text-neutral-600 hover:bg-neutral-100 hover:text-text disabled:text-neutral-300',
+            'grid size-8 flex-none place-items-center rounded-sm text-neutral-600 hover:bg-neutral-100 hover:text-text disabled:text-neutral-300',
             tool.pressed && 'bg-accent-100 text-accent-text',
           )}
           aria-label={tool.label}

@@ -8,6 +8,7 @@ export {
 } from './ProjectMediaPanel';
 export { planSourceMediaEdit, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
 export { planTimelineAddEdit, type TimelineAddEditPlan, type TimelineAddEditUpdate } from './timelineAddEdit';
+export { timelineTrackSelection } from './timelineTrackSelection';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,
@@ -78,8 +79,6 @@ export {
   moveFreeClipGroup,
   overwriteClipsAtTime,
   placeFreeClipAtTime,
-  pasteFreePositionedClipsAtTime,
-  pasteRippleClipsAtTime,
   splitRippleClip,
   timelineClipsInRange,
   timelineClipFromMediaAsset,

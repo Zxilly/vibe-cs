@@ -44,8 +44,11 @@ plan, montage, editor, or conversion pipeline.
 
 - `read_workspace`: reads the exact Project ID, revision, selection, lens, and
   canonical Editing Document.
-- `read_demo_evidence`: reads bounded persisted Demo analysis referenced by the
-  Project.
+- `read_demo_evidence`: queries authoritative persisted Demo analysis referenced
+  by the Project. Player work supplies `playerName` or `playerId` and may narrow
+  `demoIds` and event `kinds`; the host filters raw per-Demo highlights before a
+  1–128 result cap. Multi-Demo prompt context contains only an inventory, never
+  a pre-truncated evidence dump.
 - `read_cinematic_context`: reads producer-bound selected-round spatial evidence,
   round bounds, and camera feasibility for explicit highlight IDs.
 - `apply_project_patch`: applies one small revision-bound Project edit.
@@ -64,13 +67,15 @@ the webview or tool output.
 
 ## Model configuration
 
-The development override uses Kimi Code's Anthropic-compatible transport:
+Kimi Code exposes both OpenAI- and Anthropic-compatible transports. Vibe CS
+uses the existing OpenAI-compatible runtime so K3 shares the same tool loop,
+stream events, cancellation, and error handling as other configured models:
 
 ```text
 provider = kimi-for-coding
 model = k3
 base URL = https://api.kimi.com/coding/v1
-parameter style = Anthropic
+parameter style = OpenAI
 ```
 
 The API key is read by the desktop host from Vibe CS configuration or, in a

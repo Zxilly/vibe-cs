@@ -1,6 +1,8 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
+  ChevronLeft,
+  ChevronRight,
   CircleDashed,
   FileAudio2,
   FileVideo2,
@@ -8,11 +10,13 @@ import {
   Grid2X2,
   Link2,
   List,
+  Pause,
+  Play,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { mediaAssetStreamPath, mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
@@ -33,6 +37,7 @@ export interface ProjectMediaPanelProps {
   readonly assets: readonly MediaAsset[];
   readonly timelineTracks: readonly TimelineTrack[];
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
+  readonly projectFps: number;
   readonly selectedTimelineClipId: string | null;
   readonly pending: boolean;
   readonly readOnly: boolean;
@@ -46,11 +51,16 @@ export interface ProjectMediaPanelProps {
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
   readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
-  readonly onInsert: (asset: MediaAsset) => void;
-  readonly onOverwrite: (asset: MediaAsset) => void;
+  readonly onInsert: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
+  readonly onOverwrite: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
   readonly onClose?: (() => void) | undefined;
+}
+
+export interface ProjectSourceRange {
+  readonly sourceIn: number;
+  readonly sourceOut: number;
 }
 
 type MediaStateFilter = 'all' | 'planned' | 'recorded' | 'imported';
@@ -74,6 +84,7 @@ export function ProjectMediaPanel({
   assets,
   timelineTracks,
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
+  projectFps,
   selectedTimelineClipId,
   pending,
   readOnly,
@@ -97,6 +108,8 @@ export function ProjectMediaPanel({
   const [stateFilter, setStateFilter] = useState<MediaStateFilter>('all');
   const [view, setView] = useState<ProjectMediaView>('list');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [sourceTimes, setSourceTimes] = useState<Readonly<Record<string, number>>>({});
+  const [sourceRanges, setSourceRanges] = useState<Readonly<Record<string, ProjectSourceRange>>>({});
   const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
   const items = useMemo(
     () => projectMediaItems(timelineTracks, assets, deliveryStateByClipId),
@@ -121,6 +134,31 @@ export function ProjectMediaPanel({
   const importedItems = filtered.filter((item) => item.importedAsset !== null);
   const selectedSourceAsset = selected?.sourceAsset ?? null;
   const selectedImportedAsset = selected?.importedAsset ?? null;
+  const selectedDuration = selected?.durationSeconds ?? 0;
+  const defaultSourceRange = useMemo<ProjectSourceRange>(
+    () => selected?.timelineClip === null || selected?.timelineClip === undefined
+      ? { sourceIn: 0, sourceOut: selectedDuration }
+      : {
+          sourceIn: selected.timelineClip.placement.source_in,
+          sourceOut: selected.timelineClip.placement.source_out,
+        },
+    [selected?.timelineClip, selectedDuration],
+  );
+  const selectedSourceRange = selected === null ? defaultSourceRange : sourceRanges[selected.key] ?? defaultSourceRange;
+  const selectedSourceTime = selected === null
+    ? 0
+    : sourceTimes[selected.key] ?? selectedSourceRange.sourceIn;
+  const setSelectedSourceTime = (time: number) => {
+    if (selected === null) return;
+    setSourceTimes((current) => ({
+      ...current,
+      [selected.key]: Math.min(selectedDuration, Math.max(0, time)),
+    }));
+  };
+  const setSelectedSourceRange = (range: ProjectSourceRange) => {
+    if (selected === null) return;
+    setSourceRanges((current) => ({ ...current, [selected.key]: range }));
+  };
   const canEditSource = selectedImportedAsset !== null
     && selectedImportedAsset.metadata_status.status === 'ready'
     && selectedImportedAsset.duration_seconds !== null
@@ -134,19 +172,19 @@ export function ProjectMediaPanel({
       if (!canEditSource || selectedImportedAsset === null || isTextEditingTarget(event.target)) return;
       if (event.key === ',') {
         event.preventDefault();
-        onInsert(selectedImportedAsset);
+        onInsert(selectedImportedAsset, selectedSourceRange);
       } else if (event.key === '.') {
         event.preventDefault();
-        onOverwrite(selectedImportedAsset);
+        onOverwrite(selectedImportedAsset, selectedSourceRange);
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset]);
+  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset, selectedSourceRange]);
 
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_214px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
+      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_272px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
       aria-label={t`项目素材`}
     >
       <header className="flex items-center gap-2 border-b border-divider px-2.5">
@@ -223,7 +261,14 @@ export function ProjectMediaPanel({
       </div>
 
       <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_72px]">
-        <SourceStillPreview item={selected} />
+        <SourceMonitor
+          item={selected}
+          fps={projectFps}
+          sourceTime={selectedSourceTime}
+          sourceRange={selectedSourceRange}
+          onSourceTimeChange={setSelectedSourceTime}
+          onSourceRangeChange={setSelectedSourceRange}
+        />
         <div className="border-t border-divider bg-bg p-1">
           {(selected?.state === 'planned' || selected?.state === 'stale') && selected.timelineClip !== null ? (
             <Button
@@ -296,7 +341,7 @@ export function ProjectMediaPanel({
                   variant="secondary"
                   disabled={!canEditSource}
                   aria-label={t`在播放头插入 ${selectedImportedAsset.name}`}
-                  onClick={() => onInsert(selectedImportedAsset)}
+                  onClick={() => onInsert(selectedImportedAsset, selectedSourceRange)}
                 >
                   <Trans>插入</Trans>
                   <span className="text-2xs text-neutral-500">,</span>
@@ -307,7 +352,7 @@ export function ProjectMediaPanel({
                   variant="ghost"
                   disabled={!canEditSource}
                   aria-label={t`在播放头覆盖 ${selectedImportedAsset.name}`}
-                  onClick={() => onOverwrite(selectedImportedAsset)}
+                  onClick={() => onOverwrite(selectedImportedAsset, selectedSourceRange)}
                 >
                   <Trans>覆盖</Trans>
                   <span className="text-2xs text-neutral-500">.</span>
@@ -496,105 +541,265 @@ function MediaItemSection({
   );
 }
 
-function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }) {
+function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange, onSourceRangeChange }: {
+  readonly item: ProjectMediaItem | null;
+  readonly fps: number;
+  readonly sourceTime: number;
+  readonly sourceRange: ProjectSourceRange;
+  readonly onSourceTimeChange: (seconds: number) => void;
+  readonly onSourceRangeChange: (range: ProjectSourceRange) => void;
+}) {
   const shell = useNativeShell();
-  const [mountedAssets, setMountedAssets] = useState<readonly { readonly id: string; readonly image: boolean }[]>([]);
+  const [mountedAssets, setMountedAssets] = useState<readonly {
+    readonly id: string;
+    readonly kind: 'video' | 'audio' | 'image';
+  }[]>([]);
   const [displayedAssetId, setDisplayedAssetId] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const mediaRefs = useRef(new Map<string, HTMLMediaElement>());
   const previewAssetId = item?.previewAssetId ?? null;
+  const duration = Math.max(0, item?.durationSeconds ?? 0);
+  const frame = 1 / Math.max(1, fps);
 
   useEffect(() => {
     if (item !== null) return;
+    for (const media of mediaRefs.current.values()) {
+      if (!media.paused) media.pause();
+    }
     setMountedAssets([]);
     setDisplayedAssetId(null);
+    setPlaying(false);
   }, [item]);
 
   useEffect(() => {
     if (previewAssetId === null) return;
     setMountedAssets((current) => current.some((asset) => asset.id === previewAssetId)
       ? current
-      : [...current.slice(-2), { id: previewAssetId, image: item?.isStillImage === true }]);
-  }, [item?.isStillImage, previewAssetId]);
+      : [
+          ...current.filter((asset) => asset.id !== displayedAssetId).slice(-1),
+          ...current.filter((asset) => asset.id === displayedAssetId),
+          {
+            id: previewAssetId,
+            kind: item?.isStillImage === true ? 'image' : item?.kind === 'audio' ? 'audio' : 'video',
+          },
+        ]);
+  }, [displayedAssetId, item?.isStillImage, item?.kind, previewAssetId]);
+
+  useEffect(() => {
+    for (const [assetId, media] of mediaRefs.current) {
+      if (assetId !== previewAssetId && !media.paused) media.pause();
+    }
+    setPlaying(false);
+  }, [previewAssetId]);
+
+  const seekLatest = () => {
+    if (previewAssetId === null) return;
+    const media = mediaRefs.current.get(previewAssetId);
+    if (media === undefined || media.seeking || Math.abs(media.currentTime - sourceTime) <= 0.5 * frame) return;
+    try {
+      media.currentTime = sourceTime;
+    } catch {
+      // Metadata readiness events retry the same authoritative source playhead.
+    }
+  };
+  useEffect(seekLatest, [frame, previewAssetId, sourceTime]);
+
+  const togglePlayback = () => {
+    if (previewAssetId === null) return;
+    const media = mediaRefs.current.get(previewAssetId);
+    if (media === undefined) return;
+    if (!media.paused) {
+      media.pause();
+      setPlaying(false);
+      return;
+    }
+    if (media.currentTime < sourceRange.sourceIn || media.currentTime >= sourceRange.sourceOut - 0.5 * frame) {
+      media.currentTime = sourceRange.sourceIn;
+      onSourceTimeChange(sourceRange.sourceIn);
+    }
+    void media.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+  };
+  const stepFrame = (direction: -1 | 1) => {
+    const next = Math.min(duration, Math.max(0, sourceTime + direction * frame));
+    onSourceTimeChange(next);
+  };
+  const canMarkSourceRange = item !== null && duration >= frame;
+  const markSourceIn = () => {
+    const sourceIn = Math.min(duration - frame, Math.max(0, sourceTime));
+    onSourceRangeChange({
+      sourceIn,
+      sourceOut: Math.min(duration, Math.max(sourceIn + frame, sourceRange.sourceOut)),
+    });
+  };
+  const markSourceOut = () => {
+    const sourceOut = Math.min(duration, Math.max(frame, sourceTime + frame));
+    onSourceRangeChange({
+      sourceIn: Math.max(0, Math.min(sourceRange.sourceIn, sourceOut - frame)),
+      sourceOut,
+    });
+  };
 
   const selectedPreviewReady = previewAssetId !== null && displayedAssetId === previewAssetId;
   return (
-    <div className="relative min-h-0 overflow-hidden bg-neutral-900" aria-label={t`源素材预览`}>
-      {mountedAssets.map(({ id: assetId, image }) => {
-        const source = shell.mediaSrc(mediaAssetStreamPath(assetId));
-        const className = cn(
-          'pointer-events-none absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity',
-          displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
-        );
-        return image ? (
-          <img
-            key={assetId}
-            className={className}
-            src={source ?? undefined}
-            alt=""
-            draggable={false}
-            aria-hidden="true"
-            data-source-preview-asset-id={assetId}
-            data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
-            onLoad={() => {
-              if (previewAssetId === assetId) setDisplayedAssetId(assetId);
-            }}
+    <div
+      className="grid min-h-0 grid-rows-[minmax(0,1fr)_52px] bg-neutral-900"
+      aria-label={t`源素材预览`}
+      onKeyDown={(event) => {
+        if (event.key.toLowerCase() === 'i') {
+          event.preventDefault();
+          if (canMarkSourceRange) markSourceIn();
+        } else if (event.key.toLowerCase() === 'o') {
+          event.preventDefault();
+          if (canMarkSourceRange) markSourceOut();
+        } else if (event.key === ' ') {
+          event.preventDefault();
+          togglePlayback();
+        }
+      }}
+    >
+      <div className="relative min-h-0 overflow-hidden">
+        {mountedAssets.map(({ id: assetId, kind }) => {
+          const source = shell.mediaSrc(mediaAssetStreamPath(assetId));
+          const className = cn(
+            'pointer-events-none absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity',
+            displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
+          );
+          if (kind === 'image') {
+            return (
+              <img
+                key={assetId}
+                className={className}
+                src={source ?? undefined}
+                alt=""
+                draggable={false}
+                aria-hidden="true"
+                data-source-preview-asset-id={assetId}
+                data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
+                onLoad={() => {
+                  if (previewAssetId === assetId) setDisplayedAssetId(assetId);
+                }}
+              />
+            );
+          }
+          const MediaElement = kind === 'audio' ? 'audio' : 'video';
+          return (
+            <MediaElement
+              key={assetId}
+              ref={(element) => {
+                if (element === null) mediaRefs.current.delete(assetId);
+                else mediaRefs.current.set(assetId, element);
+              }}
+              className={kind === 'audio' ? 'hidden' : className}
+              src={source ?? undefined}
+              preload="auto"
+              playsInline
+              tabIndex={-1}
+              aria-hidden="true"
+              data-source-preview-asset-id={assetId}
+              data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
+              onLoadedMetadata={seekLatest}
+              onLoadedData={() => {
+                if (previewAssetId === assetId) {
+                  setDisplayedAssetId(assetId);
+                  seekLatest();
+                }
+              }}
+              onSeeked={seekLatest}
+              onTimeUpdate={(event) => {
+                if (previewAssetId !== assetId) return;
+                const current = event.currentTarget.currentTime;
+                if (current >= sourceRange.sourceOut - 0.5 * frame) {
+                  event.currentTarget.pause();
+                  setPlaying(false);
+                  onSourceTimeChange(sourceRange.sourceOut);
+                  return;
+                }
+                onSourceTimeChange(current);
+              }}
+              onPause={() => {
+                if (previewAssetId === assetId) setPlaying(false);
+              }}
+            />
+          );
+        })}
+        {item === null ? (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-400">
+            <Trans>选择素材以预览源画面</Trans>
+          </div>
+        ) : item.sourceAsset?.metadata_status.status === 'unavailable' ? (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-fail-text">
+            <span>
+              <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
+              <span className="block"><Trans>源文件不可用</Trans></span>
+              <span className="mt-1 block text-2xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
+            </span>
+          </div>
+        ) : item.state === 'planned' ? (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-300">
+            <span>
+              <CircleDashed className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
+              <span className="block"><Trans>准备录制</Trans></span>
+              {item.timelineClip?.capture_intent === null || item.timelineClip?.capture_intent === undefined ? null : (
+                <span className="mt-1 block text-2xs text-neutral-400">
+                  {item.timelineClip.capture_intent.player_id} · tick {item.timelineClip.capture_intent.start_tick}–{item.timelineClip.capture_intent.end_tick}
+                </span>
+              )}
+            </span>
+          </div>
+        ) : item.kind === 'audio' ? (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-300">
+            <FileAudio2 className="size-10" strokeWidth={1.2} aria-hidden="true" />
+          </div>
+        ) : selectedPreviewReady ? null : (
+          <div className="absolute inset-0 grid place-items-center bg-neutral-900/45 px-4 text-center text-xs text-neutral-300">
+            <Trans>正在准备 {item.name}</Trans>
+          </div>
+        )}
+        {item === null ? null : (
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-neutral-950/70 px-2 py-1 text-2xs text-neutral-100">
+            <span className="truncate">{item.name}</span>
+            <span className="flex-none tabular-nums">{formatDuration(item.durationSeconds)}</span>
+          </div>
+        )}
+      </div>
+      <div className="border-t border-neutral-700 bg-neutral-950 text-neutral-100">
+        <div className="flex h-7 items-center justify-center gap-1">
+          <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材上一帧`} disabled={item === null} onClick={() => stepFrame(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-6 place-items-center" aria-label={playing ? t`暂停源素材` : t`播放源素材`} disabled={previewAssetId === null || item?.isStillImage === true} onClick={togglePlayback}>{playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}</button>
+          <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材下一帧`} disabled={item === null} onClick={() => stepFrame(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+          <span className="ml-1 font-mono text-2xs">{formatSourceTime(sourceTime)}</span>
+          <button type="button" className="ml-auto h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
+          <button type="button" className="h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
+          <button type="button" className="mr-1 h-6 px-1.5 text-2xs" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
+        </div>
+        <div className="relative h-6">
+          <div className="pointer-events-none absolute inset-x-2 top-2 h-2 overflow-visible bg-neutral-700">
+            <span
+              className="absolute inset-y-0 bg-accent-500/75"
+              style={{
+                left: `${duration <= 0 ? 0 : sourceRange.sourceIn / duration * 100}%`,
+                width: `${duration <= 0 ? 0 : (sourceRange.sourceOut - sourceRange.sourceIn) / duration * 100}%`,
+              }}
+            />
+            <span
+              className="absolute -bottom-1 -top-1 w-px bg-neutral-50"
+              style={{ left: `${duration <= 0 ? 0 : sourceTime / duration * 100}%` }}
+            />
+          </div>
+          <input
+            type="range"
+            className="absolute inset-0 z-10 size-full cursor-ew-resize opacity-0 disabled:cursor-default"
+            min={0}
+            max={Math.max(frame, duration)}
+            step={frame}
+            value={sourceTime}
+            disabled={item === null}
+            aria-label={t`源素材播放头`}
+            aria-valuetext={formatSourceTime(sourceTime)}
+            onChange={(event) => onSourceTimeChange(event.currentTarget.valueAsNumber)}
           />
-        ) : (
-          <video
-            key={assetId}
-            className={className}
-            src={source ?? undefined}
-            preload="auto"
-            muted
-            playsInline
-            tabIndex={-1}
-            aria-hidden="true"
-            data-source-preview-asset-id={assetId}
-            data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
-            onLoadedData={() => {
-              if (previewAssetId === assetId) setDisplayedAssetId(assetId);
-            }}
-          />
-        );
-      })}
-      {item === null ? (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-400">
-          <Trans>选择素材以预览源画面</Trans>
         </div>
-      ) : item.sourceAsset?.metadata_status.status === 'unavailable' ? (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-fail-text">
-          <span>
-            <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
-            <span className="block"><Trans>源文件不可用</Trans></span>
-            <span className="mt-1 block text-2xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
-          </span>
-        </div>
-      ) : item.state === 'planned' ? (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-300">
-          <span>
-            <CircleDashed className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
-            <span className="block"><Trans>准备录制</Trans></span>
-            {item.timelineClip?.capture_intent === null || item.timelineClip?.capture_intent === undefined ? null : (
-              <span className="mt-1 block text-2xs text-neutral-400">
-                {item.timelineClip.capture_intent.player_id} · tick {item.timelineClip.capture_intent.start_tick}–{item.timelineClip.capture_intent.end_tick}
-              </span>
-            )}
-          </span>
-        </div>
-      ) : item.kind === 'audio' ? (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-300">
-          <FileAudio2 className="size-10" strokeWidth={1.2} aria-hidden="true" />
-        </div>
-      ) : selectedPreviewReady ? null : (
-        <div className="absolute inset-0 grid place-items-center bg-neutral-900/45 px-4 text-center text-xs text-neutral-300">
-          <Trans>正在准备 {item.name}</Trans>
-        </div>
-      )}
-      {item === null ? null : (
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-neutral-950/70 px-2 py-1 text-2xs text-neutral-100">
-          <span className="truncate">{item.name}</span>
-          <span className="flex-none tabular-nums">{formatDuration(item.durationSeconds)}</span>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -616,7 +821,9 @@ function projectMediaItems(
       return {
         key: `clip:${clip.id}`,
         name: clip.name,
-        durationSeconds: clip.placement.duration,
+        durationSeconds: sourceAsset === null
+          ? clip.material.kind === 'planned' ? clip.placement.duration : clip.material.media_duration_seconds
+          : mediaAssetEditDuration(sourceAsset),
         kind: track.kind === 'audio' ? 'audio' : 'video',
         state: deliveryState === 'stale'
           ? 'stale'
@@ -641,7 +848,7 @@ function projectMediaItems(
       durationSeconds: mediaAssetEditDuration(asset),
       kind: projectMediaAssetKind(asset),
       state: 'imported',
-      previewAssetId: projectMediaAssetKind(asset) === 'video' && asset.metadata_status.status === 'ready' ? asset.id : null,
+      previewAssetId: asset.metadata_status.status === 'ready' ? asset.id : null,
       isStillImage: isStillImageMediaAsset(asset),
       timelineClip: null,
       sourceAsset: asset,
@@ -653,6 +860,12 @@ function projectMediaItems(
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return t`时长未知`;
   const minutes = Math.floor(seconds / 60);
+  const remainder = Math.max(0, seconds - minutes * 60);
+  return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(3).padStart(6, '0')}`;
+}
+
+function formatSourceTime(seconds: number): string {
+  const minutes = Math.floor(Math.max(0, seconds) / 60);
   const remainder = Math.max(0, seconds - minutes * 60);
   return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(3).padStart(6, '0')}`;
 }

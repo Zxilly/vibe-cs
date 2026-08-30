@@ -90,6 +90,7 @@ import {
   TimelineProgramMonitor,
   type TimelineRollingPreview,
   type TimelineSlidePreview,
+  type ProjectSourceRange,
   trimRippleClip,
   removeClipKeyframe,
   isSupportedEditorEffectKind,
@@ -488,10 +489,12 @@ export function ProjectWorkspacePage() {
     asset: MediaAsset,
     mode: 'insert' | 'overwrite',
     placement?: { readonly trackId: string; readonly timeSeconds: number },
+    sourceRange?: ProjectSourceRange,
   ) => {
     if (mediaAssetEditDuration(asset) === null) return;
     const insertedClipId = globalThis.crypto.randomUUID();
-    const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
+    const inserted = timelineClipFromMediaAsset(asset, insertedClipId, sourceRange);
+    if (inserted.placement.duration < 1 / current.document.fps) return;
     const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);
     const target = mediaTargetTrack(asset, placement?.trackId ?? targetTrackId);
     if (target === null) {
@@ -608,6 +611,7 @@ export function ProjectWorkspacePage() {
       assets={mediaAssets.data?.items ?? []}
       timelineTracks={current.document.tracks}
       deliveryStateByClipId={deliveryStateByClipId}
+      projectFps={current.document.fps}
       selectedTimelineClipId={selectedClipId}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
@@ -636,8 +640,8 @@ export function ProjectWorkspacePage() {
       }}
       onRequestRecording={(clipId) => setExternalConfirm({ kind: 'recording', clipIds: [clipId] })}
       onImport={() => void importProjectMedia()}
-      onInsert={(asset) => addMediaAsset(asset, 'insert')}
-      onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
+      onInsert={(asset, sourceRange) => addMediaAsset(asset, 'insert', undefined, sourceRange)}
+      onOverwrite={(asset, sourceRange) => addMediaAsset(asset, 'overwrite', undefined, sourceRange)}
       onRelink={(asset) => void relinkProjectMedia(asset)}
       onDelete={(asset) => deleteMedia.mutate(asset.id)}
     />

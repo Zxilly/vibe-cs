@@ -1,5 +1,9 @@
 export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
-export { ProjectMediaPanel, type ProjectMediaPanelProps } from './ProjectMediaPanel';
+export {
+  ProjectMediaPanel,
+  type ProjectMediaPanelProps,
+  type ProjectSourceRange,
+} from './ProjectMediaPanel';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,

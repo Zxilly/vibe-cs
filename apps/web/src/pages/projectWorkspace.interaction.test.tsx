@@ -3322,7 +3322,7 @@ describe('unified project workspace', () => {
     expect(screen.getByText('源文件不可用')).toBeTruthy();
   });
 
-  it('inserts a selected imported asset at the transport time through the Premiere comma shortcut', async () => {
+  it('inserts the Source Monitor In/Out range at the transport through the Premiere comma shortcut', async () => {
     const asset: MediaAsset = {
       id: 'asset-new',
       project_id: PROJECT.id,
@@ -3344,6 +3344,11 @@ describe('unified project workspace', () => {
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 New angle' }));
+    const sourcePlayhead = screen.getByRole('slider', { name: '源素材播放头' });
+    fireEvent.change(sourcePlayhead, { target: { value: 1 } });
+    fireEvent.click(screen.getByRole('button', { name: '标记源入点' }));
+    fireEvent.change(sourcePlayhead, { target: { value: 4 - 1 / PROJECT.document.fps } });
+    fireEvent.click(screen.getByRole('button', { name: '标记源出点' }));
     fireEvent.keyDown(window, { key: ',' });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -3351,9 +3356,13 @@ describe('unified project workspace', () => {
         op: 'replace_track_clips',
         track_id: STORY_ID,
         clips: [
-          expect.objectContaining({ name: 'New angle', placement: expect.objectContaining({ start: 0, duration: 6 }) }),
-          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 6 }) }),
-          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 11 }) }),
+          expect.objectContaining({
+            name: 'New angle',
+            material: { kind: 'asset', asset_id: 'asset-new', media_duration_seconds: 6 },
+            placement: expect.objectContaining({ start: 0, duration: 3, source_in: 1, source_out: 4 }),
+          }),
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 3 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 8 }) }),
         ],
       })],
     })));

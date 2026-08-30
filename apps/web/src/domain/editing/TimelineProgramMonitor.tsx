@@ -718,11 +718,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         if (target) onReady();
       }}
       onTimeUpdate={(event) => {
-        if (videoDrivesTimeline && typeof event.currentTarget.requestVideoFrameCallback === 'function') return;
+        if (!videoDrivesTimeline || typeof event.currentTarget.requestVideoFrameCallback === 'function') return;
         if (target
           && presented
-          && !event.currentTarget.seeking
-          && (playing || Math.abs(event.currentTarget.currentTime - desiredTimeRef.current) <= 0.5 / Math.max(1, fps))) {
+          && !event.currentTarget.seeking) {
           onTimelineTimeChange(event.currentTarget.currentTime);
         }
       }}

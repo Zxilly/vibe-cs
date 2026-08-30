@@ -40,6 +40,7 @@ import { Drawer } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import {
   BASE_PIXELS_PER_SECOND,
+  MAX_ZOOM,
   createTimeScale,
   formatMillisecondTimecode,
   pxToTime,
@@ -362,7 +363,11 @@ export function ProjectTimeline({
   }, []);
 
   const fitZoom = viewportWidth / Math.max(document.duration_seconds, 1) / BASE_PIXELS_PER_SECOND;
-  const scale = createTimeScale(fitZoom * zoomMultiplier);
+  const maximumZoomMultiplier = Math.max(1, MAX_ZOOM / fitZoom);
+  const effectiveZoomMultiplier = Math.min(maximumZoomMultiplier, Math.max(0.5, zoomMultiplier));
+  const scale = createTimeScale(fitZoom * effectiveZoomMultiplier);
+  const zoomSliderValue = Math.log2(effectiveZoomMultiplier);
+  const zoomSliderMaximum = Math.log2(maximumZoomMultiplier);
   const displayedDuration = ratePreviewDuration ?? document.duration_seconds;
   const contentWidth = Math.max(viewportWidth, timeToPx(scale, displayedDuration));
   const ticks = rulerTicks(scale, {
@@ -378,10 +383,10 @@ export function ProjectTimeline({
     viewport.scrollLeft = nextScrollLeft;
     timelineScrollLeftRef.current = nextScrollLeft;
     setScrollLeft(nextScrollLeft);
-  }, [contentWidth, zoomMultiplier]);
+  }, [contentWidth, effectiveZoomMultiplier]);
   const changeZoomMultiplier = (requested: number) => {
-    const nextMultiplier = Math.min(4, Math.max(0.5, requested));
-    if (Math.abs(nextMultiplier - zoomMultiplier) <= 1e-6) return;
+    const nextMultiplier = Math.min(maximumZoomMultiplier, Math.max(0.5, requested));
+    if (Math.abs(nextMultiplier - effectiveZoomMultiplier) <= 1e-6) return;
     const viewport = viewportRef.current;
     if (viewport !== null) {
       const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
@@ -1072,25 +1077,28 @@ export function ProjectTimeline({
             type="button"
             className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
             aria-label={t`缩小时间轴`}
-            onClick={() => changeZoomMultiplier(zoomMultiplier / 1.25)}
+            onClick={() => changeZoomMultiplier(effectiveZoomMultiplier / 1.25)}
           >
             <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>
           <input
             type="range"
             aria-label={t`时间轴缩放`}
-            min="0.5"
-            max="4"
-            step="0.25"
-            value={zoomMultiplier}
+            aria-valuetext={t`${scale.pixelsPerSecond.toFixed(1)} 像素/秒，${(scale.pixelsPerSecond / document.fps).toFixed(2)} 像素/帧`}
+            min={Math.log2(0.5)}
+            max={zoomSliderMaximum}
+            step="any"
+            value={zoomSliderValue}
             className="timeline-zoom w-14"
-            onChange={(event) => changeZoomMultiplier(Number(event.currentTarget.value))}
+            data-timeline-pixels-per-second={scale.pixelsPerSecond}
+            data-timeline-pixels-per-frame={scale.pixelsPerSecond / document.fps}
+            onChange={(event) => changeZoomMultiplier(2 ** Number(event.currentTarget.value))}
           />
           <button
             type="button"
             className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
             aria-label={t`放大时间轴`}
-            onClick={() => changeZoomMultiplier(zoomMultiplier * 1.25)}
+            onClick={() => changeZoomMultiplier(effectiveZoomMultiplier * 1.25)}
           >
             <ZoomIn className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>

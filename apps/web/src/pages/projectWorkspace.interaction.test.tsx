@@ -706,7 +706,8 @@ describe('unified project workspace', () => {
     vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
       x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
     });
-    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const timelineZoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(timelineZoom, { target: { value: timelineZoom.max } });
     const startHandle = screen.getByRole('separator', { name: '裁切片段起点' });
     fireEvent.pointerDown(startHandle, { pointerId: 81, button: 0, clientX: 900 });
     fireEvent.pointerMove(startHandle, { pointerId: 81, clientX: 990 });
@@ -1244,6 +1245,28 @@ describe('unified project workspace', () => {
     expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(0);
   });
 
+  it('keeps a paused frame-snapped playhead authoritative after Program seek completion', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(1);
+    const preview = screen.getByLabelText('A 视频预览') as HTMLVideoElement;
+    Object.defineProperties(preview, {
+      currentTime: { configurable: true, writable: true, value: 1.000_001 },
+      seeking: { configurable: true, value: false },
+    });
+    fireEvent.timeUpdate(preview);
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(1);
+  });
+
   it('previews canonical static and animated transforms on the stable Program Monitor pool', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,
@@ -1528,7 +1551,8 @@ describe('unified project workspace', () => {
     await screen.findByLabelText('A 视频预览');
     const viewport = screen.getByRole('region', { name: '时间轴内容' });
     viewport.style.setProperty('--w-track-head', '200px');
-    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const timelineZoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(timelineZoom, { target: { value: timelineZoom.max } });
     const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowDown' });
     fireEvent.keyDown(playhead, { key: 'ArrowDown' });
@@ -1554,9 +1578,43 @@ describe('unified project workspace', () => {
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
     expect(viewport.scrollLeft).toBe(0);
 
-    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const timelineZoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(timelineZoom, { target: { value: timelineZoom.max } });
     await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
     expect(playhead.parentElement?.style.left).toBe('calc(var(--w-track-head) + 500px)');
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    clientWidth.mockRestore();
+  });
+
+  it('reaches the design-system frame-level zoom on a three-minute Timeline', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    const longClip = {
+      ...clip(CLIP_A, 'Long take'),
+      placement: {
+        ...clip(CLIP_A, 'Long take').placement,
+        duration: 180,
+        source_out: 180,
+      },
+    };
+    const longProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 180,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, clips: [longClip] }
+          : track),
+      },
+    };
+    renderWorkspace({ project: longProject, applyProjectPatch });
+
+    const zoom = await screen.findByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    expect(zoom.step).toBe('any');
+    fireEvent.change(zoom, { target: { value: zoom.max } });
+    const timelineClip = document.querySelector<HTMLElement>(`[data-timeline-clip-id="${CLIP_A}"]`);
+    await waitFor(() => expect(Number.parseFloat(timelineClip?.style.width ?? '0')).toBeCloseTo(34_560));
+    expect(zoom.getAttribute('aria-valuetext')).toContain('3.20');
     expect(applyProjectPatch).not.toHaveBeenCalled();
     clientWidth.mockRestore();
   });
@@ -2233,7 +2291,8 @@ describe('unified project workspace', () => {
     vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
       x: 0, y: 0, top: 0, right: 1_000, bottom: 300, left: 0, width: 1_000, height: 300, toJSON: () => ({}),
     });
-    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const timelineZoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(timelineZoom, { target: { value: timelineZoom.max } });
     fireEvent.pointerDown(grid, { pointerId: 64, button: 0, clientX: 500, clientY: 100 });
     fireEvent.pointerMove(grid, { pointerId: 64, clientX: 990, clientY: 295 });
 

@@ -7,6 +7,7 @@ export {
   type ProjectSourceRange,
 } from './ProjectMediaPanel';
 export { planSourceMediaEdit, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
+export { planTimelineAddEdit, type TimelineAddEditPlan, type TimelineAddEditUpdate } from './timelineAddEdit';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,

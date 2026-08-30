@@ -516,3 +516,83 @@
   outline: 2px solid var(--color-accent-500);
   outline-offset: 2px;
 }
+
+/* Adobe-style dockable Project workspace. FlexLayout owns only personal panel
+   geometry; all editing visuals still come from this design system. */
+.project-workspace-dock {
+  --flexlayout-color-text: var(--color-text);
+  --flexlayout-color-background: var(--color-bg);
+  --flexlayout-color-base: var(--color-neutral-50);
+  --flexlayout-color-1: var(--color-neutral-50);
+  --flexlayout-color-2: var(--color-divider);
+  --flexlayout-color-3: var(--color-neutral-300);
+  --flexlayout-color-4: var(--color-neutral-400);
+  --flexlayout-color-5: var(--color-neutral-600);
+  --flexlayout-color-6: var(--color-neutral-700);
+  --flexlayout-color-focus: var(--color-accent-600);
+  --flexlayout-color-drag1: var(--color-accent-600);
+  --flexlayout-color-drag1-background: color-mix(in srgb, var(--color-accent-500) 14%, transparent);
+  --flexlayout-color-drag2: var(--color-ok);
+  --flexlayout-color-drag2-background: color-mix(in srgb, var(--color-ok) 12%, transparent);
+  --flexlayout-color-tabset-background: var(--color-neutral-50);
+  --flexlayout-color-tabset-background-selected: var(--color-neutral-50);
+  --flexlayout-color-tabset-divider-line: var(--color-divider);
+  --flexlayout-color-tab-content: var(--color-bg);
+  --flexlayout-color-tab-selected: var(--color-text);
+  --flexlayout-color-tab-selected-background: var(--color-bg);
+  --flexlayout-color-tab-unselected: var(--color-neutral-600);
+  --flexlayout-color-splitter: var(--color-neutral-100);
+  --flexlayout-color-splitter-hover: var(--color-accent-200);
+  --flexlayout-color-splitter-drag: var(--color-accent-300);
+  --flexlayout-font-family: var(--font-body);
+  --flexlayout-font-size: 12px;
+  --flexlayout-font-weight: 600;
+  --flexlayout-splitter-size: 7px;
+  --flexlayout-splitter-active-size: 10px;
+}
+
+.project-workspace-dock .flexlayout__layout {
+  background: var(--color-neutral-100);
+}
+
+.project-workspace-dock .flexlayout__tabset {
+  border: 1px solid var(--color-divider);
+  background: var(--color-bg);
+}
+
+.project-workspace-dock .flexlayout__tabset_tabbar_outer {
+  min-height: 30px;
+  background: var(--color-neutral-50);
+}
+
+.project-workspace-dock .flexlayout__tab_button {
+  min-height: 29px;
+  border-bottom: 2px solid transparent;
+  padding: 5px 10px 4px;
+}
+
+.project-workspace-dock .flexlayout__tab_button--selected {
+  border-bottom-color: var(--color-accent-600);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.project-workspace-dock .flexlayout__tab {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-bg);
+}
+
+.project-workspace-dock .flexlayout__splitter:hover,
+.project-workspace-dock .flexlayout__splitter_drag {
+  background: var(--color-accent-300);
+}
+
+.project-workspace-dock [data-dock-panel] > * {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+}

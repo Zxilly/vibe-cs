@@ -11,8 +11,8 @@ import {
   CircleHelp,
   Download,
   Diamond,
-  FolderOpen,
   LoaderCircle,
+  PanelsTopLeft,
   Plus,
   Send,
   Sparkles,
@@ -58,7 +58,6 @@ import { Empty, Skeleton } from '../design/data';
 import { Alert, Dialog, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
-import { ReviewPanel } from '../design/review';
 import {
   canAnimateTransformProperty,
   clipKeyframeAtTime,
@@ -73,6 +72,8 @@ import {
   projectMediaAssetKind,
   ProjectMediaPanel,
   ProjectTimeline,
+  ProjectWorkspaceDock,
+  resetProjectWorkspaceLayout,
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
   rateStretchTimelineClip,
@@ -183,11 +184,7 @@ export function ProjectWorkspacePage() {
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(() => (
-    typeof globalThis.matchMedia === 'function'
-      ? globalThis.matchMedia('(min-width: 1280px)').matches
-      : true
-  ));
+  const [workspaceLayoutEpoch, setWorkspaceLayoutEpoch] = useState(0);
   const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
   const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
   const agentSessionId = searchParams.get('session');
@@ -548,6 +545,195 @@ export function ProjectWorkspacePage() {
     deleteMedia.error,
   ].find((error) => error !== null) ?? null;
   const mutationErrorDetail = dataErrorMessage(mutationError);
+  const projectPanel = (
+    <ProjectMediaPanel
+      key={mediaPanelEpoch}
+      docked
+      assets={mediaAssets.data?.items ?? []}
+      timelineTracks={current.document.tracks}
+      selectedTimelineClipId={selectedClipId}
+      pending={mediaAssets.isPending}
+      readOnly={readOnly}
+      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
+      canEditAsset={(asset) => {
+        const target = mediaTargetTrack(asset);
+        return target === null ? projectMediaAssetKind(asset) === 'audio' : !target.locked;
+      }}
+      editTargetLabel={(asset) => {
+        const target = mediaTargetTrack(asset);
+        if (target === null) return t`新建音频轨道`;
+        return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
+      }}
+      importAvailable={nativeShell.available}
+      relinkAvailable={nativeShell.available}
+      importing={importMedia.isPending}
+      onSelectTimelineClip={(clipId, startSeconds) => {
+        setPlaying(false);
+        setSelectedClipIds([clipId]);
+        seekTimeline(startSeconds);
+      }}
+      onRequestRecording={(clipId) => setExternalConfirm({ kind: 'recording', clipIds: [clipId] })}
+      onImport={() => void importProjectMedia()}
+      onInsert={(asset) => addMediaAsset(asset, 'insert')}
+      onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
+      onRelink={(asset) => void relinkProjectMedia(asset)}
+      onDelete={(asset) => deleteMedia.mutate(asset.id)}
+    />
+  );
+  const programPanel = (
+    <TimelineProgramMonitor
+      showHeader={false}
+      project={previewProject}
+      timelineTimeSeconds={transportTimeSeconds}
+      selectedClipId={selectedClipId}
+      readOnly={readOnly || apply.isPending}
+      playing={playing}
+      playbackRate={playbackRate}
+      rollingPreview={timelineRollingPreview}
+      slidePreview={timelineSlidePreview}
+      onTogglePlayback={togglePlayback}
+      onShuttle={shuttlePlayback}
+      onStepFrame={stepTimelineFrame}
+      onTimelineTimeChange={seekTimeline}
+      onPlaybackEnd={() => setPlaying(false)}
+      onReplaceClip={replaceTimelineClip}
+    />
+  );
+  const tacticalPanel = (
+    <TacticalPreview selected={transportClip} showHeader={false} />
+  );
+  const timelinePanel = (
+    <ProjectTimeline
+      docked
+      document={current.document}
+      selectedClipId={selectedClipId}
+      selectedClipIds={selectedClipIds}
+      targetTrackId={targetTrackId ?? current.document.story_track_id}
+      linkedSelectionEnabled={linkedSelectionEnabled}
+      timelineTimeSeconds={transportTimeSeconds}
+      transportPlaying={playing}
+      reviewGroup={latestAgentGroup}
+      readOnly={readOnly || apply.isPending || revertChange.isPending}
+      onSelectClip={selectTimelineClip}
+      onSelectClips={selectTimelineClips}
+      onPromoteClip={promoteTimelineClip}
+      onTargetTrack={setTargetTrackId}
+      onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
+      onInspectClip={(clipId) => {
+        setSelectedClipIds([clipId]);
+        setInspectorOpen(true);
+      }}
+      onSeek={(seconds) => {
+        setPlaying(false);
+        seekTimeline(seconds);
+      }}
+      onTogglePlayback={togglePlayback}
+      onShuttle={shuttlePlayback}
+      onReplaceClip={replaceTimelineClip}
+      onReplaceTrack={(track) => mutate(
+        `修改轨道 ${track.name}`,
+        { kind: 'track', track_id: track.id },
+        [{ op: 'replace_track', track_id: track.id, track }],
+      )}
+      onReplaceTrackClips={(trackId, clips) => mutate(
+        `调整轨道片段`,
+        { kind: 'track', track_id: trackId },
+        [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
+      )}
+      onReplaceTrackClipGroups={(updates) => mutate(
+        updates.length === 1 ? `调整轨道片段` : `调整 ${updates.length} 条轨道的片段`,
+        updates.length === 1
+          ? { kind: 'track', track_id: updates[0]!.trackId }
+          : { kind: 'project' },
+        updates.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+      )}
+      onReplaceClips={(clips) => mutate(
+        clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
+        { kind: 'project' },
+        clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
+      )}
+      onPreviewClips={setTimelinePreviewClips}
+      onPreviewRollingEdit={setTimelineRollingPreview}
+      onPreviewSlideEdit={setTimelineSlidePreview}
+      onInsertTrack={(track, index) => mutate(
+        `添加轨道 ${track.name}`,
+        { kind: 'project' },
+        [{ op: 'insert_track', index, track }],
+      )}
+      onRemoveTrack={(trackId) => mutate(
+        `删除轨道`,
+        { kind: 'track', track_id: trackId },
+        [{ op: 'remove_track', track_id: trackId }],
+      )}
+      onReorderTracks={(trackIds) => mutate(
+        `重排轨道`,
+        { kind: 'project' },
+        [{ op: 'reorder_tracks', track_ids: [...trackIds] }],
+      )}
+      onReplaceMarkers={(markers) => mutate(
+        `更新标记`,
+        { kind: 'project' },
+        [{ op: 'replace_markers', markers: [...markers] }],
+      )}
+      onDropMediaAsset={({ assetId, trackId, timeSeconds, mode }) => {
+        const asset = mediaAssets.data?.items.find((candidate) => candidate.id === assetId);
+        const track = current.document.tracks.find((candidate) => candidate.id === trackId);
+        if (asset === undefined || track === undefined || track.locked || track.kind !== projectMediaAssetKind(asset)) return;
+        addMediaAsset(asset, mode, { trackId, timeSeconds });
+      }}
+      canUndo={latestUndoableGroup !== undefined}
+      onUndo={() => {
+        if (latestUndoableGroup === undefined || readOnly) return;
+        revertChange.mutate({
+          changeGroupId: latestUndoableGroup.id,
+          expectedRevision: current.revision,
+        });
+      }}
+    />
+  );
+  const agentPanel = (
+    <AgentPanel
+      showHeader={false}
+      session={agentSession.data ?? null}
+      chat={agentChat}
+      creatingSession={createAgentSession.isPending}
+      onSend={sendToAgent}
+      changeGroups={groups.data ?? []}
+      readOnly={readOnly}
+      agentReady={agentStatus.data?.configured === true}
+      agentStatusPending={agentStatus.isPending}
+      externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
+      onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
+      confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
+      onConfirmRecording={async (toolCallId, clipIds) => {
+        await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的录制操作。`);
+        await startRecording.mutateAsync({ projectId: current.id, clipIds });
+      }}
+      onConfirmExport={async (toolCallId) => {
+        await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的导出操作。`);
+        await exportProject.mutateAsync({ projectId: current.id });
+      }}
+      onRejectConfirmation={async (toolCallId) => {
+        await appendToolDecision(toolCallId, 'rejected', t`拒绝这次外部执行请求。`);
+        await sendToAgent(t`拒绝这次外部执行请求。请保留当前时间线并说明还能交付什么。`);
+      }}
+      onAcceptDelivery={() => appendHumanDecision(t`接受交付。`)}
+      onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
+      onDirectEdit={() => {
+        void appendHumanDecision(t`我将直接修改这份作品。`);
+        const clipId = selectedClipId ?? allClips[0]?.id ?? null;
+        setSelectedClipIds(clipId === null ? [] : [clipId]);
+        setInspectorOpen(clipId !== null);
+      }}
+    />
+  );
+  const dockPanels = {
+    project: projectPanel,
+    program: programPanel,
+    tactical: tacticalPanel,
+    timeline: timelinePanel,
+    agent: agentPanel,
+  } as const;
 
   return (
     <Page
@@ -573,15 +759,15 @@ export function ProjectWorkspacePage() {
           <button
             type="button"
             data-window-no-drag
-            className={cn(
-              'ml-3 flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100',
-              mediaOpen && 'border-accent-300 bg-accent-100 text-accent-text',
-            )}
-            aria-pressed={mediaOpen}
-            onClick={() => setMediaOpen((open) => !open)}
+            className="ml-3 grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider text-neutral-600 hover:bg-neutral-100 hover:text-text"
+            aria-label={t`重置工作区布局`}
+            title={t`重置工作区布局`}
+            onClick={() => {
+              resetProjectWorkspaceLayout(current.id, globalThis.localStorage);
+              setWorkspaceLayoutEpoch((epoch) => epoch + 1);
+            }}
           >
-            <FolderOpen className="size-3.5" aria-hidden="true" />
-            <Trans>项目素材</Trans>
+            <PanelsTopLeft className="size-3.5" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -612,195 +798,18 @@ export function ProjectWorkspacePage() {
         </header>
       )}
     >
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_420px] overflow-hidden bg-neutral-100">
-        <div
-          className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-[8px] overflow-hidden pl-[14px] pr-[8px] pt-[12px]"
-          style={{ gridTemplateRows: 'minmax(320px,47%) minmax(360px,1fr)' }}
-        >
-          <PreviewSplit
-            project={previewProject}
-            transportClip={transportClip}
-            timelineTimeSeconds={transportTimeSeconds}
-            selectedClipId={selectedClipId}
-            readOnly={readOnly || apply.isPending}
-            playing={playing}
-            playbackRate={playbackRate}
-            rollingPreview={timelineRollingPreview}
-            slidePreview={timelineSlidePreview}
-            onTogglePlayback={togglePlayback}
-            onShuttle={shuttlePlayback}
-            onStepFrame={stepTimelineFrame}
-            onTimelineTimeChange={seekTimeline}
-            onPlaybackEnd={() => setPlaying(false)}
-            onReplaceClip={replaceTimelineClip}
-          />
-          <div
-            className={cn(
-              'relative grid min-h-0 min-w-0 gap-2 overflow-hidden',
-              mediaOpen
-                ? 'grid-cols-[minmax(220px,28%)_minmax(0,1fr)] max-[1279px]:grid-cols-[minmax(0,1fr)]'
-                : 'grid-cols-[minmax(0,1fr)]',
-            )}
-          >
-            {mediaOpen ? (
-              <div className="min-h-0 min-w-0 max-[1279px]:absolute max-[1279px]:inset-y-0 max-[1279px]:left-0 max-[1279px]:z-20 max-[1279px]:w-[340px] max-[1279px]:shadow-xl">
-                <ProjectMediaPanel
-                  key={mediaPanelEpoch}
-                  assets={mediaAssets.data?.items ?? []}
-                  timelineTracks={current.document.tracks}
-                  selectedTimelineClipId={selectedClipId}
-                  pending={mediaAssets.isPending}
-                  readOnly={readOnly}
-                  busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
-                  canEditAsset={(asset) => {
-                    const target = mediaTargetTrack(asset);
-                    return target === null ? projectMediaAssetKind(asset) === 'audio' : !target.locked;
-                  }}
-                  editTargetLabel={(asset) => {
-                    const target = mediaTargetTrack(asset);
-                    if (target === null) return t`新建音频轨道`;
-                    return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
-                  }}
-                  importAvailable={nativeShell.available}
-                  relinkAvailable={nativeShell.available}
-                  importing={importMedia.isPending}
-                  onSelectTimelineClip={(clipId, startSeconds) => {
-                    setPlaying(false);
-                    setSelectedClipIds([clipId]);
-                    seekTimeline(startSeconds);
-                  }}
-                  onRequestRecording={(clipId) => setExternalConfirm({ kind: 'recording', clipIds: [clipId] })}
-                  onImport={() => void importProjectMedia()}
-                  onInsert={(asset) => addMediaAsset(asset, 'insert')}
-                  onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
-                  onRelink={(asset) => void relinkProjectMedia(asset)}
-                  onDelete={(asset) => deleteMedia.mutate(asset.id)}
-                  onClose={() => setMediaOpen(false)}
-                />
-              </div>
-            ) : null}
-            <ProjectTimeline
-            document={current.document}
-            selectedClipId={selectedClipId}
-            selectedClipIds={selectedClipIds}
-            targetTrackId={targetTrackId ?? current.document.story_track_id}
-            linkedSelectionEnabled={linkedSelectionEnabled}
-            timelineTimeSeconds={transportTimeSeconds}
-            transportPlaying={playing}
-            reviewGroup={latestAgentGroup}
-            readOnly={readOnly || apply.isPending || revertChange.isPending}
-            onSelectClip={selectTimelineClip}
-            onSelectClips={selectTimelineClips}
-            onPromoteClip={promoteTimelineClip}
-            onTargetTrack={setTargetTrackId}
-            onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
-            onInspectClip={(clipId) => {
-              setSelectedClipIds([clipId]);
-              setInspectorOpen(true);
-            }}
-            onSeek={(seconds) => {
-              setPlaying(false);
-              seekTimeline(seconds);
-            }}
-            onTogglePlayback={togglePlayback}
-            onShuttle={shuttlePlayback}
-            onReplaceClip={replaceTimelineClip}
-            onReplaceTrack={(track) => mutate(
-              `修改轨道 ${track.name}`,
-              { kind: 'track', track_id: track.id },
-              [{ op: 'replace_track', track_id: track.id, track }],
-            )}
-            onReplaceTrackClips={(trackId, clips) => mutate(
-              `调整轨道片段`,
-              { kind: 'track', track_id: trackId },
-              [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
-            )}
-            onReplaceTrackClipGroups={(updates) => mutate(
-              updates.length === 1 ? `调整轨道片段` : `调整 ${updates.length} 条轨道的片段`,
-              updates.length === 1
-                ? { kind: 'track', track_id: updates[0]!.trackId }
-                : { kind: 'project' },
-              updates.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
-            )}
-            onReplaceClips={(clips) => mutate(
-              clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
-              { kind: 'project' },
-              clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
-            )}
-            onPreviewClips={setTimelinePreviewClips}
-            onPreviewRollingEdit={setTimelineRollingPreview}
-            onPreviewSlideEdit={setTimelineSlidePreview}
-            onInsertTrack={(track, index) => mutate(
-              `添加轨道 ${track.name}`,
-              { kind: 'project' },
-              [{ op: 'insert_track', index, track }],
-            )}
-            onRemoveTrack={(trackId) => mutate(
-              `删除轨道`,
-              { kind: 'track', track_id: trackId },
-              [{ op: 'remove_track', track_id: trackId }],
-            )}
-            onReorderTracks={(trackIds) => mutate(
-              `重排轨道`,
-              { kind: 'project' },
-              [{ op: 'reorder_tracks', track_ids: [...trackIds] }],
-            )}
-            onReplaceMarkers={(markers) => mutate(
-              `更新标记`,
-              { kind: 'project' },
-              [{ op: 'replace_markers', markers: [...markers] }],
-            )}
-            onDropMediaAsset={({ assetId, trackId, timeSeconds, mode }) => {
-              const asset = mediaAssets.data?.items.find((candidate) => candidate.id === assetId);
-              const track = current.document.tracks.find((candidate) => candidate.id === trackId);
-              if (asset === undefined || track === undefined || track.locked || track.kind !== projectMediaAssetKind(asset)) return;
-              addMediaAsset(asset, mode, { trackId, timeSeconds });
-            }}
-            canUndo={latestUndoableGroup !== undefined}
-            onUndo={() => {
-              if (latestUndoableGroup === undefined || readOnly) return;
-              revertChange.mutate({
-                changeGroupId: latestUndoableGroup.id,
-                expectedRevision: current.revision,
-              });
-            }}
-            />
-          </div>
-        </div>
-        <AgentPanel
-            session={agentSession.data ?? null}
-            chat={agentChat}
-            creatingSession={createAgentSession.isPending}
-            onSend={sendToAgent}
-            changeGroups={groups.data ?? []}
-            readOnly={readOnly}
-            agentReady={agentStatus.data?.configured === true}
-            agentStatusPending={agentStatus.isPending}
-            externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
-            onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
-            confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
-            onConfirmRecording={async (toolCallId, clipIds) => {
-              await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的录制操作。`);
-              await startRecording.mutateAsync({ projectId: current.id, clipIds });
-            }}
-            onConfirmExport={async (toolCallId) => {
-              await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的导出操作。`);
-              await exportProject.mutateAsync({ projectId: current.id });
-            }}
-            onRejectConfirmation={async (toolCallId) => {
-              await appendToolDecision(toolCallId, 'rejected', t`拒绝这次外部执行请求。`);
-              await sendToAgent(t`拒绝这次外部执行请求。请保留当前时间线并说明还能交付什么。`);
-            }}
-            onAcceptDelivery={() => appendHumanDecision(t`接受交付。`)}
-            onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
-            onDirectEdit={() => {
-              void appendHumanDecision(t`我将直接修改这份作品。`);
-              const clipId = selectedClipId ?? allClips[0]?.id ?? null;
-              setSelectedClipIds(clipId === null ? [] : [clipId]);
-              setInspectorOpen(clipId !== null);
-            }}
-          />
-      </div>
+      <ProjectWorkspaceDock
+        key={`${current.id}:${workspaceLayoutEpoch}`}
+        projectId={current.id}
+        panels={dockPanels}
+        labels={{
+          project: t`项目素材`,
+          program: t`视频预览`,
+          tactical: t`战术示意`,
+          timeline: t`时间轴（变更审阅）`,
+          agent: t`Agent`,
+        }}
+      />
       <Dialog
         open={externalConfirm?.kind === 'recording'}
         title={<Trans>录制缺失片段</Trans>}
@@ -875,69 +884,10 @@ export function ProjectWorkspacePage() {
   );
 }
 
-function PreviewSplit({
-  project,
-  transportClip,
-  timelineTimeSeconds,
-  selectedClipId,
-  readOnly,
-  playing,
-  playbackRate,
-  rollingPreview,
-  slidePreview,
-  onTogglePlayback,
-  onShuttle,
-  onStepFrame,
-  onTimelineTimeChange,
-  onPlaybackEnd,
-  onReplaceClip,
-}: {
-  readonly project: Project;
-  readonly transportClip: TimelineClip | null;
-  readonly timelineTimeSeconds: number;
-  readonly selectedClipId: string | null;
-  readonly readOnly: boolean;
-  readonly playing: boolean;
-  readonly playbackRate: number;
-  readonly rollingPreview: TimelineRollingPreview | null;
-  readonly slidePreview: TimelineSlidePreview | null;
-  readonly onTogglePlayback: () => void;
-  readonly onShuttle: (direction: -1 | 0 | 1) => void;
-  readonly onStepFrame: (direction: -1 | 1) => void;
-  readonly onTimelineTimeChange: (seconds: number) => void;
-  readonly onPlaybackEnd: () => void;
-  readonly onReplaceClip: (clip: TimelineClip) => void;
+const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = true }: {
+  readonly selected: TimelineClip | null;
+  readonly showHeader?: boolean;
 }) {
-  return (
-    <ReviewPanel emphasis="focus" className="min-h-0 min-w-0" aria-label={t`预览分栏`}>
-      <div
-        className="grid h-full min-h-0 min-w-0 max-w-full"
-        style={{ gridTemplateColumns: 'minmax(0, 1fr) 1px minmax(0, 1fr)' }}
-      >
-        <TimelineProgramMonitor
-          project={project}
-          timelineTimeSeconds={timelineTimeSeconds}
-          selectedClipId={selectedClipId}
-          readOnly={readOnly}
-          playing={playing}
-          playbackRate={playbackRate}
-          rollingPreview={rollingPreview}
-          slidePreview={slidePreview}
-          onTogglePlayback={onTogglePlayback}
-          onShuttle={onShuttle}
-          onStepFrame={onStepFrame}
-          onTimelineTimeChange={onTimelineTimeChange}
-          onPlaybackEnd={onPlaybackEnd}
-          onReplaceClip={onReplaceClip}
-        />
-        <div className="bg-divider" aria-hidden="true" />
-        <TacticalPreview selected={transportClip} />
-      </div>
-    </ReviewPanel>
-  );
-}
-
-const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly selected: TimelineClip | null }) {
   const intent = selected?.capture_intent ?? null;
   const demo = useDemo(intent?.demo_id ?? null);
   const mapName = demo.data?.map_name ?? null;
@@ -1027,9 +977,9 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-bg" aria-label={t`战术示意`}>
-      <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
+      {showHeader ? <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         <Trans>战术示意</Trans>
-      </header>
+      </header> : null}
       {selected === null || intent === null ? (
         <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
           {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : <Trans>这段素材没有可用的地图上下文</Trans>}
@@ -1527,6 +1477,7 @@ function effectParameterLabel(key: string): string {
 }
 
 interface AgentPanelProps {
+  readonly showHeader?: boolean;
   readonly session: import('../shared/desktop/dto').AgentSession | null;
   readonly chat: ReturnType<typeof useAgentChatStream>;
   readonly creatingSession: boolean;
@@ -1547,6 +1498,7 @@ interface AgentPanelProps {
 }
 
 const AgentPanel = memo(function AgentPanel({
+  showHeader = true,
   session,
   chat,
   creatingSession,
@@ -1589,10 +1541,10 @@ const AgentPanel = memo(function AgentPanel({
   }, [session?.id, entries.length, chat.draft, chat.activity?.length]);
   return (
     <aside className="flex min-h-0 flex-col border-l border-divider bg-bg" aria-label={t`Agent 面板`}>
-      <header className="flex h-[42px] flex-none items-center gap-2 border-b border-divider px-5">
+      {showHeader ? <header className="flex h-[42px] flex-none items-center gap-2 border-b border-divider px-5">
         <span className="grid size-6 place-items-center rounded-full bg-accent-100 text-accent-text"><Sparkles className="size-3.5" aria-hidden="true" /></span>
         <h2 className="text-base font-semibold"><Trans>Agent</Trans></h2>
-      </header>
+      </header> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
         <ol className="relative ml-1 flex list-none flex-col gap-3 border-l border-accent-200 py-1 pl-5">
             {session === null || entries.length === 0 ? (
@@ -1701,7 +1653,8 @@ function areAgentPanelPropsEqual(previous: AgentPanelProps, next: AgentPanelProp
   const nextActivity = next.chat.activity ?? [];
   const sameExecutions = previous.externalExecutions.length === next.externalExecutions.length
     && previous.externalExecutions.every((item, index) => item === next.externalExecutions[index]);
-  return previous.session === next.session
+  return previous.showHeader === next.showHeader
+    && previous.session === next.session
     && previous.chat.streaming === next.chat.streaming
     && previous.chat.draft === next.chat.draft
     && previous.chat.error === next.chat.error

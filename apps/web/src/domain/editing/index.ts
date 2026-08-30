@@ -1,5 +1,14 @@
 export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
 export { ProjectMediaPanel, type ProjectMediaPanelProps } from './ProjectMediaPanel';
+export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
+export {
+  createProjectWorkspaceLayout,
+  loadProjectWorkspaceLayout,
+  projectWorkspaceLayoutKey,
+  resetProjectWorkspaceLayout,
+  saveProjectWorkspaceLayout,
+  type ProjectWorkspacePanel,
+} from './projectWorkspaceLayout';
 export {
   clearProjectMediaDrag,
   hasProjectMediaDrag,

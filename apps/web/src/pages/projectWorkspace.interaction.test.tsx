@@ -1,15 +1,42 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 
+vi.mock('flexlayout-react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('flexlayout-react')>();
+  const React = await import('react');
+  const panelIds = ['project-panel', 'program-panel', 'tactical-panel', 'timeline-panel', 'agent-panel'];
+  return {
+    ...actual,
+    Layout: ({ model, factory, onRenderTab }: React.ComponentProps<typeof actual.Layout>) => React.createElement(
+      'div',
+      { className: 'flexlayout__layout', 'data-testid': 'flexlayout-test-host' },
+      panelIds.map((id) => {
+        const node = model.getNodeById(id) as import('flexlayout-react').TabNode;
+        const values = { content: node.getName() } as import('flexlayout-react').ITabRenderValues;
+        onRenderTab?.(node, values);
+        return React.createElement(
+          'section',
+          { key: id },
+          React.createElement('button', { role: 'tab' }, values.content),
+          factory(node),
+        );
+      }),
+    ),
+  };
+});
+
 const STORY_ID = '00000000-0000-4000-8000-000000000010';
 const CLIP_A = '00000000-0000-4000-8000-000000000011';
 const CLIP_B = '00000000-0000-4000-8000-000000000012';
 const CLIP_C = '00000000-0000-4000-8000-000000000019';
+beforeEach(() => {
+  globalThis.localStorage.clear();
+});
 
 function clip(id: string, name: string): TimelineClip {
   return {
@@ -231,14 +258,20 @@ function renderWorkspace({
 }
 
 describe('unified project workspace', () => {
-  it('uses one fixed video and tactical split preview', async () => {
+  it('hosts Project, monitors, Timeline and Agent in one dockable workspace', async () => {
     renderWorkspace();
 
     expect(await screen.findByRole('region', { name: '视频预览' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '战术示意' })).toBeTruthy();
-    expect(screen.queryByRole('separator', { name: '调整视频与战术图宽度' })).toBeNull();
-    const split = screen.getByRole('region', { name: '预览分栏' }).firstElementChild as HTMLElement;
-    expect(split.style.gridTemplateColumns).toBe('minmax(0, 1fr) 1px minmax(0, 1fr)');
+    expect(screen.getByRole('region', { name: '时间轴' })).toBeTruthy();
+    expect(screen.getByLabelText('Agent 面板')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '项目素材' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '视频预览' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '战术示意' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '时间轴（变更审阅）' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Agent' })).toBeTruthy();
+    expect(document.querySelector('[data-dock-panel="project"]')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重置工作区布局' })).toBeTruthy();
   });
 
   it('shows recorded and unrecorded state on the unified timeline', async () => {
@@ -363,7 +396,7 @@ describe('unified project workspace', () => {
 
     renderWorkspace({ project, groups: [group] });
 
-    expect(await screen.findByRole('heading', { name: '时间轴（变更审阅）' })).toBeTruthy();
+    expect(await screen.findByRole('tab', { name: '时间轴（变更审阅）' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: '变更摘要' })).toBeNull();
     expect(screen.getByText('1 处变更')).toBeTruthy();
     expect(screen.getByLabelText('时间轴变更 1').textContent).toContain('5.000s');
@@ -2151,6 +2184,30 @@ describe('unified project workspace', () => {
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 A' }));
     fireEvent.click(within(panel).getByRole('button', { name: '录制片段 A' }));
     expect(screen.getByRole('dialog', { name: '录制缺失片段' }).textContent).toContain('录制 1 个尚未物化的时间线片段');
+  });
+
+  it('switches the docked Project panel between Adobe-style List and Icon views', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    expect(within(panel).getByRole('radio', { name: '列表视图' }).getAttribute('data-state')).toBe('checked');
+    fireEvent.click(within(panel).getByRole('radio', { name: '图标视图' }));
+
+    expect(panel.querySelector('[data-project-media-view="icon"]')).toBeTruthy();
+    const recorded = within(panel).getByRole('option', { name: '选择素材 B' });
+    expect(recorded.querySelector('img')?.getAttribute('src')).toContain('/media/assets/asset-b/thumbnail?time=1');
+    fireEvent.click(recorded);
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5);
+
+    fireEvent.click(within(panel).getByRole('radio', { name: '列表视图' }));
+    expect(panel.querySelector('[data-project-media-view="list"]')).toBeTruthy();
   });
 
   it('keeps the last recorded source frame mounted until the next selected source is ready', async () => {

@@ -28,6 +28,7 @@ type PreviewPoolRole = 'program' | 'trim';
 type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
 
 export interface TimelineProgramMonitorProps {
+  readonly showHeader?: boolean;
   readonly project: Project;
   readonly timelineTimeSeconds: number;
   readonly selectedClipId: string | null;
@@ -53,6 +54,7 @@ export interface TimelineProgramMonitorProps {
  * has decoded a frame. Clip changes therefore do not blank the visible monitor.
  */
 export function TimelineProgramMonitor({
+  showHeader = true,
   project,
   timelineTimeSeconds,
   selectedClipId,
@@ -189,9 +191,9 @@ export function TimelineProgramMonitor({
         playing={playing}
         playbackRate={playbackRate}
       />
-      <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
+      {showHeader ? <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         {slideActive ? <Trans>滑动编辑预览</Trans> : rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
-      </header>
+      </header> : null}
       {targetId === null ? (
         <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-neutral-100">

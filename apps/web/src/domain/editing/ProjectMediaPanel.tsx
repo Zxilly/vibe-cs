@@ -5,18 +5,20 @@ import {
   FileAudio2,
   FileVideo2,
   FolderInput,
+  Grid2X2,
   Link2,
+  List,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { mediaAssetStreamPath } from '../../data/mediaAssets';
+import { mediaAssetStreamPath, mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { Dialog } from '../../design/feedback';
-import { Button, Input, NativeSelect, cn } from '../../design/primitives';
+import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
 import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import {
   clearProjectMediaDrag,
@@ -37,6 +39,7 @@ export interface ProjectMediaPanelProps {
   readonly importAvailable: boolean;
   readonly relinkAvailable: boolean;
   readonly importing: boolean;
+  readonly docked?: boolean;
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
   readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
@@ -44,10 +47,11 @@ export interface ProjectMediaPanelProps {
   readonly onOverwrite: (asset: MediaAsset) => void;
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
-  readonly onClose: () => void;
+  readonly onClose?: (() => void) | undefined;
 }
 
 type MediaStateFilter = 'all' | 'planned' | 'recorded' | 'imported';
+type ProjectMediaView = 'list' | 'icon';
 
 type ProjectMediaItem = {
   readonly key: string;
@@ -73,6 +77,7 @@ export function ProjectMediaPanel({
   importAvailable,
   relinkAvailable,
   importing,
+  docked = false,
   onSelectTimelineClip,
   onRequestRecording,
   onImport,
@@ -84,6 +89,7 @@ export function ProjectMediaPanel({
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<MediaStateFilter>('all');
+  const [view, setView] = useState<ProjectMediaView>('list');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
   const items = useMemo(() => projectMediaItems(timelineTracks, assets), [assets, timelineTracks]);
@@ -135,7 +141,7 @@ export function ProjectMediaPanel({
       aria-label={t`项目素材`}
     >
       <header className="flex items-center gap-2 border-b border-divider px-2.5">
-        <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>
+        {docked ? null : <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>}
         <span className="text-2xs tabular-nums text-neutral-500">
           <Trans>
             待录 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
@@ -143,8 +149,24 @@ export function ProjectMediaPanel({
             已录 {items.filter((item) => item.state === 'recorded').length}
           </Trans>
         </span>
-        <Button
+        <Seg<ProjectMediaView>
           className="ml-auto"
+          name="project-media-view"
+          aria-label={t`项目素材视图`}
+          value={view}
+          options={[
+            {
+              value: 'list',
+              label: <><List className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>列表视图</Trans></span></>,
+            },
+            {
+              value: 'icon',
+              label: <><Grid2X2 className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>图标视图</Trans></span></>,
+            },
+          ]}
+          onChange={setView}
+        />
+        <Button
           size="sm"
           variant="ghost"
           disabled={!importAvailable || importing}
@@ -154,14 +176,14 @@ export function ProjectMediaPanel({
           <FolderInput className="size-3.5" aria-hidden="true" />
           <Trans>导入</Trans>
         </Button>
-        <button
+        {docked ? null : <button
           type="button"
           className="grid size-7 place-items-center text-neutral-500 hover:bg-neutral-100 hover:text-text"
           aria-label={t`隐藏项目素材`}
           onClick={onClose}
         >
           <X className="size-3.5" aria-hidden="true" />
-        </button>
+        </button>}
       </header>
 
       <div className="grid grid-cols-[minmax(0,1fr)_104px] gap-1.5 border-b border-divider p-2">
@@ -293,6 +315,7 @@ export function ProjectMediaPanel({
             <MediaItemSection
               label={t`准备录制`}
               items={plannedItems}
+              view={view}
               selectedKey={selectedKey}
               onSelect={(item) => {
                 setSelectedKey(item.key);
@@ -304,6 +327,7 @@ export function ProjectMediaPanel({
             <MediaItemSection
               label={t`已录制`}
               items={recordedItems}
+              view={view}
               selectedKey={selectedKey}
               onSelect={(item) => {
                 setSelectedKey(item.key);
@@ -315,6 +339,7 @@ export function ProjectMediaPanel({
             <MediaItemSection
               label={t`导入素材`}
               items={importedItems}
+              view={view}
               selectedKey={selectedKey}
               onSelect={(item) => setSelectedKey(item.key)}
             />
@@ -358,14 +383,17 @@ export function ProjectMediaPanel({
 function MediaItemSection({
   label,
   items,
+  view,
   selectedKey,
   onSelect,
 }: {
   readonly label: string;
   readonly items: readonly ProjectMediaItem[];
+  readonly view: ProjectMediaView;
   readonly selectedKey: string | null;
   readonly onSelect: (item: ProjectMediaItem) => void;
 }) {
+  const shell = useNativeShell();
   if (items.length === 0) return null;
   return (
     <section aria-label={label}>
@@ -373,7 +401,10 @@ function MediaItemSection({
         <span>{label}</span>
         <span className="tabular-nums">{items.length}</span>
       </header>
-      <div className="divide-y divide-divider">
+      <div
+        className={view === 'icon' ? 'grid grid-cols-2 gap-2 p-2' : 'divide-y divide-divider'}
+        data-project-media-view={view}
+      >
         {items.map((item) => {
           const selected = item.key === selectedKey;
           const Icon = item.state === 'planned' || item.state === 'stale'
@@ -381,6 +412,10 @@ function MediaItemSection({
             : item.kind === 'audio' ? FileAudio2 : FileVideo2;
           const draggableAsset = item.importedAsset?.metadata_status.status === 'ready'
             ? item.importedAsset
+            : null;
+          const sourceTime = item.timelineClip?.placement.source_in ?? 0;
+          const thumbnail = item.kind === 'video' && item.previewAssetId !== null
+            ? shell.mediaSrc(mediaAssetThumbnailPath(item.previewAssetId, sourceTime))
             : null;
           return (
             <button
@@ -390,7 +425,10 @@ function MediaItemSection({
               aria-selected={selected}
               aria-label={t`选择素材 ${item.name}`}
               className={cn(
-                'grid w-full grid-cols-[30px_minmax(0,1fr)] gap-2 px-2.5 py-2 text-left hover:bg-neutral-100',
+                'min-w-0 text-left hover:bg-neutral-100',
+                view === 'icon'
+                  ? 'overflow-hidden border border-divider bg-bg p-1.5'
+                  : 'grid w-full grid-cols-[30px_minmax(0,1fr)] gap-2 px-2.5 py-2',
                 draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0
                   ? 'cursor-grab active:cursor-grabbing'
                   : 'cursor-default',
@@ -407,13 +445,34 @@ function MediaItemSection({
               }}
               onDragEnd={clearProjectMediaDrag}
             >
-              <span className="grid size-[30px] place-items-center border border-divider bg-neutral-50 text-neutral-500">
-                <Icon className="size-4" aria-hidden="true" />
-              </span>
+              {view === 'icon' ? (
+                <span className="relative mb-1.5 grid aspect-video w-full place-items-center overflow-hidden bg-neutral-900 text-neutral-300">
+                  {thumbnail === null ? (
+                    <Icon className="size-6" aria-hidden="true" />
+                  ) : (
+                    <img
+                      className="size-full object-cover"
+                      src={thumbnail}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="absolute bottom-1 right-1 bg-neutral-950/80 px-1 font-mono text-2xs text-bg">
+                    {formatDuration(item.durationSeconds)}
+                  </span>
+                </span>
+              ) : (
+                <span className="grid size-[30px] place-items-center border border-divider bg-neutral-50 text-neutral-500">
+                  <Icon className="size-4" aria-hidden="true" />
+                </span>
+              )}
               <span className="min-w-0">
                 <span className="block truncate text-xs font-medium text-text">{item.name}</span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-2xs text-neutral-500">
-                  <span className="tabular-nums">{formatDuration(item.durationSeconds)}</span>
+                  {view === 'icon' ? null : <span className="tabular-nums">{formatDuration(item.durationSeconds)}</span>}
                   <span className={stateTone(item.state)}>{stateLabel(item.state)}</span>
                   {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
                     <span className="text-fail-text"><Trans>不可用</Trans></span>

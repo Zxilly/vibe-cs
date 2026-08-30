@@ -122,6 +122,7 @@ export interface TimelineMediaDrop {
 }
 
 export interface ProjectTimelineProps {
+  readonly docked?: boolean;
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
@@ -185,6 +186,7 @@ function defaultTrackHeight(track: RenderedTrack): number {
  * and playhead. It never creates a second editable timeline model.
  */
 export function ProjectTimeline({
+  docked = false,
   document,
   selectedClipId,
   selectedClipIds,
@@ -968,7 +970,7 @@ export function ProjectTimeline({
       }}
     >
       <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
-        <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>
+        {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>}
         <OverflowMenu
           label={t`添加轨道`}
           triggerLabel={<><SquarePlus className="size-3.5" aria-hidden="true" /><Trans>添加轨道</Trans></>}

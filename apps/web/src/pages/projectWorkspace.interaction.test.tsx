@@ -1377,6 +1377,74 @@ describe('unified project workspace', () => {
     expect(screen.queryByLabelText('出场转场')).toBeNull();
   });
 
+  it('composites non-Story video tracks without giving them Transport authority', async () => {
+    const overlayTrackId = '00000000-0000-4000-8000-000000000097';
+    const overlayClipId = '00000000-0000-4000-8000-000000000096';
+    const source = RECORDED_PROJECT.document.tracks.find((track) => track.id === STORY_ID)!.clips[1]!;
+    const overlayClip: TimelineClip = {
+      ...source,
+      id: overlayClipId,
+      name: 'Reaction overlay',
+      placement: { ...source.placement, start: 0, duration: 5, source_in: 1, source_out: 6 },
+      transform: { ...source.transform, x: 96, y: 54, scale_x: 0.5, scale_y: 0.5, opacity: 0.8 },
+    };
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: [...RECORDED_PROJECT.document.tracks, {
+          id: overlayTrackId,
+          name: 'Overlay',
+          kind: 'overlay',
+          order: RECORDED_PROJECT.document.tracks.length,
+          muted: true,
+          locked: false,
+          hidden: false,
+          clips: [overlayClip],
+        }],
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const monitor = await screen.findByRole('region', { name: '视频预览' });
+    const layer = monitor.querySelector<HTMLElement>(`[data-preview-track-id="${overlayTrackId}"]`);
+    expect(layer).not.toBeNull();
+    const preview = layer?.querySelector('video') as HTMLVideoElement;
+    const play = vi.fn(() => Promise.resolve());
+    Object.defineProperties(preview, {
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: vi.fn() },
+    });
+    fireEvent.loadedData(preview);
+    await waitFor(() => expect(preview.dataset.previewActive).toBe('true'));
+    expect(preview.dataset.previewTransformX).toBe('96');
+    expect(preview.dataset.previewScaleX).toBe('0.5');
+    expect(preview.dataset.previewOpacity).toBe('0.8');
+    expect(preview.muted).toBe(true);
+    expect(layer?.style.zIndex).toBe(String(1 + project.document.tracks.length - 1));
+
+    const basePreview = monitor.querySelector<HTMLVideoElement>('video[data-preview-track-id=""][data-preview-active="true"]');
+    if (basePreview === null) throw new Error('expected the Story Program video');
+    Object.defineProperties(basePreview, {
+      play: { configurable: true, value: vi.fn(() => Promise.resolve()) },
+      pause: { configurable: true, value: vi.fn() },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    preview.currentTime = 2;
+    fireEvent.timeUpdate(preview);
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).not.toBe(1);
+    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
+  });
+
   it('previews Volume keyframes and the canonical fade envelope on Program audio', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,

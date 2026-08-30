@@ -19,6 +19,12 @@ interface PreviewMedia {
   readonly src: string;
 }
 
+interface OverlayPreviewMedia extends PreviewMedia {
+  readonly trackId: string;
+  readonly trackOrder: number;
+  readonly trackMuted: boolean;
+}
+
 interface PreviewReadiness {
   readonly previewKey: string;
   readonly readyKeys: ReadonlySet<string>;
@@ -30,6 +36,7 @@ interface ProgramTextOverlay {
   readonly x: number;
   readonly y: number;
   readonly opacity: number;
+  readonly layer: number;
 }
 
 type PreviewPoolRole = 'program' | 'trim';
@@ -111,6 +118,7 @@ export function TimelineProgramMonitor({
     && slideNext !== null
     && [slidePrevious, slideClip, slideNext].every((clip) => resolveTimelineMaterial(clip.material).streamAssetId !== null);
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
+  const [overlayReadyIds, setOverlayReadyIds] = useState<ReadonlySet<string>>(new Set());
   const rollingPreviewKey = rollingPreview === null ? '' : `${rollingPreview.leftClipId}:${rollingPreview.rightClipId}`;
   const slidePreviewKey = slidePreview === null ? '' : `${slidePreview.previousClipId}:${slidePreview.clipId}:${slidePreview.nextClipId}`;
   const [rollingReadiness, setRollingReadiness] = useState<PreviewReadiness>({ previewKey: '', readyKeys: new Set() });
@@ -145,6 +153,28 @@ export function TimelineProgramMonitor({
     { ...item, role: 'program' as const },
     { ...item, role: 'trim' as const },
   ]), [media]);
+  const overlayMedia = useMemo(() => {
+    const result: OverlayPreviewMedia[] = [];
+    for (const track of project.document.tracks) {
+      if (track.id === project.document.story_track_id
+        || track.hidden
+        || (track.kind !== 'video' && track.kind !== 'overlay')) continue;
+      for (const clip of track.clips) {
+        if (!clip.placement.enabled) continue;
+        const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
+        if (assetId === null) continue;
+        const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
+        if (src !== null) result.push({
+          trackId: track.id,
+          trackOrder: track.order,
+          trackMuted: track.muted,
+          clip,
+          src,
+        });
+      }
+    }
+    return result;
+  }, [project.document.story_track_id, project.document.tracks, shell]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
 
   useEffect(() => {
@@ -291,6 +321,11 @@ export function TimelineProgramMonitor({
                     playing={!slideActive && !rollingActive && playing && isTarget && isPresented}
                     editable={!slideActive && !rollingActive && role === 'program' && !playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
                     transportRate={playbackRate}
+                    readinessKey={slideSlot !== null
+                      ? `slide:${slidePreviewKey}:${poolKey}`
+                      : rollingSide !== null
+                        ? `rolling:${rollingPreviewKey}:${poolKey}`
+                        : `program:${targetId ?? ''}:${poolKey}`}
                     onTimelineTimeChange={(sourceSeconds) => {
                       if (previewSlot !== null || role !== 'program') return;
                       const timelineSeconds = clip.placement.start
@@ -326,17 +361,50 @@ export function TimelineProgramMonitor({
                   />
                 );
               })}
-              {textOverlays.map((overlay, index) => (
+              {overlayMedia.map(({ trackId, trackOrder, trackMuted, clip, src }) => {
+                const active = timelineClipActiveAt(clip, targetTimelineTime);
+                const poolKey = `${trackId}:${clip.id}`;
+                const presented = active && overlayReadyIds.has(poolKey);
+                return (
+                  <PooledPreviewVideo
+                    key={poolKey}
+                    clip={clip}
+                    src={src}
+                    poolRole="program"
+                    fps={project.document.fps}
+                    projectWidth={project.document.width}
+                    projectHeight={project.document.height}
+                    offsetSeconds={active ? targetTimelineTime - clip.placement.start : 0}
+                    target={active}
+                    presented={presented}
+                    previewSlot={null}
+                    playing={playing && presented}
+                    editable={!playing && !readOnly && presented && selectedClipId === clip.id}
+                    transportRate={playbackRate}
+                    readinessKey={`overlay:${poolKey}`}
+                    drivesTimeline={false}
+                    forceMuted={trackMuted}
+                    layer={1 + trackOrder}
+                    trackId={trackId}
+                    onTimelineTimeChange={() => {}}
+                    onEnded={() => {}}
+                    onReady={() => setOverlayReadyIds((current) => current.has(poolKey)
+                      ? current
+                      : new Set([...current, poolKey]))}
+                    onReplaceClip={onReplaceClip}
+                  />
+                );
+              })}
+              {textOverlays.map((overlay) => (
                 <ProgramTextOverlayView
                   key={overlay.clip.id}
                   overlay={overlay}
                   projectWidth={project.document.width}
                   projectHeight={project.document.height}
-                  layer={index}
                 />
               ))}
               {!slideReady ? null : (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
                   <span className="truncate px-1.5 py-1"><Trans>前 Out</Trans> · {slidePrevious.name}</span>
                   <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 In</Trans> · {slideClip.name}</span>
                   <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 Out</Trans> · {slideClip.name}</span>
@@ -344,7 +412,7 @@ export function TimelineProgramMonitor({
                 </div>
               )}
               {slideActive || !rollingReady ? null : (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-2 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-2 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
                   <span className="truncate px-2 py-1"><Trans>出点</Trans> · {rollingLeft.name}</span>
                   <span className="truncate border-l border-neutral-700 px-2 py-1"><Trans>入点</Trans> · {rollingRight.name}</span>
                 </div>
@@ -389,19 +457,25 @@ function programTextOverlays(project: Project, timelineTime: number): ProgramTex
         x: evaluateClipKeyframeProperty(clip, 'x', localTime, clip.transform.x),
         y: evaluateClipKeyframeProperty(clip, 'y', localTime, clip.transform.y),
         opacity: evaluateClipKeyframeProperty(clip, 'opacity', localTime, clip.transform.opacity),
+        layer: 1 + track.order,
       });
     }
   }
   return overlays;
 }
 
-function ProgramTextOverlayView({ overlay, projectWidth, projectHeight, layer }: {
+function timelineClipActiveAt(clip: TimelineClip, timelineTime: number): boolean {
+  const epsilon = 1e-6;
+  return timelineTime + epsilon >= clip.placement.start
+    && timelineTime < clip.placement.start + clip.placement.duration - epsilon;
+}
+
+function ProgramTextOverlayView({ overlay, projectWidth, projectHeight }: {
   readonly overlay: ProgramTextOverlay;
   readonly projectWidth: number;
   readonly projectHeight: number;
-  readonly layer: number;
 }) {
-  const { clip, text, x, y, opacity } = overlay;
+  const { clip, text, x, y, opacity, layer } = overlay;
   const align = text.align.toLowerCase();
   const horizontal = align === 'left'
     ? 20 + x
@@ -561,6 +635,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   playing,
   editable,
   transportRate,
+  readinessKey,
+  drivesTimeline = true,
+  forceMuted = false,
+  layer,
+  trackId,
   onTimelineTimeChange,
   onEnded,
   onReady,
@@ -579,6 +658,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly playing: boolean;
   readonly editable: boolean;
   readonly transportRate: number;
+  readonly readinessKey: string;
+  readonly drivesTimeline?: boolean;
+  readonly forceMuted?: boolean;
+  readonly layer?: number;
+  readonly trackId?: string;
   readonly onTimelineTimeChange: (sourceSeconds: number) => void;
   readonly onEnded: () => void;
   readonly onReady: () => void;
@@ -589,6 +673,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   desiredTimeRef.current = sourceTime(clip, offsetSeconds);
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   onTimelineTimeChangeRef.current = onTimelineTimeChange;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const evaluatedTransform = evaluatePreviewTransform(clip, offsetSeconds);
   const [draftTransform, setDraftTransform] = useState<typeof evaluatedTransform | null>(null);
   const draftTransformRef = useRef(draftTransform);
@@ -623,10 +709,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
   const canRotateDirectly = !hasScaleKeyframes;
-  const videoDrivesTimeline = playing && transportRate > 0;
+  const videoPlaysForward = playing && transportRate > 0;
+  const videoDrivesTimeline = videoPlaysForward && drivesTimeline;
 
   const seekLatest = () => {
-    if (videoDrivesTimeline) return;
+    if (videoPlaysForward) return;
     const video = videoRef.current;
     if (video === null || video.seeking) return;
     const targetTime = desiredTimeRef.current;
@@ -640,12 +727,12 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
 
   useEffect(() => {
     seekLatest();
-  }, [clip, fps, offsetSeconds, videoDrivesTimeline]);
+  }, [clip, fps, offsetSeconds, videoPlaysForward]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (video !== null && target && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) onReady();
-  }, [onReady, target]);
+    if (video !== null && target && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) onReadyRef.current();
+  }, [readinessKey, target]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -750,10 +837,12 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       className="absolute inset-y-0 overflow-hidden"
       style={{
         ...previewSlotGeometry(previewSlot),
+        ...(layer === undefined ? {} : { zIndex: layer }),
         pointerEvents: editable ? 'auto' : 'none',
       }}
       data-preview-slot={previewSlot ?? 'program'}
       data-preview-pool-role={poolRole}
+      data-preview-track-id={trackId ?? ''}
     >
     <video
       ref={videoRef}
@@ -761,12 +850,13 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       src={src}
       preload={target || presented ? 'auto' : 'metadata'}
       playsInline
-      muted={poolRole === 'trim' || !presented}
+      muted={forceMuted || poolRole === 'trim' || !presented}
       controls={false}
       data-preview-target={target}
       data-preview-active={presented}
       data-preview-side={previewSlot ?? ''}
       data-preview-pool-role={poolRole}
+      data-preview-track-id={trackId ?? ''}
       data-preview-editable={editable}
       aria-label={target ? previewVideoLabel(clip, previewSlot) : undefined}
       aria-hidden={!target}

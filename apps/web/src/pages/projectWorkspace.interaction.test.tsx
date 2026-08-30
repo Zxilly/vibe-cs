@@ -2603,6 +2603,92 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('authors Time Remapping sections and ripples Story once on save', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
+    fireEvent.click(await screen.findByRole('button', { name: '启用' }));
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: '在播放头添加速度关键帧' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: '区间 2 速度百分比' }), { target: { value: '200' } });
+
+    expect((screen.getByRole('spinbutton', { name: 'duration' }) as HTMLInputElement).value).toBe('3.5');
+    expect((screen.getByRole('spinbutton', { name: 'duration' }) as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({
+            id: CLIP_A,
+            placement: expect.objectContaining({ duration: 3.5, source_in: 0, source_out: 5, speed: 10 / 7 }),
+            speed_segments: [
+              expect.objectContaining({ start: 0, end: 2, speed: 1 }),
+              expect.objectContaining({ start: 2, end: 3.5, speed: 2 }),
+            ],
+          }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 3.5 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('drags the Premiere-style speed band and commits one Story ripple edit', async () => {
+    const applyProjectPatch = vi.fn();
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            speed_segments: [
+              { id: 'speed-left', start: 0, end: 2, speed: 1 },
+              { id: 'speed-right', start: 2, end: 5, speed: 1 },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project, applyProjectPatch });
+
+    const clipA = await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
+    fireEvent.click(clipA);
+    const band = screen.getByRole('group', { name: '时间重映射 2 个区间' });
+    const second = within(band).getByLabelText('区间 2 100.0%');
+    fireEvent.pointerDown(second, { pointerId: 141, button: 0, clientY: 100 });
+    fireEvent.pointerMove(second, { pointerId: 141, clientY: 40 });
+    expect(within(band).getByText('200.0%')).toBeTruthy();
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(second, { pointerId: 141, clientY: 40 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({
+            id: CLIP_A,
+            placement: expect.objectContaining({ duration: 3.5, source_out: 5 }),
+            speed_segments: [
+              expect.objectContaining({ start: 0, end: 2, speed: 1 }),
+              expect.objectContaining({ start: 2, end: 3.5, speed: 2 }),
+            ],
+          }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 3.5 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps Inspector save disabled until the canonical clip draft actually differs', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });

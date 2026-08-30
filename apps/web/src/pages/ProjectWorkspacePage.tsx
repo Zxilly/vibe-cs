@@ -66,6 +66,8 @@ import {
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
   clipSourceTimeAtLocalTime,
+  disableClipTimeRemapping,
+  enableClipTimeRemapping,
   evaluateClipKeyframeProperty,
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
@@ -82,6 +84,7 @@ import {
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
   rateStretchTimelineClip,
+  removeClipSpeedBoundary,
   snapTimeToFrame,
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
@@ -93,6 +96,8 @@ import {
   moveEditorEffect,
   setEditorEffectParameter,
   setClipVolumeAtTime,
+  setClipSpeedSegmentSpeed,
+  splitClipSpeedSegment,
   upsertClipKeyframe,
   type SupportedEditorEffectKind,
 } from '../domain/editing';
@@ -1162,15 +1167,20 @@ function ClipInspector({
     && draft.id === selected.clip.id
     && !sameTimelineClip(draft, selected.clip);
   const textStyle = draft.text;
+  const mediaKind = typeof draft.metadata === 'object' && draft.metadata !== null && !Array.isArray(draft.metadata)
+    && typeof draft.metadata.media_kind === 'string'
+    ? draft.metadata.media_kind.toLowerCase()
+    : '';
+  const canTimeRemap = draft.text === null && selected?.track.kind !== 'text' && !mediaKind.startsWith('image');
+  const speedBoundaryAtPlayhead = draft.speed_segments.some((segment) => (
+    Math.abs(segment.start - localTime) <= 0.5 / fps || Math.abs(segment.end - localTime) <= 0.5 / fps
+  ));
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>名称</Trans>
         <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
-      {draft.speed_segments.length === 0 ? null : (
-        <p className="mt-3 border border-warn-border bg-warn-surface px-2 py-1.5 text-2xs text-warn-text"><Trans>分段变速片段需要使用时间重映射编辑器，不能在此改写常量速度。</Trans></p>
-      )}
       {(['duration', 'source_in', 'source_out', 'speed'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field}
@@ -1184,6 +1194,101 @@ function ClipInspector({
           />
         </label>
       ))}
+      {!canTimeRemap ? null : (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`时间重映射`}>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold"><Trans>时间重映射</Trans></h3>
+            {draft.speed_segments.length === 0 ? (
+              <Button
+                className="ml-auto"
+                size="sm"
+                variant="secondary"
+                disabled={readOnly}
+                onClick={() => setDraft(enableClipTimeRemapping(draft, globalThis.crypto.randomUUID()))}
+              >
+                <Trans>启用</Trans>
+              </Button>
+            ) : (
+              <Button
+                className="ml-auto"
+                size="sm"
+                variant="ghost"
+                disabled={readOnly}
+                onClick={() => setDraft(disableClipTimeRemapping(draft))}
+              >
+                <Trans>恢复恒定速度</Trans>
+              </Button>
+            )}
+          </div>
+          {draft.speed_segments.length === 0 ? (
+            <p className="mt-2 text-2xs leading-4 text-neutral-500"><Trans>启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。</Trans></p>
+          ) : (
+            <>
+              <Button
+                className="mt-2 w-full"
+                size="sm"
+                variant="secondary"
+                disabled={readOnly
+                  || localTime <= 0.5 / fps
+                  || localTime >= draft.placement.duration - 0.5 / fps
+                  || speedBoundaryAtPlayhead}
+                onClick={() => setDraft(splitClipSpeedSegment(
+                  draft,
+                  localTime,
+                  globalThis.crypto.randomUUID(),
+                  fps,
+                ))}
+              >
+                <Plus className="size-3.5" aria-hidden="true" />
+                <Trans>在播放头添加速度关键帧</Trans>
+              </Button>
+              <ol className="mt-2 list-none space-y-1.5">
+                {draft.speed_segments.map((segment, index) => (
+                  <li
+                    key={segment.id}
+                    className="grid grid-cols-[minmax(0,1fr)_90px_28px] items-center gap-2 border border-divider bg-neutral-50 px-2 py-1.5"
+                    data-speed-segment-id={segment.id}
+                  >
+                    <span className="min-w-0 truncate font-mono text-2xs text-neutral-600">
+                      {segment.start.toFixed(3)}–{segment.end.toFixed(3)}s
+                    </span>
+                    <label className="flex min-w-0 items-center gap-1 text-2xs">
+                      <span className="sr-only"><Trans>区间速度</Trans></span>
+                      <input
+                        type="number"
+                        min={MIN_TIMELINE_CLIP_SPEED * 100}
+                        max={MAX_TIMELINE_CLIP_SPEED * 100}
+                        step={1}
+                        className="min-w-0 flex-1 border border-divider bg-bg px-1.5 py-1 text-right font-mono"
+                        aria-label={t`区间 ${index + 1} 速度百分比`}
+                        disabled={readOnly}
+                        value={Number((segment.speed * 100).toFixed(3))}
+                        onChange={(event) => setDraft(setClipSpeedSegmentSpeed(
+                          draft,
+                          segment.id,
+                          event.currentTarget.valueAsNumber / 100,
+                          fps,
+                        ))}
+                      />
+                      <span>%</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="grid size-7 place-items-center rounded-sm text-fail-text hover:bg-fail-surface disabled:text-neutral-300"
+                      aria-label={t`删除区间 ${index + 1} 前的速度关键帧`}
+                      disabled={readOnly || index === 0}
+                      onClick={() => setDraft(removeClipSpeedBoundary(draft, segment.id))}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-2xs leading-4 text-neutral-500"><Trans>调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段将在保存时波纹移动。</Trans></p>
+            </>
+          )}
+        </section>
+      )}
       {draft.capture_intent === null ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`录制范围`}>
           <h3 className="text-xs font-semibold"><Trans>录制范围</Trans></h3>

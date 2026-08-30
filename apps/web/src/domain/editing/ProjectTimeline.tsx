@@ -103,6 +103,7 @@ import {
   MIN_CLIP_FADE_SECONDS,
   clipFadeDuration,
   maximumClipFadeDuration,
+  setClipSpeedSegmentSpeed,
   setClipFadeDuration,
   slipTimelineClip,
   timelineEdgeScrollStep,
@@ -112,6 +113,7 @@ import {
   rateStretchTimelineClip,
   slideTimelineClip,
   snapTimeToFrame,
+  splitClipSpeedSegment,
   trimTimelineClip,
   type TimelineRollingPreview,
   type TimelineSlidePreview,
@@ -2251,7 +2253,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                 }));
                 return;
               }
-              if (mode === 'rate_start' || mode === 'rate_end') {
+              if (mode === 'rate_start' || mode === 'rate_end' || mode === 'speed_remap') {
                 if (track.track.id === storyTrackId) {
                   onReplaceTrackClips(track.track.id, trimRippleClip(track.track.clips, replacement));
                 } else {
@@ -2619,7 +2621,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onPromote: () => void;
   readonly onInspect: () => void;
   readonly onSeek: (seconds: number) => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'fade') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'fade' | 'speed_remap') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -2988,6 +2990,13 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           {formatSignedTimelineDelta(slideDelta)} · {formatMillisecondTimecode(visualClip.placement.start)}
         </span>
       )}
+      <TimelineSpeedBand
+        clip={visualClip}
+        scale={scale}
+        fps={fps}
+        interactive={selected && primary && !readOnly}
+        onCommit={(replacement) => onReplace(replacement, 'speed_remap')}
+      />
       {keyframeGroups.map(([time, count]) => (
         <span
           key={`keyframe:${time}`}
@@ -3093,6 +3102,127 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.change === next.change
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds);
+
+function TimelineSpeedBand({ clip, scale, fps, interactive, onCommit }: {
+  readonly clip: TimelineClip;
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly fps: number;
+  readonly interactive: boolean;
+  readonly onCommit: (clip: TimelineClip) => void;
+}) {
+  const bandRef = useRef<HTMLSpanElement>(null);
+  const [draft, setDraft] = useState<{ readonly clip: TimelineClip; readonly segmentId: string } | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientY: number;
+    readonly clip: TimelineClip;
+    readonly segmentId: string;
+    readonly speed: number;
+  } | null>(null);
+  useEffect(() => {
+    setDraft(null);
+    draftRef.current = null;
+    gesture.current = null;
+  }, [clip]);
+  if (clip.speed_segments.length === 0) return null;
+  const displayed = draft?.clip ?? clip;
+  const finish = (event: ReactPointerEvent<HTMLElement>, commit: boolean) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    gesture.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    const replacement = draftRef.current?.clip ?? active.clip;
+    setDraft(null);
+    draftRef.current = null;
+    if (commit && (replacement.placement.duration !== active.clip.placement.duration
+      || replacement.speed_segments.some((segment, index) => segment.speed !== active.clip.speed_segments[index]?.speed))) {
+      onCommit(replacement);
+    }
+  };
+  return (
+    <span
+      ref={bandRef}
+      role="group"
+      className={cn(
+        'absolute inset-x-0 bottom-4 top-1 z-40 overflow-hidden bg-neutral-950/25',
+        interactive ? 'pointer-events-auto bg-neutral-950/40' : 'pointer-events-none',
+      )}
+      aria-label={t`时间重映射 ${displayed.speed_segments.length} 个区间`}
+    >
+      {displayed.speed_segments.map((segment, index) => {
+        const speedLineTop = Math.min(100, Math.max(0, (4 - Math.log2(segment.speed)) / 8 * 100));
+        return (
+          <span
+            key={segment.id}
+            className={cn(
+              'absolute inset-y-0 overflow-hidden border-r border-bg/70',
+              interactive && 'cursor-ns-resize',
+            )}
+            style={{
+              left: timeToPx(scale, segment.start),
+              width: timeToPx(scale, segment.end - segment.start),
+            }}
+            aria-label={t`区间 ${index + 1} ${(segment.speed * 100).toFixed(1)}%`}
+            onPointerDown={(event) => {
+              if (!interactive || event.button !== 0) return;
+              event.preventDefault();
+              event.stopPropagation();
+              if (event.ctrlKey || event.metaKey) {
+                const bounds = bandRef.current?.getBoundingClientRect();
+                if (bounds === undefined) return;
+                const localTime = pxToTime(scale, event.clientX - bounds.left);
+                const replacement = splitClipSpeedSegment(
+                  clip,
+                  localTime,
+                  globalThis.crypto.randomUUID(),
+                  fps,
+                );
+                if (replacement !== clip) onCommit(replacement);
+                return;
+              }
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+              gesture.current = {
+                pointerId: event.pointerId,
+                clientY: event.clientY,
+                clip,
+                segmentId: segment.id,
+                speed: segment.speed,
+              };
+            }}
+            onPointerMove={(event) => {
+              const active = gesture.current;
+              if (active === null || active.pointerId !== event.pointerId) return;
+              event.preventDefault();
+              event.stopPropagation();
+              const requestedSpeed = active.speed * (2 ** ((active.clientY - event.clientY) / 60));
+              const replacement = setClipSpeedSegmentSpeed(active.clip, active.segmentId, requestedSpeed, fps);
+              const nextDraft = { clip: replacement, segmentId: active.segmentId };
+              draftRef.current = nextDraft;
+              setDraft(nextDraft);
+            }}
+            onPointerUp={(event) => finish(event, true)}
+            onPointerCancel={(event) => finish(event, false)}
+          >
+            <span className="absolute inset-x-0 h-px bg-bg shadow-sm" style={{ top: `${speedLineTop}%` }} />
+            <span className="absolute left-1 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-sm bg-neutral-950/75 px-1 font-mono text-2xs text-bg">
+              {(segment.speed * 100).toFixed(0)}%
+            </span>
+            {index === 0 ? null : <span className="absolute inset-y-0 left-0 w-px bg-accent-300" />}
+          </span>
+        );
+      })}
+      {draft === null ? null : (
+        <span className="pointer-events-none absolute right-1 top-1 z-10 rounded-sm bg-neutral-950 px-1.5 py-0.5 font-mono text-2xs text-bg">
+          {((draft.clip.speed_segments.find((segment) => segment.id === draft.segmentId)?.speed ?? 1) * 100).toFixed(1)}%
+        </span>
+      )}
+    </span>
+  );
+}
 
 function TimelineGainControl({ clip, trackHeight, readOnly, selected, localTime, fps, onReplace }: {
   readonly clip: TimelineClip;

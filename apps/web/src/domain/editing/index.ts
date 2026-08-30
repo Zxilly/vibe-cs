@@ -29,7 +29,12 @@ export {
   MIN_TIMELINE_CLIP_SPEED,
   clipDemoTickAtTimelineTime,
   clipSourceTimeAtLocalTime,
+  disableClipTimeRemapping,
+  enableClipTimeRemapping,
   rateStretchTimelineClip,
+  removeClipSpeedBoundary,
+  setClipSpeedSegmentSpeed,
+  splitClipSpeedSegment,
   snapTimeToFrame,
 } from './timelineInteraction';
 export type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';

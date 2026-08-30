@@ -576,6 +576,10 @@ impl Project {
     }
 
     /// Returns enabled media clips and their materialization state when they block delivery.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::Internal`] when a clip's capture fingerprint cannot be produced.
     pub fn delivery_blockers(
         &self,
     ) -> Result<Vec<(Uuid, TimelineClipMaterializationState)>, DomainError> {

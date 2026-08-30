@@ -315,7 +315,7 @@ export function ProjectWorkspacePage() {
 
   const current = project.data;
   const previewProject = projectWithPreviewClips(current, timelinePreviewClips);
-  const readOnly = lease.data !== null && lease.data !== undefined;
+  const readOnly = agentChat.streaming || (lease.data !== null && lease.data !== undefined);
   const selected = findClip(current, selectedClipId);
   const transportTimeSeconds = Math.min(
     current.document.duration_seconds,

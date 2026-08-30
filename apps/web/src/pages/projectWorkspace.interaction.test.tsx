@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
+import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -215,6 +215,10 @@ function renderWorkspace({
   executeRecordingPlan,
   relinkMediaAsset,
   deleteMediaAsset,
+  streamAgentChat,
+  appendAgentSessionEntry,
+  updateAgentTurn,
+  cancelAgentChat,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
@@ -232,6 +236,10 @@ function renderWorkspace({
   readonly executeRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
   readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
+  readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
+  readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
+  readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
+  readonly cancelAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
@@ -245,6 +253,10 @@ function renderWorkspace({
       listMediaAssets: listMediaAssets ?? (() => Promise.resolve({ items: assets })),
       ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
       ...(deleteMediaAsset === undefined ? {} : { deleteMediaAsset }),
+      ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
+      ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
+      ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
+      ...(cancelAgentChat === undefined ? {} : { cancelAgentChat }),
       getProjectEditLease: () => Promise.resolve(lease),
       agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
       ...(session === null ? {} : { getAgentSession: () => Promise.resolve(session) }),
@@ -3561,6 +3573,71 @@ describe('unified project workspace', () => {
     expect(await screen.findByRole('button', { name: '接受交付' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '退回修改' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '直接修改' })).toBeTruthy();
+  });
+
+  it('locks human timeline controls immediately when Agent streaming starts before Lease polling', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000070',
+      title: 'Agent · 统一作品',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:00:00Z',
+      entries: [],
+    };
+    let finishStream!: () => void;
+    const pendingStream = new Promise<void>((resolve) => { finishStream = resolve; });
+    const streamAgentChat = vi.fn(async () => {
+      await pendingStream;
+      return { thread_id: 'thread-streaming-lock' };
+    });
+    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
+      if (draft.kind === 'user') return { kind: 'user' as const, id: 'stream-user', at: PROJECT.updated_at, content: draft.content };
+      if (draft.kind !== 'assistant') throw new Error('expected an assistant streaming turn');
+      return {
+        kind: 'assistant' as const,
+        id: 'stream-assistant',
+        at: PROJECT.updated_at,
+        content: draft.content,
+        tool_calls: draft.tool_calls,
+        status: draft.status,
+        request_id: draft.request_id,
+        retry_of: draft.retry_of,
+        error: draft.error,
+        metadata: draft.metadata,
+      };
+    });
+    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
+      kind: 'assistant' as const,
+      id: entryId,
+      at: PROJECT.updated_at,
+      content: update.content,
+      tool_calls: update.tool_calls,
+      status: update.status,
+      request_id: 'stream-request',
+      retry_of: null,
+      error: update.error,
+      metadata: update.metadata,
+    }));
+    renderWorkspace({
+      session,
+      lease: null,
+      streamAgentChat,
+      appendAgentSessionEntry,
+      updateAgentTurn,
+      cancelAgentChat: vi.fn(async () => true),
+    });
+
+    const input = await screen.findByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦');
+    fireEvent.change(input, { target: { value: '只添加一个标记' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送给 Agent' }));
+    await waitFor(() => expect(streamAgentChat).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByText('Agent 操作中 · 人类只读')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '在播放头添加标记' }) as HTMLButtonElement).disabled).toBe(true);
+
+    finishStream();
+    await waitFor(() => expect(updateAgentTurn).toHaveBeenCalled());
+    await waitFor(() => expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(false));
   });
 
   it('shows the Agent lease inside the conversation and makes human controls read-only', async () => {

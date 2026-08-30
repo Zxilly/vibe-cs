@@ -39,13 +39,14 @@ import { OverflowMenu } from '../../design/layout';
 import { Drawer } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import {
-  BASE_PIXELS_PER_SECOND,
   MAX_ZOOM,
-  createTimeScale,
+  createFittedTimeScale,
   formatMillisecondTimecode,
   pxToTime,
   rulerTicks,
+  timelineFollowScroll,
   timeToPx,
+  type TimeScale,
   zoomAtAnchor,
 } from '../../design/timeline/timeScale';
 import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
@@ -400,10 +401,11 @@ export function ProjectTimeline({
     return () => observer.disconnect();
   }, []);
 
-  const fitZoom = viewportWidth / Math.max(document.duration_seconds, 1) / BASE_PIXELS_PER_SECOND;
+  const fitScale = createFittedTimeScale(viewportWidth, document.duration_seconds);
+  const fitZoom = fitScale.zoom;
   const maximumZoomMultiplier = Math.max(1, MAX_ZOOM / fitZoom);
   const effectiveZoomMultiplier = Math.min(maximumZoomMultiplier, Math.max(1, zoomMultiplier));
-  const scale = createTimeScale(fitZoom * effectiveZoomMultiplier);
+  const scale = createFittedTimeScale(viewportWidth, document.duration_seconds, effectiveZoomMultiplier);
   const displayedDuration = ratePreviewDuration ?? document.duration_seconds;
   const contentWidth = Math.max(viewportWidth, timeToPx(scale, displayedDuration));
   const ticks = rulerTicks(scale, {
@@ -450,7 +452,7 @@ export function ProjectTimeline({
           ? playheadViewportPx
           : contentViewportWidth / 2
         : Math.min(contentViewportWidth, Math.max(0, requestedAnchorPx));
-      const nextScale = createTimeScale(fitZoom * nextMultiplier);
+      const nextScale = createFittedTimeScale(viewportWidth, document.duration_seconds, nextMultiplier);
       const nextContentWidth = Math.max(viewportWidth, timeToPx(nextScale, displayedDuration));
       const maximumScroll = Math.max(0, trackHead + nextContentWidth - viewport.clientWidth);
       pendingZoomScrollRef.current = Math.min(maximumScroll, zoomAtAnchor({
@@ -468,24 +470,23 @@ export function ProjectTimeline({
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     setTimelineScroll(viewport.scrollLeft + direction * Math.max(1, viewport.clientWidth - trackHead));
   };
-  useEffect(() => {
-    if (!transportPlaying) return;
+  const previousPlayheadSecondsRef = useRef(playheadSeconds);
+  useLayoutEffect(() => {
+    const playheadMoved = Math.abs(previousPlayheadSecondsRef.current - playheadSeconds) > 1e-6;
+    previousPlayheadSecondsRef.current = playheadSeconds;
+    if (!transportPlaying && !playheadMoved) return;
     const viewport = viewportRef.current;
     if (viewport === null) return;
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     const contentViewportWidth = Math.max(1, viewport.clientWidth - trackHead);
-    const playheadContentX = trackHead + timeToPx(scale, playheadSeconds);
-    const visibleX = playheadContentX - viewport.scrollLeft;
-    const leftBoundary = trackHead + 20;
-    const rightBoundary = viewport.clientWidth - 20;
-    if (visibleX >= leftBoundary && visibleX <= rightBoundary) return;
-    const desiredX = visibleX > rightBoundary
-      ? trackHead + contentViewportWidth * 0.8
-      : trackHead + contentViewportWidth * 0.2;
-    const maximumScroll = Math.max(0, trackHead + contentWidth - viewport.clientWidth);
-    const next = Math.min(maximumScroll, Math.max(0, playheadContentX - desiredX));
-    viewport.scrollLeft = next;
-    setScrollLeft(next);
+    const next = timelineFollowScroll({
+      scrollPx: viewport.scrollLeft,
+      playheadPx: timeToPx(scale, playheadSeconds),
+      viewportPx: contentViewportWidth,
+      mode: transportPlaying ? 'page' : 'reveal',
+    });
+    if (Math.abs(next - viewport.scrollLeft) <= 0.01) return;
+    setTimelineScroll(next);
   }, [contentWidth, playheadSeconds, scale, transportPlaying]);
   const rowTemplate = [
     ...renderedTracks.map((track) => `${collapsedTrackRows.has(track.id)
@@ -1767,7 +1768,7 @@ export function ProjectTimeline({
         </div>
       </div>
 
-      <footer className="flex h-14 flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
+      <footer className="flex h-10 flex-none items-center gap-4 border-t border-divider px-2 text-2xs text-neutral-600">
         <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>
         {changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
           <span className="text-neutral-500"><Trans>原</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
@@ -1788,7 +1789,7 @@ export function ProjectTimeline({
       </footer>
 
       <div
-        className="absolute bottom-14 top-[var(--h-panel-head)] z-20 w-px bg-accent-600"
+        className="absolute bottom-10 top-[var(--h-panel-head)] z-20 w-px bg-accent-600"
         style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds) - scrollLeft}px)` }}
       >
         <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
@@ -1841,14 +1842,14 @@ export function ProjectTimeline({
       </div>
       {snapGuideTime === null ? null : (
         <span
-          className="pointer-events-none absolute bottom-14 top-[var(--h-panel-head)] z-30 w-0.5 bg-accent-400/80"
+          className="pointer-events-none absolute bottom-10 top-[var(--h-panel-head)] z-30 w-0.5 bg-accent-400/80"
           style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, snapGuideTime) - scrollLeft}px)` }}
           aria-label={t`吸附到 ${formatMillisecondTimecode(snapGuideTime)}`}
         />
       )}
       {rangeStart === null || rangeEnd === null || rangeEnd <= rangeStart ? null : (
         <span
-          className="pointer-events-none absolute bottom-14 top-[var(--h-panel-head)] z-10 border-x border-accent-400 bg-accent-100/35"
+          className="pointer-events-none absolute bottom-10 top-[var(--h-panel-head)] z-10 border-x border-accent-400 bg-accent-100/35"
           style={{
             left: `calc(var(--w-track-head) + ${timeToPx(scale, rangeStart) - scrollLeft}px)`,
             width: timeToPx(scale, rangeEnd - rangeStart),
@@ -2051,7 +2052,7 @@ function TimelineZoomNavigator({
   };
 
   return (
-    <span className="ml-auto flex min-w-0 items-center gap-1.5 text-neutral-500">
+    <span className="ml-auto flex min-w-56 max-w-[720px] flex-1 items-center gap-1.5 text-neutral-500">
       <button
         type="button"
         className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
@@ -2090,7 +2091,7 @@ function TimelineZoomNavigator({
         aria-valuemin={0}
         aria-valuemax={maximumScroll}
         aria-valuenow={Math.min(maximumScroll, scrollLeft)}
-        className="relative h-3 w-28 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        className="relative h-3 min-w-28 flex-1 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         onWheel={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -2112,6 +2113,7 @@ function TimelineZoomNavigator({
         onPointerMove={updateGesture}
         onPointerUp={finishGesture}
         onPointerCancel={finishGesture}
+        onDoubleClick={() => onZoom(1)}
         onKeyDown={(event) => {
           if (event.key === 'Home') {
             event.preventDefault();
@@ -2192,7 +2194,7 @@ function timelineDurationWithTrack(
 
 const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
@@ -2649,7 +2651,7 @@ function slideEditTriples(clips: readonly TimelineClip[], fps: number): SlideEdi
 function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, snapThresholdSeconds, scrollLeftRef, onDragAutoScroll, onSnapChange, onBegin, onPreview, onCancel, onCommit }: {
   readonly left: TimelineClip;
   readonly right: TimelineClip;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
@@ -2816,7 +2818,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
   readonly canSlide: boolean;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly razorEnabled: boolean;
@@ -3368,7 +3370,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
 
 function TimelineSpeedBand({ clip, scale, fps, interactive, onCommit }: {
   readonly clip: TimelineClip;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly fps: number;
   readonly interactive: boolean;
   readonly onCommit: (clip: TimelineClip) => void;
@@ -3587,7 +3589,7 @@ function formatGainDb(db: number): string {
 
 function TimelineFadeControls({ clip, scale, fps, readOnly, selected, onReplace }: {
   readonly clip: TimelineClip;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly selected: boolean;
@@ -3604,7 +3606,7 @@ function TimelineFadeControls({ clip, scale, fps, readOnly, selected, onReplace 
 function TimelineFadeHandle({ clip, edge, scale, fps, readOnly, selected, onReplace }: {
   readonly clip: TimelineClip;
   readonly edge: 'in' | 'out';
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly selected: boolean;
@@ -3745,7 +3747,7 @@ function TimelineToolStrip({
     { label: t`滑动工具 (U)`, icon: <BetweenHorizontalStart className="size-4" aria-hidden="true" />, enabled: canSlideTool, pressed: editTool === 'slide', action: () => onChangeTool('slide') },
   ] as const;
   return (
-    <aside className="absolute bottom-14 left-0 top-[var(--h-panel-head)] z-50 flex w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
+    <aside className="absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
       {tools.map((tool) => (
         <button
           key={tool.label}
@@ -3780,7 +3782,7 @@ function TimelineReviewLane({
   readonly changes: readonly TimelineClipChange[];
   readonly selectedChange: TimelineClipChange | null;
   readonly rippleChange: TimelineClipChange | null;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly scrollLeft: number;
   readonly onSelectChange: (change: TimelineClipChange) => void;
@@ -3846,7 +3848,7 @@ function TimelineChangeGhosts({
   audio,
 }: {
   readonly changes: readonly TimelineClipChange[];
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly audio: boolean;
 }) {
   return <>{changes.map((change) => {
@@ -3884,7 +3886,7 @@ function TimelineRippleIndicator({
   scale,
 }: {
   readonly change: TimelineClipChange;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
 }) {
   if (change.current === null || !hasTimelineDelta(change.startDelta)) return null;
   return (
@@ -3907,7 +3909,7 @@ function TimelineClipChangeOverlay({
 }: {
   readonly change: TimelineClipChange;
   readonly clip: TimelineClip;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly compact?: boolean | undefined;
 }) {
   const originalOut = change.originalOut;
@@ -4109,7 +4111,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
 const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, selectedMarkerId, scale, contentWidth, ticks, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onSelectMarker, onEditMarker, onMoveMarker }: {
   readonly markers: readonly EditorMarker[];
   readonly selectedMarkerId: string | null;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly ticks: ReturnType<typeof rulerTicks>;
   readonly durationSeconds: number;
@@ -4174,7 +4176,7 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
   readonly marker: EditorMarker;
   readonly selected: boolean;
   readonly nextMarkerTime: number | null;
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly durationSeconds: number;
   readonly fps: number;
@@ -4313,7 +4315,7 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
 
 const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks, onSelectClip, onSeek }: {
   readonly clips: readonly TimelineClip[];
-  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly ticks: ReturnType<typeof rulerTicks>;
   readonly onSelectClip: (clipId: string) => void;

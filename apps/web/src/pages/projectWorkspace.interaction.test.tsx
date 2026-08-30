@@ -2459,7 +2459,7 @@ describe('unified project workspace', () => {
     expect(screen.queryByRole('button', { name: 'K 暂停时间轴' })).toBeNull();
   });
 
-  it('page-scrolls the timeline to follow playback while track heads stay sticky', async () => {
+  it('reveals paused navigation and page-scrolls playback while track heads stay sticky', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     renderWorkspace({
       project: RECORDED_PROJECT,
@@ -2479,6 +2479,10 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(playhead, { key: 'ArrowDown' });
     fireEvent.keyDown(playhead, { key: 'ArrowDown' });
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(10);
+    await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
+
+    viewport.scrollLeft = 0;
+    fireEvent.scroll(viewport);
     expect(viewport.scrollLeft).toBe(0);
 
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
@@ -2624,8 +2628,8 @@ describe('unified project workspace', () => {
     expect(zoom.step).toBe('any');
     fireEvent.change(zoom, { target: { value: zoom.max } });
     const timelineClip = document.querySelector<HTMLElement>(`[data-timeline-clip-id="${CLIP_A}"]`);
-    await waitFor(() => expect(Number.parseFloat(timelineClip?.style.width ?? '0')).toBeCloseTo(34_560));
-    expect(zoom.getAttribute('aria-valuetext')).toContain('3.20');
+    await waitFor(() => expect(Number.parseFloat(timelineClip?.style.width ?? '0')).toBeCloseTo(138_240));
+    expect(zoom.getAttribute('aria-valuetext')).toContain('12.80');
     expect(applyProjectPatch).not.toHaveBeenCalled();
     clientWidth.mockRestore();
   });

@@ -22,15 +22,16 @@
 export const BASE_PIXELS_PER_SECOND = 12;
 
 /**
- * Zoom bounds. 0.125× is 1.5 px/s — a two-hour demo still fits a 1080p window;
- * 16× is 192 px/s, about 3 px per 60fps frame, which is as far as a prototype
- * with no frame grid can usefully go.
+ * Interactive zoom bounds. A fitted sequence may go below 0.125×; this is the
+ * lowest manual detail stop once the user starts zooming. 64× is 768 px/s,
+ * about 13 px per 60fps frame, so an individual frame remains a usable direct-
+ * manipulation target rather than only a mathematical snap point.
  */
 export const MIN_ZOOM = 0.125;
-export const MAX_ZOOM = 16;
+export const MAX_ZOOM = 64;
 
 /** The zoom stops the toolbar steps through. 1 is the artboard's 100%. */
-export const ZOOM_STEPS = [0.125, 0.25, 0.5, 1, 2, 4, 8, 16] as const;
+export const ZOOM_STEPS = [0.125, 0.25, 0.5, 1, 2, 4, 8, 16, 32, 64] as const;
 
 /** Float slack for comparing two times. One microsecond is far below a frame. */
 export const TIME_EPSILON = 1e-6;
@@ -52,6 +53,71 @@ export function clampZoom(zoom: number): number {
 export function createTimeScale(zoom = 1): TimeScale {
   const clamped = clampZoom(zoom);
   return { zoom: clamped, pixelsPerSecond: clamped * BASE_PIXELS_PER_SECOND };
+}
+
+/**
+ * Scale used by a sequence viewport.
+ *
+ * `createTimeScale` owns the ordinary interactive ladder, but "fit sequence"
+ * must be able to go below that ladder for a long recording. Professional NLEs
+ * do not make a multi-hour sequence horizontally scroll while their zoom bar is
+ * at its fitted end stop. The returned scale therefore keeps the normal maximum
+ * while allowing the fitted baseline to be as small as the viewport requires.
+ */
+export function createFittedTimeScale(
+  viewportPixels: number,
+  durationSeconds: number,
+  multiplier = 1,
+): TimeScale {
+  const safeViewport = Math.max(1, viewportPixels);
+  const safeDuration = Math.max(1, durationSeconds);
+  const fittedZoom = Math.min(MAX_ZOOM, safeViewport / safeDuration / BASE_PIXELS_PER_SECOND);
+  const zoom = Math.min(MAX_ZOOM, fittedZoom * Math.max(1, multiplier));
+  return { zoom, pixelsPerSecond: zoom * BASE_PIXELS_PER_SECOND };
+}
+
+export interface TimelineFollowScrollInput {
+  /** Current content-space horizontal scroll. */
+  readonly scrollPx: number;
+  /** Playhead position in content-space pixels. */
+  readonly playheadPx: number;
+  /** Width of the content viewport, excluding track headers. */
+  readonly viewportPx: number;
+  /** Page mode is Premiere's playback auto-scroll; reveal mode is paused navigation. */
+  readonly mode: 'page' | 'reveal';
+  readonly edgePaddingPx?: number;
+}
+
+/**
+ * Requested horizontal scroll that keeps a moved playhead usable.
+ *
+ * Playback uses a whole-page jump only after the playhead leaves the visible
+ * range. Paused seeking reveals just enough context. Manual scrollbar panning
+ * does not call this function, so it remains possible to inspect a region away
+ * from the playhead without the viewport snapping back.
+ */
+export function timelineFollowScroll({
+  scrollPx,
+  playheadPx,
+  viewportPx,
+  mode,
+  edgePaddingPx = 20,
+}: TimelineFollowScrollInput): number {
+  const width = Math.max(1, viewportPx);
+  const padding = Math.min(Math.max(0, edgePaddingPx), width / 2);
+  const visibleStart = scrollPx + padding;
+  const visibleEnd = scrollPx + width - padding;
+  if (playheadPx >= visibleStart && playheadPx <= visibleEnd) return scrollPx;
+
+  if (mode === 'page') {
+    const pageCount = playheadPx > visibleEnd
+      ? Math.max(1, Math.ceil((playheadPx - visibleEnd) / width))
+      : Math.max(1, Math.ceil((visibleStart - playheadPx) / width));
+    return Math.max(0, scrollPx + (playheadPx > visibleEnd ? pageCount : -pageCount) * width);
+  }
+  return Math.max(0, playheadPx < visibleStart
+    ? playheadPx - padding
+    : playheadPx - width + padding);
 }
 
 /** Content-space pixel offset of a time, measured from t = 0. */
@@ -114,7 +180,10 @@ export function timeAtViewportPx(scale: TimeScale, scrollPx: number, viewportPx:
  * Tick spacings, in seconds. Ordinary broadcast subdivisions — nothing here is
  * a 7-second step — so a label always reads as a round number.
  */
-const STEP_LADDER = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600] as const;
+const STEP_LADDER = [
+  0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30,
+  60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400,
+] as const;
 
 export interface RulerTick {
   /** Seconds from the start of the timeline. */
@@ -147,8 +216,8 @@ export function chooseTickStep(minSeconds: number): number {
   return STEP_LADDER.find((step) => step >= minSeconds - TIME_EPSILON) ?? COARSEST_STEP;
 }
 
-/** One hour, the top of the ladder: the step for a view zoomed all the way out. */
-const COARSEST_STEP = 3600;
+/** One day, the top of the ladder for fitted multi-day capture timelines. */
+const COARSEST_STEP = 86400;
 
 function stepBelow(step: number): number | null {
   const index = STEP_LADDER.indexOf(step as (typeof STEP_LADDER)[number]);

@@ -581,6 +581,11 @@ life-state and economy values; weapon is explicitly nullable. Its cache key incl
 fingerprint, producer run, round and sampling contract, and corrupt or provenance-mismatched entries
 are rejected and regenerated. These are exact samples without interpolation; they do not prove
 shots, visibility, audio, inventory or continuous movement between samples.
+Agent cinematic context and non-POV HLAE camera planning consume this same selected-round artifact;
+the Agent host reports the available sample count and rejects an unexecutable camera before the
+Story Track is committed. Series-scoped `demo_id:highlight_id` tool identities are reduced to the
+Demo's canonical highlight ID at that boundary, so later recording can recover the authoritative
+round and clamp capture handles without a second ID interpretation.
 
 The desktop, worker binary and worker manifest form one current release contract. They must be built
 from the same source. A worker response missing a current required field is rejected; the unreleased

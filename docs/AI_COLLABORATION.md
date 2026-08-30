@@ -46,10 +46,13 @@ plan, montage, editor, or conversion pipeline.
   canonical Editing Document.
 - `read_demo_evidence`: reads bounded persisted Demo analysis referenced by the
   Project.
-- `read_cinematic_context`: reads bounded replay-derived spatial evidence for
-  explicit highlight IDs.
+- `read_cinematic_context`: reads producer-bound selected-round spatial evidence,
+  round bounds, and camera feasibility for explicit highlight IDs.
 - `apply_project_patch`: applies one small revision-bound Project edit.
-- `replace_story_timeline`: performs one Agent-only whole-story replan.
+- `replace_story_timeline`: performs one Agent-only whole-story replan. It
+  canonicalizes series-scoped highlight IDs before persistence and rejects a
+  non-POV camera unless the effective in-round capture range contains at least
+  four target-player samples from the same replay contract used by recording.
 - `request_project_recording`: creates a human-confirmation request; it never
   launches CS2.
 - `request_project_export`: creates a human-confirmation request; it never

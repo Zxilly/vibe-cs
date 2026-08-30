@@ -1309,6 +1309,68 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
   });
 
+  it('previews canonical text tracks and omits unsupported text transitions', async () => {
+    const textClipId = '00000000-0000-4000-8000-000000000099';
+    const textClip: TimelineClip = {
+      ...clip(textClipId, 'Title'),
+      placement: { ...clip(textClipId, 'Title').placement, duration: 5, source_out: 5 },
+      transform: { ...clip(textClipId, 'Title').transform, x: 96, y: 54, opacity: 0.5 },
+      keyframes: [
+        { id: 'title-x-0', time: 0, property: 'x', value: 96 },
+        { id: 'title-x-1', time: 1, property: 'x', value: 192 },
+      ],
+      text: {
+        content: 'NiKo',
+        font_family: 'Arial',
+        font_asset_id: null,
+        font_size: 72,
+        color: '#FFFFFF',
+        background: '#000000',
+        align: 'center',
+      },
+    };
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: [...RECORDED_PROJECT.document.tracks, {
+          id: '00000000-0000-4000-8000-000000000098',
+          name: 'Titles',
+          kind: 'text',
+          order: RECORDED_PROJECT.document.tracks.length,
+          muted: false,
+          locked: false,
+          hidden: false,
+          clips: [textClip],
+        }],
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const overlay = await screen.findByText('NiKo', { selector: `[data-program-text-clip-id="${textClipId}"]` });
+    expect(overlay.dataset.programTextX).toBe('96');
+    expect(overlay.dataset.programTextY).toBe('54');
+    expect(overlay.dataset.programTextOpacity).toBe('0.5');
+    expect(overlay.style.left).toBe('55%');
+    expect(overlay.style.top).toBe('55%');
+
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    await waitFor(() => expect(overlay.dataset.programTextX).toBe('192'));
+    expect(overlay.style.left).toBe('60%');
+
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Title 5\.0s · 未录制/u }));
+    expect(await screen.findByRole('dialog', { name: '片段属性' })).toBeTruthy();
+    expect(screen.queryByLabelText('入场转场')).toBeNull();
+    expect(screen.queryByLabelText('出场转场')).toBeNull();
+  });
+
   it('previews Volume keyframes and the canonical fade envelope on Program audio', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,

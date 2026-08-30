@@ -1338,7 +1338,7 @@ function ClipInspector({
           </ol>
         </section>
       ) : null}
-      {(['transition_in', 'transition_out'] as const).map((field) => (
+      {draft.text !== null ? null : (['transition_in', 'transition_out'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field === 'transition_in' ? <Trans>入场转场</Trans> : <Trans>出场转场</Trans>}
           <select

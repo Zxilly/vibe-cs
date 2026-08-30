@@ -24,6 +24,14 @@ interface PreviewReadiness {
   readonly readyKeys: ReadonlySet<string>;
 }
 
+interface ProgramTextOverlay {
+  readonly clip: TimelineClip;
+  readonly text: NonNullable<TimelineClip['text']>;
+  readonly x: number;
+  readonly y: number;
+  readonly opacity: number;
+}
+
 type PreviewPoolRole = 'program' | 'trim';
 type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
 
@@ -137,6 +145,7 @@ export function TimelineProgramMonitor({
     { ...item, role: 'program' as const },
     { ...item, role: 'trim' as const },
   ]), [media]);
+  const textOverlays = programTextOverlays(project, targetTimelineTime);
 
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
@@ -218,6 +227,7 @@ export function TimelineProgramMonitor({
             <div
               className="relative max-h-full max-w-full overflow-hidden bg-neutral-900"
               style={{
+                containerType: 'size',
                 aspectRatio: `${project.document.width} / ${project.document.height}`,
                 width: `min(100cqw, ${project.document.width / project.document.height * 100}cqh)`,
                 height: `min(100cqh, ${project.document.height / project.document.width * 100}cqw)`,
@@ -316,6 +326,15 @@ export function TimelineProgramMonitor({
                   />
                 );
               })}
+              {textOverlays.map((overlay, index) => (
+                <ProgramTextOverlayView
+                  key={overlay.clip.id}
+                  overlay={overlay}
+                  projectWidth={project.document.width}
+                  projectHeight={project.document.height}
+                  layer={index}
+                />
+              ))}
               {!slideReady ? null : (
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
                   <span className="truncate px-1.5 py-1"><Trans>前 Out</Trans> · {slidePrevious.name}</span>
@@ -351,6 +370,75 @@ export function TimelineProgramMonitor({
       )}
     </section>
   );
+}
+
+function programTextOverlays(project: Project, timelineTime: number): ProgramTextOverlay[] {
+  const overlays: ProgramTextOverlay[] = [];
+  for (const track of project.document.tracks) {
+    if (track.hidden) continue;
+    for (const clip of track.clips) {
+      if (!clip.placement.enabled
+        || clip.text === null
+        || (track.kind !== 'text' && resolveTimelineMaterial(clip.material).streamAssetId !== null)
+        || timelineTime < clip.placement.start
+        || timelineTime >= clip.placement.start + clip.placement.duration) continue;
+      const localTime = timelineTime - clip.placement.start;
+      overlays.push({
+        clip,
+        text: clip.text,
+        x: evaluateClipKeyframeProperty(clip, 'x', localTime, clip.transform.x),
+        y: evaluateClipKeyframeProperty(clip, 'y', localTime, clip.transform.y),
+        opacity: evaluateClipKeyframeProperty(clip, 'opacity', localTime, clip.transform.opacity),
+      });
+    }
+  }
+  return overlays;
+}
+
+function ProgramTextOverlayView({ overlay, projectWidth, projectHeight, layer }: {
+  readonly overlay: ProgramTextOverlay;
+  readonly projectWidth: number;
+  readonly projectHeight: number;
+  readonly layer: number;
+}) {
+  const { clip, text, x, y, opacity } = overlay;
+  const align = text.align.toLowerCase();
+  const horizontal = align === 'left'
+    ? 20 + x
+    : align === 'right'
+      ? projectWidth - 20 + x
+      : projectWidth / 2 + x;
+  const translateX = align === 'left' ? '0' : align === 'right' ? '-100%' : '-50%';
+  return (
+    <span
+      className="pointer-events-none absolute whitespace-pre leading-none"
+      style={{
+        zIndex: 10 + layer,
+        left: projectPercent(horizontal, projectWidth),
+        top: projectPercent(projectHeight / 2 + y, projectHeight),
+        transform: `translate(${translateX}, -50%)`,
+        opacity: Math.min(1, Math.max(0, opacity)),
+        color: text.color,
+        fontFamily: `${text.font_family}, sans-serif`,
+        fontSize: `${text.font_size / Math.max(1, projectHeight) * 100}cqh`,
+        padding: text.background === null ? undefined : `${12 / Math.max(1, projectHeight) * 100}cqh`,
+        backgroundColor: text.background === null
+          ? undefined
+          : `color-mix(in srgb, ${text.background} 75%, transparent)`,
+        textAlign: align === 'left' || align === 'right' ? align : 'center',
+      }}
+      data-program-text-clip-id={clip.id}
+      data-program-text-x={x}
+      data-program-text-y={y}
+      data-program-text-opacity={opacity}
+    >
+      {text.content}
+    </span>
+  );
+}
+
+function projectPercent(value: number, extent: number): string {
+  return `${Math.round(value / Math.max(1, extent) * 1_000_000) / 10_000}%`;
 }
 
 export function advanceTimelineTransport(

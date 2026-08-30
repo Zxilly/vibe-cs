@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
-import { planDefaultTimelineTransitions } from './timelineTransitions';
+import {
+  maximumTimelineTransitionDuration,
+  planDefaultTimelineTransitions,
+  setTimelineTransitionDuration,
+} from './timelineTransitions';
 
 function clip(id: string, start: number): TimelineClip {
   return {
@@ -18,6 +22,26 @@ function track(id: string, kind: TimelineTrack['kind']): TimelineTrack {
 }
 
 describe('default Timeline transitions', () => {
+  it('resizes an existing transition on the frame grid without replacing its kind', () => {
+    const original = {
+      ...clip('a', 0),
+      transitions: {
+        ...clip('a', 0).transitions,
+        video_in: { kind: 'zoom' as const, duration_seconds: 0.5 },
+        video_out: { kind: 'fade' as const, duration_seconds: 1 },
+      },
+    };
+
+    const replacement = setTimelineTransitionDuration(original, 'video', 'in', 4.4, 60);
+    expect(replacement.transitions.video_in).toEqual({ kind: 'zoom', duration_seconds: 3.983_333_333_333_333_4 });
+    expect(maximumTimelineTransitionDuration(original, 'video', 'in', 60)).toBeCloseTo(3.983_333_333);
+  });
+
+  it('removes a transition when its direct handle is dragged below the minimum', () => {
+    const original = setTimelineTransitionDuration(clip('a', 0), 'audio', 'in', 0.5, 60);
+    expect(setTimelineTransitionDuration(original, 'audio', 'in', 0.01, 60).transitions.audio_in).toBeNull();
+  });
+
   it('applies a half-duration video fade to both sides of a targeted cut', () => {
     const video = track('story', 'video');
     const updates = planDefaultTimelineTransitions({

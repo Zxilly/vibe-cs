@@ -19,12 +19,10 @@ import {
   canSlideTimelineClip,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
-  maximumClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
   removeClipSpeedBoundary,
   snapTimeToFrame,
-  setClipFadeDuration,
   setClipSpeedSegmentSpeed,
   sliceClipSpeedSegments,
   slipTimelineClip,
@@ -107,25 +105,16 @@ describe('timeline direct manipulation', () => {
     expect(adjustLinearGainByTrackDelta(0, 64, 64)).toBe(0);
   });
 
-  it('reads renderer-backed fade duration and enables a frame-snapped fade', () => {
+  it('reads renderer-backed audio transition duration', () => {
     expect(clipFadeDuration(CLIP, 'in')).toBe(0);
-    const faded = setClipFadeDuration(CLIP, 'in', 0.363, 60);
-    expect(faded.transitions.audio_in).toEqual({ kind: 'constant_power', duration_seconds: 0.366_666_666_666_666_64 });
-    expect(clipFadeDuration(faded, 'in')).toBeCloseTo(0.366_666_667);
-  });
-
-  it('constrains dual fades to less than the clip duration and disables below threshold', () => {
-    const withOut = {
+    const faded = {
       ...CLIP,
       transitions: {
         ...CLIP.transitions,
-        audio_out: { kind: 'constant_power' as const, duration_seconds: 0.35 },
+        audio_in: { kind: 'constant_power' as const, duration_seconds: 0.35 },
       },
     };
-    expect(maximumClipFadeDuration(withOut, 'in', 60)).toBeCloseTo(8 / 2 - 1 / 60);
-    const faded = setClipFadeDuration(withOut, 'in', 5, 60);
-    expect(clipFadeDuration(faded, 'in')).toBeCloseTo(3.983_333_333);
-    expect(setClipFadeDuration(faded, 'in', 0.01, 60).transitions.audio_in).toBeNull();
+    expect(clipFadeDuration(faded, 'in')).toBe(0.35);
   });
 
   it('derives bounded drag auto-scroll from pointer edge penetration', () => {

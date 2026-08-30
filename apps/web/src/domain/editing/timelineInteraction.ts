@@ -3,9 +3,6 @@ import type { EditorSpeedSegment, TimelineClip } from '../../shared/desktop/dto'
 const MINIMUM_CLIP_FRAMES = 1;
 export const MIN_TIMELINE_CLIP_SPEED = 0.0625;
 export const MAX_TIMELINE_CLIP_SPEED = 16;
-export const DEFAULT_CLIP_FADE_SECONDS = 0.35;
-export const MIN_CLIP_FADE_SECONDS = 0.05;
-export const MAX_CLIP_FADE_SECONDS = 5;
 export const MIN_CLIP_GAIN_DB = -60;
 export const MAX_CLIP_GAIN_DB = 20 * Math.log10(4);
 
@@ -110,44 +107,6 @@ export function clipAudioFadeFactor(clip: TimelineClip, localTime: number): numb
     return transition.kind === 'constant_power' ? Math.sin(progress * Math.PI / 2) : progress;
   };
   return Math.min(factor('in'), factor('out'));
-}
-
-export function maximumClipFadeDuration(clip: TimelineClip, edge: 'in' | 'out', fps: number): number {
-  const frame = 1 / Math.max(1, fps);
-  const available = clipTransition(clip, 'audio', edge === 'in' ? 'out' : 'in') !== null
-    ? clip.placement.duration / 2 - frame
-    : clip.placement.duration - frame;
-  return Math.max(0, Math.min(MAX_CLIP_FADE_SECONDS, available));
-}
-
-export function setClipFadeDuration(
-  clip: TimelineClip,
-  edge: 'in' | 'out',
-  requestedDuration: number,
-  fps: number,
-): TimelineClip {
-  const transitionField = edge === 'in' ? 'audio_in' : 'audio_out';
-  if (requestedDuration < MIN_CLIP_FADE_SECONDS) {
-    return clip.transitions[transitionField] === null
-      ? clip
-      : { ...clip, transitions: { ...clip.transitions, [transitionField]: null } };
-  }
-  const maximum = maximumClipFadeDuration(clip, edge, fps);
-  if (maximum < MIN_CLIP_FADE_SECONDS) return clip;
-  const duration = snapTimeToFrame(
-    Math.min(maximum, Math.max(MIN_CLIP_FADE_SECONDS, requestedDuration)),
-    fps,
-  );
-  const current = clip.transitions[transitionField];
-  if (current?.kind === 'constant_power'
-    && Math.abs(current.duration_seconds - duration) <= 1e-6) return clip;
-  return {
-    ...clip,
-    transitions: {
-      ...clip.transitions,
-      [transitionField]: { kind: 'constant_power', duration_seconds: duration },
-    },
-  };
 }
 
 export function moveTimelineClip(clip: TimelineClip, start: number, fps: number): TimelineClip {

@@ -23,7 +23,25 @@ function transitionFor(channel: 'video' | 'audio', durationSeconds: number): Edi
   };
 }
 
-function withTransition(
+export function timelineTransition(
+  clip: TimelineClip,
+  channel: 'video' | 'audio',
+  edge: 'in' | 'out',
+): EditorTransition | null {
+  return clip.transitions[`${channel}_${edge}` as keyof TimelineClip['transitions']];
+}
+
+export function maximumTimelineTransitionDuration(
+  clip: TimelineClip,
+  channel: 'video' | 'audio',
+  edge: 'in' | 'out',
+  fps: number,
+): number {
+  const other = timelineTransition(clip, channel, edge === 'in' ? 'out' : 'in');
+  return Math.max(0, Math.min(5, clip.placement.duration - (other?.duration_seconds ?? 0) - 1 / fps));
+}
+
+export function setTimelineTransitionDuration(
   clip: TimelineClip,
   channel: 'video' | 'audio',
   edge: 'in' | 'out',
@@ -31,13 +49,19 @@ function withTransition(
   fps: number,
 ): TimelineClip {
   const field = `${channel}_${edge}` as keyof TimelineClip['transitions'];
-  const otherField = `${channel}_${edge === 'in' ? 'out' : 'in'}` as keyof TimelineClip['transitions'];
-  const maximum = Math.max(0, Math.min(5, clip.placement.duration - (clip.transitions[otherField]?.duration_seconds ?? 0) - 1 / fps));
+  if (requestedDuration < 0.05) {
+    return { ...clip, transitions: { ...clip.transitions, [field]: null } };
+  }
+  const maximum = maximumTimelineTransitionDuration(clip, channel, edge, fps);
   if (maximum < 0.05) return clip;
   const duration = snapTimeToFrame(Math.min(maximum, Math.max(0.05, requestedDuration)), fps);
+  const existing = timelineTransition(clip, channel, edge);
   return {
     ...clip,
-    transitions: { ...clip.transitions, [field]: transitionFor(channel, duration) },
+    transitions: {
+      ...clip.transitions,
+      [field]: existing === null ? transitionFor(channel, duration) : { ...existing, duration_seconds: duration },
+    },
   };
 }
 
@@ -77,8 +101,8 @@ export function planDefaultTimelineTransitions({
         if (!selectedClipIds.has(left.id)
           || !selectedClipIds.has(right.id)
           || Math.abs(cut - right.placement.start) > tolerance) continue;
-        replacements.set(left.id, withTransition(left, channel, 'out', defaultDurationSeconds / 2, fps));
-        replacements.set(right.id, withTransition(right, channel, 'in', defaultDurationSeconds / 2, fps));
+        replacements.set(left.id, setTimelineTransitionDuration(left, channel, 'out', defaultDurationSeconds / 2, fps));
+        replacements.set(right.id, setTimelineTransitionDuration(right, channel, 'in', defaultDurationSeconds / 2, fps));
       }
     } else {
       const left = [...ordered].reverse().find((clip) => (
@@ -86,12 +110,12 @@ export function planDefaultTimelineTransitions({
       ));
       const right = ordered.find((clip) => Math.abs(clip.placement.start - timelineTime) <= tolerance);
       if (left !== undefined && right !== undefined && left.id !== right.id) {
-        replacements.set(left.id, withTransition(left, channel, 'out', defaultDurationSeconds / 2, fps));
-        replacements.set(right.id, withTransition(right, channel, 'in', defaultDurationSeconds / 2, fps));
+        replacements.set(left.id, setTimelineTransitionDuration(left, channel, 'out', defaultDurationSeconds / 2, fps));
+        replacements.set(right.id, setTimelineTransitionDuration(right, channel, 'in', defaultDurationSeconds / 2, fps));
       } else if (left !== undefined) {
-        replacements.set(left.id, withTransition(left, channel, 'out', defaultDurationSeconds, fps));
+        replacements.set(left.id, setTimelineTransitionDuration(left, channel, 'out', defaultDurationSeconds, fps));
       } else if (right !== undefined) {
-        replacements.set(right.id, withTransition(right, channel, 'in', defaultDurationSeconds, fps));
+        replacements.set(right.id, setTimelineTransitionDuration(right, channel, 'in', defaultDurationSeconds, fps));
       }
     }
     if (replacements.size === 0) return [];

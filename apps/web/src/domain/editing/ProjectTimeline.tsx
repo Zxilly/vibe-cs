@@ -68,7 +68,11 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
 import { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
-import { planDefaultTimelineTransitions } from './timelineTransitions';
+import {
+  planDefaultTimelineTransitions,
+  setTimelineTransitionDuration,
+  timelineTransition,
+} from './timelineTransitions';
 import {
   planTimelinePasteInsert,
   planTimelinePasteOverwrite,
@@ -108,11 +112,7 @@ import {
   linearGainToDb,
   MAX_CLIP_GAIN_DB,
   MIN_CLIP_GAIN_DB,
-  MIN_CLIP_FADE_SECONDS,
-  clipFadeDuration,
-  maximumClipFadeDuration,
   setClipSpeedSegmentSpeed,
-  setClipFadeDuration,
   slipTimelineClip,
   timelineEdgeScrollStep,
   moveTimelineClip,
@@ -2412,6 +2412,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             canSlide={slidePoints.some((point) => point.clip.id === clip.id)}
             onPreviewRateStretch={(edge, timelineTime) => previewRateStretch(clip, edge, timelineTime)}
             onPreviewSlide={(timelineTime) => previewSlide(clip, timelineTime)}
+            onPreviewTransition={(replacement) => onPreviewClips([replacement])}
             onStopTransport={onStopTransport}
             onClearPreview={() => {
               clearRatePreview();
@@ -2513,7 +2514,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                 onReplaceClip(replacement);
                 return;
               }
-              if (mode === 'fade') {
+              if (mode === 'transition') {
                 onReplaceClip(replacement);
                 return;
               }
@@ -2808,7 +2809,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -2832,7 +2833,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'fade' | 'speed_remap') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'transition' | 'speed_remap') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -2841,6 +2842,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onPreviewSlip: (requestedSourceDelta: number) => TimelineClip;
   readonly onPreviewRateStretch: (edge: 'start' | 'end', timelineTime: number) => TimelineClip;
   readonly onPreviewSlide: (timelineTime: number) => TimelineClip;
+  readonly onPreviewTransition: (clip: TimelineClip) => void;
   readonly onStopTransport: () => void;
   readonly onClearPreview: () => void;
 }) {
@@ -2901,13 +2903,21 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           fps={fps}
           onReplace={(replacement) => onReplace(replacement, 'volume')}
         />
-        <TimelineFadeControls
+        <TimelineTransitionControls
           clip={clip}
+          channel="audio"
           scale={scale}
           fps={fps}
           readOnly={gainReadOnly}
           selected={selected}
-          onReplace={(replacement) => onReplace(replacement, 'fade')}
+          onSelect={() => onSelect(false, false)}
+          onInspect={onInspect}
+          onPreview={onPreviewTransition}
+          onClearPreview={onClearPreview}
+          onStopTransport={onStopTransport}
+          scrollLeftRef={scrollLeftRef}
+          onDragAutoScroll={onDragAutoScroll}
+          onReplace={(replacement) => onReplace(replacement, 'transition')}
         />
         {change === null ? null : <TimelineClipChangeOverlay change={change} clip={clip} scale={scale} compact />}
       </div>
@@ -2915,8 +2925,6 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   }
   const visualLeft = timeToPx(scale, visualClip.placement.start);
   const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
-  const transitionIn = kind === 'audio' ? clip.transitions.audio_in : clip.transitions.video_in;
-  const transitionOut = kind === 'audio' ? clip.transitions.audio_out : clip.transitions.video_out;
   const canSlip = kind !== 'text' && canSlipTimelineClip(clip, fps);
   const canRateStretch = kind !== 'text' && canRateStretchTimelineClip(clip);
   const gestureBaseClip = gesture.current?.clip ?? clip;
@@ -3205,13 +3213,21 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
             fps={fps}
             onReplace={(replacement) => onReplace(replacement, 'volume')}
           />
-          <TimelineFadeControls
+          <TimelineTransitionControls
             clip={clip}
+            channel="audio"
             scale={scale}
             fps={fps}
             readOnly={gainReadOnly}
             selected={selected}
-            onReplace={(replacement) => onReplace(replacement, 'fade')}
+            onSelect={() => onSelect(false, false)}
+            onInspect={onInspect}
+            onPreview={onPreviewTransition}
+            onClearPreview={onClearPreview}
+            onStopTransport={onStopTransport}
+            scrollLeftRef={scrollLeftRef}
+            onDragAutoScroll={onDragAutoScroll}
+            onReplace={(replacement) => onReplace(replacement, 'transition')}
           />
         </>
       ) : kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
@@ -3232,8 +3248,24 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         </>
       )}
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
-      {transitionIn === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${transitionIn.kind}`} />}
-      {transitionOut === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${transitionOut.kind}`} />}
+      {kind === 'video' ? (
+        <TimelineTransitionControls
+          clip={clip}
+          channel="video"
+          scale={scale}
+          fps={fps}
+          readOnly={readOnly}
+          selected={selected}
+          onSelect={() => onSelect(false, false)}
+          onInspect={onInspect}
+          onPreview={onPreviewTransition}
+          onClearPreview={onClearPreview}
+          onStopTransport={onStopTransport}
+          scrollLeftRef={scrollLeftRef}
+          onDragAutoScroll={onDragAutoScroll}
+          onReplace={(replacement) => onReplace(replacement, 'transition')}
+        />
+      ) : null}
       {kind === 'video' && enabledEffectCount > 0 ? (
         <span className="pointer-events-none absolute bottom-4 right-1 z-30 rounded-sm border border-accent-500 bg-bg/90 px-1 font-mono text-2xs text-accent-text" aria-label={t`已启用 ${enabledEffectCount} 个效果`}>fx{enabledEffectCount}</span>
       ) : null}
@@ -3587,133 +3619,237 @@ function formatGainDb(db: number): string {
   return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
 }
 
-function TimelineFadeControls({ clip, scale, fps, readOnly, selected, onReplace }: {
+function TimelineTransitionControls({ clip, channel, scale, fps, readOnly, selected, onSelect, onInspect, onPreview, onClearPreview, onStopTransport, scrollLeftRef, onDragAutoScroll, onReplace }: {
   readonly clip: TimelineClip;
+  readonly channel: 'video' | 'audio';
   readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly selected: boolean;
+  readonly onSelect: () => void;
+  readonly onInspect: () => void;
+  readonly onPreview: (clip: TimelineClip) => void;
+  readonly onClearPreview: () => void;
+  readonly onStopTransport: () => void;
+  readonly scrollLeftRef: React.RefObject<number>;
+  readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
   return (
     <>
-      <TimelineFadeHandle clip={clip} edge="in" scale={scale} fps={fps} readOnly={readOnly} selected={selected} onReplace={onReplace} />
-      <TimelineFadeHandle clip={clip} edge="out" scale={scale} fps={fps} readOnly={readOnly} selected={selected} onReplace={onReplace} />
+      {(['in', 'out'] as const).map((edge) => (
+        <TimelineTransitionItem
+          key={`${channel}:${edge}`}
+          clip={clip}
+          channel={channel}
+          edge={edge}
+          scale={scale}
+          fps={fps}
+          readOnly={readOnly}
+          selected={selected}
+          onSelect={onSelect}
+          onInspect={onInspect}
+          onPreview={onPreview}
+          onClearPreview={onClearPreview}
+          onStopTransport={onStopTransport}
+          scrollLeftRef={scrollLeftRef}
+          onDragAutoScroll={onDragAutoScroll}
+          onReplace={onReplace}
+        />
+      ))}
     </>
   );
 }
 
-function TimelineFadeHandle({ clip, edge, scale, fps, readOnly, selected, onReplace }: {
+function TimelineTransitionItem({ clip, channel, edge, scale, fps, readOnly, selected, onSelect, onInspect, onPreview, onClearPreview, onStopTransport, scrollLeftRef, onDragAutoScroll, onReplace }: {
   readonly clip: TimelineClip;
+  readonly channel: 'video' | 'audio';
   readonly edge: 'in' | 'out';
   readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly selected: boolean;
+  readonly onSelect: () => void;
+  readonly onInspect: () => void;
+  readonly onPreview: (clip: TimelineClip) => void;
+  readonly onClearPreview: () => void;
+  readonly onStopTransport: () => void;
+  readonly scrollLeftRef: React.RefObject<number>;
+  readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
-  const persistedDuration = clipFadeDuration(clip, edge);
+  const persistedTransition = timelineTransition(clip, channel, edge);
+  const persistedDuration = persistedTransition?.duration_seconds ?? 0;
   const [visualDuration, setVisualDuration] = useState(persistedDuration);
   const [active, setActive] = useState(false);
   const visualDurationRef = useRef(visualDuration);
   visualDurationRef.current = visualDuration;
+  const draftClipRef = useRef(clip);
   const gesture = useRef<{
     readonly pointerId: number;
     readonly clientX: number;
+    readonly scrollLeft: number;
     readonly duration: number;
+    lastClientX: number;
   } | null>(null);
   useEffect(() => {
     setVisualDuration(persistedDuration);
     visualDurationRef.current = persistedDuration;
+    draftClipRef.current = clip;
   }, [persistedDuration]);
-  const maximum = maximumClipFadeDuration(clip, edge, fps);
-  const percent = clip.placement.duration <= 0 ? 0 : visualDuration / clip.placement.duration * 100;
-  const commit = (duration: number) => {
-    const replacement = setClipFadeDuration(clip, edge, duration, fps);
-    if (replacement !== clip) onReplace(replacement);
+  const update = (clientX: number, currentScrollLeft: number) => {
+    const current = gesture.current;
+    if (current === null) return;
+    current.lastClientX = clientX;
+    const delta = pxToTime(
+      scale,
+      clientX - current.clientX + currentScrollLeft - current.scrollLeft,
+    ) * (edge === 'in' ? 1 : -1);
+    const replacement = setTimelineTransitionDuration(clip, channel, edge, current.duration + delta, fps);
+    const duration = timelineTransition(replacement, channel, edge)?.duration_seconds ?? 0;
+    draftClipRef.current = replacement;
+    visualDurationRef.current = duration;
+    setVisualDuration(duration);
+    onPreview(replacement);
   };
-  const increaseKey = edge === 'in' ? 'ArrowRight' : 'ArrowLeft';
-  const decreaseKey = edge === 'in' ? 'ArrowLeft' : 'ArrowRight';
+  const finish = () => {
+    const current = gesture.current;
+    if (current === null) return;
+    gesture.current = null;
+    setActive(false);
+    onDragAutoScroll(null);
+    onClearPreview();
+    if (JSON.stringify(draftClipRef.current.transitions) !== JSON.stringify(clip.transitions)) {
+      onReplace(draftClipRef.current);
+    }
+  };
+  const visible = persistedTransition !== null || active || (selected && !readOnly);
+  if (!visible) return null;
+  const width = persistedTransition === null && !active
+    ? 7
+    : Math.max(7, timeToPx(scale, visualDuration));
+  const label = channel === 'video'
+    ? edge === 'in' ? t`视频入场转场` : t`视频出场转场`
+    : edge === 'in' ? t`音频入场转场` : t`音频出场转场`;
+  const kind = timelineTransition(draftClipRef.current, channel, edge)?.kind ?? null;
   return (
-    <>
-      {visualDuration <= 0 ? null : (
-        <span
-          className={cn(
-            'pointer-events-none absolute inset-y-0 z-20 bg-accent-100/40',
-            edge === 'in'
-              ? 'left-0 [clip-path:polygon(0_100%,100%_0,100%_100%)]'
-              : 'right-0 [clip-path:polygon(0_0,100%_100%,0_100%)]',
-          )}
-          style={{ width: `${percent}%` }}
-          aria-hidden="true"
-        />
+    <span
+      role="slider"
+      tabIndex={readOnly ? -1 : 0}
+      aria-label={`${label} ${clip.name}`}
+      aria-disabled={readOnly}
+      aria-valuemin={0}
+      aria-valuemax={5}
+      aria-valuenow={visualDuration}
+      aria-valuetext={kind === null ? t`未应用` : `${kind} ${visualDuration.toFixed(3)}s`}
+      data-timeline-transition={`${channel}:${edge}`}
+      data-transition-duration={visualDuration}
+      className={cn(
+        'absolute top-0 z-40 touch-none overflow-hidden border border-accent-500 bg-accent-100/85 text-2xs text-accent-text outline-none focus-visible:ring-2 focus-visible:ring-accent-600',
+        channel === 'video' ? 'h-6' : 'h-4',
+        edge === 'in' ? 'left-0 rounded-r-sm' : 'right-0 rounded-l-sm',
+        kind === null && 'border-dashed bg-transparent',
+        !selected && !active && 'opacity-75',
+        readOnly ? 'pointer-events-none' : 'cursor-ew-resize',
       )}
-      <span
-        role="slider"
-        tabIndex={readOnly ? -1 : 0}
-        aria-label={edge === 'in' ? t`调整淡入 ${clip.name}` : t`调整淡出 ${clip.name}`}
-        aria-disabled={readOnly}
-        aria-valuemin={0}
-        aria-valuemax={maximum}
-        aria-valuenow={visualDuration}
-        aria-valuetext={`${visualDuration.toFixed(3)}s`}
-        className={cn(
-          'absolute z-40 size-3 -translate-x-1/2 touch-none cursor-ew-resize rounded-full border border-accent-600 bg-bg outline-none focus-visible:ring-1 focus-visible:ring-accent-500',
-          edge === 'in' ? 'top-0' : 'bottom-0',
-          edge === 'out' && 'translate-x-1/2',
-          !selected && !active && 'opacity-65',
-          readOnly && 'pointer-events-none',
-        )}
-        style={edge === 'in' ? { left: `${percent}%` } : { right: `${percent}%` }}
-        onPointerDown={(event) => {
-          if (readOnly || event.button !== 0) return;
-          event.preventDefault();
-          event.stopPropagation();
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-          gesture.current = { pointerId: event.pointerId, clientX: event.clientX, duration: persistedDuration };
-          setActive(true);
-        }}
-        onPointerMove={(event) => {
+      style={{
+        width,
+        ...(kind === null ? {} : {
+          backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--color-accent-500) 20%, transparent) 5px 7px)',
+        }),
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+      }}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onInspect();
+      }}
+      onPointerDown={(event) => {
+        if (readOnly || event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+        onStopTransport();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        gesture.current = {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          scrollLeft: scrollLeftRef.current ?? 0,
+          duration: persistedDuration,
+          lastClientX: event.clientX,
+        };
+        draftClipRef.current = clip;
+        setActive(true);
+        onDragAutoScroll(event.clientX, (nextScrollLeft) => {
           const current = gesture.current;
-          if (current === null || current.pointerId !== event.pointerId) return;
+          if (current !== null) update(current.lastClientX, nextScrollLeft);
+        });
+      }}
+      onPointerMove={(event) => {
+        if (gesture.current?.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onDragAutoScroll(event.clientX);
+        update(event.clientX, scrollLeftRef.current ?? 0);
+      }}
+      onPointerUp={(event) => {
+        if (gesture.current?.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        finish();
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      }}
+      onPointerCancel={() => {
+        gesture.current = null;
+        setActive(false);
+        draftClipRef.current = clip;
+        visualDurationRef.current = persistedDuration;
+        setVisualDuration(persistedDuration);
+        onDragAutoScroll(null);
+        onClearPreview();
+      }}
+      onKeyDown={(event) => {
+        if (readOnly) return;
+        if (event.key === 'Enter') {
           event.preventDefault();
           event.stopPropagation();
-          const delta = pxToTime(scale, event.clientX - current.clientX) * (edge === 'in' ? 1 : -1);
-          setVisualDuration(Math.min(maximum, Math.max(0, current.duration + delta)));
-        }}
-        onPointerUp={(event) => {
-          if (gesture.current?.pointerId !== event.pointerId) return;
+          onInspect();
+          return;
+        }
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          if (persistedTransition === null) return;
           event.preventDefault();
           event.stopPropagation();
-          gesture.current = null;
-          setActive(false);
-          event.currentTarget.releasePointerCapture?.(event.pointerId);
-          commit(visualDurationRef.current);
-        }}
-        onPointerCancel={() => {
-          gesture.current = null;
-          setActive(false);
-          setVisualDuration(persistedDuration);
-        }}
-        onKeyDown={(event) => {
-          if (readOnly || (event.key !== increaseKey && event.key !== decreaseKey)) return;
-          event.preventDefault();
-          event.stopPropagation();
-          const direction = event.key === increaseKey ? 1 : -1;
-          const requested = visualDuration + direction * (event.shiftKey ? 0.25 : 1 / fps);
-          const duration = Math.min(maximum, Math.max(
-            0,
-            direction > 0 && visualDuration < MIN_CLIP_FADE_SECONDS
-              ? MIN_CLIP_FADE_SECONDS
-              : requested,
-          ));
-          setVisualDuration(duration);
-          commit(duration);
-        }}
-      >
-        {active ? <span className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-neutral-900 px-1.5 py-0.5 font-mono text-2xs text-bg">{visualDuration.toFixed(3)}s</span> : null}
-      </span>
-    </>
+          onReplace(setTimelineTransitionDuration(clip, channel, edge, 0, fps));
+          return;
+        }
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        event.stopPropagation();
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        const step = event.shiftKey ? 0.25 : 1 / fps;
+        const requested = visualDuration + direction * step;
+        const replacement = setTimelineTransitionDuration(
+          clip,
+          channel,
+          edge,
+          direction > 0 && visualDuration < 0.05 ? 0.05 : requested,
+          fps,
+        );
+        onReplace(replacement);
+      }}
+    >
+      {kind === null || width < 72 ? null : (
+        <span className="pointer-events-none block overflow-hidden text-ellipsis whitespace-nowrap px-1 leading-[22px]">
+          {kind} · {visualDuration.toFixed(2)}s
+        </span>
+      )}
+      {active ? <span className="pointer-events-none absolute inset-x-0 grid h-full place-items-center bg-neutral-900/80 font-mono text-2xs text-bg">{visualDuration.toFixed(2)}s</span> : null}
+    </span>
   );
 }
 

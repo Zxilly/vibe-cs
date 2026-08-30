@@ -818,15 +818,15 @@ describe('unified project workspace', () => {
     })));
   });
 
-  it('edits renderer-backed fades from Story derived audio handles', async () => {
+  it('edits renderer-backed audio transitions from Story derived audio blocks', async () => {
     const keyboardPatch = vi.fn();
     const keyboardRender = renderWorkspace({ applyProjectPatch: keyboardPatch });
 
-    const fadeIn = await screen.findByRole('slider', { name: '调整淡入 A' });
+    const fadeIn = await screen.findByRole('slider', { name: '音频入场转场 A' });
     const storyAudio = screen.getByRole('row', { name: 'Story 音频' });
     expect(storyAudio.querySelector('[role="img"]')?.classList.contains('pointer-events-none')).toBe(true);
     expect(fadeIn.parentElement?.classList.contains('z-10')).toBe(false);
-    expect(fadeIn.getAttribute('aria-valuetext')).toBe('0.000s');
+    expect(fadeIn.getAttribute('aria-valuetext')).toBe('未应用');
     fireEvent.keyDown(fadeIn, { key: 'ArrowRight' });
     await waitFor(() => expect(keyboardPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -839,7 +839,7 @@ describe('unified project workspace', () => {
     keyboardRender.unmount();
     const pointerPatch = vi.fn();
     renderWorkspace({ applyProjectPatch: pointerPatch });
-    const fadeOut = await screen.findByRole('slider', { name: '调整淡出 A' });
+    const fadeOut = await screen.findByRole('slider', { name: '音频出场转场 A' });
     fireEvent.pointerDown(fadeOut, { pointerId: 72, button: 0, clientX: 400 });
     fireEvent.pointerMove(fadeOut, { pointerId: 72, clientX: 390 });
     await waitFor(() => expect(Number(fadeOut.getAttribute('aria-valuenow'))).toBeGreaterThan(0.5));
@@ -852,6 +852,53 @@ describe('unified project workspace', () => {
         clip: expect.objectContaining({ transitions: expect.objectContaining({ audio_out: { kind: 'constant_power', duration_seconds: expect.any(Number) } }) }),
       })],
     }));
+  });
+
+  it('previews and commits one video transition duration patch per drag gesture', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transitions: {
+              ...candidate.transitions,
+              video_out: { kind: 'fade', duration_seconds: 0.5 },
+            },
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const transition = await screen.findByRole('slider', { name: '视频出场转场 A' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    const playheadBeforeDrag = playhead.getAttribute('aria-valuenow');
+    fireEvent.pointerDown(transition, { pointerId: 73, button: 0, clientX: 400 });
+    fireEvent.pointerMove(transition, { pointerId: 73, clientX: 390 });
+    expect(Number(transition.getAttribute('aria-valuenow'))).toBeGreaterThan(0.5);
+    expect(playhead.getAttribute('aria-valuenow')).toBe(playheadBeforeDrag);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(transition, { pointerId: 73, clientX: 390 });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({
+          transitions: expect.objectContaining({
+            video_out: { kind: 'fade', duration_seconds: expect.any(Number) },
+          }),
+        }),
+      })],
+    }));
+
+    fireEvent.doubleClick(transition);
+    expect(await screen.findByRole('dialog', { name: '片段属性' })).toBeTruthy();
   });
 
   it('deletes a cross-track selection in one Project revision', async () => {
@@ -2488,7 +2535,8 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
     expect((screen.getByRole('row', { name: 'Story' }).firstElementChild as HTMLElement).className).toContain('sticky');
-    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
+    const pause = screen.queryByRole('button', { name: 'K 暂停时间轴' });
+    if (pause !== null) fireEvent.click(pause);
     clientWidth.mockRestore();
   });
 

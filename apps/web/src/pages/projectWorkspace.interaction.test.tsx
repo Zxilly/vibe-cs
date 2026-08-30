@@ -225,6 +225,30 @@ function targetedRangeProject(): Project {
   };
 }
 
+function razorLinkedProject(): Project {
+  const linkGroupId = '00000000-0000-4000-8000-000000000093';
+  const audioClip: TimelineClip = {
+    ...clip('00000000-0000-4000-8000-000000000094', 'A audio'),
+    material: { kind: 'asset', asset_id: 'asset-a', media_duration_seconds: 5 },
+    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    link_group_id: linkGroupId,
+  };
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+        ? {
+            ...track,
+            clips: track.clips.map((candidate) => candidate.id === CLIP_A
+              ? { ...candidate, link_group_id: linkGroupId }
+              : candidate),
+          }
+        : track.kind === 'audio' ? { ...track, clips: [audioClip] } : track),
+    },
+  };
+}
+
 function slideProject(): Project {
   const recorded = (id: string, name: string, start: number, duration: number, sourceIn: number): TimelineClip => ({
     ...clip(id, name),
@@ -854,7 +878,7 @@ describe('unified project workspace', () => {
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    expect((screen.getByRole('button', { name: '在播放头切分片段' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '在播放头添加剪辑点' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '删除所选片段并闭合间隙' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '波纹裁切片段起点到播放头' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: '波纹裁切播放头到片段终点' }) as HTMLButtonElement).disabled).toBe(true);
@@ -968,7 +992,7 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
-  it('splits the selected Story clip at the global playhead', async () => {
+  it('adds an edit to the targeted Story track at the global playhead', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
       change_group: {
@@ -982,7 +1006,7 @@ describe('unified project workspace', () => {
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    fireEvent.click(screen.getByRole('button', { name: '在播放头切分片段' }));
+    fireEvent.click(screen.getByRole('button', { name: '在播放头添加剪辑点' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -995,6 +1019,108 @@ describe('unified project workspace', () => {
         ],
       })],
     })));
+  });
+
+  it('adds one edit across every targeted track with Ctrl+K', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({ op: 'replace_track_clips', track_id: STORY_ID, clips: expect.arrayContaining([
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 1 }) }),
+          expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 4 }) }),
+        ]) }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [
+            expect.objectContaining({ placement: expect.objectContaining({ duration: 1 }) }),
+            expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 9 }) }),
+          ],
+        }),
+      ],
+    })));
+  });
+
+  it('adds edits to all unlocked tracks with Ctrl+Shift+K regardless of targeting', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalled());
+    expect(applyProjectPatch.mock.calls[0]?.[0].operations.map((operation: ProjectPatch['operations'][number]) => (
+      operation.op === 'replace_track_clips' ? operation.track_id : null
+    ))).toEqual([STORY_ID, '00000000-0000-4000-8000-000000000013']);
+  });
+
+  it('uses the Razor tool to cut linked AV into independent left and right groups', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: razorLinkedProject(), applyProjectPatch });
+
+    fireEvent.keyDown(await screen.findByRole('region', { name: '时间轴' }), { key: 'c' });
+    expect(screen.getByRole('button', { name: '剃刀工具 (C)' }).getAttribute('aria-pressed')).toBe('true');
+    const storyClip = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    vi.spyOn(storyClip, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 500, bottom: 84, left: 0, width: 500, height: 84, toJSON: () => ({}),
+    });
+    expect(storyClip.className).toContain('cursor-crosshair');
+    expect(storyClip.getAttribute('aria-disabled')).toBe('false');
+    fireEvent.pointerDown(storyClip, { pointerId: 120, button: 0, clientX: 200 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operations = applyProjectPatch.mock.calls[0]?.[0].operations as ProjectPatch['operations'];
+    expect(operations).toHaveLength(2);
+    const storyOperation = operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === STORY_ID);
+    const audioOperation = operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000013');
+    if (storyOperation?.op !== 'replace_track_clips' || audioOperation?.op !== 'replace_track_clips') {
+      throw new Error('expected linked Razor track replacements');
+    }
+    expect(storyOperation.clips[0]?.link_group_id).toBe('00000000-0000-4000-8000-000000000093');
+    expect(audioOperation.clips[0]?.link_group_id).toBe('00000000-0000-4000-8000-000000000093');
+    expect(storyOperation.clips[1]?.link_group_id).toBeTruthy();
+    expect(audioOperation.clips[1]?.link_group_id).toBe(storyOperation.clips[1]?.link_group_id);
+    expect(storyOperation.clips[1]?.link_group_id).not.toBe(storyOperation.clips[0]?.link_group_id);
+    clientWidth.mockRestore();
+  });
+
+  it('Alt-Razor cuts only the clicked channel of a linked pair', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: razorLinkedProject(), applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '剃刀工具 (C)' }));
+    const storyClip = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    vi.spyOn(storyClip, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 500, bottom: 84, left: 0, width: 500, height: 84, toJSON: () => ({}),
+    });
+    expect(storyClip.className).toContain('cursor-crosshair');
+    expect(storyClip.getAttribute('aria-disabled')).toBe('false');
+    fireEvent.pointerDown(storyClip, { pointerId: 121, button: 0, clientX: 300, altKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    expect(applyProjectPatch.mock.calls[0]?.[0].operations).toEqual([
+      expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ link_group_id: '00000000-0000-4000-8000-000000000093' }),
+          expect.objectContaining({ link_group_id: null }),
+          expect.objectContaining({ id: CLIP_B }),
+        ],
+      }),
+    ]);
+    clientWidth.mockRestore();
   });
 
   it('adds a canonical marker at the playhead', async () => {

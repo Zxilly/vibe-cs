@@ -1069,7 +1069,7 @@ function ClipInspector({
     readonly max?: number;
   }> = selected?.track.kind === 'audio'
     ? []
-    : selected?.track.kind === 'text'
+    : draft.text !== null
       ? [
         { property: 'x', label: t`位置 X`, step: 1 },
         { property: 'y', label: t`位置 Y`, step: 1 },
@@ -1084,6 +1084,7 @@ function ClipInspector({
         { property: 'opacity', label: t`透明度`, step: 0.01, min: 0, max: 1 },
       ];
   const hasUnsupportedEnabledEffect = draft.effects.some((effect) => effect.enabled && !isSupportedEditorEffectKind(effect.kind));
+  const textStyle = draft.text;
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
       <label className="flex flex-col gap-1 text-xs">
@@ -1149,7 +1150,92 @@ function ClipInspector({
           )}
         </section>
       )}
-      {selected?.track.kind === 'text' ? null : (() => {
+      {textStyle === null ? null : (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`文字样式`}>
+          <h3 className="text-xs font-semibold"><Trans>文字样式</Trans></h3>
+          <label className="mt-2 flex flex-col gap-1 text-xs">
+            <Trans>文字内容</Trans>
+            <textarea
+              rows={4}
+              maxLength={1_000}
+              className="resize-y border border-divider bg-bg px-2 py-1.5"
+              disabled={readOnly}
+              value={textStyle.content}
+              onChange={(event) => setDraft({ ...draft, text: { ...textStyle, content: event.currentTarget.value } })}
+            />
+          </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>字体</Trans>
+              <input
+                className="border border-divider bg-bg px-2 py-1.5"
+                disabled={readOnly}
+                value={textStyle.font_family}
+                onChange={(event) => setDraft({ ...draft, text: { ...textStyle, font_family: event.currentTarget.value } })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>字号</Trans>
+              <input
+                type="number"
+                min={6}
+                max={512}
+                step={1}
+                className="border border-divider bg-bg px-2 py-1.5 font-mono"
+                disabled={readOnly}
+                value={textStyle.font_size}
+                onChange={(event) => setDraft({ ...draft, text: { ...textStyle, font_size: Number(event.currentTarget.value) } })}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              <Trans>文字颜色</Trans>
+              <input
+                type="color"
+                disabled={readOnly}
+                value={htmlColorInputValue(textStyle.color, 'white')}
+                onChange={(event) => setDraft({ ...draft, text: { ...textStyle, color: event.currentTarget.value.toUpperCase() } })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>对齐</Trans>
+              <select
+                className="border border-divider bg-bg px-2 py-1.5"
+                disabled={readOnly}
+                value={textStyle.align}
+                onChange={(event) => setDraft({ ...draft, text: { ...textStyle, align: event.currentTarget.value } })}
+              >
+                <option value="left"><Trans>左对齐</Trans></option>
+                <option value="center"><Trans>居中</Trans></option>
+                <option value="right"><Trans>右对齐</Trans></option>
+              </select>
+            </label>
+          </div>
+          <label className="mt-2 flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              disabled={readOnly}
+              checked={textStyle.background !== null}
+              onChange={(event) => setDraft({
+                ...draft,
+                text: { ...textStyle, background: event.currentTarget.checked ? 'black' : null },
+              })}
+            />
+            <Trans>启用文字背景</Trans>
+          </label>
+          {textStyle.background === null ? null : (
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <Trans>背景颜色</Trans>
+              <input
+                type="color"
+                disabled={readOnly}
+                value={htmlColorInputValue(textStyle.background, 'black')}
+                onChange={(event) => setDraft({ ...draft, text: { ...textStyle, background: event.currentTarget.value.toUpperCase() } })}
+              />
+            </label>
+          )}
+        </section>
+      )}
+      {draft.text !== null || selected?.track.kind === 'text' ? null : (() => {
         const volumeKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === 'volume');
         const current = clipKeyframeAtTime(draft, 'volume', localTime, fps);
         const volume = evaluateClipKeyframeProperty(draft, 'volume', localTime, draft.placement.volume);
@@ -1263,7 +1349,7 @@ function ClipInspector({
             : null}
         </section>
       )}
-      {selected?.track.kind === 'video' || selected?.track.kind === 'overlay' ? (
+      {draft.text === null && (selected?.track.kind === 'video' || selected?.track.kind === 'overlay') ? (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`效果`}>
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-2xs text-neutral-500">{draft.effects.length}</span></h3>
@@ -1375,6 +1461,13 @@ function updateCaptureIntent(
 ): TimelineClip {
   if (clip.capture_intent === null) return clip;
   return { ...clip, capture_intent: { ...clip.capture_intent, ...update } };
+}
+
+function htmlColorInputValue(color: string, fallback: 'white' | 'black'): string {
+  if (/^#[0-9A-F]{6}$/iu.test(color)) return color.toUpperCase();
+  const named = color.trim().toLowerCase();
+  const digit = (named === 'white' || (named !== 'black' && fallback === 'white')) ? 'F' : '0';
+  return `#${digit.repeat(6)}`;
 }
 
 function CaptureIntentNumberField({

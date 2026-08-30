@@ -22,6 +22,7 @@ import {
   MousePointer2,
   SquarePlus,
   Star,
+  Type,
   Scissors,
   Trash2,
   Undo2,
@@ -239,6 +240,12 @@ export function ProjectTimeline({
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
+  const [textDraft, setTextDraft] = useState<{
+    readonly start: number;
+    readonly maximumDuration: number;
+    readonly content: string;
+    readonly duration: number;
+  } | null>(null);
   const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
   const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [trackHeights, setTrackHeights] = useState<Readonly<Record<string, number>>>({});
@@ -573,6 +580,85 @@ export function ProjectTimeline({
       hidden: false,
       clips: [],
     }, document.tracks.length);
+  };
+  const openTextClipDraft = () => {
+    if (readOnly) return;
+    const frame = 1 / document.fps;
+    const start = Math.min(editPlayheadSeconds, Math.max(0, document.duration_seconds - frame));
+    const maximumDuration = Math.max(frame, document.duration_seconds - start);
+    setTextDraft({
+      start,
+      maximumDuration,
+      content: t`文字`,
+      duration: Math.min(5, maximumDuration),
+    });
+  };
+  const insertTextClip = () => {
+    if (readOnly || textDraft === null) return;
+    const content = textDraft.content.trim();
+    const duration = snapTimeToFrame(
+      Math.min(textDraft.maximumDuration, Math.max(1 / document.fps, textDraft.duration)),
+      document.fps,
+    );
+    if (content === '' || duration < 1 / document.fps) return;
+    const clipId = globalThis.crypto.randomUUID();
+    const clip: TimelineClip = {
+      id: clipId,
+      name: content.slice(0, 80),
+      capture_intent: null,
+      material: { kind: 'planned' },
+      placement: {
+        start: textDraft.start,
+        duration,
+        source_in: 0,
+        source_out: duration,
+        speed: 1,
+        volume: 1,
+        enabled: true,
+      },
+      transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
+      effects: [],
+      transition_in: null,
+      transition_out: null,
+      text: {
+        content,
+        font_family: 'Arial',
+        font_asset_id: null,
+        font_size: 72,
+        color: 'white',
+        background: 'black',
+        align: 'center',
+      },
+      metadata: {},
+      group_id: null,
+      link_group_id: null,
+      keyframes: [],
+      speed_segments: [],
+    };
+    const existing = document.tracks.find((track) => track.id === targetTrackId && track.kind === 'text' && !track.locked)
+      ?? document.tracks.find((track) => track.kind === 'text' && !track.locked)
+      ?? null;
+    if (existing === null) {
+      const number = document.tracks.filter((track) => track.kind === 'text').length + 1;
+      const trackId = globalThis.crypto.randomUUID();
+      onInsertTrack({
+        id: trackId,
+        name: `${t`文字`} ${number}`,
+        kind: 'text',
+        order: document.tracks.length,
+        muted: false,
+        locked: false,
+        hidden: false,
+        clips: [clip],
+      }, document.tracks.length);
+      onTargetTrack(trackId);
+    } else {
+      onReplaceTrackClips(existing.id, [...existing.clips, clip].sort((left, right) => (
+        left.placement.start - right.placement.start || left.id.localeCompare(right.id)
+      )));
+      onTargetTrack(existing.id);
+    }
+    setTextDraft(null);
   };
   const reorderTrack = (trackId: string, direction: -1 | 1) => {
     if (readOnly || trackId === document.story_track_id) return;
@@ -1022,6 +1108,16 @@ export function ProjectTimeline({
             { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
           ]}
         />
+        <button
+          type="button"
+          className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={t`在播放头添加文字`}
+          title={t`在播放头添加文字`}
+          disabled={readOnly}
+          onClick={openTextClipDraft}
+        >
+          <Type className="size-3.5" aria-hidden="true" />
+        </button>
         <span className="max-w-40 truncate text-2xs text-neutral-500"><Trans>目标：</Trans>{targetTrack?.name ?? '—'}</span>
         <button
           type="button"
@@ -1424,6 +1520,55 @@ export function ProjectTimeline({
           aria-label={t`入出点范围 ${formatMillisecondTimecode(rangeStart)} 到 ${formatMillisecondTimecode(rangeEnd)}`}
         />
       )}
+      <Drawer
+        open={textDraft !== null}
+        title={<Trans>添加文字</Trans>}
+        description={textDraft === null ? undefined : formatMillisecondTimecode(textDraft.start)}
+        width="standard"
+        onClose={() => setTextDraft(null)}
+        footer={textDraft === null ? undefined : (
+          <>
+            <Button size="sm" variant="secondary" onClick={() => setTextDraft(null)}><Trans>取消</Trans></Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={textDraft.content.trim() === '' || textDraft.duration < 1 / document.fps}
+              onClick={insertTextClip}
+            >
+              <Trans>添加文字</Trans>
+            </Button>
+          </>
+        )}
+      >
+        {textDraft === null ? <span /> : (
+          <div className="space-y-3">
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>文字内容</Trans>
+              <textarea
+                autoFocus
+                rows={4}
+                maxLength={1_000}
+                className="resize-y border border-divider bg-bg px-2 py-1.5"
+                value={textDraft.content}
+                onChange={(event) => setTextDraft({ ...textDraft, content: event.currentTarget.value })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>持续时间（秒）</Trans>
+              <input
+                type="number"
+                min={1 / document.fps}
+                max={textDraft.maximumDuration}
+                step={1 / document.fps}
+                className="border border-divider bg-bg px-2 py-1.5 font-mono"
+                value={textDraft.duration}
+                onChange={(event) => setTextDraft({ ...textDraft, duration: Number(event.currentTarget.value) })}
+              />
+            </label>
+            <p className="text-2xs leading-4 text-neutral-500"><Trans>创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。</Trans></p>
+          </div>
+        )}
+      </Drawer>
       <Drawer
         open={markerDraft !== null}
         title={<Trans>编辑标记</Trans>}

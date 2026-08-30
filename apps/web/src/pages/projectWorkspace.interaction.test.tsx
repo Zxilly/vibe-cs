@@ -1367,6 +1367,12 @@ describe('unified project workspace', () => {
 
     fireEvent.doubleClick(screen.getByRole('button', { name: /Title 5\.0s · 未录制/u }));
     expect(await screen.findByRole('dialog', { name: '片段属性' })).toBeTruthy();
+    const textStyle = screen.getByRole('region', { name: '文字样式' });
+    expect((within(textStyle).getByLabelText('文字内容') as HTMLTextAreaElement).value).toBe('NiKo');
+    expect((within(textStyle).getByLabelText('字体') as HTMLInputElement).value).toBe('Arial');
+    expect((within(textStyle).getByLabelText('字号') as HTMLInputElement).value).toBe('72');
+    expect((within(textStyle).getByLabelText('对齐') as HTMLSelectElement).value).toBe('center');
+    expect((within(textStyle).getByLabelText('启用文字背景') as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByLabelText('入场转场')).toBeNull();
     expect(screen.queryByLabelText('出场转场')).toBeNull();
   });
@@ -2851,6 +2857,45 @@ describe('unified project workspace', () => {
         track: expect.objectContaining({ name: '文字 1', kind: 'text', order: 2, clips: [] }),
       })],
     })));
+  });
+
+  it('creates an editable text clip at the playhead through one Project operation', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加文字' }));
+    const drawer = await screen.findByRole('dialog', { name: '添加文字' });
+    fireEvent.change(within(drawer).getByLabelText('文字内容'), { target: { value: 'Lower third' } });
+    fireEvent.change(within(drawer).getByLabelText('持续时间（秒）'), { target: { value: '3' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: '添加文字' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [{
+        op: 'insert_track',
+        index: PROJECT.document.tracks.length,
+        track: expect.objectContaining({
+          kind: 'text',
+          clips: [expect.objectContaining({
+            name: 'Lower third',
+            capture_intent: null,
+            material: { kind: 'planned' },
+            placement: expect.objectContaining({ start: 0, duration: 3, source_in: 0, source_out: 3 }),
+            transition_in: null,
+            transition_out: null,
+            text: expect.objectContaining({
+              content: 'Lower third',
+              font_family: 'Arial',
+              font_size: 72,
+              color: 'white',
+              background: 'black',
+              align: 'center',
+            }),
+          })],
+        }),
+      }],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
   it('removes a non-Story track with a real Project operation', async () => {

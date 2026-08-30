@@ -17,6 +17,7 @@ import {
   Gauge,
   Link2,
   LockKeyhole,
+  Magnet,
   MoveHorizontal,
   MoveRight,
   MousePointer2,
@@ -228,6 +229,7 @@ export function ProjectTimeline({
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
   const [ratePreviewDuration, setRatePreviewDuration] = useState<number | null>(null);
   const [slidePreviewTime, setSlidePreviewTime] = useState<number | null>(null);
@@ -331,6 +333,10 @@ export function ProjectTimeline({
     ...document.markers.map((marker) => ({ time: marker.time, clipId: null })),
     { time: playheadSeconds, clipId: null },
   ], [document.markers, document.tracks, playheadSeconds]);
+  const activeSnapPoints = useMemo(
+    () => snapEnabled ? snapPoints : [],
+    [snapEnabled, snapPoints],
+  );
   const renderedTracks = useMemo(() => buildRenderedTracks(document), [document]);
   const nonStoryTrackIds = useMemo(() => [...document.tracks]
     .filter((track) => track.id !== document.story_track_id)
@@ -738,6 +744,21 @@ export function ProjectTimeline({
 
   const pointerTime = (event: React.PointerEvent<HTMLElement>) => timeAtClientX(event.clientX);
 
+  const snapEditTime = (timeSeconds: number, bypass: boolean): number => {
+    if (!snapEnabled || bypass) {
+      setSnapGuideTime(null);
+      return timeSeconds;
+    }
+    const snap = resolveTimelineSnap(
+      timeSeconds,
+      [0],
+      snapPoints.map((point) => point.time),
+      10 / scale.pixelsPerSecond,
+    );
+    setSnapGuideTime(snap.snapTime);
+    return snap.anchorTime;
+  };
+
   const canDropMediaOnTrack = (track: RenderedTrack, payload: ProjectMediaDragPayload) => (
     !readOnly
     && !track.track.locked
@@ -751,10 +772,12 @@ export function ProjectTimeline({
     if (payload === null || !canDropMediaOnTrack(track, payload)) {
       event.dataTransfer.dropEffect = 'none';
       if (mediaDropPreview?.trackId === track.track.id) setMediaDropPreview(null);
+      setSnapGuideTime(null);
       return;
     }
-    const timeSeconds = timeAtClientX(event.clientX);
-    if (timeSeconds === null) return;
+    const rawTimeSeconds = timeAtClientX(event.clientX);
+    if (rawTimeSeconds === null) return;
+    const timeSeconds = snapEditTime(rawTimeSeconds, event.shiftKey);
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = 'copy';
@@ -768,8 +791,10 @@ export function ProjectTimeline({
 
   const commitMediaDrop = (event: React.DragEvent<HTMLElement>, track: RenderedTrack) => {
     const payload = readProjectMediaDrag(event.dataTransfer);
-    const timeSeconds = timeAtClientX(event.clientX);
+    const rawTimeSeconds = timeAtClientX(event.clientX);
+    const timeSeconds = rawTimeSeconds === null ? null : snapEditTime(rawTimeSeconds, event.shiftKey);
     setMediaDropPreview(null);
+    setSnapGuideTime(null);
     clearProjectMediaDrag();
     if (payload === null || timeSeconds === null || !canDropMediaOnTrack(track, payload)) return;
     event.preventDefault();
@@ -1143,6 +1168,21 @@ export function ProjectTimeline({
         </button>
         <button
           type="button"
+          className={cn(
+            'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+            snapEnabled && 'border-accent-300 bg-accent-100 text-accent-text',
+          )}
+          aria-label={t`切换时间轴吸附`}
+          aria-pressed={snapEnabled}
+          onClick={() => {
+            setSnapEnabled((enabled) => !enabled);
+            setSnapGuideTime(null);
+          }}
+        >
+          <Magnet className="size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           className="h-7 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300"
           aria-label={sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`}
           disabled={!canChangeLinks}
@@ -1372,7 +1412,7 @@ export function ProjectTimeline({
               storyTrackId={document.story_track_id}
               changeByClipId={changeByClipId}
               ghostChanges={ghostChanges}
-              snapPoints={snapPoints}
+              snapPoints={activeSnapPoints}
               snapThresholdSeconds={10 / scale.pixelsPerSecond}
               onSnapChange={setSnapGuideTime}
               nonStoryTrackIds={nonStoryTrackIds}
@@ -1408,6 +1448,7 @@ export function ProjectTimeline({
               onMediaDragLeave={(event) => {
                 if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
                 if (mediaDropPreview?.trackId === track.track.id) setMediaDropPreview(null);
+                setSnapGuideTime(null);
               }}
               onMediaDrop={(event) => commitMediaDrop(event, track)}
             />
@@ -1420,6 +1461,9 @@ export function ProjectTimeline({
             durationSeconds={document.duration_seconds}
             fps={document.fps}
             readOnly={readOnly}
+            snapPoints={activeSnapPoints}
+            snapThresholdSeconds={10 / scale.pixelsPerSecond}
+            onSnapChange={setSnapGuideTime}
             onSeek={onSeek}
             onEditMarker={(marker) => setMarkerDraft({ ...marker })}
             onMoveMarker={(markerId, time) => onReplaceMarkers(document.markers.map((marker) => (
@@ -3436,7 +3480,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   );
 }
 
-const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, durationSeconds, fps, readOnly, onSeek, onEditMarker, onMoveMarker }: {
+const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onEditMarker, onMoveMarker }: {
   readonly markers: readonly EditorMarker[];
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -3444,6 +3488,9 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
   readonly durationSeconds: number;
   readonly fps: number;
   readonly readOnly: boolean;
+  readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
+  readonly snapThresholdSeconds: number;
+  readonly onSnapChange: (time: number | null) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onEditMarker: (marker: EditorMarker) => void;
   readonly onMoveMarker: (markerId: string, time: number) => void;
@@ -3467,6 +3514,9 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
             durationSeconds={durationSeconds}
             fps={fps}
             readOnly={readOnly}
+            snapPoints={snapPoints}
+            snapThresholdSeconds={snapThresholdSeconds}
+            onSnapChange={onSnapChange}
             onSeek={onSeek}
             onEdit={onEditMarker}
             onMove={onMoveMarker}
@@ -3481,11 +3531,14 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
   && previous.durationSeconds === next.durationSeconds
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
+  && previous.snapPoints === next.snapPoints
+  && previous.snapThresholdSeconds === next.snapThresholdSeconds
+  && previous.onSnapChange === next.onSnapChange
   && previous.onSeek === next.onSeek
   && previous.onEditMarker === next.onEditMarker
   && previous.onMoveMarker === next.onMoveMarker);
 
-function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durationSeconds, fps, readOnly, onSeek, onEdit, onMove }: {
+function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onEdit, onMove }: {
   readonly marker: EditorMarker;
   readonly nextMarkerTime: number | null;
   readonly scale: ReturnType<typeof createTimeScale>;
@@ -3493,6 +3546,9 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
   readonly durationSeconds: number;
   readonly fps: number;
   readonly readOnly: boolean;
+  readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
+  readonly snapThresholdSeconds: number;
+  readonly onSnapChange: (time: number | null) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onEdit: (marker: EditorMarker) => void;
   readonly onMove: (markerId: string, time: number) => void;
@@ -3509,12 +3565,26 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
     if (gesture.current !== null) return;
     setVisualTime(marker.time);
   }, [marker.time]);
-  const timeFromClientX = (clientX: number, active: NonNullable<typeof gesture.current>) => (
-    snapTimeToFrame(
+  const timeFromClientX = (clientX: number, active: NonNullable<typeof gesture.current>, shiftKey: boolean) => {
+    const frameTime = snapTimeToFrame(
       Math.min(durationSeconds, Math.max(0, active.time + pxToTime(scale, clientX - active.clientX))),
       fps,
-    )
-  );
+    );
+    if (shiftKey || snapPoints.length === 0) {
+      onSnapChange(null);
+      return frameTime;
+    }
+    const snap = resolveTimelineSnap(
+      frameTime,
+      [0],
+      snapPoints
+        .filter((point) => point.clipId !== null || Math.abs(point.time - marker.time) > 0.5 / fps)
+        .map((point) => point.time),
+      snapThresholdSeconds,
+    );
+    onSnapChange(snap.snapTime);
+    return snap.anchorTime;
+  };
   const left = timeToPx(scale, visualTime);
   const available = nextMarkerTime === null
     ? contentWidth - left
@@ -3557,16 +3627,17 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
         if (active === null || active.pointerId !== event.pointerId) return;
         event.preventDefault();
         if (Math.abs(event.clientX - active.clientX) >= 2) active.moved = true;
-        const next = timeFromClientX(event.clientX, active);
+        const next = timeFromClientX(event.clientX, active, event.shiftKey);
         setVisualTime(next);
       }}
       onPointerUp={(event) => {
         const active = gesture.current;
         if (active === null || active.pointerId !== event.pointerId) return;
         event.preventDefault();
-        const next = timeFromClientX(event.clientX, active);
+        const next = timeFromClientX(event.clientX, active, event.shiftKey);
         setVisualTime(next);
         gesture.current = null;
+        onSnapChange(null);
         event.currentTarget.releasePointerCapture?.(event.pointerId);
         ignoreClickRef.current = active.moved;
         if (active.moved) globalThis.setTimeout(() => { ignoreClickRef.current = false; }, 0);
@@ -3575,6 +3646,7 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
       }}
       onPointerCancel={(event) => {
         gesture.current = null;
+        onSnapChange(null);
         setVisualTime(marker.time);
         event.currentTarget.releasePointerCapture?.(event.pointerId);
       }}

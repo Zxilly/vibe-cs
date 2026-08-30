@@ -960,6 +960,47 @@ describe('unified project workspace', () => {
     );
   });
 
+  it('toggles magnetic snapping for marker drags while preserving frame alignment', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const marker = { id: '00000000-0000-4000-8000-000000000101', time: 8, label: 'Snap probe', color: '#2F6FED' };
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: { ...RECORDED_PROJECT.document, markers: [marker] },
+    };
+    const snappedPatch = vi.fn();
+    const snappedRender = renderWorkspace({ project, applyProjectPatch: snappedPatch });
+
+    const toggle = await screen.findByRole('button', { name: '切换时间轴吸附' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    const snappedMarker = screen.getByRole('button', { name: '标记 Snap probe 00:08.000' });
+    fireEvent.pointerDown(snappedMarker, { pointerId: 102, button: 0, clientX: 100 });
+    fireEvent.pointerMove(snappedMarker, { pointerId: 102, clientX: 296 });
+    fireEvent.pointerUp(snappedMarker, { pointerId: 102, clientX: 296 });
+    await waitFor(() => expect(snappedPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_markers',
+        markers: [expect.objectContaining({ id: marker.id, time: 10 })],
+      }],
+    })));
+
+    snappedRender.unmount();
+    const freePatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch: freePatch });
+    const freeToggle = await screen.findByRole('button', { name: '切换时间轴吸附' });
+    fireEvent.click(freeToggle);
+    expect(freeToggle.getAttribute('aria-pressed')).toBe('false');
+    const freeMarker = screen.getByRole('button', { name: '标记 Snap probe 00:08.000' });
+    fireEvent.pointerDown(freeMarker, { pointerId: 103, button: 0, clientX: 100 });
+    fireEvent.pointerMove(freeMarker, { pointerId: 103, clientX: 296 });
+    fireEvent.pointerUp(freeMarker, { pointerId: 103, clientX: 296 });
+    await waitFor(() => expect(freePatch).toHaveBeenCalled());
+    const operation = freePatch.mock.calls[0]?.[0]?.operations[0];
+    expect(operation).toMatchObject({ op: 'replace_markers' });
+    if (operation?.op !== 'replace_markers') throw new Error('expected marker replacement');
+    expect(operation.markers[0]?.time).toBeCloseTo(598 / 60);
+    clientWidth.mockRestore();
+  });
+
   it('bounds event labels to their clip spans and uses them as timeline navigation', async () => {
     renderWorkspace();
 

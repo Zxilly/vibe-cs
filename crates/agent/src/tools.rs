@@ -240,7 +240,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReadCinematicContext,
             "read_cinematic_context",
             EDIT_MODES,
-            "Read bounded replay-derived cinematic evidence for explicit highlight IDs.",
+            "Read bounded selected-round replay evidence and camera feasibility for explicit highlight IDs. Non-POV camera styles require at least four target-player spatial samples inside the requested round-bounded capture handles.",
             object_schema(
                 json!({"highlightIds": string_array_schema(64)}),
                 &["highlightIds"],
@@ -257,7 +257,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReplaceStoryTimeline,
             "replace_story_timeline",
             EDIT_MODES,
-            "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, validates the staged timeline, and commits one undoable Change Group.",
+            "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, rejects non-POV cameras without four in-range spatial samples, validates the staged timeline, and commits one undoable Change Group.",
             replace_story_schema(),
         ),
         definition(

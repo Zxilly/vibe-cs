@@ -174,6 +174,48 @@ impl CinematicReplayHost {
             .insert(round, artifact.clone());
         Ok(artifact)
     }
+
+    async fn validate_story_camera(&self, clip: &StoryClipInput) -> Result<(), String> {
+        let highlight_id = clip.highlight_id.as_deref().ok_or_else(|| {
+            format!(
+                "clip '{}' requires highlightId before using a non-POV camera",
+                clip.name
+            )
+        })?;
+        let namespaced = format!("{}:{highlight_id}", self.demo_id);
+        let highlight = self
+            .highlights
+            .get(highlight_id)
+            .or_else(|| self.highlights.get(&namespaced))
+            .ok_or_else(|| {
+                format!(
+                    "clip '{}' references highlightId that is not in the current Demo evidence",
+                    clip.name
+                )
+            })?;
+        if clip.player_id != highlight.player_id {
+            return Err(format!(
+                "clip '{}' playerId does not match the verified highlight player",
+                clip.name
+            ));
+        }
+        let artifact = self.round_replay(highlight.round).await?;
+        let pre_roll_ticks =
+            seconds_to_replay_ticks(clip.pre_roll_seconds, artifact.metadata.tick_rate)?;
+        let post_roll_ticks =
+            seconds_to_replay_ticks(clip.post_roll_seconds, artifact.metadata.tick_rate)?;
+        let start_tick = clip
+            .start_tick
+            .saturating_sub(pre_roll_ticks)
+            .max(artifact.metadata.start_tick);
+        let end_tick = clip
+            .end_tick
+            .checked_add(post_roll_ticks)
+            .ok_or_else(|| format!("clip '{}' post-roll exceeds the tick range", clip.name))?
+            .min(artifact.metadata.end_tick);
+        let samples = camera_spatial_sample_count(&artifact, &clip.player_id, start_tick, end_tick);
+        validate_camera_sample_count(&clip.name, clip.camera_style, samples, start_tick, end_tick)
+    }
 }
 
 #[async_trait]
@@ -214,6 +256,25 @@ struct DesktopAgentToolHost {
     project_id: Uuid,
     session_id: Uuid,
     turn_id: Uuid,
+}
+
+impl DesktopAgentToolHost {
+    async fn validate_story_camera(&self, clip: &StoryClipInput) -> Result<(), String> {
+        if matches!(clip.camera_style, HlaeCameraStyle::Pov) {
+            return Ok(());
+        }
+        let cinematic = self
+            .cinematic
+            .iter()
+            .find(|cinematic| cinematic.demo_id == clip.demo_id)
+            .ok_or_else(|| {
+                format!(
+                    "clip '{}' has no cinematic evidence host for its Demo; use pov",
+                    clip.name
+                )
+            })?;
+        cinematic.validate_story_camera(clip).await
+    }
 }
 
 #[async_trait]
@@ -275,16 +336,18 @@ impl AgentToolHost for DesktopAgentToolHost {
             ));
         }
         let mut timeline_start = 0.0;
-        let clips = input
-            .clips
-            .into_iter()
-            .map(|clip| {
-                let duration = clip.duration_seconds;
-                let timeline_clip = clip.into_timeline_clip(timeline_start);
-                timeline_start += duration;
-                timeline_clip
-            })
-            .collect();
+        let mut clips = Vec::with_capacity(input.clips.len());
+        for mut clip in input.clips {
+            self.validate_story_camera(&clip).await?;
+            clip.highlight_id = clip
+                .highlight_id
+                .as_deref()
+                .map(|id| canonical_highlight_id(clip.demo_id, id));
+            let duration = clip.duration_seconds;
+            let timeline_clip = clip.into_timeline_clip(timeline_start);
+            timeline_start += duration;
+            clips.push(timeline_clip);
+        }
         let patch = ProjectPatch {
             project_id: project.id,
             base_revision: project.revision,
@@ -432,7 +495,8 @@ fn cinematic_scene_from_replay(
                 .any(|player| player.steam_id == highlight.player_id)
         })
         .collect::<Vec<_>>();
-    let selected_indices = evenly_spaced_indices(eligible.len(), MAXIMUM_CINEMATIC_SAMPLES);
+    let spatial_frame_count = eligible.len();
+    let selected_indices = evenly_spaced_indices(spatial_frame_count, MAXIMUM_CINEMATIC_SAMPLES);
     let positioned = selected_indices
         .into_iter()
         .filter_map(|index| {
@@ -497,6 +561,14 @@ fn cinematic_scene_from_replay(
         "highlightId": highlight.id,
         "positionedAction": positioned,
         "verifiedEngagements": verified_engagements,
+        "cameraFeasibility": {
+            "highlightSpatialFrameCount": spatial_frame_count,
+            "minimumSpatialSamples": 4,
+            "nonPovSupportedWithoutWiderHandles": spatial_frame_count >= 4,
+            "recommendedCameraStyle": if spatial_frame_count >= 4 { "tracking" } else { "pov" },
+            "roundStartTick": artifact.metadata.start_tick,
+            "roundEndTick": artifact.metadata.end_tick,
+        },
         "fidelity": {
             "source": "selected_round_replay",
             "round": artifact.metadata.round,
@@ -513,6 +585,73 @@ fn cinematic_scene_from_replay(
             "clampedToArtifactEnd": highlight.end_tick > artifact.metadata.end_tick,
         }
     })
+}
+
+fn camera_spatial_sample_count(
+    artifact: &RoundReplayArtifact,
+    player_id: &str,
+    start_tick: u64,
+    end_tick: u64,
+) -> usize {
+    artifact
+        .frames
+        .iter()
+        .filter(|frame| frame.tick >= start_tick && frame.tick <= end_tick)
+        .filter(|frame| {
+            frame
+                .players
+                .iter()
+                .any(|player| player.steam_id == player_id)
+        })
+        .count()
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss
+)]
+fn seconds_to_replay_ticks(seconds: f64, tick_rate: f64) -> Result<u64, String> {
+    let ticks = seconds * tick_rate;
+    if !ticks.is_finite() || ticks < 0.0 || ticks > u64::MAX as f64 {
+        return Err("capture handles are outside the supported tick range".to_owned());
+    }
+    Ok(ticks.ceil() as u64)
+}
+
+fn canonical_highlight_id(demo_id: Uuid, highlight_id: &str) -> String {
+    highlight_id
+        .strip_prefix(&format!("{demo_id}:"))
+        .unwrap_or(highlight_id)
+        .to_owned()
+}
+
+const fn camera_style_name(style: HlaeCameraStyle) -> &'static str {
+    match style {
+        HlaeCameraStyle::Pov => "pov",
+        HlaeCameraStyle::Orbit => "orbit",
+        HlaeCameraStyle::Dolly => "dolly",
+        HlaeCameraStyle::Static => "static",
+        HlaeCameraStyle::Tracking => "tracking",
+        HlaeCameraStyle::Crane => "crane",
+        HlaeCameraStyle::Flyby => "flyby",
+    }
+}
+
+fn validate_camera_sample_count(
+    clip_name: &str,
+    camera_style: HlaeCameraStyle,
+    samples: usize,
+    start_tick: u64,
+    end_tick: u64,
+) -> Result<(), String> {
+    if end_tick <= start_tick || samples < 4 {
+        return Err(format!(
+            "clip '{clip_name}' cameraStyle '{}' has {samples} spatial samples in its effective round-bounded capture range; use pov or widen the in-round handles to provide at least 4",
+            camera_style_name(camera_style),
+        ));
+    }
+    Ok(())
 }
 
 fn json_position(value: &Value) -> Option<[f64; 3]> {
@@ -1582,4 +1721,119 @@ fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
         "insights": {"round_economy":[],"matchups":[],"availability":null},
         "series_demo_count": series.len(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vibe_cs_domain::{
+        RoundReplayFieldAvailability, RoundReplayFields, RoundReplayFrame, RoundReplayMetadata,
+        RoundReplayPlayer,
+    };
+
+    fn replay_artifact(frame_count: usize) -> RoundReplayArtifact {
+        RoundReplayArtifact {
+            metadata: RoundReplayMetadata {
+                producer_run_id: Uuid::from_u128(1),
+                demo_id: Uuid::from_u128(2),
+                input_sha256: "a".repeat(64),
+                input_size: 1,
+                round: 7,
+                start_tick: 100,
+                end_tick: 200,
+                tick_rate: 64.0,
+                sampling_contract_version: 1,
+                sample_interval_ticks: 8,
+                requested_tick_count: 101,
+                accepted_tick_count: u32::try_from(frame_count).expect("bounded frames"),
+                event_tick_count: 0,
+                freeze_end_tick: None,
+                players_per_frame: 1,
+                fields: RoundReplayFields {
+                    position: RoundReplayFieldAvailability::Required,
+                    yaw: RoundReplayFieldAvailability::Required,
+                    health: RoundReplayFieldAvailability::Required,
+                    armor: RoundReplayFieldAvailability::Required,
+                    life_state: RoundReplayFieldAvailability::Required,
+                    money: RoundReplayFieldAvailability::Required,
+                    current_equipment_value: RoundReplayFieldAvailability::Required,
+                    round_start_equipment_value: RoundReplayFieldAvailability::Required,
+                    has_helmet: RoundReplayFieldAvailability::Required,
+                    active_weapon_name: RoundReplayFieldAvailability::Nullable,
+                },
+            },
+            frames: (0..frame_count)
+                .map(|index| RoundReplayFrame {
+                    tick: 110 + u64::try_from(index).expect("bounded index") * 10,
+                    players: vec![RoundReplayPlayer {
+                        steam_id: "76561198041683378".to_owned(),
+                        name: "NiKo".to_owned(),
+                        team: "B".to_owned(),
+                        side: "CT".to_owned(),
+                        position: [
+                            f64::from(u32::try_from(index).expect("bounded index")),
+                            2.0,
+                            3.0,
+                        ],
+                        yaw: 90.0,
+                        health: 100,
+                        armor: 100,
+                        life_state: 0,
+                        alive: true,
+                        money: 1_000,
+                        current_equipment_value: 4_000,
+                        round_start_equipment_value: 4_000,
+                        has_helmet: true,
+                        active_weapon_name: Some("ak47".to_owned()),
+                    }],
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn cinematic_context_reports_non_pov_camera_feasibility() {
+        let highlight = CinematicHighlight {
+            id: "demo:highlight".to_owned(),
+            round: 7,
+            start_tick: 100,
+            end_tick: 180,
+            player_id: "76561198041683378".to_owned(),
+            engagements: Vec::new(),
+        };
+        let scene = cinematic_scene_from_replay(&highlight, &replay_artifact(3));
+
+        assert_eq!(
+            scene.pointer("/cameraFeasibility/highlightSpatialFrameCount"),
+            Some(&json!(3))
+        );
+        assert_eq!(
+            scene.pointer("/cameraFeasibility/nonPovSupportedWithoutWiderHandles"),
+            Some(&json!(false))
+        );
+        assert_eq!(
+            scene.pointer("/cameraFeasibility/recommendedCameraStyle"),
+            Some(&json!("pov"))
+        );
+    }
+
+    #[test]
+    fn story_camera_validation_requires_four_effective_samples() {
+        let error = validate_camera_sample_count("R7", HlaeCameraStyle::Tracking, 3, 100, 180)
+            .expect_err("three samples cannot drive a camera path");
+        assert!(error.contains("has 3 spatial samples"));
+        assert!(error.contains("use pov"));
+        validate_camera_sample_count("R7", HlaeCameraStyle::Tracking, 4, 100, 180)
+            .expect("four samples are executable");
+    }
+
+    #[test]
+    fn series_highlight_id_is_canonicalized_before_capture() {
+        let demo_id = Uuid::from_u128(42);
+        assert_eq!(
+            canonical_highlight_id(demo_id, &format!("{demo_id}:7:defuse")),
+            "7:defuse"
+        );
+        assert_eq!(canonical_highlight_id(demo_id, "7:defuse"), "7:defuse");
+    }
 }

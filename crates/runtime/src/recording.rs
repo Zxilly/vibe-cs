@@ -15,8 +15,9 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use vibe_cs_application::{AnalysisPort, RecordingPort};
 use vibe_cs_domain::{
-    AppConfig, DemoRecord, DomainError, Highlight, HighlightKind, JobFailureCode, JobStatus,
-    MatchAnalysis, RecordedClip, RecordingJob, RecordingRequest, ReplayFrame,
+    AnalysisRunStatus, AppConfig, DemoRecord, DomainError, Highlight, HighlightKind,
+    JobFailureCode, JobStatus, MatchAnalysis, RecordedClip, RecordingJob, RecordingRequest,
+    ReplayFrame, ReplayPlayer, RoundReplayArtifact,
 };
 use vibe_cs_recording::SegmentPlan;
 use vibe_cs_storage::Storage;
@@ -453,6 +454,7 @@ impl RuntimeRecordingPort {
         }
         let mut prepared = Vec::with_capacity(job.items.len());
         let mut demo_guards = Vec::with_capacity(job.items.len());
+        let mut round_replays = HashMap::<(Uuid, u32), Arc<RoundReplayArtifact>>::new();
         for (item_index, request) in job.items.iter().enumerate() {
             request.validate()?;
             let demo = self
@@ -485,16 +487,8 @@ impl RuntimeRecordingPort {
             let replay_frames = if request.camera_style == vibe_cs_domain::HlaeCameraStyle::Pov {
                 Vec::new()
             } else {
-                self.analysis
-                    .as_ref()
-                    .ok_or_else(|| {
-                        DomainError::DependencyUnavailable(
-                            "camera movement requires replay evidence".to_owned(),
-                        )
-                    })?
-                    .replay(demo.clone())
+                self.camera_replay_frames(&demo, analysis.as_ref(), request, &mut round_replays)
                     .await?
-                    .frames
             };
             prepared.push(PreparedRecording {
                 job_id: job.id,
@@ -510,6 +504,71 @@ impl RuntimeRecordingPort {
             items: prepared,
             _demo_guards: demo_guards,
         })
+    }
+
+    async fn camera_replay_frames(
+        &self,
+        demo: &DemoRecord,
+        analysis: Option<&MatchAnalysis>,
+        request: &RecordingRequest,
+        cache: &mut HashMap<(Uuid, u32), Arc<RoundReplayArtifact>>,
+    ) -> Result<Vec<ReplayFrame>, DomainError> {
+        let analysis = analysis.ok_or_else(|| {
+            DomainError::DependencyUnavailable(
+                "camera movement requires persisted analysis evidence".to_owned(),
+            )
+        })?;
+        let highlight_id = request.highlight_id.as_deref().ok_or_else(|| {
+            DomainError::InvalidInput(
+                "camera movement requires a canonical highlight_id".to_owned(),
+            )
+        })?;
+        let highlight = analysis
+            .highlights
+            .iter()
+            .find(|highlight| highlight.id == highlight_id)
+            .ok_or_else(|| {
+                DomainError::InvalidInput(
+                    "camera movement highlight_id is not present in the persisted analysis"
+                        .to_owned(),
+                )
+            })?;
+        let run = self
+            .storage
+            .list_analysis_runs(demo.id)
+            .await
+            .map_err(|error| storage_error(&error))?
+            .into_iter()
+            .filter(|run| run.status == AnalysisRunStatus::Completed)
+            .max_by_key(|run| run.created_at)
+            .ok_or_else(|| {
+                DomainError::DependencyUnavailable(
+                    "camera movement requires a completed analysis run".to_owned(),
+                )
+            })?;
+        let key = (run.id, highlight.round);
+        let artifact = if let Some(artifact) = cache.get(&key) {
+            Arc::clone(artifact)
+        } else {
+            let analysis_port = self.analysis.as_ref().ok_or_else(|| {
+                DomainError::DependencyUnavailable(
+                    "camera movement requires selected-round replay evidence".to_owned(),
+                )
+            })?;
+            let artifact = Arc::new(analysis_port.replay_round(run.id, highlight.round).await?);
+            if artifact.metadata.producer_run_id != run.id
+                || artifact.metadata.demo_id != demo.id
+                || artifact.metadata.round != highlight.round
+            {
+                return Err(DomainError::Conflict(
+                    "selected-round replay identity does not match the recording request"
+                        .to_owned(),
+                ));
+            }
+            cache.insert(key, Arc::clone(&artifact));
+            artifact
+        };
+        Ok(round_replay_camera_frames(&artifact))
     }
 
     async fn run_job(run: RecordingRun) {
@@ -675,6 +734,34 @@ impl RuntimeRecordingPort {
         }
         Ok(())
     }
+}
+
+fn round_replay_camera_frames(artifact: &RoundReplayArtifact) -> Vec<ReplayFrame> {
+    artifact
+        .frames
+        .iter()
+        .map(|frame| ReplayFrame {
+            tick: frame.tick,
+            players: frame
+                .players
+                .iter()
+                .map(|player| ReplayPlayer {
+                    id: player.steam_id.clone(),
+                    name: player.name.clone(),
+                    team: player.team.clone(),
+                    position: player.position,
+                    yaw: player.yaw,
+                    health: player.health,
+                    armor: player.armor,
+                    alive: player.alive,
+                    weapon: player.active_weapon_name.clone().unwrap_or_default(),
+                    input: None,
+                })
+                .collect(),
+            projectiles: Vec::new(),
+            bomb: None,
+        })
+        .collect()
 }
 
 async fn persist_recording_stages(context: StagePersistence) -> Result<RecordingJob, DomainError> {
@@ -1602,6 +1689,70 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn selected_round_replay_maps_dense_player_evidence_for_camera_planning() {
+        let artifact = RoundReplayArtifact {
+            metadata: vibe_cs_domain::RoundReplayMetadata {
+                producer_run_id: Uuid::from_u128(1),
+                demo_id: Uuid::from_u128(2),
+                input_sha256: "a".repeat(64),
+                input_size: 1,
+                round: 7,
+                start_tick: 100,
+                end_tick: 200,
+                tick_rate: 64.0,
+                sampling_contract_version: 1,
+                sample_interval_ticks: 8,
+                requested_tick_count: 101,
+                accepted_tick_count: 1,
+                event_tick_count: 0,
+                freeze_end_tick: None,
+                players_per_frame: 1,
+                fields: vibe_cs_domain::RoundReplayFields {
+                    position: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    yaw: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    health: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    armor: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    life_state: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    money: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    current_equipment_value: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    round_start_equipment_value:
+                        vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    has_helmet: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    active_weapon_name: vibe_cs_domain::RoundReplayFieldAvailability::Nullable,
+                },
+            },
+            frames: vec![vibe_cs_domain::RoundReplayFrame {
+                tick: 120,
+                players: vec![vibe_cs_domain::RoundReplayPlayer {
+                    steam_id: "76561198041683378".to_owned(),
+                    name: "NiKo".to_owned(),
+                    team: "B".to_owned(),
+                    side: "CT".to_owned(),
+                    position: [1.0, 2.0, 3.0],
+                    yaw: 90.0,
+                    health: 87,
+                    armor: 76,
+                    life_state: 0,
+                    alive: true,
+                    money: 1_000,
+                    current_equipment_value: 4_000,
+                    round_start_equipment_value: 4_000,
+                    has_helmet: true,
+                    active_weapon_name: Some("ak47".to_owned()),
+                }],
+            }],
+        };
+
+        let frames = round_replay_camera_frames(&artifact);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].tick, 120);
+        assert_eq!(frames[0].players[0].id, "76561198041683378");
+        assert_eq!(frames[0].players[0].weapon, "ak47");
+        assert!(frames[0].projectiles.is_empty());
+        assert!(frames[0].bomb.is_none());
+    }
 
     async fn persist_completed_analysis(
         storage: &Storage,

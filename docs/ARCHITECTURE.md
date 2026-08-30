@@ -603,6 +603,14 @@ confirmed edit evidence
   -> atomic MP4 publication
 ```
 
+For an immutable same-Demo POV suffix, the runtime retains that authenticated process/socket/state
+machine across Takes. The first Take uses the fixed compiled command schedule; after its publication
+lease is acknowledged by storage, the host sends typed `advance_take` ticks/observer evidence and
+the bridge executes only compiler-owned POV setup/start/stop commands. The final ACK sends
+`finish_session` and closes the process once. Normal loader exit code 0 does not invalidate the live
+CS2 session; a non-zero exit, observer drift or malformed control still fails the session closed.
+Raw capture/config state is removed on finish or abort, while already published MP4s remain.
+
 The managed HLAE cache is not part of the installer. A user action downloads one reviewed,
 immutable archive from the official AdvancedFX GitHub release. The archive has a pinned size and
 SHA-256, is extracted with entry/count/size/path limits, and every extracted file is revalidated

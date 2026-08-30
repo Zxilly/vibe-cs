@@ -100,6 +100,10 @@ missing.
 - Execute a persisted, cancellable queue through the managed HLAE backend. Each segment is bound to
   a stable player identity and spectator slot; the authenticated bridge continuously verifies the
   observer mode and identity instead of treating a console command as proof.
+- Consecutive POV Takes that share one Demo, target player/spectator slot and presentation reuse one
+  authenticated HLAE/CS2 process. Each Take advances only after its MP4 and database ACK, while
+  mixed-Demo, non-POV or presentation-changing queues remain isolated. A later failure preserves the
+  published prefix and closes/cleans the shared raw session.
 - Attach each verified Take through the canonical Timeline Clip. If seek overshoot makes the real
   file a few frames shorter than the planned source range, preserve Timeline duration by fitting
   source-out and constant speed to the probed media truth; files that still cannot cover the range

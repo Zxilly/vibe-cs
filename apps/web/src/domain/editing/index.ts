@@ -18,6 +18,7 @@ export {
   type TimelinePasteOverwritePlan,
 } from './timelinePaste';
 export { timelineTrackSelection } from './timelineTrackSelection';
+export { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,

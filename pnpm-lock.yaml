@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  flexlayout-react@0.10.7:
+    hash: 6f2b915156a384f83582a03ebfc32af7de554c6e65fc386f8221678223058465
+    path: patches/flexlayout-react@0.10.7.patch
+
 importers:
 
   .: {}
@@ -45,7 +50,7 @@ importers:
         version: 2.1.1
       flexlayout-react:
         specifier: 0.10.7
-        version: 0.10.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.10.7(patch_hash=6f2b915156a384f83582a03ebfc32af7de554c6e65fc386f8221678223058465)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react:
         specifier: ^1.31.0
         version: 1.31.0(react@19.2.8)
@@ -4679,7 +4684,7 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  flexlayout-react@0.10.7(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  flexlayout-react@0.10.7(patch_hash=6f2b915156a384f83582a03ebfc32af7de554c6e65fc386f8221678223058465)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)

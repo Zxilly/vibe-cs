@@ -1,0 +1,8 @@
+diff --git a/style/light.css b/style/light.css
+index 21ecefcfac7b9c0177074fb37efb9ee0171b2b2b..41503cc9647e2c057a8b3ac5fd3f095f28426f0d 100644
+--- a/style/light.css
++++ b/style/light.css
+@@ -1012,3 +1012,1 @@
+ */
+-
+-/*# sourceMappingURL=light.css.map */

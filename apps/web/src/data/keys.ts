@@ -303,6 +303,8 @@ export const qk = {
     detail: (projectId: string) => [QUERY_NAMESPACE.projects, DETAIL, projectId] as const,
     changeGroups: (projectId: string) =>
       [QUERY_NAMESPACE.projects, DETAIL, projectId, 'change-groups'] as const,
+    deliveryGate: (projectId: string) =>
+      [QUERY_NAMESPACE.projects, DETAIL, projectId, 'delivery-gate'] as const,
     editLease: (projectId: string) =>
       [QUERY_NAMESPACE.projects, DETAIL, projectId, 'edit-lease'] as const,
   },

@@ -111,6 +111,8 @@ export type { ProjectChangeGroupStatus } from './generated/ProjectChangeGroupSta
 export type { ProjectEditLease } from './generated/ProjectEditLease';
 export type { CreateProjectRequest } from './generated/CreateProjectRequest';
 export type { ProjectPatchResult } from './generated/ProjectPatchResult';
+export type { ProjectDeliveryBlocker } from './generated/ProjectDeliveryBlocker';
+export type { ProjectDeliveryGate } from './generated/ProjectDeliveryGate';
 export type { RevertProjectChangeGroupRequest } from './generated/RevertProjectChangeGroupRequest';
 export type { AcquireProjectEditLeaseRequest } from './generated/AcquireProjectEditLeaseRequest';
 export type { HeartbeatProjectEditLeaseRequest } from './generated/HeartbeatProjectEditLeaseRequest';

@@ -6,6 +6,7 @@ describe('canonical query keys', () => {
   it('keeps all Project resources below one Project detail key', () => {
     const detail = qk.projects.detail('project-1');
     expect(isKeyPrefixOf(detail, qk.projects.changeGroups('project-1'))).toBe(true);
+    expect(isKeyPrefixOf(detail, qk.projects.deliveryGate('project-1'))).toBe(true);
     expect(isKeyPrefixOf(detail, qk.projects.editLease('project-1'))).toBe(true);
   });
 

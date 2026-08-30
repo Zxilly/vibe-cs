@@ -105,6 +105,7 @@ import type {
   PlayerReviewMetadata,
   Project,
   ProjectChangeGroup,
+  ProjectDeliveryGate,
   ProjectEditLease,
   ProjectEditLeaseResponse,
   ProjectPatch,
@@ -493,6 +494,8 @@ export const commands = {
   listProjects: (signal?: AbortSignal) => request<Project[]>('/projects', { signal }),
   getProject: (projectId: string, signal?: AbortSignal) =>
     request<Project>(`/projects/${encodeURIComponent(projectId)}`, { signal }),
+  getProjectDeliveryGate: (projectId: string, signal?: AbortSignal) =>
+    request<ProjectDeliveryGate>(`/projects/${encodeURIComponent(projectId)}/delivery-gate`, { signal }),
   createProject: (requestBody: CreateProjectRequest) =>
     request<Project>('/projects', { method: 'POST', body: requestBody }),
   createProjectRecordingPlan: (projectId: string, clipIds: string[] = []) =>

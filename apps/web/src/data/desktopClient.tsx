@@ -160,6 +160,7 @@ export type DesktopClient = Pick<
      caller moves. */
   | 'listProjects'
   | 'getProject'
+  | 'getProjectDeliveryGate'
   | 'createProject'
   | 'createProjectRecordingPlan'
   | 'exportProject'

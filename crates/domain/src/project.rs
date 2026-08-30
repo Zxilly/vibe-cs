@@ -533,15 +533,28 @@ impl Project {
     ///
     /// Returns [`DomainError::Internal`] only when a capture fingerprint cannot be produced.
     pub fn unresolved_delivery_clips(&self) -> Result<Vec<Uuid>, DomainError> {
-        let mut unresolved = Vec::new();
+        Ok(self
+            .delivery_blockers()?
+            .into_iter()
+            .map(|(clip_id, _state)| clip_id)
+            .collect())
+    }
+
+    /// Returns enabled media clips and their materialization state when they block delivery.
+    pub fn delivery_blockers(
+        &self,
+    ) -> Result<Vec<(Uuid, TimelineClipMaterializationState)>, DomainError> {
+        let mut blockers = Vec::new();
         for clip in self.document.tracks.iter().flat_map(|track| &track.clips) {
-            if clip.placement.enabled
-                && clip.materialization_state()? != TimelineClipMaterializationState::Recorded
-            {
-                unresolved.push(clip.id);
+            if !clip.placement.enabled || clip.text.is_some() {
+                continue;
+            }
+            let state = clip.materialization_state()?;
+            if state != TimelineClipMaterializationState::Recorded {
+                blockers.push((clip.id, state));
             }
         }
-        Ok(unresolved)
+        Ok(blockers)
     }
 
     fn apply_operation(
@@ -1230,6 +1243,22 @@ mod tests {
         assert_eq!(
             current.unresolved_delivery_clips().expect("gate"),
             vec![Uuid::from_u128(100)]
+        );
+
+        current.document.tracks[0].clips[0].text = Some(TextStyle {
+            content: "Title".to_owned(),
+            font_family: "Arial".to_owned(),
+            font_asset_id: None,
+            font_size: 64.0,
+            color: "white".to_owned(),
+            background: None,
+            align: "center".to_owned(),
+        });
+        assert!(
+            current
+                .unresolved_delivery_clips()
+                .expect("text delivery gate")
+                .is_empty()
         );
     }
 

@@ -10,7 +10,7 @@ use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
     EditingDocument, EditingDocumentSettings, Project, ProjectChangeAuthor, ProjectChangeGroup,
-    ProjectEditLease, ProjectPatch, TimelineTrack, TrackKind,
+    ProjectEditLease, ProjectPatch, TimelineClipMaterializationState, TimelineTrack, TrackKind,
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
@@ -22,6 +22,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/projects", get(list_projects).post(create_project))
         .route("/api/projects/{id}", get(get_project).patch(apply_patch))
+        .route("/api/projects/{id}/delivery-gate", get(get_delivery_gate))
         .route("/api/projects/{id}/change-groups", get(list_change_groups))
         .route(
             "/api/projects/{id}/recording-plan",
@@ -62,6 +63,24 @@ struct CreateProjectRequest {
 struct ProjectPatchResult {
     project: Project,
     change_group: ProjectChangeGroup,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct ProjectDeliveryBlocker {
+    clip_id: Uuid,
+    state: TimelineClipMaterializationState,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct ProjectDeliveryGate {
+    project_id: Uuid,
+    revision: u64,
+    ready: bool,
+    blockers: Vec<ProjectDeliveryBlocker>,
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -138,6 +157,28 @@ async fn get_project(
         .await?
         .map(Json)
         .ok_or_else(|| ApiError::not_found("project"))
+}
+
+async fn get_delivery_gate(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<ProjectDeliveryGate>> {
+    let project = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    let blockers = project
+        .delivery_blockers()?
+        .into_iter()
+        .map(|(clip_id, state)| ProjectDeliveryBlocker { clip_id, state })
+        .collect::<Vec<_>>();
+    Ok(Json(ProjectDeliveryGate {
+        project_id: project.id,
+        revision: project.revision,
+        ready: blockers.is_empty(),
+        blockers,
+    }))
 }
 
 async fn create_project(

@@ -37,6 +37,17 @@ export function useProject(projectId: string | null, tuning: DataQueryTuning = {
   });
 }
 
+export function useProjectDeliveryGate(projectId: string | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.projects.deliveryGate(projectId ?? ''),
+    queryFn: projectId === null
+      ? skipToken
+      : ({ signal }: { signal: AbortSignal }) => client.getProjectDeliveryGate(projectId, signal),
+    ...resolveQueryTuning(tuning, { enabled: projectId !== null }),
+  });
+}
+
 export function useProjectChangeGroups(projectId: string | null, tuning: DataQueryTuning = {}) {
   const client = useDesktopClient();
   return useQuery({

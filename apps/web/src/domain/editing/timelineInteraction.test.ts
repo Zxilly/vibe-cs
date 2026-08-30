@@ -11,6 +11,8 @@ import {
   clipLocalTimeAtSourceTime,
   clipPlaybackSpeedAtLocalTime,
   clipSourceTimeAtLocalTime,
+  disableClipTimeRemapping,
+  enableClipTimeRemapping,
   canSlipTimelineClip,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
@@ -20,9 +22,13 @@ import {
   maximumClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
+  removeClipSpeedBoundary,
   snapTimeToFrame,
   setClipFadeDuration,
+  setClipSpeedSegmentSpeed,
+  sliceClipSpeedSegments,
   slipTimelineClip,
+  splitClipSpeedSegment,
   rollTimelineEdit,
   rateStretchTimelineClip,
   slideTimelineClip,
@@ -262,6 +268,70 @@ describe('timeline direct manipulation', () => {
     expect(clipDemoTickAtTimelineTime(captured, 10, 64)).toBe(1_000);
     expect(clipDemoTickAtTimelineTime(captured, 14, 64)).toBe(1_256);
     expect(clipDemoTickAtTimelineTime({ ...captured, capture_intent: null }, 14, 64)).toBeNull();
+  });
+
+  it('edits speed sections without changing their source In and Out', () => {
+    const enabled = enableClipTimeRemapping(CLIP, 'whole');
+    const split = splitClipSpeedSegment(enabled, 4, 'right', 60);
+    const keyed = {
+      ...split,
+      keyframes: [{ id: 'x', time: 6, property: 'x' as const, value: 100 }],
+    };
+    const faster = setClipSpeedSegmentSpeed(keyed, 'right', 2, 60);
+
+    expect(faster.placement).toEqual({ ...CLIP.placement, duration: 6, speed: 4 / 3 });
+    expect(faster.speed_segments).toEqual([
+      { id: 'whole', start: 0, end: 4, speed: 1 },
+      { id: 'right', start: 4, end: 6, speed: 2 },
+    ]);
+    expect(faster.keyframes[0]?.time).toBe(5);
+    expect(clipSourceTimeAtLocalTime(faster, 6)).toBe(10);
+
+    const merged = removeClipSpeedBoundary(faster, 'right');
+    expect(merged.speed_segments).toEqual([{ id: 'whole', start: 0, end: 6, speed: 4 / 3 }]);
+    expect(disableClipTimeRemapping(merged)).toMatchObject({
+      placement: { duration: 6, source_in: 2, source_out: 10, speed: 4 / 3 },
+      speed_segments: [],
+    });
+  });
+
+  it('slices speed sections into clip-local coordinates', () => {
+    const remapped = {
+      ...CLIP,
+      speed_segments: [
+        { id: 'slow', start: 0, end: 4, speed: 0.5 },
+        { id: 'fast', start: 4, end: 8, speed: 1.5 },
+      ],
+    };
+    expect(sliceClipSpeedSegments(remapped, 2, 6)).toEqual([
+      { id: 'slow', start: 0, end: 2, speed: 0.5 },
+      { id: 'fast', start: 2, end: 4, speed: 1.5 },
+    ]);
+  });
+
+  it('trims time-remapped clips only inward and slices their source mapping', () => {
+    const remapped = {
+      ...CLIP,
+      speed_segments: [
+        { id: 'slow', start: 0, end: 4, speed: 0.5 },
+        { id: 'fast', start: 4, end: 8, speed: 1.5 },
+      ],
+    };
+    const trimmedStart = trimTimelineClip(remapped, 'start', 12, 60, 12);
+    expect(trimmedStart.placement).toEqual({ ...CLIP.placement, start: 12, duration: 6, source_in: 3, speed: 7 / 6 });
+    expect(trimmedStart.speed_segments).toEqual([
+      { id: 'slow', start: 0, end: 2, speed: 0.5 },
+      { id: 'fast', start: 2, end: 6, speed: 1.5 },
+    ]);
+
+    const trimmedEnd = trimTimelineClip(remapped, 'end', 16, 60, 12);
+    expect(trimmedEnd.placement).toEqual({ ...CLIP.placement, duration: 6, source_out: 7, speed: 5 / 6 });
+    expect(trimmedEnd.speed_segments).toEqual([
+      { id: 'slow', start: 0, end: 4, speed: 0.5 },
+      { id: 'fast', start: 4, end: 6, speed: 1.5 },
+    ]);
+    expect(constrainClipGroupTrimDelta([remapped], 'start', -2, 60)).toBe(0);
+    expect(constrainClipGroupTrimDelta([remapped], 'end', 2, 60)).toBe(0);
   });
 
   it('slides one clip while preserving its source and all three outer geometry', () => {

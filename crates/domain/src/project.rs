@@ -781,14 +781,40 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
     if clip.speed_segments.len() > MAX_EDITOR_SPEED_SEGMENTS {
         return Err(invalid("clip has too many speed segments"));
     }
-    if clip.speed_segments.is_empty()
-        && ((placement.source_out - placement.source_in) - placement.duration * placement.speed)
+    if clip.speed_segments.is_empty() {
+        if ((placement.source_out - placement.source_in) - placement.duration * placement.speed)
             .abs()
             > 0.001
-    {
-        return Err(invalid(
-            "constant-speed clip duration must match its source range",
-        ));
+        {
+            return Err(invalid(
+                "constant-speed clip duration must match its source range",
+            ));
+        }
+    } else {
+        let mut segment_ids = HashSet::new();
+        let mut expected_start = 0.0;
+        let mut source_duration = 0.0;
+        for segment in &clip.speed_segments {
+            if !segment_ids.insert(segment.id)
+                || ![segment.start, segment.end, segment.speed]
+                    .into_iter()
+                    .all(f64::is_finite)
+                || (segment.start - expected_start).abs() > 0.001
+                || segment.end <= segment.start
+                || !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&segment.speed)
+            {
+                return Err(invalid("clip speed segments are invalid"));
+            }
+            source_duration += (segment.end - segment.start) * segment.speed;
+            expected_start = segment.end;
+        }
+        if (expected_start - placement.duration).abs() > 0.001
+            || (source_duration - (placement.source_out - placement.source_in)).abs() > 0.001
+        {
+            return Err(invalid(
+                "clip speed segments must cover the Timeline and source range",
+            ));
+        }
     }
     if let Some(intent) = &clip.capture_intent {
         intent.validate()?;
@@ -1090,6 +1116,45 @@ mod tests {
 
         current.document.tracks[0].clips[0].placement.duration = 2.5;
         assert!(current.validate().is_ok());
+    }
+
+    #[test]
+    fn speed_segments_must_cover_one_contiguous_timeline_and_source_range() {
+        let mut current = project();
+        let clip = &mut current.document.tracks[0].clips[0];
+        clip.speed_segments = vec![
+            EditorSpeedSegment {
+                id: Uuid::from_u128(41),
+                start: 0.0,
+                end: 2.0,
+                speed: 0.5,
+            },
+            EditorSpeedSegment {
+                id: Uuid::from_u128(42),
+                start: 2.0,
+                end: 4.0,
+                speed: 1.5,
+            },
+            EditorSpeedSegment {
+                id: Uuid::from_u128(43),
+                start: 4.0,
+                end: 5.0,
+                speed: 1.0,
+            },
+        ];
+        assert!(current.validate().is_ok());
+
+        let mut gap = current.clone();
+        gap.document.tracks[0].clips[0].speed_segments[1].start = 2.5;
+        assert!(gap.validate().is_err());
+
+        let mut duplicate = current.clone();
+        duplicate.document.tracks[0].clips[0].speed_segments[1].id = Uuid::from_u128(41);
+        assert!(duplicate.validate().is_err());
+
+        let mut wrong_source = current;
+        wrong_source.document.tracks[0].clips[0].speed_segments[1].speed = 1.0;
+        assert!(wrong_source.validate().is_err());
     }
 
     #[test]

@@ -1,6 +1,12 @@
 import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
 import { mediaAssetEditDuration } from './mediaDrag';
-import { clipMediaDuration, constrainClipGroupTrimDelta, trimTimelineClip } from './timelineInteraction';
+import {
+  clipMediaDuration,
+  clipSourceTimeAtLocalTime,
+  constrainClipGroupTrimDelta,
+  sliceClipSpeedSegments,
+  trimTimelineClip,
+} from './timelineInteraction';
 
 const TIME_EPSILON = 1e-6;
 
@@ -17,6 +23,37 @@ function reflow(clips: readonly TimelineClip[], origin = clips[0]?.placement.sta
     cursor += clip.placement.duration;
     return next;
   });
+}
+
+function sliceTimelineClip(
+  clip: TimelineClip,
+  localStart: number,
+  localEnd: number,
+  id = clip.id,
+  name = clip.name,
+): TimelineClip {
+  const sourceIn = clipSourceTimeAtLocalTime(clip, localStart);
+  const sourceOut = clipSourceTimeAtLocalTime(clip, localEnd);
+  const duration = localEnd - localStart;
+  return {
+    ...clip,
+    id,
+    name,
+    transition_in: localStart <= TIME_EPSILON ? clip.transition_in : null,
+    transition_out: localEnd >= clip.placement.duration - TIME_EPSILON ? clip.transition_out : null,
+    placement: {
+      ...clip.placement,
+      start: clip.placement.start + localStart,
+      duration,
+      source_in: sourceIn,
+      source_out: sourceOut,
+      speed: (sourceOut - sourceIn) / duration,
+    },
+    keyframes: clip.keyframes
+      .filter((keyframe) => keyframe.time >= localStart - TIME_EPSILON && keyframe.time <= localEnd + TIME_EPSILON)
+      .map((keyframe) => ({ ...keyframe, time: keyframe.time - localStart })),
+    speed_segments: sliceClipSpeedSegments(clip, localStart, localEnd),
+  };
 }
 
 export function moveRippleClip(
@@ -146,26 +183,8 @@ export function splitRippleClip(
   if (localTime <= TIME_EPSILON || localTime >= clip.placement.duration - TIME_EPSILON) {
     return [...clips];
   }
-  const sourceSplit = clip.placement.source_in + localTime * clip.placement.speed;
-  const left: TimelineClip = {
-    ...clip,
-    placement: {
-      ...clip.placement,
-      duration: localTime,
-      source_out: sourceSplit,
-    },
-  };
-  const right: TimelineClip = {
-    ...clip,
-    id: rightClipId,
-    name: `${clip.name} · B`,
-    placement: {
-      ...clip.placement,
-      start: timelineTime,
-      duration: clip.placement.duration - localTime,
-      source_in: sourceSplit,
-    },
-  };
+  const left = sliceTimelineClip(clip, 0, localTime);
+  const right = sliceTimelineClip(clip, localTime, clip.placement.duration, rightClipId, `${clip.name} · B`);
   const next = [...clips];
   next.splice(index, 1, left, right);
   return reflow(next);
@@ -272,27 +291,16 @@ export function overwriteClipsAtTime(
     const leftDuration = Math.max(0, timelineTime - clipStart);
     const rightDuration = Math.max(0, clipEnd - overwriteEnd);
     if (leftDuration > TIME_EPSILON) {
-      next.push({
-        ...clip,
-        placement: {
-          ...clip.placement,
-          duration: leftDuration,
-          source_out: clip.placement.source_in + leftDuration * clip.placement.speed,
-        },
-      });
+      next.push(sliceTimelineClip(clip, 0, leftDuration));
     }
     if (rightDuration > TIME_EPSILON) {
-      next.push({
-        ...clip,
-        id: leftDuration > TIME_EPSILON ? rightClipId : clip.id,
-        name: leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
-        placement: {
-          ...clip.placement,
-          start: overwriteEnd,
-          duration: rightDuration,
-          source_in: clip.placement.source_out - rightDuration * clip.placement.speed,
-        },
-      });
+      next.push(sliceTimelineClip(
+        clip,
+        clip.placement.duration - rightDuration,
+        clip.placement.duration,
+        leftDuration > TIME_EPSILON ? rightClipId : clip.id,
+        leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
+      ));
     }
   }
   next.push({
@@ -323,27 +331,16 @@ export function removeTimelineRange(
     const leftDuration = Math.max(0, from - clipStart);
     const rightDuration = Math.max(0, clipEnd - to);
     if (leftDuration > TIME_EPSILON) {
-      next.push({
-        ...clip,
-        placement: {
-          ...clip.placement,
-          duration: leftDuration,
-          source_out: clip.placement.source_in + leftDuration * clip.placement.speed,
-        },
-      });
+      next.push(sliceTimelineClip(clip, 0, leftDuration));
     }
     if (rightDuration > TIME_EPSILON) {
-      next.push({
-        ...clip,
-        id: leftDuration > TIME_EPSILON ? rightClipId : clip.id,
-        name: leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
-        placement: {
-          ...clip.placement,
-          start: to,
-          duration: rightDuration,
-          source_in: clip.placement.source_out - rightDuration * clip.placement.speed,
-        },
-      });
+      next.push(sliceTimelineClip(
+        clip,
+        clip.placement.duration - rightDuration,
+        clip.placement.duration,
+        leftDuration > TIME_EPSILON ? rightClipId : clip.id,
+        leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
+      ));
     }
   }
   const ordered = next.sort((left, right) => left.placement.start - right.placement.start);

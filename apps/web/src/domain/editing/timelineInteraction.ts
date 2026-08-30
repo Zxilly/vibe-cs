@@ -1,4 +1,4 @@
-import type { TimelineClip } from '../../shared/desktop/dto';
+import type { EditorSpeedSegment, TimelineClip } from '../../shared/desktop/dto';
 
 const MINIMUM_CLIP_FRAMES = 1;
 export const MIN_TIMELINE_CLIP_SPEED = 0.0625;
@@ -425,6 +425,16 @@ export function constrainClipGroupTrimDelta(
   let maximum = Number.POSITIVE_INFINITY;
   for (const clip of clips) {
     const placement = clip.placement;
+    if (clip.speed_segments.length > 0) {
+      if (edge === 'start') {
+        minimum = Math.max(minimum, 0);
+        maximum = Math.min(maximum, placement.duration - frame);
+      } else {
+        minimum = Math.max(minimum, -(placement.duration - frame));
+        maximum = Math.min(maximum, 0);
+      }
+      continue;
+    }
     if (edge === 'start') {
       minimum = Math.max(minimum, -placement.start, -placement.source_in / placement.speed);
       maximum = Math.min(maximum, placement.duration - frame);
@@ -450,6 +460,46 @@ export function trimTimelineClip(
   const frame = 1 / Math.max(1, fps);
   const minimumDuration = MINIMUM_CLIP_FRAMES * frame;
   const placement = clip.placement;
+
+  if (clip.speed_segments.length > 0) {
+    if (edge === 'start') {
+      const maximumStart = placement.start + placement.duration - minimumDuration;
+      const nextStart = snapTimeToFrame(Math.min(maximumStart, Math.max(placement.start, timelineSeconds)), fps);
+      const localStart = nextStart - placement.start;
+      const nextSourceIn = clipSourceTimeAtLocalTime(clip, localStart);
+      const nextDuration = placement.duration - localStart;
+      return {
+        ...clip,
+        placement: {
+          ...placement,
+          start: nextStart,
+          duration: nextDuration,
+          source_in: nextSourceIn,
+          speed: (placement.source_out - nextSourceIn) / nextDuration,
+        },
+        keyframes: clip.keyframes
+          .filter((keyframe) => keyframe.time >= localStart - 1e-9)
+          .map((keyframe) => ({ ...keyframe, time: keyframe.time - localStart })),
+        speed_segments: sliceClipSpeedSegments(clip, localStart, placement.duration),
+      };
+    }
+    const nextDuration = snapTimeToFrame(
+      Math.min(placement.duration, Math.max(minimumDuration, timelineSeconds - placement.start)),
+      fps,
+    );
+    const nextSourceOut = clipSourceTimeAtLocalTime(clip, nextDuration);
+    return {
+      ...clip,
+      placement: {
+        ...placement,
+        duration: nextDuration,
+        source_out: nextSourceOut,
+        speed: (nextSourceOut - placement.source_in) / nextDuration,
+      },
+      keyframes: clip.keyframes.filter((keyframe) => keyframe.time <= nextDuration + 1e-9),
+      speed_segments: sliceClipSpeedSegments(clip, 0, nextDuration),
+    };
+  }
 
   if (edge === 'start') {
     const maximumStart = placement.start + placement.duration - minimumDuration;
@@ -565,4 +615,135 @@ export function clipDemoTickAtTimelineTime(
   return Math.round(
     intent.start_tick - intent.pre_roll_seconds * tickRate + sourceTime * tickRate,
   );
+}
+
+export function enableClipTimeRemapping(clip: TimelineClip, segmentId: string): TimelineClip {
+  if (clip.speed_segments.length > 0) return clip;
+  return {
+    ...clip,
+    speed_segments: [{
+      id: segmentId,
+      start: 0,
+      end: clip.placement.duration,
+      speed: clip.placement.speed,
+    }],
+  };
+}
+
+export function disableClipTimeRemapping(clip: TimelineClip): TimelineClip {
+  if (clip.speed_segments.length === 0) return clip;
+  const sourceDuration = clip.placement.source_out - clip.placement.source_in;
+  return {
+    ...clip,
+    placement: {
+      ...clip.placement,
+      speed: sourceDuration / clip.placement.duration,
+    },
+    speed_segments: [],
+  };
+}
+
+export function splitClipSpeedSegment(
+  clip: TimelineClip,
+  requestedLocalTime: number,
+  segmentId: string,
+  fps: number,
+): TimelineClip {
+  if (clip.speed_segments.length === 0) return clip;
+  const localTime = snapTimeToFrame(
+    Math.min(clip.placement.duration, Math.max(0, requestedLocalTime)),
+    fps,
+  );
+  const frame = 1 / Math.max(1, fps);
+  const index = clip.speed_segments.findIndex((segment) => (
+    localTime > segment.start + 0.5 * frame && localTime < segment.end - 0.5 * frame
+  ));
+  const current = clip.speed_segments[index];
+  if (current === undefined) return clip;
+  const speedSegments = [...clip.speed_segments];
+  speedSegments.splice(index, 1,
+    { ...current, end: localTime },
+    { ...current, id: segmentId, start: localTime });
+  return { ...clip, speed_segments: speedSegments };
+}
+
+export function removeClipSpeedBoundary(clip: TimelineClip, rightSegmentId: string): TimelineClip {
+  const rightIndex = clip.speed_segments.findIndex((segment) => segment.id === rightSegmentId);
+  const left = clip.speed_segments[rightIndex - 1];
+  const right = clip.speed_segments[rightIndex];
+  if (left === undefined || right === undefined) return clip;
+  const duration = right.end - left.start;
+  const sourceDuration = (left.end - left.start) * left.speed + (right.end - right.start) * right.speed;
+  const speedSegments = [...clip.speed_segments];
+  speedSegments.splice(rightIndex - 1, 2, {
+    ...left,
+    end: right.end,
+    speed: sourceDuration / duration,
+  });
+  return { ...clip, speed_segments: speedSegments };
+}
+
+export function setClipSpeedSegmentSpeed(
+  clip: TimelineClip,
+  segmentId: string,
+  requestedSpeed: number,
+  fps: number,
+): TimelineClip {
+  const segmentIndex = clip.speed_segments.findIndex((segment) => segment.id === segmentId);
+  const segment = clip.speed_segments[segmentIndex];
+  if (segment === undefined || !Number.isFinite(requestedSpeed)) return clip;
+  const frameRate = Math.max(1, fps);
+  const sourceDuration = (segment.end - segment.start) * segment.speed;
+  const minimumFrames = Math.max(1, Math.ceil(sourceDuration / MAX_TIMELINE_CLIP_SPEED * frameRate - 1e-6));
+  const maximumFrames = Math.max(minimumFrames, Math.floor(sourceDuration / MIN_TIMELINE_CLIP_SPEED * frameRate + 1e-6));
+  const desiredSpeed = Math.min(MAX_TIMELINE_CLIP_SPEED, Math.max(MIN_TIMELINE_CLIP_SPEED, requestedSpeed));
+  const frames = Math.min(maximumFrames, Math.max(minimumFrames, Math.round(sourceDuration / desiredSpeed * frameRate)));
+  const duration = frames / frameRate;
+  const speed = sourceDuration / duration;
+  const oldEnd = segment.end;
+  const nextEnd = segment.start + duration;
+  const delta = nextEnd - oldEnd;
+  if (Math.abs(delta) <= 1e-9 && Math.abs(speed - segment.speed) <= 1e-9) return clip;
+  const speedSegments = clip.speed_segments.map((candidate, index): EditorSpeedSegment => {
+    if (index < segmentIndex) return candidate;
+    if (index === segmentIndex) return { ...candidate, end: nextEnd, speed };
+    return { ...candidate, start: candidate.start + delta, end: candidate.end + delta };
+  });
+  const nextDuration = clip.placement.duration + delta;
+  const totalSourceDuration = clip.placement.source_out - clip.placement.source_in;
+  const ratio = duration / (segment.end - segment.start);
+  return {
+    ...clip,
+    placement: {
+      ...clip.placement,
+      duration: nextDuration,
+      speed: totalSourceDuration / nextDuration,
+    },
+    keyframes: clip.keyframes.map((keyframe) => ({
+      ...keyframe,
+      time: keyframe.time <= segment.start
+        ? keyframe.time
+        : keyframe.time < oldEnd
+          ? segment.start + (keyframe.time - segment.start) * ratio
+          : keyframe.time + delta,
+    })),
+    speed_segments: speedSegments,
+  };
+}
+
+export function sliceClipSpeedSegments(
+  clip: TimelineClip,
+  localStart: number,
+  localEnd: number,
+): EditorSpeedSegment[] {
+  if (clip.speed_segments.length === 0) return [];
+  return clip.speed_segments.flatMap((segment) => {
+    const start = Math.max(localStart, segment.start);
+    const end = Math.min(localEnd, segment.end);
+    return end <= start ? [] : [{
+      ...segment,
+      start: start - localStart,
+      end: end - localStart,
+    }];
+  });
 }

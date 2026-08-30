@@ -109,6 +109,29 @@ describe('ripple Story Track edits', () => {
     expect(split[2]?.placement).toMatchObject({ duration: 6, source_in: 4, source_out: 10 });
   });
 
+  it('splits a time-remapped clip with independently valid local speed sections', () => {
+    const remapped = {
+      ...CLIPS[1]!,
+      speed_segments: [
+        { id: 'slow', start: 0, end: 4, speed: 0.5 },
+        { id: 'fast', start: 4, end: 10, speed: 4 / 3 },
+      ],
+    };
+    const split = splitRippleClip([CLIPS[0]!, remapped, CLIPS[2]!], 'b', 16, 'b-right');
+
+    expect(split[1]?.placement).toMatchObject({ duration: 6, source_in: 0 });
+    expect(split[1]?.placement.source_out).toBeCloseTo(14 / 3);
+    expect(split[1]?.placement.speed).toBeCloseTo(7 / 9);
+    expect(split[1]?.speed_segments).toEqual([
+      { id: 'slow', start: 0, end: 4, speed: 0.5 },
+      { id: 'fast', start: 4, end: 6, speed: 4 / 3 },
+    ]);
+    expect(split[2]?.placement).toMatchObject({ duration: 4, source_out: 10 });
+    expect(split[2]?.placement.source_in).toBeCloseTo(14 / 3);
+    expect(split[2]?.placement.speed).toBeCloseTo(4 / 3);
+    expect(split[2]?.speed_segments).toEqual([{ id: 'fast', start: 0, end: 4, speed: 4 / 3 }]);
+  });
+
   it('deletes and closes the removed duration', () => {
     const deleted = deleteRippleClip(CLIPS, 'b');
     expect(deleted.map((item) => item.id)).toEqual(['a', 'c']);

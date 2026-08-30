@@ -208,6 +208,23 @@ function linkedProject(): Project {
   };
 }
 
+function targetedRangeProject(): Project {
+  const audioClip: TimelineClip = {
+    ...clip('00000000-0000-4000-8000-000000000092', 'Range audio'),
+    material: { kind: 'asset', asset_id: 'asset-range-audio', media_duration_seconds: 10 },
+    placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, enabled: true },
+  };
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      tracks: PROJECT.document.tracks.map((track) => track.kind === 'audio'
+        ? { ...track, clips: [audioClip] }
+        : track),
+    },
+  };
+}
+
 function slideProject(): Project {
   const recorded = (id: string, name: string, start: number, duration: number, sourceIn: number): TimelineClip => ({
     ...clip(id, name),
@@ -1102,11 +1119,46 @@ describe('unified project workspace', () => {
     expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5);
   });
 
-  it('marks an In/Out range and extracts it from Story with ripple', async () => {
+  it('lifts an In/Out range from every targeted track without closing the gap', async () => {
     const applyProjectPatch = vi.fn();
-    renderWorkspace({ applyProjectPatch });
+    renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
+    expect(screen.getByText('目标：Story、Music')).toBeTruthy();
+    fireEvent.keyDown(timeline, { key: 'i' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'o' });
+    fireEvent.keyDown(timeline, { key: ';' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        {
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [
+            expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 1, duration: 4, source_in: 1 }) }),
+            expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 5 }) }),
+          ],
+        },
+        {
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 9, source_in: 1 }) })],
+        },
+      ],
+    })));
+    expect(screen.queryByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeNull();
+    expect((screen.getByRole('button', { name: '在播放头粘贴片段' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('extracts an In/Out range from every targeted track and preserves external gaps', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.keyDown(timeline, { key: 'i' });
     fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
     fireEvent.keyDown(timeline, { key: 'o' });
@@ -1114,14 +1166,22 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: "'" });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [{
-        op: 'replace_track_clips',
-        track_id: STORY_ID,
-        clips: [
-          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4, source_in: 1 }) }),
-          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
-        ],
-      }],
+      scope: { kind: 'project' },
+      operations: [
+        {
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [
+            expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4, source_in: 1 }) }),
+            expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
+          ],
+        },
+        {
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 0, duration: 9, source_in: 1 }) })],
+        },
+      ],
     })));
     expect(screen.queryByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeNull();
   });
@@ -1237,7 +1297,7 @@ describe('unified project workspace', () => {
     const musicTarget = screen.getByRole('button', { name: '设为目标轨道 Music' });
     fireEvent.click(musicTarget);
     expect(musicTarget.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByText('目标：Music')).toBeTruthy();
+    expect(screen.getByText('目标：Story、Music')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '在播放头粘贴片段' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -2320,7 +2380,7 @@ describe('unified project workspace', () => {
   });
 
   it('uses Shift range selection and target-track select-all without moving clips', async () => {
-    renderWorkspace();
+    renderWorkspace({ project: targetedRangeProject() });
 
     const clipA = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
@@ -2333,10 +2393,13 @@ describe('unified project workspace', () => {
 
     fireEvent.pointerDown(clipA, { pointerId: 53, button: 0, clientX: 200 });
     fireEvent.pointerUp(clipA, { pointerId: 53, clientX: 200 });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'a', ctrlKey: true });
+    const audio = screen.getByRole('button', { name: /Range audio 10\.0s · 已录制/u });
     await waitFor(() => {
       expect(clipA.className).toContain('ring-accent');
       expect(clipB.className).toContain('ring-accent');
+      expect(audio.className).toContain('ring-accent');
     });
   });
 
@@ -3636,7 +3699,7 @@ describe('unified project workspace', () => {
         }),
       }],
     })));
-    expect(await screen.findByText('目标：音频轨道 1')).toBeTruthy();
+    expect(await screen.findByText('目标：Story')).toBeTruthy();
     const voiceItems = within(panel).getAllByRole('option', { name: '选择素材 Voice' });
     expect(voiceItems).toHaveLength(1);
     expect(voiceItems[0]?.textContent).toContain('已录制');

@@ -210,6 +210,8 @@ export function ProjectWorkspacePage() {
   const initializedSelectionProjectId = useRef<string | null>(null);
   const initializedTargetProjectId = useRef<string | null>(null);
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
+  const [targetTrackIds, setTargetTrackIds] = useState<ReadonlySet<string>>(() => new Set());
+  const targetTrackIdList = useMemo(() => [...targetTrackIds], [targetTrackIds]);
   const [mediaTargetTrackIds, setMediaTargetTrackIds] = useState<Readonly<{
     readonly video: string | null;
     readonly audio: string | null;
@@ -317,6 +319,7 @@ export function ProjectWorkspacePage() {
       const story = loaded.document.tracks.find((track) => track.id === loaded.document.story_track_id);
       const audio = loaded.document.tracks.find((track) => track.kind === 'audio' && !track.locked);
       setTargetTrackId(story?.locked === false ? story.id : null);
+      setTargetTrackIds(new Set(story?.locked === false ? [story.id] : []));
       setMediaTargetTrackIds({
         video: story?.locked === false ? story.id : null,
         audio: audio?.id ?? null,
@@ -326,6 +329,14 @@ export function ProjectWorkspacePage() {
     if (targetTrackId === null) return;
     const target = loaded.document.tracks.find((track) => track.id === targetTrackId);
     if (target === undefined || target.locked) setTargetTrackId(null);
+    setTargetTrackIds((currentTargets) => {
+      const next = new Set([...currentTargets].filter((trackId) => (
+        loaded.document.tracks.some((track) => track.id === trackId && !track.locked)
+      )));
+      return next.size === currentTargets.size && [...next].every((trackId) => currentTargets.has(trackId))
+        ? currentTargets
+        : next;
+    });
     setMediaTargetTrackIds((targets) => {
       const video = loaded.document.tracks.find((track) => track.id === targets.video && track.kind === 'video' && !track.locked)
         ?? loaded.document.tracks.find((track) => track.id === loaded.document.story_track_id && !track.locked)
@@ -587,12 +598,10 @@ export function ProjectWorkspacePage() {
           && Math.abs(clip.placement.start - editTimeSeconds) <= 1 / current.document.fps
         ));
         if (insertedTrack === undefined || insertedClip === undefined) return;
-        setTargetTrackId(insertedTrack.id);
         setMediaTargetTrackIds((targets) => ({ ...targets, audio: insertedTrack.id }));
         setSelectedClipIds([insertedClip.id]);
       },
     );
-    if (editPlan.nextTargetTrackId !== null) setTargetTrackId(editPlan.nextTargetTrackId);
     if (editPlan.selectedAudioTrackId !== null) {
       setMediaTargetTrackIds((targets) => ({ ...targets, audio: editPlan.selectedAudioTrackId }));
     }
@@ -715,6 +724,7 @@ export function ProjectWorkspacePage() {
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}
+      targetTrackIds={targetTrackIdList}
       linkedSelectionEnabled={linkedSelectionEnabled}
       timelineTimeSeconds={transportTimeSeconds}
       rangeInSeconds={rangeInSeconds}
@@ -726,11 +736,20 @@ export function ProjectWorkspacePage() {
       onSelectClips={selectTimelineClips}
       onPromoteClip={promoteTimelineClip}
       onTargetTrack={(trackId, kind) => {
-        setTargetTrackId((currentTarget) => currentTarget === trackId ? null : trackId);
-        if (kind === 'video' || kind === 'audio') {
+        const enable = !targetTrackIds.has(trackId);
+        setTargetTrackIds((currentTargets) => {
+          const next = new Set(currentTargets);
+          if (enable) next.add(trackId);
+          else next.delete(trackId);
+          return next;
+        });
+        setTargetTrackId((currentTarget) => enable
+          ? trackId
+          : currentTarget === trackId ? [...targetTrackIds].filter((id) => id !== trackId).at(-1) ?? null : currentTarget);
+        if (enable && (kind === 'video' || kind === 'audio')) {
           setMediaTargetTrackIds((targets) => ({
             ...targets,
-            [kind]: targets[kind] === trackId ? null : trackId,
+            [kind]: trackId,
           }));
         }
       }}

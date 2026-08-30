@@ -76,6 +76,8 @@ import {
 import { clipLocalTimeAtTimeline, evaluateClipKeyframeProperty, setClipVolumeAtTime } from './keyframeEditing';
 import {
   deleteRippleClips,
+  extractTimelineRange,
+  liftTimelineRange,
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
@@ -83,8 +85,8 @@ import {
   trimRippleClipGroup,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
-  removeTimelineRange,
   splitRippleClip,
+  timelineClipsInRange,
   trimRippleClip,
 } from './timelineEditing';
 import {
@@ -136,6 +138,7 @@ export interface ProjectTimelineProps {
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
+  readonly targetTrackIds: readonly string[];
   readonly linkedSelectionEnabled: boolean;
   readonly timelineTimeSeconds: number;
   readonly rangeInSeconds: number | null;
@@ -231,6 +234,7 @@ export function ProjectTimeline({
   selectedClipId,
   selectedClipIds,
   targetTrackId,
+  targetTrackIds,
   linkedSelectionEnabled,
   timelineTimeSeconds,
   rangeInSeconds,
@@ -333,7 +337,11 @@ export function ProjectTimeline({
   const targetTrack = targetTrackId === null
     ? null
     : document.tracks.find((track) => track.id === targetTrackId) ?? null;
-  const rangeTargetTrack = targetTrack;
+  const targetTrackIdSet = useMemo(() => new Set(targetTrackIds), [targetTrackIds]);
+  const targetedTracks = useMemo(
+    () => document.tracks.filter((track) => targetTrackIdSet.has(track.id)),
+    [document.tracks, targetTrackIdSet],
+  );
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
   const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
     const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
@@ -558,12 +566,14 @@ export function ProjectTimeline({
   const rangeEnd = rangeInSeconds === null || rangeOutSeconds === null
     ? null
     : Math.max(rangeInSeconds, rangeOutSeconds);
-  const canExtractRange = !readOnly
-    && rangeTargetTrack !== null
-    && !rangeTargetTrack.locked
+  const editableTargetedTracks = targetedTracks.filter((track) => !track.locked);
+  const canEditRange = !readOnly
+    && editableTargetedTracks.length > 0
     && rangeStart !== null
     && rangeEnd !== null
     && rangeEnd - rangeStart >= 1 / document.fps;
+  const canLiftRange = canEditRange;
+  const canExtractRange = canEditRange;
   const canRippleTrimToPlayhead = !readOnly
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
@@ -775,20 +785,26 @@ export function ProjectTimeline({
       color: DEFAULT_TIMELINE_MARKER_COLOR,
     }]);
   };
-  const extractRange = () => {
-    if (!canExtractRange || rangeTargetTrack === null || rangeStart === null || rangeEnd === null) return;
-    onReplaceTrackClips(
-      rangeTargetTrack.id,
-      removeTimelineRange(
-        rangeTargetTrack.clips,
-        rangeStart,
-        rangeEnd,
-        globalThis.crypto.randomUUID(),
-        rangeTargetTrack.id === document.story_track_id,
-      ),
-    );
+  const editTargetedRange = (mode: 'lift' | 'extract') => {
+    if (!canEditRange || rangeStart === null || rangeEnd === null) return;
+    const copiedGroups = editableTargetedTracks.flatMap((track) => {
+      const copied = timelineClipsInRange(track.clips, rangeStart, rangeEnd);
+      return copied.length === 0 ? [] : [{ trackId: track.id, clips: copied }];
+    });
+    setClipboard(copiedGroups.length === 0 ? null : {
+      originTime: rangeStart,
+      groups: copiedGroups,
+    });
+    onReplaceTrackClipGroups(editableTargetedTracks.map((track) => ({
+      trackId: track.id,
+      clips: mode === 'lift'
+        ? liftTimelineRange(track.clips, rangeStart, rangeEnd, globalThis.crypto.randomUUID())
+        : extractTimelineRange(track.clips, rangeStart, rangeEnd, globalThis.crypto.randomUUID()),
+    })));
     onRangeChange(null, null);
   };
+  const liftRange = () => editTargetedRange('lift');
+  const extractRange = () => editTargetedRange('extract');
   const rippleTrimToPlayhead = (edge: 'start' | 'end') => {
     if (!canRippleTrimToPlayhead || selectedClip === null || selectedTrack === null) return;
     const replacement = trimTimelineClip(
@@ -1176,7 +1192,7 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
-          onSelectClips(targetTrack?.clips.map((clip) => clip.id) ?? []);
+          onSelectClips(targetedTracks.flatMap((track) => track.clips.map((clip) => clip.id)));
           return;
         }
         if (event.key.toLowerCase() === 'l' && (event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -1219,6 +1235,11 @@ export function ProjectTimeline({
           rippleTrimToPlayhead('end');
           return;
         }
+        if (event.key === ';' && !event.ctrlKey && !event.metaKey && !event.altKey && canLiftRange) {
+          event.preventDefault();
+          liftRange();
+          return;
+        }
         if (event.key === "'" && !event.ctrlKey && !event.metaKey && !event.altKey && canExtractRange) {
           event.preventDefault();
           extractRange();
@@ -1258,7 +1279,9 @@ export function ProjectTimeline({
         >
           <Type className="size-3.5" aria-hidden="true" />
         </button>
-        <span className="max-w-40 truncate text-2xs text-neutral-500"><Trans>目标：</Trans>{targetTrack?.name ?? '—'}</span>
+        <span className="max-w-48 truncate text-2xs text-neutral-500">
+          <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
+        </span>
         <button
           type="button"
           className={cn(
@@ -1337,6 +1360,7 @@ export function ProjectTimeline({
         canPaste={canPaste}
         canUndo={canUndo && !readOnly}
         canAddMarker={!readOnly}
+        canLiftRange={canLiftRange}
         canExtractRange={canExtractRange}
         canRippleTrim={canRippleTrimToPlayhead}
         onSplit={splitSelected}
@@ -1345,6 +1369,7 @@ export function ProjectTimeline({
         onPaste={pasteClipboard}
         onUndo={onUndo}
         onAddMarker={addMarker}
+        onLiftRange={liftRange}
         onExtractRange={extractRange}
         onRippleTrimStart={() => rippleTrimToPlayhead('start')}
         onRippleTrimEnd={() => rippleTrimToPlayhead('end')}
@@ -1517,7 +1542,7 @@ export function ProjectTimeline({
               onSnapChange={setSnapGuideTime}
               nonStoryTrackIds={nonStoryTrackIds}
               onReorderTrack={reorderTrack}
-              targetTrackId={targetTrackId}
+              targetTrackIds={targetTrackIdSet}
               timelineTimeSeconds={playheadSeconds}
               onTargetTrack={onTargetTrack}
               height={collapsedTrackRows.has(track.id)
@@ -2018,7 +2043,7 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -2044,7 +2069,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onSnapChange: (time: number | null) => void;
   readonly nonStoryTrackIds: readonly string[];
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
-  readonly targetTrackId: string | null;
+  readonly targetTrackIds: ReadonlySet<string>;
   readonly timelineTimeSeconds: number;
   readonly onTargetTrack: (trackId: string, kind: TimelineTrack['kind']) => void;
   readonly height: number;
@@ -2175,7 +2200,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         canMoveUp={!track.derivedAudio && nonStoryIndex > 0}
         canMoveDown={!track.derivedAudio && nonStoryIndex >= 0 && nonStoryIndex < nonStoryTrackIds.length - 1}
         onMoveTrack={onReorderTrack}
-        targeted={targetTrackId === track.track.id}
+        targeted={targetTrackIds.has(track.track.id)}
         onTargetTrack={onTargetTrack}
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
@@ -2430,7 +2455,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds
   && previous.nonStoryTrackIds === next.nonStoryTrackIds
-  && previous.targetTrackId === next.targetTrackId
+  && previous.targetTrackIds === next.targetTrackIds
   && previous.height === next.height
   && previous.collapsed === next.collapsed
   && previous.mediaDropPreview === next.mediaDropPreview);
@@ -3502,6 +3527,7 @@ function TimelineToolStrip({
   canPaste,
   canUndo,
   canAddMarker,
+  canLiftRange,
   canExtractRange,
   canRippleTrim,
   onSplit,
@@ -3510,6 +3536,7 @@ function TimelineToolStrip({
   onPaste,
   onUndo,
   onAddMarker,
+  onLiftRange,
   onExtractRange,
   onRippleTrimStart,
   onRippleTrimEnd,
@@ -3526,6 +3553,7 @@ function TimelineToolStrip({
   readonly canPaste: boolean;
   readonly canUndo: boolean;
   readonly canAddMarker: boolean;
+  readonly canLiftRange: boolean;
   readonly canExtractRange: boolean;
   readonly canRippleTrim: boolean;
   readonly onSplit: () => void;
@@ -3534,6 +3562,7 @@ function TimelineToolStrip({
   readonly onPaste: () => void;
   readonly onUndo: () => void;
   readonly onAddMarker: () => void;
+  readonly onLiftRange: () => void;
   readonly onExtractRange: () => void;
   readonly onRippleTrimStart: () => void;
   readonly onRippleTrimEnd: () => void;
@@ -3547,6 +3576,7 @@ function TimelineToolStrip({
     { label: t`滑动工具 (U)`, icon: <BetweenHorizontalStart className="size-4" aria-hidden="true" />, enabled: canSlideTool, pressed: editTool === 'slide', action: () => onChangeTool('slide') },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
     { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
+    { label: t`提升入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">;</span>, enabled: canLiftRange, pressed: false, action: onLiftRange },
     { label: t`提取入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">'</span>, enabled: canExtractRange, pressed: false, action: onExtractRange },
     { label: t`波纹裁切片段起点到播放头`, icon: <span className="font-mono text-xs" aria-hidden="true">Q</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimStart },
     { label: t`波纹裁切播放头到片段终点`, icon: <span className="font-mono text-xs" aria-hidden="true">W</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimEnd },

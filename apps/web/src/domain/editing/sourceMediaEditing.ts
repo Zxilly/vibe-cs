@@ -23,7 +23,6 @@ export interface SourceMediaEditPlan {
   readonly insertedClipIds: readonly string[];
   readonly insertedAudioTrackIndex: number | null;
   readonly selectedAudioTrackId: string | null;
-  readonly nextTargetTrackId: string | null;
 }
 
 export function planSourceMediaEdit({
@@ -119,6 +118,5 @@ export function planSourceMediaEdit({
     insertedClipIds,
     insertedAudioTrackIndex,
     selectedAudioTrackId,
-    nextTargetTrackId: tracks.videoTrack?.id ?? selectedAudioTrackId,
   };
 }

@@ -1094,6 +1094,90 @@ describe('unified project workspace', () => {
     });
   });
 
+  it('lets forward Program playback drive Timeline without feedback seeks', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    let simulatedTime = 0;
+    const seekWrites: number[] = [];
+    const play = vi.fn(() => Promise.resolve());
+    Object.defineProperties(preview, {
+      currentTime: {
+        configurable: true,
+        get: () => {
+          const current = simulatedTime;
+          simulatedTime += 0.02;
+          return current;
+        },
+        set: (value: number) => {
+          seekWrites.push(value);
+          simulatedTime = value;
+        },
+      },
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: vi.fn() },
+    });
+    fireEvent.loadedData(preview);
+    seekWrites.length = 0;
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+
+    simulatedTime = 1;
+    fireEvent.timeUpdate(preview);
+    await waitFor(() => expect(Number(
+      screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'),
+    )).toBe(1));
+    expect(seekWrites).toEqual([]);
+  });
+
+  it('advances the Timeline from presented Program video frames', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    const requestVideoFrameCallback = vi.fn((_callback: VideoFrameRequestCallback) => (
+      requestVideoFrameCallback.mock.calls.length
+    ));
+    const cancelVideoFrameCallback = vi.fn();
+    Object.defineProperties(preview, {
+      currentTime: { configurable: true, writable: true, value: 0 },
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      requestVideoFrameCallback: { configurable: true, value: requestVideoFrameCallback },
+      cancelVideoFrameCallback: { configurable: true, value: cancelVideoFrameCallback },
+      play: { configurable: true, value: vi.fn(() => Promise.resolve()) },
+      pause: { configurable: true, value: vi.fn() },
+    });
+    fireEvent.loadedData(preview);
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(requestVideoFrameCallback).toHaveBeenCalledTimes(1));
+
+    preview.currentTime = 1.25;
+    const frameCallback = requestVideoFrameCallback.mock.calls[0]?.[0];
+    if (frameCallback === undefined) throw new Error('expected a Program video frame callback');
+    frameCallback(performance.now(), {} as VideoFrameCallbackMetadata);
+    await waitFor(() => expect(Number(
+      screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'),
+    )).toBe(1.25));
+    expect(requestVideoFrameCallback).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
+    expect(cancelVideoFrameCallback).toHaveBeenCalled();
+  });
+
   it('plays an independent A track under the shared transport when Story has no video clock', async () => {
     const audioClip: TimelineClip = {
       ...clip('00000000-0000-4000-8000-000000000088', 'Audio only'),

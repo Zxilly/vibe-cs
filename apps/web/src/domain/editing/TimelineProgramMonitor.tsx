@@ -499,6 +499,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const videoRef = useRef<HTMLVideoElement>(null);
   const desiredTimeRef = useRef(sourceTime(clip, offsetSeconds));
   desiredTimeRef.current = sourceTime(clip, offsetSeconds);
+  const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
+  onTimelineTimeChangeRef.current = onTimelineTimeChange;
   const evaluatedTransform = evaluatePreviewTransform(clip, offsetSeconds);
   const [draftTransform, setDraftTransform] = useState<typeof evaluatedTransform | null>(null);
   const draftTransformRef = useRef(draftTransform);
@@ -533,8 +535,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
   const canRotateDirectly = !hasScaleKeyframes;
+  const videoDrivesTimeline = playing && transportRate > 0;
 
   const seekLatest = () => {
+    if (videoDrivesTimeline) return;
     const video = videoRef.current;
     if (video === null || video.seeking) return;
     const targetTime = desiredTimeRef.current;
@@ -548,7 +552,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
 
   useEffect(() => {
     seekLatest();
-  }, [clip, fps, offsetSeconds]);
+  }, [clip, fps, offsetSeconds, videoDrivesTimeline]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -573,6 +577,18 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       if (!video.paused) video.pause();
     };
   }, [clip.placement.speed, playing, transportRate]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!videoDrivesTimeline || video === null || typeof video.requestVideoFrameCallback !== 'function') return undefined;
+    let callbackId = 0;
+    const reportPresentedFrame: VideoFrameRequestCallback = () => {
+      onTimelineTimeChangeRef.current(video.currentTime);
+      callbackId = video.requestVideoFrameCallback(reportPresentedFrame);
+    };
+    callbackId = video.requestVideoFrameCallback(reportPresentedFrame);
+    return () => video.cancelVideoFrameCallback(callbackId);
+  }, [videoDrivesTimeline]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -702,6 +718,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         if (target) onReady();
       }}
       onTimeUpdate={(event) => {
+        if (videoDrivesTimeline && typeof event.currentTarget.requestVideoFrameCallback === 'function') return;
         if (target
           && presented
           && !event.currentTarget.seeking

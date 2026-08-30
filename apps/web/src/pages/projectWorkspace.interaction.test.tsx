@@ -2228,6 +2228,33 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('rebuilds a new cross-track link group when pasting linked clips', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: linkedProject(), applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '复制所选片段' }));
+    fireEvent.click(screen.getByRole('button', { name: '在播放头粘贴片段' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations ?? [];
+    const storyOperation = operations.find((operation: ProjectPatch['operations'][number]) => (
+      operation.op === 'replace_track_clips' && operation.track_id === STORY_ID
+    ));
+    const audioOperation = operations.find((operation: ProjectPatch['operations'][number]) => (
+      operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000013'
+    ));
+    if (storyOperation?.op !== 'replace_track_clips' || audioOperation?.op !== 'replace_track_clips') {
+      throw new Error('expected linked track replacements');
+    }
+    const storyCopy = storyOperation.clips.find((candidate: TimelineClip) => ![CLIP_A, CLIP_B].includes(candidate.id));
+    const audioCopy = audioOperation.clips.find((candidate: TimelineClip) => candidate.id !== LINKED_AUDIO_CLIP_ID);
+    expect(storyCopy?.link_group_id).not.toBeNull();
+    expect(storyCopy?.link_group_id).not.toBe(LINK_GROUP_ID);
+    expect(audioCopy?.link_group_id).toBe(storyCopy?.link_group_id);
+    expect(storyCopy?.placement.start).toBe(0);
+    expect(audioCopy?.placement.start).toBe(12);
+  });
+
   it('trims linked clips across Story and free tracks with one constrained delta', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const applyProjectPatch = vi.fn();

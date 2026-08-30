@@ -183,6 +183,32 @@ function defaultTrackHeight(track: RenderedTrack): number {
   return 52;
 }
 
+interface ClipboardIdentities {
+  readonly group_id: string | null;
+  readonly link_group_id: string | null;
+}
+
+function identityCounts(values: readonly (string | null)[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    if (value !== null) counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function remapClipboardIdentity(
+  source: string | null,
+  counts: ReadonlyMap<string, number>,
+  remapped: Map<string, string>,
+): string | null {
+  if (source === null || (counts.get(source) ?? 0) < 2) return null;
+  const existing = remapped.get(source);
+  if (existing !== undefined) return existing;
+  const created = globalThis.crypto.randomUUID();
+  remapped.set(source, created);
+  return created;
+}
+
 /**
  * Deep Timeline Module over the canonical Editing Document.
  *
@@ -273,6 +299,7 @@ export function ProjectTimeline({
   const marqueeScrollFrameRef = useRef<number | null>(null);
   const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
   const [clipboard, setClipboard] = useState<{
+    readonly originTime: number;
     readonly groups: readonly {
       readonly trackId: string;
       readonly clips: readonly TimelineClip[];
@@ -554,6 +581,7 @@ export function ProjectTimeline({
   const copySelected = () => {
     if (!canCopy) return;
     setClipboard({
+      originTime: Math.min(...selectedClips.map((clip) => clip.placement.start)),
       groups: selectedTrackGroups.map(({ track, clips: selected }) => ({ trackId: track.id, clips: selected })),
     });
   };
@@ -566,15 +594,35 @@ export function ProjectTimeline({
   const pasteClipboard = () => {
     if (!canPaste || clipboard === null) return;
     const pastedIds: string[] = [];
+    const copiedClips = clipboard.groups.flatMap((group) => group.clips);
+    const groupCounts = identityCounts(copiedClips.map((clip) => clip.group_id));
+    const linkCounts = identityCounts(copiedClips.map((clip) => clip.link_group_id));
+    const groupIds = new Map<string, string>();
+    const linkIds = new Map<string, string>();
     const updates = clipboard.groups.map((group, groupIndex) => {
       const track = clipboardTracks[groupIndex]!;
       const clipIds = group.clips.map(() => globalThis.crypto.randomUUID());
+      const copiedIdentities = new Map<string, ClipboardIdentities>(
+        clipIds.map((clipId, index) => {
+          const source = group.clips[index]!;
+          return [clipId, {
+            group_id: remapClipboardIdentity(source.group_id, groupCounts, groupIds),
+            link_group_id: remapClipboardIdentity(source.link_group_id, linkCounts, linkIds),
+          }] as const;
+        }),
+      );
       pastedIds.push(...clipIds);
+      const groupOrigin = Math.min(...group.clips.map((clip) => clip.placement.start));
+      const groupPasteTime = editPlayheadSeconds + groupOrigin - clipboard.originTime;
+      const placed = track.id === document.story_track_id
+        ? pasteRippleClipsAtTime(track.clips, group.clips, groupPasteTime, clipIds, globalThis.crypto.randomUUID())
+        : pasteFreePositionedClipsAtTime(track.clips, group.clips, groupPasteTime, clipIds);
       return {
         trackId: track.id,
-        clips: track.id === document.story_track_id
-          ? pasteRippleClipsAtTime(track.clips, group.clips, editPlayheadSeconds, clipIds, globalThis.crypto.randomUUID())
-          : pasteFreePositionedClipsAtTime(track.clips, group.clips, editPlayheadSeconds, clipIds),
+        clips: placed.map((clip) => {
+          const identities = copiedIdentities.get(clip.id);
+          return identities === undefined ? clip : { ...clip, ...identities };
+        }),
       };
     });
     onReplaceTrackClipGroups(updates);

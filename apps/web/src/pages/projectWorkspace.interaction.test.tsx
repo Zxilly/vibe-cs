@@ -2207,6 +2207,10 @@ describe('unified project workspace', () => {
     fireEvent.pointerMove(navigator, { pointerId: 92, clientX: 75 });
     await waitFor(() => expect(Number(zoom.value)).toBeLessThan(beforeResize));
     fireEvent.pointerUp(navigator, { pointerId: 92, clientX: 75 });
+
+    const beforeWheel = Number(zoom.value);
+    fireEvent.wheel(navigator, { deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    await waitFor(() => expect(Number(zoom.value)).toBeGreaterThan(beforeWheel));
     clientWidth.mockRestore();
   });
 

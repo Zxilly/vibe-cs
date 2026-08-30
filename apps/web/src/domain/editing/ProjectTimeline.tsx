@@ -1870,7 +1870,7 @@ function TimelineZoomNavigator({
       Math.max(10, active.thumbWidth + (active.mode === 'start' ? -delta : delta)),
     );
     const requestedMultiplier = active.multiplier * active.thumbWidth / requestedWidth;
-    onZoom(requestedMultiplier, active.mode === 'start' ? viewportWidth : 0);
+    onZoom(requestedMultiplier);
   };
   const finishGesture = (event: ReactPointerEvent) => {
     if (gesture.current?.pointerId !== event.pointerId) return;
@@ -1919,6 +1919,15 @@ function TimelineZoomNavigator({
         aria-valuemax={maximumScroll}
         aria-valuenow={Math.min(maximumScroll, scrollLeft)}
         className="relative h-3 w-28 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        onWheel={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+            ? 16
+            : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? viewportWidth : 1;
+          const delta = (Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX) * unit;
+          onZoom(multiplier * (2 ** (-delta / 480)));
+        }}
         onPointerDown={(event) => {
           if (event.target !== event.currentTarget || event.button !== 0) return;
           const bounds = event.currentTarget.getBoundingClientRect();

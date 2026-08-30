@@ -102,11 +102,21 @@ impl ToolState {
                     "workspace": self.context.workspace,
                     "project": self.context.project,
                 }),
-                ToolKind::ReadDemoEvidence => json!({
-                    "demo": self.context.demo,
-                    "analysis": self.context.analysis,
-                    "mapContext": self.context.map_context,
-                }),
+                ToolKind::ReadDemoEvidence => {
+                    let analysis = if let Some(host) = self.tool_host.as_ref() {
+                        host.read_demo_evidence(&input)
+                            .await
+                            .map_err(ToolExecutionError::other)?
+                    } else {
+                        query_demo_evidence(&self.context.analysis, &input)
+                            .map_err(ToolExecutionError::invalid_args)?
+                    };
+                    json!({
+                        "demo": self.context.demo,
+                        "analysis": analysis,
+                        "mapContext": self.context.map_context,
+                    })
+                }
                 ToolKind::ReadCinematicContext => {
                     let host = self.host()?;
                     let ids = string_array(&input, "highlightIds", 64)?;
@@ -233,8 +243,17 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReadDemoEvidence,
             "read_demo_evidence",
             ALL_MODES,
-            "Read bounded verified Demo analysis supplied by the current workspace.",
-            object_schema(json!({}), &[]),
+            "Query bounded verified Demo evidence supplied by the current workspace. For player-focused work, pass playerName or playerId; optionally narrow demoIds and kinds. The result returns stable highlight/demo IDs and at most maximumHighlights rows instead of dumping the whole series.",
+            object_schema(
+                json!({
+                    "playerId":{"type":"string","minLength":1,"maxLength":64},
+                    "playerName":{"type":"string","minLength":1,"maxLength":128},
+                    "demoIds":{"type":"array","items":uuid_schema(),"maxItems":16},
+                    "kinds":string_array_schema(32),
+                    "maximumHighlights":{"type":"integer","minimum":1,"maximum":128}
+                }),
+                &[],
+            ),
         ),
         definition(
             ToolKind::ReadCinematicContext,
@@ -533,6 +552,204 @@ fn string_array(
         .collect()
 }
 
+fn optional_string(input: &Value, key: &str, maximum: usize) -> Result<Option<String>, String> {
+    let Some(value) = input.get(key) else {
+        return Ok(None);
+    };
+    value
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && value.len() <= maximum)
+        .map(|value| Some(value.to_owned()))
+        .ok_or_else(|| format!("invalid {key} value"))
+}
+
+fn optional_string_array(
+    input: &Value,
+    key: &str,
+    maximum: usize,
+) -> Result<Option<Vec<String>>, String> {
+    let Some(values) = input.get(key).and_then(Value::as_array) else {
+        return if input.get(key).is_none() {
+            Ok(None)
+        } else {
+            Err(format!("{key} must be an array"))
+        };
+    };
+    if values.is_empty() || values.len() > maximum {
+        return Err(format!("{key} must contain 1 to {maximum} values"));
+    }
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|value| !value.is_empty() && value.len() <= 200)
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| format!("invalid {key} value"))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(Some)
+}
+
+/// Filter one authoritative Demo or series analysis through the public Agent evidence vocabulary.
+///
+/// # Errors
+///
+/// Returns an error when the analysis is unavailable, a query field is malformed, both player
+/// selectors are supplied, or the requested player is absent from the current series.
+pub fn query_demo_evidence(analysis: &Value, input: &Value) -> Result<Value, String> {
+    let source = analysis
+        .as_object()
+        .ok_or_else(|| "Demo analysis is unavailable".to_owned())?;
+    let player_id = optional_string(input, "playerId", 64)?;
+    let player_name = optional_string(input, "playerName", 128)?;
+    if player_id.is_some() && player_name.is_some() {
+        return Err("provide playerId or playerName, not both".to_owned());
+    }
+    let requested_demo_ids = optional_string_array(input, "demoIds", 16)?
+        .map(|values| values.into_iter().collect::<std::collections::HashSet<_>>());
+    let requested_kinds = optional_string_array(input, "kinds", 32)?.map(|values| {
+        values
+            .into_iter()
+            .map(|value| value.to_ascii_lowercase())
+            .collect::<std::collections::HashSet<_>>()
+    });
+    let maximum = input
+        .get("maximumHighlights")
+        .map_or(Ok(64_usize), |value| {
+            value
+                .as_u64()
+                .and_then(|value| usize::try_from(value).ok())
+                .filter(|value| (1..=128).contains(value))
+                .ok_or_else(|| "maximumHighlights must be between 1 and 128".to_owned())
+        })?;
+
+    let players = source
+        .get("players")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let matched_player_ids = if let Some(id) = player_id.as_ref() {
+        players
+            .iter()
+            .filter(|player| player.get("steam_id").and_then(Value::as_str) == Some(id.as_str()))
+            .filter_map(|player| {
+                player
+                    .get("steam_id")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .collect::<Vec<_>>()
+    } else if let Some(name) = player_name.as_ref() {
+        players
+            .iter()
+            .filter(|player| {
+                player
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+            })
+            .filter_map(|player| {
+                player
+                    .get("steam_id")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    if (player_id.is_some() || player_name.is_some()) && matched_player_ids.is_empty() {
+        return Err("requested player is not present in this Demo series".to_owned());
+    }
+    let matched_player_ids = matched_player_ids
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
+
+    let mut highlights = source
+        .get("highlights")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|highlight| {
+            (matched_player_ids.is_empty()
+                || highlight
+                    .get("player_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| matched_player_ids.contains(id)))
+                && requested_demo_ids.as_ref().is_none_or(|ids| {
+                    highlight
+                        .get("demo_id")
+                        .and_then(Value::as_str)
+                        .is_some_and(|id| ids.contains(id))
+                })
+                && requested_kinds.as_ref().is_none_or(|kinds| {
+                    highlight
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .is_some_and(|kind| kinds.contains(&kind.to_ascii_lowercase()))
+                })
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    highlights.sort_by(|left, right| {
+        right
+            .get("score")
+            .and_then(Value::as_f64)
+            .unwrap_or_default()
+            .total_cmp(
+                &left
+                    .get("score")
+                    .and_then(Value::as_f64)
+                    .unwrap_or_default(),
+            )
+            .then_with(|| {
+                left.get("demo_id")
+                    .and_then(Value::as_str)
+                    .cmp(&right.get("demo_id").and_then(Value::as_str))
+            })
+            .then_with(|| {
+                left.get("start_tick")
+                    .and_then(Value::as_u64)
+                    .cmp(&right.get("start_tick").and_then(Value::as_u64))
+            })
+    });
+    let matched_highlight_count = highlights.len();
+    highlights.truncate(maximum);
+    let selected_players = if matched_player_ids.is_empty() {
+        players
+    } else {
+        players
+            .into_iter()
+            .filter(|player| {
+                player
+                    .get("steam_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| matched_player_ids.contains(id))
+            })
+            .collect()
+    };
+    let mut result = source.clone();
+    result.insert("players".to_owned(), Value::Array(selected_players));
+    result.insert("highlights".to_owned(), Value::Array(highlights));
+    result.insert("rounds".to_owned(), Value::Array(Vec::new()));
+    result.insert("insights".to_owned(), Value::Null);
+    result.insert(
+        "evidence_query".to_owned(),
+        json!({
+            "player_id": player_id,
+            "player_name": player_name,
+            "demo_ids": requested_demo_ids,
+            "kinds": requested_kinds,
+            "matched_highlight_count": matched_highlight_count,
+            "returned_highlight_count": result.get("highlights").and_then(Value::as_array).map_or(0, Vec::len),
+            "truncated": matched_highlight_count > maximum,
+        }),
+    );
+    Ok(Value::Object(result))
+}
+
 fn bounded_output(output: &Value) -> Value {
     if serde_json::to_vec(output)
         .is_ok_and(|bytes| bytes.len() <= MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES)
@@ -586,6 +803,73 @@ mod tests {
             replace_markers["properties"]["markers"]["items"]["required"],
             json!(["id", "time", "label", "color"])
         );
+    }
+
+    #[test]
+    fn demo_evidence_schema_exposes_targeted_bounded_queries() {
+        let schema = tool_catalog()
+            .into_iter()
+            .find(|tool| tool.name == "read_demo_evidence")
+            .expect("Demo evidence tool")
+            .parameters;
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["properties"]["maximumHighlights"]["maximum"], 128);
+        assert_eq!(schema["properties"]["demoIds"]["maxItems"], 16);
+        assert_eq!(schema["required"], json!([]));
+    }
+
+    #[test]
+    fn demo_evidence_query_resolves_player_name_and_returns_top_matching_events() {
+        let analysis = json!({
+            "series_demo_count": 2,
+            "players": [
+                {"steam_id":"niko-id","name":"NiKo","team":"B"},
+                {"steam_id":"other-id","name":"Other","team":"A"}
+            ],
+            "rounds": [{"round":1}],
+            "highlights": [
+                {"id":"d1:one","demo_id":"11111111-1111-4111-8111-111111111111","player_id":"niko-id","kind":"one_tap","score":0.88,"start_tick":100},
+                {"id":"d2:multi","demo_id":"22222222-2222-4222-8222-222222222222","player_id":"niko-id","kind":"multi_kill","score":0.95,"start_tick":200},
+                {"id":"d1:fail","demo_id":"11111111-1111-4111-8111-111111111111","player_id":"niko-id","kind":"fail","score":0.5,"start_tick":300},
+                {"id":"d1:other","demo_id":"11111111-1111-4111-8111-111111111111","player_id":"other-id","kind":"one_tap","score":0.99,"start_tick":400}
+            ],
+            "insights": {"large":"unused"}
+        });
+
+        let result = query_demo_evidence(
+            &analysis,
+            &json!({
+                "playerName":"niko",
+                "kinds":["one_tap","multi_kill"],
+                "maximumHighlights":1
+            }),
+        )
+        .expect("targeted evidence");
+
+        assert_eq!(result["players"].as_array().map(Vec::len), Some(1));
+        assert_eq!(result["highlights"].as_array().map(Vec::len), Some(1));
+        assert_eq!(result["highlights"][0]["id"], "d2:multi");
+        assert_eq!(result["rounds"], json!([]));
+        assert_eq!(result["insights"], Value::Null);
+        assert_eq!(result["evidence_query"]["matched_highlight_count"], 2);
+        assert_eq!(result["evidence_query"]["returned_highlight_count"], 1);
+        assert_eq!(result["evidence_query"]["truncated"], true);
+    }
+
+    #[test]
+    fn unfiltered_demo_evidence_is_still_bounded() {
+        let highlights = (0..200)
+            .map(|index| json!({"id":format!("h-{index}"),"score":index}))
+            .collect::<Vec<_>>();
+        let result = query_demo_evidence(
+            &json!({"players":[],"rounds":[],"highlights":highlights,"insights":null}),
+            &json!({}),
+        )
+        .expect("bounded evidence");
+
+        assert_eq!(result["highlights"].as_array().map(Vec::len), Some(64));
+        assert_eq!(result["evidence_query"]["matched_highlight_count"], 200);
+        assert_eq!(result["evidence_query"]["truncated"], true);
     }
 
     #[test]

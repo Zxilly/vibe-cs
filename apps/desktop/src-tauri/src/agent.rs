@@ -252,6 +252,7 @@ impl AgentToolHost for CinematicReplayHost {
 #[derive(Debug)]
 struct DesktopAgentToolHost {
     cinematic: Vec<CinematicReplayHost>,
+    evidence: Value,
     bridge: AgentBridge,
     project_id: Uuid,
     session_id: Uuid,
@@ -279,6 +280,10 @@ impl DesktopAgentToolHost {
 
 #[async_trait]
 impl AgentToolHost for DesktopAgentToolHost {
+    async fn read_demo_evidence(&self, input: &Value) -> Result<Value, String> {
+        vibe_cs_agent::query_demo_evidence(&self.evidence, input)
+    }
+
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String> {
         let mut scenes = Vec::new();
         for cinematic in &self.cinematic {
@@ -1189,6 +1194,11 @@ async fn run_agent_chat(
     } else {
         raw_analysis.clone()
     };
+    let evidence = if series.len() > 1 {
+        series_evidence_analysis(&series, None)
+    } else {
+        raw_analysis.clone()
+    };
     let map_context = match analysis
         .get("map_name")
         .and_then(Value::as_str)
@@ -1224,7 +1234,11 @@ async fn run_agent_chat(
             content: entry.content.clone(),
         })
         .collect::<Vec<_>>();
-    let summarized_analysis = summarize_analysis(&analysis);
+    let summarized_analysis = if series.len() > 1 {
+        summarize_series_inventory(&series)
+    } else {
+        summarize_analysis(&analysis)
+    };
     let cinematic = series
         .iter()
         .map(|(demo_id, _, analysis)| {
@@ -1239,6 +1253,7 @@ async fn run_agent_chat(
         .collect();
     let tool_host = Some(Arc::new(DesktopAgentToolHost {
         cinematic,
+        evidence,
         bridge: state.clone(),
         project_id: project.id,
         session_id: thread_id,
@@ -1672,17 +1687,24 @@ fn summarize_analysis(analysis: &Value) -> Value {
 }
 
 fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
+    series_evidence_analysis(series, Some(128))
+}
+
+fn series_evidence_analysis(
+    series: &[(Uuid, Value, Value)],
+    maximum_highlights_per_demo: Option<usize>,
+) -> Value {
     let mut highlights = Vec::new();
     let mut players = BTreeMap::<String, Value>::new();
     for (demo_id, _demo, analysis) in series {
-        let summary = summarize_analysis(analysis);
-        let map_name = summary.get("map_name").cloned().unwrap_or(Value::Null);
-        let tick_rate = summary.get("tick_rate").cloned().unwrap_or(Value::Null);
-        for player in summary
+        let map_name = analysis.get("map_name").cloned().unwrap_or(Value::Null);
+        let tick_rate = analysis.get("tick_rate").cloned().unwrap_or(Value::Null);
+        for player in analysis
             .get("players")
             .and_then(Value::as_array)
             .into_iter()
             .flatten()
+            .take(32)
         {
             if let Some(id) = player.get("steam_id").and_then(Value::as_str) {
                 players
@@ -1690,12 +1712,17 @@ fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
                     .or_insert_with(|| player.clone());
             }
         }
-        for highlight in summary
-            .get("highlights")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
+        let selected_highlights = maximum_highlights_per_demo.map_or_else(
+            || {
+                analysis
+                    .get("highlights")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+            },
+            |maximum| summarize_highlights(analysis.get("highlights"), maximum),
+        );
+        for highlight in &selected_highlights {
             let Some(source_id) = highlight.get("id").and_then(Value::as_str) else {
                 continue;
             };
@@ -1719,6 +1746,47 @@ fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
         "highlights": highlights,
         "insights": {"round_economy":[],"matchups":[],"availability":null},
         "series_demo_count": series.len(),
+    })
+}
+
+fn summarize_series_inventory(series: &[(Uuid, Value, Value)]) -> Value {
+    let mut players = BTreeMap::<String, Value>::new();
+    let demos = series
+        .iter()
+        .map(|(demo_id, _demo, analysis)| {
+            for player in analysis
+                .get("players")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .take(32)
+            {
+                if let Some(id) = player.get("steam_id").and_then(Value::as_str) {
+                    players.entry(id.to_owned()).or_insert_with(|| player.clone());
+                }
+            }
+            json!({
+                "demo_id": demo_id,
+                "map_name": analysis.get("map_name"),
+                "tick_rate": analysis.get("tick_rate"),
+                "duration_seconds": analysis.get("duration_seconds"),
+                "highlight_count": analysis.get("highlights").and_then(Value::as_array).map_or(0, Vec::len),
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "demo_id": null,
+        "map_name": null,
+        "tick_rate": null,
+        "duration_seconds": null,
+        "teams": [],
+        "players": players.into_values().collect::<Vec<_>>(),
+        "rounds": [],
+        "highlights": [],
+        "insights": null,
+        "series_demo_count": series.len(),
+        "demos": demos,
+        "evidence_query_required": true,
     })
 }
 
@@ -1834,5 +1902,71 @@ mod tests {
             "7:defuse"
         );
         assert_eq!(canonical_highlight_id(demo_id, "7:defuse"), "7:defuse");
+    }
+
+    #[test]
+    fn targeted_series_evidence_filters_before_any_global_highlight_cap() {
+        let demo_id = Uuid::from_u128(42);
+        let highlights = (0..200)
+            .map(|index| {
+                json!({
+                    "id":format!("h-{index}"),
+                    "player_id":if index >= 190 { "niko" } else { "other" },
+                    "kind":"one_tap",
+                    "score":0.9,
+                    "start_tick":index,
+                })
+            })
+            .collect::<Vec<_>>();
+        let series = vec![(
+            demo_id,
+            json!({"id":demo_id}),
+            json!({
+                "map_name":"de_mirage",
+                "tick_rate":64.0,
+                "duration_seconds":100.0,
+                "players":[{"steam_id":"niko","name":"NiKo"},{"steam_id":"other","name":"Other"}],
+                "highlights":highlights,
+            }),
+        )];
+
+        let evidence = series_evidence_analysis(&series, None);
+        let result = vibe_cs_agent::query_demo_evidence(
+            &evidence,
+            &json!({"playerName":"NiKo","kinds":["one_tap"],"maximumHighlights":64}),
+        )
+        .expect("targeted raw evidence");
+
+        assert_eq!(result["highlights"].as_array().map(Vec::len), Some(10));
+        assert_eq!(result["evidence_query"]["matched_highlight_count"], 10);
+        assert!(
+            result["highlights"]
+                .as_array()
+                .is_some_and(|items| items.iter().all(|item| item["id"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with(&demo_id.to_string()))))
+        );
+    }
+
+    #[test]
+    fn series_prompt_context_is_inventory_not_an_evidence_dump() {
+        let demo_id = Uuid::from_u128(7);
+        let series = vec![(
+            demo_id,
+            Value::Null,
+            json!({
+                "map_name":"de_anubis",
+                "tick_rate":64.0,
+                "duration_seconds":3000.0,
+                "players":[{"steam_id":"niko","name":"NiKo"}],
+                "highlights":[{"id":"h-1"},{"id":"h-2"}],
+            }),
+        )];
+
+        let inventory = summarize_series_inventory(&series);
+        assert_eq!(inventory["highlights"], json!([]));
+        assert_eq!(inventory["demos"][0]["demo_id"], json!(demo_id));
+        assert_eq!(inventory["demos"][0]["highlight_count"], 2);
+        assert_eq!(inventory["evidence_query_required"], true);
     }
 }

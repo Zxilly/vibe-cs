@@ -299,12 +299,12 @@ fn project_patch_schema() -> Value {
             "projectId": uuid_schema(),
             "baseRevision": {"type":"integer","minimum":1},
             "summary": {"type":"string","minLength":1,"maxLength":400},
-            "scope": {"type":"object"},
+            "scope": project_patch_scope_schema(),
             "operations": {
                 "type":"array",
                 "minItems":1,
                 "maxItems":128,
-                "items":{"type":"object"}
+                "items":project_edit_operation_schema()
             }
         }),
         &[
@@ -315,6 +315,107 @@ fn project_patch_schema() -> Value {
             "operations",
         ],
     )
+}
+
+fn project_patch_scope_schema() -> Value {
+    json!({"oneOf":[
+        object_schema(json!({"kind":{"const":"project"}}), &["kind"]),
+        object_schema(
+            json!({"kind":{"const":"track"},"track_id":uuid_schema()}),
+            &["kind","track_id"],
+        ),
+        object_schema(
+            json!({
+                "kind":{"const":"time_range"},
+                "start":{"type":"number","minimum":0},
+                "end":{"type":"number","exclusiveMinimum":0}
+            }),
+            &["kind","start","end"],
+        )
+    ]})
+}
+
+fn project_edit_operation_schema() -> Value {
+    let marker = object_schema(
+        json!({
+            "id":uuid_schema(),
+            "time":{"type":"number","minimum":0},
+            "label":{"type":"string","minLength":1,"maxLength":200},
+            "color":{"type":"string","minLength":1,"maxLength":64}
+        }),
+        &["id", "time", "label", "color"],
+    );
+    json!({"oneOf":[
+        object_schema(
+            json!({"op":{"const":"rename_project"},"name":{"type":"string","minLength":1,"maxLength":200}}),
+            &["op","name"],
+        ),
+        object_schema(
+            json!({"op":{"const":"replace_settings"},"settings":{"type":"object"}}),
+            &["op","settings"],
+        ),
+        object_schema(
+            json!({"op":{"const":"replace_markers"},"markers":{"type":"array","maxItems":1024,"items":marker}}),
+            &["op","markers"],
+        ),
+        object_schema(
+            json!({
+                "op":{"const":"insert_track"},
+                "index":{"type":"integer","minimum":0},
+                "track":{"type":"object"}
+            }),
+            &["op","index","track"],
+        ),
+        object_schema(
+            json!({"op":{"const":"remove_track"},"track_id":uuid_schema()}),
+            &["op","track_id"],
+        ),
+        object_schema(
+            json!({"op":{"const":"replace_track"},"track_id":uuid_schema(),"track":{"type":"object"}}),
+            &["op","track_id","track"],
+        ),
+        object_schema(
+            json!({
+                "op":{"const":"reorder_tracks"},
+                "track_ids":{"type":"array","items":uuid_schema(),"maxItems":128}
+            }),
+            &["op","track_ids"],
+        ),
+        object_schema(
+            json!({
+                "op":{"const":"insert_clip"},
+                "track_id":uuid_schema(),
+                "index":{"type":"integer","minimum":0},
+                "clip":{"type":"object"}
+            }),
+            &["op","track_id","index","clip"],
+        ),
+        object_schema(
+            json!({"op":{"const":"remove_clip"},"clip_id":uuid_schema()}),
+            &["op","clip_id"],
+        ),
+        object_schema(
+            json!({"op":{"const":"replace_clip"},"clip_id":uuid_schema(),"clip":{"type":"object"}}),
+            &["op","clip_id","clip"],
+        ),
+        object_schema(
+            json!({
+                "op":{"const":"move_clip"},
+                "clip_id":uuid_schema(),
+                "to_track_id":uuid_schema(),
+                "index":{"type":"integer","minimum":0}
+            }),
+            &["op","clip_id","to_track_id","index"],
+        ),
+        object_schema(
+            json!({
+                "op":{"const":"replace_track_clips"},
+                "track_id":uuid_schema(),
+                "clips":{"type":"array","items":{"type":"object"},"maxItems":1024}
+            }),
+            &["op","track_id","clips"],
+        )
+    ]})
 }
 
 fn replace_story_schema() -> Value {
@@ -457,6 +558,33 @@ mod tests {
             !names
                 .iter()
                 .any(|name| name.contains("agent_plan") || name.contains("editor"))
+        );
+    }
+
+    #[test]
+    fn project_patch_schema_exposes_the_closed_scope_and_edit_vocabulary() {
+        let schema = project_patch_schema();
+        let scopes = schema["properties"]["scope"]["oneOf"]
+            .as_array()
+            .expect("closed Project Patch scopes");
+        assert_eq!(scopes.len(), 3);
+        assert!(
+            scopes
+                .iter()
+                .any(|scope| scope["properties"]["kind"]["const"] == "project")
+        );
+
+        let operations = schema["properties"]["operations"]["items"]["oneOf"]
+            .as_array()
+            .expect("closed Project edit operations");
+        let replace_markers = operations
+            .iter()
+            .find(|operation| operation["properties"]["op"]["const"] == "replace_markers")
+            .expect("replace_markers schema");
+        assert_eq!(replace_markers["additionalProperties"], false);
+        assert_eq!(
+            replace_markers["properties"]["markers"]["items"]["required"],
+            json!(["id", "time", "label", "color"])
         );
     }
 

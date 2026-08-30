@@ -220,7 +220,7 @@ where
                 })?;
             run_agent_with_model(
                 request,
-                client.completion_model(model_name),
+                anthropic::completion::CompletionModel::with_model(client, &model_name),
                 cancellation,
                 emit,
             )
@@ -749,6 +749,65 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn unknown_anthropic_compatible_models_receive_a_max_token_budget() {
+        let listener = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind provider");
+        let address = listener.local_addr().expect("provider address");
+        let provider = tokio::spawn(async move {
+            let accepted =
+                tokio::time::timeout(std::time::Duration::from_secs(1), listener.accept())
+                    .await
+                    .ok()?
+                    .ok()?;
+            let (mut stream, _) = accepted;
+            let request = read_anthropic_http_json(&mut stream).await;
+            stream
+                .write_all(
+                    b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+                )
+                .await
+                .expect("write bounded provider response");
+            Some(request)
+        });
+
+        let result = run_agent(
+            AgentRequest {
+                request_id: "anthropic-compatible-model".into(),
+                mode: AgentMode::Guide,
+                message: "hello".into(),
+                history: Vec::new(),
+                config: AgentConfig {
+                    provider: "anthropic-compatible".into(),
+                    model: "k3".into(),
+                    base_url: format!("http://{address}/v1"),
+                    api_key: "anthropic-compatible-secret".into(),
+                    provider_protocol: AgentProviderProtocol::Anthropic,
+                    custom_instructions: String::new(),
+                    provider_parameters: json!({}),
+                },
+                context: AgentContext::default(),
+                tool_host: None,
+                auto_mode: false,
+            },
+            &Cancellation::new(),
+            |_| {},
+        )
+        .await;
+        assert!(
+            result.is_err(),
+            "the bounded mock response is intentionally an error"
+        );
+        let request = provider
+            .await
+            .expect("provider task")
+            .expect("unknown Anthropic-compatible models must reach the provider");
+
+        assert_eq!(request["model"], "k3");
+        assert_eq!(request["max_tokens"], 2_048);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn tool_loop_has_no_fixed_total_turn_ceiling() {
         const TOOL_TURNS: usize = 40;
         let listener = TcpListener::bind(("127.0.0.1", 0))
@@ -947,6 +1006,40 @@ mod tests {
             headers
                 .to_ascii_lowercase()
                 .contains("authorization: bearer rig-e2e-secret")
+        );
+        let length = headers
+            .lines()
+            .find_map(|line| {
+                line.split_once(':')
+                    .filter(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+            })
+            .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+            .expect("content length");
+        while bytes.len() - header_end < length {
+            let count = stream.read(&mut buffer).await.expect("read body");
+            assert!(count > 0 && bytes.len() + count <= 2 * 1024 * 1024);
+            bytes.extend_from_slice(&buffer[..count]);
+        }
+        serde_json::from_slice(&bytes[header_end..header_end + length]).expect("request JSON")
+    }
+
+    async fn read_anthropic_http_json(stream: &mut TcpStream) -> Value {
+        let mut bytes = Vec::new();
+        let mut buffer = [0_u8; 8 * 1024];
+        let header_end = loop {
+            let count = stream.read(&mut buffer).await.expect("read request");
+            assert!(count > 0 && bytes.len() + count <= 2 * 1024 * 1024);
+            bytes.extend_from_slice(&buffer[..count]);
+            if let Some(index) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+                break index + 4;
+            }
+        };
+        let headers = String::from_utf8_lossy(&bytes[..header_end]);
+        assert!(headers.starts_with("POST /v1/messages HTTP/1.1\r\n"));
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("x-api-key: anthropic-compatible-secret")
         );
         let length = headers
             .lines()

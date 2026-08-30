@@ -427,6 +427,15 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       if (targetSessionId === null || streaming) return;
 
       const requestId = createRequestId();
+      // Confirmation callbacks can persist a tool decision and immediately
+      // reuse the `send` function from the render that drew the confirmation
+      // card. Read the durable session cache at invocation time so that stale
+      // callback still carries the just-recorded human decision into the next
+      // model turn. The current user message is appended below and remains the
+      // explicit `message`, so capture history before those writes.
+      const historyAtSend = queryClient.getQueryData<AgentSession>(
+        qk.sessions.detail(targetSessionId),
+      )?.entries ?? history;
       requestIdRef.current = requestId;
       setStreaming(true);
       setDraft('');
@@ -505,7 +514,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
       try {
         await client.streamAgentChat(
-          buildChatInput(requestId, targetSessionId, input, history),
+          buildChatInput(requestId, targetSessionId, input, historyAtSend),
           onEvent,
         );
       } catch (cause) {

@@ -12,7 +12,7 @@ import type {
 } from '../shared/desktop/dto';
 import type { DesktopClientStub } from './desktopClient';
 import { useProject } from './projects';
-import { useAgentChatStream, useAgentSession } from './sessions';
+import { useAgentChatStream, useAgentSession, useAppendAgentSessionEntry } from './sessions';
 import { renderDataHook } from './test/renderDataHook';
 
 const SESSION_ID = '00000000-0000-4000-8000-000000000001';
@@ -45,6 +45,94 @@ function deferred<T>() {
 }
 
 describe('useAgentChatStream', () => {
+  it('includes a just-persisted human tool decision when a stale confirmation handler sends the follow-up', async () => {
+    const pendingToolCall: AgentToolCall = {
+      id: 'request-export:tool:1',
+      name: 'request_project_export',
+      input: { projectId: PROJECT_ID, baseRevision: 1 },
+      output: { status: 'requires_human_confirmation' },
+      status: 'awaiting_confirmation',
+    };
+    let session: AgentSession = {
+      id: SESSION_ID,
+      title: 'Export confirmation',
+      created_at: AT,
+      updated_at: AT,
+      entries: [{
+        kind: 'assistant', id: 'turn-export', at: AT, content: '等待确认',
+        tool_calls: [pendingToolCall], status: 'completed', request_id: 'request-export',
+        retry_of: null, error: null, metadata: null,
+      }],
+    };
+    const captured: { current: AgentChatInput | null } = { current: null };
+    let entrySequence = 0;
+    const client: DesktopClientStub = {
+      getAgentSession: async () => session,
+      appendAgentSessionEntry: async (_sessionId, draft) => {
+        entrySequence += 1;
+        const entry: AgentSessionEntry = draft.kind === 'user'
+          ? { kind: 'user', id: `user-${entrySequence}`, at: AT, content: draft.content }
+          : draft.kind === 'tool_decision'
+            ? {
+                kind: 'tool_decision', id: `decision-${entrySequence}`, at: AT,
+                tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+              }
+            : {
+                kind: 'assistant', id: `assistant-${entrySequence}`, at: AT, content: draft.content,
+                tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
+                retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+              };
+        session = { ...session, entries: [...session.entries, entry] };
+        return entry;
+      },
+      updateAgentTurn: async (_sessionId, entryId, update) => {
+        const entry: AgentSessionEntry = {
+          kind: 'assistant', id: entryId, at: AT, request_id: 'follow-up', retry_of: null, ...update,
+        };
+        session = {
+          ...session,
+          entries: session.entries.map((candidate) => candidate.id === entryId ? entry : candidate),
+        };
+        return entry;
+      },
+      streamAgentChat: async (input) => {
+        captured.current = input;
+        return { thread_id: 'thread-confirmation' };
+      },
+    };
+    const { result } = renderDataHook(
+      () => {
+        const sessionQuery = useAgentSession(SESSION_ID);
+        return {
+          session: sessionQuery,
+          append: useAppendAgentSessionEntry(),
+          chat: useAgentChatStream({ sessionId: SESSION_ID, history: sessionQuery.data?.entries ?? [] }),
+        };
+      },
+      { client },
+    );
+    await waitFor(() => expect(result.current.session.isSuccess).toBe(true));
+
+    const sendFromConfirmationRender = result.current.chat.send;
+    await act(async () => {
+      await result.current.append.mutateAsync({
+        sessionId: SESSION_ID,
+        draft: {
+          kind: 'tool_decision', tool_call_id: pendingToolCall.id,
+          decision: 'rejected', content: '拒绝这次外部执行请求。',
+        },
+      });
+      await sendFromConfirmationRender({ message: '保留时间线并继续。', projectId: PROJECT_ID });
+    });
+
+    const decision = captured.current?.history.find((message) => message.content.includes('human_tool_decision'));
+    expect(JSON.parse(decision?.content ?? '{}')).toMatchObject({
+      type: 'human_tool_decision',
+      tool_call_id: pendingToolCall.id,
+      decision: 'rejected',
+    });
+  });
+
   it('tells the model which prior action claims have no host-verified tool evidence', async () => {
     const priorEntries: AgentSessionEntry[] = [
       { kind: 'user', id: 'prior-user', at: AT, content: '请求导出' },

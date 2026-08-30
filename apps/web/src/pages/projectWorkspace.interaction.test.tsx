@@ -1827,6 +1827,17 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'k' });
   });
 
+  it('lets Space activate a focused Timeline button without also toggling transport', async () => {
+    renderWorkspace();
+
+    const marker = await screen.findByRole('button', { name: '在播放头添加标记' });
+    marker.focus();
+    fireEvent.keyDown(marker, { key: ' ' });
+
+    expect(screen.getByRole('button', { name: '播放时间轴' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'K 暂停时间轴' })).toBeNull();
+  });
+
   it('page-scrolls the timeline to follow playback while track heads stay sticky', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     renderWorkspace({

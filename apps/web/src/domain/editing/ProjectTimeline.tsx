@@ -957,6 +957,7 @@ export function ProjectTimeline({
       aria-label={t`时间轴`}
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+        if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
         if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           onTogglePlayback();

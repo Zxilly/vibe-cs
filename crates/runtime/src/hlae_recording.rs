@@ -2123,6 +2123,8 @@ impl RecordingBackend for HlaeRecordingBackend {
         let process_cancellation = ProcessCancellation::default();
         let session_timeouts = self.session_timeouts;
         let request = RuntimeHlaeSessionRequest {
+            job_id: item.job_id,
+            take_index: item.item_index,
             capture_program: clip_context.plan.clone(),
             launch_inputs: context.launch_inputs.clone(),
             verified_total_ticks: clip_context.verified_total_ticks,

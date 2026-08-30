@@ -263,6 +263,12 @@ async fn get_activity(
         .get_activity(kind, parsed_id)
         .await?
         .ok_or_else(|| ApiError::not_found("activity"))?;
+    if matches!(
+        &source,
+        ActivitySource::Recording { job, .. } if job.status.is_terminal()
+    ) {
+        super::recording::reconcile_project_recording(&state, parsed_id).await?;
+    }
     let config = state.storage.get_config().await?.unwrap_or_default();
     Ok(Json(activity_item(
         source,
@@ -663,6 +669,141 @@ mod tests {
             missing.into_response().status(),
             axum::http::StatusCode::NOT_FOUND
         );
+    }
+
+    #[tokio::test]
+    async fn terminal_recording_activity_reconciles_project_before_returning() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let project_id = Uuid::new_v4();
+        let track_id = Uuid::new_v4();
+        let clip_id = Uuid::new_v4();
+        let demo_id = Uuid::new_v4();
+        let job_id = Uuid::new_v4();
+        let output_id = Uuid::new_v4();
+        let output_path = directory.path().join("recorded.mp4");
+        tokio::fs::write(&output_path, b"verified recording")
+            .await
+            .expect("recorded media");
+        let intent = vibe_cs_domain::CaptureIntent {
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198041683378".to_owned(),
+            start_tick: 100,
+            end_tick: 164,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+            camera_style: vibe_cs_domain::HlaeCameraStyle::Pov,
+            presentation: None,
+        };
+        storage
+            .create_project(vibe_cs_domain::Project {
+                id: project_id,
+                name: "Recording owner".to_owned(),
+                revision: 1,
+                document: vibe_cs_domain::EditingDocument {
+                    width: 1920,
+                    height: 1080,
+                    fps: 60,
+                    duration_seconds: 1.0,
+                    story_track_id: track_id,
+                    tracks: vec![vibe_cs_domain::TimelineTrack {
+                        id: track_id,
+                        name: "Story".to_owned(),
+                        kind: vibe_cs_domain::TrackKind::Video,
+                        order: 0,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: vec![vibe_cs_domain::TimelineClip {
+                            id: clip_id,
+                            name: "NiKo".to_owned(),
+                            capture_intent: Some(intent.clone()),
+                            material: vibe_cs_domain::TimelineClipMaterial::Planned,
+                            placement: vibe_cs_domain::TimelinePlacement {
+                                start: 0.0,
+                                duration: 1.0,
+                                source_in: 0.0,
+                                source_out: 1.0,
+                                speed: 1.0,
+                                volume: 1.0,
+                                enabled: true,
+                            },
+                            transform: vibe_cs_domain::Transform::default(),
+                            effects: Vec::new(),
+                            transition_in: None,
+                            transition_out: None,
+                            text: None,
+                            metadata: serde_json::json!({}),
+                            group_id: None,
+                            link_group_id: None,
+                            keyframes: Vec::new(),
+                            speed_segments: Vec::new(),
+                        }],
+                    }],
+                    markers: Vec::new(),
+                    settings: vibe_cs_domain::EditingDocumentSettings::default(),
+                },
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("Project");
+        let request = intent.into_recording_request(clip_id, "NiKo");
+        storage
+            .put_recording_job(RecordingJob {
+                id: job_id,
+                retry_of: None,
+                status: JobStatus::Completed,
+                items: vec![request],
+                current_index: 1,
+                progress: 1.0,
+                message: "Completed".to_owned(),
+                outputs: vec![vibe_cs_domain::RecordedClip {
+                    id: output_id,
+                    path: output_path.to_string_lossy().into_owned(),
+                    title: "NiKo".to_owned(),
+                    duration_seconds: 1.0,
+                    demo_id: Some(demo_id),
+                    player_name: Some("NiKo".to_owned()),
+                    category: "highlight".to_owned(),
+                    tags: Vec::new(),
+                    metadata: serde_json::json!({"request_id": clip_id}),
+                    created_at: now,
+                }],
+                error_code: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("recording job");
+        storage
+            .bind_project_recording_run(job_id, project_id)
+            .await
+            .expect("Project recording binding");
+        let state = AppState::new(storage.clone(), directory.path().to_path_buf());
+
+        let _ = get_activity(
+            State(state),
+            Path(("recording".to_owned(), job_id.to_string())),
+        )
+        .await
+        .expect("terminal recording activity");
+
+        let project = storage
+            .get_project(project_id)
+            .await
+            .expect("Project read")
+            .expect("Project exists");
+        assert_eq!(project.revision, 2);
+        assert!(matches!(
+            project.document.tracks[0].clips[0].material,
+            vibe_cs_domain::TimelineClipMaterial::Take { take_id, .. } if take_id == output_id
+        ));
     }
 
     #[tokio::test]

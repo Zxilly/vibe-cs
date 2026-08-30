@@ -831,7 +831,7 @@ async fn monitor_active_job(
     state.recording_monitors.lock().await.remove(&id);
 }
 
-async fn reconcile_project_recording(state: &AppState, job_id: Uuid) -> ApiResult<()> {
+pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) -> ApiResult<()> {
     let Some(project_id) = state.storage.get_project_recording_run(job_id).await? else {
         return Ok(());
     };

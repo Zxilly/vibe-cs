@@ -60,6 +60,30 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
     );
     assert!(compiled.camera_paths().is_empty());
     assert!(compiled.resource_estimate().maximum_frame_count >= 303);
+    assert!(
+        compiled
+            .persistent_commands()
+            .observer_setup()
+            .contains("spec_mode 2")
+    );
+    assert!(
+        !compiled
+            .persistent_commands()
+            .observer_setup()
+            .contains("spec_player")
+    );
+    assert!(
+        compiled
+            .persistent_commands()
+            .capture_start()
+            .contains("mirv_streams record start")
+    );
+    assert!(
+        compiled
+            .persistent_commands()
+            .capture_stop()
+            .contains("mirv_streams record end; demo_pause")
+    );
 
     let xml = &compiled.command_system().contents;
     assert!(xml.contains("<c tick=\"160859\"><body>"));

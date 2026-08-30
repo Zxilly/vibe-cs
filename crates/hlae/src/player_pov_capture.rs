@@ -104,7 +104,35 @@ pub struct CompiledHlaePlayerPovCapture {
     tick_rate: f64,
     capture: CaptureSettings,
     command_system: GeneratedArtifact,
+    persistent_commands: HlaePersistentPovCommands,
     resource_estimate: HlaeCaptureResourceEstimate,
+}
+
+/// Trusted fixed commands compiled beside one player-POV capture. The managed
+/// bridge may reuse these commands for later typed takes in the same process;
+/// callers cannot construct or mutate them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HlaePersistentPovCommands {
+    observer_setup: String,
+    capture_start: String,
+    capture_stop: String,
+}
+
+impl HlaePersistentPovCommands {
+    #[must_use]
+    pub fn observer_setup(&self) -> &str {
+        &self.observer_setup
+    }
+
+    #[must_use]
+    pub fn capture_start(&self) -> &str {
+        &self.capture_start
+    }
+
+    #[must_use]
+    pub fn capture_stop(&self) -> &str {
+        &self.capture_stop
+    }
 }
 
 impl CompiledHlaePlayerPovCapture {
@@ -168,6 +196,11 @@ impl CompiledHlaePlayerPovCapture {
         &self.command_system
     }
 
+    #[must_use]
+    pub const fn persistent_commands(&self) -> &HlaePersistentPovCommands {
+        &self.persistent_commands
+    }
+
     /// Player POV does not produce cinematic camera-path artifacts.
     #[must_use]
     pub const fn camera_paths(&self) -> &[GeneratedArtifact] {
@@ -211,7 +244,7 @@ pub fn compile_hlae_player_pov_capture(
         )));
     }
 
-    let contents = compile_player_pov_command_system(plan, setup_tick)?;
+    let (contents, persistent_commands) = compile_player_pov_command_system(plan, setup_tick)?;
     if contents.len() > MAXIMUM_COMMAND_SYSTEM_BYTES {
         return Err(invalid_error(
             "player POV command system exceeds its 64 KiB limit",
@@ -233,6 +266,7 @@ pub fn compile_hlae_player_pov_capture(
             media_type: "application/xml".to_owned(),
             contents,
         },
+        persistent_commands,
         resource_estimate,
     })
 }
@@ -327,8 +361,10 @@ fn validate_regular_path(
 fn compile_player_pov_command_system(
     plan: &HlaePlayerPovCapturePlan,
     setup_tick: u32,
-) -> Result<String, HlaeError> {
+) -> Result<(String, HlaePersistentPovCommands), HlaeError> {
     let presentation = compile_presentation_setup(plan)?;
+    let observer_setup =
+        format!("mirv_campath enabled 0; mirv_campath draw enabled 0; spec_mode 2; {presentation}");
     let spectator = format!(
         "mirv_campath enabled 0; mirv_campath draw enabled 0; spec_mode 2; spec_player {}; {presentation}",
         plan.spectator_slot,
@@ -357,7 +393,14 @@ fn compile_player_pov_command_system(
         .expect("writing to String cannot fail");
     }
     xml.push_str("</commands>\n</commandSystem>\n");
-    Ok(xml)
+    Ok((
+        xml,
+        HlaePersistentPovCommands {
+            observer_setup,
+            capture_start,
+            capture_stop,
+        },
+    ))
 }
 
 fn compile_presentation_setup(plan: &HlaePlayerPovCapturePlan) -> Result<String, HlaeError> {

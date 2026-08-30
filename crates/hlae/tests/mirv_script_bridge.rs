@@ -1,6 +1,11 @@
+use std::fs;
+
+use tempfile::TempDir;
 use vibe_cs_hlae::{
-    CaptureObserverContract, CaptureTickContract, HLAE_MIRV_BRIDGE_FILE_NAME,
-    HLAE_MIRV_BRIDGE_PATH, MirvScriptBridgeContract, MirvScriptBridgeFactSource, SessionToken,
+    CaptureLayers, CaptureObserverContract, CaptureSettings, CaptureTickContract,
+    HLAE_MIRV_BRIDGE_FILE_NAME, HLAE_MIRV_BRIDGE_PATH, HlaePlayerPovCapturePlan,
+    HlaePlayerPovPresentation, MirvScriptBridgeArtifact, MirvScriptBridgeContract,
+    MirvScriptBridgeFactSource, SessionToken, compile_hlae_player_pov_capture,
     compile_mirv_script_bridge,
 };
 
@@ -22,6 +27,42 @@ fn contract() -> MirvScriptBridgeContract {
     MirvScriptBridgeContract::new(ticks)
 }
 
+fn persistent_bridge() -> MirvScriptBridgeArtifact {
+    let root = TempDir::new().expect("temporary root");
+    let demo_path = root.path().join("major.dem");
+    let output_directory = root.path().join("capture");
+    let artifact_directory = root.path().join("job");
+    fs::write(&demo_path, b"HL2DEMO fixture").expect("demo fixture");
+    fs::create_dir(&output_directory).expect("capture root");
+    fs::create_dir(&artifact_directory).expect("artifact root");
+    let plan = HlaePlayerPovCapturePlan {
+        demo_path,
+        output_directory,
+        player_id: "76561197960690195".to_owned(),
+        spectator_slot: 7,
+        start_tick: 128,
+        end_tick: 256,
+        pre_roll_ticks: 8,
+        tick_rate: 64.0,
+        capture: CaptureSettings {
+            fps: 60,
+            width: 1_920,
+            height: 1_080,
+            record_wav: true,
+            layers: CaptureLayers::default(),
+        },
+        presentation: HlaePlayerPovPresentation::default(),
+    };
+    let compiled = compile_hlae_player_pov_capture(&plan, &artifact_directory)
+        .expect("persistent POV commands");
+    compile_mirv_script_bridge(
+        ENDPOINT,
+        &token(),
+        observer_contract().with_persistent_pov(compiled.persistent_commands()),
+    )
+    .expect("persistent bridge")
+}
+
 #[test]
 fn bridge_compiler_uses_a_typed_token_fixed_seek_and_sequence_one() {
     let artifact = compile_mirv_script_bridge(ENDPOINT, &token(), contract()).expect("bridge");
@@ -33,7 +74,8 @@ fn bridge_compiler_uses_a_typed_token_fixed_seek_and_sequence_one() {
     assert!(source.contains("let nextSequence = 1;"));
     assert!(source.contains(r#"let FIXED_SEEK_COMMAND = "demo_gototick 128; demo_resume";"#));
     assert!(source.contains("mirv.exec(FIXED_SEEK_COMMAND);"));
-    assert_eq!(source.matches("mirv.exec(").count(), 2);
+    assert!(source.contains("const PERSISTENT_OBSERVER_SETUP_COMMAND = null;"));
+    assert!(source.contains("if (!PERSISTENT_POV_ENABLED) return false;"));
     assert_eq!(source.matches("demo_resume").count(), 2);
     assert!(source.contains(r#"kind: "seek_requested", target_tick: SEEK_TARGET_TICK"#));
     assert!(source.contains(r#"kind: "seek_completed", current_tick:"#));
@@ -54,6 +96,9 @@ fn compiles_the_authenticated_loopback_only_bridge_without_dynamic_execution() {
         "__EXPECTED_OBSERVER_MODE_IN_EYE__",
         "__SEEK_TARGET_TICK__",
         "__FIXED_SEEK_COMMAND_JSON__",
+        "__PERSISTENT_OBSERVER_SETUP_COMMAND_JSON__",
+        "__PERSISTENT_CAPTURE_START_COMMAND_JSON__",
+        "__PERSISTENT_CAPTURE_STOP_COMMAND_JSON__",
     ] {
         assert!(!source.contains(placeholder), "unexpanded {placeholder}");
     }
@@ -359,10 +404,7 @@ fn bridge_queues_with_fixed_limits_and_refuses_free_form_server_commands() {
 
 #[test]
 fn bridge_accepts_only_authenticated_typed_advance_or_finish_controls() {
-    let source = compile_mirv_script_bridge(ENDPOINT, &token(), observer_contract())
-        .expect("bridge")
-        .source()
-        .to_owned();
+    let source = persistent_bridge().source().to_owned();
 
     for contract in [
         "let expectedControlSequence = 1;",
@@ -389,6 +431,30 @@ fn bridge_accepts_only_authenticated_typed_advance_or_finish_controls() {
     assert!(!source.contains("message.command"));
     assert!(!source.contains("mirv.exec(control"));
     assert!(!source.contains("mirv.exec(message"));
+}
+
+#[test]
+fn persistent_pov_bridge_executes_only_compiled_take_commands() {
+    let source = persistent_bridge().source().to_owned();
+
+    for contract in [
+        "const PERSISTENT_POV_ENABLED = PERSISTENT_OBSERVER_SETUP_COMMAND !== null",
+        "function servicePersistentObserverSetup()",
+        "function servicePersistentCaptureCommands()",
+        "mirv.exec(\"mirv_cmd clear\")",
+        "mirv.exec(PERSISTENT_OBSERVER_SETUP_COMMAND)",
+        "mirv.exec(PERSISTENT_CAPTURE_START_COMMAND)",
+        "mirv.exec(PERSISTENT_CAPTURE_STOP_COMMAND)",
+        "persistent capture start missed its bounded tick window",
+        "persistent capture stop missed its bounded tick window",
+    ] {
+        assert!(
+            source.contains(contract),
+            "missing persistent guard {contract}"
+        );
+    }
+    assert!(!source.contains("control.command"));
+    assert!(!source.contains("mirv.exec(control"));
 }
 
 #[test]

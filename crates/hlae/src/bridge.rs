@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::{
     CS2_OBSERVER_MODE_IN_EYE, CaptureObserverContract, CaptureTickContract, HLAE_SESSION_MAX_TAKES,
-    HLAE_SESSION_MAX_TICK, HlaeError, SessionToken,
+    HLAE_SESSION_MAX_TICK, HlaeError, HlaePersistentPovCommands, SessionToken,
 };
 
 /// Fixed WebSocket path used by the managed bridge.
@@ -18,10 +18,11 @@ pub const HLAE_MIRV_BRIDGE_MAX_ARTIFACT_BYTES: usize = 64 * 1_024;
 const BRIDGE_TEMPLATE: &str = include_str!("bridge_template.js");
 
 /// Host-verified facts needed to map HLAE observations onto session events.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MirvScriptBridgeContract {
     capture_ticks: CaptureTickContract,
     observer: Option<CaptureObserverContract>,
+    persistent_pov: Option<HlaePersistentPovCommands>,
 }
 
 impl MirvScriptBridgeContract {
@@ -31,11 +32,12 @@ impl MirvScriptBridgeContract {
         Self {
             capture_ticks,
             observer: None,
+            persistent_pov: None,
         }
     }
 
     #[must_use]
-    pub const fn capture_ticks(self) -> CaptureTickContract {
+    pub const fn capture_ticks(&self) -> CaptureTickContract {
         self.capture_ticks
     }
 
@@ -45,6 +47,14 @@ impl MirvScriptBridgeContract {
     #[must_use]
     pub const fn with_observer(mut self, observer: CaptureObserverContract) -> Self {
         self.observer = Some(observer);
+        self
+    }
+
+    /// Enables typed subsequent-take commands compiled by the player-POV
+    /// compiler. No caller-provided command text enters this contract.
+    #[must_use]
+    pub fn with_persistent_pov(mut self, commands: &HlaePersistentPovCommands) -> Self {
+        self.persistent_pov = Some(commands.clone());
         self
     }
 }
@@ -122,6 +132,11 @@ pub fn compile_mirv_script_bridge(
     session_token: &SessionToken,
     contract: MirvScriptBridgeContract,
 ) -> Result<MirvScriptBridgeArtifact, HlaeError> {
+    let MirvScriptBridgeContract {
+        capture_ticks,
+        observer,
+        persistent_pov,
+    } = contract;
     if endpoint.chars().any(char::is_control) {
         return Err(HlaeError::InvalidPlan(
             "bridge endpoint contains control characters".to_owned(),
@@ -166,17 +181,14 @@ pub fn compile_mirv_script_bridge(
     let session_token = serde_json::to_string(&session_token.as_hex()).map_err(|error| {
         HlaeError::InvalidPlan(format!("unable to encode bridge session token: {error}"))
     })?;
-    let capture_ticks = contract.capture_ticks();
-    let expected_observer = contract
-        .observer
+    let expected_observer = observer
         .map(|observer| serde_json::to_string(&observer.steam_id64().to_string()))
         .transpose()
         .map_err(|error| {
             HlaeError::InvalidPlan(format!("unable to encode observer identity: {error}"))
         })?
         .unwrap_or_else(|| "null".to_owned());
-    let fixed_spec_player_command = contract
-        .observer
+    let fixed_spec_player_command = observer
         .map(|observer| {
             serde_json::to_string(&format!("spec_player {}", observer.spectator_slot()))
         })
@@ -192,6 +204,35 @@ pub fn compile_mirv_script_bridge(
     .map_err(|error| {
         HlaeError::InvalidPlan(format!("unable to encode fixed seek command: {error}"))
     })?;
+    let encode_persistent_command = |command: Option<&str>, label: &str| {
+        command
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| {
+                HlaeError::InvalidPlan(format!(
+                    "unable to encode persistent {label} command: {error}"
+                ))
+            })
+            .map(|value| value.unwrap_or_else(|| "null".to_owned()))
+    };
+    let persistent_observer_setup = encode_persistent_command(
+        persistent_pov
+            .as_ref()
+            .map(HlaePersistentPovCommands::observer_setup),
+        "observer setup",
+    )?;
+    let persistent_capture_start = encode_persistent_command(
+        persistent_pov
+            .as_ref()
+            .map(HlaePersistentPovCommands::capture_start),
+        "capture start",
+    )?;
+    let persistent_capture_stop = encode_persistent_command(
+        persistent_pov
+            .as_ref()
+            .map(HlaePersistentPovCommands::capture_stop),
+        "capture stop",
+    )?;
     let source = BRIDGE_TEMPLATE
         .replace("__WS_ADDRESS_JSON__", &endpoint)
         .replace("__MAX_TAKES__", &HLAE_SESSION_MAX_TAKES.to_string())
@@ -220,6 +261,18 @@ pub fn compile_mirv_script_bridge(
                 .to_string(),
         )
         .replace("__FIXED_SEEK_COMMAND_JSON__", &fixed_seek_command)
+        .replace(
+            "__PERSISTENT_OBSERVER_SETUP_COMMAND_JSON__",
+            &persistent_observer_setup,
+        )
+        .replace(
+            "__PERSISTENT_CAPTURE_START_COMMAND_JSON__",
+            &persistent_capture_start,
+        )
+        .replace(
+            "__PERSISTENT_CAPTURE_STOP_COMMAND_JSON__",
+            &persistent_capture_stop,
+        )
         .replace(
             "__CAPTURE_START_TICK__",
             &capture_ticks.capture_start_tick().to_string(),

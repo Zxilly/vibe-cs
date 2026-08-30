@@ -13,10 +13,10 @@ use sha2::{Digest as _, Sha256};
 use vibe_cs_hlae::{
     CaptureObserverContract, CaptureSettings, CaptureTickContract, GeneratedArtifact,
     HlaeBundleLaunchInputs, HlaeCustomLoaderInvocation, HlaeError, HlaeFrameCountBounds,
-    HlaeHostEvent, HlaePlan, HlaePlanMode, HlaePlayerPovCapturePlan, HlaeSessionMachine,
-    HlaeSessionProtocolError, HlaeSessionState, HlaeTakeExpectation, MirvScriptBridgeContract,
-    ObservedCaptureSpan, ObservedPlayerPov, SessionToken, ValidatedCapturePaths,
-    build_hlae_launch_profile, build_hlae_managed_session_invocation,
+    HlaeHostEvent, HlaePersistentPovCommands, HlaePlan, HlaePlanMode, HlaePlayerPovCapturePlan,
+    HlaeSessionMachine, HlaeSessionProtocolError, HlaeSessionState, HlaeTakeExpectation,
+    MirvScriptBridgeContract, ObservedCaptureSpan, ObservedPlayerPov, SessionToken,
+    ValidatedCapturePaths, build_hlae_launch_profile, build_hlae_managed_session_invocation,
     compile_hlae_managed_session_bootstrap, compile_hlae_plan, compile_hlae_player_pov_capture,
     compile_mirv_script_bridge, estimate_hlae_capture_span_resources, hlae_frame_count_bounds,
 };
@@ -175,6 +175,7 @@ struct CaptureProgramView {
     command_system: GeneratedArtifact,
     auxiliary_artifacts: Vec<GeneratedArtifact>,
     observer: Option<CaptureObserverContract>,
+    persistent_pov_commands: Option<HlaePersistentPovCommands>,
     maximum_staging_bytes: u64,
 }
 
@@ -595,6 +596,9 @@ impl RuntimeHlaeSessionOrchestrator {
         let mut bridge_contract = MirvScriptBridgeContract::new(ticks);
         if let Some(observer) = program.observer {
             bridge_contract = bridge_contract.with_observer(observer);
+        }
+        if let Some(commands) = program.persistent_pov_commands.as_ref() {
+            bridge_contract = bridge_contract.with_persistent_pov(commands);
         }
         let bridge = compile_mirv_script_bridge(listener.endpoint(), &token, bridge_contract)?;
 
@@ -1191,6 +1195,7 @@ fn capture_program_view(
                 command_system: compiled.command_system,
                 auxiliary_artifacts: compiled.camera_paths,
                 observer: None,
+                persistent_pov_commands: None,
                 maximum_staging_bytes: estimate.total_bytes,
             });
         }
@@ -1223,6 +1228,7 @@ fn capture_program_view(
         command_system: program.command_system().clone(),
         auxiliary_artifacts: program.camera_paths().to_vec(),
         observer: Some(observer),
+        persistent_pov_commands: Some(program.persistent_commands().clone()),
         maximum_staging_bytes: estimate.total_bytes,
     })
 }

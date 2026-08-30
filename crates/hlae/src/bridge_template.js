@@ -10,6 +10,12 @@
     let SEEK_TARGET_TICK = __SEEK_TARGET_TICK__;
     let SEEK_COMPLETION_MAX_TICK = __SEEK_COMPLETION_MAX_TICK__;
     let FIXED_SEEK_COMMAND = __FIXED_SEEK_COMMAND_JSON__;
+    const PERSISTENT_OBSERVER_SETUP_COMMAND = __PERSISTENT_OBSERVER_SETUP_COMMAND_JSON__;
+    const PERSISTENT_CAPTURE_START_COMMAND = __PERSISTENT_CAPTURE_START_COMMAND_JSON__;
+    const PERSISTENT_CAPTURE_STOP_COMMAND = __PERSISTENT_CAPTURE_STOP_COMMAND_JSON__;
+    const PERSISTENT_POV_ENABLED = PERSISTENT_OBSERVER_SETUP_COMMAND !== null
+        && PERSISTENT_CAPTURE_START_COMMAND !== null
+        && PERSISTENT_CAPTURE_STOP_COMMAND !== null;
     let CAPTURE_START_TICK = __CAPTURE_START_TICK__;
     let CAPTURE_START_MAX_TICK = __CAPTURE_START_MAX_TICK__;
     let CAPTURE_END_TICK = __CAPTURE_END_TICK__;
@@ -57,6 +63,10 @@
     let awaitingControl = false;
     let pendingRecordStart = null;
     let pendingRecordEndDeadlineMs = 0;
+    let advancedTake = false;
+    let persistentObserverSetupApplied = false;
+    let persistentCaptureStartIssued = false;
+    let persistentCaptureStopIssued = false;
     let socketIn = null;
     let socketOut = null;
     let sending = false;
@@ -122,6 +132,7 @@
     }
 
     function isValidAdvanceControl(control) {
+        if (!PERSISTENT_POV_ENABLED) return false;
         if (!hasExactKeys(control, [
             "kind", "takeIndex", "verifiedTotalTicks", "seekTargetTick",
             "maxStartOvershootTicks", "captureStartTick", "captureEndTick",
@@ -171,6 +182,11 @@
     function applyAdvanceControl(control, nowMs) {
         if (!awaitingControl || capturing || pendingRecordStart !== null
             || pendingRecordEndDeadlineMs !== 0 || !demoReported || !seekCompleted) return false;
+        try {
+            mirv.exec("mirv_cmd clear");
+        } catch (_) {
+            return false;
+        }
         activeTakeIndex = control.takeIndex;
         SEEK_TARGET_TICK = control.seekTargetTick;
         SEEK_COMPLETION_MAX_TICK = control.seekTargetTick + control.maxStartOvershootTicks;
@@ -188,6 +204,10 @@
         observerVerified = false;
         observerDriftFrames = 0;
         awaitingControl = false;
+        advancedTake = true;
+        persistentObserverSetupApplied = false;
+        persistentCaptureStartIssued = false;
+        persistentCaptureStopIssued = false;
         demoPlaybackMissingSinceMs = 0;
         executeFixedSeek(nowMs);
         return !terminal && !closingAfterQueue;
@@ -476,6 +496,56 @@
         }
     }
 
+    function servicePersistentObserverSetup() {
+        if (!advancedTake || !seekCompleted || observerVerified
+            || terminal || closingAfterQueue) return;
+        try {
+            if (!persistentObserverSetupApplied) {
+                mirv.exec(PERSISTENT_OBSERVER_SETUP_COMMAND);
+                persistentObserverSetupApplied = true;
+            }
+            if (FIXED_SPEC_PLAYER_COMMAND !== null) mirv.exec(FIXED_SPEC_PLAYER_COMMAND);
+        } catch (_) {
+            failClosed("persistent POV observer setup failed");
+        }
+    }
+
+    function servicePersistentCaptureCommands() {
+        if (!advancedTake || terminal || closingAfterQueue || awaitingControl) return;
+        const evidence = readDemoTickEvidence();
+        if (evidence.kind === "transient") return;
+        if (evidence.kind !== "ready") {
+            failClosed("persistent capture read invalid tick evidence");
+            return;
+        }
+        if (!persistentCaptureStartIssued && !capturing && pendingRecordStart === null
+            && seekCompleted && observerVerified && evidence.tick >= CAPTURE_START_TICK) {
+            if (evidence.tick > CAPTURE_START_MAX_TICK) {
+                failClosed("persistent capture start missed its bounded tick window");
+                return;
+            }
+            try {
+                mirv.exec(PERSISTENT_CAPTURE_START_COMMAND);
+                persistentCaptureStartIssued = true;
+            } catch (_) {
+                failClosed("persistent capture start command failed");
+            }
+            return;
+        }
+        if (capturing && !persistentCaptureStopIssued && evidence.tick >= CAPTURE_END_TICK) {
+            if (evidence.tick > CAPTURE_END_MAX_TICK) {
+                failClosed("persistent capture stop missed its bounded tick window");
+                return;
+            }
+            try {
+                mirv.exec(PERSISTENT_CAPTURE_STOP_COMMAND);
+                persistentCaptureStopIssued = true;
+            } catch (_) {
+                failClosed("persistent capture stop command failed");
+            }
+        }
+    }
+
     function serviceActiveObserverLock() {
         if (!capturing || EXPECTED_OBSERVER_STEAM_ID === null
             || terminal || closingAfterQueue) return;
@@ -683,7 +753,9 @@
             if (connected && !closingAfterQueue) {
                 maybeReportDemo(nowMs);
                 serviceSeek(nowMs);
+                servicePersistentObserverSetup();
                 serviceObserverEvidence();
+                servicePersistentCaptureCommands();
                 serviceFixedSpectatorSlotLock();
                 serviceActiveObserverLock();
                 serviceCaptureObservations(nowMs);

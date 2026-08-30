@@ -1520,6 +1520,40 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
   });
 
+  it('previews renderer-backed visual transition progress in Program', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transition_in: 'zoom',
+            metadata: { transition_duration: 2 },
+          }),
+        }),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    expect(preview.dataset.previewTransition).toBe('zoom');
+    expect(preview.dataset.previewTransitionProgress).toBe('0');
+    expect(preview.style.transform).toContain('scale(1.18, 1.18)');
+
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    await waitFor(() => expect(preview.dataset.previewTransitionProgress).toBe('0.5'));
+    expect(preview.style.transform).toContain('scale(1.09, 1.09)');
+  });
+
   it('directly moves the selected Program clip and commits the latest transform once', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,

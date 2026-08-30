@@ -8,7 +8,13 @@ import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
-import { clipFadeDuration, MAX_TIMELINE_CLIP_SPEED, MIN_TIMELINE_CLIP_SPEED } from './timelineInteraction';
+import {
+  clipFadeDuration,
+  clipHasActiveTransition,
+  clipTransitionDuration,
+  MAX_TIMELINE_CLIP_SPEED,
+  MIN_TIMELINE_CLIP_SPEED,
+} from './timelineInteraction';
 import type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
@@ -712,6 +718,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const transform = draftTransform ?? evaluatedTransform;
   const audio = evaluatePreviewAudio(clip, offsetSeconds);
   const previewFilter = evaluatePreviewFilter(clip, projectWidth);
+  const previewTransition = evaluatePreviewTransition(clip, offsetSeconds, projectWidth);
   const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
@@ -868,13 +875,13 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       aria-label={target ? previewVideoLabel(clip, previewSlot) : undefined}
       aria-hidden={!target}
       style={{
-        opacity: presented ? 1 : 0,
+        opacity: presented ? transform.opacity * previewTransition.opacityFactor : 0,
         visibility: presented ? 'visible' : 'hidden',
         pointerEvents: 'none',
-        transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
+        transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation + previewTransition.rotation}deg) scale(${transform.scaleX * previewTransition.scale}, ${transform.scaleY * previewTransition.scale})`,
         transformOrigin: 'center',
-        filter: previewFilter.filter,
-        ...(presented ? { opacity: transform.opacity } : {}),
+        filter: [previewFilter.filter === 'none' ? '' : previewFilter.filter, previewTransition.filter].filter(Boolean).join(' ') || 'none',
+        clipPath: previewTransition.clipPath,
       }}
       data-preview-transform-x={transform.x}
       data-preview-transform-y={transform.y}
@@ -889,6 +896,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-clip-speed={clip.placement.speed}
       data-preview-effects={previewFilter.kinds.join(',')}
       data-preview-filter={previewFilter.filter}
+      data-preview-transition={previewTransition.kind}
+      data-preview-transition-progress={previewTransition.progress}
       onLoadedMetadata={seekLatest}
       onLoadedData={() => {
         seekLatest();
@@ -1141,6 +1150,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   && previous.playing === next.playing
   && previous.editable === next.editable
   && previous.transportRate === next.transportRate
+  && previous.readinessKey === next.readinessKey
+  && previous.drivesTimeline === next.drivesTimeline
+  && previous.forceMuted === next.forceMuted
+  && previous.layer === next.layer
+  && previous.trackId === next.trackId
   && previous.onReplaceClip === next.onReplaceClip);
 
 function evaluatePreviewTransform(clip: TimelineClip, localTime: number) {
@@ -1152,6 +1166,59 @@ function evaluatePreviewTransform(clip: TimelineClip, localTime: number) {
     rotation: evaluateClipKeyframeProperty(clip, 'rotation', localTime, clip.transform.rotation),
     opacity: evaluateClipKeyframeProperty(clip, 'opacity', localTime, clip.transform.opacity),
   };
+}
+
+interface PreviewTransitionPresentation {
+  readonly kind: string;
+  readonly progress: number;
+  readonly opacityFactor: number;
+  readonly scale: number;
+  readonly rotation: number;
+  readonly filter: string;
+  readonly clipPath: string;
+}
+
+const NO_PREVIEW_TRANSITION: PreviewTransitionPresentation = {
+  kind: '',
+  progress: 1,
+  opacityFactor: 1,
+  scale: 1,
+  rotation: 0,
+  filter: '',
+  clipPath: 'none',
+};
+
+export function evaluatePreviewTransition(
+  clip: TimelineClip,
+  localTime: number,
+  projectWidth: number,
+): PreviewTransitionPresentation {
+  const duration = Math.min(clip.placement.duration, clipTransitionDuration(clip));
+  if (!(duration > 0)) return NO_PREVIEW_TRANSITION;
+  const remaining = clip.placement.duration - localTime;
+  const entering = clipHasActiveTransition(clip.transition_in) && localTime < duration;
+  const exiting = !entering && clipHasActiveTransition(clip.transition_out) && remaining < duration;
+  if (!entering && !exiting) return NO_PREVIEW_TRANSITION;
+  const rawKind = (entering ? clip.transition_in : clip.transition_out)?.trim().toLowerCase() ?? '';
+  const kind = rawKind === 'dissolve' ? 'fade' : rawKind === 'whip' || rawKind === 'slideleft' ? 'slide' : rawKind;
+  const progress = Math.min(1, Math.max(0, (entering ? localTime : remaining) / duration));
+  const intensity = 1 - progress;
+  const base = { ...NO_PREVIEW_TRANSITION, kind, progress };
+  switch (kind) {
+    case 'fade': return { ...base, opacityFactor: progress };
+    case 'dip': return { ...base, filter: `brightness(${progress})` };
+    case 'flash': return { ...base, filter: `brightness(${1 + intensity * 2}) saturate(${progress})` };
+    case 'zoom': return { ...base, scale: 1 + 0.18 * intensity };
+    case 'wipe':
+    case 'slide': return { ...base, clipPath: `inset(0 ${100 * intensity}% 0 0)` };
+    case 'blur': return { ...base, filter: `blur(${8 / Math.max(1, projectWidth) * 100}cqw)` };
+    case 'glitch': {
+      const shift = 8 / Math.max(1, projectWidth) * 100;
+      return { ...base, filter: `drop-shadow(${shift}cqw 0 0 cyan) drop-shadow(${-shift}cqw 0 0 red)` };
+    }
+    case 'spin': return { ...base, rotation: 0.35 * 180 / Math.PI * intensity };
+    default: return NO_PREVIEW_TRANSITION;
+  }
 }
 
 function evaluatePreviewAudio(clip: TimelineClip, localTime: number) {

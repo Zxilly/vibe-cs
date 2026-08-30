@@ -8,6 +8,15 @@ export {
 } from './ProjectMediaPanel';
 export { planSourceMediaEdit, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
 export { planTimelineAddEdit, type TimelineAddEditPlan, type TimelineAddEditUpdate } from './timelineAddEdit';
+export {
+  planTimelinePasteInsert,
+  planTimelinePasteOverwrite,
+  resolveTimelinePasteTargets,
+  type TimelineClipboard,
+  type TimelineClipboardGroup,
+  type TimelinePasteInsertPlan,
+  type TimelinePasteOverwritePlan,
+} from './timelinePaste';
 export { timelineTrackSelection } from './timelineTrackSelection';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {

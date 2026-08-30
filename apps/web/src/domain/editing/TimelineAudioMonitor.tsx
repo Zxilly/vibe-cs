@@ -4,7 +4,13 @@ import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import type { Project, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty } from './keyframeEditing';
-import { clipFadeDuration, MAX_TIMELINE_CLIP_SPEED, MIN_TIMELINE_CLIP_SPEED } from './timelineInteraction';
+import {
+  clipFadeDuration,
+  clipPlaybackSpeedAtLocalTime,
+  clipSourceTimeAtLocalTime,
+  MAX_TIMELINE_CLIP_SPEED,
+  MIN_TIMELINE_CLIP_SPEED,
+} from './timelineInteraction';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 const MAX_POOLED_AUDIO_CLIPS = 32;
@@ -118,7 +124,8 @@ function PooledTimelineAudio({
     clip.placement.duration,
     Math.max(0, timelineTimeSeconds - clip.placement.start),
   );
-  const desiredSourceTime = clip.placement.source_in + localTime * clip.placement.speed;
+  const desiredSourceTime = clipSourceTimeAtLocalTime(clip, localTime);
+  const playbackSpeed = clipPlaybackSpeedAtLocalTime(clip, localTime);
   const desiredTimeRef = useRef(desiredSourceTime);
   desiredTimeRef.current = desiredSourceTime;
   const output = evaluateTimelineAudio(clip, localTime);
@@ -142,7 +149,7 @@ function PooledTimelineAudio({
     if (audio === null) return;
     audio.playbackRate = Math.min(
       MAX_TIMELINE_CLIP_SPEED,
-      Math.max(MIN_TIMELINE_CLIP_SPEED, clip.placement.speed * Math.max(1, transportRate)),
+      Math.max(MIN_TIMELINE_CLIP_SPEED, playbackSpeed * Math.max(1, transportRate)),
     );
     audio.muted = !active || track.muted;
     if (!active || !playing || transportRate <= 0) {
@@ -155,7 +162,7 @@ function PooledTimelineAudio({
     return () => {
       if (!audio.paused) audio.pause();
     };
-  }, [active, clip.placement.speed, playing, track.muted, transportRate]);
+  }, [active, playbackSpeed, playing, track.muted, transportRate]);
 
   useEffect(() => {
     const audio = audioRef.current;

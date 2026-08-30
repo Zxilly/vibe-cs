@@ -492,3 +492,77 @@ export function trimTimelineClip(
 export function clipMediaDuration(clip: TimelineClip): number | null {
   return clip.material.kind === 'planned' ? null : clip.material.media_duration_seconds;
 }
+
+/**
+ * Maps a clip-local Timeline offset to its source-media time.
+ *
+ * This mirrors the export renderer's `source_offset_at`: segmented speed is a
+ * piecewise integral, while ordinary clips use the canonical constant speed.
+ * Program video, Timeline audio and auxiliary monitors must all consume this
+ * function so their presented frame cannot disagree with the rendered frame.
+ */
+export function clipSourceTimeAtLocalTime(clip: TimelineClip, requestedLocalTime: number): number {
+  const localTime = Math.min(clip.placement.duration, Math.max(0, requestedLocalTime));
+  const sourceOffset = clip.speed_segments.length === 0
+    ? localTime * clip.placement.speed
+    : clip.speed_segments.reduce((offset, segment) => (
+      localTime <= segment.start
+        ? offset
+        : offset + Math.max(0, Math.min(localTime, segment.end) - segment.start) * segment.speed
+    ), 0);
+  return Math.min(
+    clip.placement.source_out,
+    Math.max(clip.placement.source_in, clip.placement.source_in + sourceOffset),
+  );
+}
+
+/** The inverse needed when a presented media frame advances the Timeline. */
+export function clipLocalTimeAtSourceTime(clip: TimelineClip, requestedSourceTime: number): number {
+  const sourceTime = Math.min(
+    clip.placement.source_out,
+    Math.max(clip.placement.source_in, requestedSourceTime),
+  );
+  const sourceOffset = sourceTime - clip.placement.source_in;
+  if (clip.speed_segments.length === 0) {
+    return Math.min(clip.placement.duration, Math.max(0, sourceOffset / clip.placement.speed));
+  }
+  let consumedSource = 0;
+  for (const segment of clip.speed_segments) {
+    const segmentSourceDuration = (segment.end - segment.start) * segment.speed;
+    if (sourceOffset <= consumedSource + segmentSourceDuration) {
+      return Math.min(
+        clip.placement.duration,
+        Math.max(0, segment.start + (sourceOffset - consumedSource) / segment.speed),
+      );
+    }
+    consumedSource += segmentSourceDuration;
+  }
+  return clip.placement.duration;
+}
+
+/** Instantaneous source playback rate at one clip-local Timeline offset. */
+export function clipPlaybackSpeedAtLocalTime(clip: TimelineClip, requestedLocalTime: number): number {
+  if (clip.speed_segments.length === 0) return clip.placement.speed;
+  const localTime = Math.min(clip.placement.duration, Math.max(0, requestedLocalTime));
+  return clip.speed_segments.find((segment) => (
+    localTime >= segment.start && (localTime < segment.end || localTime === clip.placement.duration)
+  ))?.speed ?? clip.placement.speed;
+}
+
+/** Maps the shared Timeline Transport to the Demo tick captured by one Take. */
+export function clipDemoTickAtTimelineTime(
+  clip: TimelineClip,
+  timelineTime: number,
+  tickRate: number,
+): number | null {
+  const intent = clip.capture_intent;
+  if (intent === null) return null;
+  const localTime = Math.min(
+    clip.placement.duration,
+    Math.max(0, timelineTime - clip.placement.start),
+  );
+  const sourceTime = clipSourceTimeAtLocalTime(clip, localTime);
+  return Math.round(
+    intent.start_tick - intent.pre_roll_seconds * tickRate + sourceTime * tickRate,
+  );
+}

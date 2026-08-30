@@ -11,6 +11,9 @@ import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframe
 import {
   clipFadeDuration,
   clipHasActiveTransition,
+  clipLocalTimeAtSourceTime,
+  clipPlaybackSpeedAtLocalTime,
+  clipSourceTimeAtLocalTime,
   clipTransitionDuration,
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
@@ -371,8 +374,7 @@ export function TimelineProgramMonitor({
                     forceMuted={story?.muted ?? false}
                     onTimelineTimeChange={(sourceSeconds) => {
                       if (previewSlot !== null || role !== 'program') return;
-                      const timelineSeconds = clip.placement.start
-                        + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
+                      const timelineSeconds = clip.placement.start + clipLocalTimeAtSourceTime(clip, sourceSeconds);
                       onTimelineTimeChange(Math.min(
                         clip.placement.start + clip.placement.duration,
                         Math.max(clip.placement.start, timelineSeconds),
@@ -809,8 +811,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly onReplaceClip: (clip: TimelineClip) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const desiredTimeRef = useRef(sourceTime(clip, offsetSeconds));
-  desiredTimeRef.current = sourceTime(clip, offsetSeconds);
+  const desiredSourceTime = clipSourceTimeAtLocalTime(clip, offsetSeconds);
+  const desiredTimeRef = useRef(desiredSourceTime);
+  desiredTimeRef.current = desiredSourceTime;
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   onTimelineTimeChangeRef.current = onTimelineTimeChange;
   const onReadyRef = useRef(onReady);
@@ -846,6 +849,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const audio = evaluatePreviewAudio(clip, offsetSeconds);
   const previewFilter = evaluatePreviewFilter(clip, projectWidth);
   const previewTransition = evaluatePreviewTransition(clip, offsetSeconds, projectWidth);
+  const playbackSpeed = clipPlaybackSpeedAtLocalTime(clip, offsetSeconds);
   const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
@@ -880,7 +884,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     if (video === null) return;
     video.playbackRate = Math.min(
       MAX_TIMELINE_CLIP_SPEED,
-      Math.max(MIN_TIMELINE_CLIP_SPEED, clip.placement.speed * Math.max(1, transportRate)),
+      Math.max(MIN_TIMELINE_CLIP_SPEED, playbackSpeed * Math.max(1, transportRate)),
     );
     if (!playing || transportRate < 0) {
       if (!video.paused) video.pause();
@@ -892,7 +896,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     return () => {
       if (!video.paused) video.pause();
     };
-  }, [clip.placement.speed, playing, transportRate]);
+  }, [playbackSpeed, playing, transportRate]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1379,12 +1383,6 @@ function evaluatePreviewFilter(clip: TimelineClip, projectWidth: number) {
     }
   }
   return { kinds, filter: filters.join(' ') || 'none' };
-}
-
-function sourceTime(clip: TimelineClip, offsetSeconds: number): number {
-  const placement = clip.placement;
-  const requested = placement.source_in + Math.max(0, offsetSeconds) * placement.speed;
-  return Math.min(placement.source_out, Math.max(placement.source_in, requested));
 }
 
 function materialLabel(clip: TimelineClip) {

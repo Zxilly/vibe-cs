@@ -27,6 +27,8 @@ export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWavefo
 export {
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
+  clipDemoTickAtTimelineTime,
+  clipSourceTimeAtLocalTime,
   rateStretchTimelineClip,
   snapTimeToFrame,
 } from './timelineInteraction';

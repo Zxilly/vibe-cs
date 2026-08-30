@@ -22,7 +22,7 @@ import {
   Trash2,
   Video,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -62,8 +62,10 @@ import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import {
   canAnimateTransformProperty,
+  clipDemoTickAtTimelineTime,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
+  clipSourceTimeAtLocalTime,
   evaluateClipKeyframeProperty,
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
@@ -114,7 +116,7 @@ import type {
 import type { ActivityItem } from '../shared/desktop/viewModels';
 import { RouteLink } from './RouteLink';
 import { PlayerLayer } from './match/views/ReplayCanvas';
-import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
+import { buildPlayerTracks, clampTick, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
 
 type EditingLens = 'quick' | 'multitrack';
 type ExternalConfirmation =
@@ -122,7 +124,7 @@ type ExternalConfirmation =
   | { readonly kind: 'export' };
 
 interface TacticalScene {
-  readonly clipId: string;
+  readonly sceneKey: string;
   readonly mapName: string;
   readonly radarSrc: string;
   readonly transform: RadarTransformResponse | null | undefined;
@@ -131,6 +133,7 @@ interface TacticalScene {
   readonly status: 'ready' | 'empty';
   readonly tracks: ReturnType<typeof buildPlayerTracks>['paths'];
   readonly markers: readonly PlayerMarker[];
+  readonly tick: number;
 }
 
 const radarImageReadiness = new Map<string, Promise<void>>();
@@ -623,7 +626,12 @@ export function ProjectWorkspacePage() {
     />
   );
   const tacticalPanel = (
-    <TacticalPreview selected={transportClip} showHeader={false} />
+    <TacticalPreview
+      selected={transportClip}
+      timelineTimeSeconds={transportTimeSeconds}
+      fps={current.document.fps}
+      showHeader={false}
+    />
   );
   const timelinePanel = (
     <ProjectTimeline
@@ -920,8 +928,10 @@ export function ProjectWorkspacePage() {
   );
 }
 
-const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = true }: {
+const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSeconds, fps, showHeader = true }: {
   readonly selected: TimelineClip | null;
+  readonly timelineTimeSeconds: number;
+  readonly fps: number;
   readonly showHeader?: boolean;
 }) {
   const intent = selected?.capture_intent ?? null;
@@ -938,9 +948,20 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
     [intent],
   );
   const replaySlice = useMemo(() => sliceReplay(replay.data, bounds), [bounds, replay.data]);
+  const localTime = selected === null ? 0 : clipLocalTimeAtTimeline(selected, timelineTimeSeconds, fps);
+  const sourceTimeSeconds = selected === null ? 0 : clipSourceTimeAtLocalTime(selected, localTime);
+  const transportDemoTick = selected === null || replaySlice === null
+    ? null
+    : clipDemoTickAtTimelineTime(selected, timelineTimeSeconds, replaySlice.tickRate);
+  const currentTick = replaySlice === null || transportDemoTick === null
+    ? null
+    : clampTick(transportDemoTick, replaySlice);
   const frameIndex = replaySlice === null
     ? -1
-    : frameIndexAtTick(replaySlice.frames, replaySlice.endTick);
+    : frameIndexAtTick(replaySlice.frames, currentTick ?? replaySlice.startTick);
+  const presentedReplayTick = replaySlice === null
+    ? null
+    : replaySlice.frames[frameIndex]?.tick ?? replaySlice.startTick;
   const tracks = useMemo(
     () => replaySlice === null ? [] : buildPlayerTracks(replaySlice.frames, frameIndex).paths,
     [frameIndex, replaySlice],
@@ -955,12 +976,13 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
       || intent === null
       || mapName === null
       || radarSrc === null
+      || presentedReplayTick === null
       || demo.isPending
       || radar.isPending
       || replay.isPending
     ) return null;
     return {
-      clipId: selected.id,
+      sceneKey: `${selected.id}:${presentedReplayTick}`,
       mapName,
       radarSrc,
       transform: radar.data?.transform,
@@ -971,14 +993,24 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
       status: 'ready',
       tracks,
       markers,
+      tick: presentedReplayTick,
     };
-  }, [demo.isPending, intent, mapName, markers, radar.data?.transform, radar.isPending, radarSrc, replay.isPending, replaySlice, selected, tracks]);
+  }, [demo.isPending, intent, mapName, markers, presentedReplayTick, radar.data?.transform, radar.isPending, radarSrc, replay.isPending, selected, tracks]);
   const [displayed, setDisplayed] = useState<TacticalScene | null>(null);
   const [mountedRadarSources, setMountedRadarSources] = useState<readonly string[]>([]);
   const mountedRadarSourcesRef = useRef(new Set<string>());
+  const readyRadarSourcesRef = useRef(new Set<string>());
   const pendingRadarScenesRef = useRef(new Map<string, TacticalScene>());
-  const selectedClipIdRef = useRef(selected?.id ?? null);
-  selectedClipIdRef.current = selected?.id ?? null;
+  const selectedSceneKeyRef = useRef(candidate?.sceneKey ?? null);
+  selectedSceneKeyRef.current = candidate?.sceneKey ?? null;
+
+  useLayoutEffect(() => {
+    if (
+      candidate !== null
+      && readyRadarSourcesRef.current.has(candidate.radarSrc)
+      && displayed?.sceneKey !== candidate.sceneKey
+    ) setDisplayed(candidate);
+  }, [candidate, displayed?.sceneKey]);
 
   useEffect(() => {
     if (selected === null || intent === null) {
@@ -987,6 +1019,10 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
     }
     if (mapName === null) return undefined;
     if (candidate === null) return undefined;
+    if (mountedRadarSourcesRef.current.has(candidate.radarSrc)) {
+      pendingRadarScenesRef.current.set(candidate.radarSrc, candidate);
+      return undefined;
+    }
     let cancelled = false;
     void preloadRadarImage(candidate.radarSrc)
       .catch(() => undefined)
@@ -994,7 +1030,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
         if (cancelled) return;
         pendingRadarScenesRef.current.set(candidate.radarSrc, candidate);
         if (mountedRadarSourcesRef.current.has(candidate.radarSrc)) {
-          if (selectedClipIdRef.current === candidate.clipId) setDisplayed(candidate);
+          if (selectedSceneKeyRef.current === candidate.sceneKey) setDisplayed(candidate);
           return;
         }
         mountedRadarSourcesRef.current.add(candidate.radarSrc);
@@ -1030,8 +1066,9 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
               className="pointer-events-none absolute inset-0 z-0 size-full object-contain brightness-110 contrast-110 transition-opacity duration-75"
               style={{ opacity: displayed?.radarSrc === src ? 1 : 0 }}
               onLoad={() => {
+                readyRadarSourcesRef.current.add(src);
                 const scene = pendingRadarScenesRef.current.get(src);
-                if (scene !== undefined && selectedClipIdRef.current === scene.clipId) setDisplayed(scene);
+                if (scene !== undefined && selectedSceneKeyRef.current === scene.sceneKey) setDisplayed(scene);
               }}
             />
           ))}
@@ -1049,7 +1086,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
               >
                 {renderTacticalLayers}
               </StableMapCanvas>
-              {displayed.clipId === selected.id ? null : (
+              {displayed.sceneKey === candidate?.sceneKey ? null : (
                 <span className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-sm bg-accent-900/85 px-2 py-1 text-2xs text-neutral-100">
                   <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                   <Trans>正在更新战术图</Trans>
@@ -1062,7 +1099,8 @@ const TacticalPreview = memo(function TacticalPreview({ selected, showHeader = t
                 <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
               </ul>
               <div className="absolute inset-x-0 bottom-0 z-20 flex h-8 items-center border-t border-divider bg-bg/95 px-3 text-xs text-text backdrop-blur-sm">
-                <span><Trans>回合: 15</Trans></span><span className="ml-4"><Trans>时间: 01:08</Trans></span>
+                <span><Trans>Demo tick: {currentTick ?? displayed.tick}</Trans></span>
+                <span className="ml-4 font-mono"><Trans>素材时间: {sourceTimeSeconds.toFixed(3)}s</Trans></span>
               </div>
             </>
           )}

@@ -7,6 +7,10 @@ import {
   gainToTrackPercent,
   linearGainToDb,
   clipFadeDuration,
+  clipDemoTickAtTimelineTime,
+  clipLocalTimeAtSourceTime,
+  clipPlaybackSpeedAtLocalTime,
+  clipSourceTimeAtLocalTime,
   canSlipTimelineClip,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
@@ -216,6 +220,48 @@ describe('timeline direct manipulation', () => {
     expect(rateStretchTimelineClip(CLIP, 'end', 10.01, 60).placement).toEqual(expect.objectContaining({ duration: 0.5, speed: 16 }));
     expect(rateStretchTimelineClip(CLIP, 'end', 10_000, 60).placement).toEqual(expect.objectContaining({ duration: 128, speed: 0.0625 }));
     expect(canRateStretchTimelineClip({ ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] })).toBe(false);
+  });
+
+  it('maps segmented Timeline time to the same source sections as export', () => {
+    const remapped: TimelineClip = {
+      ...CLIP,
+      placement: { ...CLIP.placement, duration: 8, source_in: 2, source_out: 12 },
+      speed_segments: [
+        { id: 'slow', start: 0, end: 4, speed: 0.5 },
+        { id: 'fast', start: 4, end: 8, speed: 2 },
+      ],
+    };
+
+    expect(clipSourceTimeAtLocalTime(remapped, 2)).toBe(3);
+    expect(clipSourceTimeAtLocalTime(remapped, 5)).toBe(6);
+    expect(clipSourceTimeAtLocalTime(remapped, 8)).toBe(12);
+    expect(clipLocalTimeAtSourceTime(remapped, 3)).toBe(2);
+    expect(clipLocalTimeAtSourceTime(remapped, 6)).toBe(5);
+    expect(clipLocalTimeAtSourceTime(remapped, 12)).toBe(8);
+    expect(clipPlaybackSpeedAtLocalTime(remapped, 3)).toBe(0.5);
+    expect(clipPlaybackSpeedAtLocalTime(remapped, 5)).toBe(2);
+  });
+
+  it('maps the shared Timeline playhead through source trim and capture pre-roll to Demo ticks', () => {
+    const captured: TimelineClip = {
+      ...CLIP,
+      capture_intent: {
+        demo_id: 'demo',
+        highlight_id: null,
+        player_id: 'player',
+        start_tick: 1_000,
+        end_tick: 1_512,
+        pre_roll_seconds: 2,
+        post_roll_seconds: 2,
+        victim_pov: false,
+        camera_style: 'pov',
+        presentation: null,
+      },
+    };
+
+    expect(clipDemoTickAtTimelineTime(captured, 10, 64)).toBe(1_000);
+    expect(clipDemoTickAtTimelineTime(captured, 14, 64)).toBe(1_256);
+    expect(clipDemoTickAtTimelineTime({ ...captured, capture_intent: null }, 14, 64)).toBeNull();
   });
 
   it('slides one clip while preserving its source and all three outer geometry', () => {

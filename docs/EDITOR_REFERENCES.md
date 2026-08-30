@@ -23,6 +23,12 @@ The former `openvideodev/openvideo` URL returned 404 during the audit, so the cu
 - Playback uses Premiere's page-scroll behavior: the viewport changes only after the playhead leaves the visible page. Paused navigation minimally reveals a moved playhead. Manually panning the bottom range never moves the playhead or immediately snaps the viewport back.
 - Kdenlive's `Timeline.qml` confirms two implementation details that also apply here: zoom-on-mouse preserves the content time under the pointer, and the viewport owns one shared `contentX` used by ruler, clips, playhead, drag geometry, and the bottom zoom bar. Vibe CS keeps those rules in `design/timeline/timeScale` and the one `ProjectTimeline` module rather than importing a second timeline runtime.
 
+## Timeline transition contract
+
+- Premiere's [transition handles](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/video-transitions-using-clip-handles.html) and [duration editing](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/change-transition-duration-using-the-effect-controls-panel.html) make transitions selectable Timeline objects whose rendered width is their duration. Dragging an inner edge changes that duration visually; double-clicking opens the existing property surface.
+- Vibe CS follows that interaction for all four canonical `TimelineClip.transitions` channels. A selected empty edge exposes a small drag target for creating the channel's default transition; an applied edge renders a duration-sized patterned block. Pointer movement previews only, and pointer release produces exactly one Project Patch.
+- The previous video corner triangles and separate audio fade-circle UI were deleted. Timeline, Program preview, Inspector, persistence, and FFmpeg export now consume the same typed transition and duration. Adjacent outgoing and incoming edges remain independently editable because the current Editing Document models two explicit single-sided transitions; no unpersisted alignment model is invented in the view.
+
 ## Product boundary
 
 - `/studio/editor` is the editing workspace and is entered from Studio, not a top-level product area.

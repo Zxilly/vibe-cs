@@ -22,7 +22,7 @@ use vibe_cs_domain::{
     AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
     HlaeCameraStyle, LlmParameterStyle, ProjectChangeAuthor, ProjectEditLease,
     ProjectEditOperation, ProjectPatch, ProjectPatchScope, RoundReplayArtifact, TimelineClip,
-    TimelineClipMaterial, TimelinePlacement, Transform,
+    TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement, Transform,
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
@@ -437,8 +437,7 @@ impl StoryClipInput {
             },
             transform: Transform::default(),
             effects: Vec::new(),
-            transition_in: None,
-            transition_out: None,
+            transitions: TimelineClipTransitions::default(),
             text: None,
             metadata: json!({"rationale": self.rationale}),
             group_id: None,

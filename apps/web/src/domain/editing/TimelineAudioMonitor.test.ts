@@ -13,8 +13,7 @@ function clip(id: string, start: number, duration = 4): TimelineClip {
     placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
-    transition_in: null,
-    transition_out: null,
+    transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
     text: null,
     metadata: {},
     group_id: null,
@@ -102,14 +101,19 @@ describe('Timeline audio monitor', () => {
     const source = {
       ...clip('fade', 0, 4),
       placement: { ...clip('fade', 0, 4).placement, volume: 2 },
-      transition_in: 'fade',
-      transition_out: 'fade',
-      metadata: { transition_duration: 2 },
+      transitions: {
+        video_in: null,
+        video_out: null,
+        audio_in: { kind: 'constant_power' as const, duration_seconds: 2 },
+        audio_out: { kind: 'constant_power' as const, duration_seconds: 2 },
+      },
       keyframes: [{ id: 'volume', time: 1, property: 'volume' as const, value: 1 }],
     };
 
     expect(evaluateTimelineAudio(source, 0)).toEqual({ canonicalVolume: 1, fadeFactor: 0, outputVolume: 0 });
-    expect(evaluateTimelineAudio(source, 1)).toEqual({ canonicalVolume: 1, fadeFactor: 0.5, outputVolume: 0.5 });
+    expect(evaluateTimelineAudio(source, 1)).toMatchObject({ canonicalVolume: 1 });
+    expect(evaluateTimelineAudio(source, 1).fadeFactor).toBeCloseTo(Math.SQRT1_2);
+    expect(evaluateTimelineAudio(source, 1).outputVolume).toBeCloseTo(Math.SQRT1_2);
     expect(evaluateTimelineAudio(source, 4)).toEqual({ canonicalVolume: 1, fadeFactor: 0, outputVolume: 0 });
   });
 });

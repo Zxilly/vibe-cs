@@ -8,7 +8,7 @@ function clip(id: string, start: number, duration: number): TimelineClip {
     id, name: id, capture_intent: null, material: { kind: 'planned' },
     placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
-    effects: [], transition_in: null, transition_out: null, text: null, metadata: {},
+    effects: [], transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null }, text: null, metadata: {},
     group_id: null, link_group_id: null, keyframes: [], speed_segments: [],
   };
 }

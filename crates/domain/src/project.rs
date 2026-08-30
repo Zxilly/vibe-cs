@@ -76,6 +76,44 @@ pub struct TimelineTrack {
     pub clips: Vec<TimelineClip>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum EditorTransitionKind {
+    Fade,
+    Dip,
+    Flash,
+    Zoom,
+    Wipe,
+    Slide,
+    Blur,
+    Glitch,
+    Spin,
+    ConstantPower,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct EditorTransition {
+    pub kind: EditorTransitionKind,
+    pub duration_seconds: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct TimelineClipTransitions {
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub video_in: Option<EditorTransition>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub video_out: Option<EditorTransition>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub audio_in: Option<EditorTransition>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub audio_out: Option<EditorTransition>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
@@ -88,10 +126,7 @@ pub struct TimelineClip {
     pub placement: TimelinePlacement,
     pub transform: Transform,
     pub effects: Vec<EditorEffect>,
-    #[serde(deserialize_with = "deserialize_required_nullable")]
-    pub transition_in: Option<String>,
-    #[serde(deserialize_with = "deserialize_required_nullable")]
-    pub transition_out: Option<String>,
+    pub transitions: TimelineClipTransitions,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub text: Option<TextStyle>,
     pub metadata: serde_json::Value,
@@ -791,6 +826,54 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
     if clip.keyframes.len() > MAX_EDITOR_KEYFRAMES_PER_CLIP {
         return Err(invalid("clip has too many keyframes"));
     }
+    let video_transitions = [
+        clip.transitions.video_in.as_ref(),
+        clip.transitions.video_out.as_ref(),
+    ];
+    let audio_transitions = [
+        clip.transitions.audio_in.as_ref(),
+        clip.transitions.audio_out.as_ref(),
+    ];
+    for transition in video_transitions.into_iter().flatten() {
+        if !transition.duration_seconds.is_finite()
+            || !(0.05..=5.0).contains(&transition.duration_seconds)
+            || transition.duration_seconds >= placement.duration
+            || transition.kind == EditorTransitionKind::ConstantPower
+        {
+            return Err(invalid("video transition is invalid"));
+        }
+    }
+    for transition in audio_transitions.into_iter().flatten() {
+        if !transition.duration_seconds.is_finite()
+            || !(0.05..=5.0).contains(&transition.duration_seconds)
+            || transition.duration_seconds >= placement.duration
+            || !matches!(
+                transition.kind,
+                EditorTransitionKind::Fade | EditorTransitionKind::ConstantPower
+            )
+        {
+            return Err(invalid("audio transition is invalid"));
+        }
+    }
+    if clip
+        .transitions
+        .video_in
+        .as_ref()
+        .zip(clip.transitions.video_out.as_ref())
+        .is_some_and(|(left, right)| {
+            left.duration_seconds + right.duration_seconds >= placement.duration
+        })
+        || clip
+            .transitions
+            .audio_in
+            .as_ref()
+            .zip(clip.transitions.audio_out.as_ref())
+            .is_some_and(|(left, right)| {
+                left.duration_seconds + right.duration_seconds >= placement.duration
+            })
+    {
+        return Err(invalid("clip transitions overlap across the whole clip"));
+    }
     if clip.speed_segments.len() > MAX_EDITOR_SPEED_SEGMENTS {
         return Err(invalid("clip has too many speed segments"));
     }
@@ -985,8 +1068,7 @@ mod tests {
             },
             transform: Transform::default(),
             effects: Vec::new(),
-            transition_in: None,
-            transition_out: None,
+            transitions: TimelineClipTransitions::default(),
             text: None,
             metadata: serde_json::json!({}),
             group_id: None,
@@ -1129,6 +1211,36 @@ mod tests {
 
         current.document.tracks[0].clips[0].placement.duration = 2.5;
         assert!(current.validate().is_ok());
+    }
+
+    #[test]
+    fn transition_channels_have_independent_typed_duration_invariants() {
+        let mut value = project();
+        {
+            let clip = &mut value.document.tracks[0].clips[0];
+            clip.transitions.video_in = Some(EditorTransition {
+                kind: EditorTransitionKind::Fade,
+                duration_seconds: 1.0,
+            });
+            clip.transitions.audio_in = Some(EditorTransition {
+                kind: EditorTransitionKind::ConstantPower,
+                duration_seconds: 0.5,
+            });
+        }
+        assert!(value.validate().is_ok());
+
+        value.document.tracks[0].clips[0].transitions.video_in = Some(EditorTransition {
+            kind: EditorTransitionKind::ConstantPower,
+            duration_seconds: 1.0,
+        });
+        assert!(value.validate().is_err());
+
+        value.document.tracks[0].clips[0].transitions.video_in = None;
+        value.document.tracks[0].clips[0].transitions.audio_out = Some(EditorTransition {
+            kind: EditorTransitionKind::Fade,
+            duration_seconds: 4.5,
+        });
+        assert!(value.validate().is_err());
     }
 
     #[test]

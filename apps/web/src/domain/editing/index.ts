@@ -19,6 +19,7 @@ export {
 } from './timelinePaste';
 export { timelineTrackSelection } from './timelineTrackSelection';
 export { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
+export { planDefaultTimelineTransitions, type TimelineTransitionUpdate } from './timelineTransitions';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,

@@ -47,8 +47,7 @@ function clip(id: string, name: string): TimelineClip {
     placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
-    transition_in: null,
-    transition_out: null,
+    transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
     text: null,
     metadata: {},
     group_id: null,
@@ -833,7 +832,7 @@ describe('unified project workspace', () => {
       operations: [expect.objectContaining({
         op: 'replace_clip',
         clip_id: CLIP_A,
-        clip: expect.objectContaining({ transition_in: 'fade', metadata: expect.objectContaining({ transition_duration: 0.05 }) }),
+        clip: expect.objectContaining({ transitions: expect.objectContaining({ audio_in: { kind: 'constant_power', duration_seconds: 0.05 } }) }),
       })],
     })));
 
@@ -850,7 +849,7 @@ describe('unified project workspace', () => {
       operations: [expect.objectContaining({
         op: 'replace_clip',
         clip_id: CLIP_A,
-        clip: expect.objectContaining({ transition_out: 'fade', metadata: expect.objectContaining({ transition_duration: expect.any(Number) }) }),
+        clip: expect.objectContaining({ transitions: expect.objectContaining({ audio_out: { kind: 'constant_power', duration_seconds: expect.any(Number) } }) }),
       })],
     }));
   });
@@ -1101,6 +1100,72 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch.mock.calls[0]?.[0].operations.map((operation: ProjectPatch['operations'][number]) => (
       operation.op === 'replace_track_clips' ? operation.track_id : null
     ))).toEqual([STORY_ID, '00000000-0000-4000-8000-000000000013']);
+  });
+
+  it('applies independent default video and audio transitions at a targeted cut', async () => {
+    const videoPatch = vi.fn();
+    const videoRender = renderWorkspace({ applyProjectPatch: videoPatch });
+    const videoTimeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowDown' });
+    fireEvent.keyDown(videoTimeline, { key: 'd', ctrlKey: true });
+    await waitFor(() => expect(videoPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ transitions: expect.objectContaining({ video_out: { kind: 'fade', duration_seconds: 0.5 }, audio_out: null }) }),
+          expect.objectContaining({ transitions: expect.objectContaining({ video_in: { kind: 'fade', duration_seconds: 0.5 }, audio_in: null }) }),
+        ],
+      })],
+    })));
+
+    videoRender.unmount();
+    const audioPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: audioPatch });
+    const audioTimeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowDown' });
+    fireEvent.keyDown(audioTimeline, { key: 'd', ctrlKey: true, shiftKey: true });
+    await waitFor(() => expect(audioPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ transitions: expect.objectContaining({ audio_out: { kind: 'constant_power', duration_seconds: 0.5 }, video_out: null }) }),
+          expect.objectContaining({ transitions: expect.objectContaining({ audio_in: { kind: 'constant_power', duration_seconds: 0.5 }, video_in: null }) }),
+        ],
+      })],
+    })));
+  });
+
+  it('applies both default channels to every adjacent selected pair with Shift+D', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.pointerDown(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }), {
+      pointerId: 125, button: 0, shiftKey: true, clientX: 400,
+    });
+    fireEvent.keyDown(timeline, { key: 'D', shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ transitions: {
+            video_in: null,
+            video_out: { kind: 'fade', duration_seconds: 0.5 },
+            audio_in: null,
+            audio_out: { kind: 'constant_power', duration_seconds: 0.5 },
+          } }),
+          expect.objectContaining({ transitions: {
+            video_in: { kind: 'fade', duration_seconds: 0.5 },
+            video_out: null,
+            audio_in: { kind: 'constant_power', duration_seconds: 0.5 },
+            audio_out: null,
+          } }),
+        ],
+      })],
+    })));
   });
 
   it('uses the Razor tool to cut linked AV into independent left and right groups', async () => {
@@ -2084,8 +2149,10 @@ describe('unified project workspace', () => {
           ...track,
           clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
             ...candidate,
-            transition_in: 'fade',
-            metadata: { transition_duration: 1 },
+            transitions: {
+              ...candidate.transitions,
+              audio_in: { kind: 'constant_power', duration_seconds: 1 },
+            },
             keyframes: [
               { id: 'volume-0', time: 0, property: 'volume', value: 0.5 },
               { id: 'volume-1', time: 1, property: 'volume', value: 1 },
@@ -2159,8 +2226,10 @@ describe('unified project workspace', () => {
           ...track,
           clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
             ...candidate,
-            transition_in: 'zoom',
-            metadata: { transition_duration: 2 },
+            transitions: {
+              ...candidate.transitions,
+              video_in: { kind: 'zoom', duration_seconds: 2 },
+            },
           }),
         }),
       },
@@ -4191,8 +4260,7 @@ describe('unified project workspace', () => {
             capture_intent: null,
             material: { kind: 'planned' },
             placement: expect.objectContaining({ start: 0, duration: 3, source_in: 0, source_out: 3 }),
-            transition_in: null,
-            transition_out: null,
+            transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
             text: expect.objectContaining({
               content: 'Lower third',
               font_family: 'Arial',
@@ -4354,7 +4422,8 @@ describe('unified project workspace', () => {
     fireEvent.doubleClick(clipButton);
     const name = await screen.findByRole('textbox', { name: '名称' });
     fireEvent.change(name, { target: { value: 'A revised' } });
-    fireEvent.change(screen.getByRole('combobox', { name: '入场转场' }), { target: { value: 'fade' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '视频入场转场' }), { target: { value: 'fade' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '视频入场转场 持续时间' }), { target: { value: '0.5' } });
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
     await waitFor(() => {
       expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -4363,7 +4432,11 @@ describe('unified project workspace', () => {
         operations: [expect.objectContaining({
           op: 'replace_track_clips',
           track_id: STORY_ID,
-          clips: expect.arrayContaining([expect.objectContaining({ id: CLIP_A, name: 'A revised', transition_in: 'fade' })]),
+          clips: expect.arrayContaining([expect.objectContaining({
+            id: CLIP_A,
+            name: 'A revised',
+            transitions: expect.objectContaining({ video_in: { kind: 'fade', duration_seconds: 0.5 } }),
+          })]),
         })],
       }));
     });

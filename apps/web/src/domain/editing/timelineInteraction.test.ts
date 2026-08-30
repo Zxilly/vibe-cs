@@ -44,8 +44,7 @@ const CLIP: TimelineClip = {
   placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, enabled: true },
   transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
   effects: [],
-  transition_in: null,
-  transition_out: null,
+  transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
   text: null,
   metadata: {},
   group_id: null,
@@ -111,17 +110,22 @@ describe('timeline direct manipulation', () => {
   it('reads renderer-backed fade duration and enables a frame-snapped fade', () => {
     expect(clipFadeDuration(CLIP, 'in')).toBe(0);
     const faded = setClipFadeDuration(CLIP, 'in', 0.363, 60);
-    expect(faded.transition_in).toBe('fade');
-    expect(faded.metadata).toMatchObject({ transition_duration: 0.366_666_666_666_666_64 });
+    expect(faded.transitions.audio_in).toEqual({ kind: 'constant_power', duration_seconds: 0.366_666_666_666_666_64 });
     expect(clipFadeDuration(faded, 'in')).toBeCloseTo(0.366_666_667);
   });
 
   it('constrains dual fades to less than the clip duration and disables below threshold', () => {
-    const withOut = { ...CLIP, transition_out: 'fade' };
+    const withOut = {
+      ...CLIP,
+      transitions: {
+        ...CLIP.transitions,
+        audio_out: { kind: 'constant_power' as const, duration_seconds: 0.35 },
+      },
+    };
     expect(maximumClipFadeDuration(withOut, 'in', 60)).toBeCloseTo(8 / 2 - 1 / 60);
     const faded = setClipFadeDuration(withOut, 'in', 5, 60);
     expect(clipFadeDuration(faded, 'in')).toBeCloseTo(3.983_333_333);
-    expect(setClipFadeDuration(faded, 'in', 0.01, 60).transition_in).toBeNull();
+    expect(setClipFadeDuration(faded, 'in', 0.01, 60).transitions.audio_in).toBeNull();
   });
 
   it('derives bounded drag auto-scroll from pointer edge penetration', () => {

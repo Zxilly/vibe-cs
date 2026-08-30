@@ -477,7 +477,8 @@ mod tests {
     use super::*;
     use vibe_cs_domain::{
         EditingDocument, ProjectChangeGroupStatus, ProjectEditOperation, TimelineClip,
-        TimelineClipMaterial, TimelinePlacement, TimelineTrack, TrackKind, Transform,
+        TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement, TimelineTrack, TrackKind,
+        Transform,
     };
 
     fn project() -> Project {
@@ -520,8 +521,7 @@ mod tests {
                         },
                         transform: Transform::default(),
                         effects: Vec::new(),
-                        transition_in: None,
-                        transition_out: None,
+                        transitions: TimelineClipTransitions::default(),
                         text: None,
                         metadata: serde_json::json!({}),
                         group_id: None,

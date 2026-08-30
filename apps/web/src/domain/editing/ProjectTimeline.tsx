@@ -67,6 +67,7 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
 import { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
+import { planDefaultTimelineTransitions } from './timelineTransitions';
 import {
   planTimelinePasteInsert,
   planTimelinePasteOverwrite,
@@ -596,6 +597,38 @@ export function ProjectTimeline({
   };
   const addEdit = () => addEditAt({ time: editPlayheadSeconds });
   const addEditAll = () => addEditAt({ time: editPlayheadSeconds, allTracks: true });
+  const defaultTransitionUpdates = (
+    channel: 'video' | 'audio',
+    mode: 'at_playhead' | 'selection',
+    tracks = document.tracks,
+  ) => planDefaultTimelineTransitions({
+    tracks,
+    storyTrackId: document.story_track_id,
+    targetTrackIds: targetTrackIdSet,
+    selectedClipIds: selectedClipIdSet,
+    timelineTime: editPlayheadSeconds,
+    channel,
+    mode,
+    fps: document.fps,
+  });
+  const applyDefaultTransition = (channel: 'video' | 'audio') => {
+    if (readOnly) return;
+    const updates = defaultTransitionUpdates(channel, 'at_playhead');
+    if (updates.length > 0) onReplaceTrackClipGroups(updates);
+  };
+  const applyDefaultTransitionsToSelection = () => {
+    if (readOnly) return;
+    const videoUpdates = defaultTransitionUpdates('video', 'selection');
+    const videoByTrack = new Map(videoUpdates.map((update) => [update.trackId, update.clips]));
+    const tracksWithVideo = document.tracks.map((track) => ({
+      ...track,
+      clips: [...(videoByTrack.get(track.id) ?? track.clips)],
+    }));
+    const audioUpdates = defaultTransitionUpdates('audio', 'selection', tracksWithVideo);
+    const updatesByTrack = new Map(videoUpdates.map((update) => [update.trackId, update]));
+    for (const update of audioUpdates) updatesByTrack.set(update.trackId, update);
+    if (updatesByTrack.size > 0) onReplaceTrackClipGroups([...updatesByTrack.values()]);
+  };
 
   const deleteSelected = () => {
     if (!canDelete) return;
@@ -702,8 +735,7 @@ export function ProjectTimeline({
       },
       transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
       effects: [],
-      transition_in: null,
-      transition_out: null,
+      transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
       text: {
         content,
         font_family: 'Arial',
@@ -1233,6 +1265,16 @@ export function ProjectTimeline({
           } else if (canAddEdit) addEdit();
           return;
         }
+        if (event.key.toLowerCase() === 'd' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          applyDefaultTransition(event.shiftKey ? 'audio' : 'video');
+          return;
+        }
+        if (event.key.toLowerCase() === 'd' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          applyDefaultTransitionsToSelection();
+          return;
+        }
         if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
           copySelected();
@@ -1359,6 +1401,9 @@ export function ProjectTimeline({
           triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
           items={[
             { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
+            { id: 'video-transition', label: t`应用默认视频转场`, disabled: readOnly || defaultTransitionUpdates('video', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('video') },
+            { id: 'audio-transition', label: t`应用默认音频转场`, disabled: readOnly || defaultTransitionUpdates('audio', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('audio') },
+            { id: 'selection-transitions', label: t`向所选切口应用默认转场`, disabled: readOnly || selectedClipIds.length < 2, onSelect: applyDefaultTransitionsToSelection },
             { id: 'lift', label: t`提升入出点范围`, disabled: !canLiftRange, onSelect: liftRange },
             { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
             { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
@@ -2868,6 +2913,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   }
   const visualLeft = timeToPx(scale, visualClip.placement.start);
   const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
+  const transitionIn = kind === 'audio' ? clip.transitions.audio_in : clip.transitions.video_in;
+  const transitionOut = kind === 'audio' ? clip.transitions.audio_out : clip.transitions.video_out;
   const canSlip = kind !== 'text' && canSlipTimelineClip(clip, fps);
   const canRateStretch = kind !== 'text' && canRateStretchTimelineClip(clip);
   const gestureBaseClip = gesture.current?.clip ?? clip;
@@ -3183,8 +3230,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         </>
       )}
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
-      {clip.transition_in === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${clip.transition_in}`} />}
-      {clip.transition_out === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${clip.transition_out}`} />}
+      {transitionIn === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${transitionIn.kind}`} />}
+      {transitionOut === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${transitionOut.kind}`} />}
       {kind === 'video' && enabledEffectCount > 0 ? (
         <span className="pointer-events-none absolute bottom-4 right-1 z-30 rounded-sm border border-accent-500 bg-bg/90 px-1 font-mono text-2xs text-accent-text" aria-label={t`已启用 ${enabledEffectCount} 个效果`}>fx{enabledEffectCount}</span>
       ) : null}

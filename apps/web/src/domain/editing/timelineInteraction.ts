@@ -81,29 +81,40 @@ export function adjustLinearGainByTrackDelta(volume: number, deltaY: number, tra
   return dbToLinearGain(nextDb);
 }
 
-export function clipHasActiveTransition(value: string | null): boolean {
-  const normalized = value?.trim().toLowerCase() ?? '';
-  return normalized !== '' && normalized !== 'none' && normalized !== 'cut';
+export function clipTransition(
+  clip: TimelineClip,
+  channel: 'video' | 'audio',
+  edge: 'in' | 'out',
+) {
+  return clip.transitions[`${channel}_${edge}`];
 }
 
-export function clipTransitionDuration(clip: TimelineClip): number {
-  if (typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)) {
-    const duration = clip.metadata.transition_duration;
-    if (typeof duration === 'number' && Number.isFinite(duration)) return duration;
-  }
-  return DEFAULT_CLIP_FADE_SECONDS;
+export function clipTransitionDuration(
+  clip: TimelineClip,
+  channel: 'video' | 'audio',
+  edge: 'in' | 'out',
+): number {
+  return clipTransition(clip, channel, edge)?.duration_seconds ?? 0;
 }
 
 export function clipFadeDuration(clip: TimelineClip, edge: 'in' | 'out'): number {
-  return clipHasActiveTransition(edge === 'in' ? clip.transition_in : clip.transition_out)
-    ? clipTransitionDuration(clip)
-    : 0;
+  return clipTransitionDuration(clip, 'audio', edge);
+}
+
+export function clipAudioFadeFactor(clip: TimelineClip, localTime: number): number {
+  const factor = (edge: 'in' | 'out') => {
+    const transition = clipTransition(clip, 'audio', edge);
+    if (transition === null) return 1;
+    const elapsed = edge === 'in' ? localTime : clip.placement.duration - localTime;
+    const progress = Math.min(1, Math.max(0, elapsed / transition.duration_seconds));
+    return transition.kind === 'constant_power' ? Math.sin(progress * Math.PI / 2) : progress;
+  };
+  return Math.min(factor('in'), factor('out'));
 }
 
 export function maximumClipFadeDuration(clip: TimelineClip, edge: 'in' | 'out', fps: number): number {
-  const other = edge === 'in' ? clip.transition_out : clip.transition_in;
   const frame = 1 / Math.max(1, fps);
-  const available = clipHasActiveTransition(other)
+  const available = clipTransition(clip, 'audio', edge === 'in' ? 'out' : 'in') !== null
     ? clip.placement.duration / 2 - frame
     : clip.placement.duration - frame;
   return Math.max(0, Math.min(MAX_CLIP_FADE_SECONDS, available));
@@ -115,9 +126,11 @@ export function setClipFadeDuration(
   requestedDuration: number,
   fps: number,
 ): TimelineClip {
-  const transitionField = edge === 'in' ? 'transition_in' : 'transition_out';
+  const transitionField = edge === 'in' ? 'audio_in' : 'audio_out';
   if (requestedDuration < MIN_CLIP_FADE_SECONDS) {
-    return clip[transitionField] === null ? clip : { ...clip, [transitionField]: null };
+    return clip.transitions[transitionField] === null
+      ? clip
+      : { ...clip, transitions: { ...clip.transitions, [transitionField]: null } };
   }
   const maximum = maximumClipFadeDuration(clip, edge, fps);
   if (maximum < MIN_CLIP_FADE_SECONDS) return clip;
@@ -125,16 +138,15 @@ export function setClipFadeDuration(
     Math.min(maximum, Math.max(MIN_CLIP_FADE_SECONDS, requestedDuration)),
     fps,
   );
-  const metadata = typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)
-    ? clip.metadata
-    : {};
-  if (clip[transitionField] === 'fade'
-    && typeof metadata.transition_duration === 'number'
-    && Math.abs(metadata.transition_duration - duration) <= 1e-6) return clip;
+  const current = clip.transitions[transitionField];
+  if (current?.kind === 'constant_power'
+    && Math.abs(current.duration_seconds - duration) <= 1e-6) return clip;
   return {
     ...clip,
-    [transitionField]: 'fade',
-    metadata: { ...metadata, transition_duration: duration },
+    transitions: {
+      ...clip.transitions,
+      [transitionField]: { kind: 'constant_power', duration_seconds: duration },
+    },
   };
 }
 

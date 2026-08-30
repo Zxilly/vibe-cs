@@ -71,8 +71,7 @@ export function timelineClipFromCollected(source: ProjectCollectedClip): Timelin
     },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
-    transition_in: null,
-    transition_out: null,
+    transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
     text: null,
     metadata: {
       collected_id: source.id,

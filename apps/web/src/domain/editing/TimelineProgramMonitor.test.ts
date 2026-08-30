@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TimelineClip } from '../../shared/desktop/dto';
+import type { EditorTransitionKind, TimelineClip } from '../../shared/desktop/dto';
 import { evaluatePreviewTransition } from './TimelineProgramMonitor';
 
-function clip(transition: string): TimelineClip {
+function clip(transition: EditorTransitionKind): TimelineClip {
   return {
     id: '00000000-0000-4000-8000-000000000001',
     name: 'Transition',
@@ -12,10 +12,14 @@ function clip(transition: string): TimelineClip {
     placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
-    transition_in: transition,
-    transition_out: null,
+    transitions: {
+      video_in: { kind: transition, duration_seconds: 2 },
+      video_out: null,
+      audio_in: null,
+      audio_out: null,
+    },
     text: null,
-    metadata: { transition_duration: 2 },
+    metadata: {},
     group_id: null,
     link_group_id: null,
     keyframes: [],
@@ -39,7 +43,15 @@ describe('Program visual transition presentation', () => {
   });
 
   it('uses remaining clip time for an outgoing transition', () => {
-    const source = { ...clip('cut'), transition_in: null, transition_out: 'zoom' };
+    const source = {
+      ...clip('fade'),
+      transitions: {
+        video_in: null,
+        video_out: { kind: 'zoom' as const, duration_seconds: 2 },
+        audio_in: null,
+        audio_out: null,
+      },
+    };
     expect(evaluatePreviewTransition(source, 4.5, 1_920)).toMatchObject({
       kind: 'zoom',
       progress: 0.25,

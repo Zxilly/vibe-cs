@@ -5,6 +5,7 @@ import type { EditorKeyframe } from "./EditorKeyframe";
 import type { EditorSpeedSegment } from "./EditorSpeedSegment";
 import type { TextStyle } from "./TextStyle";
 import type { TimelineClipMaterial } from "./TimelineClipMaterial";
+import type { TimelineClipTransitions } from "./TimelineClipTransitions";
 import type { TimelinePlacement } from "./TimelinePlacement";
 import type { Transform } from "./Transform";
 import type { JsonValue } from "./serde_json/JsonValue";
@@ -17,8 +18,7 @@ export type TimelineClip = {
   placement: TimelinePlacement;
   transform: Transform;
   effects: Array<EditorEffect>;
-  transition_in: string | null;
-  transition_out: string | null;
+  transitions: TimelineClipTransitions;
   text: TextStyle | null;
   metadata: JsonValue;
   group_id: string | null;

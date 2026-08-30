@@ -114,6 +114,7 @@ import type {
   AgentToolCall,
   AgentToolDecisionKind,
   EditorKeyframeProperty,
+  EditorTransitionKind,
   JsonValue,
   MediaAsset,
   TimelineClip,
@@ -1805,28 +1806,87 @@ function ClipInspector({
           </ol>
         </section>
       ) : null}
-      {draft.text !== null ? null : (['transition_in', 'transition_out'] as const).map((field) => (
-        <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
-          {field === 'transition_in' ? <Trans>入场转场</Trans> : <Trans>出场转场</Trans>}
-          <select
-            className="border border-divider bg-bg px-2 py-1.5"
-            disabled={readOnly}
-            value={draft[field] ?? ''}
-            onChange={(event) => setDraft({ ...draft, [field]: event.currentTarget.value === '' ? null : event.currentTarget.value })}
-          >
-            <option value=""><Trans>无</Trans></option>
-            <option value="fade"><Trans>淡化</Trans></option>
-            <option value="dip"><Trans>黑场</Trans></option>
-            <option value="flash"><Trans>闪白</Trans></option>
-            <option value="zoom"><Trans>缩放</Trans></option>
-            <option value="wipe"><Trans>擦除</Trans></option>
-            <option value="slide"><Trans>滑动</Trans></option>
-            <option value="blur"><Trans>模糊</Trans></option>
-            <option value="glitch"><Trans>故障</Trans></option>
-            <option value="spin"><Trans>旋转</Trans></option>
-          </select>
-        </label>
-      ))}
+      {draft.text !== null ? null : ([
+        { field: 'video_in', label: t`视频入场转场`, channel: 'video', edge: 'in' },
+        { field: 'video_out', label: t`视频出场转场`, channel: 'video', edge: 'out' },
+        { field: 'audio_in', label: t`音频入场转场`, channel: 'audio', edge: 'in' },
+        { field: 'audio_out', label: t`音频出场转场`, channel: 'audio', edge: 'out' },
+      ] as const)
+        .filter((item) => selected?.track.kind !== 'audio' || item.channel === 'audio')
+        .map((item) => {
+          const transition = draft.transitions[item.field];
+          const otherField = `${item.channel}_${item.edge === 'in' ? 'out' : 'in'}` as keyof TimelineClip['transitions'];
+          const otherDuration = draft.transitions[otherField]?.duration_seconds ?? 0;
+          const maximumDuration = Math.max(0, Math.min(5, draft.placement.duration - otherDuration - 1 / fps));
+          const setTransitionKind = (kind: EditorTransitionKind | null) => setDraft({
+            ...draft,
+            transitions: {
+              ...draft.transitions,
+              [item.field]: kind === null ? null : {
+                kind,
+                duration_seconds: snapTimeToFrame(Math.min(maximumDuration, transition?.duration_seconds ?? 1), fps),
+              },
+            },
+          });
+          return (
+            <section key={item.field} className="mt-3 border-t border-divider pt-3" aria-label={item.label}>
+              <label className="flex flex-col gap-1 text-xs">
+                {item.label}
+                <select
+                  className="border border-divider bg-bg px-2 py-1.5"
+                  disabled={readOnly || maximumDuration < 0.05}
+                  value={transition?.kind ?? ''}
+                  onChange={(event) => setTransitionKind(event.currentTarget.value === '' ? null : event.currentTarget.value as EditorTransitionKind)}
+                >
+                  <option value=""><Trans>无</Trans></option>
+                  {item.channel === 'audio' ? (
+                    <>
+                      <option value="constant_power"><Trans>恒定功率</Trans></option>
+                      <option value="fade"><Trans>线性淡化</Trans></option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="fade"><Trans>淡化</Trans></option>
+                      <option value="dip"><Trans>黑场</Trans></option>
+                      <option value="flash"><Trans>闪白</Trans></option>
+                      <option value="zoom"><Trans>缩放</Trans></option>
+                      <option value="wipe"><Trans>擦除</Trans></option>
+                      <option value="slide"><Trans>滑动</Trans></option>
+                      <option value="blur"><Trans>模糊</Trans></option>
+                      <option value="glitch"><Trans>故障</Trans></option>
+                      <option value="spin"><Trans>旋转</Trans></option>
+                    </>
+                  )}
+                </select>
+              </label>
+              {transition === null ? null : (
+                <label className="mt-2 flex flex-col gap-1 text-xs">
+                  <Trans>持续时间（秒）</Trans>
+                  <input
+                    type="number"
+                    min={0.05}
+                    max={maximumDuration}
+                    step={1 / fps}
+                    className="border border-divider bg-bg px-2 py-1.5 font-mono"
+                    aria-label={`${item.label} ${t`持续时间`}`}
+                    disabled={readOnly}
+                    value={transition.duration_seconds}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      transitions: {
+                        ...draft.transitions,
+                        [item.field]: {
+                          ...transition,
+                          duration_seconds: snapTimeToFrame(Math.min(maximumDuration, Math.max(0.05, event.currentTarget.valueAsNumber)), fps),
+                        },
+                      },
+                    })}
+                  />
+                </label>
+              )}
+            </section>
+          );
+        })}
       <label className="mt-3 flex items-center gap-2 text-xs">
         <input type="checkbox" disabled={readOnly} checked={draft.placement.enabled} onChange={(event) => setDraft({ ...draft, placement: { ...draft.placement, enabled: event.currentTarget.checked } })} />
         <Trans>启用片段</Trans>

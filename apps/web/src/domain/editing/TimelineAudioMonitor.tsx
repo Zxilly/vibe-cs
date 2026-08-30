@@ -5,7 +5,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import type { Project, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty } from './keyframeEditing';
 import {
-  clipFadeDuration,
+  clipAudioFadeFactor,
   clipPlaybackSpeedAtLocalTime,
   clipSourceTimeAtLocalTime,
   MAX_TIMELINE_CLIP_SPEED,
@@ -200,11 +200,6 @@ function isClipActive(clip: TimelineClip, timelineTimeSeconds: number): boolean 
 
 export function evaluateTimelineAudio(clip: TimelineClip, localTime: number) {
   const canonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', localTime, clip.placement.volume);
-  const fadeIn = clipFadeDuration(clip, 'in');
-  const fadeOut = clipFadeDuration(clip, 'out');
-  const fadeInFactor = fadeIn > 0 ? Math.min(1, Math.max(0, localTime / fadeIn)) : 1;
-  const remaining = clip.placement.duration - localTime;
-  const fadeOutFactor = fadeOut > 0 ? Math.min(1, Math.max(0, remaining / fadeOut)) : 1;
-  const fadeFactor = Math.min(fadeInFactor, fadeOutFactor);
+  const fadeFactor = clipAudioFadeFactor(clip, localTime);
   return { canonicalVolume, fadeFactor, outputVolume: canonicalVolume * fadeFactor };
 }

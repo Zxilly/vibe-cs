@@ -9,15 +9,14 @@ use std::{
 use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditorEffect, EditorKeyframe, EditorKeyframeProperty, EditorSpeedSegment, Project, TextStyle,
-    TimelineClipMaterial, TrackKind, Transform,
+    EditorEffect, EditorKeyframe, EditorKeyframeProperty, EditorSpeedSegment, EditorTransition,
+    EditorTransitionKind, Project, TextStyle, TimelineClipMaterial, TrackKind, Transform,
 };
 
 use crate::{CommandSpec, MediaError, MediaResult, io_error};
 
 const SOFTWARE_ENCODER: &str = "libopenh264";
 const HARDWARE_ENCODERS: &[&str] = &["h264_qsv", "h264_nvenc", "h264_amf"];
-const DEFAULT_TRANSITION_SECONDS: f64 = 0.35;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilterPlan {
@@ -118,10 +117,11 @@ struct RenderClip {
     volume: f64,
     transform: Transform,
     effects: Vec<EditorEffect>,
-    transition_in: Option<String>,
-    transition_out: Option<String>,
+    video_transition_in: Option<EditorTransition>,
+    video_transition_out: Option<EditorTransition>,
+    audio_transition_in: Option<EditorTransition>,
+    audio_transition_out: Option<EditorTransition>,
     text: Option<TextStyle>,
-    metadata: Value,
     keyframes: Vec<EditorKeyframe>,
     speed_segments: Vec<EditorSpeedSegment>,
 }
@@ -161,10 +161,11 @@ impl From<&Project> for RenderProject {
                             volume: clip.placement.volume,
                             transform: clip.transform.clone(),
                             effects: clip.effects.clone(),
-                            transition_in: clip.transition_in.clone(),
-                            transition_out: clip.transition_out.clone(),
+                            video_transition_in: clip.transitions.video_in.clone(),
+                            video_transition_out: clip.transitions.video_out.clone(),
+                            audio_transition_in: clip.transitions.audio_in.clone(),
+                            audio_transition_out: clip.transitions.audio_out.clone(),
                             text: clip.text.clone(),
-                            metadata: clip.metadata.clone(),
                             keyframes: clip.keyframes.clone(),
                             speed_segments: clip.speed_segments.clone(),
                         })
@@ -422,20 +423,6 @@ fn build_single_input_command(
         temporary.as_os_str().to_os_string(),
     ]);
     Ok(command)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Transition {
-    Cut,
-    Fade,
-    Flash,
-    Dip,
-    Zoom,
-    Wipe,
-    Slide,
-    Blur,
-    Glitch,
-    Spin,
 }
 
 /// Builds a complete montage plan with probed duration/audio metadata and an
@@ -813,9 +800,35 @@ fn validate_editor_clip(clip: &RenderClip) -> MediaResult<()> {
     validate_finite_range(clip.speed, 0.05, 16.0, "clip speed")?;
     validate_finite_range(clip.volume, 0.0, 4.0, "clip volume")?;
     validate_transform(&clip.transform)?;
-    for transition in [&clip.transition_in, &clip.transition_out] {
-        if let Some(transition) = transition.as_deref() {
-            let _ = parse_transition(transition)?;
+    for transition in [
+        clip.video_transition_in.as_ref(),
+        clip.video_transition_out.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let _ = validated_transition_duration(transition, clip.duration)?;
+        if transition.kind == EditorTransitionKind::ConstantPower {
+            return Err(MediaError::InvalidInput(
+                "constant power is an audio-only transition".to_owned(),
+            ));
+        }
+    }
+    for transition in [
+        clip.audio_transition_in.as_ref(),
+        clip.audio_transition_out.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let _ = validated_transition_duration(transition, clip.duration)?;
+        if !matches!(
+            transition.kind,
+            EditorTransitionKind::Fade | EditorTransitionKind::ConstantPower
+        ) {
+            return Err(MediaError::InvalidInput(
+                "audio clips support fade or constant power transitions".to_owned(),
+            ));
         }
     }
     for effect in &clip.effects {
@@ -1073,26 +1086,36 @@ fn build_visual_filter(
 }
 
 fn append_visual_fades(filter: &mut String, clip: &RenderClip, duration: f64) -> MediaResult<()> {
-    let transition_duration = editor_transition_duration(clip, duration)?;
-    if let Some(transition) = parsed_optional_transition(clip.transition_in.as_deref())? {
-        append_editor_visual_transition(filter, transition, true, transition_duration, duration);
+    if let Some(transition) = clip.video_transition_in.as_ref() {
+        let transition_duration = validated_transition_duration(transition, duration)?;
+        append_editor_visual_transition(
+            filter,
+            transition.kind,
+            true,
+            transition_duration,
+            duration,
+        );
     }
-    if let Some(transition) = parsed_optional_transition(clip.transition_out.as_deref())? {
-        append_editor_visual_transition(filter, transition, false, transition_duration, duration);
+    if let Some(transition) = clip.video_transition_out.as_ref() {
+        let transition_duration = validated_transition_duration(transition, duration)?;
+        append_editor_visual_transition(
+            filter,
+            transition.kind,
+            false,
+            transition_duration,
+            duration,
+        );
     }
     Ok(())
 }
 
 fn append_editor_visual_transition(
     filter: &mut String,
-    transition: Transition,
+    transition: EditorTransitionKind,
     entering: bool,
     transition_duration: f64,
     clip_duration: f64,
 ) {
-    if transition == Transition::Cut {
-        return;
-    }
     let start = if entering {
         0.0
     } else {
@@ -1100,15 +1123,14 @@ fn append_editor_visual_transition(
     };
     let fade_kind = if entering { "in" } else { "out" };
     match transition {
-        Transition::Cut => {}
-        Transition::Fade => {
+        EditorTransitionKind::Fade => {
             let _ = write!(
                 filter,
                 ",fade=t={fade_kind}:st={start:.6}:d={transition_duration:.6}:alpha=1"
             );
         }
-        Transition::Flash | Transition::Dip => {
-            let color = if transition == Transition::Flash {
+        EditorTransitionKind::Flash | EditorTransitionKind::Dip => {
+            let color = if transition == EditorTransitionKind::Flash {
                 "white"
             } else {
                 "black"
@@ -1118,7 +1140,7 @@ fn append_editor_visual_transition(
                 ",fade=t={fade_kind}:st={start:.6}:d={transition_duration:.6}:color={color}"
             );
         }
-        Transition::Zoom => {
+        EditorTransitionKind::Zoom => {
             let expression = if entering {
                 format!("1+0.18*max(0\\,({transition_duration:.6}-t)/{transition_duration:.6})")
             } else {
@@ -1129,13 +1151,13 @@ fn append_editor_visual_transition(
                 ",scale=w='trunc(iw*({expression})/2)*2':h='trunc(ih*({expression})/2)*2':eval=frame"
             );
         }
-        Transition::Wipe | Transition::Slide => {
+        EditorTransitionKind::Wipe | EditorTransitionKind::Slide => {
             let progress = if entering {
                 format!("min(1\\,T/{transition_duration:.6})")
             } else {
                 format!("max(0\\,1-(T-{start:.6})/{transition_duration:.6})")
             };
-            let feather = if transition == Transition::Wipe {
+            let feather = if transition == EditorTransitionKind::Wipe {
                 2
             } else {
                 48
@@ -1145,21 +1167,21 @@ fn append_editor_visual_transition(
                 ",geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='alpha(X,Y)*clip((({progress})*W-X)/{feather}\\,0\\,1)'"
             );
         }
-        Transition::Blur => {
+        EditorTransitionKind::Blur => {
             let end = start + transition_duration;
             let _ = write!(
                 filter,
                 ",gblur=sigma=8:enable='between(t,{start:.6},{end:.6})'"
             );
         }
-        Transition::Glitch => {
+        EditorTransitionKind::Glitch => {
             let end = start + transition_duration;
             let _ = write!(
                 filter,
                 ",chromashift=cbh=8:crh=-8:edge=smear:enable='between(t,{start:.6},{end:.6})'"
             );
         }
-        Transition::Spin => {
+        EditorTransitionKind::Spin => {
             let angle = if entering {
                 format!("0.35*max(0\\,1-t/{transition_duration:.6})")
             } else {
@@ -1167,6 +1189,7 @@ fn append_editor_visual_transition(
             };
             let _ = write!(filter, ",rotate='{angle}':c=none:ow=iw:oh=ih");
         }
+        EditorTransitionKind::ConstantPower => {}
     }
 }
 
@@ -1234,15 +1257,26 @@ fn build_audio_filter(
     } else {
         let _ = write!(filter, "volume={:.6}", clip.volume);
     }
-    let transition_duration = editor_transition_duration(clip, item.duration)?;
-    if transition_is_active(clip.transition_in.as_deref())? {
-        let _ = write!(filter, ",afade=t=in:st=0:d={transition_duration:.6}");
+    if let Some(transition) = clip.audio_transition_in.as_ref() {
+        let transition_duration = validated_transition_duration(transition, item.duration)?;
+        let curve = if transition.kind == EditorTransitionKind::ConstantPower {
+            ":curve=qsin"
+        } else {
+            ""
+        };
+        let _ = write!(filter, ",afade=t=in:st=0:d={transition_duration:.6}{curve}");
     }
-    if transition_is_active(clip.transition_out.as_deref())? {
+    if let Some(transition) = clip.audio_transition_out.as_ref() {
+        let transition_duration = validated_transition_duration(transition, item.duration)?;
         let start = item.duration - transition_duration;
+        let curve = if transition.kind == EditorTransitionKind::ConstantPower {
+            ":curve=qsin"
+        } else {
+            ""
+        };
         let _ = write!(
             filter,
-            ",afade=t=out:st={start:.6}:d={transition_duration:.6}"
+            ",afade=t=out:st={start:.6}:d={transition_duration:.6}{curve}"
         );
     }
     // `amix` consumes each input from sample zero; a positive PTS alone does not
@@ -1263,8 +1297,10 @@ fn build_text_filter(
     text: &TextStyle,
     assets: &HashMap<String, EditorMediaSource, impl BuildHasher>,
 ) -> MediaResult<String> {
-    if transition_is_active(item.clip.transition_in.as_deref())?
-        || transition_is_active(item.clip.transition_out.as_deref())?
+    if item.clip.video_transition_in.is_some()
+        || item.clip.video_transition_out.is_some()
+        || item.clip.audio_transition_in.is_some()
+        || item.clip.audio_transition_out.is_some()
     {
         return Err(MediaError::InvalidInput(
             "text transitions are not supported; animate opacity on an overlay asset instead"
@@ -1455,59 +1491,23 @@ fn atempo_chain(mut speed: f64) -> Vec<f64> {
     filters
 }
 
-fn editor_transition_duration(clip: &RenderClip, duration: f64) -> MediaResult<f64> {
-    let configured = clip
-        .metadata
-        .get("transition_duration")
-        .and_then(Value::as_f64)
-        .unwrap_or(DEFAULT_TRANSITION_SECONDS);
-    validate_finite_range(configured, 0.05, 5.0, "transition duration")?;
-    if configured * 2.0 >= duration
-        && transition_is_active(clip.transition_in.as_deref())?
-        && transition_is_active(clip.transition_out.as_deref())?
-    {
+fn validated_transition_duration(
+    transition: &EditorTransition,
+    clip_duration: f64,
+) -> MediaResult<f64> {
+    validate_finite_range(
+        transition.duration_seconds,
+        0.05,
+        5.0,
+        "transition duration",
+    )?;
+    if transition.duration_seconds >= clip_duration {
         return Err(MediaError::InvalidInput(format!(
-            "clip {} is too short for both transitions",
-            clip.id
+            "transition duration {:.6} is longer than the rendered clip",
+            transition.duration_seconds
         )));
     }
-    if configured >= duration
-        && (transition_is_active(clip.transition_in.as_deref())?
-            || transition_is_active(clip.transition_out.as_deref())?)
-    {
-        return Err(MediaError::InvalidInput(format!(
-            "clip {} transition is longer than the rendered clip",
-            clip.id
-        )));
-    }
-    Ok(configured)
-}
-
-fn parsed_optional_transition(value: Option<&str>) -> MediaResult<Option<Transition>> {
-    value.map(parse_transition).transpose()
-}
-
-fn transition_is_active(value: Option<&str>) -> MediaResult<bool> {
-    parsed_optional_transition(value)
-        .map(|transition| transition.is_some_and(|transition| transition != Transition::Cut))
-}
-
-fn parse_transition(value: &str) -> MediaResult<Transition> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "" | "none" | "cut" => Ok(Transition::Cut),
-        "fade" | "dissolve" => Ok(Transition::Fade),
-        "flash" => Ok(Transition::Flash),
-        "dip" => Ok(Transition::Dip),
-        "zoom" => Ok(Transition::Zoom),
-        "wipe" => Ok(Transition::Wipe),
-        "whip" | "slide" | "slideleft" => Ok(Transition::Slide),
-        "blur" => Ok(Transition::Blur),
-        "glitch" => Ok(Transition::Glitch),
-        "spin" => Ok(Transition::Spin),
-        _ => Err(MediaError::InvalidInput(format!(
-            "unsupported transition: {value}"
-        ))),
-    }
+    Ok(transition.duration_seconds)
 }
 
 fn ffmpeg_color(value: &str) -> MediaResult<String> {
@@ -1699,8 +1699,8 @@ mod tests {
 
     use super::*;
     use vibe_cs_domain::{
-        EditingDocument, Project, TimelineClip, TimelineClipMaterial, TimelinePlacement,
-        TimelineTrack,
+        EditingDocument, Project, TimelineClip, TimelineClipMaterial, TimelineClipTransitions,
+        TimelinePlacement, TimelineTrack,
     };
 
     #[test]
@@ -1747,8 +1747,7 @@ mod tests {
                         },
                         transform: Transform::default(),
                         effects: Vec::new(),
-                        transition_in: None,
-                        transition_out: None,
+                        transitions: TimelineClipTransitions::default(),
                         text: None,
                         metadata: serde_json::json!({}),
                         group_id: None,
@@ -1802,43 +1801,54 @@ mod tests {
         let story_id = Uuid::new_v4();
         let first_asset = Uuid::new_v4();
         let second_asset = Uuid::new_v4();
-        let audio_clip = |name: &str, asset_id: Uuid, start: f64, volume: f64, fade: bool| TimelineClip {
-            id: Uuid::new_v4(),
-            name: name.to_owned(),
-            capture_intent: None,
-            material: TimelineClipMaterial::Asset {
-                asset_id,
-                media_duration_seconds: 8.0,
-            },
-            placement: TimelinePlacement {
-                start,
-                duration: 8.0,
-                source_in: 0.0,
-                source_out: 8.0,
-                speed: 1.0,
-                volume,
-                enabled: true,
-            },
-            transform: Transform::default(),
-            effects: Vec::new(),
-            transition_in: fade.then(|| "fade".to_owned()),
-            transition_out: fade.then(|| "fade".to_owned()),
-            text: None,
-            metadata: serde_json::json!({ "transition_duration": 1.5 }),
-            group_id: None,
-            link_group_id: None,
-            keyframes: if fade {
-                vec![EditorKeyframe {
-                    id: Uuid::new_v4(),
-                    time: 4.0,
-                    property: EditorKeyframeProperty::Volume,
-                    value: 0.5,
-                }]
-            } else {
-                Vec::new()
-            },
-            speed_segments: Vec::new(),
-        };
+        let audio_clip =
+            |name: &str, asset_id: Uuid, start: f64, volume: f64, fade: bool| TimelineClip {
+                id: Uuid::new_v4(),
+                name: name.to_owned(),
+                capture_intent: None,
+                material: TimelineClipMaterial::Asset {
+                    asset_id,
+                    media_duration_seconds: 8.0,
+                },
+                placement: TimelinePlacement {
+                    start,
+                    duration: 8.0,
+                    source_in: 0.0,
+                    source_out: 8.0,
+                    speed: 1.0,
+                    volume,
+                    enabled: true,
+                },
+                transform: Transform::default(),
+                effects: Vec::new(),
+                transitions: TimelineClipTransitions {
+                    video_in: None,
+                    video_out: None,
+                    audio_in: fade.then(|| EditorTransition {
+                        kind: EditorTransitionKind::Fade,
+                        duration_seconds: 1.5,
+                    }),
+                    audio_out: fade.then(|| EditorTransition {
+                        kind: EditorTransitionKind::Fade,
+                        duration_seconds: 1.5,
+                    }),
+                },
+                text: None,
+                metadata: serde_json::json!({}),
+                group_id: None,
+                link_group_id: None,
+                keyframes: if fade {
+                    vec![EditorKeyframe {
+                        id: Uuid::new_v4(),
+                        time: 4.0,
+                        property: EditorKeyframeProperty::Volume,
+                        value: 0.5,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                speed_segments: Vec::new(),
+            };
         let mut project = Project {
             id: Uuid::new_v4(),
             name: "Audio-only export".to_owned(),

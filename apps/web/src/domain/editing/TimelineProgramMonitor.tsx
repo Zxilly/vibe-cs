@@ -9,8 +9,8 @@ import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip, TimelineClipMaterializationState } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
-  clipFadeDuration,
-  clipHasActiveTransition,
+  clipAudioFadeFactor,
+  clipTransition,
   clipLocalTimeAtSourceTime,
   clipPlaybackSpeedAtLocalTime,
   clipSourceTimeAtLocalTime,
@@ -1333,14 +1333,16 @@ export function evaluatePreviewTransition(
   localTime: number,
   projectWidth: number,
 ): PreviewTransitionPresentation {
-  const duration = Math.min(clip.placement.duration, clipTransitionDuration(clip));
-  if (!(duration > 0)) return NO_PREVIEW_TRANSITION;
+  const transitionIn = clipTransition(clip, 'video', 'in');
+  const transitionOut = clipTransition(clip, 'video', 'out');
+  const inDuration = Math.min(clip.placement.duration, clipTransitionDuration(clip, 'video', 'in'));
+  const outDuration = Math.min(clip.placement.duration, clipTransitionDuration(clip, 'video', 'out'));
   const remaining = clip.placement.duration - localTime;
-  const entering = clipHasActiveTransition(clip.transition_in) && localTime < duration;
-  const exiting = !entering && clipHasActiveTransition(clip.transition_out) && remaining < duration;
+  const entering = transitionIn !== null && localTime < inDuration;
+  const exiting = !entering && transitionOut !== null && remaining < outDuration;
   if (!entering && !exiting) return NO_PREVIEW_TRANSITION;
-  const rawKind = (entering ? clip.transition_in : clip.transition_out)?.trim().toLowerCase() ?? '';
-  const kind = rawKind === 'dissolve' ? 'fade' : rawKind === 'whip' || rawKind === 'slideleft' ? 'slide' : rawKind;
+  const kind = (entering ? transitionIn : transitionOut)?.kind ?? 'fade';
+  const duration = entering ? inDuration : outDuration;
   const progress = Math.min(1, Math.max(0, (entering ? localTime : remaining) / duration));
   const intensity = 1 - progress;
   const base = { ...NO_PREVIEW_TRANSITION, kind, progress };
@@ -1363,12 +1365,7 @@ export function evaluatePreviewTransition(
 
 function evaluatePreviewAudio(clip: TimelineClip, localTime: number) {
   const canonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', localTime, clip.placement.volume);
-  const fadeIn = clipFadeDuration(clip, 'in');
-  const fadeOut = clipFadeDuration(clip, 'out');
-  const fadeInFactor = fadeIn > 0 ? Math.min(1, Math.max(0, localTime / fadeIn)) : 1;
-  const remaining = clip.placement.duration - localTime;
-  const fadeOutFactor = fadeOut > 0 ? Math.min(1, Math.max(0, remaining / fadeOut)) : 1;
-  const fadeFactor = Math.min(fadeInFactor, fadeOutFactor);
+  const fadeFactor = clipAudioFadeFactor(clip, localTime);
   return { canonicalVolume, fadeFactor, outputVolume: canonicalVolume * fadeFactor };
 }
 

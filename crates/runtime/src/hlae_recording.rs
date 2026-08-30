@@ -32,13 +32,14 @@ use vibe_cs_platform_windows::{
     probe_hlae_sequence_encoder_capabilities,
 };
 
+use crate::hlae_session::RuntimeHlaePersistentSession;
 use crate::recording::verify_recording_demo_content;
 use crate::{
     HlaeTakeMp4EncodeError, HlaeTakeStabilityError, HlaeTakeStabilityPolicy,
     OrphanedRecordingRecovery, PreparedRecording, RecordingBackend, RecordingCancellation,
     RecordingProgressSink, RuntimeHlaeBridgeError, RuntimeHlaeCaptureProgram,
-    RuntimeHlaeSessionError, RuntimeHlaeSessionOrchestrator, RuntimeHlaeSessionRequest,
-    RuntimeHlaeSessionTimeouts,
+    RuntimeHlaeSessionError, RuntimeHlaeSessionEvidence, RuntimeHlaeSessionOrchestrator,
+    RuntimeHlaeSessionRequest, RuntimeHlaeSessionTimeouts,
 };
 
 const MANAGED_HLAE_JOB_DIRECTORY: &str = "hlae-jobs";
@@ -1383,6 +1384,7 @@ struct HlaeSessionJobContract {
     shared_demo: Option<PathBuf>,
     verified_total_ticks: Option<u32>,
     take_count: usize,
+    persistent_pov: bool,
 }
 
 #[async_trait]
@@ -1426,30 +1428,165 @@ impl HlaeSessionRunner for RuntimeHlaeSessionOrchestrator {
     ) -> Result<HlaeRecordingSessionResult, RuntimeHlaeSessionError> {
         let evidence =
             RuntimeHlaeSessionOrchestrator::run_with_progress(self, request, progress).await?;
-        Ok(HlaeRecordingSessionResult {
-            output_path: evidence.mp4_summary.output_path,
-            output_bytes: evidence.mp4_summary.output_bytes,
-            frame_count: evidence.mp4_summary.frame_count,
-            duration_100ns: evidence.mp4_summary.video_duration_100ns,
-            manifest_path: evidence.artifact_manifest,
-            loader_process_id: evidence.loader_process_id,
-            game_process_id: evidence.game_process_id,
-            observed_start_tick: evidence.observed_capture_span.start_tick(),
-            observed_end_tick: evidence.observed_capture_span.end_tick(),
-            observer_steam_id64: evidence
-                .observer_evidence
-                .map(vibe_cs_hlae::ObservedPlayerPov::steam_id64),
-            observer_mode_raw: evidence
-                .observer_evidence
-                .map(vibe_cs_hlae::ObservedPlayerPov::observer_mode),
-            observer_verified_before_capture_tick: evidence
-                .observer_evidence
-                .map(vibe_cs_hlae::ObservedPlayerPov::verified_before_capture_tick),
-            observer_verified_at_capture_stop_tick: evidence
-                .observer_evidence
-                .and_then(vibe_cs_hlae::ObservedPlayerPov::verified_at_capture_stop_tick),
-            audio_stream_included: evidence.mp4_summary.audio_stream_included,
-        })
+        Ok(recording_session_result(evidence))
+    }
+}
+
+fn recording_session_result(evidence: RuntimeHlaeSessionEvidence) -> HlaeRecordingSessionResult {
+    HlaeRecordingSessionResult {
+        output_path: evidence.mp4_summary.output_path,
+        output_bytes: evidence.mp4_summary.output_bytes,
+        frame_count: evidence.mp4_summary.frame_count,
+        duration_100ns: evidence.mp4_summary.video_duration_100ns,
+        manifest_path: evidence.artifact_manifest,
+        loader_process_id: evidence.loader_process_id,
+        game_process_id: evidence.game_process_id,
+        observed_start_tick: evidence.observed_capture_span.start_tick(),
+        observed_end_tick: evidence.observed_capture_span.end_tick(),
+        observer_steam_id64: evidence
+            .observer_evidence
+            .map(vibe_cs_hlae::ObservedPlayerPov::steam_id64),
+        observer_mode_raw: evidence
+            .observer_evidence
+            .map(vibe_cs_hlae::ObservedPlayerPov::observer_mode),
+        observer_verified_before_capture_tick: evidence
+            .observer_evidence
+            .map(vibe_cs_hlae::ObservedPlayerPov::verified_before_capture_tick),
+        observer_verified_at_capture_stop_tick: evidence
+            .observer_evidence
+            .and_then(vibe_cs_hlae::ObservedPlayerPov::verified_at_capture_stop_tick),
+        audio_stream_included: evidence.mp4_summary.audio_stream_included,
+    }
+}
+
+#[derive(Debug, Default)]
+struct PersistentRuntimeHlaeSessionRunner {
+    orchestrator: RuntimeHlaeSessionOrchestrator,
+    jobs: tokio::sync::Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<PersistentRuntimeHlaeJob>>>>,
+}
+
+#[derive(Debug)]
+struct PersistentRuntimeHlaeJob {
+    contract: HlaeSessionJobContract,
+    session: Option<RuntimeHlaePersistentSession>,
+    acknowledged_takes: usize,
+}
+
+#[async_trait]
+impl HlaeSessionRunner for PersistentRuntimeHlaeSessionRunner {
+    async fn begin_job(
+        &self,
+        contract: HlaeSessionJobContract,
+    ) -> Result<(), RuntimeHlaeSessionError> {
+        if !contract.persistent_pov {
+            return Ok(());
+        }
+        let job_id = contract.job_id;
+        let mut jobs = self.jobs.lock().await;
+        if jobs.contains_key(&job_id) {
+            return Err(vibe_cs_hlae::HlaeError::InvalidPlan(
+                "persistent HLAE job is already registered".to_owned(),
+            )
+            .into());
+        }
+        jobs.insert(
+            job_id,
+            Arc::new(tokio::sync::Mutex::new(PersistentRuntimeHlaeJob {
+                contract,
+                session: None,
+                acknowledged_takes: 0,
+            })),
+        );
+        Ok(())
+    }
+
+    async fn run(
+        &self,
+        request: RuntimeHlaeSessionRequest,
+        progress: RecordingProgressSink,
+    ) -> Result<HlaeRecordingSessionResult, RuntimeHlaeSessionError> {
+        let job = self.jobs.lock().await.get(&request.job_id).cloned();
+        let Some(job) = job else {
+            return self
+                .orchestrator
+                .run_with_progress(request, progress)
+                .await
+                .map(recording_session_result);
+        };
+        let mut job = job.lock().await;
+        if request.take_index == 0 {
+            if job.session.is_some() || job.acknowledged_takes != 0 {
+                return Err(vibe_cs_hlae::HlaeError::InvalidPlan(
+                    "persistent HLAE first Take was already started".to_owned(),
+                )
+                .into());
+            }
+            let (session, evidence) = self
+                .orchestrator
+                .begin_persistent_with_progress(request, progress)
+                .await?;
+            job.session = Some(session);
+            return Ok(recording_session_result(evidence));
+        }
+        if request.take_index != job.acknowledged_takes {
+            return Err(vibe_cs_hlae::HlaeError::InvalidPlan(
+                "persistent HLAE next Take requires the previous database ACK".to_owned(),
+            )
+            .into());
+        }
+        let session = job.session.as_mut().ok_or_else(|| {
+            RuntimeHlaeSessionError::from(vibe_cs_hlae::HlaeError::InvalidPlan(
+                "persistent HLAE session was not opened".to_owned(),
+            ))
+        })?;
+        self.orchestrator
+            .capture_next_persistent_with_progress(session, request, progress)
+            .await
+            .map(recording_session_result)
+    }
+
+    async fn acknowledge_published_take(
+        &self,
+        job_id: Uuid,
+        take_index: usize,
+    ) -> Result<(), RuntimeHlaeSessionError> {
+        let job = self.jobs.lock().await.get(&job_id).cloned();
+        let Some(job) = job else {
+            return Ok(());
+        };
+        let mut job = job.lock().await;
+        if take_index != job.acknowledged_takes || take_index >= job.contract.take_count {
+            return Err(vibe_cs_hlae::HlaeError::InvalidPlan(
+                "persistent HLAE database ACK is out of sequence".to_owned(),
+            )
+            .into());
+        }
+        job.acknowledged_takes += 1;
+        Ok(())
+    }
+
+    async fn finish_job(&self, job_id: Uuid) -> Result<(), RuntimeHlaeSessionError> {
+        let job = self.jobs.lock().await.remove(&job_id);
+        let Some(job) = job else {
+            return Ok(());
+        };
+        let mut job = job.lock().await;
+        let Some(session) = job.session.take() else {
+            return Ok(());
+        };
+        self.orchestrator.finish_persistent(session).await
+    }
+
+    async fn abort_job(&self, job_id: Uuid) -> Result<(), RuntimeHlaeSessionError> {
+        let job = self.jobs.lock().await.remove(&job_id);
+        let Some(job) = job else {
+            return Ok(());
+        };
+        let mut job = job.lock().await;
+        let Some(session) = job.session.take() else {
+            return Ok(());
+        };
+        self.orchestrator.abort_persistent(session)
     }
 }
 
@@ -1560,6 +1697,7 @@ struct HlaeRecordingJobContext {
     roots: ManagedRecordingRoots,
     launch_inputs: HlaeBundleLaunchInputs,
     target_bitrate_bps: u32,
+    persistent_pov: bool,
     clips: Vec<HlaeRecordingClipContext>,
 }
 
@@ -1576,6 +1714,7 @@ impl HlaeRecordingJobContext {
             shared_demo: shares_demo.then(|| capture_program_demo_path(&first.plan).to_path_buf()),
             verified_total_ticks: shares_demo.then_some(first.verified_total_ticks),
             take_count: self.clips.len(),
+            persistent_pov: self.persistent_pov,
         }
     }
 }
@@ -1616,7 +1755,7 @@ impl HlaeRecordingBackend {
                 data_dir: data_dir.clone(),
             }),
             data_dir,
-            session_runner: Arc::new(RuntimeHlaeSessionOrchestrator::default()),
+            session_runner: Arc::new(PersistentRuntimeHlaeSessionRunner::default()),
             encoder_capability_probe: Arc::new(SystemHlaeEncoderCapabilityProbe),
             job_contexts: Arc::new(Mutex::new(HashMap::new())),
             session_timeouts: RuntimeHlaeSessionTimeouts::default(),
@@ -1849,6 +1988,17 @@ impl HlaeRecordingBackend {
         )?;
         let target_bitrate_bps = native_target_bitrate(config)?;
         let job_id = items[0].job_id;
+        let first_presentation = take_presentation(fallback_presentation, &items[0].request);
+        let persistent_pov = items.len() > 1
+            && items.iter().all(|item| {
+                item.request.camera_style == HlaeCameraStyle::Pov
+                    && item.demo.id == items[0].demo.id
+                    && item.segment.player_id == items[0].segment.player_id
+                    && item.segment.spectator_slot == items[0].segment.spectator_slot
+                    && item.segment.verified_total_ticks == items[0].segment.verified_total_ticks
+                    && take_presentation(fallback_presentation, &item.request) == first_presentation
+            });
+        let persistent_root = managed_job_path(&roots, job_id, 0);
         let mut output_names = HashSet::with_capacity(items.len());
         let mut clips = Vec::with_capacity(items.len());
         for (item_index, item) in items.iter().enumerate() {
@@ -1876,7 +2026,12 @@ impl HlaeRecordingBackend {
                     "recording output already exists".to_owned(),
                 ));
             }
-            let job_root = managed_job_path(&roots, item.job_id, item.item_index);
+            let item_job_root = managed_job_path(&roots, item.job_id, item.item_index);
+            let job_root = if persistent_pov {
+                persistent_root.clone()
+            } else {
+                item_job_root
+            };
             // Every take resolves its own presentation. A job whose first shot
             // is muted and whose second keeps team voice has to record two
             // different soundtracks, so this cannot be hoisted out of the loop.
@@ -1917,6 +2072,7 @@ impl HlaeRecordingBackend {
             roots,
             launch_inputs,
             target_bitrate_bps,
+            persistent_pov,
             clips,
         })
     }
@@ -2611,6 +2767,7 @@ mod tests {
         active_job: Option<Uuid>,
         next_take: usize,
         acknowledged_takes: usize,
+        session_roots: Vec<PathBuf>,
         events: Vec<PersistentSessionTrace>,
     }
 
@@ -2632,6 +2789,7 @@ mod tests {
                 )
             })?;
             assert_eq!(contract.verified_total_ticks, Some(4_096));
+            assert!(contract.persistent_pov);
             let mut state = self.state.lock().expect("persistent tracer state");
             assert!(state.active_job.replace(contract.job_id).is_none());
             state.events.push(PersistentSessionTrace::Opened {
@@ -2652,6 +2810,7 @@ mod tests {
             };
             let take_index = {
                 let mut state = self.state.lock().expect("persistent tracer state");
+                state.session_roots.push(request.managed_job_root.clone());
                 assert!(
                     state.active_job.is_some(),
                     "one shared session must be open"
@@ -3359,6 +3518,8 @@ mod tests {
 
         let state = runner.state.lock().expect("persistent tracer state");
         assert_eq!(state.acknowledged_takes, 2);
+        assert_eq!(state.session_roots.len(), 2);
+        assert_eq!(state.session_roots[0], state.session_roots[1]);
         assert_eq!(
             state.events,
             vec![

@@ -192,7 +192,23 @@ struct PreparedHlaeSession {
     disk_space: HlaeDiskSpaceEvidence,
     capture: CaptureSettings,
     tick_rate: f64,
+    demo_path: PathBuf,
+    verified_total_ticks: u32,
+    persistent_commands: Option<HlaePersistentPovCommands>,
     managed_config_contents: Vec<u8>,
+}
+
+#[derive(Debug)]
+struct ConnectedHlaeSession {
+    session_root: PathBuf,
+    machine: HlaeSessionMachine,
+    connection: RuntimeHlaeBridgeConnection,
+    token: SessionToken,
+    manifest_path: PathBuf,
+    disk_space: HlaeDiskSpaceEvidence,
+    capture: CaptureSettings,
+    tick_rate: f64,
+    protocol_origin: tokio::time::Instant,
 }
 
 #[derive(Debug)]
@@ -203,6 +219,14 @@ struct CompletedHlaeSession {
     machine: HlaeSessionMachine,
     connection: RuntimeHlaeBridgeConnection,
     token: SessionToken,
+    manifest_path: PathBuf,
+    disk_space: HlaeDiskSpaceEvidence,
+    capture: CaptureSettings,
+    tick_rate: f64,
+    demo_path: PathBuf,
+    verified_total_ticks: u32,
+    persistent_commands: Option<HlaePersistentPovCommands>,
+    protocol_origin: tokio::time::Instant,
 }
 
 /// One authenticated process/socket/state machine retained between typed
@@ -211,12 +235,14 @@ struct CompletedHlaeSession {
 pub struct RuntimeHlaePersistentSession {
     job_id: uuid::Uuid,
     session_root: PathBuf,
-    machine: HlaeSessionMachine,
-    connection: RuntimeHlaeBridgeConnection,
-    token: SessionToken,
+    connected: ConnectedHlaeSession,
     process: Option<Box<dyn HlaeSessionProcess>>,
     loader_process_id: u32,
     game_process_id: u32,
+    demo_path: PathBuf,
+    verified_total_ticks: u32,
+    persistent_commands: HlaePersistentPovCommands,
+    launch_inputs: HlaeBundleLaunchInputs,
     managed_config_contents: Vec<u8>,
     timeouts: RuntimeHlaeSessionTimeouts,
     cancellation: ProcessCancellation,
@@ -544,12 +570,6 @@ impl RuntimeHlaeSessionOrchestrator {
         progress: RecordingProgressSink,
     ) -> Result<(RuntimeHlaePersistentSession, RuntimeHlaeSessionEvidence), RuntimeHlaeSessionError>
     {
-        if request.take_index != 0 {
-            return Err(HlaeError::InvalidPlan(
-                "persistent HLAE session must begin with take index zero".to_owned(),
-            )
-            .into());
-        }
         if request.cancellation.is_cancelled() {
             return Err(PlatformError::Cancelled { process_id: None }.into());
         }
@@ -603,25 +623,167 @@ impl RuntimeHlaeSessionOrchestrator {
             machine,
             connection,
             token,
+            manifest_path,
+            disk_space,
+            capture,
+            tick_rate,
+            demo_path,
+            verified_total_ticks,
+            persistent_commands,
+            protocol_origin,
         } = completed;
+        let persistent_commands = persistent_commands.ok_or_else(|| {
+            RuntimeHlaeSessionError::from(HlaeError::InvalidPlan(
+                "verified POV session lost its persistent command contract".to_owned(),
+            ))
+        })?;
         let session = RuntimeHlaePersistentSession {
             job_id: request.job_id,
             session_root: request.managed_job_root.clone(),
-            machine,
-            connection,
-            token,
+            connected: ConnectedHlaeSession {
+                session_root: request.managed_job_root.clone(),
+                machine,
+                connection,
+                token,
+                manifest_path,
+                disk_space,
+                capture,
+                tick_rate,
+                protocol_origin,
+            },
             process: Some(process),
             loader_process_id: evidence.loader_process_id,
             game_process_id: evidence.game_process_id,
+            demo_path,
+            verified_total_ticks,
+            persistent_commands,
+            launch_inputs: request.launch_inputs,
             managed_config_contents,
             timeouts: request.timeouts,
             cancellation: request.cancellation,
             control_sequence: 1,
-            next_take_index: 1,
+            next_take_index: request.take_index.saturating_add(1),
             last_take_directory: take_directory,
             last_published_output: request.output_mp4,
         };
         Ok((session, evidence))
+    }
+
+    /// Advances one authenticated POV session to its next immutable Take and
+    /// publishes the verified MP4 without launching another process.
+    ///
+    /// # Errors
+    ///
+    /// Rejects changed job/session/capture facts, a missing database-ACK
+    /// sequence, invalid typed controls, or any capture/encode failure.
+    pub async fn capture_next_persistent_with_progress(
+        &self,
+        session: &mut RuntimeHlaePersistentSession,
+        request: RuntimeHlaeSessionRequest,
+        progress: RecordingProgressSink,
+    ) -> Result<RuntimeHlaeSessionEvidence, RuntimeHlaeSessionError> {
+        if request.job_id != session.job_id
+            || request.take_index != session.next_take_index
+            || request.managed_job_root != session.session_root
+            || request.launch_inputs != session.launch_inputs
+            || request.verified_total_ticks != session.verified_total_ticks
+            || request.timeouts != session.timeouts
+        {
+            return Err(HlaeError::InvalidPlan(
+                "persistent HLAE Take changed its immutable session binding".to_owned(),
+            )
+            .into());
+        }
+        if request.cancellation.is_cancelled()
+            || !request.output_mp4.is_absolute()
+            || request.output_mp4.exists()
+            || request
+                .output_mp4
+                .parent()
+                .is_none_or(|parent| !parent.is_dir())
+        {
+            return Err(HlaeError::InvalidPlan(
+                "persistent HLAE Take has an invalid output or cancellation state".to_owned(),
+            )
+            .into());
+        }
+        validate_request_mode(&request)?;
+        validate_declared_capture_contract(&request)?;
+        let program = capture_program_view(&request)?;
+        if program.demo_path != session.demo_path
+            || program.output_directory != session.session_root.join("capture")
+            || program.capture != session.connected.capture
+            || program.persistent_pov_commands.as_ref() != Some(&session.persistent_commands)
+        {
+            return Err(HlaeError::InvalidPlan(
+                "persistent HLAE Take changed its POV program or capture root".to_owned(),
+            )
+            .into());
+        }
+        let ticks = CaptureTickContract::try_new(
+            session.verified_total_ticks,
+            program.seek_tick,
+            program.first_tick,
+            program.last_tick,
+            request.max_start_overshoot_ticks,
+            request.max_end_overshoot_ticks,
+        )?;
+        session
+            .connected
+            .machine
+            .apply_host_event(HlaeHostEvent::AdvanceTake {
+                ticks,
+                observer: program.observer,
+            })?;
+        let take_index = u32::try_from(request.take_index)
+            .map_err(|_| HlaeSessionProtocolError::InvalidControlEnvelope)?;
+        let advance = HlaeBridgeControlMessage::advance_take(
+            &session.connected.token,
+            session.control_sequence,
+            take_index,
+            ticks,
+            program.observer,
+        )?;
+        session
+            .connected
+            .connection
+            .send_control(
+                &advance,
+                request.timeouts.bridge_receive,
+                &request.cancellation,
+            )
+            .await?;
+        session.control_sequence += 1;
+        let process = session.process.as_deref().ok_or_else(|| {
+            RuntimeHlaeSessionError::from(HlaeError::InvalidPlan(
+                "persistent HLAE process is unavailable".to_owned(),
+            ))
+        })?;
+        let (mut evidence, take_directory) = self
+            .drive_connected_take(
+                &request,
+                &mut session.connected,
+                process,
+                session.loader_process_id,
+                session.game_process_id,
+                &progress,
+            )
+            .await?;
+        publish_staged_output(
+            &session.session_root,
+            &evidence.mp4_summary.output_path,
+            &request.output_mp4,
+            &request.cancellation,
+        )?;
+        evidence
+            .mp4_summary
+            .output_path
+            .clone_from(&request.output_mp4);
+        session.next_take_index += 1;
+        session.last_take_directory = take_directory;
+        session.last_published_output = request.output_mp4;
+        session.cancellation = request.cancellation;
+        Ok(evidence)
     }
 
     /// Sends the typed terminal control, closes the one retained process tree,
@@ -636,9 +798,12 @@ impl RuntimeHlaeSessionOrchestrator {
         mut session: RuntimeHlaePersistentSession,
     ) -> Result<(), RuntimeHlaeSessionError> {
         let finish_result = async {
-            let finish =
-                HlaeBridgeControlMessage::finish_session(&session.token, session.control_sequence)?;
+            let finish = HlaeBridgeControlMessage::finish_session(
+                &session.connected.token,
+                session.control_sequence,
+            )?;
             session
+                .connected
                 .connection
                 .send_control(
                     &finish,
@@ -647,10 +812,11 @@ impl RuntimeHlaeSessionOrchestrator {
                 )
                 .await?;
             session
+                .connected
                 .machine
                 .apply_host_event(HlaeHostEvent::FinalizationCompleted)?;
-            if session.machine.state() != HlaeSessionState::Completed {
-                return Err(terminal_session_error(&session.machine));
+            if session.connected.machine.state() != HlaeSessionState::Completed {
+                return Err(terminal_session_error(&session.connected.machine));
             }
             Ok(())
         }
@@ -659,25 +825,28 @@ impl RuntimeHlaeSessionOrchestrator {
             .process
             .take()
             .map_or(Ok(()), HlaeSessionProcess::close);
-        match (finish_result, close_result) {
-            (Ok(()), Ok(())) => {
-                remove_user_config_snapshot(
-                    &session.session_root,
-                    &session.managed_config_contents,
-                )?;
-                remove_successful_capture_tree(
-                    &session.session_root,
-                    &session.last_take_directory,
-                    &session.last_published_output,
-                )
-            }
-            (Err(primary), Ok(())) => Err(primary),
-            (Ok(()), Err(close)) => Err(close.into()),
-            (Err(primary), Err(close)) => Err(RuntimeHlaeSessionError::Cleanup {
-                primary: primary.to_string(),
-                cleanup: format!("closing managed HLAE process tree: {close}"),
-            }),
-        }
+        let cleanup_result = cleanup_persistent_session_files(&session);
+        combine_persistent_finish(finish_result, close_result, cleanup_result)
+    }
+
+    /// Closes a failed/cancelled persistent process without sending another
+    /// protocol control, then removes only its disposable raw/config state.
+    /// Published prefix MP4 files remain untouched.
+    ///
+    /// # Errors
+    ///
+    /// Returns a process-close or managed-session cleanup error after making a
+    /// bounded attempt at both operations.
+    pub fn abort_persistent(
+        &self,
+        mut session: RuntimeHlaePersistentSession,
+    ) -> Result<(), RuntimeHlaeSessionError> {
+        let close_result = session
+            .process
+            .take()
+            .map_or(Ok(()), HlaeSessionProcess::close);
+        let cleanup_result = cleanup_persistent_session_files(&session);
+        combine_persistent_finish(Ok(()), close_result, cleanup_result)
     }
 
     async fn run_claimed(
@@ -939,6 +1108,9 @@ impl RuntimeHlaeSessionOrchestrator {
             disk_space,
             capture: program.capture.clone(),
             tick_rate: program.tick_rate,
+            demo_path: program.demo_path.clone(),
+            verified_total_ticks: request.verified_total_ticks,
+            persistent_commands: program.persistent_pov_commands.clone(),
             managed_config_contents: bootstrap.contents().as_bytes().to_vec(),
         })
     }
@@ -961,7 +1133,7 @@ impl RuntimeHlaeSessionOrchestrator {
         tokio::pin!(accept);
         tokio::pin!(loader_wait);
         let mut loader_exit_seen = false;
-        let mut connection = loop {
+        let connection = loop {
             tokio::select! {
                 biased;
                 exited = &mut loader_wait, if !loader_exit_seen => {
@@ -975,15 +1147,70 @@ impl RuntimeHlaeSessionOrchestrator {
             .machine
             .apply_host_event(HlaeHostEvent::GameHookAuthenticated { game_process_id })?;
 
+        let token = prepared.bridge_context.token.clone();
+        let managed_config_contents = prepared.managed_config_contents;
+        let demo_path = prepared.demo_path;
+        let verified_total_ticks = prepared.verified_total_ticks;
+        let persistent_commands = prepared.persistent_commands;
+        let mut connected = ConnectedHlaeSession {
+            session_root: request.managed_job_root.clone(),
+            machine: prepared.machine,
+            connection,
+            token,
+            manifest_path: prepared.manifest_path,
+            disk_space: prepared.disk_space,
+            capture: prepared.capture,
+            tick_rate: prepared.tick_rate,
+            protocol_origin: tokio::time::Instant::now(),
+        };
+        let (evidence, take_directory) = self
+            .drive_connected_take(
+                request,
+                &mut connected,
+                process,
+                loader_process_id,
+                game_process_id,
+                progress,
+            )
+            .await?;
+        Ok(CompletedHlaeSession {
+            evidence,
+            take_directory,
+            managed_config_contents,
+            machine: connected.machine,
+            connection: connected.connection,
+            token: connected.token,
+            manifest_path: connected.manifest_path,
+            disk_space: connected.disk_space,
+            capture: connected.capture,
+            tick_rate: connected.tick_rate,
+            demo_path,
+            verified_total_ticks,
+            persistent_commands,
+            protocol_origin: connected.protocol_origin,
+        })
+    }
+    async fn drive_connected_take(
+        &self,
+        request: &RuntimeHlaeSessionRequest,
+        connected: &mut ConnectedHlaeSession,
+        process: &dyn HlaeSessionProcess,
+        loader_process_id: u32,
+        game_process_id: u32,
+        progress: &RecordingProgressSink,
+    ) -> Result<(RuntimeHlaeSessionEvidence, PathBuf), RuntimeHlaeSessionError> {
+        let loader_wait = process.wait_loader(&request.cancellation);
+        tokio::pin!(loader_wait);
+        let mut loader_exit_seen = false;
         let protocol_started = tokio::time::Instant::now();
         let protocol_deadline = protocol_started + request.timeouts.protocol;
         loop {
-            match prepared.machine.state() {
+            match connected.machine.state() {
                 HlaeSessionState::Finalizing => break,
                 HlaeSessionState::Completed
                 | HlaeSessionState::Failed
                 | HlaeSessionState::Cancelled => {
-                    return Err(terminal_session_error(&prepared.machine));
+                    return Err(terminal_session_error(&connected.machine));
                 }
                 _ => {}
             }
@@ -993,31 +1220,33 @@ impl RuntimeHlaeSessionOrchestrator {
                 return Err(RuntimeHlaeSessionError::ProtocolTimedOut);
             }
             let receive_timeout = request.timeouts.bridge_receive.min(remaining);
-            let receive = connection.receive(receive_timeout, &request.cancellation);
+            let receive = connected
+                .connection
+                .receive(receive_timeout, &request.cancellation);
             tokio::pin!(receive);
             let bytes = loop {
                 tokio::select! {
                     biased;
                     exited = &mut loader_wait, if !loader_exit_seen => {
-                        apply_loader_exit(&mut prepared.machine, exited?)?;
+                        apply_loader_exit(&mut connected.machine, exited?)?;
                         loader_exit_seen = true;
                     }
                     received = &mut receive => break received?,
                 }
             };
             let received_at_ms =
-                u64::try_from(protocol_started.elapsed().as_millis()).unwrap_or(u64::MAX);
-            let state = prepared.machine.ingest_bridge(&bytes, received_at_ms)?;
+                u64::try_from(connected.protocol_origin.elapsed().as_millis()).unwrap_or(u64::MAX);
+            let state = connected.machine.ingest_bridge(&bytes, received_at_ms)?;
             match state {
                 HlaeSessionState::Seeking => progress.report(RecordingStage::Seeking),
                 HlaeSessionState::Capturing => progress.report(RecordingStage::Capturing),
                 _ => {}
             }
         }
-        let observed_capture_span = prepared.machine.observed_capture_span().ok_or(
+        let observed_capture_span = connected.machine.observed_capture_span().ok_or(
             RuntimeHlaeSessionError::MissingEvidence("observed capture ticks"),
         )?;
-        let take_directory = prepared
+        let take_directory = connected
             .machine
             .capture_take_directory()
             .ok_or(RuntimeHlaeSessionError::MissingEvidence(
@@ -1027,18 +1256,18 @@ impl RuntimeHlaeSessionOrchestrator {
         let frame_count_bounds = hlae_frame_count_bounds(
             observed_capture_span.start_tick(),
             observed_capture_span.end_tick(),
-            prepared.tick_rate,
-            prepared.capture.fps,
+            connected.tick_rate,
+            connected.capture.fps,
         )?;
         progress.report(RecordingStage::Stabilizing);
         {
             let stable_take = wait_for_stable_hlae_take(
-                &request.managed_job_root,
+                &connected.session_root,
                 &take_directory,
                 HlaeTakeExpectation {
-                    width: prepared.capture.width,
-                    height: prepared.capture.height,
-                    require_audio: prepared.capture.record_wav,
+                    width: connected.capture.width,
+                    height: connected.capture.height,
+                    require_audio: connected.capture.record_wav,
                     maximum_frames: frame_count_bounds.maximum,
                 },
                 request.take_stability,
@@ -1049,7 +1278,7 @@ impl RuntimeHlaeSessionOrchestrator {
                 tokio::select! {
                     biased;
                     exited = &mut loader_wait, if !loader_exit_seen => {
-                        apply_loader_exit(&mut prepared.machine, exited?)?;
+                        apply_loader_exit(&mut connected.machine, exited?)?;
                         loader_exit_seen = true;
                     }
                     stable = &mut stable_take => {
@@ -1066,24 +1295,15 @@ impl RuntimeHlaeSessionOrchestrator {
         let encode_request = HlaeTakeMp4EncodeRequest {
             managed_output_root: request.managed_job_root.clone(),
             take_directory: take_directory.clone(),
-            // The native writer is intentionally isolated below the disposable
-            // job root. Only the orchestrator may publish this verified file to
-            // the user-visible destination after cancellation checks and
-            // process-tree shutdown both succeed.
             output_path: staged_output.clone(),
             partial_output_path: partial_output.clone(),
-            width: prepared.capture.width,
-            height: prepared.capture.height,
-            fps: prepared.capture.fps,
+            width: connected.capture.width,
+            height: connected.capture.height,
+            fps: connected.capture.fps,
             target_bitrate_bps: request.target_bitrate_bps,
-            require_audio: prepared.capture.record_wav,
+            require_audio: connected.capture.record_wav,
             maximum_frames: frame_count_bounds.maximum,
-            // HLAE can drop image-sequence frames under encoder load while
-            // startMovieWav still covers the complete scheduled Take. For
-            // audio-backed Takes the native encoder retimes the surviving
-            // frames to that authoritative WAV duration; a 75% floor still
-            // rejects materially incomplete captures.
-            minimum_frames: if prepared.capture.record_wav {
+            minimum_frames: if connected.capture.record_wav {
                 frame_count_bounds.minimum.saturating_mul(3).div_ceil(4)
             } else {
                 frame_count_bounds.minimum
@@ -1101,7 +1321,7 @@ impl RuntimeHlaeSessionOrchestrator {
                 exited = &mut loader_wait, if !loader_exit_seen => {
                     let exit_result = exited
                         .map_err(RuntimeHlaeSessionError::from)
-                        .and_then(|exit| apply_loader_exit(&mut prepared.machine, exit));
+                        .and_then(|exit| apply_loader_exit(&mut connected.machine, exit));
                     match exit_result {
                         Ok(()) => loader_exit_seen = true,
                         Err(error) => {
@@ -1147,31 +1367,26 @@ impl RuntimeHlaeSessionOrchestrator {
             )
             .into());
         }
-        let observer_evidence = prepared.machine.observer_evidence();
-        if prepared.machine.state() != HlaeSessionState::Finalizing {
+        let observer_evidence = connected.machine.observer_evidence();
+        if connected.machine.state() != HlaeSessionState::Finalizing {
             remove_owned_output(&encode_evidence.summary.output_path)?;
-            return Err(terminal_session_error(&prepared.machine));
+            return Err(terminal_session_error(&connected.machine));
         }
-        let token = prepared.bridge_context.token.clone();
-        Ok(CompletedHlaeSession {
-            evidence: RuntimeHlaeSessionEvidence {
+        Ok((
+            RuntimeHlaeSessionEvidence {
                 managed_job_root: request.managed_job_root.clone(),
-                artifact_manifest: prepared.manifest_path,
+                artifact_manifest: connected.manifest_path.clone(),
                 loader_process_id,
                 game_process_id,
                 observed_capture_span,
                 observer_evidence,
                 frame_count_bounds,
-                disk_space: prepared.disk_space,
+                disk_space: connected.disk_space,
                 mp4_summary: encode_evidence.summary,
                 mp4_inspection: encode_evidence.inspection,
             },
             take_directory,
-            managed_config_contents: prepared.managed_config_contents,
-            machine: prepared.machine,
-            connection,
-            token,
-        })
+        ))
     }
 
     #[cfg(test)]
@@ -1298,6 +1513,49 @@ fn combine_start_cleanup(
             primary: primary.to_string(),
             cleanup: failures.join("; "),
         }
+    }
+}
+
+fn cleanup_persistent_session_files(
+    session: &RuntimeHlaePersistentSession,
+) -> Result<(), RuntimeHlaeSessionError> {
+    remove_user_config_snapshot(&session.session_root, &session.managed_config_contents)?;
+    remove_successful_capture_tree(
+        &session.session_root,
+        &session.last_take_directory,
+        &session.last_published_output,
+    )
+}
+
+fn combine_persistent_finish(
+    finish: Result<(), RuntimeHlaeSessionError>,
+    close: Result<(), PlatformError>,
+    cleanup: Result<(), RuntimeHlaeSessionError>,
+) -> Result<(), RuntimeHlaeSessionError> {
+    let mut cleanup_failures = Vec::new();
+    let primary = match (finish.err(), close.err()) {
+        (Some(primary), Some(close)) => {
+            cleanup_failures.push(format!("closing managed HLAE process tree: {close}"));
+            Some(primary)
+        }
+        (Some(primary), None) => Some(primary),
+        (None, Some(close)) => Some(close.into()),
+        (None, None) => None,
+    };
+    if let Err(error) = cleanup {
+        cleanup_failures.push(error.to_string());
+    }
+    match (primary, cleanup_failures.is_empty()) {
+        (None, true) => Ok(()),
+        (Some(error), true) => Err(error),
+        (Some(error), false) => Err(RuntimeHlaeSessionError::Cleanup {
+            primary: error.to_string(),
+            cleanup: cleanup_failures.join("; "),
+        }),
+        (None, false) => Err(RuntimeHlaeSessionError::Cleanup {
+            primary: "persistent HLAE session cleanup failed".to_owned(),
+            cleanup: cleanup_failures.join("; "),
+        }),
     }
 }
 
@@ -2301,7 +2559,7 @@ mod tests {
         fs,
         sync::{
             Arc, Mutex,
-            atomic::{AtomicBool, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
         },
     };
 
@@ -2512,6 +2770,162 @@ mod tests {
     struct FakeProcessLauncher {
         closed: Arc<AtomicBool>,
         loader_exit_code: Option<u32>,
+    }
+
+    #[derive(Debug)]
+    struct PersistentFakeProcessLauncher {
+        closed: Arc<AtomicBool>,
+        launches: Arc<AtomicUsize>,
+        fail_second: bool,
+    }
+
+    #[async_trait]
+    impl HlaeSessionProcessLauncher for PersistentFakeProcessLauncher {
+        async fn launch(
+            &self,
+            _invocation: &HlaeCustomLoaderInvocation,
+            _expected_cs2_executable: &Path,
+            _game_discovery_timeout: Duration,
+            _cancellation: &ProcessCancellation,
+            context: &HlaeBridgeLaunchContext,
+        ) -> Result<Box<dyn HlaeSessionProcess>, PlatformError> {
+            self.launches.fetch_add(1, Ordering::SeqCst);
+            let context = context.clone();
+            let fail_second = self.fail_second;
+            tokio::spawn(async move {
+                let (mut socket, _) = connect_async(&context.endpoint).await.unwrap();
+                let first_take = context.capture_directory.join("take0000");
+                fs::create_dir(&first_take).unwrap();
+                write_test_tga(&first_take.join("00000.tga"), 320, 240);
+                let mut sequence = 1_u64;
+                let mut send = |event| {
+                    let bytes = HlaeBridgeMessage::new(&context.token, sequence, event)
+                        .encode()
+                        .unwrap();
+                    sequence += 1;
+                    bytes
+                };
+                let steam_id64 = context
+                    .expected_observer_steam_id64
+                    .clone()
+                    .expect("POV observer");
+                for event in [
+                    HlaeBridgeEvent::Heartbeat,
+                    HlaeBridgeEvent::DemoLoaded {
+                        demo_path: context.demo_path.to_string_lossy().into_owned(),
+                        current_tick: context.seek_target_tick,
+                        total_ticks: context.verified_total_ticks,
+                    },
+                    HlaeBridgeEvent::SeekRequested {
+                        target_tick: context.seek_target_tick,
+                    },
+                    HlaeBridgeEvent::SeekCompleted {
+                        current_tick: context.seek_target_tick,
+                    },
+                    HlaeBridgeEvent::ObserverVerified {
+                        steam_id64: steam_id64.clone(),
+                        observer_mode: CS2_OBSERVER_MODE_IN_EYE,
+                        observed_tick: context.capture_start_tick,
+                    },
+                    HlaeBridgeEvent::CaptureStarted {
+                        output_directory: first_take.to_string_lossy().into_owned(),
+                        observed_tick: context.capture_start_tick,
+                    },
+                    HlaeBridgeEvent::ObserverVerified {
+                        steam_id64: steam_id64.clone(),
+                        observer_mode: CS2_OBSERVER_MODE_IN_EYE,
+                        observed_tick: context.capture_end_tick,
+                    },
+                    HlaeBridgeEvent::CaptureStopped {
+                        observed_tick: context.capture_end_tick,
+                    },
+                ] {
+                    socket
+                        .send(Message::Text(
+                            String::from_utf8(send(event)).unwrap().into(),
+                        ))
+                        .await
+                        .unwrap();
+                }
+                let advance = socket.next().await.unwrap().unwrap();
+                let Message::Text(advance) = advance else {
+                    panic!("advance control must be text");
+                };
+                let advance: serde_json::Value =
+                    serde_json::from_str(advance.as_ref()).expect("advance JSON");
+                assert_eq!(advance["sequence"], 1);
+                assert_eq!(advance["control"]["kind"], "advance_take");
+                assert_eq!(advance["control"]["takeIndex"], 1);
+                if fail_second {
+                    let bytes = HlaeBridgeMessage::new(
+                        &context.token,
+                        sequence,
+                        HlaeBridgeEvent::FailureReported {
+                            reason: "injected second Take failure".to_owned(),
+                        },
+                    )
+                    .encode()
+                    .unwrap();
+                    socket
+                        .send(Message::Text(String::from_utf8(bytes).unwrap().into()))
+                        .await
+                        .unwrap();
+                    socket.close(None).await.unwrap();
+                    return;
+                }
+                let second_take = context.capture_directory.join("take0001");
+                fs::create_dir(&second_take).unwrap();
+                write_test_tga(&second_take.join("00000.tga"), 320, 240);
+                let seek_tick = advance["control"]["seekTargetTick"].as_u64().unwrap();
+                let start_tick = advance["control"]["captureStartTick"].as_u64().unwrap();
+                let end_tick = advance["control"]["captureEndTick"].as_u64().unwrap();
+                for event in [
+                    HlaeBridgeEvent::SeekRequested {
+                        target_tick: u32::try_from(seek_tick).unwrap(),
+                    },
+                    HlaeBridgeEvent::SeekCompleted {
+                        current_tick: u32::try_from(seek_tick).unwrap(),
+                    },
+                    HlaeBridgeEvent::ObserverVerified {
+                        steam_id64: steam_id64.clone(),
+                        observer_mode: CS2_OBSERVER_MODE_IN_EYE,
+                        observed_tick: u32::try_from(start_tick).unwrap(),
+                    },
+                    HlaeBridgeEvent::CaptureStarted {
+                        output_directory: second_take.to_string_lossy().into_owned(),
+                        observed_tick: u32::try_from(start_tick).unwrap(),
+                    },
+                    HlaeBridgeEvent::ObserverVerified {
+                        steam_id64: steam_id64.clone(),
+                        observer_mode: CS2_OBSERVER_MODE_IN_EYE,
+                        observed_tick: u32::try_from(end_tick).unwrap(),
+                    },
+                    HlaeBridgeEvent::CaptureStopped {
+                        observed_tick: u32::try_from(end_tick).unwrap(),
+                    },
+                ] {
+                    socket
+                        .send(Message::Text(
+                            String::from_utf8(send(event)).unwrap().into(),
+                        ))
+                        .await
+                        .unwrap();
+                }
+                let finish = socket.next().await.unwrap().unwrap();
+                let Message::Text(finish) = finish else {
+                    panic!("finish control must be text");
+                };
+                let finish: serde_json::Value =
+                    serde_json::from_str(finish.as_ref()).expect("finish JSON");
+                assert_eq!(finish["sequence"], 2);
+                assert_eq!(finish["control"]["kind"], "finish_session");
+                socket.close(None).await.unwrap();
+            });
+            Ok(Box::new(FakeProcess {
+                closed: Arc::clone(&self.closed),
+                loader_exit_code: None,
+            }))
+        }
     }
 
     #[derive(Debug)]
@@ -3232,6 +3646,116 @@ mod tests {
         assert!(closed.load(Ordering::Acquire));
         assert!(!job.join("capture").exists());
         assert!(!job.join("cfg/cs2_user_convars_0_slot0.vcfg").exists());
+    }
+
+    #[tokio::test]
+    async fn persistent_pov_session_records_two_takes_with_one_process() {
+        let directory = tempfile::tempdir().unwrap();
+        let first = player_pov_request(&directory);
+        let mut second = first.clone();
+        second.take_index = 1;
+        second.output_mp4 = directory.path().join("clip-2.mp4");
+        let RuntimeHlaeCaptureProgram::PlayerPov(plan) = &mut second.capture_program else {
+            unreachable!()
+        };
+        plan.start_tick = 14;
+        plan.end_tick = 17;
+        let first_output = first.output_mp4.clone();
+        let second_output = second.output_mp4.clone();
+        let closed = Arc::new(AtomicBool::new(false));
+        let launches = Arc::new(AtomicUsize::new(0));
+        let orchestrator = RuntimeHlaeSessionOrchestrator::with_backends(
+            Arc::new(PersistentFakeProcessLauncher {
+                closed: Arc::clone(&closed),
+                launches: Arc::clone(&launches),
+                fail_second: false,
+            }),
+            Arc::new(FakeEncoder::default()),
+            Arc::new(FakeDiskPreflight),
+        );
+        let (first_progress, first_receiver) = recording_progress_channel();
+        drop(first_receiver);
+        let (mut session, first_evidence) = orchestrator
+            .begin_persistent_with_progress(first, first_progress)
+            .await
+            .expect("first Take");
+        let (second_progress, second_receiver) = recording_progress_channel();
+        drop(second_receiver);
+
+        let second_evidence = orchestrator
+            .capture_next_persistent_with_progress(&mut session, second, second_progress)
+            .await
+            .expect("second Take");
+
+        assert_eq!(launches.load(Ordering::SeqCst), 1);
+        assert!(!closed.load(Ordering::Acquire));
+        assert_eq!(
+            first_evidence.loader_process_id,
+            second_evidence.loader_process_id
+        );
+        assert_eq!(
+            first_evidence.game_process_id,
+            second_evidence.game_process_id
+        );
+        assert_eq!(fs::read(&first_output).unwrap(), b"verified fake MP4");
+        assert_eq!(fs::read(&second_output).unwrap(), b"verified fake MP4");
+
+        orchestrator
+            .finish_persistent(session)
+            .await
+            .expect("finish shared session");
+
+        assert!(closed.load(Ordering::Acquire));
+        assert!(!directory.path().join("job-001/capture").exists());
+    }
+
+    #[tokio::test]
+    async fn persistent_second_take_failure_keeps_published_prefix_and_cleans_session() {
+        let directory = tempfile::tempdir().unwrap();
+        let first = player_pov_request(&directory);
+        let mut second = first.clone();
+        second.take_index = 1;
+        second.output_mp4 = directory.path().join("clip-2.mp4");
+        let RuntimeHlaeCaptureProgram::PlayerPov(plan) = &mut second.capture_program else {
+            unreachable!()
+        };
+        plan.start_tick = 14;
+        plan.end_tick = 17;
+        let first_output = first.output_mp4.clone();
+        let second_output = second.output_mp4.clone();
+        let closed = Arc::new(AtomicBool::new(false));
+        let launches = Arc::new(AtomicUsize::new(0));
+        let orchestrator = RuntimeHlaeSessionOrchestrator::with_backends(
+            Arc::new(PersistentFakeProcessLauncher {
+                closed: Arc::clone(&closed),
+                launches,
+                fail_second: true,
+            }),
+            Arc::new(FakeEncoder::default()),
+            Arc::new(FakeDiskPreflight),
+        );
+        let (first_progress, first_receiver) = recording_progress_channel();
+        drop(first_receiver);
+        let (mut session, _) = orchestrator
+            .begin_persistent_with_progress(first, first_progress)
+            .await
+            .expect("first Take");
+        let (second_progress, second_receiver) = recording_progress_channel();
+        drop(second_receiver);
+
+        let error = orchestrator
+            .capture_next_persistent_with_progress(&mut session, second, second_progress)
+            .await
+            .expect_err("second Take must fail");
+        assert!(error.to_string().contains("injected second Take failure"));
+
+        orchestrator
+            .abort_persistent(session)
+            .expect("abort shared session");
+        assert!(closed.load(Ordering::Acquire));
+        assert_eq!(fs::read(&first_output).unwrap(), b"verified fake MP4");
+        assert!(!second_output.exists());
+        assert!(!directory.path().join("job-001/capture").exists());
     }
 
     #[tokio::test]

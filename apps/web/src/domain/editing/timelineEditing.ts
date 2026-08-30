@@ -317,12 +317,29 @@ export function overwriteClipsAtTime(
   return next.sort((left, right) => left.placement.start - right.placement.start);
 }
 
-export function removeTimelineRange(
+export function timelineClipsInRange(
+  clips: readonly TimelineClip[],
+  rangeStart: number,
+  rangeEnd: number,
+): TimelineClip[] {
+  const from = Math.min(rangeStart, rangeEnd);
+  const to = Math.max(rangeStart, rangeEnd);
+  if (to - from <= TIME_EPSILON) return [];
+  return clips.flatMap((clip) => {
+    const clipStart = clip.placement.start;
+    const localStart = Math.max(0, from - clipStart);
+    const localEnd = Math.min(clip.placement.duration, to - clipStart);
+    return localEnd - localStart <= TIME_EPSILON
+      ? []
+      : [sliceTimelineClip(clip, localStart, localEnd)];
+  });
+}
+
+function cutTimelineRange(
   clips: readonly TimelineClip[],
   rangeStart: number,
   rangeEnd: number,
   rightClipId: string,
-  ripple: boolean,
 ): TimelineClip[] {
   const from = Math.min(rangeStart, rangeEnd);
   const to = Math.max(rangeStart, rangeEnd);
@@ -350,8 +367,33 @@ export function removeTimelineRange(
       ));
     }
   }
-  const ordered = next.sort((left, right) => left.placement.start - right.placement.start);
-  return ripple ? reflow(ordered, clips[0]?.placement.start ?? 0) : ordered;
+  return next.sort((left, right) => left.placement.start - right.placement.start);
+}
+
+export function liftTimelineRange(
+  clips: readonly TimelineClip[],
+  rangeStart: number,
+  rangeEnd: number,
+  rightClipId: string,
+): TimelineClip[] {
+  return cutTimelineRange(clips, rangeStart, rangeEnd, rightClipId);
+}
+
+export function extractTimelineRange(
+  clips: readonly TimelineClip[],
+  rangeStart: number,
+  rangeEnd: number,
+  rightClipId: string,
+): TimelineClip[] {
+  const from = Math.min(rangeStart, rangeEnd);
+  const to = Math.max(rangeStart, rangeEnd);
+  const duration = to - from;
+  if (duration <= TIME_EPSILON) return [...clips];
+  return cutTimelineRange(clips, from, to, rightClipId).map((clip) => (
+    clip.placement.start < to - TIME_EPSILON
+      ? clip
+      : { ...clip, placement: { ...clip.placement, start: clip.placement.start - duration } }
+  ));
 }
 
 function copiesAtTime(

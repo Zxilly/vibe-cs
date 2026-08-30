@@ -4,7 +4,9 @@ import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
 import {
   deleteRippleClip,
   deleteRippleClips,
+  extractTimelineRange,
   insertRippleClipAtTime,
+  liftTimelineRange,
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
@@ -12,8 +14,8 @@ import {
   placeFreeClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
-  removeTimelineRange,
   splitRippleClip,
+  timelineClipsInRange,
   timelineClipFromMediaAsset,
   trimRippleClip,
   trimRippleClipGroup,
@@ -260,7 +262,7 @@ describe('ripple Story Track edits', () => {
   });
 
   it('extracts a Story range and closes the removed interval', () => {
-    const extracted = removeTimelineRange(CLIPS, 4, 16, 'b-tail', true);
+    const extracted = extractTimelineRange(CLIPS, 4, 16, 'b-tail');
 
     expect(extracted.map((item) => item.id)).toEqual(['a', 'b', 'c']);
     expect(extracted.map((item) => item.placement.start)).toEqual([0, 4, 8]);
@@ -269,10 +271,34 @@ describe('ripple Story Track edits', () => {
   });
 
   it('lifts a free-track range without moving later placements', () => {
-    const lifted = removeTimelineRange(CLIPS, 4, 16, 'b-tail', false);
+    const lifted = liftTimelineRange(CLIPS, 4, 16, 'b-tail');
 
     expect(lifted.map((item) => item.id)).toEqual(['a', 'b', 'c']);
     expect(lifted.map((item) => item.placement.start)).toEqual([0, 16, 20]);
+  });
+
+  it('copies only the intersecting source slices for Lift and Extract clipboard content', () => {
+    const copied = timelineClipsInRange(CLIPS, 4, 16);
+    expect(copied.map((item) => item.placement)).toEqual([
+      expect.objectContaining({ start: 4, duration: 6, source_in: 4, source_out: 10 }),
+      expect.objectContaining({ start: 10, duration: 6, source_in: 0, source_out: 6 }),
+    ]);
+  });
+
+  it('extracts a free-positioned range while preserving gaps outside the removed interval', () => {
+    const free = [
+      { ...CLIPS[0]!, placement: { ...CLIPS[0]!.placement, start: 2, duration: 4, source_out: 4 } },
+      { ...CLIPS[1]!, placement: { ...CLIPS[1]!.placement, start: 10, duration: 8, source_out: 8 } },
+      { ...CLIPS[2]!, placement: { ...CLIPS[2]!.placement, start: 24, duration: 6, source_out: 6 } },
+    ];
+
+    const extracted = extractTimelineRange(free, 12, 16, 'b-tail');
+    expect(extracted.map((item) => item.placement)).toEqual([
+      expect.objectContaining({ start: 2, duration: 4 }),
+      expect.objectContaining({ start: 10, duration: 2, source_in: 0, source_out: 2 }),
+      expect.objectContaining({ start: 12, duration: 2, source_in: 6, source_out: 8 }),
+      expect.objectContaining({ start: 20, duration: 6 }),
+    ]);
   });
 
   it('pastes free-positioned clips without moving existing placements', () => {

@@ -517,6 +517,13 @@
   outline-offset: 2px;
 }
 
+/* Horizontal navigation is owned by the Timeline zoom navigator. Keep the
+   native vertical track scrollbar, but do not render a second horizontal bar. */
+.timeline-viewport::-webkit-scrollbar {
+  width: 10px;
+  height: 0;
+}
+
 /* Adobe-style dockable Project workspace. FlexLayout owns only personal panel
    geometry; all editing visuals still come from this design system. */
 .project-workspace-dock {

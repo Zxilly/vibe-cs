@@ -32,6 +32,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
 import { mediaAssetThumbnailPath } from '../../data/mediaAssets';
@@ -411,10 +412,8 @@ export function ProjectTimeline({
 
   const fitZoom = viewportWidth / Math.max(document.duration_seconds, 1) / BASE_PIXELS_PER_SECOND;
   const maximumZoomMultiplier = Math.max(1, MAX_ZOOM / fitZoom);
-  const effectiveZoomMultiplier = Math.min(maximumZoomMultiplier, Math.max(0.5, zoomMultiplier));
+  const effectiveZoomMultiplier = Math.min(maximumZoomMultiplier, Math.max(1, zoomMultiplier));
   const scale = createTimeScale(fitZoom * effectiveZoomMultiplier);
-  const zoomSliderValue = Math.log2(effectiveZoomMultiplier);
-  const zoomSliderMaximum = Math.log2(maximumZoomMultiplier);
   const displayedDuration = ratePreviewDuration ?? document.duration_seconds;
   const contentWidth = Math.max(viewportWidth, timeToPx(scale, displayedDuration));
   const ticks = rulerTicks(scale, {
@@ -431,8 +430,24 @@ export function ProjectTimeline({
     timelineScrollLeftRef.current = nextScrollLeft;
     setScrollLeft(nextScrollLeft);
   }, [contentWidth, effectiveZoomMultiplier]);
-  const changeZoomMultiplier = (requested: number) => {
-    const nextMultiplier = Math.min(maximumZoomMultiplier, Math.max(0.5, requested));
+  const setTimelineScroll = (requestedLeft: number, requestedTop?: number) => {
+    const viewport = viewportRef.current;
+    if (viewport === null) return;
+    const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+    const maximumLeft = Math.max(0, trackHead + contentWidth - viewport.clientWidth);
+    const nextLeft = Math.min(maximumLeft, Math.max(0, requestedLeft));
+    viewport.scrollLeft = nextLeft;
+    timelineScrollLeftRef.current = nextLeft;
+    setScrollLeft(nextLeft);
+    if (requestedTop !== undefined) {
+      viewport.scrollTop = Math.min(
+        Math.max(0, viewport.scrollHeight - viewport.clientHeight),
+        Math.max(0, requestedTop),
+      );
+    }
+  };
+  const changeZoomMultiplier = (requested: number, requestedAnchorPx?: number) => {
+    const nextMultiplier = Math.min(maximumZoomMultiplier, Math.max(1, requested));
     if (Math.abs(nextMultiplier - effectiveZoomMultiplier) <= 1e-6) return;
     const viewport = viewportRef.current;
     if (viewport !== null) {
@@ -440,9 +455,11 @@ export function ProjectTimeline({
       const contentViewportWidth = Math.max(1, viewport.clientWidth - trackHead);
       const visiblePlayheadTime = rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds;
       const playheadViewportPx = timeToPx(scale, visiblePlayheadTime) - viewport.scrollLeft;
-      const anchorPx = playheadViewportPx >= 0 && playheadViewportPx <= contentViewportWidth
-        ? playheadViewportPx
-        : contentViewportWidth / 2;
+      const anchorPx = requestedAnchorPx === undefined
+        ? playheadViewportPx >= 0 && playheadViewportPx <= contentViewportWidth
+          ? playheadViewportPx
+          : contentViewportWidth / 2
+        : Math.min(contentViewportWidth, Math.max(0, requestedAnchorPx));
       const nextScale = createTimeScale(fitZoom * nextMultiplier);
       const nextContentWidth = Math.max(viewportWidth, timeToPx(nextScale, displayedDuration));
       const maximumScroll = Math.max(0, trackHead + nextContentWidth - viewport.clientWidth);
@@ -454,6 +471,12 @@ export function ProjectTimeline({
       }));
     }
     setZoomMultiplier(nextMultiplier);
+  };
+  const scrollTimelinePage = (direction: -1 | 1) => {
+    const viewport = viewportRef.current;
+    if (viewport === null) return;
+    const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+    setTimelineScroll(viewport.scrollLeft + direction * Math.max(1, viewport.clientWidth - trackHead));
   };
   useEffect(() => {
     if (!transportPlaying) return;
@@ -1033,6 +1056,31 @@ export function ProjectTimeline({
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
+        if (event.key === 'PageUp' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          scrollTimelinePage(-1);
+          return;
+        }
+        if (event.key === 'PageDown' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          scrollTimelinePage(1);
+          return;
+        }
+        if (event.key === '\\' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          changeZoomMultiplier(1);
+          return;
+        }
+        if ((event.key === '=' || event.key === '+') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          changeZoomMultiplier(effectiveZoomMultiplier * 1.25);
+          return;
+        }
+        if (event.key === '-' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          changeZoomMultiplier(effectiveZoomMultiplier / 1.25);
+          return;
+        }
         if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           onTogglePlayback();
@@ -1266,38 +1314,6 @@ export function ProjectTimeline({
             </select>
           </>
         )}
-        <span className="ml-auto flex items-center gap-2 text-neutral-500">
-          <button
-            type="button"
-            className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
-            aria-label={t`缩小时间轴`}
-            onClick={() => changeZoomMultiplier(effectiveZoomMultiplier / 1.25)}
-          >
-            <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-          <input
-            type="range"
-            aria-label={t`时间轴缩放`}
-            aria-valuetext={t`${scale.pixelsPerSecond.toFixed(1)} 像素/秒，${(scale.pixelsPerSecond / document.fps).toFixed(2)} 像素/帧`}
-            min={Math.log2(0.5)}
-            max={zoomSliderMaximum}
-            step="any"
-            value={zoomSliderValue}
-            className="timeline-zoom w-14"
-            data-timeline-pixels-per-second={scale.pixelsPerSecond}
-            data-timeline-pixels-per-frame={scale.pixelsPerSecond / document.fps}
-            onChange={(event) => changeZoomMultiplier(2 ** Number(event.currentTarget.value))}
-          />
-          <button
-            type="button"
-            className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
-            aria-label={t`放大时间轴`}
-            onClick={() => changeZoomMultiplier(effectiveZoomMultiplier * 1.25)}
-          >
-            <ZoomIn className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-          <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-2xs" onClick={() => changeZoomMultiplier(1)}><Trans>适应</Trans></button>
-        </span>
       </header>
 
       <TimelineToolStrip
@@ -1376,7 +1392,7 @@ export function ProjectTimeline({
       <div
         ref={viewportRef}
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto',
+          'timeline-viewport min-h-0 flex-1 overscroll-contain overflow-y-auto',
           contentWidth <= viewportWidth + 0.5 ? 'overflow-x-hidden' : 'overflow-x-auto',
         )}
         role="region"
@@ -1384,6 +1400,32 @@ export function ProjectTimeline({
         onScroll={(event) => {
           timelineScrollLeftRef.current = event.currentTarget.scrollLeft;
           setScrollLeft(event.currentTarget.scrollLeft);
+        }}
+        onWheel={(event) => {
+          const viewport = event.currentTarget;
+          const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+            ? 16
+            : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+              ? Math.max(1, viewport.clientHeight)
+              : 1;
+          const deltaX = event.deltaX * unit;
+          const deltaY = event.deltaY * unit;
+          const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+          if (event.altKey) {
+            event.preventDefault();
+            const bounds = viewport.getBoundingClientRect();
+            const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+            const anchorPx = event.clientX - bounds.left - trackHead;
+            changeZoomMultiplier(effectiveZoomMultiplier * (2 ** (-primaryDelta / 480)), anchorPx);
+            return;
+          }
+          event.preventDefault();
+          if (event.ctrlKey || event.metaKey) {
+            setTimelineScroll(viewport.scrollLeft, viewport.scrollTop + primaryDelta);
+            return;
+          }
+          const horizontalDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+          setTimelineScroll(viewport.scrollLeft + horizontalDelta);
         }}
         onPointerDown={(event) => {
           if (event.button === 0 && event.target === event.currentTarget) {
@@ -1543,6 +1585,17 @@ export function ProjectTimeline({
         ) : null}
         <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
+        <TimelineZoomNavigator
+          multiplier={effectiveZoomMultiplier}
+          maximumMultiplier={maximumZoomMultiplier}
+          pixelsPerSecond={scale.pixelsPerSecond}
+          pixelsPerFrame={scale.pixelsPerSecond / document.fps}
+          viewportWidth={viewportWidth}
+          contentWidth={contentWidth}
+          scrollLeft={scrollLeft}
+          onZoom={changeZoomMultiplier}
+          onScroll={setTimelineScroll}
+        />
       </footer>
 
       <div
@@ -1727,6 +1780,175 @@ export function ProjectTimeline({
         )}
       </Drawer>
     </ReviewPanel>
+  );
+}
+
+function TimelineZoomNavigator({
+  multiplier,
+  maximumMultiplier,
+  pixelsPerSecond,
+  pixelsPerFrame,
+  viewportWidth,
+  contentWidth,
+  scrollLeft,
+  onZoom,
+  onScroll,
+}: {
+  readonly multiplier: number;
+  readonly maximumMultiplier: number;
+  readonly pixelsPerSecond: number;
+  readonly pixelsPerFrame: number;
+  readonly viewportWidth: number;
+  readonly contentWidth: number;
+  readonly scrollLeft: number;
+  readonly onZoom: (multiplier: number, anchorPx?: number) => void;
+  readonly onScroll: (scrollLeft: number) => void;
+}) {
+  const laneRef = useRef<HTMLDivElement>(null);
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly mode: 'pan' | 'start' | 'end';
+    readonly clientX: number;
+    readonly scrollLeft: number;
+    readonly multiplier: number;
+    readonly thumbWidth: number;
+    readonly laneWidth: number;
+  } | null>(null);
+  const maximumScroll = Math.max(0, contentWidth - viewportWidth);
+  const visibleFraction = Math.min(1, viewportWidth / Math.max(1, contentWidth));
+  const leftPercent = maximumScroll <= 0 ? 0 : scrollLeft / contentWidth * 100;
+  const widthPercent = visibleFraction * 100;
+  const beginGesture = (event: ReactPointerEvent, mode: 'pan' | 'start' | 'end') => {
+    if (event.button !== 0) return;
+    const lane = laneRef.current;
+    if (lane === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    lane.setPointerCapture?.(event.pointerId);
+    const laneWidth = Math.max(1, lane.getBoundingClientRect().width);
+    gesture.current = {
+      pointerId: event.pointerId,
+      mode,
+      clientX: event.clientX,
+      scrollLeft,
+      multiplier,
+      thumbWidth: Math.max(10, visibleFraction * laneWidth),
+      laneWidth,
+    };
+  };
+  const updateGesture = (event: ReactPointerEvent) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const delta = event.clientX - active.clientX;
+    if (active.mode === 'pan') {
+      const travel = Math.max(1, active.laneWidth - active.thumbWidth);
+      onScroll(active.scrollLeft + delta / travel * maximumScroll);
+      return;
+    }
+    const requestedWidth = Math.min(
+      active.laneWidth,
+      Math.max(10, active.thumbWidth + (active.mode === 'start' ? -delta : delta)),
+    );
+    const requestedMultiplier = active.multiplier * active.thumbWidth / requestedWidth;
+    onZoom(requestedMultiplier, active.mode === 'start' ? viewportWidth : 0);
+  };
+  const finishGesture = (event: ReactPointerEvent) => {
+    if (gesture.current?.pointerId !== event.pointerId) return;
+    gesture.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  return (
+    <span className="ml-auto flex min-w-0 items-center gap-1.5 text-neutral-500">
+      <button
+        type="button"
+        className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
+        aria-label={t`缩小时间轴`}
+        onClick={() => onZoom(multiplier / 1.25)}
+      >
+        <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      <input
+        type="range"
+        aria-label={t`时间轴缩放`}
+        aria-valuetext={t`${pixelsPerSecond.toFixed(1)} 像素/秒，${pixelsPerFrame.toFixed(2)} 像素/帧`}
+        min={0}
+        max={Math.log2(maximumMultiplier)}
+        step="any"
+        value={Math.log2(multiplier)}
+        className="timeline-zoom w-14"
+        data-timeline-pixels-per-second={pixelsPerSecond}
+        data-timeline-pixels-per-frame={pixelsPerFrame}
+        onChange={(event) => onZoom(2 ** Number(event.currentTarget.value))}
+      />
+      <button
+        type="button"
+        className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
+        aria-label={t`放大时间轴`}
+        onClick={() => onZoom(multiplier * 1.25)}
+      >
+        <ZoomIn className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      <div
+        ref={laneRef}
+        role="scrollbar"
+        tabIndex={0}
+        aria-label={t`时间轴可视范围`}
+        aria-orientation="horizontal"
+        aria-valuemin={0}
+        aria-valuemax={maximumScroll}
+        aria-valuenow={Math.min(maximumScroll, scrollLeft)}
+        className="relative h-3 w-28 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        onPointerDown={(event) => {
+          if (event.target !== event.currentTarget || event.button !== 0) return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const pointer = event.clientX - bounds.left;
+          const thumbBounds = event.currentTarget.firstElementChild?.getBoundingClientRect();
+          const thumbStart = (thumbBounds?.left ?? bounds.left) - bounds.left;
+          const thumbEnd = (thumbBounds?.right ?? bounds.left) - bounds.left;
+          onScroll(scrollLeft + (pointer < thumbStart ? -viewportWidth : pointer > thumbEnd ? viewportWidth : 0));
+        }}
+        onPointerMove={updateGesture}
+        onPointerUp={finishGesture}
+        onPointerCancel={finishGesture}
+        onKeyDown={(event) => {
+          if (event.key === 'Home') {
+            event.preventDefault();
+            onScroll(0);
+          } else if (event.key === 'End') {
+            event.preventDefault();
+            onScroll(maximumScroll);
+          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+            event.preventDefault();
+            onScroll(scrollLeft + (event.key === 'ArrowLeft' ? -1 : 1) * viewportWidth * (event.shiftKey ? 1 : 0.1));
+          }
+        }}
+      >
+        <span
+          className="absolute inset-y-0 min-w-2.5 cursor-grab rounded-sm border border-accent-500 bg-accent-200 active:cursor-grabbing"
+          style={{
+            left: `min(${leftPercent}%, calc(100% - 10px))`,
+            width: `max(${widthPercent}%, 10px)`,
+          }}
+          onPointerDown={(event) => beginGesture(event, 'pan')}
+        >
+          <span
+            role="separator"
+            aria-label={t`调整时间轴可视范围起点`}
+            className="absolute inset-y-0 -left-px w-1.5 cursor-ew-resize border-l border-accent-700"
+            onPointerDown={(event) => beginGesture(event, 'start')}
+          />
+          <span
+            role="separator"
+            aria-label={t`调整时间轴可视范围终点`}
+            className="absolute inset-y-0 -right-px w-1.5 cursor-ew-resize border-r border-accent-700"
+            onPointerDown={(event) => beginGesture(event, 'end')}
+          />
+        </span>
+      </div>
+      <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100" onClick={() => onZoom(1)}><Trans>适应</Trans></button>
+    </span>
   );
 }
 

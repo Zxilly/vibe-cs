@@ -2035,6 +2035,91 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('uses Premiere-style wheel navigation and zooms around the pointer time', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 700 },
+    });
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 300, left: 0, width: 1_000, height: 300, toJSON: () => ({}),
+    });
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    const beforePixelsPerSecond = Number(zoom.dataset.timelinePixelsPerSecond);
+    const anchorViewportPx = 400;
+    const anchorTime = anchorViewportPx / beforePixelsPerSecond;
+
+    fireEvent.wheel(viewport, { altKey: true, clientX: 600, deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+
+    await waitFor(() => expect(Number(zoom.dataset.timelinePixelsPerSecond)).toBeGreaterThan(beforePixelsPerSecond));
+    const afterPixelsPerSecond = Number(zoom.dataset.timelinePixelsPerSecond);
+    expect(anchorTime * afterPixelsPerSecond - viewport.scrollLeft).toBeCloseTo(anchorViewportPx, 4);
+
+    const zoomedScrollLeft = viewport.scrollLeft;
+    fireEvent.wheel(viewport, { deltaY: 120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(viewport.scrollLeft).toBeGreaterThan(zoomedScrollLeft);
+
+    const horizontalPosition = viewport.scrollLeft;
+    fireEvent.wheel(viewport, { ctrlKey: true, deltaY: 80, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    expect(viewport.scrollLeft).toBe(horizontalPosition);
+    expect(viewport.scrollTop).toBe(80);
+    clientWidth.mockRestore();
+  });
+
+  it('supports Premiere page navigation and fit shortcuts without editing the project', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const viewport = screen.getByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(zoom, { target: { value: zoom.max } });
+    await waitFor(() => expect(Number(zoom.value)).toBeCloseTo(Number(zoom.max)));
+
+    fireEvent.keyDown(timeline, { key: 'PageDown' });
+    expect(viewport.scrollLeft).toBe(800);
+    fireEvent.keyDown(timeline, { key: 'PageUp' });
+    expect(viewport.scrollLeft).toBe(0);
+    fireEvent.keyDown(timeline, { key: '\\' });
+    await waitFor(() => expect(Number(zoom.value)).toBe(0));
+    expect(viewport.scrollLeft).toBe(0);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    clientWidth.mockRestore();
+  });
+
+  it('pans and resizes the visible range from the Premiere-style zoom navigator', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(zoom, { target: { value: zoom.max } });
+    const navigator = screen.getByRole('scrollbar', { name: '时间轴可视范围' });
+    vi.spyOn(navigator, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 112, bottom: 12, left: 0, width: 112, height: 12, toJSON: () => ({}),
+    });
+    const thumb = navigator.firstElementChild as HTMLElement;
+    fireEvent.pointerDown(thumb, { pointerId: 91, button: 0, clientX: 10 });
+    fireEvent.pointerMove(navigator, { pointerId: 91, clientX: 45 });
+    expect(viewport.scrollLeft).toBeGreaterThan(0);
+    fireEvent.pointerUp(navigator, { pointerId: 91, clientX: 45 });
+
+    const beforeResize = Number(zoom.value);
+    const endHandle = screen.getByRole('separator', { name: '调整时间轴可视范围终点' });
+    fireEvent.pointerDown(endHandle, { pointerId: 92, button: 0, clientX: 45 });
+    fireEvent.pointerMove(navigator, { pointerId: 92, clientX: 75 });
+    await waitFor(() => expect(Number(zoom.value)).toBeLessThan(beforeResize));
+    fireEvent.pointerUp(navigator, { pointerId: 92, clientX: 75 });
+    clientWidth.mockRestore();
+  });
+
   it('reaches the design-system frame-level zoom on a three-minute Timeline', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const applyProjectPatch = vi.fn();

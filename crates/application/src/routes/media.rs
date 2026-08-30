@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     io::SeekFrom,
     path::{Path as FsPath, PathBuf},
+    time::UNIX_EPOCH,
 };
 use ts_rs::TS;
 
@@ -77,6 +78,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/media/assets/{id}/stream",
             get(stream_asset).head(head_asset),
         )
+        .route("/api/media/assets/{id}/thumbnail", get(asset_thumbnail))
         .route("/api/media/assets/{id}/waveform", get(asset_waveform))
         .route(
             "/api/media/assets/{id}/audio-analysis",
@@ -553,6 +555,43 @@ mod media_availability_tests {
             MediaMetadataStatus::Unavailable { ref message } if message.contains("missing")
         ));
     }
+
+    #[test]
+    fn thumbnail_query_is_bounded_by_media_and_preview_limits() {
+        assert!(
+            validate_thumbnail_query(
+                &ThumbnailQuery {
+                    time: 1.0,
+                    width: 320,
+                    height: 180,
+                },
+                Some(2.0),
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_thumbnail_query(
+                &ThumbnailQuery {
+                    time: 3.0,
+                    width: 320,
+                    height: 180,
+                },
+                Some(2.0),
+            )
+            .is_err()
+        );
+        assert!(
+            validate_thumbnail_query(
+                &ThumbnailQuery {
+                    time: 0.0,
+                    width: 1920,
+                    height: 1080,
+                },
+                Some(2.0),
+            )
+            .is_err()
+        );
+    }
 }
 
 async fn stream_asset(
@@ -579,6 +618,126 @@ async fn head_asset(
         .await?
         .ok_or_else(|| ApiError::not_found("media asset"))?;
     stream_media_file(&asset.path, headers, true, "media asset file").await
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ThumbnailQuery {
+    #[serde(default)]
+    time: f64,
+    #[serde(default = "default_thumbnail_width")]
+    width: u32,
+    #[serde(default = "default_thumbnail_height")]
+    height: u32,
+}
+
+const fn default_thumbnail_width() -> u32 {
+    320
+}
+
+const fn default_thumbnail_height() -> u32 {
+    180
+}
+
+fn validate_thumbnail_query(
+    query: &ThumbnailQuery,
+    duration_seconds: Option<f64>,
+) -> ApiResult<()> {
+    if !query.time.is_finite() || query.time < 0.0 {
+        return Err(ApiError::invalid(
+            "thumbnail time must be a finite non-negative number",
+        ));
+    }
+    if duration_seconds.is_some_and(|duration| query.time > duration + 1.0 / 60.0) {
+        return Err(ApiError::invalid("thumbnail time exceeds media duration"));
+    }
+    if !(32..=640).contains(&query.width) || !(18..=360).contains(&query.height) {
+        return Err(ApiError::invalid(
+            "thumbnail bounds must be within 32x18 and 640x360",
+        ));
+    }
+    Ok(())
+}
+
+async fn asset_thumbnail(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    ApiQuery(query): ApiQuery<ThumbnailQuery>,
+    headers: HeaderMap,
+) -> ApiResult<Response<Body>> {
+    let asset = state
+        .storage
+        .get_asset(parse_id(&id)?)
+        .await?
+        .ok_or_else(|| ApiError::not_found("media asset"))?;
+    validate_thumbnail_query(&query, asset.duration_seconds)?;
+    if !asset.kind.starts_with("video") && (asset.width.is_none() || asset.height.is_none()) {
+        return Err(ApiError::invalid(
+            "thumbnail generation requires a video asset",
+        ));
+    }
+    let metadata = tokio::fs::metadata(&asset.path).await?;
+    if !metadata.is_file() {
+        return Err(ApiError::invalid("media asset path must be a regular file"));
+    }
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+        .map_or(0, |value| value.as_nanos());
+    let etag = format!(
+        "\"{}-{}-{modified}-{:.6}-{}x{}\"",
+        asset.id,
+        metadata.len(),
+        query.time,
+        query.width,
+        query.height,
+    );
+    if headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value == etag)
+    {
+        return Response::builder()
+            .status(StatusCode::NOT_MODIFIED)
+            .header(header::ETAG, etag)
+            .header(header::CACHE_CONTROL, "private, no-cache")
+            .body(Body::empty())
+            .map_err(|error| response_build_error(&error));
+    }
+    let png = state
+        .media
+        .thumbnail(
+            PathBuf::from(&asset.path),
+            query.time,
+            query.width,
+            query.height,
+        )
+        .await?;
+    if png.len() > 2 * 1024 * 1024 || !png.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(ApiError::new(
+            StatusCode::BAD_GATEWAY,
+            "invalid_adapter_response",
+            "Thumbnail adapter did not return a bounded PNG",
+        ));
+    }
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/png")
+        .header(header::CONTENT_LENGTH, png.len())
+        .header(header::CACHE_CONTROL, "private, no-cache")
+        .header(header::ETAG, etag)
+        .header("x-content-type-options", "nosniff")
+        .body(Body::from(png))
+        .map_err(|error| response_build_error(&error))
+}
+
+fn response_build_error(error: &axum::http::Error) -> ApiError {
+    ApiError::new(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "response_build_failed",
+        error.to_string(),
+    )
 }
 
 async fn stream_asset_proxy(

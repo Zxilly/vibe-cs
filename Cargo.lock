@@ -7241,6 +7241,7 @@ dependencies = [
  "chrono",
  "ez-ffmpeg",
  "ffmpeg-next",
+ "png 0.18.1",
  "rustfft",
  "serde",
  "serde_json",

@@ -264,7 +264,7 @@ fn validate_media_path(path: &str) -> Result<(), DesktopCommandError> {
     };
     let allowed = match segments.as_slice() {
         ["recorded-clips", id, "stream"]
-        | ["media", "assets", id, "stream"]
+        | ["media", "assets", id, "stream" | "thumbnail"]
         | ["editor", "packages", id, "download"]
         | ["media", "assets", id, "proxy", "stream"] => is_uuid(id),
         // 「11 输出与任务记录」's 「播放」. The kind is one of the two the
@@ -742,6 +742,7 @@ mod tests {
         );
         for path in [
             format!("/recorded-clips/{ID}/stream"),
+            format!("/media/assets/{ID}/thumbnail?time=1&width=320&height=180"),
             format!("/media/assets/{ID}/proxy/stream"),
             format!("/editor/packages/{ID}/download"),
             format!("/outputs/recording/{ID}/stream"),

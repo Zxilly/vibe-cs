@@ -10,6 +10,7 @@ vibe-cs-domain = { path = "../domain" }
 async-trait.workspace = true
 ez-ffmpeg.workspace = true
 ffmpeg-next.workspace = true
+png.workspace = true
 rustfft.workspace = true
 serde.workspace = true
 serde_json.workspace = true

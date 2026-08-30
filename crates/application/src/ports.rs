@@ -491,6 +491,18 @@ pub trait MediaPort: Send + Sync + std::fmt::Debug {
     async fn probe(&self, path: PathBuf) -> Result<ProbedMediaMetadata, DomainError>;
     async fn waveform(&self, path: PathBuf, buckets: usize) -> Result<Vec<f32>, DomainError>;
 
+    async fn thumbnail(
+        &self,
+        _path: PathBuf,
+        _time_seconds: f64,
+        _maximum_width: u32,
+        _maximum_height: u32,
+    ) -> Result<Vec<u8>, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "media thumbnail adapter".to_owned(),
+        ))
+    }
+
     async fn analyze_audio(
         &self,
         _path: PathBuf,

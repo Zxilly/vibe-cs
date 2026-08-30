@@ -8,6 +8,7 @@ mod native;
 mod native_pipeline;
 mod plan;
 mod progress;
+mod thumbnail;
 mod waveform;
 
 pub use audio_intelligence::*;
@@ -17,4 +18,5 @@ pub use native::*;
 pub use native_pipeline::*;
 pub use plan::*;
 pub use progress::*;
+pub use thumbnail::*;
 pub use waveform::*;

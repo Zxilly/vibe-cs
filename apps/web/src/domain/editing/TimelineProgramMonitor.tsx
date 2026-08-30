@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
-import type { Project, TimelineClip } from '../../shared/desktop/dto';
+import type { Project, TimelineClip, TimelineClipMaterializationState } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
   clipFadeDuration,
@@ -55,10 +55,12 @@ interface ProgramTextOverlay {
 
 type PreviewPoolRole = 'program' | 'trim';
 type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
+const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
 
 export interface TimelineProgramMonitorProps {
   readonly showHeader?: boolean;
   readonly project: Project;
+  readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly timelineTimeSeconds: number;
   readonly selectedClipId: string | null;
   readonly readOnly: boolean;
@@ -85,6 +87,7 @@ export interface TimelineProgramMonitorProps {
 export function TimelineProgramMonitor({
   showHeader = true,
   project,
+  deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   timelineTimeSeconds,
   selectedClipId,
   readOnly,
@@ -114,6 +117,7 @@ export function TimelineProgramMonitor({
     project.document.fps,
   );
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
+  const selectedDeliveryState = selected === null ? undefined : deliveryStateByClipId.get(selected.id);
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const targetId = !storyOutputEnabled
     || selectedMaterial?.streamAssetId === null
@@ -281,7 +285,7 @@ export function TimelineProgramMonitor({
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-neutral-100">
             <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
             <p className="mt-2 text-sm text-neutral-400">
-              {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected)}
+              {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected, selectedDeliveryState)}
             </p>
           </div>
           <ProgramTransportBar
@@ -469,6 +473,11 @@ export function TimelineProgramMonitor({
                   projectHeight={project.document.height}
                 />
               ))}
+              {selectedDeliveryState !== 'stale' ? null : (
+                <span className="pointer-events-none absolute left-3 top-3 z-[60] rounded-sm border border-warn-border bg-warn-surface/95 px-2 py-1 text-2xs font-medium text-warn-text shadow-sm">
+                  <Trans>素材未就绪 · 当前显示可用帧</Trans>
+                </span>
+              )}
               {!slideReady ? null : (
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
                   <span className="truncate px-1.5 py-1"><Trans>前 Out</Trans> · {slidePrevious.name}</span>
@@ -1385,7 +1394,9 @@ function evaluatePreviewFilter(clip: TimelineClip, projectWidth: number) {
   return { kinds, filter: filters.join(' ') || 'none' };
 }
 
-function materialLabel(clip: TimelineClip) {
+function materialLabel(clip: TimelineClip, deliveryState?: TimelineClipMaterializationState) {
+  if (deliveryState === 'stale') return <Trans>需要重录</Trans>;
+  if (deliveryState === 'unbound' || deliveryState === 'unrecorded') return <Trans>未录制</Trans>;
   const state = resolveTimelineMaterial(clip.material, clip.placement).state;
   if (state === 'stale') return <Trans>需要重录</Trans>;
   return state === 'planned' ? <Trans>未录制</Trans> : <Trans>已录制</Trans>;

@@ -19,7 +19,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { Dialog } from '../../design/feedback';
 import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
-import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
+import type { MediaAsset, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import {
   clearProjectMediaDrag,
   isStillImageMediaAsset,
@@ -32,6 +32,7 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 export interface ProjectMediaPanelProps {
   readonly assets: readonly MediaAsset[];
   readonly timelineTracks: readonly TimelineTrack[];
+  readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly selectedTimelineClipId: string | null;
   readonly pending: boolean;
   readonly readOnly: boolean;
@@ -54,6 +55,7 @@ export interface ProjectMediaPanelProps {
 
 type MediaStateFilter = 'all' | 'planned' | 'recorded' | 'imported';
 type ProjectMediaView = 'list' | 'icon';
+const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
 
 type ProjectMediaItem = {
   readonly key: string;
@@ -71,6 +73,7 @@ type ProjectMediaItem = {
 export function ProjectMediaPanel({
   assets,
   timelineTracks,
+  deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   selectedTimelineClipId,
   pending,
   readOnly,
@@ -95,7 +98,10 @@ export function ProjectMediaPanel({
   const [view, setView] = useState<ProjectMediaView>('list');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
-  const items = useMemo(() => projectMediaItems(timelineTracks, assets), [assets, timelineTracks]);
+  const items = useMemo(
+    () => projectMediaItems(timelineTracks, assets, deliveryStateByClipId),
+    [assets, deliveryStateByClipId, timelineTracks],
+  );
 
   useEffect(() => {
     if (selectedTimelineClipId !== null) setSelectedKey(`clip:${selectedTimelineClipId}`);
@@ -596,6 +602,7 @@ function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }
 function projectMediaItems(
   tracks: readonly TimelineTrack[],
   assets: readonly MediaAsset[],
+  deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>,
 ): ProjectMediaItem[] {
   const referencedAssetIds = new Set<string>();
   const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
@@ -603,6 +610,7 @@ function projectMediaItems(
     .filter((track) => track.kind !== 'text')
     .flatMap((track) => track.clips.map((clip): ProjectMediaItem => {
       const material = resolveTimelineMaterial(clip.material, clip.placement);
+      const deliveryState = deliveryStateByClipId.get(clip.id);
       if (material.streamAssetId !== null) referencedAssetIds.add(material.streamAssetId);
       const sourceAsset = material.streamAssetId === null ? null : assetsById.get(material.streamAssetId) ?? null;
       return {
@@ -610,7 +618,11 @@ function projectMediaItems(
         name: clip.name,
         durationSeconds: clip.placement.duration,
         kind: track.kind === 'audio' ? 'audio' : 'video',
-        state: material.state,
+        state: deliveryState === 'stale'
+          ? 'stale'
+          : deliveryState === 'unbound' || deliveryState === 'unrecorded'
+            ? 'planned'
+            : material.state,
         previewAssetId: sourceAsset?.metadata_status.status === 'unavailable' ? null : material.streamAssetId,
         isStillImage: sourceAsset === null
           ? typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)

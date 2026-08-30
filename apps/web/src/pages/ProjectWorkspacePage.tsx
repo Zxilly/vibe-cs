@@ -1,14 +1,12 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
-  Bell,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   CircleAlert,
-  CircleHelp,
   CircleX,
   Download,
   Diamond,
@@ -33,6 +31,7 @@ import {
   useExportProject,
   useProject,
   useProjectChangeGroups,
+  useProjectDeliveryGate,
   useProjectEditLease,
   useRevertProjectChangeGroup,
   useStartProjectRecording,
@@ -171,6 +170,20 @@ export function ProjectWorkspacePage() {
   const create = useCreateProject();
   const canonicalId = projectId === 'new' ? null : projectId;
   const project = useProject(canonicalId);
+  const deliveryGate = useProjectDeliveryGate(canonicalId);
+  const deliveryStateByClipId = useMemo(() => {
+    const gate = deliveryGate.data;
+    return new Map(
+      gate !== undefined && gate.revision === project.data?.revision
+        ? gate.blockers.map((blocker) => [blocker.clip_id, blocker.state] as const)
+        : [],
+    );
+  }, [deliveryGate.data, project.data?.revision]);
+  const allClips = useMemo(
+    () => project.data?.document.tracks.flatMap((track) => track.clips) ?? [],
+    [project.data?.document.tracks],
+  );
+  const clipById = useMemo(() => new Map(allClips.map((clip) => [clip.id, clip])), [allClips]);
   const groups = useProjectChangeGroups(canonicalId);
   const lease = useProjectEditLease(canonicalId);
   const mediaAssets = useMediaAssets(canonicalId, { enabled: canonicalId !== null });
@@ -354,11 +367,14 @@ export function ProjectWorkspacePage() {
     && group.author.kind !== 'system'
     && group.reverts_change_group_id === null
     && !revertedChangeGroupIds.has(group.id));
-  const allClips = current.document.tracks.flatMap((track) => track.clips);
-  const storyTrack = current.document.tracks.find((track) => track.id === current.document.story_track_id) ?? null;
-  const plannedClipIds = storyTrack?.clips
-    .filter((clip) => clip.material.kind === 'planned')
-    .map((clip) => clip.id) ?? [];
+  const currentDeliveryGate = deliveryGate.data?.revision === current.revision ? deliveryGate.data : null;
+  const deliveryGatePending = deliveryGate.isPending || (deliveryGate.error === null && currentDeliveryGate === null);
+  const deliveryBlockers = currentDeliveryGate?.blockers ?? [];
+  const recordableClipIds = deliveryBlockers.flatMap((blocker) => {
+    if (blocker.state !== 'unrecorded' && blocker.state !== 'stale') return [];
+    const clip = clipById.get(blocker.clip_id);
+    return clip?.capture_intent === null || clip?.capture_intent === undefined ? [] : [blocker.clip_id];
+  });
   const mutate = (
     summary: string,
     scope: ProjectPatchScope,
@@ -561,6 +577,7 @@ export function ProjectWorkspacePage() {
     });
   };
   const mutationError = [
+    deliveryGate.error,
     apply.error,
     revertChange.error,
     startRecording.error,
@@ -577,6 +594,7 @@ export function ProjectWorkspacePage() {
       docked
       assets={mediaAssets.data?.items ?? []}
       timelineTracks={current.document.tracks}
+      deliveryStateByClipId={deliveryStateByClipId}
       selectedTimelineClipId={selectedClipId}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
@@ -615,6 +633,7 @@ export function ProjectWorkspacePage() {
     <TimelineProgramMonitor
       showHeader={false}
       project={previewProject}
+      deliveryStateByClipId={deliveryStateByClipId}
       timelineTimeSeconds={transportTimeSeconds}
       selectedClipId={selectedClipId}
       readOnly={readOnly || apply.isPending || selected?.track.locked === true}
@@ -642,6 +661,7 @@ export function ProjectWorkspacePage() {
     <ProjectTimeline
       docked
       document={current.document}
+      deliveryStateByClipId={deliveryStateByClipId}
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}
@@ -738,6 +758,8 @@ export function ProjectWorkspacePage() {
       readOnly={readOnly}
       agentReady={agentStatus.data?.configured === true}
       agentStatusPending={agentStatus.isPending}
+      deliveryReady={currentDeliveryGate?.ready === true}
+      deliveryGatePending={deliveryGatePending}
       externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
       executionActionPending={cancelTask.isPending}
       onCancelExecution={(execution) => {
@@ -752,6 +774,7 @@ export function ProjectWorkspacePage() {
         await startRecording.mutateAsync({ projectId: current.id, clipIds });
       }}
       onConfirmExport={async (toolCallId) => {
+        if (deliveryGatePending || currentDeliveryGate?.ready !== true) return;
         await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的导出操作。`);
         await exportProject.mutateAsync({ projectId: current.id });
       }}
@@ -798,10 +821,12 @@ export function ProjectWorkspacePage() {
               <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {latestAgentGroup.operations.length} 处变更</Trans></span>
             </>
           )}
-          {plannedClipIds.length === 0 ? (
+          {deliveryGatePending ? (
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查交付状态</Trans></span>
+          ) : currentDeliveryGate?.ready === true ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>检查通过</Trans></span>
           ) : (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{plannedClipIds.length} 个待录制</Trans></span>
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
           )}
           <button
             type="button"
@@ -820,8 +845,8 @@ export function ProjectWorkspacePage() {
             type="button"
             data-window-no-drag
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
-            disabled={readOnly || plannedClipIds.length === 0 || startRecording.isPending}
-            onClick={() => setExternalConfirm({ kind: 'recording', clipIds: plannedClipIds })}
+            disabled={readOnly || deliveryGatePending || recordableClipIds.length === 0 || startRecording.isPending}
+            onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
           >
             <Video className="size-3.5" aria-hidden="true" />
             <Trans>录制缺失片段</Trans>
@@ -830,18 +855,12 @@ export function ProjectWorkspacePage() {
             type="button"
             data-window-no-drag
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-accent bg-accent px-2 text-xs text-bg hover:bg-accent-700 disabled:border-divider disabled:bg-neutral-200 disabled:text-neutral-400"
-            disabled={readOnly || plannedClipIds.length > 0 || exportProject.isPending}
+            disabled={readOnly || deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
             onClick={() => setExternalConfirm({ kind: 'export' })}
           >
             <Download className="size-3.5" aria-hidden="true" />
             <Trans>导出成片</Trans>
           </button>
-          <span className="ml-auto flex items-center gap-5 text-neutral-600" data-window-no-drag>
-            <Bell className="size-4" strokeWidth={1.5} aria-hidden="true" />
-            <CircleHelp className="size-4" strokeWidth={1.5} aria-hidden="true" />
-            <span className="h-5 border-l border-divider" aria-hidden="true" />
-            <span className="grid size-7 place-items-center rounded-full bg-neutral-200 text-xs font-medium">A</span>
-          </span>
         </header>
       )}
     >
@@ -861,9 +880,14 @@ export function ProjectWorkspacePage() {
         open={externalConfirm?.kind === 'recording'}
         title={<Trans>录制缺失片段</Trans>}
         confirmLabel={<Trans>开始录制</Trans>}
-        confirmDisabled={externalConfirm?.kind !== 'recording' || externalConfirm.clipIds.length === 0 || startRecording.isPending}
+        confirmDisabled={deliveryGatePending
+          || externalConfirm?.kind !== 'recording'
+          || externalConfirm.clipIds.length === 0
+          || externalConfirm.clipIds.some((clipId) => !recordableClipIds.includes(clipId))
+          || startRecording.isPending}
         onConfirm={() => {
           if (externalConfirm?.kind !== 'recording') return;
+          if (deliveryGatePending || externalConfirm.clipIds.some((clipId) => !recordableClipIds.includes(clipId))) return;
           const clipIds = [...externalConfirm.clipIds];
           setExternalConfirm(null);
           startRecording.mutate({ projectId: current.id, clipIds });
@@ -876,8 +900,9 @@ export function ProjectWorkspacePage() {
         open={externalConfirm?.kind === 'export'}
         title={<Trans>导出成片</Trans>}
         confirmLabel={<Trans>开始导出</Trans>}
-        confirmDisabled={plannedClipIds.length > 0 || exportProject.isPending}
+        confirmDisabled={deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
         onConfirm={() => {
+          if (deliveryGatePending || currentDeliveryGate?.ready !== true) return;
           setExternalConfirm(null);
           exportProject.mutate({ projectId: current.id });
         }}
@@ -1767,6 +1792,8 @@ interface AgentPanelProps {
   readonly readOnly: boolean;
   readonly agentReady: boolean;
   readonly agentStatusPending: boolean;
+  readonly deliveryReady: boolean;
+  readonly deliveryGatePending: boolean;
   readonly externalExecutions: readonly ActivityItem[];
   readonly executionActionPending: boolean;
   readonly onCancelExecution: (execution: ActivityItem) => void;
@@ -1791,6 +1818,8 @@ const AgentPanel = memo(function AgentPanel({
   readOnly,
   agentReady,
   agentStatusPending,
+  deliveryReady,
+  deliveryGatePending,
   externalExecutions,
   executionActionPending,
   onCancelExecution,
@@ -1860,6 +1889,8 @@ const AgentPanel = memo(function AgentPanel({
                 entry={entry}
                 pendingConfirmationToolCallId={pendingConfirmationToolCallId}
                 confirming={confirming}
+                deliveryReady={deliveryReady}
+                deliveryGatePending={deliveryGatePending}
                 onConfirmRecording={onConfirmRecording}
                 onConfirmExport={onConfirmExport}
                 onRejectConfirmation={onRejectConfirmation}
@@ -1972,6 +2003,8 @@ function areAgentPanelPropsEqual(previous: AgentPanelProps, next: AgentPanelProp
     && previous.readOnly === next.readOnly
     && previous.agentReady === next.agentReady
     && previous.agentStatusPending === next.agentStatusPending
+    && previous.deliveryReady === next.deliveryReady
+    && previous.deliveryGatePending === next.deliveryGatePending
     && previous.confirming === next.confirming
     && previous.executionActionPending === next.executionActionPending
     && sameExecutions;
@@ -1981,6 +2014,8 @@ function ConversationEntry({
   entry,
   pendingConfirmationToolCallId,
   confirming,
+  deliveryReady,
+  deliveryGatePending,
   onConfirmRecording,
   onConfirmExport,
   onRejectConfirmation,
@@ -1989,6 +2024,8 @@ function ConversationEntry({
   readonly entry: AgentSessionEntry;
   readonly pendingConfirmationToolCallId: string | null;
   readonly confirming: boolean;
+  readonly deliveryReady: boolean;
+  readonly deliveryGatePending: boolean;
   readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
   readonly onConfirmExport: (toolCallId: string) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
@@ -2013,6 +2050,8 @@ function ConversationEntry({
           call={call}
           confirmationActive={call.id === pendingConfirmationToolCallId}
           confirming={confirming}
+          deliveryReady={deliveryReady}
+          deliveryGatePending={deliveryGatePending}
           onConfirmRecording={onConfirmRecording}
           onConfirmExport={onConfirmExport}
           onRejectConfirmation={onRejectConfirmation}
@@ -2084,6 +2123,8 @@ function ToolCallCard({
   decision = null,
   confirmationActive = false,
   confirming = false,
+  deliveryReady = false,
+  deliveryGatePending = false,
   onConfirmRecording,
   onConfirmExport,
   onRejectConfirmation,
@@ -2092,6 +2133,8 @@ function ToolCallCard({
   readonly decision?: ToolDecisionEntry | null | undefined;
   readonly confirmationActive?: boolean | undefined;
   readonly confirming?: boolean | undefined;
+  readonly deliveryReady?: boolean | undefined;
+  readonly deliveryGatePending?: boolean | undefined;
   readonly onConfirmRecording?: ((toolCallId: string, clipIds: string[]) => Promise<void>) | undefined;
   readonly onConfirmExport?: ((toolCallId: string) => Promise<void>) | undefined;
   readonly onRejectConfirmation?: ((toolCallId: string) => Promise<void>) | undefined;
@@ -2102,6 +2145,9 @@ function ToolCallCard({
   const awaitingDecision = confirmation !== null && decision === null;
   const rejected = decision?.decision === 'rejected';
   const approved = decision?.decision === 'approved';
+  const exportBlocked = awaitingDecision
+    && confirmation?.action === 'export'
+    && (deliveryGatePending || !deliveryReady);
   return (
     <article className={cn(
       'mt-2 rounded-md border p-3 text-xs shadow-sm',
@@ -2139,11 +2185,18 @@ function ToolCallCard({
               ? <Trans>Agent 已准备好缺失片段的录制请求；确认后才会启动 CS2/HLAE。</Trans>
               : <Trans>Agent 已准备好最终导出请求；确认后才会写出 MP4。</Trans>}
           </p>
+          {!exportBlocked ? null : (
+            <p className="mt-2 border border-warn-border bg-bg px-2 py-1.5 text-2xs text-warn-text">
+              {deliveryGatePending
+                ? <Trans>正在检查当前 Project revision 的交付状态。</Trans>
+                : <Trans>时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。</Trans>}
+            </p>
+          )}
           <div className="mt-2 flex gap-2">
             <Button
               size="sm"
               variant="primary"
-              disabled={confirming}
+              disabled={confirming || exportBlocked}
               onClick={() => void (confirmation.action === 'recording'
                 ? onConfirmRecording?.(call.id, confirmation.clipIds)
                 : onConfirmExport?.(call.id))}

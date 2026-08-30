@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
+import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -76,6 +76,21 @@ function mediaDragTransfer(): DataTransfer {
   };
 }
 
+function deliveryGateFor(project: Project): ProjectDeliveryGate {
+  const blockers: ProjectDeliveryGate['blockers'] = [];
+  for (const clip of project.document.tracks.flatMap((track) => track.clips)) {
+    if (!clip.placement.enabled || clip.text !== null) continue;
+    if (clip.material.kind === 'planned') {
+      blockers.push({ clip_id: clip.id, state: clip.capture_intent === null ? 'unbound' : 'unrecorded' });
+      continue;
+    }
+    if (clip.placement.source_out > clip.material.media_duration_seconds + 0.001) {
+      blockers.push({ clip_id: clip.id, state: 'stale' });
+    }
+  }
+  return { project_id: project.id, revision: project.revision, ready: blockers.length === 0, blockers };
+}
+
 function mediaDragEvent(
   type: 'dragstart' | 'dragover' | 'drop',
   dataTransfer: DataTransfer,
@@ -147,6 +162,31 @@ const RECORDED_PROJECT: Project = {
   },
 };
 
+const RECORDABLE_PROJECT: Project = {
+  ...PROJECT,
+  document: {
+    ...PROJECT.document,
+    tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+      ...track,
+      clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+        ...candidate,
+        capture_intent: {
+          demo_id: '00000000-0000-4000-8000-000000000200',
+          highlight_id: null,
+          player_id: 'player-a',
+          start_tick: 100,
+          end_tick: 200,
+          pre_roll_seconds: 1,
+          post_roll_seconds: 1,
+          victim_pov: false,
+          camera_style: 'pov',
+          presentation: null,
+        },
+      }),
+    }),
+  },
+};
+
 const LINKED_AUDIO_CLIP_ID = '00000000-0000-4000-8000-000000000090';
 const LINK_GROUP_ID = '00000000-0000-4000-8000-000000000091';
 
@@ -208,6 +248,7 @@ function renderWorkspace({
   assets = [],
   agentConfigured = true,
   project = PROJECT,
+  deliveryGate = deliveryGateFor(project),
   getProject,
   getActivity,
   listMediaAssets,
@@ -231,6 +272,7 @@ function renderWorkspace({
   readonly assets?: readonly MediaAsset[];
   readonly agentConfigured?: boolean;
   readonly project?: Project;
+  readonly deliveryGate?: ProjectDeliveryGate;
   readonly getProject?: (() => Promise<Project>) | undefined;
   readonly getActivity?: ReturnType<typeof vi.fn> | undefined;
   readonly listMediaAssets?: ReturnType<typeof vi.fn> | undefined;
@@ -250,6 +292,7 @@ function renderWorkspace({
     element: <ProjectWorkspacePage />,
     client: {
       getProject: getProject ?? (() => Promise.resolve(project)),
+      getProjectDeliveryGate: () => Promise.resolve(deliveryGate),
       ...(getActivity === undefined ? {} : { getActivity }),
       ...(createProjectRecordingPlan === undefined ? {} : { createProjectRecordingPlan }),
       ...(executeRecordingPlan === undefined ? {} : { executeRecordingPlan }),
@@ -282,7 +325,7 @@ describe('unified project workspace', () => {
     expect(await screen.findByRole('heading', { name: '统一作品' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'NiKo 3 分钟集锦' })).toBeNull();
     expect(screen.queryByText('创建于 2 小时前')).toBeNull();
-    expect(screen.getByText('1 个待录制')).toBeTruthy();
+    expect(screen.getByText('1 个素材未就绪')).toBeTruthy();
     expect(screen.queryByText('Agent 修改待审阅')).toBeNull();
     expect(await screen.findByRole('region', { name: '视频预览' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '战术示意' })).toBeTruthy();
@@ -320,9 +363,21 @@ describe('unified project workspace', () => {
         }),
       },
     };
-    renderWorkspace({ project });
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
 
     expect(await screen.findByRole('button', { name: /B 5\.0s · 需要重录/u })).toBeTruthy();
+    expect(screen.getByText('2 个素材未就绪')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
+    expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
     expect(panel.textContent).toContain('待录 2 · 已录 0');
@@ -332,7 +387,7 @@ describe('unified project workspace', () => {
     const createProjectRecordingPlan = vi.fn(() => Promise.reject(new Error(
       'external dependency is unavailable: this shot needs at least four spatial replay samples for camera movement',
     )));
-    renderWorkspace({ createProjectRecordingPlan });
+    renderWorkspace({ project: RECORDABLE_PROJECT, createProjectRecordingPlan });
 
     fireEvent.click(await screen.findByRole('button', { name: '录制缺失片段' }));
     fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
@@ -343,7 +398,7 @@ describe('unified project workspace', () => {
   });
 
   it('refreshes the Project Head and media library when a recording reaches a terminal state', async () => {
-    const getProject = vi.fn(() => Promise.resolve(PROJECT));
+    const getProject = vi.fn(() => Promise.resolve(RECORDABLE_PROJECT));
     const listMediaAssets = vi.fn(() => Promise.resolve({ items: [] }));
     const createProjectRecordingPlan = vi.fn(() => Promise.resolve({ plan_id: 'plan-a' }));
     const executeRecordingPlan = vi.fn(() => Promise.resolve({ job_id: 'job-a', status: 'running' }));
@@ -367,6 +422,7 @@ describe('unified project workspace', () => {
       available_actions: [],
     }));
     renderWorkspace({
+      project: RECORDABLE_PROJECT,
       getProject,
       getActivity,
       listMediaAssets,
@@ -3040,7 +3096,7 @@ describe('unified project workspace', () => {
       metadata_status: { status: 'ready' },
       created_at: PROJECT.updated_at,
     };
-    renderWorkspace({ assets: [asset] });
+    renderWorkspace({ project: RECORDABLE_PROJECT, assets: [asset] });
 
     const panel = await screen.findByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('准备录制');
@@ -3903,6 +3959,32 @@ describe('unified project workspace', () => {
     expect(screen.getByText('需要你的确认')).toBeTruthy();
     expect(screen.getByRole('button', { name: '允许录制' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '拒绝' })).toBeTruthy();
+  });
+
+  it('keeps Agent export HITL inside the tool result and disabled until Delivery Gate passes', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000034',
+      title: 'Agent · blocked export',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:01:00Z',
+      entries: [{
+        kind: 'assistant', id: 'a-blocked-export', at: '2026-08-28T10:01:00Z', content: '',
+        tool_calls: [{
+          id: 'request-blocked:tool:1',
+          name: 'request_project_export',
+          input: { projectId: PROJECT.id },
+          output: { status: 'requires_human_confirmation', action: 'export' },
+          status: 'awaiting_confirmation',
+        }],
+        status: 'completed', request_id: 'request-blocked', retry_of: null, error: null, metadata: null,
+      }],
+    };
+    renderWorkspace({ session });
+
+    const allow = await screen.findByRole('button', { name: '允许导出' }) as HTMLButtonElement;
+    expect(allow.disabled).toBe(true);
+    expect(screen.getByText('时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。')).toBeTruthy();
+    expect(screen.queryByText('你 · 确认')).toBeNull();
   });
 
   it('shows an Agent tool error instead of claiming that the edit was committed', async () => {

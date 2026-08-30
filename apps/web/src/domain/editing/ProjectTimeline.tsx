@@ -58,6 +58,7 @@ import type {
   EditorMarker,
   ProjectChangeGroup,
   TimelineClip,
+  TimelineClipMaterializationState,
   TimelineTrack,
 } from '../../shared/desktop/dto';
 import {
@@ -131,6 +132,7 @@ export interface TimelineMediaDrop {
 export interface ProjectTimelineProps {
   readonly docked?: boolean;
   readonly document: EditingDocument;
+  readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
@@ -179,6 +181,7 @@ interface RenderedTrack {
 
 const MIN_TRACK_HEIGHT = 32;
 const MAX_TRACK_HEIGHT = 180;
+const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
 
 function defaultTrackHeight(track: RenderedTrack): number {
   if (track.kind === 'video') return 84;
@@ -221,6 +224,7 @@ function remapClipboardIdentity(
 export function ProjectTimeline({
   docked = false,
   document,
+  deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   selectedClipId,
   selectedClipIds,
   targetTrackId,
@@ -373,7 +377,7 @@ export function ProjectTimeline({
     .sort((left, right) => left.order - right.order)
     .map((track) => track.id), [document.story_track_id, document.tracks]);
   const recordedCount = clips.filter((clip) => (
-    resolveTimelineMaterial(clip.material, clip.placement).state === 'recorded'
+    timelineClipMaterialState(clip, deliveryStateByClipId.get(clip.id)) === 'recorded'
   )).length;
   const plannedCount = clips.length - recordedCount;
   const changeProjection = useMemo(
@@ -1490,6 +1494,7 @@ export function ProjectTimeline({
               contentWidth={contentWidth}
               selectedClipId={selectedClipId}
               selectedClipIds={selectedClipIdSet}
+              deliveryStateByClipId={deliveryStateByClipId}
               editTool={editTool}
               fps={document.fps}
               readOnly={readOnly}
@@ -1785,6 +1790,15 @@ export function ProjectTimeline({
   );
 }
 
+function timelineClipMaterialState(
+  clip: TimelineClip,
+  deliveryState: TimelineClipMaterializationState | undefined,
+): 'planned' | 'recorded' | 'stale' {
+  if (deliveryState === 'stale') return 'stale';
+  if (deliveryState === 'unbound' || deliveryState === 'unrecorded') return 'planned';
+  return resolveTimelineMaterial(clip.material, clip.placement).state;
+}
+
 function TimelineZoomNavigator({
   multiplier,
   maximumMultiplier,
@@ -1992,12 +2006,13 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
+  readonly deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly editTool: TimelineEditTool;
   readonly fps: number;
   readonly readOnly: boolean;
@@ -2183,6 +2198,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
             primary={selectedClipId === clip.id}
+            deliveryState={deliveryStateByClipId.get(clip.id)}
             editTool={editTool}
             scale={scale}
             fps={fps}
@@ -2601,12 +2617,13 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, editTool, storyTrack, canSlide, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
   readonly primary: boolean;
+  readonly deliveryState?: TimelineClipMaterializationState | undefined;
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
   readonly canSlide: boolean;
@@ -2634,7 +2651,11 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onClearPreview: () => void;
 }) {
   const shell = useNativeShell();
-  const material = resolveTimelineMaterial(clip.material, clip.placement);
+  const resolvedMaterial = resolveTimelineMaterial(clip.material, clip.placement);
+  const material = {
+    ...resolvedMaterial,
+    state: timelineClipMaterialState(clip, deliveryState),
+  };
   const enabledEffectCount = clip.effects.filter((effect) => effect.enabled).length;
   const keyframeGroups = useMemo(() => {
     const groups = new Map<number, number>();
@@ -3090,6 +3111,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.derivedAudio === next.derivedAudio
   && previous.selected === next.selected
   && previous.primary === next.primary
+  && previous.deliveryState === next.deliveryState
   && previous.editTool === next.editTool
   && previous.storyTrack === next.storyTrack
   && previous.canSlide === next.canSlide

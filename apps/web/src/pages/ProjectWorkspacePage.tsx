@@ -747,16 +747,22 @@ export function ProjectWorkspacePage() {
             <Trans>作品</Trans>
           </button>
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
-          <h1 className="min-w-0 truncate text-sm font-semibold">NiKo 3 分钟集锦</h1>
+          <h1 className="min-w-0 truncate text-sm font-semibold">{current.name}</h1>
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
           <span className="whitespace-nowrap text-sm font-semibold"><Trans>变更 #{current.revision}</Trans></span>
-          <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
-            <Trans>Agent 修改待审阅</Trans>
-          </span>
-          <span className="ml-2 whitespace-nowrap text-xs text-neutral-500"><Trans>创建于 2 小时前</Trans></span>
-          <span className="text-neutral-300">·</span>
-          <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {latestAgentGroup?.operations.length ?? 0} 处变更</Trans></span>
-          <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>检查通过</Trans></span>
+          {latestAgentGroup === null ? null : (
+            <>
+              <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
+                <Trans>Agent 修改待审阅</Trans>
+              </span>
+              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {latestAgentGroup.operations.length} 处变更</Trans></span>
+            </>
+          )}
+          {plannedClipIds.length === 0 ? (
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>检查通过</Trans></span>
+          ) : (
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{plannedClipIds.length} 个待录制</Trans></span>
+          )}
           <button
             type="button"
             data-window-no-drag

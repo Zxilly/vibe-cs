@@ -261,6 +261,11 @@ describe('unified project workspace', () => {
   it('hosts Project, monitors, Timeline and Agent in one dockable workspace', async () => {
     renderWorkspace();
 
+    expect(await screen.findByRole('heading', { name: '统一作品' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'NiKo 3 分钟集锦' })).toBeNull();
+    expect(screen.queryByText('创建于 2 小时前')).toBeNull();
+    expect(screen.getByText('1 个待录制')).toBeTruthy();
+    expect(screen.queryByText('Agent 修改待审阅')).toBeNull();
     expect(await screen.findByRole('region', { name: '视频预览' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '战术示意' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '时间轴' })).toBeTruthy();

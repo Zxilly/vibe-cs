@@ -1776,6 +1776,31 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('keeps a locked selected clip visible in Program without direct-manipulation controls', async () => {
+    const lockedProject: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, locked: true }
+          : track),
+      },
+    };
+    renderWorkspace({
+      project: lockedProject,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    expect(await screen.findByLabelText('A 视频预览')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '在节目画布中移动 A' })).toBeNull();
+    expect(screen.queryByRole('slider', { name: '缩放节目画面 A' })).toBeNull();
+    expect(screen.queryByRole('slider', { name: '旋转节目画面 A' })).toBeNull();
+  });
+
   it('uses one J/K/L transport with frame and edit-point navigation', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,
@@ -2341,6 +2366,55 @@ describe('unified project workspace', () => {
         ],
       })],
     })));
+  });
+
+  it('opens a locked clip in Inspector as read-only through direct review', async () => {
+    const lockedProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, locked: true }
+          : track),
+      },
+    };
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000098',
+      title: 'Agent · locked review',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:02:00Z',
+      entries: [
+        { kind: 'user', id: 'locked-user', at: '2026-08-28T10:01:00Z', content: '审阅锁定片段' },
+        {
+          kind: 'assistant', id: 'locked-assistant', at: '2026-08-28T10:02:00Z', content: '已准备审阅。',
+          tool_calls: [], status: 'completed', request_id: 'locked-request', retry_of: null, error: null, metadata: null,
+        },
+      ],
+    };
+    const group: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000099',
+      project_id: PROJECT.id,
+      from_revision: 0,
+      to_revision: 1,
+      author: { kind: 'agent', session_id: session.id, turn_id: 'locked-request' },
+      status: 'completed',
+      summary: '准备锁定片段',
+      reverts_change_group_id: null,
+      operations: [],
+      inverse_operations: [],
+      created_at: '2026-08-28T10:01:30Z',
+      completed_at: '2026-08-28T10:01:31Z',
+    };
+    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
+      if (draft.kind !== 'user') throw new Error('expected direct-edit decision');
+      return { kind: 'user' as const, id: 'direct-edit', at: '2026-08-28T10:03:00Z', content: draft.content };
+    });
+    renderWorkspace({ project: lockedProject, session, groups: [group], appendAgentSessionEntry });
+
+    fireEvent.click(await screen.findByRole('button', { name: '直接修改' }));
+    const inspector = await screen.findByRole('dialog', { name: '片段属性' });
+    expect((within(inspector).getByLabelText('名称') as HTMLInputElement).disabled).toBe(true);
+    expect((within(inspector).getByRole('button', { name: '保存修改' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('edits a planned clip recording camera through the canonical Project Patch', async () => {

@@ -415,11 +415,15 @@ export function ProjectWorkspacePage() {
       ? [...currentSelection.filter((selectedId) => selectedId !== clipId), clipId]
       : currentSelection);
   };
-  const replaceTimelineClip = (clip: TimelineClip) => mutate(
-    `调整 ${clip.name}`,
-    { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
-    [{ op: 'replace_clip', clip_id: clip.id, clip }],
-  );
+  const replaceTimelineClip = (clip: TimelineClip) => {
+    const track = current.document.tracks.find((candidate) => candidate.clips.some((item) => item.id === clip.id));
+    if (track?.locked !== false) return;
+    mutate(
+      `调整 ${clip.name}`,
+      { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
+      [{ op: 'replace_clip', clip_id: clip.id, clip }],
+    );
+  };
   const mediaTargetTrack = (asset: MediaAsset, preferredTrackId = targetTrackId): TimelineTrack | null => {
     const desiredKind = projectMediaAssetKind(asset);
     const explicit = current.document.tracks.find((track) => track.id === preferredTrackId) ?? null;
@@ -589,7 +593,7 @@ export function ProjectWorkspacePage() {
       project={previewProject}
       timelineTimeSeconds={transportTimeSeconds}
       selectedClipId={selectedClipId}
-      readOnly={readOnly || apply.isPending}
+      readOnly={readOnly || apply.isPending || selected?.track.locked === true}
       playing={playing}
       playbackRate={playbackRate}
       rollingPreview={timelineRollingPreview}
@@ -855,13 +859,14 @@ export function ProjectWorkspacePage() {
       >
         <ClipInspector
           selected={selected}
-          readOnly={readOnly}
+          readOnly={readOnly || selected?.track.locked === true}
           timelineTimeSeconds={transportTimeSeconds}
           fps={current.document.fps}
           onSeek={seekTimeline}
           onReplace={(clip) => {
             const track = selected?.track ?? null;
-            if (track?.id === current.document.story_track_id) {
+            if (track === null || track.locked) return;
+            if (track.id === current.document.story_track_id) {
               mutate(
                 `修改 ${clip.name}`,
                 { kind: 'track', track_id: track.id },

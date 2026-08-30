@@ -146,7 +146,7 @@ export interface ProjectTimelineProps {
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onSelectClips: (clipIds: readonly string[]) => void;
   readonly onPromoteClip: (clipId: string) => void;
-  readonly onTargetTrack: (trackId: string) => void;
+  readonly onTargetTrack: (trackId: string, kind: TimelineTrack['kind']) => void;
   readonly onToggleLinkedSelection: () => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
@@ -747,12 +747,12 @@ export function ProjectTimeline({
         hidden: false,
         clips: [clip],
       }, document.tracks.length);
-      onTargetTrack(trackId);
+      onTargetTrack(trackId, 'text');
     } else {
       onReplaceTrackClips(existing.id, [...existing.clips, clip].sort((left, right) => (
         left.placement.start - right.placement.start || left.id.localeCompare(right.id)
       )));
-      onTargetTrack(existing.id);
+      onTargetTrack(existing.id, 'text');
     }
     setTextDraft(null);
   };
@@ -2046,7 +2046,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
   readonly targetTrackId: string | null;
   readonly timelineTimeSeconds: number;
-  readonly onTargetTrack: (trackId: string) => void;
+  readonly onTargetTrack: (trackId: string, kind: TimelineTrack['kind']) => void;
   readonly height: number;
   readonly collapsed: boolean;
   readonly onHeightChange: (height: number) => void;
@@ -3830,7 +3830,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
   readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
-  readonly onTargetTrack?: ((trackId: string) => void) | undefined;
+  readonly onTargetTrack?: ((trackId: string, kind: TimelineTrack['kind']) => void) | undefined;
   readonly onToggleCollapse?: (() => void) | undefined;
 }) {
   return (
@@ -3858,7 +3858,10 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
           aria-label={t`设为目标轨道 ${label}`}
           aria-pressed={targeted}
           disabled={track?.locked === true}
-          onClick={() => track === undefined ? undefined : onTargetTrack?.(track.id)}
+          onClick={() => track === undefined ? undefined : onTargetTrack?.(
+            track.id,
+            controls === 'video' ? 'video' : controls === 'audio' ? 'audio' : 'text',
+          )}
         >
           {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : 'T1'}
         </button>

@@ -3533,7 +3533,7 @@ describe('unified project workspace', () => {
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Bed' }));
-    expect(within(panel).getByText('目标：Music')).toBeTruthy();
+    expect(within(panel).getByText('A → Music')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Bed' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -3622,7 +3622,7 @@ describe('unified project workspace', () => {
 
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Voice' }));
-    expect(within(panel).getByText('目标：新建音频轨道')).toBeTruthy();
+    expect(within(panel).getByText('A → 新建音频轨道')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Voice' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -3640,6 +3640,150 @@ describe('unified project workspace', () => {
     const voiceItems = within(panel).getAllByRole('option', { name: '选择素材 Voice' });
     expect(voiceItems).toHaveLength(1);
     expect(voiceItems[0]?.textContent).toContain('已录制');
+  });
+
+  it('source-patches an AV clip onto linked free video and audio tracks in one Project Patch', async () => {
+    const bRollTrackId = '00000000-0000-4000-8000-000000000094';
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: [
+          ...PROJECT.document.tracks,
+          {
+            id: bRollTrackId,
+            name: 'B-Roll',
+            kind: 'video',
+            order: 2,
+            muted: false,
+            locked: false,
+            hidden: false,
+            clips: [],
+          },
+        ],
+      },
+    };
+    const asset: MediaAsset = {
+      id: 'asset-av',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\av.mp4',
+      name: 'AV source',
+      kind: 'video',
+      duration_seconds: 8,
+      width: 1920,
+      height: 1080,
+      file_size: 8_192,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.2, 0.8],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, assets: [asset], applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '设为目标轨道 B-Roll' }));
+    fireEvent.click(screen.getByRole('option', { name: '选择素材 AV source' }));
+    expect(screen.getByRole('button', { name: '包含源视频' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: '包含源音频' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('V → B-Roll · A → Music')).toBeTruthy();
+    const viewport = screen.getByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
+    });
+    const source = screen.getByRole('option', { name: '选择素材 AV source' });
+    const bRoll = screen.getByRole('row', { name: 'B-Roll' });
+    const dataTransfer = mediaDragTransfer();
+    fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
+    fireEvent(bRoll, mediaDragEvent('dragover', dataTransfer, { clientX: 200, ctrlKey: true }));
+    fireEvent(bRoll, mediaDragEvent('drop', dataTransfer, { clientX: 200, ctrlKey: true }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: bRollTrackId,
+          clips: [expect.objectContaining({
+            name: 'AV source',
+            link_group_id: expect.any(String),
+            placement: expect.objectContaining({ start: 0, duration: 8, volume: 0 }),
+          })],
+        }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [expect.objectContaining({
+            name: 'AV source',
+            link_group_id: expect.any(String),
+            placement: expect.objectContaining({ start: 0, duration: 8, volume: 1 }),
+          })],
+        }),
+      ],
+    })));
+    const operations = applyProjectPatch.mock.calls[0]?.[0].operations as ProjectPatch['operations'];
+    const video = operations[0]?.op === 'replace_track_clips' ? operations[0].clips[0] : null;
+    const audio = operations[1]?.op === 'replace_track_clips' ? operations[1].clips[0] : null;
+    expect(video?.link_group_id).toBe(audio?.link_group_id);
+  });
+
+  it('can disable the source audio patch without creating a silent companion track', async () => {
+    const bRollTrackId = '00000000-0000-4000-8000-000000000095';
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: [...PROJECT.document.tracks, {
+          id: bRollTrackId,
+          name: 'Silent B-Roll',
+          kind: 'video',
+          order: 2,
+          muted: false,
+          locked: false,
+          hidden: false,
+          clips: [],
+        }],
+      },
+    };
+    const asset: MediaAsset = {
+      id: 'asset-silent-av',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\silent-av.mp4',
+      name: 'Silent source',
+      kind: 'video',
+      duration_seconds: 4,
+      width: 1920,
+      height: 1080,
+      file_size: 4_096,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.2],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, assets: [asset], applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '设为目标轨道 Silent B-Roll' }));
+    fireEvent.click(screen.getByRole('option', { name: '选择素材 Silent source' }));
+    fireEvent.click(screen.getByRole('button', { name: '包含源音频' }));
+    expect(screen.getByText('V → Silent B-Roll')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Silent source' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: bRollTrackId },
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: bRollTrackId,
+        clips: [expect.objectContaining({
+          link_group_id: null,
+          placement: expect.objectContaining({ volume: 0 }),
+        })],
+      }],
+    })));
   });
 
   it('adds and removes real timeline tracks through Project operations', async () => {

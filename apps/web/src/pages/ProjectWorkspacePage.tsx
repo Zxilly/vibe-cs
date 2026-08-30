@@ -72,9 +72,7 @@ import {
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
   editorEffectParameter,
-  insertRippleClipAtTime,
-  overwriteClipsAtTime,
-  placeFreeClipAtTime,
+  planSourceMediaEdit,
   projectMediaAssetKind,
   mediaAssetEditDuration,
   ProjectMediaPanel,
@@ -86,10 +84,11 @@ import {
   rateStretchTimelineClip,
   removeClipSpeedBoundary,
   snapTimeToFrame,
-  timelineClipFromMediaAsset,
   TimelineProgramMonitor,
   type TimelineRollingPreview,
   type TimelineSlidePreview,
+  type ProjectSourcePatch,
+  type ProjectSourcePatchTargets,
   type ProjectSourceRange,
   trimRippleClip,
   removeClipKeyframe,
@@ -211,6 +210,10 @@ export function ProjectWorkspacePage() {
   const initializedSelectionProjectId = useRef<string | null>(null);
   const initializedTargetProjectId = useRef<string | null>(null);
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
+  const [mediaTargetTrackIds, setMediaTargetTrackIds] = useState<Readonly<{
+    readonly video: string | null;
+    readonly audio: string | null;
+  }>>({ video: null, audio: null });
   const [linkedSelectionEnabled, setLinkedSelectionEnabled] = useState(true);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
@@ -312,12 +315,27 @@ export function ProjectWorkspacePage() {
     if (initializedTargetProjectId.current !== loaded.id) {
       initializedTargetProjectId.current = loaded.id;
       const story = loaded.document.tracks.find((track) => track.id === loaded.document.story_track_id);
+      const audio = loaded.document.tracks.find((track) => track.kind === 'audio' && !track.locked);
       setTargetTrackId(story?.locked === false ? story.id : null);
+      setMediaTargetTrackIds({
+        video: story?.locked === false ? story.id : null,
+        audio: audio?.id ?? null,
+      });
       return;
     }
     if (targetTrackId === null) return;
     const target = loaded.document.tracks.find((track) => track.id === targetTrackId);
     if (target === undefined || target.locked) setTargetTrackId(null);
+    setMediaTargetTrackIds((targets) => {
+      const video = loaded.document.tracks.find((track) => track.id === targets.video && track.kind === 'video' && !track.locked)
+        ?? loaded.document.tracks.find((track) => track.id === loaded.document.story_track_id && !track.locked)
+        ?? null;
+      const audio = loaded.document.tracks.find((track) => track.id === targets.audio && track.kind === 'audio' && !track.locked)
+        ?? loaded.document.tracks.find((track) => track.kind === 'audio' && !track.locked)
+        ?? null;
+      if (video?.id === targets.video && audio?.id === targets.audio) return targets;
+      return { video: video?.id ?? null, audio: audio?.id ?? null };
+    });
   }, [project.data, targetTrackId]);
 
   useEffect(() => {
@@ -485,73 +503,100 @@ export function ProjectWorkspacePage() {
     const explicit = current.document.tracks.find((track) => track.id === preferredTrackId) ?? null;
     return explicit?.kind === desiredKind ? explicit : null;
   };
+  const sourcePatchTrackPlan = (asset: MediaAsset, sourcePatch: ProjectSourcePatch) => {
+    const videoTrack = sourcePatch.video
+      ? current.document.tracks.find((track) => track.id === mediaTargetTrackIds.video && track.kind === 'video' && !track.locked) ?? null
+      : null;
+    const embeddedAudio = sourcePatch.audio
+      && sourcePatch.video
+      && asset.has_audio
+      && videoTrack?.id === current.document.story_track_id;
+    const audioTrack = sourcePatch.audio && !embeddedAudio
+      ? current.document.tracks.find((track) => track.id === mediaTargetTrackIds.audio && track.kind === 'audio' && !track.locked)
+        ?? current.document.tracks.find((track) => track.kind === 'audio' && !track.locked)
+        ?? null
+      : null;
+    return { videoTrack, audioTrack, embeddedAudio };
+  };
+  const sourcePatchTargets = (asset: MediaAsset, sourcePatch: ProjectSourcePatch): ProjectSourcePatchTargets => {
+    const plan = sourcePatchTrackPlan(asset, sourcePatch);
+    return {
+      video: sourcePatch.video ? plan.videoTrack?.name ?? null : null,
+      audio: sourcePatch.audio
+        ? plan.embeddedAudio
+          ? t`Story（内嵌音频）`
+          : plan.audioTrack?.name ?? t`新建音频轨道`
+        : null,
+    };
+  };
+  const canApplySourcePatch = (asset: MediaAsset, sourcePatch: ProjectSourcePatch) => {
+    if (!sourcePatch.video && !sourcePatch.audio) return false;
+    if (sourcePatch.video && (projectMediaAssetKind(asset) !== 'video' || sourcePatchTrackPlan(asset, sourcePatch).videoTrack === null)) return false;
+    return !sourcePatch.audio || asset.has_audio;
+  };
   const addMediaAsset = (
     asset: MediaAsset,
     mode: 'insert' | 'overwrite',
     placement?: { readonly trackId: string; readonly timeSeconds: number },
     sourceRange?: ProjectSourceRange,
+    sourcePatch: ProjectSourcePatch = {
+      video: projectMediaAssetKind(asset) === 'video',
+      audio: projectMediaAssetKind(asset) === 'audio',
+    },
   ) => {
     if (mediaAssetEditDuration(asset) === null) return;
-    const insertedClipId = globalThis.crypto.randomUUID();
-    const inserted = timelineClipFromMediaAsset(asset, insertedClipId, sourceRange);
-    if (inserted.placement.duration < 1 / current.document.fps) return;
     const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);
-    const target = mediaTargetTrack(asset, placement?.trackId ?? targetTrackId);
-    if (target === null) {
-      if ((placement?.trackId ?? targetTrackId) === null) return;
-      if (projectMediaAssetKind(asset) !== 'audio' || placement !== undefined) return;
-      const trackId = globalThis.crypto.randomUUID();
-      const track: TimelineTrack = {
-        id: trackId,
-        name: t`音频轨道 ${current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1}`,
-        kind: 'audio',
-        order: current.document.tracks.length,
-        muted: false,
-        locked: false,
-        hidden: false,
-        clips: [placeFreeClipAtTime([], inserted, editTimeSeconds)[0]!],
-      };
-      const insertionIndex = current.document.tracks.length;
-      mutate(
-        `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
-        { kind: 'project' },
-        [{ op: 'insert_track', index: insertionIndex, track }],
-        ({ project: updated }) => {
-          const insertedTrack = updated.document.tracks[insertionIndex];
-          const insertedClip = insertedTrack?.clips.find((clip) => (
-            clip.material.kind === 'asset' && clip.material.asset_id === asset.id
-          ));
-          if (insertedTrack === undefined || insertedClip === undefined) return;
-          setTargetTrackId(insertedTrack.id);
-          setSelectedClipIds([insertedClip.id]);
-        },
-      );
-      return;
-    }
-    if (target.locked) return;
-    const storyEdit = target.id === current.document.story_track_id;
-    const clips = mode === 'insert'
-      ? storyEdit
-        ? insertRippleClipAtTime(
-          target.clips,
-          inserted,
-          editTimeSeconds,
-          globalThis.crypto.randomUUID(),
-        )
-        : placeFreeClipAtTime(target.clips, inserted, editTimeSeconds)
-      : overwriteClipsAtTime(
-        target.clips,
-        inserted,
-        editTimeSeconds,
-        globalThis.crypto.randomUUID(),
-      );
+    const directTarget = placement === undefined ? null : mediaTargetTrack(asset, placement.trackId);
+    const effectivePatch = placement === undefined ? sourcePatch : {
+      video: directTarget?.kind === 'video',
+      audio: directTarget?.kind === 'audio'
+        || (directTarget?.kind === 'video' && asset.has_audio),
+    };
+    if (placement === undefined && !canApplySourcePatch(asset, effectivePatch)) return;
+    const patchPlan = sourcePatchTrackPlan(asset, effectivePatch);
+    const directAudioPlan = sourcePatchTrackPlan(asset, { video: false, audio: effectivePatch.audio });
+    const plan = placement === undefined ? patchPlan : {
+      videoTrack: directTarget?.kind === 'video' ? directTarget : null,
+      audioTrack: directTarget?.kind === 'audio' ? directTarget : directAudioPlan.audioTrack,
+      embeddedAudio: directTarget?.id === current.document.story_track_id && effectivePatch.audio,
+    };
+    const editPlan = planSourceMediaEdit({
+      document: current.document,
+      asset,
+      sourcePatch: effectivePatch,
+      tracks: plan,
+      mode,
+      editTimeSeconds,
+      sourceRange,
+      newAudioTrackName: t`音频轨道 ${current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1}`,
+      createId: () => globalThis.crypto.randomUUID(),
+    });
+    if (editPlan === null) return;
+    const singleTrackId = editPlan.operations.length === 1 && editPlan.operations[0]?.op === 'replace_track_clips'
+      ? editPlan.operations[0].track_id
+      : null;
     mutate(
       `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
-      { kind: 'track', track_id: target.id },
-      [{ op: 'replace_track_clips', track_id: target.id, clips }],
+      singleTrackId === null ? { kind: 'project' } : { kind: 'track', track_id: singleTrackId },
+      [...editPlan.operations],
+      editPlan.insertedAudioTrackIndex === null ? undefined : ({ project: updated }) => {
+        const insertedTrack = updated.document.tracks[editPlan.insertedAudioTrackIndex!];
+        const insertedClip = insertedTrack?.clips.find((clip) => (
+          clip.material.kind === 'asset'
+          && clip.material.asset_id === asset.id
+          && Math.abs(clip.placement.start - editTimeSeconds) <= 1 / current.document.fps
+        ));
+        if (insertedTrack === undefined || insertedClip === undefined) return;
+        setTargetTrackId(insertedTrack.id);
+        setMediaTargetTrackIds((targets) => ({ ...targets, audio: insertedTrack.id }));
+        setSelectedClipIds([insertedClip.id]);
+      },
     );
-    setTargetTrackId(target.id);
-    setSelectedClipIds([insertedClipId]);
+    if (editPlan.nextTargetTrackId !== null) setTargetTrackId(editPlan.nextTargetTrackId);
+    if (editPlan.selectedAudioTrackId !== null) {
+      setMediaTargetTrackIds((targets) => ({ ...targets, audio: editPlan.selectedAudioTrackId }));
+    }
+    setSelectedClipIds(editPlan.insertedClipIds);
   };
   const importProjectMedia = async () => {
     if (!nativeShell.available) return;
@@ -616,20 +661,8 @@ export function ProjectWorkspacePage() {
       pending={mediaAssets.isPending}
       readOnly={readOnly}
       busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
-      canEditAsset={(asset) => {
-        const target = mediaTargetTrack(asset);
-        return target === null
-          ? targetTrackId !== null && projectMediaAssetKind(asset) === 'audio'
-          : !target.locked;
-      }}
-      editTargetLabel={(asset) => {
-        const target = mediaTargetTrack(asset);
-        if (target === null) {
-          if (targetTrackId === null) return t`未选择目标轨道`;
-          return projectMediaAssetKind(asset) === 'audio' ? t`新建音频轨道` : t`目标轨道类型不匹配`;
-        }
-        return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
-      }}
+      canEditAsset={canApplySourcePatch}
+      sourcePatchTargets={sourcePatchTargets}
       importAvailable={nativeShell.available}
       relinkAvailable={nativeShell.available}
       importing={importMedia.isPending}
@@ -640,8 +673,8 @@ export function ProjectWorkspacePage() {
       }}
       onRequestRecording={(clipId) => setExternalConfirm({ kind: 'recording', clipIds: [clipId] })}
       onImport={() => void importProjectMedia()}
-      onInsert={(asset, sourceRange) => addMediaAsset(asset, 'insert', undefined, sourceRange)}
-      onOverwrite={(asset, sourceRange) => addMediaAsset(asset, 'overwrite', undefined, sourceRange)}
+      onInsert={(asset, sourceRange, sourcePatch) => addMediaAsset(asset, 'insert', undefined, sourceRange, sourcePatch)}
+      onOverwrite={(asset, sourceRange, sourcePatch) => addMediaAsset(asset, 'overwrite', undefined, sourceRange, sourcePatch)}
       onRelink={(asset) => void relinkProjectMedia(asset)}
       onDelete={(asset) => deleteMedia.mutate(asset.id)}
     />
@@ -692,7 +725,15 @@ export function ProjectWorkspacePage() {
       onSelectClip={selectTimelineClip}
       onSelectClips={selectTimelineClips}
       onPromoteClip={promoteTimelineClip}
-      onTargetTrack={(trackId) => setTargetTrackId((currentTarget) => currentTarget === trackId ? null : trackId)}
+      onTargetTrack={(trackId, kind) => {
+        setTargetTrackId((currentTarget) => currentTarget === trackId ? null : trackId);
+        if (kind === 'video' || kind === 'audio') {
+          setMediaTargetTrackIds((targets) => ({
+            ...targets,
+            [kind]: targets[kind] === trackId ? null : trackId,
+          }));
+        }
+      }}
       onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
       onInspectClip={(clipId) => {
         setSelectedClipIds([clipId]);

@@ -32,6 +32,7 @@ import {
   writeProjectMediaDrag,
 } from './mediaDrag';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import type { SourceMediaPatch } from './sourceMediaEditing';
 
 export interface ProjectMediaPanelProps {
   readonly assets: readonly MediaAsset[];
@@ -42,8 +43,8 @@ export interface ProjectMediaPanelProps {
   readonly pending: boolean;
   readonly readOnly: boolean;
   readonly busy: boolean;
-  readonly canEditAsset: (asset: MediaAsset) => boolean;
-  readonly editTargetLabel: (asset: MediaAsset) => string;
+  readonly canEditAsset: (asset: MediaAsset, sourcePatch: ProjectSourcePatch) => boolean;
+  readonly sourcePatchTargets: (asset: MediaAsset, sourcePatch: ProjectSourcePatch) => ProjectSourcePatchTargets;
   readonly importAvailable: boolean;
   readonly relinkAvailable: boolean;
   readonly importing: boolean;
@@ -51,8 +52,8 @@ export interface ProjectMediaPanelProps {
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
   readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
-  readonly onInsert: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
-  readonly onOverwrite: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
+  readonly onInsert: (asset: MediaAsset, sourceRange: ProjectSourceRange, sourcePatch: ProjectSourcePatch) => void;
+  readonly onOverwrite: (asset: MediaAsset, sourceRange: ProjectSourceRange, sourcePatch: ProjectSourcePatch) => void;
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
   readonly onClose?: (() => void) | undefined;
@@ -61,6 +62,13 @@ export interface ProjectMediaPanelProps {
 export interface ProjectSourceRange {
   readonly sourceIn: number;
   readonly sourceOut: number;
+}
+
+export type ProjectSourcePatch = SourceMediaPatch;
+
+export interface ProjectSourcePatchTargets {
+  readonly video: string | null;
+  readonly audio: string | null;
 }
 
 type MediaStateFilter = 'all' | 'planned' | 'recorded' | 'imported';
@@ -90,7 +98,7 @@ export function ProjectMediaPanel({
   readOnly,
   busy,
   canEditAsset,
-  editTargetLabel,
+  sourcePatchTargets,
   importAvailable,
   relinkAvailable,
   importing,
@@ -110,6 +118,7 @@ export function ProjectMediaPanel({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [sourceTimes, setSourceTimes] = useState<Readonly<Record<string, number>>>({});
   const [sourceRanges, setSourceRanges] = useState<Readonly<Record<string, ProjectSourceRange>>>({});
+  const [sourcePatches, setSourcePatches] = useState<Readonly<Record<string, ProjectSourcePatch>>>({});
   const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
   const items = useMemo(
     () => projectMediaItems(timelineTracks, assets, deliveryStateByClipId),
@@ -159,28 +168,43 @@ export function ProjectMediaPanel({
     if (selected === null) return;
     setSourceRanges((current) => ({ ...current, [selected.key]: range }));
   };
+  const defaultSourcePatch: ProjectSourcePatch = {
+    video: selected?.kind === 'video',
+    audio: selectedSourceAsset?.has_audio === true,
+  };
+  const selectedSourcePatch = selected === null
+    ? defaultSourcePatch
+    : sourcePatches[selected.key] ?? defaultSourcePatch;
+  const selectedSourcePatchTargets = selectedImportedAsset === null
+    ? { video: null, audio: null }
+    : sourcePatchTargets(selectedImportedAsset, selectedSourcePatch);
+  const setSelectedSourcePatch = (sourcePatch: ProjectSourcePatch) => {
+    if (selected === null) return;
+    setSourcePatches((current) => ({ ...current, [selected.key]: sourcePatch }));
+  };
   const canEditSource = selectedImportedAsset !== null
     && selectedImportedAsset.metadata_status.status === 'ready'
     && selectedImportedAsset.duration_seconds !== null
     && selectedImportedAsset.duration_seconds > 0
     && !readOnly
     && !busy
-    && canEditAsset(selectedImportedAsset);
+    && (selectedSourcePatch.video || selectedSourcePatch.audio)
+    && canEditAsset(selectedImportedAsset, selectedSourcePatch);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!canEditSource || selectedImportedAsset === null || isTextEditingTarget(event.target)) return;
       if (event.key === ',') {
         event.preventDefault();
-        onInsert(selectedImportedAsset, selectedSourceRange);
+        onInsert(selectedImportedAsset, selectedSourceRange, selectedSourcePatch);
       } else if (event.key === '.') {
         event.preventDefault();
-        onOverwrite(selectedImportedAsset, selectedSourceRange);
+        onOverwrite(selectedImportedAsset, selectedSourceRange, selectedSourcePatch);
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset, selectedSourceRange]);
+  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset, selectedSourcePatch, selectedSourceRange]);
 
   return (
     <section
@@ -311,7 +335,36 @@ export function ProjectMediaPanel({
           ) : (
             <div>
               <div className="mb-0.5 flex min-w-0 items-center gap-0.5">
-                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedImportedAsset)}</Trans></p>
+                {selected?.kind === 'video' ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-2xs font-semibold',
+                      selectedSourcePatch.video ? 'border-accent-500 bg-accent-100 text-accent-text' : 'border-divider text-neutral-400',
+                    )}
+                    aria-label={t`包含源视频`}
+                    aria-pressed={selectedSourcePatch.video}
+                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, video: !selectedSourcePatch.video })}
+                  >V</button>
+                ) : null}
+                {selectedSourceAsset?.has_audio === true ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-2xs font-semibold',
+                      selectedSourcePatch.audio ? 'border-accent-500 bg-accent-100 text-accent-text' : 'border-divider text-neutral-400',
+                    )}
+                    aria-label={t`包含源音频`}
+                    aria-pressed={selectedSourcePatch.audio}
+                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, audio: !selectedSourcePatch.audio })}
+                  >A</button>
+                ) : null}
+                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500">
+                  {selectedSourcePatch.video ? `V → ${selectedSourcePatchTargets.video ?? t`无视频目标`}` : null}
+                  {selectedSourcePatch.video && selectedSourcePatch.audio ? ' · ' : null}
+                  {selectedSourcePatch.audio ? `A → ${selectedSourcePatchTargets.audio ?? t`无音频目标`}` : null}
+                  {!selectedSourcePatch.video && !selectedSourcePatch.audio ? t`未启用源声道` : null}
+                </p>
                 <Button
                   size="sm"
                   icon
@@ -341,7 +394,7 @@ export function ProjectMediaPanel({
                   variant="secondary"
                   disabled={!canEditSource}
                   aria-label={t`在播放头插入 ${selectedImportedAsset.name}`}
-                  onClick={() => onInsert(selectedImportedAsset, selectedSourceRange)}
+                  onClick={() => onInsert(selectedImportedAsset, selectedSourceRange, selectedSourcePatch)}
                 >
                   <Trans>插入</Trans>
                   <span className="text-2xs text-neutral-500">,</span>
@@ -352,7 +405,7 @@ export function ProjectMediaPanel({
                   variant="ghost"
                   disabled={!canEditSource}
                   aria-label={t`在播放头覆盖 ${selectedImportedAsset.name}`}
-                  onClick={() => onOverwrite(selectedImportedAsset, selectedSourceRange)}
+                  onClick={() => onOverwrite(selectedImportedAsset, selectedSourceRange, selectedSourcePatch)}
                 >
                   <Trans>覆盖</Trans>
                   <span className="text-2xs text-neutral-500">.</span>

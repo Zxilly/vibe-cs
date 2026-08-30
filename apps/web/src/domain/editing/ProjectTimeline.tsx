@@ -129,7 +129,7 @@ export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
-  readonly targetTrackId: string;
+  readonly targetTrackId: string | null;
   readonly linkedSelectionEnabled: boolean;
   readonly timelineTimeSeconds: number;
   readonly transportPlaying: boolean;
@@ -290,7 +290,9 @@ export function ProjectTimeline({
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
-  const targetTrack = document.tracks.find((track) => track.id === targetTrackId) ?? story;
+  const targetTrack = targetTrackId === null
+    ? null
+    : document.tracks.find((track) => track.id === targetTrackId) ?? null;
   const rangeTargetTrack = targetTrack;
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
   const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
@@ -1699,7 +1701,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onSnapChange: (time: number | null) => void;
   readonly nonStoryTrackIds: readonly string[];
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
-  readonly targetTrackId: string;
+  readonly targetTrackId: string | null;
   readonly timelineTimeSeconds: number;
   readonly onTargetTrack: (trackId: string) => void;
   readonly height: number;
@@ -3372,11 +3374,12 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
         <button
           type="button"
           className={cn(
-            'grid h-[var(--h-ctl-sm)] w-7 flex-none place-items-center rounded-sm border font-mono text-2xs font-semibold',
+            'grid h-[var(--h-ctl-sm)] w-7 flex-none place-items-center rounded-sm border font-mono text-2xs font-semibold disabled:text-neutral-300',
             targeted ? 'border-accent-600 bg-accent-600 text-bg' : 'border-divider bg-bg text-neutral-500 hover:bg-neutral-100',
           )}
           aria-label={t`设为目标轨道 ${label}`}
           aria-pressed={targeted}
+          disabled={track?.locked === true}
           onClick={() => track === undefined ? undefined : onTargetTrack?.(track.id)}
         >
           {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : 'T1'}

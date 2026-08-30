@@ -1118,6 +1118,35 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('does not initialize Track Targeting onto a locked Story track', async () => {
+    const lockedProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, locked: true }
+          : track),
+      },
+    };
+    renderWorkspace({ project: lockedProject });
+
+    const storyTarget = await screen.findByRole('button', { name: '设为目标轨道 视频轨道 1' }) as HTMLButtonElement;
+    expect(storyTarget.disabled).toBe(true);
+    expect(storyTarget.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText('目标：—')).toBeTruthy();
+  });
+
+  it('toggles the current target track off instead of immediately restoring Story', async () => {
+    renderWorkspace();
+
+    const storyTarget = await screen.findByRole('button', { name: '设为目标轨道 视频轨道 1' });
+    expect(storyTarget.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(storyTarget);
+
+    expect(storyTarget.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByText('目标：—')).toBeTruthy();
+  });
+
 
   it('undoes the latest completed human Change Group', async () => {
     const revertProjectChangeGroup = vi.fn(() => Promise.resolve({
@@ -3150,6 +3179,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
     const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Bed' }));
     expect(within(panel).getByText('目标：Music')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Bed' }));

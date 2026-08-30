@@ -179,6 +179,7 @@ export function ProjectWorkspacePage() {
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
   const initializedSelectionProjectId = useRef<string | null>(null);
+  const initializedTargetProjectId = useRef<string | null>(null);
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
   const [linkedSelectionEnabled, setLinkedSelectionEnabled] = useState(true);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
@@ -274,11 +275,18 @@ export function ProjectWorkspacePage() {
   }, [linkedSelectionEnabled, project.data]);
 
   useEffect(() => {
-    const document = project.data?.document;
-    if (document === undefined) return;
-    if (targetTrackId !== null && document.tracks.some((track) => track.id === targetTrackId)) return;
-    setTargetTrackId(document.story_track_id);
-  }, [project.data?.document, targetTrackId]);
+    const loaded = project.data;
+    if (loaded === undefined) return;
+    if (initializedTargetProjectId.current !== loaded.id) {
+      initializedTargetProjectId.current = loaded.id;
+      const story = loaded.document.tracks.find((track) => track.id === loaded.document.story_track_id);
+      setTargetTrackId(story?.locked === false ? story.id : null);
+      return;
+    }
+    if (targetTrackId === null) return;
+    const target = loaded.document.tracks.find((track) => track.id === targetTrackId);
+    if (target === undefined || target.locked) setTargetTrackId(null);
+  }, [project.data, targetTrackId]);
 
   useEffect(() => {
     const duration = project.data?.document.duration_seconds;
@@ -428,10 +436,9 @@ export function ProjectWorkspacePage() {
   };
   const mediaTargetTrack = (asset: MediaAsset, preferredTrackId = targetTrackId): TimelineTrack | null => {
     const desiredKind = projectMediaAssetKind(asset);
+    if (preferredTrackId === null) return null;
     const explicit = current.document.tracks.find((track) => track.id === preferredTrackId) ?? null;
-    if (explicit?.kind === desiredKind) return explicit;
-    if (desiredKind === 'video') return storyTrack;
-    return current.document.tracks.find((track) => track.kind === 'audio') ?? null;
+    return explicit?.kind === desiredKind ? explicit : null;
   };
   const addMediaAsset = (
     asset: MediaAsset,
@@ -444,6 +451,7 @@ export function ProjectWorkspacePage() {
     const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);
     const target = mediaTargetTrack(asset, placement?.trackId ?? targetTrackId);
     if (target === null) {
+      if ((placement?.trackId ?? targetTrackId) === null) return;
       if (projectMediaAssetKind(asset) !== 'audio' || placement !== undefined) return;
       const trackId = globalThis.crypto.randomUUID();
       const track: TimelineTrack = {
@@ -567,11 +575,16 @@ export function ProjectWorkspacePage() {
       busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
       canEditAsset={(asset) => {
         const target = mediaTargetTrack(asset);
-        return target === null ? projectMediaAssetKind(asset) === 'audio' : !target.locked;
+        return target === null
+          ? targetTrackId !== null && projectMediaAssetKind(asset) === 'audio'
+          : !target.locked;
       }}
       editTargetLabel={(asset) => {
         const target = mediaTargetTrack(asset);
-        if (target === null) return t`新建音频轨道`;
+        if (target === null) {
+          if (targetTrackId === null) return t`未选择目标轨道`;
+          return projectMediaAssetKind(asset) === 'audio' ? t`新建音频轨道` : t`目标轨道类型不匹配`;
+        }
         return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
       }}
       importAvailable={nativeShell.available}
@@ -618,7 +631,7 @@ export function ProjectWorkspacePage() {
       document={current.document}
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
-      targetTrackId={targetTrackId ?? current.document.story_track_id}
+      targetTrackId={targetTrackId}
       linkedSelectionEnabled={linkedSelectionEnabled}
       timelineTimeSeconds={transportTimeSeconds}
       transportPlaying={playing}
@@ -627,7 +640,7 @@ export function ProjectWorkspacePage() {
       onSelectClip={selectTimelineClip}
       onSelectClips={selectTimelineClips}
       onPromoteClip={promoteTimelineClip}
-      onTargetTrack={setTargetTrackId}
+      onTargetTrack={(trackId) => setTargetTrackId((currentTarget) => currentTarget === trackId ? null : trackId)}
       onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
       onInspectClip={(clipId) => {
         setSelectedClipIds([clipId]);

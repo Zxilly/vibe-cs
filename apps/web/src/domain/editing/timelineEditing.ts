@@ -207,18 +207,25 @@ export function deleteRippleClips(
   );
 }
 
-export function timelineClipFromMediaAsset(asset: MediaAsset, clipId: string): TimelineClip {
-  const duration = mediaAssetEditDuration(asset) ?? 0;
+export function timelineClipFromMediaAsset(
+  asset: MediaAsset,
+  clipId: string,
+  sourceRange?: { readonly sourceIn: number; readonly sourceOut: number },
+): TimelineClip {
+  const mediaDuration = mediaAssetEditDuration(asset) ?? 0;
+  const sourceIn = Math.min(mediaDuration, Math.max(0, sourceRange?.sourceIn ?? 0));
+  const sourceOut = Math.min(mediaDuration, Math.max(sourceIn, sourceRange?.sourceOut ?? mediaDuration));
+  const duration = sourceOut - sourceIn;
   return {
     id: clipId,
     name: asset.name,
     capture_intent: null,
-    material: { kind: 'asset', asset_id: asset.id, media_duration_seconds: duration },
+    material: { kind: 'asset', asset_id: asset.id, media_duration_seconds: mediaDuration },
     placement: {
       start: 0,
       duration,
-      source_in: 0,
-      source_out: duration,
+      source_in: sourceIn,
+      source_out: sourceOut,
       speed: 1,
       volume: 1,
       enabled: true,

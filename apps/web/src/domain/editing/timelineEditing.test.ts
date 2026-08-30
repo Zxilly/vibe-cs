@@ -180,6 +180,31 @@ describe('ripple Story Track edits', () => {
     expect(inserted[3]?.placement).toMatchObject({ duration: 6, source_in: 4, source_out: 10 });
   });
 
+  it('creates a source-range clip while retaining the full master-media duration', () => {
+    const asset: MediaAsset = {
+      id: 'asset-range',
+      project_id: 'project',
+      path: 'D:\\media\\range.mp4',
+      name: 'Source range',
+      kind: 'video',
+      duration_seconds: 10,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: '2026-08-29T00:00:00Z',
+    };
+
+    expect(timelineClipFromMediaAsset(asset, 'range-clip', { sourceIn: 2, sourceOut: 5 })).toMatchObject({
+      material: { kind: 'asset', asset_id: 'asset-range', media_duration_seconds: 10 },
+      placement: { duration: 3, source_in: 2, source_out: 5, speed: 1 },
+    });
+  });
+
   it('creates a five-second canonical still-image clip when the source has no duration', () => {
     const image: MediaAsset = {
       id: 'asset-image',

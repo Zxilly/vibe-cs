@@ -3007,6 +3007,56 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('toggles video output through track.hidden instead of muting its audio', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '切换视频轨道输出' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track',
+        track_id: STORY_ID,
+        track: expect.objectContaining({ hidden: true, muted: false }),
+      }],
+    })));
+  });
+
+  it('keeps output-disabled video and text tracks visible while removing them from Program', async () => {
+    const textTrackId = '00000000-0000-4000-8000-000000000095';
+    const hiddenProject: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: [
+          ...RECORDED_PROJECT.document.tracks.map((track) => track.id === STORY_ID ? { ...track, hidden: true } : track),
+          {
+            id: textTrackId,
+            name: 'Hidden titles',
+            kind: 'text',
+            order: RECORDED_PROJECT.document.tracks.length,
+            muted: false,
+            locked: false,
+            hidden: true,
+            clips: [],
+          },
+        ],
+      },
+    };
+    renderWorkspace({
+      project: hiddenProject,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    expect(await screen.findByRole('row', { name: 'Story' })).toBeTruthy();
+    expect(screen.getByRole('row', { name: 'Hidden titles' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '切换视频轨道输出' })).toHaveLength(2);
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video[data-preview-active="true"]')).toHaveLength(0);
+  });
+
   it('reorders non-Story tracks through the canonical reorder operation', async () => {
     const textTrackId = '00000000-0000-4000-8000-000000000017';
     const reorderPatch = vi.fn();

@@ -83,6 +83,21 @@ describe('Timeline audio monitor', () => {
     ]);
   });
 
+  it('keeps output-disabled audio tracks out of the monitor pool', () => {
+    const track: TimelineTrack = {
+      id: '00000000-0000-4000-8000-000000000004',
+      name: 'Hidden A1',
+      kind: 'audio',
+      order: 1,
+      muted: false,
+      locked: false,
+      hidden: true,
+      clips: [clip('hidden', 0)],
+    };
+
+    expect(timelineAudioPool(project([track]), 1)).toEqual([]);
+  });
+
   it('evaluates the same gain keyframe and fade envelope as Program audio', () => {
     const source = {
       ...clip('fade', 0, 4),

@@ -88,6 +88,7 @@ export function TimelineProgramMonitor({
   const shell = useNativeShell();
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id) ?? null;
   const clips = story?.clips ?? [];
+  const storyOutputEnabled = story !== null && !story.hidden;
   const targetTimelineTime = Math.min(
     project.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
@@ -100,20 +101,22 @@ export function TimelineProgramMonitor({
   );
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
-  const targetId = selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
+  const targetId = !storyOutputEnabled || selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
   const previewOffsetSeconds = selected === null
     ? 0
     : targetTimelineTime - selected.placement.start;
   const rollingLeft = rollingPreview === null ? null : clips.find((clip) => clip.id === rollingPreview.leftClipId) ?? null;
   const rollingRight = rollingPreview === null ? null : clips.find((clip) => clip.id === rollingPreview.rightClipId) ?? null;
-  const rollingActive = rollingLeft !== null
+  const rollingActive = storyOutputEnabled
+    && rollingLeft !== null
     && rollingRight !== null
     && resolveTimelineMaterial(rollingLeft.material).streamAssetId !== null
     && resolveTimelineMaterial(rollingRight.material).streamAssetId !== null;
   const slidePrevious = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.previousClipId) ?? null;
   const slideClip = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.clipId) ?? null;
   const slideNext = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.nextClipId) ?? null;
-  const slideActive = slidePrevious !== null
+  const slideActive = storyOutputEnabled
+    && slidePrevious !== null
     && slideClip !== null
     && slideNext !== null
     && [slidePrevious, slideClip, slideNext].every((clip) => resolveTimelineMaterial(clip.material).streamAssetId !== null);
@@ -176,6 +179,7 @@ export function TimelineProgramMonitor({
     return result;
   }, [project.document.story_track_id, project.document.tracks, shell]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
+  const hasProgramStage = media.length > 0 || overlayMedia.length > 0 || textOverlays.length > 0;
 
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
@@ -233,7 +237,7 @@ export function TimelineProgramMonitor({
       {showHeader ? <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         {slideActive ? <Trans>滑动编辑预览</Trans> : rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
       </header> : null}
-      {targetId === null ? (
+      {!hasProgramStage ? (
         <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-neutral-100">
             <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
@@ -290,11 +294,13 @@ export function TimelineProgramMonitor({
                   : rollingActive
                     ? rollingSide !== null
                     : role === 'program' && clip.id === targetId;
-                const isPresented = slideActive
-                  ? slideReady ? slideSlot !== null : role === 'program' && clip.id === presentedId
-                  : rollingActive
-                    ? rollingReady ? rollingSide !== null : role === 'program' && clip.id === presentedId
-                    : role === 'program' && clip.id === presentedId;
+                const isPresented = !storyOutputEnabled
+                  ? false
+                  : slideActive
+                    ? slideReady ? slideSlot !== null : role === 'program' && clip.id === presentedId
+                    : rollingActive
+                      ? rollingReady ? rollingSide !== null : role === 'program' && clip.id === presentedId
+                      : role === 'program' && clip.id === presentedId;
                 const offset = previewSlot === 'left'
                   || previewSlot === 'slide-previous'
                   || previewSlot === 'slide-out'
@@ -326,6 +332,7 @@ export function TimelineProgramMonitor({
                       : rollingSide !== null
                         ? `rolling:${rollingPreviewKey}:${poolKey}`
                         : `program:${targetId ?? ''}:${poolKey}`}
+                    forceMuted={story?.muted ?? false}
                     onTimelineTimeChange={(sourceSeconds) => {
                       if (previewSlot !== null || role !== 'program') return;
                       const timelineSeconds = clip.placement.start

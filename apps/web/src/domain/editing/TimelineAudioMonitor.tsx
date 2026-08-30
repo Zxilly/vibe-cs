@@ -78,7 +78,7 @@ export function timelineAudioPool(project: Project, timelineTimeSeconds: number)
     target.push({ track, clip, active: isActive });
   };
 
-  for (const track of project.document.tracks.filter((candidate) => candidate.kind === 'audio')) {
+  for (const track of project.document.tracks.filter((candidate) => candidate.kind === 'audio' && !candidate.hidden)) {
     const clips = [...track.clips]
       .filter((clip) => clip.placement.enabled && resolveTimelineMaterial(clip.material).streamAssetId !== null)
       .sort((left, right) => left.placement.start - right.placement.start);

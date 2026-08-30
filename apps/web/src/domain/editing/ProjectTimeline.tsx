@@ -1629,9 +1629,7 @@ export function ProjectTimeline({
 }
 
 function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
-  const visible = [...document.tracks]
-    .filter((track) => !track.hidden)
-    .sort((left, right) => left.order - right.order);
+  const visible = [...document.tracks].sort((left, right) => left.order - right.order);
   const rows: RenderedTrack[] = [];
   for (const track of visible) {
     if (track.id === document.story_track_id) {
@@ -1646,7 +1644,11 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
       ariaLabel: track.name,
       clips: track.clips,
       controls: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'text' : 'video',
-      icon: track.kind === 'audio' ? <Volume2 className="size-4" /> : <Camera className="size-4" />,
+      icon: track.kind === 'audio'
+        ? <Volume2 className="size-4" />
+        : track.kind === 'text'
+          ? <Type className="size-4" />
+          : <Camera className="size-4" />,
       track,
       derivedAudio: false,
     });
@@ -1803,6 +1805,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
       className="relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider"
       role="row"
       aria-label={track.ariaLabel}
+      data-track-output-enabled={!track.track.hidden}
       onDragOver={onMediaDragOver}
       onDragLeave={onMediaDragLeave}
       onDrop={onMediaDrop}
@@ -1824,7 +1827,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
       />
-      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+      <div className={cn('relative min-h-0 overflow-hidden', track.track.hidden && 'opacity-45')} style={{ width: contentWidth }}>
         {mediaDropPreview === null ? null : (
           <div
             className="pointer-events-none absolute inset-y-1 z-30 min-w-2 border-2 border-dashed border-accent-500 bg-accent-100/80"
@@ -3374,14 +3377,19 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {track === undefined ? null : (
         <span className="flex flex-none items-center text-neutral-500">
-          {controls === 'none' || controls === 'text' ? null : (
+          {controls === 'none' ? null : (
             <button
               type="button"
-              className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.muted && 'text-fail-text')}
+              className={cn(
+                'grid size-5 place-items-center rounded-sm hover:bg-neutral-100',
+                (controls === 'audio' ? track.muted : track.hidden) && 'text-fail-text',
+              )}
               aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道输出`}
-              aria-pressed={track.muted}
+              aria-pressed={controls === 'audio' ? track.muted : !track.hidden}
               disabled={readOnly}
-              onClick={() => onReplaceTrack?.({ ...track, muted: !track.muted })}
+              onClick={() => onReplaceTrack?.(controls === 'audio'
+                ? { ...track, muted: !track.muted }
+                : { ...track, hidden: !track.hidden })}
             >
               {controls === 'audio' ? <Volume2 className="size-3" aria-hidden="true" /> : <Eye className="size-3" aria-hidden="true" />}
             </button>

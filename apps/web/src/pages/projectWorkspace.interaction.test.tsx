@@ -3449,6 +3449,26 @@ describe('unified project workspace', () => {
     expect(screen.queryByText('增量修改已提交到统一时间线。')).toBeNull();
   });
 
+  it('renders Agent GitHub-flavored Markdown tables as accessible tables', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000030',
+      title: 'Agent · Markdown',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:01:00Z',
+      entries: [{
+        kind: 'assistant', id: 'a-markdown', at: '2026-08-28T10:01:00Z',
+        content: '| 交付项 | 说明 |\n| --- | --- |\n| 时间线微调 | 换片段、改顺序 |',
+        tool_calls: [], status: 'completed', request_id: 'request-markdown',
+        retry_of: null, error: null, metadata: null,
+      }],
+    };
+    renderWorkspace({ session });
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getByRole('columnheader', { name: '交付项' })).toBeTruthy();
+    expect(within(table).getByRole('cell', { name: '换片段、改顺序' })).toBeTruthy();
+  });
+
   it('binds a persisted HITL decision to one tool call instead of clearing it with arbitrary text', async () => {
     const session: AgentSession = {
       id: '00000000-0000-4000-8000-000000000031',
@@ -3476,10 +3496,66 @@ describe('unified project workspace', () => {
     };
     renderWorkspace({ session });
 
-    expect(await screen.findByText('已允许外部执行')).toBeTruthy();
-    expect(screen.getByText('request-hitl:tool:1')).toBeTruthy();
+    const tool = await screen.findByText('请求导出');
+    const toolCard = tool.closest('[data-tool-call-id="request-hitl:tool:1"]');
+    expect(toolCard?.getAttribute('data-tool-call-decision')).toBe('approved');
+    expect(within(toolCard as HTMLElement).getByText('已允许')).toBeTruthy();
+    expect(within(toolCard as HTMLElement).getByText('允许导出。')).toBeTruthy();
+    expect(screen.queryByText('你 · 确认')).toBeNull();
     expect(screen.queryByRole('button', { name: '允许导出' })).toBeNull();
     expect(screen.queryByRole('button', { name: '拒绝' })).toBeNull();
+  });
+
+  it('records a rejected HITL decision without creating another user and Agent turn', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000033',
+      title: 'Agent · reject export',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:01:00Z',
+      entries: [{
+        kind: 'assistant', id: 'a-reject', at: '2026-08-28T10:01:00Z', content: '',
+        tool_calls: [{
+          id: 'request-reject:tool:1', name: 'request_project_export',
+          input: { projectId: PROJECT.id },
+          output: { status: 'requires_human_confirmation', action: 'export' },
+          status: 'awaiting_confirmation',
+        }],
+        status: 'completed', request_id: 'request-reject', retry_of: null, error: null, metadata: null,
+      }],
+    };
+    let sequence = 0;
+    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
+      sequence += 1;
+      if (draft.kind === 'tool_decision') {
+        return {
+          kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:02:00Z',
+          tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+        };
+      }
+      if (draft.kind === 'user') {
+        return { kind: 'user' as const, id: `user-${sequence}`, at: '2026-08-28T10:02:00Z', content: draft.content };
+      }
+      return {
+        kind: 'assistant' as const, id: `assistant-${sequence}`, at: '2026-08-28T10:02:00Z',
+        content: draft.content, tool_calls: draft.tool_calls, status: draft.status,
+        request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+      };
+    });
+    const streamAgentChat = vi.fn(async () => ({ thread_id: 'unexpected-follow-up' }));
+    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
+      kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:02:00Z',
+      request_id: 'unexpected-follow-up', retry_of: null, ...update,
+    }));
+    renderWorkspace({ session, appendAgentSessionEntry, streamAgentChat, updateAgentTurn });
+
+    fireEvent.click(await screen.findByRole('button', { name: '拒绝' }));
+    await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(
+      session.id,
+      expect.objectContaining({
+        kind: 'tool_decision', tool_call_id: 'request-reject:tool:1', decision: 'rejected',
+      }),
+    ));
+    expect(streamAgentChat).not.toHaveBeenCalled();
   });
 
   it('blocks sending and points to model settings when Agent configuration is missing', async () => {

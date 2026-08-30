@@ -9,6 +9,7 @@ import {
   ChevronUp,
   CircleAlert,
   CircleHelp,
+  CircleX,
   Download,
   Diamond,
   LoaderCircle,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import {
@@ -716,7 +718,6 @@ export function ProjectWorkspacePage() {
       }}
       onRejectConfirmation={async (toolCallId) => {
         await appendToolDecision(toolCallId, 'rejected', t`拒绝这次外部执行请求。`);
-        await sendToAgent(t`拒绝这次外部执行请求。请保留当前时间线并说明还能交付什么。`);
       }}
       onAcceptDelivery={() => appendHumanDecision(t`接受交付。`)}
       onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
@@ -1621,6 +1622,10 @@ const AgentPanel = memo(function AgentPanel({
   const conversationEnd = useRef<HTMLDivElement>(null);
   const entries = session?.entries ?? [];
   const pendingConfirmationToolCallId = pendingConfirmationToolCall(entries);
+  const toolDecisions = new Map<string, ToolDecisionEntry>();
+  for (const entry of entries) {
+    if (entry.kind === 'tool_decision') toolDecisions.set(entry.tool_call_id, entry);
+  }
   const latestUserAt = [...entries].reverse().find((entry) => entry.kind === 'user')?.at ?? null;
   const hasDelivery = !chat.streaming
     && pendingConfirmationToolCallId === null
@@ -1672,6 +1677,7 @@ const AgentPanel = memo(function AgentPanel({
                 onConfirmRecording={onConfirmRecording}
                 onConfirmExport={onConfirmExport}
                 onRejectConfirmation={onRejectConfirmation}
+                toolDecisions={toolDecisions}
               />
             ))}
             {chat.draft === '' ? null : (
@@ -1775,6 +1781,7 @@ function ConversationEntry({
   onConfirmRecording,
   onConfirmExport,
   onRejectConfirmation,
+  toolDecisions,
 }: {
   readonly entry: AgentSessionEntry;
   readonly pendingConfirmationToolCallId: string | null;
@@ -1782,6 +1789,7 @@ function ConversationEntry({
   readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
   readonly onConfirmExport: (toolCallId: string) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
+  readonly toolDecisions: ReadonlyMap<string, ToolDecisionEntry>;
 }) {
   if (entry.kind === 'user') {
     return (
@@ -1791,13 +1799,7 @@ function ConversationEntry({
     );
   }
   if (entry.kind === 'tool_decision') {
-    return (
-      <ConversationShell actor={t`你 · 确认`} at={entry.at} tone="human">
-        <p className="text-xs font-medium">{entry.decision === 'approved' ? <Trans>已允许外部执行</Trans> : <Trans>已拒绝外部执行</Trans>}</p>
-        <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-neutral-600">{entry.content}</p>
-        <span className="mt-1 block truncate font-mono text-2xs text-neutral-400">{entry.tool_call_id}</span>
-      </ConversationShell>
-    );
+    return null;
   }
   return (
     <ConversationShell actor="Agent" at={entry.at} tone={entry.status === 'failed' ? 'error' : 'agent'}>
@@ -1811,6 +1813,7 @@ function ConversationEntry({
           onConfirmRecording={onConfirmRecording}
           onConfirmExport={onConfirmExport}
           onRejectConfirmation={onRejectConfirmation}
+          decision={toolDecisions.get(call.id) ?? null}
         />
       ))}
       {entry.status === 'failed' && entry.error !== null ? <p className="mt-2 text-xs text-fail-text">{entry.error}</p> : null}
@@ -1821,12 +1824,16 @@ function ConversationEntry({
 function AgentMarkdown({ children }: { readonly children: string }) {
   return (
     <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
       components={{
         p: ({ children: content }) => <p className="mb-2 whitespace-pre-wrap text-xs leading-5 last:mb-0">{content}</p>,
         ul: ({ children: content }) => <ul className="mb-2 list-disc space-y-1 pl-4 text-xs leading-5 last:mb-0">{content}</ul>,
         ol: ({ children: content }) => <ol className="mb-2 list-decimal space-y-1 pl-4 text-xs leading-5 last:mb-0">{content}</ol>,
         strong: ({ children: content }) => <strong className="font-semibold text-text">{content}</strong>,
         code: ({ children: content }) => <code className="rounded-sm bg-neutral-100 px-1 font-mono text-2xs">{content}</code>,
+        table: ({ children: content }) => <div className="mb-2 overflow-x-auto last:mb-0"><table className="w-full border-collapse text-left text-xs leading-5">{content}</table></div>,
+        th: ({ children: content }) => <th className="border border-divider bg-neutral-50 px-2 py-1.5 font-semibold text-text">{content}</th>,
+        td: ({ children: content }) => <td className="border border-divider px-2 py-1.5 align-top text-neutral-700">{content}</td>,
       }}
     >
       {children}
@@ -1871,6 +1878,7 @@ function ConversationShell({
 
 function ToolCallCard({
   call,
+  decision = null,
   confirmationActive = false,
   confirming = false,
   onConfirmRecording,
@@ -1878,6 +1886,7 @@ function ToolCallCard({
   onRejectConfirmation,
 }: {
   readonly call: AgentToolCall | AgentToolActivity;
+  readonly decision?: ToolDecisionEntry | null | undefined;
   readonly confirmationActive?: boolean | undefined;
   readonly confirming?: boolean | undefined;
   readonly onConfirmRecording?: ((toolCallId: string, clipIds: string[]) => Promise<void>) | undefined;
@@ -1887,13 +1896,18 @@ function ToolCallCard({
   const confirmation = confirmationOf(call);
   const running = call.status === 'running';
   const failed = call.status === 'failed';
+  const awaitingDecision = confirmation !== null && decision === null;
+  const rejected = decision?.decision === 'rejected';
+  const approved = decision?.decision === 'approved';
   return (
     <article className={cn(
       'mt-2 rounded-md border p-3 text-xs shadow-sm',
-      confirmation !== null ? 'border-warn-border bg-warn-surface' : failed ? 'border-fail-border bg-fail-surface' : running ? 'border-accent-200 bg-accent-100' : 'border-divider bg-bg',
-    )} data-tool-call-id={call.id} data-tool-call-status={call.status}>
+      awaitingDecision ? 'border-warn-border bg-warn-surface' : failed ? 'border-fail-border bg-fail-surface' : running ? 'border-accent-200 bg-accent-100' : 'border-divider bg-bg',
+    )} data-tool-call-id={call.id} data-tool-call-status={decision?.decision ?? call.status} data-tool-call-decision={decision?.decision}>
       <div className="flex items-center gap-2">
-        {confirmation !== null
+        {rejected
+          ? <CircleX className="size-4 text-neutral-500" aria-hidden="true" />
+          : awaitingDecision
           ? <CircleAlert className="size-4 text-warn-text" aria-hidden="true" />
           : failed
             ? <CircleAlert className="size-4 text-fail-text" aria-hidden="true" />
@@ -1901,18 +1915,20 @@ function ToolCallCard({
               ? <LoaderCircle className="size-4 animate-spin text-accent-text" aria-hidden="true" />
               : <CheckCircle2 className="size-4 text-ok" aria-hidden="true" />}
         <span className="font-medium">{toolLabel(call.name)}</span>
-        <span className={cn('ml-auto', confirmation !== null ? 'text-warn-text' : failed ? 'text-fail-text' : running ? 'text-accent-text' : 'text-ok')}>
-          {confirmation !== null
-            ? confirmationActive ? <Trans>等待你确认</Trans> : <Trans>已处理</Trans>
+        <span className={cn('ml-auto', awaitingDecision ? 'text-warn-text' : rejected ? 'text-neutral-500' : failed ? 'text-fail-text' : running ? 'text-accent-text' : 'text-ok')}>
+          {rejected ? <Trans>已拒绝</Trans>
+            : approved ? <Trans>已允许</Trans>
+            : awaitingDecision
+              ? confirmationActive ? <Trans>等待你确认</Trans> : <Trans>等待确认</Trans>
             : failed ? <Trans>执行失败</Trans> : running ? <Trans>执行中</Trans> : <Trans>已完成</Trans>}
         </span>
       </div>
-      <p className="mt-1 text-2xs leading-4 text-neutral-600">{toolSummary(call)}</p>
+      <p className="mt-1 text-2xs leading-4 text-neutral-600">{decision?.content ?? toolSummary(call)}</p>
       <details className="mt-2">
         <summary className="cursor-pointer select-none text-2xs text-neutral-500"><Trans>查看工具输入与输出</Trans></summary>
-        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap border border-divider bg-bg p-2 font-mono text-2xs">{JSON.stringify({ input: call.input, output: call.output }, null, 2)}</pre>
+        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap border border-divider bg-bg p-2 font-mono text-2xs">{JSON.stringify({ input: call.input, output: call.output, decision }, null, 2)}</pre>
       </details>
-      {confirmation === null || !confirmationActive ? null : (
+      {!awaitingDecision || !confirmationActive ? null : (
         <div className="mt-3 border-t border-warn-border pt-3">
           <p className="font-medium"><Trans>需要你的确认</Trans></p>
           <p className="mt-1 text-neutral-600">
@@ -1938,6 +1954,8 @@ function ToolCallCard({
     </article>
   );
 }
+
+type ToolDecisionEntry = Extract<AgentSessionEntry, { readonly kind: 'tool_decision' }>;
 
 function pendingConfirmationToolCall(entries: readonly AgentSessionEntry[]): string | null {
   const decided = new Set(entries.flatMap((entry) => entry.kind === 'tool_decision' ? [entry.tool_call_id] : []));

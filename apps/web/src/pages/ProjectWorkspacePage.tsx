@@ -417,7 +417,8 @@ export function ProjectWorkspacePage() {
   };
   const replaceTimelineClip = (clip: TimelineClip) => {
     const track = current.document.tracks.find((candidate) => candidate.clips.some((item) => item.id === clip.id));
-    if (track?.locked !== false) return;
+    const currentClip = track?.clips.find((item) => item.id === clip.id);
+    if (track?.locked !== false || currentClip === undefined || sameTimelineClip(currentClip, clip)) return;
     mutate(
       `调整 ${clip.name}`,
       { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
@@ -865,7 +866,8 @@ export function ProjectWorkspacePage() {
           onSeek={seekTimeline}
           onReplace={(clip) => {
             const track = selected?.track ?? null;
-            if (track === null || track.locked) return;
+            const currentClip = track?.clips.find((candidate) => candidate.id === clip.id);
+            if (track === null || track.locked || currentClip === undefined || sameTimelineClip(currentClip, clip)) return;
             if (track.id === current.document.story_track_id) {
               mutate(
                 `修改 ${clip.name}`,
@@ -1097,6 +1099,9 @@ function ClipInspector({
         { property: 'opacity', label: t`透明度`, step: 0.01, min: 0, max: 1 },
       ];
   const hasUnsupportedEnabledEffect = draft.effects.some((effect) => effect.enabled && !isSupportedEditorEffectKind(effect.kind));
+  const draftChanged = selected !== null
+    && draft.id === selected.clip.id
+    && !sameTimelineClip(draft, selected.clip);
   const textStyle = draft.text;
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
@@ -1463,9 +1468,15 @@ function ClipInspector({
         <input type="checkbox" disabled={readOnly} checked={draft.placement.enabled} onChange={(event) => setDraft({ ...draft, placement: { ...draft.placement, enabled: event.currentTarget.checked } })} />
         <Trans>启用片段</Trans>
       </label>
-      <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
+      <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect || !draftChanged} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
   );
+}
+
+function sameTimelineClip(left: TimelineClip, right: TimelineClip): boolean {
+  // TimelineClip is a generated JSON document: array order is semantic and
+  // object keys keep their schema order through every editor update.
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function updateCaptureIntent(

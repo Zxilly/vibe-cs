@@ -2368,6 +2368,22 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('keeps Inspector save disabled until the canonical clip draft actually differs', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
+    const name = await screen.findByLabelText('名称');
+    const save = screen.getByRole('button', { name: '保存修改' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+
+    fireEvent.change(name, { target: { value: 'A revised' } });
+    expect(save.disabled).toBe(false);
+    fireEvent.change(name, { target: { value: 'A' } });
+    expect(save.disabled).toBe(true);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
   it('opens a locked clip in Inspector as read-only through direct review', async () => {
     const lockedProject: Project = {
       ...PROJECT,

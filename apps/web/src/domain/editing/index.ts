@@ -2,8 +2,11 @@ export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
 export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,
+  type ProjectSourcePatch,
+  type ProjectSourcePatchTargets,
   type ProjectSourceRange,
 } from './ProjectMediaPanel';
+export { planSourceMediaEdit, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
 export {
   createProjectWorkspaceLayout,

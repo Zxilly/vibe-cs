@@ -1958,7 +1958,7 @@ mod tests {
         command
             .args
             .windows(2)
-            .find(|pair| pair[0] == OsString::from("-filter_complex"))
+            .find(|pair| pair[0] == "-filter_complex")
             .map(|pair| pair[1].to_string_lossy().into_owned())
     }
 }

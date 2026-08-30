@@ -756,9 +756,8 @@ impl HlaeSessionMachine {
                 self.game_process_id = Some(game_process_id);
             }
             (HlaeSessionState::Finalizing, HlaeHostEvent::AdvanceTake { ticks, observer }) => {
-                if self.loader_exit_seen
-                    || u32::try_from(self.completed_take_directories.len())
-                        .map_or(true, |count| count >= HLAE_SESSION_MAX_TAKES)
+                if u32::try_from(self.completed_take_directories.len())
+                    .map_or(true, |count| count >= HLAE_SESSION_MAX_TAKES)
                     || ticks.verified_total_ticks() != self.ticks.verified_total_ticks()
                 {
                     return Err(HlaeSessionProtocolError::InvalidHostTransition);

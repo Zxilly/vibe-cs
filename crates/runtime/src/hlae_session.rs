@@ -209,6 +209,7 @@ struct ConnectedHlaeSession {
     capture: CaptureSettings,
     tick_rate: f64,
     protocol_origin: tokio::time::Instant,
+    loader_exit_seen: bool,
 }
 
 #[derive(Debug)]
@@ -227,6 +228,7 @@ struct CompletedHlaeSession {
     verified_total_ticks: u32,
     persistent_commands: Option<HlaePersistentPovCommands>,
     protocol_origin: tokio::time::Instant,
+    loader_exit_seen: bool,
 }
 
 /// One authenticated process/socket/state machine retained between typed
@@ -631,6 +633,7 @@ impl RuntimeHlaeSessionOrchestrator {
             verified_total_ticks,
             persistent_commands,
             protocol_origin,
+            loader_exit_seen,
         } = completed;
         let persistent_commands = persistent_commands.ok_or_else(|| {
             RuntimeHlaeSessionError::from(HlaeError::InvalidPlan(
@@ -650,6 +653,7 @@ impl RuntimeHlaeSessionOrchestrator {
                 capture,
                 tick_rate,
                 protocol_origin,
+                loader_exit_seen,
             },
             process: Some(process),
             loader_process_id: evidence.loader_process_id,
@@ -728,13 +732,14 @@ impl RuntimeHlaeSessionOrchestrator {
             request.max_start_overshoot_ticks,
             request.max_end_overshoot_ticks,
         )?;
-        session
-            .connected
-            .machine
-            .apply_host_event(HlaeHostEvent::AdvanceTake {
+        apply_session_host_event(
+            &mut session.connected.machine,
+            "advance_take",
+            HlaeHostEvent::AdvanceTake {
                 ticks,
                 observer: program.observer,
-            })?;
+            },
+        )?;
         let take_index = u32::try_from(request.take_index)
             .map_err(|_| HlaeSessionProtocolError::InvalidControlEnvelope)?;
         let advance = HlaeBridgeControlMessage::advance_take(
@@ -811,10 +816,11 @@ impl RuntimeHlaeSessionOrchestrator {
                     &session.cancellation,
                 )
                 .await?;
-            session
-                .connected
-                .machine
-                .apply_host_event(HlaeHostEvent::FinalizationCompleted)?;
+            apply_session_host_event(
+                &mut session.connected.machine,
+                "persistent_finish",
+                HlaeHostEvent::FinalizationCompleted,
+            )?;
             if session.connected.machine.state() != HlaeSessionState::Completed {
                 return Err(terminal_session_error(&session.connected.machine));
             }
@@ -866,9 +872,11 @@ impl RuntimeHlaeSessionOrchestrator {
                     &request.cancellation,
                 )
                 .await?;
-            completed
-                .machine
-                .apply_host_event(HlaeHostEvent::FinalizationCompleted)?;
+            apply_session_host_event(
+                &mut completed.machine,
+                "single_finish",
+                HlaeHostEvent::FinalizationCompleted,
+            )?;
             if completed.machine.state() != HlaeSessionState::Completed {
                 return Err(terminal_session_error(&completed.machine));
             }
@@ -934,12 +942,16 @@ impl RuntimeHlaeSessionOrchestrator {
         progress: &RecordingProgressSink,
     ) -> Result<(Box<dyn HlaeSessionProcess>, CompletedHlaeSession), RuntimeHlaeSessionError> {
         let mut prepared = self.prepare(request, &program).await?;
-        prepared
-            .machine
-            .apply_host_event(HlaeHostEvent::PreparationVerified)?;
-        prepared
-            .machine
-            .apply_host_event(HlaeHostEvent::LaunchRequested)?;
+        apply_session_host_event(
+            &mut prepared.machine,
+            "preparation_verified",
+            HlaeHostEvent::PreparationVerified,
+        )?;
+        apply_session_host_event(
+            &mut prepared.machine,
+            "launch_requested",
+            HlaeHostEvent::LaunchRequested,
+        )?;
 
         progress.report(RecordingStage::Launching);
         self.steam_client
@@ -960,11 +972,13 @@ impl RuntimeHlaeSessionOrchestrator {
             .await?;
         let loader_process_id = process.loader_process_id();
         let game_process_id = process.game_process_id();
-        prepared
-            .machine
-            .apply_host_event(HlaeHostEvent::LoaderStarted {
+        apply_session_host_event(
+            &mut prepared.machine,
+            "loader_started",
+            HlaeHostEvent::LoaderStarted {
                 process_id: loader_process_id,
-            })?;
+            },
+        )?;
 
         let session_result = self
             .drive_authenticated_session(
@@ -1143,9 +1157,11 @@ impl RuntimeHlaeSessionOrchestrator {
                 accepted = &mut accept => break accepted?,
             }
         };
-        prepared
-            .machine
-            .apply_host_event(HlaeHostEvent::GameHookAuthenticated { game_process_id })?;
+        apply_session_host_event(
+            &mut prepared.machine,
+            "game_hook_authenticated",
+            HlaeHostEvent::GameHookAuthenticated { game_process_id },
+        )?;
 
         let token = prepared.bridge_context.token.clone();
         let managed_config_contents = prepared.managed_config_contents;
@@ -1162,6 +1178,7 @@ impl RuntimeHlaeSessionOrchestrator {
             capture: prepared.capture,
             tick_rate: prepared.tick_rate,
             protocol_origin: tokio::time::Instant::now(),
+            loader_exit_seen,
         };
         let (evidence, take_directory) = self
             .drive_connected_take(
@@ -1188,6 +1205,7 @@ impl RuntimeHlaeSessionOrchestrator {
             verified_total_ticks,
             persistent_commands,
             protocol_origin: connected.protocol_origin,
+            loader_exit_seen: connected.loader_exit_seen,
         })
     }
     async fn drive_connected_take(
@@ -1201,7 +1219,7 @@ impl RuntimeHlaeSessionOrchestrator {
     ) -> Result<(RuntimeHlaeSessionEvidence, PathBuf), RuntimeHlaeSessionError> {
         let loader_wait = process.wait_loader(&request.cancellation);
         tokio::pin!(loader_wait);
-        let mut loader_exit_seen = false;
+        let mut loader_exit_seen = connected.loader_exit_seen;
         let protocol_started = tokio::time::Instant::now();
         let protocol_deadline = protocol_started + request.timeouts.protocol;
         loop {
@@ -1372,6 +1390,7 @@ impl RuntimeHlaeSessionOrchestrator {
             remove_owned_output(&encode_evidence.summary.output_path)?;
             return Err(terminal_session_error(&connected.machine));
         }
+        connected.loader_exit_seen = loader_exit_seen;
         Ok((
             RuntimeHlaeSessionEvidence {
                 managed_job_root: request.managed_job_root.clone(),
@@ -1494,6 +1513,23 @@ fn terminal_session_error(machine: &HlaeSessionMachine) -> RuntimeHlaeSessionErr
     }
 }
 
+fn apply_session_host_event(
+    machine: &mut HlaeSessionMachine,
+    stage: &'static str,
+    event: HlaeHostEvent,
+) -> Result<HlaeSessionState, RuntimeHlaeSessionError> {
+    let before = machine.state();
+    machine.apply_host_event(event).map_err(|error| {
+        tracing::error!(
+            stage,
+            ?before,
+            ?error,
+            "managed HLAE host transition failed"
+        );
+        RuntimeHlaeSessionError::from(error)
+    })
+}
+
 fn combine_start_cleanup(
     primary: RuntimeHlaeSessionError,
     close: Result<(), PlatformError>,
@@ -1576,7 +1612,11 @@ fn apply_loader_exit(
     exit: vibe_cs_platform_windows::ProcessTreeExit,
 ) -> Result<(), RuntimeHlaeSessionError> {
     let exit_code = i32::from_ne_bytes(exit.exit_code.to_ne_bytes());
-    machine.apply_host_event(HlaeHostEvent::LoaderExited { exit_code })?;
+    apply_session_host_event(
+        machine,
+        "loader_exited",
+        HlaeHostEvent::LoaderExited { exit_code },
+    )?;
     if exit_code != 0 {
         return Err(RuntimeHlaeSessionError::LoaderExited { exit_code });
     }

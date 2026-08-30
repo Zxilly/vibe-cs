@@ -71,6 +71,9 @@ fn one_authenticated_demo_session_can_capture_two_independent_takes() {
         "76561197960690195",
         &take_one,
     );
+    session
+        .apply_host_event(HlaeHostEvent::LoaderExited { exit_code: 0 })
+        .expect("normal loader exit leaves the authenticated CS2 session reusable");
 
     let second_observer =
         CaptureObserverContract::try_new("76561198000000001", 8).expect("second observer");

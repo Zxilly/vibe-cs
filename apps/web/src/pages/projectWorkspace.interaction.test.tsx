@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip } from '../shared/desktop/dto';
+import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -112,6 +112,15 @@ function openTimelineCommands(): void {
 
 function runTimelineCommand(name: string): void {
   openTimelineCommands();
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+}
+
+function openMarkerCommands(): void {
+  fireEvent.pointerDown(screen.getByRole('button', { name: '标记操作' }), { button: 0, ctrlKey: false });
+}
+
+function runMarkerCommand(name: string): void {
+  openMarkerCommands();
   fireEvent.click(screen.getByRole('menuitem', { name }));
 }
 
@@ -255,6 +264,26 @@ function razorLinkedProject(): Project {
           }
         : track.kind === 'audio' ? { ...track, clips: [audioClip] } : track),
     },
+  };
+}
+
+function navigationProject(): Project {
+  const overlay: TimelineTrack = {
+    id: '00000000-0000-4000-8000-000000000095',
+    name: 'B-Roll',
+    kind: 'video',
+    order: 2,
+    muted: false,
+    locked: false,
+    hidden: false,
+    clips: [{
+      ...clip('00000000-0000-4000-8000-000000000096', 'Overlay'),
+      placement: { start: 2, duration: 6, source_in: 0, source_out: 6, speed: 1, volume: 1, enabled: true },
+    }],
+  };
+  return {
+    ...PROJECT,
+    document: { ...PROJECT.document, tracks: [...PROJECT.document.tracks, overlay] },
   };
 }
 
@@ -1139,7 +1168,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ applyProjectPatch });
 
     await screen.findByRole('button', { name: '剪辑操作' });
-    runTimelineCommand('在播放头添加标记');
+    runMarkerCommand('在播放头添加标记');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -1244,6 +1273,53 @@ describe('unified project workspace', () => {
     if (operation?.op !== 'replace_markers') throw new Error('expected marker replacement');
     expect(operation.markers[0]?.time).toBeCloseTo(598 / 60);
     clientWidth.mockRestore();
+  });
+
+  it('selects and navigates sequence markers, then clears the selected marker by shortcut', async () => {
+    const markers = [
+      { id: '00000000-0000-4000-8000-000000000101', time: 1, label: 'First', color: '#2F6FED' },
+      { id: '00000000-0000-4000-8000-000000000102', time: 4, label: 'Second', color: '#F59E0B' },
+    ];
+    const project: Project = { ...PROJECT, document: { ...PROJECT.document, markers } };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const first = screen.getByRole('button', { name: '标记 First 00:01.000' });
+    fireEvent.click(first);
+    expect(first.className).toContain('ring-accent');
+    fireEvent.keyDown(timeline, { key: 'M', shiftKey: true });
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(4);
+    expect(screen.getByRole('button', { name: '标记 Second 00:04.000' }).className).toContain('ring-accent');
+    fireEvent.keyDown(timeline, { key: 'M', shiftKey: true, ctrlKey: true });
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(1);
+    fireEvent.keyDown(timeline, { key: 'm', altKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'replace_markers', markers: [markers[1]] }],
+    })));
+  });
+
+  it('opens the existing marker editor instead of creating a duplicate at the same frame', async () => {
+    const marker = { id: '00000000-0000-4000-8000-000000000103', time: 0, label: 'Existing', color: '#2F6FED' };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: { ...PROJECT, document: { ...PROJECT.document, markers: [marker] } }, applyProjectPatch });
+
+    fireEvent.keyDown(await screen.findByRole('region', { name: '时间轴' }), { key: 'm' });
+    expect(screen.getByDisplayValue('Existing')).toBeTruthy();
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
+  it('clears all sequence markers through the explicit marker command', async () => {
+    const marker = { id: '00000000-0000-4000-8000-000000000104', time: 2, label: 'Clear me', color: '#2F6FED' };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: { ...PROJECT, document: { ...PROJECT.document, markers: [marker] } }, applyProjectPatch });
+
+    await screen.findByRole('button', { name: '标记操作' });
+    runMarkerCommand('清除全部标记');
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'replace_markers', markers: [] }],
+    })));
   });
 
   it('bounds event labels to their clip spans and uses them as timeline navigation', async () => {
@@ -2286,6 +2362,23 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'k' });
   });
 
+  it('navigates target-track edits by default and every track with Shift', async () => {
+    renderWorkspace({ project: navigationProject() });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.click(screen.getByRole('button', { name: '下一个目标轨编辑点' }));
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
+    fireEvent.click(screen.getByRole('button', { name: '上一个目标轨编辑点' }));
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
+    fireEvent.keyDown(playhead, { key: 'ArrowDown', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(2);
+    fireEvent.keyDown(timeline, { key: ';', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
+    fireEvent.keyDown(timeline, { key: ';', shiftKey: true, ctrlKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
+  });
+
   it('lets Space activate a focused Timeline button without also toggling transport', async () => {
     renderWorkspace();
 
@@ -2491,7 +2584,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     preview.currentTime = 1.007;
     fireEvent.timeUpdate(preview);
-    runTimelineCommand('在播放头添加标记');
+    runMarkerCommand('在播放头添加标记');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
@@ -4814,14 +4907,14 @@ describe('unified project workspace', () => {
 
     expect(screen.getByText('Agent 操作中 · 人类只读')).toBeTruthy();
     expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(true);
-    openTimelineCommands();
+    openMarkerCommands();
     expect(screen.getByRole('menuitem', { name: '在播放头添加标记' }).getAttribute('aria-disabled')).toBe('true');
-    fireEvent.keyDown(screen.getByRole('menu', { name: '剪辑操作' }), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('menu', { name: '标记操作' }), { key: 'Escape' });
 
     finishStream();
     await waitFor(() => expect(updateAgentTurn).toHaveBeenCalled());
     await waitFor(() => expect((screen.getByRole('button', { name: '在播放头添加文字' }) as HTMLButtonElement).disabled).toBe(false));
-    openTimelineCommands();
+    openMarkerCommands();
     expect(screen.getByRole('menuitem', { name: '在播放头添加标记' }).getAttribute('aria-disabled')).not.toBe('true');
   });
 

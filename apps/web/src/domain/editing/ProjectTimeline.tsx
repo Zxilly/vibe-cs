@@ -66,6 +66,7 @@ import {
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
+import { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
 import {
   planTimelinePasteInsert,
   planTimelinePasteOverwrite,
@@ -261,6 +262,7 @@ export function ProjectTimeline({
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [textDraft, setTextDraft] = useState<{
     readonly start: number;
     readonly maximumDuration: number;
@@ -290,6 +292,11 @@ export function ProjectTimeline({
   const marqueeScrollFrameRef = useRef<number | null>(null);
   const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
   const [clipboard, setClipboard] = useState<TimelineClipboard | null>(null);
+  useEffect(() => {
+    if (selectedMarkerId !== null && !document.markers.some((marker) => marker.id === selectedMarkerId)) {
+      setSelectedMarkerId(null);
+    }
+  }, [document.markers, selectedMarkerId]);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
   const pendingZoomScrollRef = useRef<number | null>(null);
@@ -746,15 +753,54 @@ export function ProjectTimeline({
     [nonStoryIds[index], nonStoryIds[target]] = [nonStoryIds[target]!, nonStoryIds[index]!];
     onReorderTracks([document.story_track_id, ...nonStoryIds]);
   };
+  const selectedMarker = selectedMarkerId === null
+    ? null
+    : document.markers.find((marker) => marker.id === selectedMarkerId) ?? null;
+  const navigateEditPoint = (direction: -1 | 1, allTracks = false) => {
+    const next = adjacentTimelineTime(timelineEditPoints({
+      tracks: document.tracks,
+      targetTrackIds: targetTrackIdSet,
+      allTracks,
+      duration: document.duration_seconds,
+    }), playheadSeconds, direction, document.fps);
+    if (next !== null) onSeek(next);
+  };
+  const navigateMarker = (direction: -1 | 1) => {
+    const marker = adjacentMarker(document.markers, playheadSeconds, direction, document.fps);
+    if (marker === null) return;
+    setSelectedMarkerId(marker.id);
+    onSeek(marker.time);
+  };
   const addMarker = () => {
     if (readOnly) return;
+    const existing = document.markers.find((marker) => Math.abs(marker.time - editPlayheadSeconds) <= 0.5 / document.fps);
+    if (existing !== undefined) {
+      setSelectedMarkerId(existing.id);
+      setMarkerDraft({ ...existing });
+      return;
+    }
     const number = document.markers.length + 1;
-    onReplaceMarkers([...document.markers, {
+    const marker: EditorMarker = {
       id: globalThis.crypto.randomUUID(),
       time: editPlayheadSeconds,
       label: t`标记 ${number}`,
       color: DEFAULT_TIMELINE_MARKER_COLOR,
-    }]);
+    };
+    setSelectedMarkerId(marker.id);
+    onReplaceMarkers([...document.markers, marker]);
+  };
+  const editSelectedMarker = () => {
+    if (selectedMarker !== null) setMarkerDraft({ ...selectedMarker });
+  };
+  const deleteSelectedMarker = () => {
+    if (readOnly || selectedMarker === null) return;
+    onReplaceMarkers(document.markers.filter((marker) => marker.id !== selectedMarker.id));
+    setSelectedMarkerId(null);
+  };
+  const clearMarkers = () => {
+    if (readOnly || document.markers.length === 0) return;
+    onReplaceMarkers([]);
+    setSelectedMarkerId(null);
   };
   const editTargetedRange = (mode: 'lift' | 'extract') => {
     if (!canEditRange || rangeStart === null || rangeEnd === null) return;
@@ -1212,7 +1258,27 @@ export function ProjectTimeline({
           if (canAddEdit) addEdit();
           return;
         }
-        if (event.key.toLowerCase() === 'm' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key.toLowerCase() === 'm' && event.altKey && event.shiftKey && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          clearMarkers();
+          return;
+        }
+        if (event.key.toLowerCase() === 'm' && event.altKey) {
+          event.preventDefault();
+          deleteSelectedMarker();
+          return;
+        }
+        if (event.key.toLowerCase() === 'm' && event.shiftKey && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          navigateMarker(-1);
+          return;
+        }
+        if (event.key.toLowerCase() === 'm' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          navigateMarker(1);
+          return;
+        }
+        if (event.key.toLowerCase() === 'm' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           addMarker();
           return;
@@ -1237,7 +1303,12 @@ export function ProjectTimeline({
           rippleTrimToPlayhead('end');
           return;
         }
-        if (event.key === ';' && !event.ctrlKey && !event.metaKey && !event.altKey && canLiftRange) {
+        if ((event.key === ';' || event.key === ':') && event.shiftKey && !event.altKey) {
+          event.preventDefault();
+          navigateEditPoint(event.ctrlKey || event.metaKey ? -1 : 1);
+          return;
+        }
+        if (event.key === ';' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && canLiftRange) {
           event.preventDefault();
           liftRange();
           return;
@@ -1288,7 +1359,6 @@ export function ProjectTimeline({
           triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
           items={[
             { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
-            { id: 'marker', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
             { id: 'lift', label: t`提升入出点范围`, disabled: !canLiftRange, onSelect: liftRange },
             { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
             { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
@@ -1300,8 +1370,26 @@ export function ProjectTimeline({
             { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
           ]}
         />
+        <OverflowMenu
+          label={t`标记操作`}
+          triggerLabel={<><Bookmark className="size-3.5" aria-hidden="true" /><Trans>标记</Trans></>}
+          align="start"
+          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
+          items={[
+            { id: 'add', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
+            { id: 'previous', label: t`上一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, -1, document.fps) === null, onSelect: () => navigateMarker(-1) },
+            { id: 'next', label: t`下一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, 1, document.fps) === null, onSelect: () => navigateMarker(1) },
+            { id: 'edit', label: t`编辑所选标记`, disabled: selectedMarker === null, onSelect: editSelectedMarker },
+            { id: 'delete', label: t`删除所选标记`, disabled: readOnly || selectedMarker === null, onSelect: deleteSelectedMarker },
+            { id: 'clear', label: t`清除全部标记`, disabled: readOnly || document.markers.length === 0, onSelect: clearMarkers },
+          ]}
+        />
         <span className="max-w-48 truncate text-2xs text-neutral-500">
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
+        </span>
+        <span className="flex items-center overflow-hidden rounded-sm border border-divider">
+          <button type="button" className="grid size-7 place-items-center hover:bg-neutral-100" aria-label={t`上一个目标轨编辑点`} onClick={() => navigateEditPoint(-1)}><ChevronUp className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个目标轨编辑点`} onClick={() => navigateEditPoint(1)}><ChevronDown className="size-3.5" aria-hidden="true" /></button>
         </span>
         <button
           type="button"
@@ -1596,6 +1684,7 @@ export function ProjectTimeline({
           ))}
           <TimelineMarkerRow
             markers={document.markers}
+            selectedMarkerId={selectedMarkerId}
             scale={scale}
             contentWidth={contentWidth}
             ticks={ticks}
@@ -1606,7 +1695,11 @@ export function ProjectTimeline({
             snapThresholdSeconds={10 / scale.pixelsPerSecond}
             onSnapChange={setSnapGuideTime}
             onSeek={onSeek}
-            onEditMarker={(marker) => setMarkerDraft({ ...marker })}
+            onSelectMarker={(marker) => setSelectedMarkerId(marker.id)}
+            onEditMarker={(marker) => {
+              setSelectedMarkerId(marker.id);
+              setMarkerDraft({ ...marker });
+            }}
             onMoveMarker={(markerId, time) => onReplaceMarkers(document.markers.map((marker) => (
               marker.id === markerId ? { ...marker, time } : marker
             )))}
@@ -1690,15 +1783,7 @@ export function ProjectTimeline({
           onKeyDown={(event) => {
             if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
               event.preventDefault();
-              const editPoints = [...new Set([
-                0,
-                document.duration_seconds,
-                ...clips.flatMap((clip) => [clip.placement.start, clip.placement.start + clip.placement.duration]),
-              ])].sort((left, right) => left - right);
-              const next = event.key === 'ArrowDown'
-                ? editPoints.find((time) => time > playheadSeconds + 0.5 / document.fps)
-                : [...editPoints].reverse().find((time) => time < playheadSeconds - 0.5 / document.fps);
-              if (next !== undefined) onSeek(next);
+              navigateEditPoint(event.key === 'ArrowDown' ? 1 : -1, event.shiftKey);
               return;
             }
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -1788,6 +1873,7 @@ export function ProjectTimeline({
               variant="danger"
               onClick={() => {
                 onReplaceMarkers(document.markers.filter((marker) => marker.id !== markerDraft.id));
+                setSelectedMarkerId(null);
                 setMarkerDraft(null);
               }}
             >
@@ -3973,8 +4059,9 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   );
 }
 
-const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onEditMarker, onMoveMarker }: {
+const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, selectedMarkerId, scale, contentWidth, ticks, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onSelectMarker, onEditMarker, onMoveMarker }: {
   readonly markers: readonly EditorMarker[];
+  readonly selectedMarkerId: string | null;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly ticks: ReturnType<typeof rulerTicks>;
@@ -3985,6 +4072,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
   readonly onSeek: (seconds: number) => void;
+  readonly onSelectMarker: (marker: EditorMarker) => void;
   readonly onEditMarker: (marker: EditorMarker) => void;
   readonly onMoveMarker: (markerId: string, time: number) => void;
 }) {
@@ -4001,6 +4089,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
           <TimelineMarkerItem
             key={marker.id}
             marker={marker}
+            selected={marker.id === selectedMarkerId}
             nextMarkerTime={ordered[index + 1]?.time ?? null}
             scale={scale}
             contentWidth={contentWidth}
@@ -4011,6 +4100,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
             onSeek={onSeek}
+            onSelect={onSelectMarker}
             onEdit={onEditMarker}
             onMove={onMoveMarker}
           />
@@ -4019,6 +4109,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
     </div>
   );
 }, (previous, next) => previous.markers === next.markers
+  && previous.selectedMarkerId === next.selectedMarkerId
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.contentWidth === next.contentWidth
   && previous.durationSeconds === next.durationSeconds
@@ -4028,11 +4119,13 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, cont
   && previous.snapThresholdSeconds === next.snapThresholdSeconds
   && previous.onSnapChange === next.onSnapChange
   && previous.onSeek === next.onSeek
+  && previous.onSelectMarker === next.onSelectMarker
   && previous.onEditMarker === next.onEditMarker
   && previous.onMoveMarker === next.onMoveMarker);
 
-function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onEdit, onMove }: {
+function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWidth, durationSeconds, fps, readOnly, snapPoints, snapThresholdSeconds, onSnapChange, onSeek, onSelect, onEdit, onMove }: {
   readonly marker: EditorMarker;
+  readonly selected: boolean;
   readonly nextMarkerTime: number | null;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -4043,6 +4136,7 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
   readonly onSeek: (seconds: number) => void;
+  readonly onSelect: (marker: EditorMarker) => void;
   readonly onEdit: (marker: EditorMarker) => void;
   readonly onMove: (markerId: string, time: number) => void;
 }) {
@@ -4088,6 +4182,7 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
       type="button"
       className={cn(
         'absolute inset-y-1 z-10 flex touch-none select-none items-center gap-1.5 overflow-hidden text-left text-2xs text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:ring-1 focus-visible:ring-accent-500',
+        selected && 'bg-accent-100 ring-1 ring-inset ring-accent-500',
         readOnly ? 'cursor-pointer' : 'cursor-ew-resize',
       )}
       style={{ left, width }}
@@ -4098,9 +4193,11 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
           ignoreClickRef.current = false;
           return;
         }
+        onSelect(marker);
         onSeek(marker.time);
       }}
       onDoubleClick={() => {
+        onSelect(marker);
         if (!readOnly) onEdit(marker);
       }}
       onPointerDown={(event) => {
@@ -4134,6 +4231,7 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
         event.currentTarget.releasePointerCapture?.(event.pointerId);
         ignoreClickRef.current = active.moved;
         if (active.moved) globalThis.setTimeout(() => { ignoreClickRef.current = false; }, 0);
+        onSelect(marker);
         if (active.moved && Math.abs(next - marker.time) > 0.5 / fps) onMove(marker.id, next);
         else onSeek(marker.time);
       }}
@@ -4146,6 +4244,7 @@ function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durat
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
+          onSelect(marker);
           onSeek(marker.time);
           return;
         }

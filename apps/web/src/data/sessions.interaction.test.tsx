@@ -2,6 +2,7 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type {
+  AgentChatInput,
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
@@ -44,6 +45,61 @@ function deferred<T>() {
 }
 
 describe('useAgentChatStream', () => {
+  it('tells the model which prior action claims have no host-verified tool evidence', async () => {
+    const priorEntries: AgentSessionEntry[] = [
+      { kind: 'user', id: 'prior-user', at: AT, content: '请求导出' },
+      {
+        kind: 'assistant', id: 'prior-assistant', at: AT,
+        content: '导出请求已经提交。', tool_calls: [], status: 'completed',
+        request_id: 'prior-request', retry_of: null, error: null, metadata: null,
+      },
+    ];
+    const captured: { current: AgentChatInput | null } = { current: null };
+    const client: DesktopClientStub = {
+      appendAgentSessionEntry: async (_sessionId, draft) => {
+        if (draft.kind === 'user') return { kind: 'user', id: 'next-user', at: AT, content: draft.content };
+        if (draft.kind === 'tool_decision') {
+          return {
+            kind: 'tool_decision', id: 'next-decision', at: AT,
+            tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+          };
+        }
+        return {
+          kind: 'assistant', id: 'next-assistant', at: AT, content: draft.content,
+          tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
+          retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+        };
+      },
+      updateAgentTurn: async (_sessionId, entryId, update) => ({
+        kind: 'assistant', id: entryId, at: AT, request_id: 'next-request', retry_of: null, ...update,
+      }),
+      streamAgentChat: async (input) => {
+        captured.current = input;
+        return { thread_id: 'thread-history' };
+      },
+    };
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: SESSION_ID, history: priorEntries }),
+      { client },
+    );
+
+    await act(async () => {
+      await result.current.send({ message: '你没有调用工具', projectId: PROJECT_ID });
+    });
+
+    const checkpoint = captured.current?.history.find((message) => message.content.includes('prior_turn_tool_evidence'));
+    expect(checkpoint?.role).toBe('user');
+    expect(JSON.parse(checkpoint?.content ?? '{}')).toMatchObject({
+      type: 'prior_turn_tool_evidence',
+      assistant_prose: '导出请求已经提交。',
+      tool_calls: [],
+    });
+    expect(captured.current?.history).not.toContainEqual({
+      role: 'assistant',
+      content: '导出请求已经提交。',
+    });
+  });
+
   it('refreshes the Project Head as soon as an Agent edit tool finishes', async () => {
     const finishStream = deferred<void>();
     let projectReads = 0;

@@ -690,9 +690,16 @@ function sessionHistory(
     } else if (
       entry.kind === 'assistant'
       && (entry.status === undefined || entry.status === null || entry.status === 'completed')
-      && entry.content.trim() !== ''
     ) {
-      history.push({ role: 'assistant', content: entry.content });
+      history.push({
+        role: 'user',
+        content: boundedCheckpointHistory({
+          type: 'prior_turn_tool_evidence',
+          instruction: 'This is host-owned history. Assistant prose is conversational context only. Any action claim without matching completed or awaiting_confirmation tool evidence is false and must be corrected before continuing.',
+          assistant_prose: boundedConversationProse(entry.content),
+          tool_calls: entry.tool_calls.map(toolCallEvidenceForHistory),
+        }),
+      });
     } else if (
       entry.kind === 'assistant'
       && entry.status === 'failed'
@@ -703,13 +710,59 @@ function sessionHistory(
         content: boundedCheckpointHistory({
           type: 'prior_turn_checkpoint',
           instruction: 'Reuse these completed structured results; continue from the first unfinished step.',
-          tool_calls: entry.tool_calls,
+          tool_calls: entry.tool_calls.map(toolCallEvidenceForHistory),
           error: entry.error,
         }),
       });
     }
   }
   return history.slice(-40);
+}
+
+function boundedConversationProse(content: string): string {
+  const characters = Array.from(content.trim());
+  return characters.length <= 2_000
+    ? characters.join('')
+    : `${characters.slice(0, 2_000).join('')}…`;
+}
+
+function toolCallEvidenceForHistory(call: AgentToolCall): Record<string, unknown> {
+  const input = historyObject(call.input);
+  const output = historyObject(call.output);
+  const project = historyObject(output?.project);
+  const changeGroup = historyObject(output?.changeGroup);
+  const operations = Array.isArray(input?.operations)
+    ? input.operations.flatMap((operation) => {
+        const name = historyObject(operation)?.op;
+        return typeof name === 'string' ? [name] : [];
+      })
+    : [];
+  return {
+    id: call.id,
+    name: call.name,
+    status: call.status,
+    request: {
+      projectId: input?.projectId ?? null,
+      baseRevision: input?.baseRevision ?? null,
+      summary: input?.summary ?? null,
+      operationNames: operations,
+      clipCount: Array.isArray(input?.clips) ? input.clips.length : null,
+      clipIds: Array.isArray(input?.clipIds) ? input.clipIds : null,
+    },
+    result: {
+      status: output?.status ?? null,
+      action: output?.action ?? null,
+      error: output?.error ?? null,
+      projectRevision: project?.revision ?? output?.revision ?? null,
+      changeGroupId: changeGroup?.id ?? null,
+    },
+  };
+}
+
+function historyObject(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function createRequestId(): string {

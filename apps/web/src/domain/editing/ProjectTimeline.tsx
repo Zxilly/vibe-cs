@@ -32,7 +32,7 @@ import {
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
-import { mediaAssetStreamPath } from '../../data/mediaAssets';
+import { mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review';
 import { OverflowMenu } from '../../design/layout';
@@ -2435,7 +2435,15 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (
         <>
-          <video className="pointer-events-none size-full bg-neutral-900 object-cover" src={shell.mediaSrc(mediaAssetStreamPath(material.streamAssetId)) ?? undefined} preload="metadata" muted tabIndex={-1} aria-hidden="true" />
+          <img
+            className="pointer-events-none size-full bg-neutral-900 object-cover"
+            src={shell.mediaSrc(mediaAssetThumbnailPath(material.streamAssetId, clip.placement.source_in)) ?? undefined}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            aria-hidden="true"
+          />
           <Clapperboard className="absolute left-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
           <Link2 className="absolute right-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
         </>

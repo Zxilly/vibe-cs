@@ -325,6 +325,23 @@ export function mediaAssetStreamPath(assetId: string): string {
   return `/api/media/assets/${encodeURIComponent(assetId)}/stream`;
 }
 
+/** One bounded static frame for timeline filmstrips and other non-playing
+ * surfaces. Playback continues to use `mediaAssetStreamPath`; a thumbnail must
+ * never create another media transport. */
+export function mediaAssetThumbnailPath(
+  assetId: string,
+  timeSeconds: number,
+  width = 320,
+  height = 180,
+): string {
+  const parameters = new URLSearchParams({
+    time: String(Math.max(0, timeSeconds)),
+    width: String(width),
+    height: String(height),
+  });
+  return `/api/media/assets/${encodeURIComponent(assetId)}/thumbnail?${parameters.toString()}`;
+}
+
 /** The proxy stream — smaller, seekable, and only present once
  *  `proxy_status.status === 'ready'`. Check before offering it. */
 export function mediaAssetProxyStreamPath(assetId: string): string {

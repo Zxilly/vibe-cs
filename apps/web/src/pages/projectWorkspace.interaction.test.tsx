@@ -1002,6 +1002,24 @@ describe('unified project workspace', () => {
     expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
   });
 
+  it('renders timeline filmstrips from static thumbnails instead of clip video decoders', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴内容' });
+    expect(timeline.querySelectorAll('[data-timeline-clip-id] video')).toHaveLength(0);
+    const thumbnails = timeline.querySelectorAll<HTMLImageElement>('[data-timeline-clip-id] img');
+    expect(thumbnails).toHaveLength(2);
+    expect(thumbnails[0]?.getAttribute('src')).toContain('/media/assets/asset-a/thumbnail?time=0');
+    expect(thumbnails[1]?.getAttribute('src')).toContain('/media/assets/asset-b/thumbnail?time=1');
+  });
+
   it('uses a warm timeline-driven preview without native media transport', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

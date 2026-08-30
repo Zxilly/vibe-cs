@@ -40,7 +40,7 @@ import {
 import { useDemo } from '../data/demos';
 import { useAgentStatus } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
-import { useTask } from '../data/tasks';
+import { useCancelTask, useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { useNativeShell } from '../data/nativeShell';
 import {
@@ -174,6 +174,7 @@ export function ProjectWorkspacePage() {
   const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
   const startRecording = useStartProjectRecording();
   const exportProject = useExportProject();
+  const cancelTask = useCancelTask();
   const lens: EditingLens = 'multitrack';
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
@@ -548,6 +549,7 @@ export function ProjectWorkspacePage() {
     revertChange.error,
     startRecording.error,
     exportProject.error,
+    cancelTask.error,
     importMedia.error,
     relinkMedia.error,
     deleteMedia.error,
@@ -711,6 +713,12 @@ export function ProjectWorkspacePage() {
       agentReady={agentStatus.data?.configured === true}
       agentStatusPending={agentStatus.isPending}
       externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
+      executionActionPending={cancelTask.isPending}
+      onCancelExecution={(execution) => {
+        if (execution.job_id === null || !execution.available_actions.includes('cancel')) return;
+        cancelTask.mutate({ kind: execution.kind, jobId: execution.job_id });
+      }}
+      onOpenOutputs={() => void navigate('/delivery?view=outputs')}
       onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
       confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
       onConfirmRecording={async (toolCallId, clipIds) => {
@@ -890,7 +898,7 @@ export function ProjectWorkspacePage() {
           className="m-4"
           variant="danger"
           detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
-          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
+          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
         >
           <Trans>操作没有完成</Trans>
         </Alert>
@@ -1604,6 +1612,9 @@ interface AgentPanelProps {
   readonly agentReady: boolean;
   readonly agentStatusPending: boolean;
   readonly externalExecutions: readonly ActivityItem[];
+  readonly executionActionPending: boolean;
+  readonly onCancelExecution: (execution: ActivityItem) => void;
+  readonly onOpenOutputs: () => void;
   readonly onOpenAgentSettings: () => void;
   readonly confirming: boolean;
   readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
@@ -1625,6 +1636,9 @@ const AgentPanel = memo(function AgentPanel({
   agentReady,
   agentStatusPending,
   externalExecutions,
+  executionActionPending,
+  onCancelExecution,
+  onOpenOutputs,
   onOpenAgentSettings,
   confirming,
   onConfirmRecording,
@@ -1724,6 +1738,22 @@ const AgentPanel = memo(function AgentPanel({
                       ? execution.error
                       : <Trans>任务由本地执行器处理，完成后会回到同一对话流。</Trans>}
                 </p>
+                <div className="mt-2 flex gap-2">
+                  {execution.job_id === null || !execution.available_actions.includes('cancel') ? null : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={executionActionPending}
+                      aria-label={execution.kind === 'export' ? t`取消导出任务` : t`取消录制任务`}
+                      onClick={() => onCancelExecution(execution)}
+                    >
+                      <Trans>取消</Trans>
+                    </Button>
+                  )}
+                  {!execution.available_actions.includes('open_outputs') ? null : (
+                    <Button size="sm" variant="secondary" onClick={onOpenOutputs}><Trans>查看成品</Trans></Button>
+                  )}
+                </div>
               </ConversationShell>
             ))}
             {readOnly ? (
@@ -1787,6 +1817,7 @@ function areAgentPanelPropsEqual(previous: AgentPanelProps, next: AgentPanelProp
     && previous.agentReady === next.agentReady
     && previous.agentStatusPending === next.agentStatusPending
     && previous.confirming === next.confirming
+    && previous.executionActionPending === next.executionActionPending
     && sameExecutions;
 }
 

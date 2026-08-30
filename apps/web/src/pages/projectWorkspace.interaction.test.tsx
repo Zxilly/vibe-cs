@@ -213,6 +213,8 @@ function renderWorkspace({
   listMediaAssets,
   createProjectRecordingPlan,
   executeRecordingPlan,
+  exportProject,
+  cancelExportJob,
   relinkMediaAsset,
   deleteMediaAsset,
   streamAgentChat,
@@ -234,6 +236,8 @@ function renderWorkspace({
   readonly listMediaAssets?: ReturnType<typeof vi.fn> | undefined;
   readonly createProjectRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
   readonly executeRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
+  readonly exportProject?: ReturnType<typeof vi.fn> | undefined;
+  readonly cancelExportJob?: ReturnType<typeof vi.fn> | undefined;
   readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
@@ -249,6 +253,8 @@ function renderWorkspace({
       ...(getActivity === undefined ? {} : { getActivity }),
       ...(createProjectRecordingPlan === undefined ? {} : { createProjectRecordingPlan }),
       ...(executeRecordingPlan === undefined ? {} : { executeRecordingPlan }),
+      ...(exportProject === undefined ? {} : { exportProject }),
+      ...(cancelExportJob === undefined ? {} : { cancelExportJob }),
       listProjectChangeGroups: () => Promise.resolve(groups),
       listMediaAssets: listMediaAssets ?? (() => Promise.resolve({ items: assets })),
       ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
@@ -374,6 +380,53 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(getActivity).toHaveBeenCalled());
     await waitFor(() => expect(getProject.mock.calls.length).toBeGreaterThanOrEqual(3));
     expect(listMediaAssets.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('offers the backend export actions in the Agent execution card', async () => {
+    const jobId = '00000000-0000-4000-8000-000000000100';
+    const exportProject = vi.fn(() => Promise.resolve({ job_id: jobId, status: 'running' }));
+    const cancelExportJob = vi.fn(() => Promise.resolve({
+      kind: 'project',
+      job: {
+        id: jobId,
+        project_id: PROJECT.id,
+        status: 'cancelling',
+        progress: 0.25,
+        output_path: 'C:\\exports\\project.mp4',
+        error: null,
+        error_code: null,
+        created_at: PROJECT.created_at,
+        updated_at: PROJECT.updated_at,
+      },
+    }));
+    const getActivity = vi.fn(() => Promise.resolve({
+      id: `export:${jobId}`,
+      kind: 'export',
+      subtype: 'project',
+      job_id: jobId,
+      context_id: PROJECT.id,
+      subject: 'C:\\exports\\project.mp4',
+      status: 'running',
+      stage: null,
+      progress_percent: 25,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: null,
+      failure: null,
+      created_at: PROJECT.created_at,
+      updated_at: PROJECT.updated_at,
+      available_actions: ['cancel', 'open_outputs'],
+    }));
+    renderWorkspace({ project: RECORDED_PROJECT, exportProject, cancelExportJob, getActivity });
+
+    fireEvent.click(await screen.findByRole('button', { name: '导出成片' }));
+    fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
+
+    expect(await screen.findByRole('button', { name: '取消导出任务' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '查看成品' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消导出任务' }));
+    await waitFor(() => expect(cancelExportJob).toHaveBeenCalledWith(jobId));
   });
 
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {

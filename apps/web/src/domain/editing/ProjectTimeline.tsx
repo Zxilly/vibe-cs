@@ -301,13 +301,18 @@ export function ProjectTimeline({
     () => selectedTrackGroups.flatMap((group) => group.clips),
     [selectedTrackGroups],
   );
+  const editableSelectedTrackGroups = useMemo(
+    () => selectedTrackGroups.filter((group) => !group.track.locked),
+    [selectedTrackGroups],
+  );
+  const everySelectedTrackEditable = selectedTrackGroups.every((group) => !group.track.locked);
   const sharedLinkGroupId = selectedClips.length < 2
     ? null
     : selectedClips[0]?.link_group_id !== null
       && selectedClips.every((clip) => clip.link_group_id === selectedClips[0]?.link_group_id)
       ? selectedClips[0]!.link_group_id
       : null;
-  const canChangeLinks = !readOnly && selectedClips.length >= 2;
+  const canChangeLinks = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
   const selectedTrackClipIds = selectedTrack === null
     ? new Set<string>()
     : new Set(selectedTrack.clips.filter((clip) => selectedClipIdSet.has(clip.id)).map((clip) => clip.id));
@@ -465,9 +470,10 @@ export function ProjectTimeline({
     && selectedTrackClipIds.size === 1
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
+    && !selectedTrack.locked
     && editPlayheadSeconds > selectedClip.placement.start + 1 / document.fps
     && editPlayheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
-  const canDelete = !readOnly && selectedTrackGroups.length > 0;
+  const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
   const clipboardTracks = clipboard === null
     ? []
@@ -493,6 +499,7 @@ export function ProjectTimeline({
   const canRippleTrimToPlayhead = !readOnly
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
+    && !selectedTrack.locked
     && editPlayheadSeconds > selectedClip.placement.start + 1 / document.fps
     && editPlayheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
 
@@ -521,7 +528,7 @@ export function ProjectTimeline({
 
   const deleteSelected = () => {
     if (!canDelete) return;
-    const updates = selectedTrackGroups.map(({ track, clips: selected }) => {
+    const updates = editableSelectedTrackGroups.map(({ track, clips: selected }) => {
       const ids = new Set(selected.map((clip) => clip.id));
       return {
         trackId: track.id,
@@ -3396,10 +3403,10 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
           )}
           <button
             type="button"
-            className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.locked && 'text-accent-text')}
+            className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300', track.locked && 'text-accent-text')}
             aria-label={t`切换轨道锁定`}
             aria-pressed={track.locked}
-            disabled={readOnly && !track.locked}
+            disabled={readOnly}
             onClick={() => onReplaceTrack?.({ ...track, locked: !track.locked })}
           >
             <LockKeyhole className="size-3" aria-hidden="true" />

@@ -679,6 +679,72 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps an existing locked Story selection inspectable but disables every destructive Story command', async () => {
+    const lockedProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, locked: true }
+          : track),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: lockedProject, applyProjectPatch });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    expect((screen.getByRole('button', { name: '在播放头切分片段' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '删除所选片段并闭合间隙' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '波纹裁切片段起点到播放头' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '波纹裁切播放头到片段终点' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(false);
+
+    const timeline = screen.getByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 's' });
+    fireEvent.keyDown(timeline, { key: 'q' });
+    fireEvent.keyDown(timeline, { key: 'w' });
+    fireEvent.keyDown(timeline, { key: 'Delete' });
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
+  it('deletes only unlocked clips from a mixed locked and unlocked selection', async () => {
+    const audioClipId = '00000000-0000-4000-8000-000000000096';
+    const audioClip: TimelineClip = {
+      ...clip(audioClipId, 'Unlocked bed'),
+      material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    };
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, locked: true }
+          : track.kind === 'audio' ? { ...track, clips: [audioClip] } : track),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    fireEvent.pointerDown(await screen.findByRole('button', { name: /Unlocked bed 5\.0s · 已录制/u }), {
+      pointerId: 97, button: 0, ctrlKey: true, clientX: 400,
+    });
+    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        clips: [],
+      }],
+    })));
+    const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations ?? [];
+    expect(operations.some((operation: ProjectPatch['operations'][number]) => (
+      operation.op === 'replace_track_clips' && operation.track_id === STORY_ID
+    ))).toBe(false);
+  });
+
   it('commits one clip replacement after a pointer drag and exposes trim handles on selection', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
@@ -3718,6 +3784,15 @@ describe('unified project workspace', () => {
 
   it('shows the Agent lease inside the conversation and makes human controls read-only', async () => {
     renderWorkspace({
+      project: {
+        ...PROJECT,
+        document: {
+          ...PROJECT.document,
+          tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+            ? { ...track, locked: true }
+            : track),
+        },
+      },
       lease: {
         id: '00000000-0000-4000-8000-000000000040',
         project_id: PROJECT.id,
@@ -3731,6 +3806,7 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByText('Agent 操作中 · 人类只读')).toBeTruthy();
     expect((screen.getByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦') as HTMLInputElement).disabled).toBe(true);
+    expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.doubleClick(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }));
     expect((await screen.findByRole('textbox', { name: '名称' }) as HTMLInputElement).disabled).toBe(true);
   });

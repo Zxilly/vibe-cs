@@ -766,6 +766,41 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('drags a sequence marker with one frame-snapped Human Edit', async () => {
+    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, label: 'ACE', color: '#2F6FED' };
+    const project: Project = {
+      ...PROJECT,
+      document: { ...PROJECT.document, markers: [marker] },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const markerButton = await screen.findByRole('button', { name: '标记 ACE 00:08.000' });
+    fireEvent.pointerDown(markerButton, { pointerId: 71, button: 0, clientX: 100 });
+    fireEvent.pointerMove(markerButton, { pointerId: 71, clientX: 124 });
+    fireEvent.pointerUp(markerButton, { pointerId: 71, clientX: 124 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operation = applyProjectPatch.mock.calls[0]?.[0]?.operations[0];
+    expect(operation).toMatchObject({ op: 'replace_markers' });
+    if (operation?.op !== 'replace_markers') throw new Error('expected marker replacement');
+    expect(operation.markers[0]?.time).toBeGreaterThan(marker.time);
+    expect(operation.markers[0]?.time * project.document.fps).toBeCloseTo(
+      Math.round((operation.markers[0]?.time ?? 0) * project.document.fps),
+    );
+  });
+
+  it('bounds event labels to their clip spans and uses them as timeline navigation', async () => {
+    renderWorkspace();
+
+    const event = await screen.findByRole('button', { name: '事件 B 00:05.000' });
+    expect(event.style.width).not.toBe('');
+    expect(event.className).toContain('overflow-hidden');
+    fireEvent.click(event);
+
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5);
+  });
+
   it('marks an In/Out range and extracts it from Story with ripple', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });

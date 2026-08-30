@@ -1266,10 +1266,23 @@ export function ProjectTimeline({
             scale={scale}
             contentWidth={contentWidth}
             ticks={ticks}
+            durationSeconds={document.duration_seconds}
+            fps={document.fps}
+            readOnly={readOnly}
             onSeek={onSeek}
             onEditMarker={(marker) => setMarkerDraft({ ...marker })}
+            onMoveMarker={(markerId, time) => onReplaceMarkers(document.markers.map((marker) => (
+              marker.id === markerId ? { ...marker, time } : marker
+            )))}
           />
-          <TimelineEventRow clips={clips} scale={scale} contentWidth={contentWidth} ticks={ticks} />
+          <TimelineEventRow
+            clips={clips}
+            scale={scale}
+            contentWidth={contentWidth}
+            ticks={ticks}
+            onSelectClip={onSelectClip}
+            onSeek={onSeek}
+          />
           {marqueeBounds === null ? null : (
             <span
               className="pointer-events-none absolute z-50 border border-accent-500 bg-accent-100/45"
@@ -3206,50 +3219,211 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   );
 }
 
-const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, onSeek, onEditMarker }: {
+const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, durationSeconds, fps, readOnly, onSeek, onEditMarker, onMoveMarker }: {
   readonly markers: readonly EditorMarker[];
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly ticks: ReturnType<typeof rulerTicks>;
+  readonly durationSeconds: number;
+  readonly fps: number;
+  readonly readOnly: boolean;
   readonly onSeek: (seconds: number) => void;
   readonly onEditMarker: (marker: EditorMarker) => void;
+  readonly onMoveMarker: (markerId: string, time: number) => void;
 }) {
+  const ordered = useMemo(
+    () => [...markers].sort((left, right) => left.time - right.time),
+    [markers],
+  );
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         <TimelineGrid ticks={ticks} />
-        {markers.map((marker) => (
-          <button
+        {ordered.map((marker, index) => (
+          <TimelineMarkerItem
             key={marker.id}
-            type="button"
-            className="absolute inset-y-1 z-10 flex items-center gap-1.5 text-2xs text-neutral-700 hover:bg-neutral-100 focus-visible:ring-1 focus-visible:ring-accent-500"
-            style={{ left: timeToPx(scale, marker.time) }}
-            aria-label={t`标记 ${marker.label} ${formatMillisecondTimecode(marker.time)}`}
-            onClick={() => onSeek(marker.time)}
-            onDoubleClick={() => onEditMarker(marker)}
-          >
-            <span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" />
-            <span className="whitespace-nowrap">{marker.label}</span>
-          </button>
+            marker={marker}
+            nextMarkerTime={ordered[index + 1]?.time ?? null}
+            scale={scale}
+            contentWidth={contentWidth}
+            durationSeconds={durationSeconds}
+            fps={fps}
+            readOnly={readOnly}
+            onSeek={onSeek}
+            onEdit={onEditMarker}
+            onMove={onMoveMarker}
+          />
         ))}
       </div>
     </div>
   );
 }, (previous, next) => previous.markers === next.markers
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
-  && previous.contentWidth === next.contentWidth);
+  && previous.contentWidth === next.contentWidth
+  && previous.durationSeconds === next.durationSeconds
+  && previous.fps === next.fps
+  && previous.readOnly === next.readOnly
+  && previous.onSeek === next.onSeek
+  && previous.onEditMarker === next.onEditMarker
+  && previous.onMoveMarker === next.onMoveMarker);
 
-const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks }: { readonly clips: readonly TimelineClip[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
+function TimelineMarkerItem({ marker, nextMarkerTime, scale, contentWidth, durationSeconds, fps, readOnly, onSeek, onEdit, onMove }: {
+  readonly marker: EditorMarker;
+  readonly nextMarkerTime: number | null;
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly contentWidth: number;
+  readonly durationSeconds: number;
+  readonly fps: number;
+  readonly readOnly: boolean;
+  readonly onSeek: (seconds: number) => void;
+  readonly onEdit: (marker: EditorMarker) => void;
+  readonly onMove: (markerId: string, time: number) => void;
+}) {
+  const [visualTime, setVisualTime] = useState(marker.time);
+  const ignoreClickRef = useRef(false);
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly time: number;
+    moved: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (gesture.current !== null) return;
+    setVisualTime(marker.time);
+  }, [marker.time]);
+  const timeFromClientX = (clientX: number, active: NonNullable<typeof gesture.current>) => (
+    snapTimeToFrame(
+      Math.min(durationSeconds, Math.max(0, active.time + pxToTime(scale, clientX - active.clientX))),
+      fps,
+    )
+  );
+  const left = timeToPx(scale, visualTime);
+  const available = nextMarkerTime === null
+    ? contentWidth - left
+    : timeToPx(scale, nextMarkerTime - visualTime);
+  const width = Math.max(6, Math.min(160, available - 3));
+  return (
+    <button
+      type="button"
+      className={cn(
+        'absolute inset-y-1 z-10 flex touch-none select-none items-center gap-1.5 overflow-hidden text-left text-2xs text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:ring-1 focus-visible:ring-accent-500',
+        readOnly ? 'cursor-pointer' : 'cursor-ew-resize',
+      )}
+      style={{ left, width }}
+      aria-label={t`标记 ${marker.label} ${formatMillisecondTimecode(visualTime)}`}
+      title={`${marker.label} · ${formatMillisecondTimecode(visualTime)}`}
+      onClick={() => {
+        if (ignoreClickRef.current) {
+          ignoreClickRef.current = false;
+          return;
+        }
+        onSeek(marker.time);
+      }}
+      onDoubleClick={() => {
+        if (!readOnly) onEdit(marker);
+      }}
+      onPointerDown={(event) => {
+        if (readOnly || event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        gesture.current = {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          time: marker.time,
+          moved: false,
+        };
+      }}
+      onPointerMove={(event) => {
+        const active = gesture.current;
+        if (active === null || active.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        if (Math.abs(event.clientX - active.clientX) >= 2) active.moved = true;
+        const next = timeFromClientX(event.clientX, active);
+        setVisualTime(next);
+      }}
+      onPointerUp={(event) => {
+        const active = gesture.current;
+        if (active === null || active.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const next = timeFromClientX(event.clientX, active);
+        setVisualTime(next);
+        gesture.current = null;
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        ignoreClickRef.current = active.moved;
+        if (active.moved) globalThis.setTimeout(() => { ignoreClickRef.current = false; }, 0);
+        if (active.moved && Math.abs(next - marker.time) > 0.5 / fps) onMove(marker.id, next);
+        else onSeek(marker.time);
+      }}
+      onPointerCancel={(event) => {
+        gesture.current = null;
+        setVisualTime(marker.time);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSeek(marker.time);
+          return;
+        }
+        if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        const step = event.shiftKey ? 1 : 1 / fps;
+        onMove(marker.id, snapTimeToFrame(
+          Math.min(durationSeconds, Math.max(0, marker.time + direction * step)),
+          fps,
+        ));
+      }}
+    >
+      <span className="h-full w-1.5 flex-none" style={{ backgroundColor: marker.color }} aria-hidden="true" />
+      <span className="min-w-0 truncate">{marker.label}</span>
+    </button>
+  );
+}
+
+const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks, onSelectClip, onSeek }: {
+  readonly clips: readonly TimelineClip[];
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly contentWidth: number;
+  readonly ticks: ReturnType<typeof rulerTicks>;
+  readonly onSelectClip: (clipId: string) => void;
+  readonly onSeek: (seconds: number) => void;
+}) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`事件`}>
       <TimelineTrackHead icon={<Star className="size-4" />} label={t`事件`} controls="none" />
-      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{clips.map((clip) => <span key={`event:${clip.id}`} className="absolute inset-y-0 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, clip.placement.start) }}><span className="h-3 w-1.5 bg-ok" aria-hidden="true" /><span>{clip.name.split(' · ')[0]}</span></span>)}</div>
+      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+        <TimelineGrid ticks={ticks} />
+        {clips.map((clip) => (
+          <button
+            key={`event:${clip.id}`}
+            type="button"
+            className="absolute inset-y-1 flex items-center gap-1.5 overflow-hidden px-0.5 text-left text-2xs text-neutral-700 outline-none hover:bg-neutral-100 focus-visible:ring-1 focus-visible:ring-accent-500"
+            style={{
+              left: timeToPx(scale, clip.placement.start),
+              width: Math.max(3, timeToPx(scale, clip.placement.duration) - 3),
+            }}
+            aria-label={t`事件 ${clip.name} ${formatMillisecondTimecode(clip.placement.start)}`}
+            title={`${clip.name} · ${formatMillisecondTimecode(clip.placement.start)}`}
+            onClick={() => {
+              onSelectClip(clip.id);
+              onSeek(clip.placement.start);
+            }}
+          >
+            <span className="h-3 w-1.5 flex-none bg-ok" aria-hidden="true" />
+            <span className="min-w-0 truncate">{clip.name.split(' · ')[0]}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }, (previous, next) => previous.clips === next.clips
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
-  && previous.contentWidth === next.contentWidth);
+  && previous.contentWidth === next.contentWidth
+  && previous.onSelectClip === next.onSelectClip
+  && previous.onSeek === next.onSeek);
 
 function TimelineGrid({ ticks }: { readonly ticks: ReturnType<typeof rulerTicks> }) {
   return <>{ticks.filter((tick) => tick.major).map((tick) => <span key={`grid:${tick.time}`} className="pointer-events-none absolute inset-y-0 border-l border-divider" style={{ left: tick.px }} aria-hidden="true" />)}</>;

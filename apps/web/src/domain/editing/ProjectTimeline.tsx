@@ -138,6 +138,8 @@ export interface ProjectTimelineProps {
   readonly targetTrackId: string | null;
   readonly linkedSelectionEnabled: boolean;
   readonly timelineTimeSeconds: number;
+  readonly rangeInSeconds: number | null;
+  readonly rangeOutSeconds: number | null;
   readonly transportPlaying: boolean;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
@@ -148,6 +150,7 @@ export interface ProjectTimelineProps {
   readonly onToggleLinkedSelection: () => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
+  readonly onRangeChange: (rangeInSeconds: number | null, rangeOutSeconds: number | null) => void;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
@@ -230,6 +233,8 @@ export function ProjectTimeline({
   targetTrackId,
   linkedSelectionEnabled,
   timelineTimeSeconds,
+  rangeInSeconds,
+  rangeOutSeconds,
   transportPlaying,
   reviewGroup,
   readOnly,
@@ -240,6 +245,7 @@ export function ProjectTimeline({
   onToggleLinkedSelection,
   onInspectClip,
   onSeek,
+  onRangeChange,
   onTogglePlayback,
   onShuttle,
   onReplaceClip,
@@ -281,8 +287,6 @@ export function ProjectTimeline({
     readonly content: string;
     readonly duration: number;
   } | null>(null);
-  const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
-  const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [trackHeights, setTrackHeights] = useState<Readonly<Record<string, number>>>({});
   const [collapsedTrackRows, setCollapsedTrackRows] = useState<ReadonlySet<string>>(new Set());
   const [marqueeBounds, setMarqueeBounds] = useState<{
@@ -783,8 +787,7 @@ export function ProjectTimeline({
         rangeTargetTrack.id === document.story_track_id,
       ),
     );
-    setRangeInSeconds(null);
-    setRangeOutSeconds(null);
+    onRangeChange(null, null);
   };
   const rippleTrimToPlayhead = (edge: 'start' | 'end') => {
     if (!canRippleTrimToPlayhead || selectedClip === null || selectedTrack === null) return;
@@ -1198,12 +1201,12 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'i' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
-          setRangeInSeconds(editPlayheadSeconds);
+          onRangeChange(editPlayheadSeconds, rangeOutSeconds);
           return;
         }
         if (event.key.toLowerCase() === 'o' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
-          setRangeOutSeconds(editPlayheadSeconds);
+          onRangeChange(rangeInSeconds, editPlayheadSeconds);
           return;
         }
         if (event.key.toLowerCase() === 'q' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -1293,13 +1296,13 @@ export function ProjectTimeline({
           {sharedLinkGroupId === null ? <Trans>链接片段</Trans> : <Trans>取消链接</Trans>}
         </button>
         <span className="flex items-center overflow-hidden rounded-sm border border-divider text-2xs">
-          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => setRangeInSeconds(editPlayheadSeconds)}>I</button>
-          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => setRangeOutSeconds(editPlayheadSeconds)}>O</button>
+          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => onRangeChange(editPlayheadSeconds, rangeOutSeconds)}>I</button>
+          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => onRangeChange(rangeInSeconds, editPlayheadSeconds)}>O</button>
           {rangeStart === null || rangeEnd === null ? null : (
             <span className="border-l border-divider px-2 font-mono text-accent-text">{formatMillisecondTimecode(rangeStart)}–{formatMillisecondTimecode(rangeEnd)}</span>
           )}
           {rangeInSeconds === null && rangeOutSeconds === null ? null : (
-            <button type="button" className="h-7 border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => { setRangeInSeconds(null); setRangeOutSeconds(null); }}>×</button>
+            <button type="button" className="h-7 border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>×</button>
           )}
         </span>
         {reviewChangeCount === 0 ? null : (

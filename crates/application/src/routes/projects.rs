@@ -122,7 +122,7 @@ struct ProjectRecordingPlanRequest {
     clip_ids: Vec<Uuid>,
 }
 
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 struct ProjectExportRequest {
@@ -315,6 +315,7 @@ async fn export_project(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
+    validate_project_export_request(&request, project.document.duration_seconds)?;
     let unresolved = project.unresolved_delivery_clips()?;
     if !unresolved.is_empty() {
         return Err(ApiError::new(
@@ -344,6 +345,34 @@ async fn export_project(
         job_id: job.id,
         status: format!("{:?}", job.status).to_lowercase(),
     }))
+}
+
+fn validate_project_export_request(
+    request: &ProjectExportRequest,
+    duration_seconds: f64,
+) -> ApiResult<()> {
+    if !(1..=100).contains(&request.quality) {
+        return Err(ApiError::invalid(
+            "export quality must be between 1 and 100",
+        ));
+    }
+    if !matches!(
+        request.encoder.trim().to_ascii_lowercase().as_str(),
+        "auto" | "libopenh264" | "h264_mf" | "h264_nvenc" | "hevc_nvenc" | "h264_amf" | "h264_qsv"
+    ) {
+        return Err(ApiError::invalid("export encoder is not supported"));
+    }
+    let start = request.range_start_seconds.unwrap_or(0.0);
+    let end = request.range_end_seconds.unwrap_or(duration_seconds);
+    if !start.is_finite()
+        || !end.is_finite()
+        || start < 0.0
+        || end <= start
+        || end > duration_seconds + 0.001
+    {
+        return Err(ApiError::invalid("export range is outside the project"));
+    }
+    Ok(())
 }
 
 async fn revert_change_group(
@@ -535,5 +564,49 @@ mod tests {
         assert_eq!(status, 200);
         assert_eq!(reverted["project"]["name"], "Unified");
         assert_eq!(reverted["project"]["revision"], 3);
+    }
+
+    #[test]
+    fn export_settings_are_validated_before_a_job_is_created() {
+        let valid = ProjectExportRequest {
+            confirm: true,
+            encoder: "auto".to_owned(),
+            quality: 80,
+            range_start_seconds: Some(1.0),
+            range_end_seconds: Some(5.0),
+        };
+        assert!(validate_project_export_request(&valid, 10.0).is_ok());
+
+        assert!(
+            validate_project_export_request(
+                &ProjectExportRequest {
+                    quality: 0,
+                    ..valid.clone()
+                },
+                10.0,
+            )
+            .is_err()
+        );
+        assert!(
+            validate_project_export_request(
+                &ProjectExportRequest {
+                    encoder: "unknown".to_owned(),
+                    ..valid.clone()
+                },
+                10.0,
+            )
+            .is_err()
+        );
+        assert!(
+            validate_project_export_request(
+                &ProjectExportRequest {
+                    range_start_seconds: Some(8.0),
+                    range_end_seconds: Some(12.0),
+                    ..valid
+                },
+                10.0,
+            )
+            .is_err()
+        );
     }
 }

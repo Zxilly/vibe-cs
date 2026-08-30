@@ -59,6 +59,7 @@ import { Empty, Skeleton } from '../design/data';
 import { Alert, Dialog, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
+import { formatMillisecondTimecode } from '../design/timeline/timeScale';
 import {
   canAnimateTransformProperty,
   clipDemoTickAtTimelineTime,
@@ -123,9 +124,14 @@ import { PlayerLayer } from './match/views/ReplayCanvas';
 import { buildPlayerTracks, clampTick, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
 
 type EditingLens = 'quick' | 'multitrack';
+interface ProjectExportDraft {
+  readonly encoder: 'auto' | 'libopenh264';
+  readonly quality: number;
+  readonly sourceRange: 'sequence' | 'in_out';
+}
 type ExternalConfirmation =
   | { readonly kind: 'recording'; readonly clipIds: readonly string[] }
-  | { readonly kind: 'export' };
+  | { readonly kind: 'export'; readonly draft: ProjectExportDraft };
 
 interface TacticalScene {
   readonly sceneKey: string;
@@ -204,6 +210,8 @@ export function ProjectWorkspacePage() {
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
   const [linkedSelectionEnabled, setLinkedSelectionEnabled] = useState(true);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
+  const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
+  const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
@@ -353,6 +361,15 @@ export function ProjectWorkspacePage() {
     current.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
+  const exportRangeStart = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.min(rangeInSeconds, rangeOutSeconds);
+  const exportRangeEnd = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.max(rangeInSeconds, rangeOutSeconds);
+  const hasExportRange = exportRangeStart !== null
+    && exportRangeEnd !== null
+    && exportRangeEnd - exportRangeStart >= 1 / current.document.fps;
   const transportClip = previewProject.document.tracks
     .find((track) => track.id === previewProject.document.story_track_id)
     ?.clips.find((clip) => transportTimeSeconds >= clip.placement.start
@@ -667,6 +684,8 @@ export function ProjectWorkspacePage() {
       targetTrackId={targetTrackId}
       linkedSelectionEnabled={linkedSelectionEnabled}
       timelineTimeSeconds={transportTimeSeconds}
+      rangeInSeconds={rangeInSeconds}
+      rangeOutSeconds={rangeOutSeconds}
       transportPlaying={playing}
       reviewGroup={latestAgentGroup}
       readOnly={readOnly || apply.isPending || revertChange.isPending}
@@ -682,6 +701,10 @@ export function ProjectWorkspacePage() {
       onSeek={(seconds) => {
         setPlaying(false);
         seekTimeline(seconds);
+      }}
+      onRangeChange={(rangeIn, rangeOut) => {
+        setRangeInSeconds(rangeIn);
+        setRangeOutSeconds(rangeOut);
       }}
       onTogglePlayback={togglePlayback}
       onShuttle={shuttlePlayback}
@@ -856,7 +879,10 @@ export function ProjectWorkspacePage() {
             data-window-no-drag
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-accent bg-accent px-2 text-xs text-bg hover:bg-accent-700 disabled:border-divider disabled:bg-neutral-200 disabled:text-neutral-400"
             disabled={readOnly || deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
-            onClick={() => setExternalConfirm({ kind: 'export' })}
+            onClick={() => setExternalConfirm({
+              kind: 'export',
+              draft: { encoder: 'auto', quality: 80, sourceRange: hasExportRange ? 'in_out' : 'sequence' },
+            })}
           >
             <Download className="size-3.5" aria-hidden="true" />
             <Trans>导出成片</Trans>
@@ -898,17 +924,90 @@ export function ProjectWorkspacePage() {
       </Dialog>
       <Dialog
         open={externalConfirm?.kind === 'export'}
-        title={<Trans>导出成片</Trans>}
+        title={<Trans>导出设置</Trans>}
         confirmLabel={<Trans>开始导出</Trans>}
-        confirmDisabled={deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
+        confirmDisabled={deliveryGatePending
+          || currentDeliveryGate?.ready !== true
+          || externalConfirm?.kind !== 'export'
+          || (externalConfirm.draft.sourceRange === 'in_out' && !hasExportRange)
+          || exportProject.isPending}
         onConfirm={() => {
-          if (deliveryGatePending || currentDeliveryGate?.ready !== true) return;
+          if (deliveryGatePending || currentDeliveryGate?.ready !== true || externalConfirm?.kind !== 'export') return;
+          const draft = externalConfirm.draft;
+          if (draft.sourceRange === 'in_out' && !hasExportRange) return;
           setExternalConfirm(null);
-          exportProject.mutate({ projectId: current.id });
+          exportProject.mutate({
+            projectId: current.id,
+            encoder: draft.encoder,
+            quality: draft.quality,
+            ...(draft.sourceRange === 'in_out' && exportRangeStart !== null && exportRangeEnd !== null
+              ? { rangeStartSeconds: exportRangeStart, rangeEndSeconds: exportRangeEnd }
+              : {}),
+          });
         }}
         onClose={() => setExternalConfirm(null)}
       >
-        <p><Trans>按当前 Project Head 和统一时间线导出最终 MP4。</Trans></p>
+        {externalConfirm?.kind !== 'export' ? <span /> : (
+          <div className="space-y-4 text-xs">
+            <section className="grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-divider pb-4">
+              <span className="text-neutral-500"><Trans>格式</Trans></span>
+              <strong className="font-medium">H.264 · MP4</strong>
+              <span className="text-neutral-500"><Trans>序列</Trans></span>
+              <span className="font-mono">{current.document.width}×{current.document.height} · {current.document.fps} fps</span>
+            </section>
+            <label className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-3">
+              <Trans>编码性能</Trans>
+              <select
+                className="h-8 border border-divider bg-bg px-2"
+                aria-label={t`编码性能`}
+                value={externalConfirm.draft.encoder}
+                onChange={(event) => setExternalConfirm({
+                  kind: 'export',
+                  draft: { ...externalConfirm.draft, encoder: event.currentTarget.value as ProjectExportDraft['encoder'] },
+                })}
+              >
+                <option value="auto"><Trans>自动（硬件优先，软件回退）</Trans></option>
+                <option value="libopenh264"><Trans>软件编码</Trans></option>
+              </select>
+            </label>
+            <label className="grid grid-cols-[112px_minmax(0,1fr)_44px] items-center gap-3">
+              <Trans>质量</Trans>
+              <input
+                type="range"
+                min={1}
+                max={100}
+                step={1}
+                aria-label={t`导出质量`}
+                value={externalConfirm.draft.quality}
+                onChange={(event) => setExternalConfirm({
+                  kind: 'export',
+                  draft: { ...externalConfirm.draft, quality: event.currentTarget.valueAsNumber },
+                })}
+              />
+              <span className="text-right font-mono">{externalConfirm.draft.quality}</span>
+            </label>
+            <label className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-3">
+              <Trans>源范围</Trans>
+              <select
+                className="h-8 border border-divider bg-bg px-2"
+                aria-label={t`导出源范围`}
+                value={externalConfirm.draft.sourceRange}
+                onChange={(event) => setExternalConfirm({
+                  kind: 'export',
+                  draft: { ...externalConfirm.draft, sourceRange: event.currentTarget.value as ProjectExportDraft['sourceRange'] },
+                })}
+              >
+                <option value="sequence"><Trans>完整序列</Trans> · {formatMillisecondTimecode(current.document.duration_seconds)}</option>
+                <option value="in_out" disabled={!hasExportRange}>
+                  <Trans>序列入点到出点</Trans>{!hasExportRange || exportRangeStart === null || exportRangeEnd === null
+                    ? ''
+                    : ` · ${formatMillisecondTimecode(exportRangeStart)}–${formatMillisecondTimecode(exportRangeEnd)}`}
+                </option>
+              </select>
+            </label>
+            <p className="text-2xs leading-4 text-neutral-500"><Trans>输出将作为受管 MP4 成品写入交付区；任务开始后可在 Agent 流中取消或打开输出。</Trans></p>
+          </div>
+        )}
       </Dialog>
       <Drawer
         open={inspectorOpen && selected !== null}

@@ -478,11 +478,45 @@ describe('unified project workspace', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '导出成片' }));
     fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
+    await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, { encoder: 'auto', quality: 80 }));
 
     expect(await screen.findByRole('button', { name: '取消导出任务' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '查看成品' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '取消导出任务' }));
     await waitFor(() => expect(cancelExportJob).toHaveBeenCalledWith(jobId));
+  });
+
+  it('exports the shared Timeline In/Out range with explicit encoder and quality settings', async () => {
+    const jobId = '00000000-0000-4000-8000-000000000101';
+    const exportProject = vi.fn(() => Promise.resolve({ job_id: jobId, status: 'running' }));
+    const getActivity = vi.fn(() => Promise.resolve({
+      id: `export:${jobId}`, kind: 'export', subtype: 'project', job_id: jobId,
+      context_id: PROJECT.id, subject: 'C:\\exports\\range.mp4', status: 'running', stage: null,
+      progress_percent: 0, completed_units: null, total_units: null, unit: null,
+      error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
+      available_actions: ['cancel'],
+    }));
+    renderWorkspace({ project: RECORDED_PROJECT, exportProject, getActivity });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
+    for (let index = 0; index < 4; index += 1) fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记出点' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '导出成片' }));
+    expect((screen.getByRole('combobox', { name: '导出源范围' }) as HTMLSelectElement).value).toBe('in_out');
+    fireEvent.change(screen.getByRole('combobox', { name: '编码性能' }), { target: { value: 'libopenh264' } });
+    fireEvent.change(screen.getByRole('slider', { name: '导出质量' }), { target: { value: '65' } });
+    fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
+
+    await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, {
+      encoder: 'libopenh264',
+      quality: 65,
+      range_start_seconds: 2,
+      range_end_seconds: 6,
+    }));
   });
 
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {

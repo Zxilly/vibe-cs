@@ -7,14 +7,33 @@ import type {
   AgentSessionEntryDraft,
   AgentToolCall,
   AgentTurnUpdate,
+  Project,
 } from '../shared/desktop/dto';
 import type { DesktopClientStub } from './desktopClient';
+import { useProject } from './projects';
 import { useAgentChatStream, useAgentSession } from './sessions';
 import { renderDataHook } from './test/renderDataHook';
 
 const SESSION_ID = '00000000-0000-4000-8000-000000000001';
 const PROJECT_ID = '00000000-0000-4000-8000-000000000002';
 const AT = '2026-08-29T00:00:00Z';
+const PROJECT: Project = {
+  id: PROJECT_ID,
+  name: 'Agent Project',
+  revision: 1,
+  document: {
+    width: 1920,
+    height: 1080,
+    fps: 60,
+    duration_seconds: 0,
+    story_track_id: '00000000-0000-4000-8000-000000000003',
+    tracks: [],
+    markers: [],
+    settings: { source_demo_ids: [] },
+  },
+  created_at: AT,
+  updated_at: AT,
+};
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -25,6 +44,71 @@ function deferred<T>() {
 }
 
 describe('useAgentChatStream', () => {
+  it('refreshes the Project Head as soon as an Agent edit tool finishes', async () => {
+    const finishStream = deferred<void>();
+    let projectReads = 0;
+    const client: DesktopClientStub = {
+      getProject: async () => {
+        projectReads += 1;
+        return projectReads === 1 ? PROJECT : { ...PROJECT, revision: 2 };
+      },
+      appendAgentSessionEntry: async (_sessionId, draft) => {
+        if (draft.kind === 'user') {
+          return { kind: 'user', id: 'user-edit', at: AT, content: draft.content };
+        }
+        if (draft.kind === 'tool_decision') {
+          return {
+            kind: 'tool_decision', id: 'decision-edit', at: AT,
+            tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+          };
+        }
+        return {
+          kind: 'assistant', id: 'turn-edit', at: AT, content: draft.content,
+          tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
+          retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+        };
+      },
+      updateAgentTurn: async (_sessionId, entryId, update) => ({
+        kind: 'assistant', id: entryId, at: AT, request_id: 'request-edit', retry_of: null, ...update,
+      }),
+      cancelAgentChat: async () => true,
+      streamAgentChat: async (_input, onEvent) => {
+        onEvent({
+          type: 'toolCallFinished',
+          toolCall: {
+            id: 'request-edit:tool:1',
+            name: 'apply_project_patch',
+            input: { projectId: PROJECT_ID, baseRevision: 1 },
+            output: { status: 'applied', revision: 2 },
+            status: 'completed',
+          },
+        });
+        await finishStream.promise;
+        return { thread_id: 'thread-edit' };
+      },
+    };
+    const { result } = renderDataHook(
+      () => ({
+        project: useProject(PROJECT_ID),
+        chat: useAgentChatStream({ sessionId: SESSION_ID }),
+      }),
+      { client },
+    );
+    await waitFor(() => expect(result.current.project.data?.revision).toBe(1));
+
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.chat.send({ message: '修改标记', projectId: PROJECT_ID });
+    });
+
+    await waitFor(() => expect(result.current.project.data?.revision).toBe(2));
+    expect(result.current.chat.streaming).toBe(true);
+    expect(projectReads).toBe(2);
+
+    finishStream.resolve();
+    await act(async () => send);
+  });
+
   it('hands a terminal tool call to the durable conversation before clearing its live projection', async () => {
     let session: AgentSession = {
       id: SESSION_ID,

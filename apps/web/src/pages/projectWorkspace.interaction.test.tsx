@@ -2790,6 +2790,39 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('button', { name: '拒绝' })).toBeTruthy();
   });
 
+  it('shows an Agent tool error instead of claiming that the edit was committed', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000032',
+      title: 'Agent · failed patch',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:01:00Z',
+      entries: [{
+        kind: 'assistant',
+        id: 'a-failed-patch',
+        at: '2026-08-28T10:01:00Z',
+        content: '',
+        tool_calls: [{
+          id: 'request-failed:tool:1',
+          name: 'apply_project_patch',
+          input: { projectId: PROJECT.id, baseRevision: 1 },
+          output: { error: 'invalid Project Patch: missing field id' },
+          status: 'failed',
+        }],
+        status: 'completed',
+        request_id: 'request-failed',
+        retry_of: null,
+        error: null,
+        metadata: null,
+      }],
+    };
+
+    renderWorkspace({ session });
+
+    expect(await screen.findByText('执行失败')).toBeTruthy();
+    expect(screen.getByText('invalid Project Patch: missing field id')).toBeTruthy();
+    expect(screen.queryByText('增量修改已提交到统一时间线。')).toBeNull();
+  });
+
   it('binds a persisted HITL decision to one tool call instead of clearing it with arbitrary text', async () => {
     const session: AgentSession = {
       id: '00000000-0000-4000-8000-000000000031',

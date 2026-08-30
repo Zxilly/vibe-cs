@@ -358,6 +358,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     readonly sessionId: string;
     readonly entryId: string;
     readonly status: 'pending' | 'streaming';
+    readonly projectId: string;
   } | null>(null);
   const inflightRef = useRef<{ text: string; toolCalls: AgentToolCall[] }>({ text: '', toolCalls: [] });
   const mountedRef = useRef(true);
@@ -382,7 +383,10 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           tool_calls: inflight.toolCalls,
           error: null,
           metadata: null,
-        }).then(() => invalidateSessions(queryClient));
+        }).then(() => Promise.all([
+          invalidateSessions(queryClient),
+          invalidateAgentProject(queryClient, turn.projectId),
+        ]));
       }
     };
   }, [client, queryClient]);
@@ -406,7 +410,10 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         tool_calls: inflight.toolCalls,
         error: null,
         metadata: null,
-      }).then(() => invalidateSessions(queryClient));
+      }).then(() => Promise.all([
+        invalidateSessions(queryClient),
+        invalidateAgentProject(queryClient, turn.projectId),
+      ]));
     }
     inflightRef.current = { text: '', toolCalls: [] };
   }, [client, queryClient]);
@@ -446,7 +453,12 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       if (activeTurn.kind !== 'assistant') {
         throw new Error('agent turn creation did not return an assistant entry');
       }
-      turnRef.current = { sessionId: targetSessionId, entryId: activeTurn.id, status: 'streaming' };
+      turnRef.current = {
+        sessionId: targetSessionId,
+        entryId: activeTurn.id,
+        status: 'streaming',
+        projectId: input.projectId,
+      };
       await invalidateSessions(queryClient);
 
       let text = '';
@@ -475,6 +487,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
             if (mountedRef.current) {
               setActivity((current) => upsertToolActivity(current, event.toolCall));
+            }
+            if (event.toolCall.status === 'completed' && projectMutatingTool(event.toolCall.name)) {
+              void invalidateAgentProject(queryClient, input.projectId);
             }
             break;
           case 'error':
@@ -532,7 +547,10 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             setActivity([]);
           }
           inflightRef.current = { text: '', toolCalls: [] };
-          await invalidateSessions(queryClient);
+          await Promise.all([
+            invalidateSessions(queryClient),
+            invalidateAgentProject(queryClient, turn.projectId),
+          ]);
         }
         return;
       }
@@ -566,9 +584,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       inflightRef.current = { text: '', toolCalls: [] };
       await Promise.all([
         invalidateSessions(queryClient),
-        queryClient.invalidateQueries({ queryKey: qk.projects.detail(input.projectId) }),
-        queryClient.invalidateQueries({ queryKey: qk.projects.changeGroups(input.projectId) }),
-        queryClient.invalidateQueries({ queryKey: qk.projects.editLease(input.projectId) }),
+        invalidateAgentProject(queryClient, turn.projectId),
       ]);
     },
     [client, history, queryClient, sessionId, streaming],
@@ -600,6 +616,18 @@ function upsertTerminalToolCall(toolCalls: AgentToolCall[], call: AgentToolCall)
   const index = toolCalls.findIndex((candidate) => candidate.id === call.id);
   if (index < 0) toolCalls.push(call);
   else toolCalls[index] = call;
+}
+
+function projectMutatingTool(name: string): boolean {
+  return name === 'apply_project_patch' || name === 'replace_story_timeline';
+}
+
+function invalidateAgentProject(queryClient: QueryClient, projectId: string): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: qk.projects.detail(projectId) }),
+    queryClient.invalidateQueries({ queryKey: qk.projects.changeGroups(projectId) }),
+    queryClient.invalidateQueries({ queryKey: qk.projects.editLease(projectId) }),
+  ]).then(() => undefined);
 }
 
 function cacheAgentTurn(

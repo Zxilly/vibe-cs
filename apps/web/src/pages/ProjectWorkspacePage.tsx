@@ -1931,6 +1931,22 @@ function toolSummary(call: AgentToolCall | AgentToolActivity): string {
   const confirmation = confirmationOf(call);
   if (confirmation?.action === 'recording') return t`录制不会自动开始，正在等待人类决定。`;
   if (confirmation?.action === 'export') return t`导出不会自动开始，正在等待人类决定。`;
+  if (call.status === 'failed') {
+    const error = jsonObject(call.output)?.error;
+    return typeof error === 'string' && error.trim() !== ''
+      ? error.trim().slice(0, 500)
+      : t`工具调用失败，没有修改 Project。`;
+  }
+  if (call.status === 'running') {
+    switch (call.name) {
+      case 'read_workspace': return t`正在读取当前 Project Head 与 revision…`;
+      case 'read_demo_evidence': return t`正在读取经过验证的 Demo 事件…`;
+      case 'read_cinematic_context': return t`正在读取镜头路径与战术上下文…`;
+      case 'apply_project_patch': return t`正在校验并提交增量修改…`;
+      case 'replace_story_timeline': return t`正在校验整条 Story Track…`;
+      default: return t`正在执行结构化工具调用…`;
+    }
+  }
   switch (call.name) {
     case 'read_workspace': return t`已读取当前 Project Head 与 revision。`;
     case 'read_demo_evidence': return t`已读取经过验证的 Demo 事件。`;

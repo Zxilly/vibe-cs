@@ -1542,6 +1542,25 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('keeps the visible playhead anchored while zooming the Timeline', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowDown' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(5);
+    expect(viewport.scrollLeft).toBe(0);
+
+    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
+    expect(playhead.parentElement?.style.left).toBe('calc(var(--w-track-head) + 500px)');
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    clientWidth.mockRestore();
+  });
+
   it('frame-snaps edits made from a continuous playback position', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({

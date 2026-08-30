@@ -45,6 +45,7 @@ import {
   pxToTime,
   rulerTicks,
   timeToPx,
+  zoomAtAnchor,
 } from '../../design/timeline/timeScale';
 import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
 import { Waveform } from '../media';
@@ -269,6 +270,7 @@ export function ProjectTimeline({
   } | null>(null);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
+  const pendingZoomScrollRef = useRef<number | null>(null);
   const timelineScrollLeftRef = useRef(scrollLeft);
   timelineScrollLeftRef.current = scrollLeft;
   const dragPointerXRef = useRef<number | null>(null);
@@ -368,6 +370,39 @@ export function ProjectTimeline({
     minMajorGapPx: 110,
     minMinorGapPx: 28,
   });
+  useLayoutEffect(() => {
+    const nextScrollLeft = pendingZoomScrollRef.current;
+    const viewport = viewportRef.current;
+    if (nextScrollLeft === null || viewport === null) return;
+    pendingZoomScrollRef.current = null;
+    viewport.scrollLeft = nextScrollLeft;
+    timelineScrollLeftRef.current = nextScrollLeft;
+    setScrollLeft(nextScrollLeft);
+  }, [contentWidth, zoomMultiplier]);
+  const changeZoomMultiplier = (requested: number) => {
+    const nextMultiplier = Math.min(4, Math.max(0.5, requested));
+    if (Math.abs(nextMultiplier - zoomMultiplier) <= 1e-6) return;
+    const viewport = viewportRef.current;
+    if (viewport !== null) {
+      const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+      const contentViewportWidth = Math.max(1, viewport.clientWidth - trackHead);
+      const visiblePlayheadTime = rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds;
+      const playheadViewportPx = timeToPx(scale, visiblePlayheadTime) - viewport.scrollLeft;
+      const anchorPx = playheadViewportPx >= 0 && playheadViewportPx <= contentViewportWidth
+        ? playheadViewportPx
+        : contentViewportWidth / 2;
+      const nextScale = createTimeScale(fitZoom * nextMultiplier);
+      const nextContentWidth = Math.max(viewportWidth, timeToPx(nextScale, displayedDuration));
+      const maximumScroll = Math.max(0, trackHead + nextContentWidth - viewport.clientWidth);
+      pendingZoomScrollRef.current = Math.min(maximumScroll, zoomAtAnchor({
+        from: scale,
+        to: nextScale,
+        scrollPx: viewport.scrollLeft,
+        anchorPx,
+      }));
+    }
+    setZoomMultiplier(nextMultiplier);
+  };
   useEffect(() => {
     if (!transportPlaying) return;
     const viewport = viewportRef.current;
@@ -1037,7 +1072,7 @@ export function ProjectTimeline({
             type="button"
             className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
             aria-label={t`缩小时间轴`}
-            onClick={() => setZoomMultiplier((value) => Math.max(0.5, value / 1.25))}
+            onClick={() => changeZoomMultiplier(zoomMultiplier / 1.25)}
           >
             <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>
@@ -1049,17 +1084,17 @@ export function ProjectTimeline({
             step="0.25"
             value={zoomMultiplier}
             className="timeline-zoom w-14"
-            onChange={(event) => setZoomMultiplier(Number(event.currentTarget.value))}
+            onChange={(event) => changeZoomMultiplier(Number(event.currentTarget.value))}
           />
           <button
             type="button"
             className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
             aria-label={t`放大时间轴`}
-            onClick={() => setZoomMultiplier((value) => Math.min(4, value * 1.25))}
+            onClick={() => changeZoomMultiplier(zoomMultiplier * 1.25)}
           >
             <ZoomIn className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
           </button>
-          <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-2xs" onClick={() => setZoomMultiplier(1)}><Trans>适应</Trans></button>
+          <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-2xs" onClick={() => changeZoomMultiplier(1)}><Trans>适应</Trans></button>
         </span>
       </header>
 

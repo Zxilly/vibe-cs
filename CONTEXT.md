@@ -48,6 +48,10 @@ _Avoid_: inferring running tools from completed outputs, JSON-scanned workflow s
 A bounded host-owned Project snapshot injected at the start of every Agent turn. It is authoritative over stale project facts in conversation history for read-only answers; edits still re-read the Project Head and bind to the returned revision.
 _Avoid_: answering current counts from old assistant messages, replaying the full Project as unbounded transcript
 
+**Agent Context Assembly**:
+The Desktop-hosted Module that builds one model turn from the durable AgentSession, Current Turn Checkpoint, Workspace View State, resource manifest, and targeted tool results. It excludes the active streaming placeholder, compacts old tool evidence, and discloses full Editing Document fields only through explicit just-in-time reads.
+_Avoid_: web-authored model history, replaying a second local thread, injecting the complete Project or raw Demo evidence into every turn
+
 **Agent**:
 An automated editing collaborator that can directly change the same **Editing Document** a person is editing. Agent operations may be higher-level than human controls and may change many clips or tracks at once; Cross-Lens Changes remain disclosed, revealable, and undoable.
 _Avoid_: Agent workspace, Agent-owned timeline, hidden edit

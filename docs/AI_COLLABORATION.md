@@ -42,10 +42,13 @@ plan, montage, editor, or conversion pipeline.
 
 ## Current Agent tools
 
-- `read_workspace`: reads the exact Project ID, current revision, selection,
-  lens, and canonical Editing Document from the desktop host on every call.
-  A second read in the same Agent turn sees the Head produced by an earlier
-  edit tool rather than the request-start snapshot.
+- `read_workspace`: reads live Project context with progressive disclosure.
+  Its default `summary` response carries the exact revision, workspace lens,
+  selection, track/clip inventory and bounded material counts. An edit must use
+  `detail=timeline` with the narrowest known `trackIds` or `clipIds`; omitting
+  selectors is reserved for a deliberate whole-Project operation. A second
+  read in the same Agent turn sees the Head produced by an earlier edit tool
+  rather than the request-start checkpoint.
 - `read_demo_evidence`: queries authoritative persisted Demo analysis referenced
   by the Project. Player work supplies `playerName` or `playerId` and may narrow
   `demoIds` and event `kinds`; the host filters raw per-Demo highlights before a
@@ -74,6 +77,36 @@ plan, montage, editor, or conversion pipeline.
 The Rig multi-turn tool loop has no fixed turn ceiling. Cancellation and the
 desktop-owned request deadline bound liveness. Provider keys never cross into
 the webview or tool output.
+
+## Context assembly
+
+- The durable `AgentSession` is the only conversation truth. The webview first
+  persists the current user entry and streaming Assistant placeholder, then
+  sends only `sessionId`, the current instruction and Workspace View State to
+  the Desktop host. It never uploads a client-built model history.
+- The Desktop host builds model history from completed durable entries before
+  the active turn. Assistant prose is bounded conversational context; completed
+  tool calls and HITL decisions are compact host-owned evidence. Failed turns
+  retain completed tool checkpoints, while pending, streaming and cancelled
+  placeholders are excluded.
+- Every turn begins with a bounded Current Turn Checkpoint containing the exact
+  Project revision and a lightweight clip inventory. Full placement, effects,
+  keyframes and other editable fields are loaded just in time through targeted
+  tools, not replayed in every message.
+- The host logs `model_history_messages`, `model_history_bytes` and the larger
+  in-process `host_context_bytes` separately so input-token changes can be
+  evaluated instead of inferred.
+- Vibe CS keeps one single-agent Rig loop. Eight distinct tools do not justify
+  a generic Tool Search dispatcher: it would discard provider-side schemas and
+  create a second validation surface. Tool Search becomes eligible only when
+  trajectory evals show tool-selection failures or the catalog grows beyond a
+  small, clearly distinct set.
+
+This follows the smallest-high-signal-context rule and just-in-time retrieval
+described in Anthropic's [context engineering guidance](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents),
+the targeted tool/output guidance in [Writing effective tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents),
+and OpenAI's recommendation to maximize a single agent before adding orchestration
+in [A practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/).
 
 ## Model configuration
 

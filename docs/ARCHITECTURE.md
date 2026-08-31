@@ -78,28 +78,24 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   hexadecimal Web API key are syntactically valid, and the record belongs to that current account. A
   failed or cancelled recording exposes retry only when storage can prove one unclaimed unpublished
   suffix; Activity never guesses a resumable capture tick. Activity is private to the desktop process.
-- `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
-  deterministic read/proposal tools. Its `video_render` proposal contains validated recording
-  requests and an MP4 contract. The web host expands those requests into the recording workspace;
-  the user edits the real queue, previews its current fingerprint, and explicitly confirms before
-  the desktop/application boundary—not the model—executes the durable recording job. HLAE remains
-  an internal runtime capture tool. The model has no filesystem, shell, or process execution tool.
-  The loop has no product-defined total turn or tool-call ceiling; explicit cancellation and the
-  desktop request deadline own liveness, while individual context, tool-result and persisted-entry
-  byte limits continue to bound memory and storage. A validated initial video proposal is a
-  structured checkpoint and materializes its shot list even when the provider fails while writing
-  the trailing natural-language answer. Duration-aware video proposals carry an explicit target,
-  reject substantially overlapping Highlight windows and report deterministic selected-footage
-  coverage before they can be confirmed.
-- The Agent plan workspace is the product's PR-like collaboration Module, not a second editor or a
-  chat transcript with hidden side effects. The plan revision is the authoritative branch head;
-  Agent proposals are reviewable changes based on one revision; humans accept, reject or edit; the
-  origin trail records the resulting write. `/api/agent/plans/{id}/workbench` is the read seam for
-  the current plan, compatible Composition and per-shot materialization. Recording remains a
-  separate explicit action. Each Take fingerprints the footage-producing RecordingRequest fields;
-  the workbench therefore projects `unbound`, `unrecorded`, `recorded`, `stale` or `removed` instead
-  of storing a drifting `recorded` boolean on the shot. An edited shot cannot silently reuse an
-  incompatible Take or Composition selection.
+- `agent` owns one in-process Rig model/tool loop, provider URL policy, streaming limits, the
+  Current Turn Checkpoint and eight typed Project/evidence/execution tools. The loop has no
+  product-defined total turn or tool-call ceiling; explicit cancellation and the desktop request
+  deadline own liveness. The model has no filesystem, shell or process execution tool.
+- `desktop` owns Agent Context Assembly. It reads the one durable `AgentSession`, excludes the
+  active user/streaming placeholder, compacts completed tool evidence and HITL decisions, and
+  passes only that host-owned history to `agent`. The removed local `agent/threads/*.json` store is
+  not a compatibility source. The webview sends `sessionId`, the current instruction and Workspace
+  View State; it never authors model history.
+- Project context is progressively disclosed. The Current Turn Checkpoint and
+  `read_workspace(detail=summary)` expose an exact revision plus bounded inventory. Exact editable
+  fields require `detail=timeline` and may be filtered by track or clip identities. Demo evidence
+  and cinematic context remain bounded targeted reads. This keeps the model's attention on the
+  smallest high-signal context while the host retains full canonical state.
+- Agent edits apply directly to the canonical Project through revision-bound `ProjectPatch` or the
+  high-level atomic `replace_story_timeline` operation and produce one Change Group. Recording and
+  export remain External Execution: their tools only create inline HITL requests, and the human
+  confirmation path—not the model—starts the durable job.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and

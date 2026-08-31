@@ -248,6 +248,8 @@ export function ProjectTimeline({
   onUndo,
 }: ProjectTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const timelinePanelRef = useRef<HTMLDivElement>(null);
+  const timelineWheelHandlerRef = useRef<(event: WheelEvent) => void>(() => undefined);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
@@ -477,7 +479,7 @@ export function ProjectTimeline({
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     setTimelineScroll(viewport.scrollLeft + direction * Math.max(1, viewport.clientWidth - trackHead));
   };
-  const handleTimelineWheel = (event: React.WheelEvent<HTMLElement>) => {
+  const handleTimelineWheel = (event: WheelEvent) => {
     const viewport = viewportRef.current;
     if (viewport === null) return;
     const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
@@ -488,6 +490,11 @@ export function ProjectTimeline({
     const deltaX = event.deltaX * unit;
     const deltaY = event.deltaY * unit;
     const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+    if (event.target instanceof Element && event.target.closest('[data-timeline-zoom-navigator]')) {
+      event.preventDefault();
+      changeZoomMultiplier(effectiveZoomMultiplier * (2 ** (-primaryDelta / 480)));
+      return;
+    }
     if (event.altKey) {
       event.preventDefault();
       const bounds = viewport.getBoundingClientRect();
@@ -504,6 +511,14 @@ export function ProjectTimeline({
     const horizontalDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
     setTimelineScroll(viewport.scrollLeft + horizontalDelta);
   };
+  timelineWheelHandlerRef.current = handleTimelineWheel;
+  useEffect(() => {
+    const panel = timelinePanelRef.current;
+    if (panel === null) return;
+    const handleWheel = (event: WheelEvent) => timelineWheelHandlerRef.current(event);
+    panel.addEventListener('wheel', handleWheel, { passive: false });
+    return () => panel.removeEventListener('wheel', handleWheel);
+  }, []);
   const previousPlayheadSecondsRef = useRef(playheadSeconds);
   useLayoutEffect(() => {
     const playheadMoved = Math.abs(previousPlayheadSecondsRef.current - playheadSeconds) > 1e-6;
@@ -1169,6 +1184,7 @@ export function ProjectTimeline({
   };
 
   return (
+    <div ref={timelinePanelRef} className="contents">
     <ReviewPanel
       className="relative flex min-h-0 select-none flex-col focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent-500"
       aria-label={t`时间轴`}
@@ -1181,7 +1197,6 @@ export function ProjectTimeline({
           || (target instanceof HTMLElement && target.isContentEditable)) return;
         event.currentTarget.focus({ preventScroll: true });
       }}
-      onWheel={handleTimelineWheel}
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
@@ -2005,6 +2020,7 @@ export function ProjectTimeline({
         )}
       </Drawer>
     </ReviewPanel>
+    </div>
   );
 }
 
@@ -2126,6 +2142,7 @@ function TimelineZoomNavigator({
       </button>
       <div
         ref={laneRef}
+        data-timeline-zoom-navigator="true"
         role="scrollbar"
         tabIndex={0}
         aria-label={t`时间轴可视范围`}
@@ -2134,15 +2151,6 @@ function TimelineZoomNavigator({
         aria-valuemax={maximumScroll}
         aria-valuenow={Math.min(maximumScroll, scrollLeft)}
         className="relative h-3 min-w-28 flex-1 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-        onWheel={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
-            ? 16
-            : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? viewportWidth : 1;
-          const delta = (Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX) * unit;
-          onZoom(multiplier * (2 ** (-delta / 480)));
-        }}
         onPointerDown={(event) => {
           if (event.target !== event.currentTarget || event.button !== 0) return;
           const bounds = event.currentTarget.getBoundingClientRect();

@@ -2677,6 +2677,43 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('consumes Ctrl-wheel at the vertical boundary without falling through to horizontal scrolling', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    let verticalPosition = 400;
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 700 },
+      scrollTop: {
+        configurable: true,
+        get: () => verticalPosition,
+        set: (value: number) => { verticalPosition = Math.min(400, Math.max(0, value)); },
+      },
+    });
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(zoom, { target: { value: zoom.max } });
+    viewport.scrollLeft = 120;
+    fireEvent.scroll(viewport);
+
+    const wheel = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      deltaY: 80,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+    });
+    const dispatched = screen.getByLabelText('时间轴标尺').dispatchEvent(wheel);
+
+    expect(dispatched).toBe(false);
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(viewport.scrollTop).toBe(400);
+    expect(viewport.scrollLeft).toBe(120);
+    clientWidth.mockRestore();
+  });
+
   it('uses the Windows horizontal wheel mode while hovering the Timeline ruler', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     renderWorkspace({ project: RECORDED_PROJECT });

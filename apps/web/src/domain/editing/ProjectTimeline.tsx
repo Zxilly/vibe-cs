@@ -352,6 +352,13 @@ export function ProjectTimeline({
     ...document.markers.map((marker) => ({ time: marker.time, clipId: null })),
     { time: playheadSeconds, clipId: null },
   ], [document.markers, document.tracks, playheadSeconds]);
+  const playheadSnapTimes = useMemo(() => [
+    ...document.tracks.flatMap((track) => track.clips.flatMap((clip) => [
+      clip.placement.start,
+      clip.placement.start + clip.placement.duration,
+    ])),
+    ...document.markers.map((marker) => marker.time),
+  ], [document.markers, document.tracks]);
   const activeSnapPoints = useMemo(
     () => snapEnabled ? snapPoints : [],
     [snapEnabled, snapPoints],
@@ -469,6 +476,33 @@ export function ProjectTimeline({
     if (viewport === null) return;
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     setTimelineScroll(viewport.scrollLeft + direction * Math.max(1, viewport.clientWidth - trackHead));
+  };
+  const handleTimelineWheel = (event: React.WheelEvent<HTMLElement>) => {
+    const viewport = viewportRef.current;
+    if (viewport === null) return;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? 16
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? Math.max(1, viewport.clientHeight)
+        : 1;
+    const deltaX = event.deltaX * unit;
+    const deltaY = event.deltaY * unit;
+    const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+    if (event.altKey) {
+      event.preventDefault();
+      const bounds = viewport.getBoundingClientRect();
+      const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+      const anchorPx = event.clientX - bounds.left - trackHead;
+      changeZoomMultiplier(effectiveZoomMultiplier * (2 ** (-primaryDelta / 480)), anchorPx);
+      return;
+    }
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) {
+      setTimelineScroll(viewport.scrollLeft, viewport.scrollTop + primaryDelta);
+      return;
+    }
+    const horizontalDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+    setTimelineScroll(viewport.scrollLeft + horizontalDelta);
   };
   const previousPlayheadSecondsRef = useRef(playheadSeconds);
   useLayoutEffect(() => {
@@ -889,7 +923,16 @@ export function ProjectTimeline({
     );
   };
 
-  const pointerTime = (event: React.PointerEvent<HTMLElement>) => timeAtClientX(event.clientX);
+  const pointerTime = (event: React.PointerEvent<HTMLElement>) => {
+    const time = timeAtClientX(event.clientX);
+    if (time === null || !event.shiftKey) return time;
+    return resolveTimelineSnap(
+      time,
+      [0],
+      playheadSnapTimes,
+      10 / scale.pixelsPerSecond,
+    ).anchorTime;
+  };
 
   const snapEditTime = (timeSeconds: number, bypass: boolean): number => {
     if (!snapEnabled || bypass) {
@@ -1138,6 +1181,7 @@ export function ProjectTimeline({
           || (target instanceof HTMLElement && target.isContentEditable)) return;
         event.currentTarget.focus({ preventScroll: true });
       }}
+      onWheel={handleTimelineWheel}
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
@@ -1164,6 +1208,17 @@ export function ProjectTimeline({
         if (event.key === '-' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           changeZoomMultiplier(effectiveZoomMultiplier / 1.25);
+          return;
+        }
+        if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+          && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          const frames = event.shiftKey ? 5 : 1;
+          onSeek(Math.min(
+            document.duration_seconds,
+            Math.max(0, playheadSeconds + direction * frames / document.fps),
+          ));
           return;
         }
         if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -1307,7 +1362,7 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
-          if (canAddEdit) addEdit();
+          setSnapEnabled((enabled) => !enabled);
           return;
         }
         if (event.key.toLowerCase() === 'm' && event.altKey && event.shiftKey && (event.ctrlKey || event.metaKey)) {
@@ -1315,7 +1370,10 @@ export function ProjectTimeline({
           clearMarkers();
           return;
         }
-        if (event.key.toLowerCase() === 'm' && event.altKey) {
+        if (event.key.toLowerCase() === 'm'
+          && event.altKey
+          && (event.ctrlKey || event.metaKey)
+          && !event.shiftKey) {
           event.preventDefault();
           deleteSelectedMarker();
           return;
@@ -1536,6 +1594,7 @@ export function ProjectTimeline({
       <div className="grid h-8 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
         <span />
         <div
+          aria-label={t`时间轴标尺`}
           className="relative min-w-0 cursor-col-resize overflow-hidden"
           onPointerDown={(event) => {
             if (event.button === 0 && !(event.target instanceof Element && event.target.closest('button'))) {
@@ -1579,32 +1638,6 @@ export function ProjectTimeline({
         onScroll={(event) => {
           timelineScrollLeftRef.current = event.currentTarget.scrollLeft;
           setScrollLeft(event.currentTarget.scrollLeft);
-        }}
-        onWheel={(event) => {
-          const viewport = event.currentTarget;
-          const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE
-            ? 16
-            : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-              ? Math.max(1, viewport.clientHeight)
-              : 1;
-          const deltaX = event.deltaX * unit;
-          const deltaY = event.deltaY * unit;
-          const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
-          if (event.altKey) {
-            event.preventDefault();
-            const bounds = viewport.getBoundingClientRect();
-            const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
-            const anchorPx = event.clientX - bounds.left - trackHead;
-            changeZoomMultiplier(effectiveZoomMultiplier * (2 ** (-primaryDelta / 480)), anchorPx);
-            return;
-          }
-          event.preventDefault();
-          if (event.ctrlKey || event.metaKey) {
-            setTimelineScroll(viewport.scrollLeft, viewport.scrollTop + primaryDelta);
-            return;
-          }
-          const horizontalDelta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
-          setTimelineScroll(viewport.scrollLeft + horizontalDelta);
         }}
         onPointerDown={(event) => {
           if (event.button === 0 && event.target === event.currentTarget) {
@@ -1844,7 +1877,7 @@ export function ProjectTimeline({
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
             event.preventDefault();
             const direction = event.key === 'ArrowRight' ? 1 : -1;
-            const step = event.shiftKey ? 1 : 1 / document.fps;
+            const step = (event.shiftKey ? 5 : 1) / document.fps;
             onSeek(Math.min(document.duration_seconds, Math.max(0, playheadSeconds + direction * step)));
           }}
         />
@@ -3197,32 +3230,36 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         onClearPreview();
       }}
       onKeyDown={(event) => {
-        if (editTool === 'razor'
-          || editTool === 'track_forward'
-          || editTool === 'track_backward'
-          || readOnly
-          || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
-        event.preventDefault();
-        const direction = event.key === 'ArrowRight' ? 1 : -1;
-        if (editTool === 'rolling' || editTool === 'rate') return;
-        if (editTool === 'slide') {
-          if (!canSlide) return;
-          const replacement = onPreviewSlide(clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps));
-          onClearPreview();
-          onReplace(replacement, 'slide');
-          return;
-        }
-        if (editTool === 'slip') {
+        if (readOnly || editTool === 'razor' || editTool === 'track_forward' || editTool === 'track_backward') return;
+        const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        const frames = event.shiftKey ? 5 : 1;
+        if (direction !== 0 && event.altKey && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          event.stopPropagation();
           if (!canSlip) return;
-          const replacement = onPreviewSlip(direction * (event.shiftKey ? 1 : 1 / fps));
+          const replacement = onPreviewSlip(direction * frames / fps);
           onClearPreview();
           onReplace(replacement, 'slip');
           return;
         }
-        onReplace(
-          moveTimelineClip(clip, clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps), fps),
-          'move',
-        );
+        if (direction !== 0 && event.altKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          onReplace(
+            moveTimelineClip(clip, clip.placement.start + direction * frames / fps, fps),
+            'move',
+          );
+          return;
+        }
+        if ((event.key === ',' || event.key === '.') && event.altKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!canSlide) return;
+          const slideDirection = event.key === '.' ? 1 : -1;
+          const replacement = onPreviewSlide(clip.placement.start + slideDirection * frames / fps);
+          onClearPreview();
+          onReplace(replacement, 'slide');
+        }
       }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
       data-timeline-clip-id={clip.id}

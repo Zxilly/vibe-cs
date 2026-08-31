@@ -123,6 +123,23 @@ function runMarkerCommand(name: string): void {
   fireEvent.click(screen.getByRole('menuitem', { name }));
 }
 
+function stepTimelineFrames(playhead: HTMLElement, frames: number): void {
+  const key = frames >= 0 ? 'ArrowRight' : 'ArrowLeft';
+  let remaining = Math.abs(frames);
+  while (remaining >= 5) {
+    fireEvent.keyDown(playhead, { key, shiftKey: true });
+    remaining -= 5;
+  }
+  while (remaining > 0) {
+    fireEvent.keyDown(playhead, { key });
+    remaining -= 1;
+  }
+}
+
+function stepTimelineSeconds(playhead: HTMLElement, seconds: number, fps = 60): void {
+  stepTimelineFrames(playhead, Math.round(seconds * fps));
+}
+
 const PROJECT: Project = {
   id: '00000000-0000-4000-8000-000000000001',
   name: '统一作品',
@@ -577,10 +594,9 @@ describe('unified project workspace', () => {
     renderWorkspace({ project: RECORDED_PROJECT, exportProject, getActivity });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 2);
     fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
-    for (let index = 0; index < 4; index += 1) fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 4);
     fireEvent.click(screen.getByRole('button', { name: '在播放头标记出点' }));
 
     fireEvent.click(screen.getByRole('button', { name: '导出成片' }));
@@ -682,12 +698,50 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('region', { name: '时间轴' }).classList.contains('select-none')).toBe(true);
   });
 
-  it('does not write a Story keyboard move that remains in the same ripple slot', async () => {
+  it('snaps the playhead to clip edges while Shift-dragging like Premiere', async () => {
+    renderWorkspace();
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '0px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 1_000,
+      bottom: 300,
+      left: 0,
+      width: 1_000,
+      height: 300,
+      toJSON: () => ({}),
+    });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' });
+    const pixelsPerSecond = Number(zoom.dataset.timelinePixelsPerSecond);
+    expect(pixelsPerSecond).toBeGreaterThan(0);
+    const nearFiveSeconds = 4.9;
+
+    fireEvent.pointerDown(playhead, {
+      pointerId: 8,
+      button: 0,
+      clientX: nearFiveSeconds * pixelsPerSecond,
+      shiftKey: true,
+    });
+    fireEvent.pointerUp(playhead, {
+      pointerId: 8,
+      button: 0,
+      clientX: nearFiveSeconds * pixelsPerSecond,
+      shiftKey: true,
+    });
+
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5);
+  });
+
+  it('uses unmodified arrows on a focused Story clip for playhead navigation without moving the clip', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
     const clipButton = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
-    fireEvent.keyDown(clipButton, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(clipButton, { key: 'ArrowRight' });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(applyProjectPatch).not.toHaveBeenCalled();
@@ -714,13 +768,13 @@ describe('unified project workspace', () => {
 
     const audioButton = await screen.findByRole('button', { name: /Bed 5\.0s · 已录制/u });
     fireEvent.click(audioButton);
-    fireEvent.keyDown(audioButton, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(audioButton, { key: 'ArrowRight', altKey: true, shiftKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
         op: 'replace_clip',
         clip_id: audioClipId,
-        clip: expect.objectContaining({ placement: expect.objectContaining({ start: 13 }) }),
+        clip: expect.objectContaining({ placement: expect.objectContaining({ start: expect.closeTo(12 + 5 / 60, 6) }) }),
       })],
     })));
     expect(screen.getAllByRole('button', { name: /A 5\.0s · 未录制/u })).toHaveLength(1);
@@ -779,7 +833,7 @@ describe('unified project workspace', () => {
     };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project, applyProjectPatch });
-    fireEvent.keyDown(await screen.findByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(await screen.findByRole('slider', { name: '时间轴播放头' }), 1);
 
     const gain = await screen.findByRole('slider', { name: '调整片段增益 A' });
     expect(Number(gain.getAttribute('aria-valuenow'))).toBeCloseTo(20 * Math.log10(2));
@@ -943,7 +997,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ project: lockedProject, applyProjectPatch });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 1);
     openTimelineCommands();
     expect(screen.getByRole('menuitem', { name: '在播放头添加剪辑点' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByRole('menuitem', { name: '删除所选片段并闭合间隙' }).getAttribute('aria-disabled')).toBe('true');
@@ -1073,7 +1127,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ applyProjectPatch });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 1);
     runTimelineCommand('在播放头添加剪辑点');
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -1089,16 +1143,16 @@ describe('unified project workspace', () => {
     })));
   });
 
-  it('focuses the Timeline after pointer interaction so S uses the visible Add Edit path', async () => {
+  it('focuses the Timeline after pointer interaction so Ctrl+K uses the visible Add Edit path', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 1);
     const timeline = screen.getByRole('region', { name: '时间轴' });
     fireEvent.pointerDown(timeline, { pointerId: 99, button: 0 });
     expect(document.activeElement).toBe(timeline);
-    fireEvent.keyDown(document.activeElement!, { key: 's' });
+    fireEvent.keyDown(document.activeElement!, { key: 'k', ctrlKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1112,13 +1166,38 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('uses Adobe S for Timeline snapping without creating an edit', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const snap = screen.getByRole('button', { name: '切换时间轴吸附' });
+    expect(snap.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(timeline, { key: 's' });
+    expect(snap.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.keyDown(timeline, { key: 's' });
+    expect(snap.getAttribute('aria-pressed')).toBe('true');
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
+  it('uses Adobe Timeline arrows for one frame and Shift arrows for five frames', async () => {
+    renderWorkspace();
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(timeline, { key: 'ArrowRight' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeCloseTo(1 / 60);
+    fireEvent.keyDown(timeline, { key: 'ArrowRight', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeCloseTo(6 / 60);
+  });
+
   it('adds one edit across every targeted track with Ctrl+K', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -1145,7 +1224,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true, shiftKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalled());
@@ -1411,6 +1490,8 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'M', shiftKey: true, ctrlKey: true });
     expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(1);
     fireEvent.keyDown(timeline, { key: 'm', altKey: true });
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.keyDown(timeline, { key: 'm', altKey: true, ctrlKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{ op: 'replace_markers', markers: [markers[1]] }],
@@ -1458,7 +1539,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     expect(screen.getByText('目标：Story、Music')).toBeTruthy();
     fireEvent.keyDown(timeline, { key: 'i' });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(timeline, { key: 'o' });
     fireEvent.keyDown(timeline, { key: ';' });
 
@@ -1494,7 +1575,7 @@ describe('unified project workspace', () => {
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.keyDown(timeline, { key: 'i' });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(timeline, { key: 'o' });
     expect(screen.getByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeTruthy();
     fireEvent.keyDown(timeline, { key: "'" });
@@ -1524,7 +1605,7 @@ describe('unified project workspace', () => {
     const qPatch = vi.fn();
     const qRender = renderWorkspace({ applyProjectPatch: qPatch });
     const qTimeline = await screen.findByRole('region', { name: '时间轴' });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(qTimeline, { key: 'q' });
     await waitFor(() => expect(qPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1540,7 +1621,7 @@ describe('unified project workspace', () => {
     const wPatch = vi.fn();
     renderWorkspace({ applyProjectPatch: wPatch });
     const wTimeline = await screen.findByRole('region', { name: '时间轴' });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(wTimeline, { key: 'w' });
     await waitFor(() => expect(wPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1605,7 +1686,7 @@ describe('unified project workspace', () => {
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true, shiftKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -1739,9 +1820,7 @@ describe('unified project workspace', () => {
     });
 
     await screen.findByRole('button', { name: /B 5\.0s · 已录制/u });
-    for (let second = 0; second < 5; second += 1) {
-      fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
-    }
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 5);
     const preview = await screen.findByLabelText('B 视频预览') as HTMLVideoElement;
     expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
   });
@@ -1792,9 +1871,7 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(play).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
 
-    for (let second = 0; second < 5; second += 1) {
-      fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
-    }
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 5);
     const target = await screen.findByLabelText('B 视频预览') as HTMLVideoElement;
     Object.defineProperty(target, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
     fireEvent.loadedData(target);
@@ -1966,7 +2043,7 @@ describe('unified project workspace', () => {
     });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 1);
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(1);
     const preview = screen.getByLabelText('A 视频预览') as HTMLVideoElement;
     Object.defineProperties(preview, {
@@ -2014,7 +2091,7 @@ describe('unified project workspace', () => {
     expect(preview.style.transform).toContain('translate3d(5%');
     expect(preview.style.opacity).toBe('0.5');
 
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewTransformX).toBe('192'));
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
   });
@@ -2071,7 +2148,7 @@ describe('unified project workspace', () => {
     expect(overlay.style.left).toBe('55%');
     expect(overlay.style.top).toBe('55%');
 
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     await waitFor(() => expect(overlay.dataset.programTextX).toBe('192'));
     expect(overlay.style.left).toBe('60%');
 
@@ -2228,7 +2305,7 @@ describe('unified project workspace', () => {
     expect(preview.dataset.previewOutputVolume).toBe('0');
     expect(preview.volume).toBe(0);
 
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewCanonicalVolume).toBe('1'));
     expect(preview.dataset.previewFadeFactor).toBe('1');
     expect(preview.dataset.previewOutputVolume).toBe('1');
@@ -2300,7 +2377,7 @@ describe('unified project workspace', () => {
     expect(preview.dataset.previewTransitionProgress).toBe('0');
     expect(preview.style.transform).toContain('scale(1.18, 1.18)');
 
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     await waitFor(() => expect(preview.dataset.previewTransitionProgress).toBe('0.5'));
     expect(preview.style.transform).toContain('scale(1.09, 1.09)');
   });
@@ -2477,7 +2554,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '上一帧' }));
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
 
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 1);
     fireEvent.keyDown(timeline, { key: 'j' });
     await waitFor(() => expect(screen.getByText('-1.0x')).toBeTruthy());
     fireEvent.keyDown(timeline, { key: 'k' });
@@ -2597,6 +2674,21 @@ describe('unified project workspace', () => {
     fireEvent.wheel(viewport, { ctrlKey: true, deltaY: 80, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
     expect(viewport.scrollLeft).toBe(horizontalPosition);
     expect(viewport.scrollTop).toBe(80);
+    clientWidth.mockRestore();
+  });
+
+  it('uses the Windows horizontal wheel mode while hovering the Timeline ruler', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(zoom, { target: { value: zoom.max } });
+    const ruler = screen.getByLabelText('时间轴标尺');
+    fireEvent.wheel(ruler, { deltaY: 120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+
+    expect(viewport.scrollLeft).toBe(120);
     clientWidth.mockRestore();
   });
 
@@ -3234,8 +3326,7 @@ describe('unified project workspace', () => {
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
     fireEvent.click(await screen.findByRole('button', { name: '启用' }));
     const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
-    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(playhead, 2);
     fireEvent.click(screen.getByRole('button', { name: '在播放头添加速度关键帧' }));
     fireEvent.change(screen.getByRole('spinbutton', { name: '区间 2 速度百分比' }), { target: { value: '200' } });
 
@@ -4590,7 +4681,7 @@ describe('unified project workspace', () => {
     const x = await screen.findByRole('spinbutton', { name: '位置 X' });
     fireEvent.change(x, { target: { value: '100' } });
     fireEvent.click(screen.getByRole('button', { name: '在播放头添加 位置 X 关键帧' }));
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     expect((screen.getByRole('spinbutton', { name: '位置 X' }) as HTMLInputElement).value).toBe('100');
     fireEvent.change(screen.getByRole('spinbutton', { name: '位置 X' }), { target: { value: '200' } });
     fireEvent.click(screen.getByRole('button', { name: '上一个关键帧' }));
@@ -4621,7 +4712,7 @@ describe('unified project workspace', () => {
 
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
     fireEvent.click(await screen.findByRole('button', { name: '在播放头添加 音量 关键帧' }));
-    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
     fireEvent.change(screen.getByRole('spinbutton', { name: '音量' }), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
 

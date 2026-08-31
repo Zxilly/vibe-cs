@@ -16,7 +16,8 @@ pub const HLAE_TAKE_MAX_FRAMES: usize = 2_160_000;
 pub const HLAE_TAKE_MAX_ESTIMATED_BYTES: u64 = 512 * 1_024 * 1_024 * 1_024;
 const HLAE_TGA_HEADER_BYTES: usize = 18;
 const HLAE_TGA_MAX_DECODED_BYTES: usize = 256 * 1_024 * 1_024;
-const HLAE_FRAME_COUNT_TOLERANCE: usize = 2;
+const HLAE_FRAME_COUNT_LOWER_TOLERANCE: usize = 2;
+const HLAE_FRAME_COUNT_UPPER_TOLERANCE: usize = 3;
 
 /// Bounded frame-count evidence derived from the ticks HLAE actually observed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,8 +31,10 @@ pub struct HlaeFrameCountBounds {
 ///
 /// HLAE command callbacks can be observed a small number of ticks after their
 /// scheduled point, so callers must use the actual accepted start/end ticks.
-/// Two frames of rounding tolerance are allowed at either encoder boundary;
-/// a materially shorter take remains a hard failure.
+/// Two frames of tolerance cover a late start. The upper bound allows three:
+/// HLAE can write an inclusive terminal frame after the end callback, as proven
+/// by real 60 fps capture evidence. A materially shorter or longer take remains
+/// a hard failure.
 ///
 /// # Errors
 ///
@@ -54,7 +57,7 @@ pub fn hlae_frame_count_bounds(
     }
     let ticks = observed_end_tick - observed_start_tick;
     let nominal = (f64::from(ticks) / tick_rate) * f64::from(fps);
-    let hard_maximum = u32::try_from(HLAE_TAKE_MAX_FRAMES - HLAE_FRAME_COUNT_TOLERANCE)
+    let hard_maximum = u32::try_from(HLAE_TAKE_MAX_FRAMES - HLAE_FRAME_COUNT_UPPER_TOLERANCE)
         .map_err(|_| HlaeError::InvalidPlan("capture frame ceiling is unsupported".to_owned()))?;
     if !nominal.is_finite() || nominal <= 0.0 || nominal.ceil() > f64::from(hard_maximum) {
         return Err(HlaeError::InvalidPlan(format!(
@@ -70,8 +73,10 @@ pub fn hlae_frame_count_bounds(
         HlaeError::InvalidPlan("observed capture frame count is unsupported".to_owned())
     })?;
     Ok(HlaeFrameCountBounds {
-        minimum: floor.saturating_sub(HLAE_FRAME_COUNT_TOLERANCE).max(1),
-        maximum: ceil + HLAE_FRAME_COUNT_TOLERANCE,
+        minimum: floor
+            .saturating_sub(HLAE_FRAME_COUNT_LOWER_TOLERANCE)
+            .max(1),
+        maximum: ceil + HLAE_FRAME_COUNT_UPPER_TOLERANCE,
     })
 }
 
@@ -488,7 +493,18 @@ mod tests {
             hlae_frame_count_bounds(1_000, 1_640, 64.0, 60).unwrap(),
             HlaeFrameCountBounds {
                 minimum: 598,
-                maximum: 602,
+                maximum: 603,
+            }
+        );
+    }
+
+    #[test]
+    fn allows_the_inclusive_terminal_frame_seen_in_real_hlae_capture() {
+        assert_eq!(
+            hlae_frame_count_bounds(1_000, 1_788, 64.0, 60).unwrap(),
+            HlaeFrameCountBounds {
+                minimum: 736,
+                maximum: 742,
             }
         );
     }
@@ -499,7 +515,7 @@ mod tests {
             hlae_frame_count_bounds(1_000, 1_001, 64.0, 60).unwrap(),
             HlaeFrameCountBounds {
                 minimum: 1,
-                maximum: 3,
+                maximum: 4,
             }
         );
     }

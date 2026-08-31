@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use vibe_cs_application::{AnalysisPort, RecordingPort};
 use vibe_cs_domain::{
-    AnalysisRunStatus, AppConfig, DemoRecord, DomainError, Highlight, HighlightKind,
+    AnalysisRunStatus, AppConfig, DemoRecord, DomainError, EventKind, Highlight, HighlightKind,
     JobFailureCode, JobStatus, MatchAnalysis, RecordedClip, RecordingJob, RecordingRequest,
     ReplayFrame, ReplayPlayer, RoundReplayArtifact,
 };
@@ -1375,6 +1375,7 @@ fn build_segment_plan(
                 .find(|round| round.number == highlight.round)
         })
     });
+    let camera_player_id = resolve_camera_player(request, analysis, highlight)?;
     // CS2 can temporarily leave Demo playback while applying the full packet
     // at a round boundary. A highlight belongs to one authoritative round, so
     // its optional handles are clipped to that round instead of asking HLAE to
@@ -1382,15 +1383,35 @@ fn build_segment_plan(
     let start_tick = highlight_round.map_or(requested_window_start, |round| {
         requested_window_start.max(round.start_tick)
     });
-    let end_tick = highlight_round.map_or(requested_window_end, |round| {
+    let mut end_tick = highlight_round.map_or(requested_window_end, |round| {
         requested_window_end.min(round.end_tick)
     });
+    let player_death_tick =
+        if request.camera_style == vibe_cs_domain::HlaeCameraStyle::Pov && !request.victim_pov {
+            highlight_round.and_then(|round| {
+                round
+                    .events
+                    .iter()
+                    .filter(|event| {
+                        event.kind == EventKind::Kill
+                            && event.target.as_deref() == Some(camera_player_id.as_str())
+                            && event.tick >= start_tick
+                            && event.tick <= end_tick
+                    })
+                    .map(|event| event.tick)
+                    .min()
+            })
+        } else {
+            None
+        };
+    if let Some(death_tick) = player_death_tick {
+        end_tick = end_tick.min(death_tick.saturating_sub(1));
+    }
     if end_tick <= start_tick || end_tick - start_tick > u64::from(u32::MAX) {
         return Err(DomainError::InvalidInput(
             "recording segment tick span exceeds the supported range".to_owned(),
         ));
     }
-    let camera_player_id = resolve_camera_player(request, analysis, highlight)?;
     let player_name = analysis
         .and_then(|analysis| {
             analysis
@@ -1434,6 +1455,8 @@ fn build_segment_plan(
             "round_boundary_tick": highlight_round.map(|round| round.end_tick),
             "pre_roll_clamped": start_tick != requested_window_start,
             "post_roll_clamped": end_tick != requested_window_end,
+            "pov_end_clamped_to_player_death": player_death_tick.is_some(),
+            "player_death_tick": player_death_tick,
             "pre_roll_seconds": request.pre_roll_seconds,
             "post_roll_seconds": request.post_roll_seconds,
             "pre_roll_ticks": pre_roll_ticks,
@@ -3826,7 +3849,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn highlight_roll_is_clamped_to_its_authoritative_round() {
+    async fn highlight_roll_is_clamped_to_its_round_and_player_death() {
         let (_root, storage, _port, job) = fixture(false).await;
         let demo = storage
             .get_demo(job.items[0].demo_id)
@@ -3868,7 +3891,19 @@ mod tests {
                 reason: "elimination".to_owned(),
                 team_a_score: 1,
                 team_b_score: 0,
-                events: Vec::new(),
+                events: vec![vibe_cs_domain::TimelineEvent {
+                    id: "player-death".to_owned(),
+                    tick: 1_220,
+                    seconds: 19.0625,
+                    kind: EventKind::Kill,
+                    actor: Some("opponent".to_owned()),
+                    target: Some("player".to_owned()),
+                    weapon: Some("ak47".to_owned()),
+                    headshot: false,
+                    penetrated: false,
+                    position: None,
+                    detail: serde_json::Value::Null,
+                }],
             }],
             highlights: vec![vibe_cs_domain::Highlight {
                 id: "round-one-highlight".to_owned(),
@@ -3896,8 +3931,10 @@ mod tests {
         .expect("round-bound highlight segment");
 
         assert_eq!(segment.start_tick, 936);
-        assert_eq!(segment.end_tick, 1_250);
+        assert_eq!(segment.end_tick, 1_219);
         assert_eq!(segment.metadata["round_boundary_tick"], 1_250);
         assert_eq!(segment.metadata["post_roll_clamped"], true);
+        assert_eq!(segment.metadata["player_death_tick"], 1_220);
+        assert_eq!(segment.metadata["pov_end_clamped_to_player_death"], true);
     }
 }

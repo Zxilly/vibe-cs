@@ -3377,7 +3377,7 @@ mod tests {
         assert_eq!(evidence.observed_capture_span.start_tick(), 10);
         assert_eq!(evidence.observed_capture_span.end_tick(), 13);
         assert_eq!(evidence.frame_count_bounds.minimum, 1);
-        assert_eq!(evidence.frame_count_bounds.maximum, 3);
+        assert_eq!(evidence.frame_count_bounds.maximum, 4);
         assert_eq!(fs::read(output).unwrap(), b"verified fake MP4");
         assert!(
             !job.join(HLAE_ENCODED_OUTPUT_FILE).exists(),
@@ -3405,7 +3405,7 @@ mod tests {
         );
         let encode_request = encoder.request.lock().unwrap().clone().unwrap();
         assert_eq!(encode_request.minimum_frames, 1);
-        assert_eq!(encode_request.maximum_frames, 3);
+        assert_eq!(encode_request.maximum_frames, 4);
     }
 
     #[tokio::test]

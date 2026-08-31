@@ -124,6 +124,11 @@ impl ToolState {
                         .await
                         .map_err(ToolExecutionError::other)?
                 }
+                ToolKind::ReadProjectDelivery => self
+                    .host()?
+                    .read_project_delivery(&input)
+                    .await
+                    .map_err(ToolExecutionError::other)?,
                 ToolKind::ApplyProjectPatch => self
                     .host()?
                     .apply_project_patch(input.clone())
@@ -188,6 +193,7 @@ enum ToolKind {
     ReadWorkspace,
     ReadDemoEvidence,
     ReadCinematicContext,
+    ReadProjectDelivery,
     ApplyProjectPatch,
     ReplaceStoryTimeline,
     RequestRecording,
@@ -264,6 +270,13 @@ fn tool_catalog() -> Vec<ToolDefinition> {
                 json!({"highlightIds": string_array_schema(64)}),
                 &["highlightIds"],
             ),
+        ),
+        definition(
+            ToolKind::ReadProjectDelivery,
+            "read_project_delivery",
+            ALL_MODES,
+            "Read the authoritative Project Delivery Gate and latest export artifact, including job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. Call this after recording or export completion before claiming the Project is deliverable.",
+            object_schema(json!({"projectId":uuid_schema()}), &["projectId"]),
         ),
         definition(
             ToolKind::ApplyProjectPatch,
@@ -763,6 +776,24 @@ fn bounded_output(output: &Value) -> Value {
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
+    struct DeliveryHost;
+
+    #[async_trait::async_trait]
+    impl AgentToolHost for DeliveryHost {
+        async fn read_cinematic_context(&self, _highlight_ids: &[String]) -> Result<Value, String> {
+            Ok(json!({"scenes":[]}))
+        }
+
+        async fn read_project_delivery(&self, input: &Value) -> Result<Value, String> {
+            Ok(json!({
+                "projectId":input["projectId"],
+                "deliveryGate":{"ready":true},
+                "latestExport":{"status":"completed","availability":"present"},
+            }))
+        }
+    }
+
     #[test]
     fn current_catalog_has_one_project_edit_path() {
         let names = tool_catalog()
@@ -816,6 +847,50 @@ mod tests {
         assert_eq!(schema["properties"]["maximumHighlights"]["maximum"], 128);
         assert_eq!(schema["properties"]["demoIds"]["maxItems"], 16);
         assert_eq!(schema["required"], json!([]));
+    }
+
+    #[test]
+    fn project_delivery_schema_requires_one_exact_project() {
+        let schema = tool_catalog()
+            .into_iter()
+            .find(|tool| tool.name == "read_project_delivery")
+            .expect("Project delivery tool")
+            .parameters;
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["required"], json!(["projectId"]));
+        assert_eq!(schema["properties"]["projectId"]["format"], "uuid");
+    }
+
+    #[tokio::test]
+    async fn project_delivery_is_captured_from_the_single_host_runtime() {
+        let project_id = "00000000-0000-4000-8000-000000000001";
+        let (state, mut lifecycle) = ToolState::new(
+            AgentContext::default(),
+            Some(Arc::new(DeliveryHost)),
+            "turn-delivery",
+        );
+        let output = state
+            .execute(
+                ToolKind::ReadProjectDelivery,
+                "read_project_delivery",
+                json!({"projectId":project_id}),
+            )
+            .await
+            .expect("authoritative Project delivery");
+
+        assert_eq!(output["projectId"], project_id);
+        assert_eq!(output["latestExport"]["availability"], "present");
+        assert!(matches!(
+            lifecycle.recv().await,
+            Some(ToolLifecycleEvent::Started { ref name, .. })
+                if name == "read_project_delivery"
+        ));
+        assert!(matches!(
+            lifecycle.recv().await,
+            Some(ToolLifecycleEvent::Finished(ref call))
+                if call.status == CapturedToolCallStatus::Completed
+                    && call.output["deliveryGate"]["ready"] == true
+        ));
     }
 
     #[test]

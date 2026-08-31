@@ -268,7 +268,7 @@ export function ProjectWorkspacePage() {
     if (next === undefined) return;
     reportedExecutionIds.current.add(next.id);
     const outcome = next.status === 'completed'
-      ? t`${next.kind === 'recording' ? '录制' : '导出'}任务已完成。请读取最新 Project Head，检查结果并继续当前交付。`
+      ? t`${next.kind === 'recording' ? '录制' : '导出'}任务已完成。请读取最新 Project Head，并调用 read_project_delivery 检查权威交付状态后继续当前交付。`
       : t`${next.kind === 'recording' ? '录制' : '导出'}任务${next.status === 'cancelled' ? '已取消' : '失败'}：${next.error ?? '未提供错误详情'}。请说明影响和下一步。`;
     void agentChat.send({
       sessionId: agentSessionId,

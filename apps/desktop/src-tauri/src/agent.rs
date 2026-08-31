@@ -300,6 +300,79 @@ impl AgentToolHost for DesktopAgentToolHost {
         Ok(json!({"scenes":scenes}))
     }
 
+    async fn read_project_delivery(&self, input: &Value) -> Result<Value, String> {
+        let requested_project_id = input
+            .get("projectId")
+            .and_then(Value::as_str)
+            .and_then(|value| Uuid::parse_str(value).ok())
+            .ok_or_else(|| "Project delivery requires one valid projectId".to_owned())?;
+        if requested_project_id != self.project_id {
+            return Err("Project delivery query targets another Project".to_owned());
+        }
+        let delivery_gate = self
+            .bridge
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Get,
+                path: format!("/projects/{requested_project_id}/delivery-gate"),
+                body: None,
+            })
+            .await
+            .map_err(|error| format!("unable to read Project Delivery Gate: {error:?}"))?;
+        let latest_export = self
+            .bridge
+            .storage
+            .list_export_jobs_limited(Some(requested_project_id), 1)
+            .await
+            .map_err(|error| format!("unable to read Project exports: {error}"))?
+            .into_iter()
+            .next();
+        let latest_export = match latest_export {
+            None => Value::Null,
+            Some(record) => {
+                let export_id = record.job.id.to_string();
+                let project_id = requested_project_id.to_string();
+                let page = self
+                    .bridge
+                    .dispatcher
+                    .dispatch(DesktopCall {
+                        method: DesktopMethod::Get,
+                        path: format!("/outputs?kind=export&search={}&page_size=1", record.job.id),
+                        body: None,
+                    })
+                    .await
+                    .map_err(|error| format!("unable to inspect latest export: {error:?}"))?;
+                page.get("items")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .find(|item| {
+                        item.get("id").and_then(Value::as_str) == Some(export_id.as_str())
+                            && item.get("project_id").and_then(Value::as_str)
+                                == Some(project_id.as_str())
+                    })
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        json!({
+                            "id": record.job.id,
+                            "project_id": record.job.project_id,
+                            "status": record.job.status,
+                            "progress": record.job.progress,
+                            "path": record.job.output_path,
+                            "error": record.job.error,
+                            "availability": "unknown",
+                            "media": null,
+                        })
+                    })
+            }
+        };
+        Ok(json!({
+            "projectId": requested_project_id,
+            "deliveryGate": delivery_gate,
+            "latestExport": latest_export,
+        }))
+    }
+
     async fn apply_project_patch(&self, input: Value) -> Result<Value, String> {
         let input: AgentProjectPatchInput = serde_json::from_value(input)
             .map_err(|error| format!("invalid Project Patch: {error}"))?;

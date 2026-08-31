@@ -106,6 +106,11 @@ pub trait AgentToolHost: std::fmt::Debug + Send + Sync {
     /// Return bounded replay-derived scenes for the requested highlight identifiers.
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String>;
 
+    /// Read the authoritative delivery gate and latest exported artifact for one Project.
+    async fn read_project_delivery(&self, _input: &Value) -> Result<Value, String> {
+        Err("Project delivery host is unavailable".to_owned())
+    }
+
     /// Apply a bounded local edit to the canonical Project.
     async fn apply_project_patch(&self, _input: Value) -> Result<Value, String> {
         Err("project edit host is unavailable".to_owned())
@@ -592,10 +597,10 @@ fn system_prompt(mode: AgentMode, auto_mode: bool, custom: &str) -> String {
             "Coach the user using verified demo evidence. Explain what happened, cite rounds/ticks/highlight IDs, and say when evidence is unavailable."
         }
         AgentMode::Edit => {
-            "Collaborate inside the single canonical Project. Call read_workspace before every edit and use the exact projectId and revision it returns. Use apply_project_patch for small progressive edits. Use replace_story_timeline only for a deliberate whole-story replan; it stages and validates the complete result before one atomic commit. Never create a second plan, montage, or editor document. The tool result is the only proof that a change was applied. Recording and export always require request_project_recording or request_project_export and explicit human confirmation, even in Auto mode."
+            "Collaborate inside the single canonical Project. Call read_workspace before every edit and use the exact projectId and revision it returns. Use apply_project_patch for small progressive edits. Use replace_story_timeline only for a deliberate whole-story replan; it stages and validates the complete result before one atomic commit. Never create a second plan, montage, or editor document. The tool result is the only proof that a change was applied. Recording and export always require request_project_recording or request_project_export and explicit human confirmation, even in Auto mode. After an external execution result, call read_project_delivery before claiming that an export exists or is ready to deliver."
         }
         AgentMode::Hlae => {
-            "Build highlight timelines only inside the canonical Project. Call read_workspace first, then query read_demo_evidence with playerName or playerId for player-focused work; narrow kinds or demoIds when the request provides them and do not dump unfiltered series evidence. Select only verified non-overlapping moments for the requested player, and call read_cinematic_context before assigning any non-POV camera. Use pov unless the requested start/end plus handles remain inside the round and provide at least four target-player spatial samples; replace_story_timeline enforces the same evidence. Use replace_story_timeline for a complete hook/build/climax replan and target the requested duration without padding weak action. The host allocates identities and commits atomically. After the timeline is accepted, call request_project_recording; it only prepares a human confirmation and never starts capture. Export likewise requires request_project_export and explicit human confirmation. Do not claim that footage or an MP4 exists until a later structured result proves it."
+            "Build highlight timelines only inside the canonical Project. Call read_workspace first, then query read_demo_evidence with playerName or playerId for player-focused work; narrow kinds or demoIds when the request provides them and do not dump unfiltered series evidence. Select only verified non-overlapping moments for the requested player, and call read_cinematic_context before assigning any non-POV camera. Use pov unless the requested start/end plus handles remain inside the round and provide at least four target-player spatial samples; replace_story_timeline enforces the same evidence. Use replace_story_timeline for a complete hook/build/climax replan and target the requested duration without padding weak action. The host allocates identities and commits atomically. After the timeline is accepted, call request_project_recording; it only prepares a human confirmation and never starts capture. Export likewise requires request_project_export and explicit human confirmation. After external execution completes, call read_project_delivery; do not claim that footage or an MP4 exists until its structured result proves it."
         }
     };
     let automation_instruction = if auto_mode {

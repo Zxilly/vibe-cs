@@ -838,6 +838,7 @@ mod tests {
                 job: vibe_cs_domain::ExportJob {
                     id: export_id,
                     project_id: export_project_id,
+                    project_revision: 1,
                     status: vibe_cs_domain::JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/copied-id.mp4".to_owned(),
@@ -969,6 +970,7 @@ mod tests {
                 job: vibe_cs_domain::ExportJob {
                     id: export_id,
                     project_id: export_project_id,
+                    project_revision: 1,
                     status: vibe_cs_domain::JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),

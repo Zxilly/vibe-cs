@@ -115,6 +115,7 @@ struct OutputItemDto {
     /// containers per keystroke in the search box.
     media: Option<OutputMediaInfo>,
     project_id: Option<Uuid>,
+    project_revision: Option<u64>,
     demo_id: Option<Uuid>,
     error: Option<String>,
     created_at: DateTime<Utc>,
@@ -346,6 +347,7 @@ impl StoredOutput {
                 size_bytes: path_state.size_bytes,
                 media: None,
                 project_id: None,
+                project_revision: None,
                 demo_id: clip.demo_id,
                 error: None,
                 created_at: clip.created_at,
@@ -373,6 +375,7 @@ impl StoredOutput {
                     size_bytes: path_state.size_bytes,
                     media: None,
                     project_id: Some(record.job.project_id),
+                    project_revision: Some(record.job.project_revision),
                     demo_id: None,
                     error: record.job.error,
                     created_at: record.job.created_at,
@@ -1468,6 +1471,7 @@ mod tests {
                 job: ExportJob {
                     id,
                     project_id,
+                    project_revision: 1,
                     status: JobStatus::Running,
                     progress: 0.5,
                     output_path: fixture
@@ -1495,6 +1499,7 @@ mod tests {
         assert!(!scan_limited);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].availability, OutputAvailability::Missing);
+        assert_eq!(items[0].project_revision, Some(1));
         assert!(!items[0].mutable);
         assert!(
             fixture

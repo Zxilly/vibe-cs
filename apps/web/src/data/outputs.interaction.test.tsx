@@ -30,6 +30,7 @@ const OUTPUT: OutputItem = {
   size_bytes: 84_000_000,
   media: null,
   project_id: 'proj-1',
+  project_revision: 12,
   demo_id: 'demo-a',
   error: null,
   created_at: '2026-08-15T09:00:00Z',

@@ -25,6 +25,7 @@ export type OutputItemDto = {
    */
   media: OutputMediaInfo | null;
   project_id: string | null;
+  project_revision: number | null;
   demo_id: string | null;
   error: string | null;
   created_at: string;

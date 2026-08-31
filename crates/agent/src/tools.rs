@@ -98,10 +98,18 @@ impl ToolState {
         });
         let result = async {
             let output = match kind {
-                ToolKind::ReadWorkspace => json!({
-                    "workspace": self.context.workspace,
-                    "project": self.context.project,
-                }),
+                ToolKind::ReadWorkspace => {
+                    if let Some(host) = self.tool_host.as_ref() {
+                        host.read_workspace()
+                            .await
+                            .map_err(ToolExecutionError::other)?
+                    } else {
+                        json!({
+                            "workspace": self.context.workspace,
+                            "project": self.context.project,
+                        })
+                    }
+                }
                 ToolKind::ReadDemoEvidence => {
                     let analysis = if let Some(host) = self.tool_host.as_ref() {
                         host.read_demo_evidence(&input)
@@ -275,7 +283,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReadProjectDelivery,
             "read_project_delivery",
             ALL_MODES,
-            "Read the authoritative Project Delivery Gate and latest export artifact, including job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. Call this after recording or export completion before claiming the Project is deliverable.",
+            "Read the authoritative Project Delivery Gate and latest export artifact, including its source Project revision, job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. matchesCurrentRevision is true only when that artifact was rendered from the current Project Head. Call this after recording or export completion before claiming the Project is deliverable.",
             object_schema(json!({"projectId":uuid_schema()}), &["projectId"]),
         ),
         definition(
@@ -781,6 +789,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AgentToolHost for DeliveryHost {
+        async fn read_workspace(&self) -> Result<Value, String> {
+            Ok(json!({
+                "workspace":{"projectId":"00000000-0000-4000-8000-000000000001"},
+                "project":{"revision":9},
+            }))
+        }
+
         async fn read_cinematic_context(&self, _highlight_ids: &[String]) -> Result<Value, String> {
             Ok(json!({"scenes":[]}))
         }
@@ -891,6 +906,24 @@ mod tests {
                 if call.status == CapturedToolCallStatus::Completed
                     && call.output["deliveryGate"]["ready"] == true
         ));
+    }
+
+    #[tokio::test]
+    async fn workspace_reads_the_live_host_after_a_same_turn_edit() {
+        let (state, _lifecycle) = ToolState::new(
+            AgentContext {
+                project: json!({"revision":8}),
+                ..AgentContext::default()
+            },
+            Some(Arc::new(DeliveryHost)),
+            "turn-workspace",
+        );
+        let output = state
+            .execute(ToolKind::ReadWorkspace, "read_workspace", json!({}))
+            .await
+            .expect("live workspace");
+
+        assert_eq!(output["project"]["revision"], 9);
     }
 
     #[test]

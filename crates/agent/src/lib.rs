@@ -98,6 +98,11 @@ pub struct AgentContext {
 
 #[async_trait]
 pub trait AgentToolHost: std::fmt::Debug + Send + Sync {
+    /// Read the live workspace and canonical Project Head for the current turn.
+    async fn read_workspace(&self) -> Result<Value, String> {
+        Err("workspace host is unavailable".to_owned())
+    }
+
     /// Query target-specific evidence from the host's authoritative Demo analyses.
     async fn read_demo_evidence(&self, _input: &Value) -> Result<Value, String> {
         Err("Demo evidence host is unavailable".to_owned())

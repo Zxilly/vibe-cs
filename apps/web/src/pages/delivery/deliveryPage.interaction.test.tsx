@@ -66,6 +66,7 @@ const OUTPUT: OutputItem = {
     audio_codec: 'aac',
   },
   project_id: null,
+  project_revision: null,
   demo_id: 'demo-1',
   error: null,
   created_at: '2026-08-15T09:12:00.000Z',

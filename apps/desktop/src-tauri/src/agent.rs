@@ -253,6 +253,7 @@ impl AgentToolHost for CinematicReplayHost {
 struct DesktopAgentToolHost {
     cinematic: Vec<CinematicReplayHost>,
     evidence: Value,
+    workspace: Value,
     bridge: AgentBridge,
     project_id: Uuid,
     session_id: Uuid,
@@ -280,6 +281,28 @@ impl DesktopAgentToolHost {
 
 #[async_trait]
 impl AgentToolHost for DesktopAgentToolHost {
+    async fn read_workspace(&self) -> Result<Value, String> {
+        let project = self
+            .bridge
+            .storage
+            .get_project(self.project_id)
+            .await
+            .map_err(|error| format!("unable to read Project: {error}"))?
+            .ok_or_else(|| "Project does not exist".to_owned())?;
+        let mut workspace = self.workspace.clone();
+        if let Some(object) = workspace.as_object_mut() {
+            object.insert(
+                "resources".to_owned(),
+                json!({
+                    "demoIds": project_demo_ids(&project),
+                    "projectId": project.id,
+                    "projectRevision": project.revision,
+                }),
+            );
+        }
+        Ok(json!({"workspace":workspace,"project":project}))
+    }
+
     async fn read_demo_evidence(&self, input: &Value) -> Result<Value, String> {
         vibe_cs_agent::query_demo_evidence(&self.evidence, input)
     }
@@ -356,6 +379,7 @@ impl AgentToolHost for DesktopAgentToolHost {
                         json!({
                             "id": record.job.id,
                             "project_id": record.job.project_id,
+                            "project_revision": record.job.project_revision,
                             "status": record.job.status,
                             "progress": record.job.progress,
                             "path": record.job.output_path,
@@ -366,10 +390,16 @@ impl AgentToolHost for DesktopAgentToolHost {
                     })
             }
         };
+        let matches_current_revision = latest_export
+            .get("project_revision")
+            .and_then(Value::as_u64)
+            .zip(delivery_gate.get("revision").and_then(Value::as_u64))
+            .is_some_and(|(export_revision, head_revision)| export_revision == head_revision);
         Ok(json!({
             "projectId": requested_project_id,
             "deliveryGate": delivery_gate,
             "latestExport": latest_export,
+            "matchesCurrentRevision": matches_current_revision,
         }))
     }
 
@@ -413,6 +443,7 @@ impl AgentToolHost for DesktopAgentToolHost {
                 input.base_revision, project.revision
             ));
         }
+        let mut compatible_takes = story_take_candidates(&project);
         let mut timeline_start = 0.0;
         let mut clips = Vec::with_capacity(input.clips.len());
         for mut clip in input.clips {
@@ -421,9 +452,11 @@ impl AgentToolHost for DesktopAgentToolHost {
                 .highlight_id
                 .as_deref()
                 .map(|id| canonical_highlight_id(clip.demo_id, id));
-            let duration = clip.duration_seconds;
-            let timeline_clip = clip.into_timeline_clip(timeline_start);
-            timeline_start += duration;
+            let timeline_clip = reuse_compatible_story_take(
+                clip.into_timeline_clip(timeline_start),
+                &mut compatible_takes,
+            )?;
+            timeline_start += timeline_clip.placement.duration;
             clips.push(timeline_clip);
         }
         let patch = ProjectPatch {
@@ -524,6 +557,77 @@ impl StoryClipInput {
             speed_segments: Vec::new(),
         }
     }
+}
+
+fn story_take_candidates(project: &vibe_cs_domain::Project) -> HashMap<String, Vec<TimelineClip>> {
+    let Some(story) = project
+        .document
+        .tracks
+        .iter()
+        .find(|track| track.id == project.document.story_track_id)
+    else {
+        return HashMap::new();
+    };
+    let mut candidates = HashMap::<String, Vec<TimelineClip>>::new();
+    for clip in &story.clips {
+        if let TimelineClipMaterial::Take {
+            capture_fingerprint,
+            ..
+        } = &clip.material
+        {
+            candidates
+                .entry(capture_fingerprint.clone())
+                .or_default()
+                .push(clip.clone());
+        }
+    }
+    candidates
+}
+
+fn reuse_compatible_story_take(
+    mut clip: TimelineClip,
+    candidates: &mut HashMap<String, Vec<TimelineClip>>,
+) -> Result<TimelineClip, String> {
+    let fingerprint = clip
+        .capture_intent
+        .as_ref()
+        .ok_or_else(|| "Story clip is missing its Capture Intent".to_owned())?
+        .fingerprint()
+        .map_err(|error| format!("unable to fingerprint Story clip: {error}"))?;
+    let Some(existing) = candidates.get_mut(&fingerprint).and_then(Vec::pop) else {
+        return Ok(clip);
+    };
+    let TimelineClipMaterial::Take {
+        take_id,
+        asset_id,
+        media_duration_seconds,
+        ..
+    } = existing.material
+    else {
+        return Ok(clip);
+    };
+    clip.id = existing.id;
+    clip.placement.volume = existing.placement.volume;
+    clip.placement.enabled = existing.placement.enabled;
+    clip.transform = existing.transform;
+    clip.effects = existing.effects;
+    clip.transitions = existing.transitions;
+    clip.text = existing.text;
+    clip.group_id = existing.group_id;
+    clip.link_group_id = existing.link_group_id;
+    clip.keyframes = existing.keyframes;
+    clip.speed_segments = existing.speed_segments;
+    if let (Some(existing), Some(replanned)) =
+        (existing.metadata.as_object(), clip.metadata.as_object_mut())
+    {
+        for (key, value) in existing {
+            if key != "rationale" {
+                replanned.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    clip.with_recorded_take(take_id, asset_id, media_duration_seconds)
+        .map_err(|error| format!("unable to reuse compatible Story Take: {error}"))
 }
 
 async fn apply_agent_patch(
@@ -1324,14 +1428,6 @@ async fn run_agent_chat(
             )
         })
         .collect();
-    let tool_host = Some(Arc::new(DesktopAgentToolHost {
-        cinematic,
-        evidence,
-        bridge: state.clone(),
-        project_id: project.id,
-        session_id: thread_id,
-        turn_id: input.request_id,
-    }) as Arc<dyn AgentToolHost>);
     let mut workspace = serde_json::to_value(&input.workspace_context)
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
     if let Some(object) = workspace.as_object_mut() {
@@ -1344,6 +1440,15 @@ async fn run_agent_chat(
             }),
         );
     }
+    let tool_host = Some(Arc::new(DesktopAgentToolHost {
+        cinematic,
+        evidence,
+        workspace: workspace.clone(),
+        bridge: state.clone(),
+        project_id: project.id,
+        session_id: thread_id,
+        turn_id: input.request_id,
+    }) as Arc<dyn AgentToolHost>);
     let provider = config.llm.provider.clone();
     let model = config.llm.model.clone();
     let project_context = serde_json::to_value(&project)
@@ -1929,6 +2034,60 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    fn story_input() -> StoryClipInput {
+        StoryClipInput {
+            name: "NiKo R7".to_owned(),
+            demo_id: Uuid::from_u128(10),
+            highlight_id: Some("7:niko:multi".to_owned()),
+            player_id: "76561198041683378".to_owned(),
+            start_tick: 1_000,
+            end_tick: 1_400,
+            pre_roll_seconds: 2.0,
+            post_roll_seconds: 2.0,
+            duration_seconds: 12.0,
+            camera_style: HlaeCameraStyle::Pov,
+            rationale: "keep the verified action".to_owned(),
+        }
+    }
+
+    #[test]
+    fn whole_story_replan_reuses_each_compatible_take_once_and_ripples_to_real_duration() {
+        let mut recorded = story_input()
+            .into_timeline_clip(0.0)
+            .with_recorded_take(Uuid::from_u128(20), Uuid::from_u128(21), 6.0)
+            .expect("recorded Story Take");
+        recorded.id = Uuid::from_u128(22);
+        recorded.placement.volume = 0.5;
+        recorded.metadata["review"] = json!("keep");
+        let fingerprint = recorded
+            .capture_intent
+            .as_ref()
+            .expect("Capture Intent")
+            .fingerprint()
+            .expect("fingerprint");
+        let mut candidates = HashMap::from([(fingerprint, vec![recorded.clone()])]);
+
+        let reused =
+            reuse_compatible_story_take(story_input().into_timeline_clip(30.0), &mut candidates)
+                .expect("compatible Take");
+
+        assert_eq!(reused.id, recorded.id);
+        assert!((reused.placement.start - 30.0).abs() < f64::EPSILON);
+        assert!((reused.placement.duration - 6.0).abs() < f64::EPSILON);
+        assert!((reused.placement.volume - 0.5).abs() < f64::EPSILON);
+        assert_eq!(reused.metadata["review"], "keep");
+        assert_eq!(
+            reused.materialization_state().expect("material state"),
+            vibe_cs_domain::TimelineClipMaterializationState::Recorded
+        );
+
+        let duplicate =
+            reuse_compatible_story_take(story_input().into_timeline_clip(36.0), &mut candidates)
+                .expect("duplicate Story clip");
+        assert!(matches!(duplicate.material, TimelineClipMaterial::Planned));
+        assert_ne!(duplicate.id, recorded.id);
     }
 
     #[test]

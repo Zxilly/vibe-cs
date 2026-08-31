@@ -5,6 +5,7 @@ import type { JobStatus } from "./JobStatus";
 export type ExportJob = {
   id: string;
   project_id: string;
+  project_revision: number;
   status: JobStatus;
   progress: number;
   output_path: string;

@@ -636,6 +636,7 @@ mod tests {
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
                     project_id,
+                    project_revision: 1,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),
@@ -822,6 +823,7 @@ mod tests {
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
                     project_id,
+                    project_revision: 1,
                     status: JobStatus::Failed,
                     progress: 0.4,
                     output_path: "C:/exports/full-disk.mp4".to_owned(),
@@ -871,6 +873,7 @@ mod tests {
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
                     project_id,
+                    project_revision: 1,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/fine.mp4".to_owned(),

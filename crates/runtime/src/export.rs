@@ -116,11 +116,12 @@ impl RuntimeExportPort {
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
-        let plan = self.project_plan(project_id, &output, request).await?;
+        let (plan, project_revision) = self.project_plan(project_id, &output, request).await?;
         let now = Utc::now();
         let job = ExportJob {
             id,
             project_id,
+            project_revision,
             status: JobStatus::Running,
             progress: 0.0,
             output_path: output.to_string_lossy().into_owned(),
@@ -143,7 +144,7 @@ impl RuntimeExportPort {
         project_id: Uuid,
         output: &Path,
         request: &Value,
-    ) -> Result<FilterPlan, DomainError> {
+    ) -> Result<(FilterPlan, u64), DomainError> {
         let project = self
             .storage
             .get_project(project_id)
@@ -219,7 +220,9 @@ impl RuntimeExportPort {
             range_start: request.range_start_seconds,
             range_end: request.range_end_seconds,
         };
+        let revision = project.revision;
         build_project_plan_with_sources(&project, &assets, output, &options)
+            .map(|plan| (plan, revision))
             .map_err(map_media_error)
     }
 

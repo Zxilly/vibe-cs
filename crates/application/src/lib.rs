@@ -1239,6 +1239,7 @@ mod tests {
                 job: ExportJob {
                     id: export_id,
                     project_id: export_project_id,
+                    project_revision: 1,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/middle.mp4".to_owned(),
@@ -1420,6 +1421,7 @@ mod tests {
                 job: ExportJob {
                     id: job_id,
                     project_id,
+                    project_revision: 1,
                     status: JobStatus::Failed,
                     progress: 0.67,
                     output_path: "C:/exports/major-m1.mp4".to_owned(),

@@ -2201,6 +2201,14 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
+function timelineClipsEqual(
+  current: readonly TimelineClip[],
+  replacement: readonly TimelineClip[],
+): boolean {
+  return current.length === replacement.length
+    && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
+}
+
 const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
@@ -2258,6 +2266,22 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   const [rollingDrafts, setRollingDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const [rateDrafts, setRateDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const [slideDrafts, setSlideDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
+  const commitTrackClips = (clips: readonly TimelineClip[]): boolean => {
+    if (timelineClipsEqual(track.track.clips, clips)) return false;
+    onReplaceTrackClips(track.track.id, clips);
+    return true;
+  };
+  const commitTrackClipGroups = (
+    groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
+  ): boolean => {
+    const changed = groups.filter((group) => {
+      const current = selectedTrackGroups.find((candidate) => candidate.track.id === group.trackId)?.track.clips;
+      return current === undefined || !timelineClipsEqual(current, group.clips);
+    });
+    if (changed.length === 0) return false;
+    onReplaceTrackClipGroups(changed);
+    return true;
+  };
   const editPoints = useMemo(() => rollingEditPoints(track.track.clips, fps), [fps, track.track.clips]);
   const slidePoints = useMemo(() => slideEditTriples(track.track.clips, fps), [fps, track.track.clips]);
   useEffect(() => {
@@ -2332,7 +2356,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     onSeek(edit.editTime);
     clearRollingPreview();
     if (Math.abs(edit.delta) <= 1e-9) return;
-    onReplaceTrackClips(track.track.id, track.track.clips.map((clip) => {
+    commitTrackClips(track.track.clips.map((clip) => {
       if (clip.id === edit.left.id) return edit.left;
       if (clip.id === edit.right.id) return edit.right;
       return clip;
@@ -2428,10 +2452,10 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
               onPreviewRollingEdit(null);
               clearSlidePreview();
             }}
-            onReplace={(replacement, mode) => {
+            onReplace={(replacement, mode): boolean => {
               if (mode === 'slip') {
                 const original = track.track.clips.find((candidate) => candidate.id === replacement.id);
-                if (original === undefined) return;
+                if (original === undefined) return false;
                 const selected = selectedClipIds.has(replacement.id)
                   ? selectedTrackGroups.flatMap((group) => group.clips)
                   : [original];
@@ -2440,12 +2464,12 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                   replacement.placement.source_in - original.placement.source_in,
                   fps,
                 );
-                if (Math.abs(delta) <= 1e-9) return;
+                if (Math.abs(delta) <= 1e-9) return false;
                 if (selected.length === 1) {
                   onReplaceClip(slipTimelineClip(original, delta, fps));
-                  return;
+                  return true;
                 }
-                onReplaceTrackClipGroups(selectedTrackGroups.map((group) => {
+                return commitTrackClipGroups(selectedTrackGroups.map((group) => {
                   const ids = new Set(group.clips.map((candidate) => candidate.id));
                   return {
                     trackId: group.track.id,
@@ -2454,41 +2478,38 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                       : candidate),
                   };
                 }));
-                return;
               }
               if (mode === 'slide') {
                 const point = slidePoints.find((candidate) => candidate.clip.id === replacement.id);
-                if (point === undefined) return;
+                if (point === undefined) return false;
                 const edit = slideTimelineClip(point.previous, point.clip, point.next, replacement.placement.start, fps);
-                if (edit === null || Math.abs(edit.delta) <= 1e-9) return;
+                if (edit === null || Math.abs(edit.delta) <= 1e-9) return false;
                 onSeek(edit.clip.placement.start);
-                onReplaceTrackClips(track.track.id, track.track.clips.map((candidate) => {
+                return commitTrackClips(track.track.clips.map((candidate) => {
                   if (candidate.id === edit.previous.id) return edit.previous;
                   if (candidate.id === edit.clip.id) return edit.clip;
                   if (candidate.id === edit.next.id) return edit.next;
                   return candidate;
                 }));
-                return;
               }
               if (mode === 'rate_start' || mode === 'rate_end' || mode === 'speed_remap') {
                 if (track.track.id === storyTrackId) {
-                  onReplaceTrackClips(track.track.id, trimRippleClip(track.track.clips, replacement));
-                } else {
-                  onReplaceClip(replacement);
+                  return commitTrackClips(trimRippleClip(track.track.clips, replacement));
                 }
-                return;
+                onReplaceClip(replacement);
+                return true;
               }
               if ((mode === 'start' || mode === 'end')
                 && selectedClipIds.has(replacement.id)
                 && selectedTrackGroups.reduce((total, group) => total + group.clips.length, 0) > 1) {
                 const original = track.track.clips.find((candidate) => candidate.id === replacement.id);
-                if (original === undefined) return;
+                if (original === undefined) return false;
                 const requestedDelta = mode === 'start'
                   ? replacement.placement.start - original.placement.start
                   : replacement.placement.duration - original.placement.duration;
                 const allSelected = selectedTrackGroups.flatMap((group) => group.clips);
                 const delta = constrainClipGroupTrimDelta(allSelected, mode, requestedDelta, fps);
-                onReplaceTrackClipGroups(selectedTrackGroups.map((group) => {
+                return commitTrackClipGroups(selectedTrackGroups.map((group) => {
                   const ids = new Set(group.clips.map((candidate) => candidate.id));
                   return {
                     trackId: group.track.id,
@@ -2497,17 +2518,16 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                       : trimFreeClipGroup(group.track.clips, ids, mode, delta, fps),
                   };
                 }));
-                return;
               }
               if (mode === 'move'
                 && selectedClipIds.has(replacement.id)
                 && selectedTrackGroups.length > 1) {
                 const original = track.track.clips.find((candidate) => candidate.id === replacement.id);
-                if (original === undefined) return;
+                if (original === undefined) return false;
                 const requestedDelta = replacement.placement.start - original.placement.start;
                 const minimumSelectedStart = Math.min(...selectedTrackGroups.flatMap((group) => group.clips.map((candidate) => candidate.placement.start)));
                 const delta = Math.max(requestedDelta, -minimumSelectedStart);
-                onReplaceTrackClipGroups(selectedTrackGroups.map((group) => {
+                return commitTrackClipGroups(selectedTrackGroups.map((group) => {
                   const ids = new Set(group.clips.map((candidate) => candidate.id));
                   const anchor = group.clips[0]!;
                   return {
@@ -2517,36 +2537,33 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                       : moveFreeClipGroup(group.track.clips, ids, anchor.id, anchor.placement.start + delta, fps),
                   };
                 }));
-                return;
               }
               if (mode === 'volume') {
                 onReplaceClip(replacement);
-                return;
+                return true;
               }
               if (mode === 'transition') {
                 onReplaceClip(replacement);
-                return;
+                return true;
               }
               const selectedOnTrack = new Set(track.track.clips
                 .filter((candidate) => selectedClipIds.has(candidate.id))
                 .map((candidate) => candidate.id));
               if (mode === 'move' && selectedOnTrack.has(replacement.id) && selectedOnTrack.size > 1) {
-                onReplaceTrackClips(
-                  track.track.id,
+                return commitTrackClips(
                   track.track.id === storyTrackId
                     ? moveRippleClipGroup(track.track.clips, selectedOnTrack, replacement.id, replacement.placement.start)
                     : moveFreeClipGroup(track.track.clips, selectedOnTrack, replacement.id, replacement.placement.start, fps),
                 );
-                return;
               }
               if (track.track.id !== storyTrackId) {
                 onReplaceClip(replacement);
-                return;
+                return true;
               }
               const clips = mode === 'move'
                 ? moveRippleClip(track.track.clips, replacement.id, replacement.placement.start)
                 : trimRippleClip(track.track.clips, replacement);
-              onReplaceTrackClips(track.track.id, clips);
+              return commitTrackClips(clips);
             }}
           />
         ))}
@@ -2842,7 +2859,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'transition' | 'speed_remap') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'transition' | 'speed_remap') => boolean;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -3032,9 +3049,12 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     if (active.mode === 'slip' || active.mode === 'slide' || active.mode === 'rate_start' || active.mode === 'rate_end') onClearPreview();
     const replacement = visualClipRef.current;
     lastGestureWasDragRef.current = active.moved;
-    if (JSON.stringify(replacement.placement) !== JSON.stringify(active.clip.placement)) {
-      onReplace(replacement, active.mode);
+    if (JSON.stringify(replacement.placement) !== JSON.stringify(active.clip.placement)
+      && onReplace(replacement, active.mode)) {
+      return;
     }
+    visualClipRef.current = active.clip;
+    setVisualClip(active.clip);
   };
   const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end') => {
     if (readOnly

@@ -68,9 +68,11 @@ export function moveRippleClip(
   const moving = clips.find((clip) => clip.id === clipId);
   if (moving === undefined) return [...clips];
   const remaining = clips.filter((clip) => clip.id !== clipId);
-  const proposedCentre = proposedStart + moving.placement.duration / 2;
+  const insertionProbe = proposedStart < moving.placement.start
+    ? proposedStart
+    : proposedStart + moving.placement.duration;
   const before = remaining.findIndex(
-    (clip) => proposedCentre < clip.placement.start + clip.placement.duration / 2,
+    (clip) => insertionProbe < clip.placement.start + clip.placement.duration / 2,
   );
   const index = before < 0 ? remaining.length : before;
   const ordered = [...remaining];
@@ -92,10 +94,14 @@ export function moveRippleClipGroup(
     .slice(0, anchorIndex)
     .reduce((total, clip) => total + clip.placement.duration, 0);
   const groupDuration = moving.reduce((total, clip) => total + clip.placement.duration, 0);
-  const proposedCentre = proposedAnchorStart - anchorOffset + groupDuration / 2;
+  const currentGroupStart = moving[0]?.placement.start ?? 0;
+  const proposedGroupStart = proposedAnchorStart - anchorOffset;
+  const insertionProbe = proposedGroupStart < currentGroupStart
+    ? proposedGroupStart
+    : proposedGroupStart + groupDuration;
   const remaining = clips.filter((clip) => !clipIds.has(clip.id));
   const before = remaining.findIndex(
-    (clip) => proposedCentre < clip.placement.start + clip.placement.duration / 2,
+    (clip) => insertionProbe < clip.placement.start + clip.placement.duration / 2,
   );
   const index = before < 0 ? remaining.length : before;
   const ordered = [...remaining];

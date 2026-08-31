@@ -50,10 +50,18 @@ function clip(id: string, start: number, duration = 10): TimelineClip {
 const CLIPS = [clip('a', 0), clip('b', 10), clip('c', 20)];
 
 describe('ripple Story Track edits', () => {
-  it('reorders by the dragged clip centre and closes every gap', () => {
+  it('reorders by the movement-facing edge and closes every gap', () => {
     const moved = moveRippleClip(CLIPS, 'a', 24);
     expect(moved.map((item) => item.id)).toEqual(['b', 'c', 'a']);
     expect(moved.map((item) => item.placement.start)).toEqual([0, 10, 20]);
+  });
+
+  it('moves a longer Story clip before a shorter first clip at the zero boundary', () => {
+    const clips = [clip('short', 0, 4), clip('long', 4, 10), clip('tail', 14, 6)];
+    const moved = moveRippleClip(clips, 'long', 0);
+
+    expect(moved.map((item) => item.id)).toEqual(['long', 'short', 'tail']);
+    expect(moved.map((item) => item.placement.start)).toEqual([0, 10, 14]);
   });
 
   it('moves selected Story clips as one ordered ripple group', () => {

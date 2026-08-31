@@ -682,33 +682,15 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('region', { name: '时间轴' }).classList.contains('select-none')).toBe(true);
   });
 
-  it('writes a clip move from direct manipulation against the current Project revision', async () => {
-    const applyProjectPatch = vi.fn(() => Promise.resolve({
-      project: { ...PROJECT, revision: 2 },
-      change_group: {
-        id: '00000000-0000-4000-8000-000000000020', project_id: PROJECT.id,
-        from_revision: 1, to_revision: 2, author: { kind: 'human' as const }, status: 'completed' as const,
-        summary: '移动 A', reverts_change_group_id: null, operations: [], inverse_operations: [],
-        created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
-      },
-    }));
+  it('does not write a Story keyboard move that remains in the same ripple slot', async () => {
+    const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
     const clipButton = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     fireEvent.keyDown(clipButton, { key: 'ArrowRight', shiftKey: true });
 
-    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      project_id: PROJECT.id,
-      base_revision: 1,
-      operations: [expect.objectContaining({
-        op: 'replace_track_clips',
-        track_id: STORY_ID,
-        clips: [
-          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0 }) }),
-          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 5 }) }),
-        ],
-      })],
-    })));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
   it('edits an independent audio-track clip while keeping Story audio derived', async () => {
@@ -3572,6 +3554,23 @@ describe('unified project workspace', () => {
       })],
     })));
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not create a Change Group when a Story drag stays in the same insertion slot', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const clipB = await screen.findByRole('button', { name: /B 5\.0s · 已录制/u });
+    const originalLeft = clipB.style.left;
+    fireEvent.pointerDown(clipB, { pointerId: 116, button: 0, clientX: 300 });
+    fireEvent.pointerMove(clipB, { pointerId: 116, clientX: 310 });
+    fireEvent.pointerUp(clipB, { pointerId: 116, clientX: 310 });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    expect(clipB.style.left).toBe(originalLeft);
+    clientWidth.mockRestore();
   });
 
   it('marquee-selects intersecting clips after the drag threshold', async () => {

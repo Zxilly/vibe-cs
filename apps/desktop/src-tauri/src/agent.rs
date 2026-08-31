@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    path::PathBuf,
     sync::{Arc, Weak},
     time::Duration,
 };
@@ -16,7 +15,7 @@ use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
     AgentMode as EmbeddedAgentMode, AgentProviderProtocol as EmbeddedAgentProviderProtocol,
     AgentRequest as EmbeddedAgentRequest, AgentStreamEvent as EmbeddedAgentStreamEvent,
-    AgentToolHost, Cancellation, HistoryMessage,
+    AgentToolHost, Cancellation,
 };
 use vibe_cs_domain::{
     AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
@@ -26,10 +25,11 @@ use vibe_cs_domain::{
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
-use crate::bridge::{DesktopBridge, DesktopCall, DesktopMethod};
+use crate::{
+    agent_context::{model_history, workspace_context},
+    bridge::{DesktopBridge, DesktopCall, DesktopMethod},
+};
 
-const MAXIMUM_THREAD_MESSAGES: usize = 80;
-const MAXIMUM_THREAD_BYTES: usize = 1024 * 1024;
 const TEXT_DELTA_BATCH_BYTES: usize = 256;
 const MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL: usize = 979;
 const ROUND_REPLAY_ENVELOPE_BYTES: usize = 12;
@@ -281,7 +281,7 @@ impl DesktopAgentToolHost {
 
 #[async_trait]
 impl AgentToolHost for DesktopAgentToolHost {
-    async fn read_workspace(&self) -> Result<Value, String> {
+    async fn read_workspace(&self, input: &Value) -> Result<Value, String> {
         let project = self
             .bridge
             .storage
@@ -300,7 +300,7 @@ impl AgentToolHost for DesktopAgentToolHost {
                 }),
             );
         }
-        Ok(json!({"workspace":workspace,"project":project}))
+        workspace_context(&workspace, &project, input)
     }
 
     async fn read_demo_evidence(&self, input: &Value) -> Result<Value, String> {
@@ -860,106 +860,34 @@ fn horizontal_distance(left: [f64; 3], right: [f64; 3]) -> f64 {
 #[derive(Debug, Clone)]
 pub(crate) struct AgentBridge {
     storage: vibe_cs_storage::Storage,
-    data_dir: PathBuf,
     dispatcher: DesktopBridge,
     chat_gate: Arc<Semaphore>,
-    thread_locks: Arc<Mutex<HashMap<Uuid, Weak<Mutex<()>>>>>,
+    session_locks: Arc<Mutex<HashMap<Uuid, Weak<Mutex<()>>>>>,
     cancellations: Arc<Mutex<HashMap<Uuid, Arc<Cancellation>>>>,
 }
 
 impl AgentBridge {
-    pub(crate) fn new(
-        storage: vibe_cs_storage::Storage,
-        data_dir: PathBuf,
-        dispatcher: DesktopBridge,
-    ) -> Self {
+    pub(crate) fn new(storage: vibe_cs_storage::Storage, dispatcher: DesktopBridge) -> Self {
         Self {
             storage,
-            data_dir,
             dispatcher,
             chat_gate: Arc::new(Semaphore::new(2)),
-            thread_locks: Arc::new(Mutex::new(HashMap::new())),
+            session_locks: Arc::new(Mutex::new(HashMap::new())),
             cancellations: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    fn thread_path(&self, thread_id: Uuid) -> PathBuf {
-        self.data_dir
-            .join("agent")
-            .join("threads")
-            .join(format!("{thread_id}.json"))
-    }
-
-    async fn load_thread(&self, thread_id: Uuid) -> Result<AgentThread, AgentCommandError> {
-        let path = self.thread_path(thread_id);
-        match tokio::fs::read(&path).await {
-            Ok(bytes) if bytes.len() <= MAXIMUM_THREAD_BYTES => serde_json::from_slice(&bytes)
-                .map_err(|error| {
-                    AgentCommandError::internal(format!("invalid local agent thread: {error}"))
-                }),
-            Ok(_) => Err(AgentCommandError::internal(
-                "local agent thread is too large",
-            )),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(AgentThread {
-                id: thread_id,
-                messages: Vec::new(),
-                updated_at: Utc::now().to_rfc3339(),
-            }),
-            Err(error) => Err(AgentCommandError::internal(format!(
-                "unable to read local agent thread: {error}"
-            ))),
-        }
-    }
-
-    async fn save_thread(&self, thread: &mut AgentThread) -> Result<(), AgentCommandError> {
-        let path = self.thread_path(thread.id);
-        let parent = path
-            .parent()
-            .ok_or_else(|| AgentCommandError::internal("invalid agent thread path"))?;
-        tokio::fs::create_dir_all(parent).await.map_err(|error| {
-            AgentCommandError::internal(format!("unable to create agent thread directory: {error}"))
-        })?;
-        let bytes = serialize_bounded_thread(thread)?;
-        tokio::task::spawn_blocking(move || vibe_cs_platform_windows::atomic_write(&path, &bytes))
-            .await
-            .map_err(|error| {
-                AgentCommandError::internal(format!(
-                    "agent thread persistence task failed: {error}"
-                ))
-            })?
-            .map_err(|error| {
-                AgentCommandError::internal(format!("unable to persist agent thread: {error}"))
-            })
-    }
-
-    async fn thread_lock(&self, thread_id: Uuid) -> Arc<Mutex<()>> {
-        let mut locks = self.thread_locks.lock().await;
-        if let Some(lock) = locks.get(&thread_id).and_then(Weak::upgrade) {
+    async fn session_lock(&self, session_id: Uuid) -> Arc<Mutex<()>> {
+        let mut locks = self.session_locks.lock().await;
+        if let Some(lock) = locks.get(&session_id).and_then(Weak::upgrade) {
             return lock;
         }
         if locks.len() >= 256 {
             locks.retain(|_, lock| lock.strong_count() > 0);
         }
         let lock = Arc::new(Mutex::new(()));
-        locks.insert(thread_id, Arc::downgrade(&lock));
+        locks.insert(session_id, Arc::downgrade(&lock));
         lock
-    }
-}
-
-fn serialize_bounded_thread(thread: &mut AgentThread) -> Result<Vec<u8>, AgentCommandError> {
-    loop {
-        let serialized = serde_json::to_vec(&thread).map_err(|error| {
-            AgentCommandError::internal(format!("unable to serialize agent thread: {error}"))
-        })?;
-        if serialized.len() <= MAXIMUM_THREAD_BYTES {
-            return Ok(serialized);
-        }
-        if thread.messages.len() <= 2 {
-            return Err(AgentCommandError::invalid(
-                "agent response exceeds the local thread size limit",
-            ));
-        }
-        thread.messages.drain(..thread.messages.len().min(2));
     }
 }
 
@@ -972,49 +900,6 @@ pub(crate) struct AgentStatus {
     provider: String,
     model: String,
     streaming: bool,
-}
-
-/// Who wrote a message in the desktop chat transcript.
-///
-/// Two values. It was a `String` beside `HistoryMessage.role`, which is the
-/// LLM API's own role field and genuinely open — that one carries `system` and
-/// `tool` as well. This one is only ever the two the transcript renders, and
-/// the renderer was already switching on exactly those.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, ts_rs::TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export, rename = "DesktopAgentRole")]
-pub(crate) enum AgentRole {
-    User,
-    Assistant,
-}
-
-impl AgentRole {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::User => "user",
-            Self::Assistant => "assistant",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[ts(export, rename = "DesktopAgentMessage")]
-pub(crate) struct AgentMessage {
-    id: Uuid,
-    role: AgentRole,
-    content: String,
-    created_at: String,
-    tool_calls: Vec<DomainAgentToolCall>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[ts(export, rename = "DesktopAgentThread")]
-pub(crate) struct AgentThread {
-    id: Uuid,
-    messages: Vec<AgentMessage>,
-    updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, ts_rs::TS)]
@@ -1040,24 +925,14 @@ pub(crate) struct AgentTurnMetadata {
     estimated_cost_usd: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[ts(export, rename = "DesktopAgentChatHistoryMessage")]
-pub(crate) struct AgentChatHistoryMessage {
-    role: AgentRole,
-    content: String,
-}
-
 #[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, rename = "DesktopAgentChatInput")]
 pub(crate) struct AgentChatInput {
     request_id: Uuid,
-    #[serde(deserialize_with = "deserialize_required_nullable")]
-    thread_id: Option<Uuid>,
+    session_id: Uuid,
     project_id: Uuid,
     workspace_context: AgentWorkspaceContext,
-    history: Vec<AgentChatHistoryMessage>,
     mode: EmbeddedAgentMode,
     #[serde(default)]
     auto_mode: bool,
@@ -1098,25 +973,12 @@ where
 )]
 #[ts(export, rename = "DesktopAgentEvent")]
 pub(crate) enum AgentEvent {
-    Started {
-        thread_id: Uuid,
-    },
-    TextDelta {
-        delta: String,
-    },
-    ToolCallStarted {
-        tool_call: AgentToolCallStarted,
-    },
-    ToolCallFinished {
-        tool_call: DomainAgentToolCall,
-    },
-    Complete {
-        thread: AgentThread,
-        metadata: AgentTurnMetadata,
-    },
-    Error {
-        message: String,
-    },
+    Started { session_id: Uuid },
+    TextDelta { delta: String },
+    ToolCallStarted { tool_call: AgentToolCallStarted },
+    ToolCallFinished { tool_call: DomainAgentToolCall },
+    Complete { metadata: AgentTurnMetadata },
+    Error { message: String },
 }
 
 fn domain_tool_call(value: vibe_cs_agent::CapturedToolCall) -> DomainAgentToolCall {
@@ -1136,9 +998,10 @@ fn domain_tool_call(value: vibe_cs_agent::CapturedToolCall) -> DomainAgentToolCa
 }
 
 #[derive(Debug, Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, rename = "DesktopAgentChatResult")]
 pub(crate) struct AgentChatResult {
-    thread_id: Uuid,
+    session_id: Uuid,
 }
 
 #[derive(Debug, Serialize, ts_rs::TS)]
@@ -1226,14 +1089,6 @@ async fn resolved_agent_config(
 }
 
 #[tauri::command]
-pub(crate) async fn agent_thread(
-    state: State<'_, AgentBridge>,
-    thread_id: Uuid,
-) -> Result<AgentThread, AgentCommandError> {
-    state.load_thread(thread_id).await
-}
-
-#[tauri::command]
 pub(crate) async fn agent_chat(
     state: State<'_, AgentBridge>,
     input: AgentChatInput,
@@ -1254,7 +1109,7 @@ async fn chat(
         ));
     }
     validate_workspace_context(&input)?;
-    let thread_id = input.thread_id.unwrap_or_else(Uuid::new_v4);
+    let session_id = input.session_id;
     let cancellation = Arc::new(Cancellation::new());
     {
         let mut cancellations = state.cancellations.lock().await;
@@ -1265,7 +1120,8 @@ async fn chat(
         }
         cancellations.insert(input.request_id, Arc::clone(&cancellation));
     }
-    let result = run_scheduled_agent_chat(state, &input, &on_event, thread_id, &cancellation).await;
+    let result =
+        run_scheduled_agent_chat(state, &input, &on_event, session_id, &cancellation).await;
     let mut cancellations = state.cancellations.lock().await;
     if cancellations
         .get(&input.request_id)
@@ -1282,16 +1138,6 @@ fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommand
             "agent workspace context targets another Project",
         ));
     }
-    if input.history.len() > 40
-        || input
-            .history
-            .iter()
-            .any(|entry| entry.content.trim().is_empty() || entry.content.chars().count() > 16_000)
-    {
-        return Err(AgentCommandError::invalid(
-            "agent history is outside the supported bounds",
-        ));
-    }
     Ok(())
 }
 
@@ -1299,7 +1145,7 @@ async fn run_scheduled_agent_chat(
     state: &AgentBridge,
     input: &AgentChatInput,
     on_event: &Channel<AgentEvent>,
-    thread_id: Uuid,
+    session_id: Uuid,
     cancellation: &Cancellation,
 ) -> Result<AgentChatResult, AgentCommandError> {
     let _chat_permit = tokio::select! {
@@ -1307,12 +1153,12 @@ async fn run_scheduled_agent_chat(
             .map_err(|_| AgentCommandError::unavailable("agent scheduler is closed"))?,
         () = cancellation.cancelled() => return Err(AgentCommandError::unavailable("agent request was cancelled")),
     };
-    let thread_lock = state.thread_lock(thread_id).await;
-    let _thread_guard = tokio::select! {
-        guard = thread_lock.lock() => guard,
+    let session_lock = state.session_lock(session_id).await;
+    let _session_guard = tokio::select! {
+        guard = session_lock.lock() => guard,
         () = cancellation.cancelled() => return Err(AgentCommandError::unavailable("agent request was cancelled")),
     };
-    run_agent_chat(state, input, on_event, thread_id, cancellation).await
+    run_agent_chat(state, input, on_event, session_id, cancellation).await
 }
 
 #[tauri::command]
@@ -1332,12 +1178,24 @@ async fn run_agent_chat(
     state: &AgentBridge,
     input: &AgentChatInput,
     on_event: &Channel<AgentEvent>,
-    thread_id: Uuid,
+    session_id: Uuid,
     cancellation: &Cancellation,
 ) -> Result<AgentChatResult, AgentCommandError> {
     let message = input.message.trim();
-    let _ = on_event.send(AgentEvent::Started { thread_id });
-    let mut thread = state.load_thread(thread_id).await?;
+    let _ = on_event.send(AgentEvent::Started { session_id });
+    let session = state
+        .storage
+        .get_agent_session(session_id)
+        .await
+        .map_err(|error| {
+            AgentCommandError::internal(format!("unable to read durable Agent session: {error}"))
+        })?
+        .ok_or_else(|| AgentCommandError::invalid("Agent session does not exist"))?;
+    let history = model_history(&session, input.request_id).map_err(AgentCommandError::invalid)?;
+    let history_bytes = history
+        .iter()
+        .map(|message| message.role.len() + message.content.len())
+        .sum::<usize>();
     let (config, api_key) = resolved_agent_config(state).await?;
     if api_key.is_empty() || config.llm.model.is_empty() || config.llm.base_url.is_empty() {
         return Err(AgentCommandError::unavailable(
@@ -1403,14 +1261,6 @@ async fn run_agent_chat(
             }),
         None => Value::Null,
     };
-    let history = input
-        .history
-        .iter()
-        .map(|entry| HistoryMessage {
-            role: entry.role.as_str().to_owned(),
-            content: entry.content.clone(),
-        })
-        .collect::<Vec<_>>();
     let summarized_analysis = if series.len() > 1 {
         summarize_series_inventory(&series)
     } else {
@@ -1446,7 +1296,7 @@ async fn run_agent_chat(
         workspace: workspace.clone(),
         bridge: state.clone(),
         project_id: project.id,
-        session_id: thread_id,
+        session_id,
         turn_id: input.request_id,
     }) as Arc<dyn AgentToolHost>);
     let provider = config.llm.provider.clone();
@@ -1465,13 +1315,15 @@ async fn run_agent_chat(
     tracing::info!(
         request_id = %input.request_id,
         project_id = %project.id,
-        context_bytes,
+        host_context_bytes = context_bytes,
+        model_history_messages = history.len(),
+        model_history_bytes = history_bytes,
         "Agent context assembled"
     );
     let lease = ProjectEditLease {
         id: Uuid::new_v4(),
         project_id: project.id,
-        session_id: thread_id,
+        session_id,
         turn_id: input.request_id,
         base_revision: project.revision,
         acquired_at: Utc::now(),
@@ -1609,34 +1461,7 @@ async fn run_agent_chat(
             delta: std::mem::take(&mut pending_text),
         });
     }
-    let tool_calls = response
-        .tool_calls
-        .into_iter()
-        .map(domain_tool_call)
-        .collect::<Vec<_>>();
     let usage = response.usage;
-    let now = Utc::now().to_rfc3339();
-    thread.messages.push(AgentMessage {
-        id: Uuid::new_v4(),
-        role: AgentRole::User,
-        content: message.to_owned(),
-        created_at: now.clone(),
-        tool_calls: Vec::new(),
-    });
-    thread.messages.push(AgentMessage {
-        id: Uuid::new_v4(),
-        role: AgentRole::Assistant,
-        content: response.content,
-        created_at: now.clone(),
-        tool_calls: tool_calls.clone(),
-    });
-    if thread.messages.len() > MAXIMUM_THREAD_MESSAGES {
-        thread
-            .messages
-            .drain(..thread.messages.len() - MAXIMUM_THREAD_MESSAGES);
-    }
-    thread.updated_at = now;
-    state.save_thread(&mut thread).await?;
     lease_heartbeat.abort();
     state
         .storage
@@ -1646,7 +1471,6 @@ async fn run_agent_chat(
             AgentCommandError::internal(format!("unable to release Project edit lease: {error}"))
         })?;
     let _ = on_event.send(AgentEvent::Complete {
-        thread: thread.clone(),
         metadata: AgentTurnMetadata {
             provider,
             model,
@@ -1660,7 +1484,7 @@ async fn run_agent_chat(
             estimated_cost_usd: None,
         },
     });
-    Ok(AgentChatResult { thread_id })
+    Ok(AgentChatResult { session_id })
 }
 
 fn project_demo_ids(project: &vibe_cs_domain::Project) -> Vec<Uuid> {

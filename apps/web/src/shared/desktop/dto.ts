@@ -25,9 +25,8 @@
  * Two groups, each marked where it appears:
  *
  *   1. **Tauri-side types.** The streaming Agent chat contract
- *      (`AgentStatus`, `AgentMessage`, `AgentThread`, `AgentChatInput`,
- *      `AgentEvent`, `AgentChatResult`, `AgentProposal`, `AgentVideoProposal`,
- *      `AgentShotDesign`) and `HlaeBundleHandoff` live in
+ *      (`AgentStatus`, `AgentChatInput`, `AgentEvent`, `AgentChatResult`) and
+ *      `HlaeBundleHandoff` live in
  *      `apps/desktop/src-tauri/src/`, which is not part of the ts-rs wiring.
  *   2. **Frontend aliases.** `EntityId`.
  *
@@ -529,14 +528,10 @@ export type { ErrorBody as ApiProblem } from './generated/ErrorBody';
 export type { AgentMode } from './generated/AgentMode';
 
 export type { DesktopAgentStatus as AgentStatus } from './generated/DesktopAgentStatus';
-export type { DesktopAgentRole as AgentRole } from './generated/DesktopAgentRole';
-export type { DesktopAgentMessage as AgentMessage } from './generated/DesktopAgentMessage';
-export type { DesktopAgentThread as AgentThread } from './generated/DesktopAgentThread';
 export type { AgentToolCall } from './generated/AgentToolCall';
 export type { AgentToolCallStatus } from './generated/AgentToolCallStatus';
 export type { DesktopAgentToolCallStarted as AgentToolCallStarted } from './generated/DesktopAgentToolCallStarted';
 export type { DesktopAgentChatInput as AgentChatInput } from './generated/DesktopAgentChatInput';
-export type { DesktopAgentChatHistoryMessage as AgentChatHistoryMessage } from './generated/DesktopAgentChatHistoryMessage';
 export type { DesktopAgentWorkspaceContext as AgentWorkspaceContext } from './generated/DesktopAgentWorkspaceContext';
 export type { DesktopAgentEvent as AgentEvent } from './generated/DesktopAgentEvent';
 export type { DesktopAgentChatResult as AgentChatResult } from './generated/DesktopAgentChatResult';
@@ -555,8 +550,7 @@ export type { DesktopAgentCommandError as AgentCommandError } from './generated/
 
 /*
  * Reached through `/api/agent/...`, not through a Tauri command, and
- * deliberately separate from the `AgentThread` / `AgentMessage` /
- * `AgentProposal` shapes above.
+ * deliberately separate from the transient `AgentEvent` stream above.
  *
  * Rust calls the two entry payloads `AgentToolCall` and `AgentProposal`; this
  * application has always called them `AgentSessionToolCall` and

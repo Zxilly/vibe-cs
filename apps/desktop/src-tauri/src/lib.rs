@@ -1,4 +1,5 @@
 mod agent;
+mod agent_context;
 mod bridge;
 mod hlae_output;
 mod overlay_prototype;
@@ -59,7 +60,6 @@ pub fn run() {
             bridge::desktop_binary,
             bridge::desktop_upload,
             agent::agent_status,
-            agent::agent_thread,
             agent::agent_chat,
             agent::agent_cancel,
             hlae_output::list_hlae_bundles,
@@ -172,7 +172,7 @@ async fn build_application(
 ) -> Result<DesktopApplication, Box<dyn std::error::Error>> {
     tokio::fs::create_dir_all(&data_dir).await?;
     let storage = vibe_cs_storage::Storage::open(data_dir.join("vibe-cs.db")).await?;
-    let agent_bridge = agent::AgentBridge::new(storage.clone(), data_dir.clone(), agent_dispatcher);
+    let agent_bridge = agent::AgentBridge::new(storage.clone(), agent_dispatcher);
     let demo_worker = bundled_demo_worker()?;
     let state =
         vibe_cs_runtime::build_app_state_with_demo_worker(storage, data_dir, demo_worker).await?;

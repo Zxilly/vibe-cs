@@ -34,7 +34,6 @@ import type {
   AgentSessionQuery,
   AgentSessionStorageStats,
   AgentStatus,
-  AgentThread,
   AgentTurnUpdate,
   AgentWorkspaceSettings,
   AnalysisRun,
@@ -452,7 +451,6 @@ const DEFAULT_AUDIO_ANALYSIS_OPTIONS: AudioAnalysisOptions = {
 
 export const commands = {
   agentStatus: () => invoke<AgentStatus>('agent_status'),
-  getAgentThread: (threadId: string) => invoke<AgentThread>('agent_thread', { threadId }),
   cancelAgentChat: (requestId: string) => invoke<boolean>('agent_cancel', { requestId }),
   streamAgentChat: async (input: AgentChatInput, onEvent: (event: AgentEvent) => void) => {
     const channel = new Channel<AgentEvent>();

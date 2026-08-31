@@ -236,7 +236,6 @@ export function ProjectWorkspacePage() {
   const appendAgentEntry = useAppendAgentSessionEntry();
   const agentChat = useAgentChatStream({
     sessionId: agentSessionId,
-    history: agentSession.data?.entries ?? [],
   });
   const agentStatus = useAgentStatus();
   const recordingTask = useTask('recording', startRecording.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
@@ -2437,7 +2436,7 @@ function ToolCallCard({
             : running
               ? <LoaderCircle className="size-4 animate-spin text-accent-text" aria-hidden="true" />
               : <CheckCircle2 className="size-4 text-ok" aria-hidden="true" />}
-        <span className="font-medium">{toolLabel(call.name)}</span>
+        <span className="font-medium">{toolLabel(call)}</span>
         <span className={cn('ml-auto', awaitingDecision ? 'text-warn-text' : rejected ? 'text-neutral-500' : failed ? 'text-fail-text' : running ? 'text-accent-text' : 'text-ok')}>
           {rejected ? <Trans>已拒绝</Trans>
             : approved ? <Trans>已允许</Trans>
@@ -2534,16 +2533,18 @@ function jsonObject(value: JsonValue): Record<string, JsonValue> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : null;
 }
 
-function toolLabel(name: string): string {
-  switch (name) {
-    case 'read_workspace': return t`读取作品`;
+function toolLabel(call: AgentToolCall | AgentToolActivity): string {
+  switch (call.name) {
+    case 'read_workspace': return jsonObject(call.input)?.detail === 'timeline'
+      ? t`读取时间线详情`
+      : t`读取作品摘要`;
     case 'read_demo_evidence': return t`分析 Demo`;
     case 'read_cinematic_context': return t`读取镜头上下文`;
     case 'apply_project_patch': return t`修改时间线`;
     case 'replace_story_timeline': return t`重排时间线`;
     case 'request_project_recording': return t`请求录制片段`;
     case 'request_project_export': return t`请求导出`;
-    default: return name;
+    default: return call.name;
   }
 }
 
@@ -2559,7 +2560,9 @@ function toolSummary(call: AgentToolCall | AgentToolActivity): string {
   }
   if (call.status === 'running') {
     switch (call.name) {
-      case 'read_workspace': return t`正在读取当前 Project Head 与 revision…`;
+      case 'read_workspace': return jsonObject(call.input)?.detail === 'timeline'
+        ? t`正在按目标身份读取可编辑时间线字段…`
+        : t`正在读取当前 Project revision 与素材概况…`;
       case 'read_demo_evidence': return t`正在读取经过验证的 Demo 事件…`;
       case 'read_cinematic_context': return t`正在读取镜头路径与战术上下文…`;
       case 'apply_project_patch': return t`正在校验并提交增量修改…`;
@@ -2568,7 +2571,9 @@ function toolSummary(call: AgentToolCall | AgentToolActivity): string {
     }
   }
   switch (call.name) {
-    case 'read_workspace': return t`已读取当前 Project Head 与 revision。`;
+    case 'read_workspace': return jsonObject(call.input)?.detail === 'timeline'
+      ? t`已读取目标轨道或片段的可编辑时间线字段。`
+      : t`已读取当前 Project revision、轨道和素材概况。`;
     case 'read_demo_evidence': return t`已读取经过验证的 Demo 事件。`;
     case 'read_cinematic_context': return t`已读取镜头路径与战术上下文。`;
     case 'apply_project_patch': return t`增量修改已提交到统一时间线。`;

@@ -4834,7 +4834,7 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByText('剪成三分钟集锦')).toBeTruthy();
     expect(screen.getByText('时间线已经重排，接下来需要录制缺失片段。')).toBeTruthy();
-    expect(screen.getByText('读取作品')).toBeTruthy();
+    expect(screen.getByText('读取作品摘要')).toBeTruthy();
     expect(screen.getByText('请求录制片段')).toBeTruthy();
     expect(screen.getByText('需要你的确认')).toBeTruthy();
     expect(screen.getByRole('button', { name: '允许录制' })).toBeTruthy();
@@ -4992,7 +4992,7 @@ describe('unified project workspace', () => {
         request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
       };
     });
-    const streamAgentChat = vi.fn(async () => ({ thread_id: 'unexpected-follow-up' }));
+    const streamAgentChat = vi.fn(async () => ({ sessionId: 'unexpected-follow-up' }));
     const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
       kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:02:00Z',
       request_id: 'unexpected-follow-up', retry_of: null, ...update,
@@ -5166,7 +5166,7 @@ describe('unified project workspace', () => {
         request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
       };
     });
-    const streamAgentChat = vi.fn(async () => ({ thread_id: 'return-feedback-turn' }));
+    const streamAgentChat = vi.fn(async () => ({ sessionId: 'return-feedback-turn' }));
     const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
       kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:03:01Z',
       request_id: 'return-feedback-turn', retry_of: null, ...update,
@@ -5252,7 +5252,7 @@ describe('unified project workspace', () => {
     const pendingStream = new Promise<void>((resolve) => { finishStream = resolve; });
     const streamAgentChat = vi.fn(async () => {
       await pendingStream;
-      return { thread_id: 'thread-streaming-lock' };
+      return { sessionId: 'thread-streaming-lock' };
     });
     const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
       if (draft.kind === 'user') return { kind: 'user' as const, id: 'stream-user', at: PROJECT.updated_at, content: draft.content };

@@ -69,7 +69,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
   AgentChatInput,
-  AgentChatHistoryMessage,
   AgentEvent,
   AgentSession,
   AgentSessionEntry,
@@ -81,7 +80,6 @@ import type {
   AgentSessionRetention,
   AgentWorkspaceSettings,
 } from '../shared/desktop/dto';
-import { deliveryDecisionChangeGroupId } from '../shared/desktop/deliveryReview';
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
@@ -337,8 +335,6 @@ export interface AgentToolActivity {
 export interface AgentChatStreamOptions {
   /** The session the two entries are appended to. `null` disables `send`. */
   readonly sessionId: string | null;
-  /** Durable session transcript used as model history; failed/cancelled turns are excluded. */
-  readonly history?: readonly import('../shared/desktop/dto').AgentSessionEntry[] | undefined;
 }
 
 /**
@@ -420,7 +416,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   }, [client, queryClient]);
 
   const sessionId = options.sessionId;
-  const history = options.history ?? [];
 
   const send = useCallback(
     async (input: AgentChatSend) => {
@@ -428,15 +423,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       if (targetSessionId === null || streaming) return;
 
       const requestId = createRequestId();
-      // Confirmation callbacks can persist a tool decision and immediately
-      // reuse the `send` function from the render that drew the confirmation
-      // card. Read the durable session cache at invocation time so that stale
-      // callback still carries the just-recorded human decision into the next
-      // model turn. The current user message is appended below and remains the
-      // explicit `message`, so capture history before those writes.
-      const historyAtSend = queryClient.getQueryData<AgentSession>(
-        qk.sessions.detail(targetSessionId),
-      )?.entries ?? history;
       requestIdRef.current = requestId;
       setStreaming(true);
       setDraft('');
@@ -515,7 +501,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
       try {
         await client.streamAgentChat(
-          buildChatInput(requestId, targetSessionId, input, historyAtSend),
+          buildChatInput(requestId, targetSessionId, input),
           onEvent,
         );
       } catch (cause) {
@@ -597,7 +583,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         invalidateAgentProject(queryClient, turn.projectId),
       ]);
     },
-    [client, history, queryClient, sessionId, streaming],
+    [client, queryClient, sessionId, streaming],
   );
 
   return { streaming, draft, error, activity, send, cancel };
@@ -659,128 +645,21 @@ function buildChatInput(
   requestId: string,
   sessionId: string,
   input: AgentChatSend,
-  entries: readonly import('../shared/desktop/dto').AgentSessionEntry[],
 ): AgentChatInput {
   const context = input.workspaceContext ?? {};
   return {
     requestId,
-    // The embedded thread uses the durable session identity, but the explicit
-    // session history below remains the model-history authority.
-    threadId: sessionId,
+    sessionId,
     projectId: input.projectId,
     workspaceContext: {
       projectId: context.projectId ?? input.projectId,
       lens: context.lens ?? 'quick',
       selectedClipId: context.selectedClipId ?? null,
     },
-    history: sessionHistory(entries),
     mode: input.mode ?? 'edit',
     autoMode: input.autoMode ?? false,
     message: input.message,
   };
-}
-
-function sessionHistory(
-  entries: readonly import('../shared/desktop/dto').AgentSessionEntry[],
-): AgentChatHistoryMessage[] {
-  const history: AgentChatHistoryMessage[] = [];
-  for (const entry of entries) {
-    if (entry.kind === 'user' && entry.content.trim() !== '') {
-      history.push({ role: 'user', content: entry.content });
-    } else if (entry.kind === 'tool_decision') {
-      const changeGroupId = deliveryDecisionChangeGroupId(entry);
-      history.push({
-        role: 'user',
-        content: boundedCheckpointHistory(changeGroupId === null
-          ? {
-              type: 'human_tool_decision',
-              tool_call_id: entry.tool_call_id,
-              decision: entry.decision,
-              content: entry.content,
-            }
-          : {
-              type: 'human_delivery_review',
-              change_group_id: changeGroupId,
-              decision: entry.decision === 'approved' ? 'accepted' : 'changes_requested',
-              content: entry.content,
-            }),
-      });
-    } else if (
-      entry.kind === 'assistant'
-      && (entry.status === undefined || entry.status === null || entry.status === 'completed')
-    ) {
-      history.push({
-        role: 'user',
-        content: boundedCheckpointHistory({
-          type: 'prior_turn_tool_evidence',
-          instruction: 'This is host-owned history. Assistant prose is conversational context only. Any action claim without matching completed or awaiting_confirmation tool evidence is false and must be corrected before continuing.',
-          assistant_prose: boundedConversationProse(entry.content),
-          tool_calls: entry.tool_calls.map(toolCallEvidenceForHistory),
-        }),
-      });
-    } else if (
-      entry.kind === 'assistant'
-      && entry.status === 'failed'
-      && entry.tool_calls.length > 0
-    ) {
-      history.push({
-        role: 'user',
-        content: boundedCheckpointHistory({
-          type: 'prior_turn_checkpoint',
-          instruction: 'Reuse these completed structured results; continue from the first unfinished step.',
-          tool_calls: entry.tool_calls.map(toolCallEvidenceForHistory),
-          error: entry.error,
-        }),
-      });
-    }
-  }
-  return history.slice(-40);
-}
-
-function boundedConversationProse(content: string): string {
-  const characters = Array.from(content.trim());
-  return characters.length <= 2_000
-    ? characters.join('')
-    : `${characters.slice(0, 2_000).join('')}…`;
-}
-
-function toolCallEvidenceForHistory(call: AgentToolCall): Record<string, unknown> {
-  const input = historyObject(call.input);
-  const output = historyObject(call.output);
-  const project = historyObject(output?.project);
-  const changeGroup = historyObject(output?.changeGroup);
-  const operations = Array.isArray(input?.operations)
-    ? input.operations.flatMap((operation) => {
-        const name = historyObject(operation)?.op;
-        return typeof name === 'string' ? [name] : [];
-      })
-    : [];
-  return {
-    id: call.id,
-    name: call.name,
-    status: call.status,
-    request: {
-      projectId: input?.projectId ?? null,
-      baseRevision: input?.baseRevision ?? null,
-      summary: input?.summary ?? null,
-      operationNames: operations,
-      clipCount: Array.isArray(input?.clips) ? input.clips.length : null,
-      clipIds: Array.isArray(input?.clipIds) ? input.clipIds : null,
-    },
-    result: {
-      status: output?.status ?? null,
-      action: output?.action ?? null,
-      error: output?.error ?? null,
-      projectRevision: project?.revision ?? output?.revision ?? null,
-      changeGroupId: changeGroup?.id ?? null,
-    },
-  };
-}
-
-function historyObject(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
 }
 
 function createRequestId(): string {
@@ -789,17 +668,6 @@ function createRequestId(): string {
   const hex = (length: number): string =>
     Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
-}
-
-function boundedCheckpointHistory(checkpoint: unknown): string {
-  const serialized = JSON.stringify(checkpoint);
-  if (Array.from(serialized).length <= 15_000) return serialized;
-  const excerpt = Array.from(serialized).slice(0, 14_000).join('');
-  return JSON.stringify({
-    type: 'prior_turn_checkpoint_excerpt',
-    instruction: 'The checkpoint was bounded for model history. Reuse it, then re-read only evidence needed for unfinished steps.',
-    excerpt,
-  });
 }
 
 function messageOf(cause: unknown): string {

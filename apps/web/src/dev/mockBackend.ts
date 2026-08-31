@@ -39,7 +39,6 @@ import type {
   AgentSessionPage,
   AgentSessionStorageStats,
   AgentStatus,
-  AgentThread,
   AgentWorkspaceSettings,
   ApiHealth,
   AppConfig,
@@ -788,12 +787,6 @@ const AGENT_SESSIONS: AgentSessionPage = {
   total: 2,
 };
 
-const AGENT_THREAD: AgentThread = {
-  id: 'thread-1',
-  messages: [],
-  updatedAt: '2026-08-15T09:20:00Z',
-};
-
 const AGENT_SETTINGS: AgentWorkspaceSettings = {
   session_retention: { mode: 'recent_count', count: 50 },
   show_evidence_reads: false,
@@ -1164,8 +1157,6 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
   switch (command) {
     case 'agent_status':
       return AGENT_STATUS;
-    case 'agent_thread':
-      return AGENT_THREAD;
     case 'agent_cancel':
       return true;
     case 'list_hlae_bundles':

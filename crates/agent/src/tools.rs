@@ -100,7 +100,7 @@ impl ToolState {
             let output = match kind {
                 ToolKind::ReadWorkspace => {
                     if let Some(host) = self.tool_host.as_ref() {
-                        host.read_workspace()
+                        host.read_workspace(&input)
                             .await
                             .map_err(ToolExecutionError::other)?
                     } else {
@@ -250,8 +250,15 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReadWorkspace,
             "read_workspace",
             ALL_MODES,
-            "Read the exact current workspace and canonical Project revision. Always call this before editing.",
-            object_schema(json!({}), &[]),
+            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status and counts. Before editing, use detail='timeline' plus the narrowest known trackIds or clipIds; omit selectors only for a deliberate whole-Project operation. Returns the exact current revision in both formats.",
+            object_schema(
+                json!({
+                    "detail":{"type":"string","enum":["summary","timeline"],"default":"summary"},
+                    "trackIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":16},
+                    "clipIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":64}
+                }),
+                &[],
+            ),
         ),
         definition(
             ToolKind::ReadDemoEvidence,
@@ -789,7 +796,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AgentToolHost for DeliveryHost {
-        async fn read_workspace(&self) -> Result<Value, String> {
+        async fn read_workspace(&self, _input: &Value) -> Result<Value, String> {
             Ok(json!({
                 "workspace":{"projectId":"00000000-0000-4000-8000-000000000001"},
                 "project":{"revision":9},
@@ -822,6 +829,24 @@ mod tests {
                 .iter()
                 .any(|name| name.contains("agent_plan") || name.contains("editor"))
         );
+    }
+
+    #[test]
+    fn workspace_schema_defaults_to_summary_and_allows_targeted_timeline_detail() {
+        let schema = tool_catalog()
+            .into_iter()
+            .find(|tool| tool.name == "read_workspace")
+            .expect("workspace tool")
+            .parameters;
+
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["properties"]["detail"]["default"], "summary");
+        assert_eq!(
+            schema["properties"]["detail"]["enum"],
+            json!(["summary", "timeline"])
+        );
+        assert_eq!(schema["properties"]["trackIds"]["maxItems"], 16);
+        assert_eq!(schema["properties"]["clipIds"]["maxItems"], 64);
     }
 
     #[test]
@@ -919,7 +944,11 @@ mod tests {
             "turn-workspace",
         );
         let output = state
-            .execute(ToolKind::ReadWorkspace, "read_workspace", json!({}))
+            .execute(
+                ToolKind::ReadWorkspace,
+                "read_workspace",
+                json!({"detail":"timeline"}),
+            )
             .await
             .expect("live workspace");
 

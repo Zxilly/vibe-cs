@@ -1824,11 +1824,11 @@ mod tests {
                 transitions: TimelineClipTransitions {
                     video_in: None,
                     video_out: None,
-                    audio_in: fade.then(|| EditorTransition {
+                    audio_in: fade.then_some(EditorTransition {
                         kind: EditorTransitionKind::Fade,
                         duration_seconds: 1.5,
                     }),
-                    audio_out: fade.then(|| EditorTransition {
+                    audio_out: fade.then_some(EditorTransition {
                         kind: EditorTransitionKind::Fade,
                         duration_seconds: 1.5,
                     }),

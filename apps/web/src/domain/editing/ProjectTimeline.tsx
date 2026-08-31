@@ -1712,7 +1712,7 @@ export function ProjectTimeline({
               onToggleCollapse={() => toggleTrackCollapse(track.id)}
               scrollLeftRef={timelineScrollLeftRef}
               onDragAutoScroll={updateDragAutoScroll}
-              selectedTrackGroups={selectedTrackGroups}
+              selectedTrackGroups={editableSelectedTrackGroups}
               onReplaceTrackClipGroups={onReplaceTrackClipGroups}
               onPreviewClips={onPreviewClips}
               onPreviewRollingEdit={(preview) => {

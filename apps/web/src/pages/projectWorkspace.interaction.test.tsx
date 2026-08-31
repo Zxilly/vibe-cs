@@ -2898,6 +2898,43 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('keeps a locked linked track visible in selection but out of a cross-track move', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const project = linkedProject();
+    const locked: Project = {
+      ...project,
+      document: {
+        ...project.document,
+        tracks: project.document.tracks.map((track) => track.kind === 'audio'
+          ? { ...track, locked: true }
+          : track),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: locked, applyProjectPatch });
+
+    const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    const audio = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
+    await waitFor(() => expect(audio.className).toContain('ring-accent'));
+    fireEvent.pointerDown(story, { pointerId: 117, button: 0, clientX: 200 });
+    fireEvent.pointerMove(story, { pointerId: 117, clientX: 600 });
+    fireEvent.pointerUp(story, { pointerId: 117, clientX: 600 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: STORY_ID },
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+      })],
+    })));
+    const operations = applyProjectPatch.mock.calls[0]?.[0]?.operations ?? [];
+    expect(operations.some((operation: ProjectPatch['operations'][number]) => (
+      operation.op === 'replace_track_clips'
+      && operation.track_id === '00000000-0000-4000-8000-000000000013'
+    ))).toBe(false);
+    clientWidth.mockRestore();
+  });
+
   it('rebuilds a new cross-track link group when pasting linked clips', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: linkedProject(), applyProjectPatch });

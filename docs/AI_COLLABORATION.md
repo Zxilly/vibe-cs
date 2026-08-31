@@ -42,8 +42,10 @@ plan, montage, editor, or conversion pipeline.
 
 ## Current Agent tools
 
-- `read_workspace`: reads the exact Project ID, revision, selection, lens, and
-  canonical Editing Document.
+- `read_workspace`: reads the exact Project ID, current revision, selection,
+  lens, and canonical Editing Document from the desktop host on every call.
+  A second read in the same Agent turn sees the Head produced by an earlier
+  edit tool rather than the request-start snapshot.
 - `read_demo_evidence`: queries authoritative persisted Demo analysis referenced
   by the Project. Player work supplies `playerName` or `playerId` and may narrow
   `demoIds` and event `kinds`; the host filters raw per-Demo highlights before a
@@ -52,14 +54,18 @@ plan, montage, editor, or conversion pipeline.
 - `read_cinematic_context`: reads producer-bound selected-round spatial evidence,
   round bounds, and camera feasibility for explicit highlight IDs.
 - `read_project_delivery`: reads the authoritative Delivery Gate and latest
-  Project export. A completed export includes managed-file availability, size,
-  probed duration, resolution, frame rate, and codecs, so an Agent can verify
-  the artifact instead of handing final inspection back to the human.
+  Project export. A completed export includes its source Project revision,
+  managed-file availability, size, probed duration, resolution, frame rate,
+  and codecs. `matchesCurrentRevision` prevents an older MP4 from being
+  presented as the current Head's delivery.
 - `apply_project_patch`: applies one small revision-bound Project edit.
 - `replace_story_timeline`: performs one Agent-only whole-story replan. It
   canonicalizes series-scoped highlight IDs before persistence and rejects a
   non-POV camera unless the effective in-round capture range contains at least
   four target-player samples from the same replay contract used by recording.
+  Compatible recorded Takes are consumed once by Capture Intent fingerprint;
+  their clip identity and editor-only properties survive reordering, and any
+  real-media duration shrink ripples through the replanned Story.
 - `request_project_recording`: creates a human-confirmation request; it never
   launches CS2.
 - `request_project_export`: creates a human-confirmation request; it never

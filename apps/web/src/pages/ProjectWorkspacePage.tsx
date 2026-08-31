@@ -870,13 +870,13 @@ export function ProjectWorkspacePage() {
         'approved',
         t`已接受这组 Agent 变更。`,
       )}
-      onReturnDelivery={async (groupId) => {
+      onReturnDelivery={async (groupId, feedback) => {
         await appendToolDecision(
           deliveryDecisionToolCallId(groupId),
           'rejected',
-          t`已退回这组 Agent 变更并要求继续修改。`,
+          t`已退回这组 Agent 变更。修改意见：${feedback}`,
         );
-        await sendToAgent(t`退回修改，请继续调整这份作品。`);
+        await sendToAgent(t`退回修改意见：${feedback}`);
       }}
       onDirectEdit={(groupId) => {
         void appendToolDecision(
@@ -2038,7 +2038,7 @@ interface AgentPanelProps {
   readonly onConfirmExport: (toolCallId: string) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
   readonly onAcceptDelivery: (changeGroupId: string) => Promise<void>;
-  readonly onReturnDelivery: (changeGroupId: string) => Promise<void>;
+  readonly onReturnDelivery: (changeGroupId: string, feedback: string) => Promise<void>;
   readonly onDirectEdit: (changeGroupId: string) => void;
 }
 
@@ -2068,7 +2068,9 @@ const AgentPanel = memo(function AgentPanel({
   onDirectEdit,
 }: AgentPanelProps) {
   const [message, setMessage] = useState('');
+  const [returningChangeGroupId, setReturningChangeGroupId] = useState<string | null>(null);
   const conversationEnd = useRef<HTMLDivElement>(null);
+  const messageInput = useRef<HTMLInputElement>(null);
   const entries = session?.entries ?? [];
   const pendingConfirmationToolCallId = pendingConfirmationToolCall(entries);
   const toolDecisions = new Map<string, ToolDecisionEntry>();
@@ -2084,8 +2086,16 @@ const AgentPanel = memo(function AgentPanel({
     const next = message.trim();
     if (next === '' || chat.streaming || creatingSession || readOnly || !agentReady) return;
     setMessage('');
-    void onSend(next);
+    const changeGroupId = returningChangeGroupId;
+    setReturningChangeGroupId(null);
+    if (changeGroupId === null) void onSend(next);
+    else void onReturnDelivery(changeGroupId, next);
   };
+  useEffect(() => {
+    if (returningChangeGroupId !== null && reviewGroup?.id !== returningChangeGroupId) {
+      setReturningChangeGroupId(null);
+    }
+  }, [returningChangeGroupId, reviewGroup?.id]);
   useEffect(() => {
     conversationEnd.current?.scrollIntoView({ block: 'end' });
   }, [session?.id, entries.length, chat.draft, chat.activity?.length]);
@@ -2186,9 +2196,19 @@ const AgentPanel = memo(function AgentPanel({
               <ConversationShell actor="Agent" tone="delivery">
                 <p className="text-xs font-medium"><Trans>所有变更已完成，输出已准备好交付。</Trans></p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Button size="sm" variant="primary" disabled={confirming} onClick={() => reviewGroup === null ? undefined : void onAcceptDelivery(reviewGroup.id)}><Trans>接受交付</Trans></Button>
-                  <Button size="sm" variant="secondary" disabled={confirming} onClick={() => reviewGroup === null ? undefined : void onReturnDelivery(reviewGroup.id)}><Trans>退回修改</Trans></Button>
-                  <Button size="sm" variant="secondary" disabled={readOnly || confirming} onClick={() => { if (reviewGroup !== null) onDirectEdit(reviewGroup.id); }}><Trans>直接修改</Trans></Button>
+                  <Button size="sm" variant="primary" disabled={confirming} onClick={() => {
+                    setReturningChangeGroupId(null);
+                    if (reviewGroup !== null) void onAcceptDelivery(reviewGroup.id);
+                  }}><Trans>接受交付</Trans></Button>
+                  <Button size="sm" variant="secondary" disabled={confirming} onClick={() => {
+                    if (reviewGroup === null) return;
+                    setReturningChangeGroupId(reviewGroup.id);
+                    globalThis.setTimeout(() => messageInput.current?.focus(), 0);
+                  }}><Trans>退回修改</Trans></Button>
+                  <Button size="sm" variant="secondary" disabled={readOnly || confirming} onClick={() => {
+                    setReturningChangeGroupId(null);
+                    if (reviewGroup !== null) onDirectEdit(reviewGroup.id);
+                  }}><Trans>直接修改</Trans></Button>
                 </div>
               </ConversationShell>
             ) : null}
@@ -2197,19 +2217,33 @@ const AgentPanel = memo(function AgentPanel({
         {chat.error === null ? null : <p className="mt-2 text-xs text-fail-text">{chat.error}</p>}
       </div>
       <footer className="border-t border-divider p-3">
+        {returningChangeGroupId === null ? null : (
+          <div className="mb-2 flex items-center gap-2 text-2xs text-neutral-600">
+            <span><Trans>说明需要 Agent 修改什么</Trans></span>
+            <Button className="ml-auto" size="sm" variant="ghost" onClick={() => {
+              setReturningChangeGroupId(null);
+              setMessage('');
+            }}><Trans>取消退回</Trans></Button>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
+            ref={messageInput}
             className="h-10 min-w-0 flex-1 rounded-sm border border-divider bg-neutral-50 px-3 text-xs outline-none focus:border-accent-400"
             value={message}
             disabled={chat.streaming || creatingSession || readOnly || !agentReady}
-            placeholder={agentReady ? t`例如：重新规划成 3 分钟 NiKo 集锦` : t`先配置 Agent 模型`}
+            placeholder={!agentReady
+              ? t`先配置 Agent 模型`
+              : returningChangeGroupId === null
+                ? t`例如：重新规划成 3 分钟 NiKo 集锦`
+                : t`例如：删除第二个标记，并保持其他内容不变`}
             onChange={(event) => setMessage(event.currentTarget.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') submit(); }}
           />
           {chat.streaming ? (
             <Button variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
           ) : (
-            <Button aria-label={t`发送给 Agent`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
+            <Button aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送退回意见`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
           )}
         </div>
       </footer>

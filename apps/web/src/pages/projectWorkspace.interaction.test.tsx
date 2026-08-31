@@ -4992,6 +4992,85 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('collects return feedback in the existing Agent input before starting a revision turn', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000064',
+      title: 'Agent · return feedback',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:02:00Z',
+      entries: [
+        { kind: 'user', id: 'u-return', at: '2026-08-28T10:01:00Z', content: '新增标记' },
+        {
+          kind: 'assistant', id: 'a-return', at: '2026-08-28T10:02:00Z', content: '已经完成。',
+          tool_calls: [], status: 'completed', request_id: 'request-return', retry_of: null, error: null, metadata: null,
+        },
+      ],
+    };
+    const group: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000065',
+      project_id: PROJECT.id,
+      from_revision: 1,
+      to_revision: 2,
+      author: { kind: 'agent', session_id: session.id, turn_id: 'request-return' },
+      status: 'completed',
+      summary: '新增标记',
+      reverts_change_group_id: null,
+      operations: [],
+      inverse_operations: [],
+      created_at: '2026-08-28T10:01:30Z',
+      completed_at: '2026-08-28T10:01:31Z',
+    };
+    let sequence = 0;
+    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
+      sequence += 1;
+      if (draft.kind === 'tool_decision') {
+        return {
+          kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:03:00Z',
+          tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+        };
+      }
+      if (draft.kind === 'user') {
+        return { kind: 'user' as const, id: `user-${sequence}`, at: '2026-08-28T10:03:00Z', content: draft.content };
+      }
+      return {
+        kind: 'assistant' as const, id: `assistant-${sequence}`, at: '2026-08-28T10:03:00Z',
+        content: draft.content, tool_calls: draft.tool_calls, status: draft.status,
+        request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+      };
+    });
+    const streamAgentChat = vi.fn(async () => ({ thread_id: 'return-feedback-turn' }));
+    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
+      kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:03:01Z',
+      request_id: 'return-feedback-turn', retry_of: null, ...update,
+    }));
+    renderWorkspace({
+      session,
+      groups: [group],
+      appendAgentSessionEntry,
+      streamAgentChat,
+      updateAgentTurn,
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '退回修改' }));
+    expect(appendAgentSessionEntry).not.toHaveBeenCalled();
+    expect(screen.getByText('说明需要 Agent 修改什么')).toBeTruthy();
+    const feedback = screen.getByPlaceholderText('例如：删除第二个标记，并保持其他内容不变');
+    await waitFor(() => expect(document.activeElement).toBe(feedback));
+    fireEvent.change(feedback, { target: { value: '删除第二个标记，保留第一个标记。' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送退回意见' }));
+
+    await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(session.id, {
+      kind: 'tool_decision',
+      tool_call_id: `delivery:${group.id}`,
+      decision: 'rejected',
+      content: '已退回这组 Agent 变更。修改意见：删除第二个标记，保留第一个标记。',
+    }));
+    await waitFor(() => expect(streamAgentChat).toHaveBeenCalledWith(
+      expect.objectContaining({ message: '退回修改意见：删除第二个标记，保留第一个标记。' }),
+      expect.any(Function),
+    ));
+  });
+
   it('restores an accepted delivery review against its exact Agent Change Group', async () => {
     const groupId = '00000000-0000-4000-8000-000000000063';
     const session: AgentSession = {

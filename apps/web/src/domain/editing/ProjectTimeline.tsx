@@ -1127,8 +1127,17 @@ export function ProjectTimeline({
 
   return (
     <ReviewPanel
-      className="relative flex min-h-0 select-none flex-col"
+      className="relative flex min-h-0 select-none flex-col focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent-500"
       aria-label={t`时间轴`}
+      tabIndex={0}
+      onPointerDownCapture={(event) => {
+        const target = event.target;
+        if (target instanceof HTMLInputElement
+          || target instanceof HTMLTextAreaElement
+          || target instanceof HTMLSelectElement
+          || (target instanceof HTMLElement && target.isContentEditable)) return;
+        event.currentTarget.focus({ preventScroll: true });
+      }}
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;

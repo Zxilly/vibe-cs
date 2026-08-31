@@ -1107,6 +1107,29 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('focuses the Timeline after pointer interaction so S uses the visible Add Edit path', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    const timeline = screen.getByRole('region', { name: '时间轴' });
+    fireEvent.pointerDown(timeline, { pointerId: 99, button: 0 });
+    expect(document.activeElement).toBe(timeline);
+    fireEvent.keyDown(document.activeElement!, { key: 's' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: expect.arrayContaining([
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 1 }) }),
+          expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 4 }) }),
+        ]),
+      })],
+    })));
+  });
+
   it('adds one edit across every targeted track with Ctrl+K', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });

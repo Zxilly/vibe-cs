@@ -51,6 +51,10 @@ plan, montage, editor, or conversion pipeline.
   a pre-truncated evidence dump.
 - `read_cinematic_context`: reads producer-bound selected-round spatial evidence,
   round bounds, and camera feasibility for explicit highlight IDs.
+- `read_project_delivery`: reads the authoritative Delivery Gate and latest
+  Project export. A completed export includes managed-file availability, size,
+  probed duration, resolution, frame rate, and codecs, so an Agent can verify
+  the artifact instead of handing final inspection back to the human.
 - `apply_project_patch`: applies one small revision-bound Project edit.
 - `replace_story_timeline`: performs one Agent-only whole-story replan. It
   canonicalizes series-scoped highlight IDs before persistence and rejects a

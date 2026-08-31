@@ -12,6 +12,8 @@ use crate::{
     TextStyle, TrackKind, Transform,
 };
 
+const MINIMUM_AUTOMATIC_TAKE_FIT_SPEED: f64 = 0.98;
+
 const MAX_PROJECT_PATCH_OPERATIONS: usize = 1_024;
 pub const MAX_PROJECT_SOURCE_DEMOS: usize = 12;
 
@@ -408,12 +410,13 @@ impl TimelineClip {
         }
     }
 
-    /// Attaches one verified recording while preserving the edited Timeline duration.
+    /// Attaches one verified recording while preserving source truth.
     ///
     /// A managed capture may start a few ticks after its scheduled boundary. When the
-    /// resulting file is slightly shorter than the planned source range, the Take is
-    /// fitted by narrowing `source_out` and applying the matching constant speed. This
-    /// keeps Story timing stable without claiming media coverage the file does not have.
+    /// resulting file is only slightly shorter than the planned source range, the Take
+    /// is fitted by narrowing `source_out` and applying a near-1x constant speed. A
+    /// material shortfall instead shrinks the clip at its existing speed; the Project
+    /// reconciliation caller then applies Story ripple rather than inventing slow motion.
     ///
     /// # Errors
     ///
@@ -451,7 +454,11 @@ impl TimelineClip {
                 ));
             }
             recorded.placement.source_out = media_duration_seconds;
-            recorded.placement.speed = fitted_speed;
+            if fitted_speed >= MINIMUM_AUTOMATIC_TAKE_FIT_SPEED {
+                recorded.placement.speed = fitted_speed;
+            } else {
+                recorded.placement.duration = source_span / recorded.placement.speed;
+            }
         }
         recorded.material = TimelineClipMaterial::Take {
             take_id,
@@ -1171,6 +1178,22 @@ mod tests {
         assert!((recorded.placement.duration - 5.0).abs() < f64::EPSILON);
         assert!((recorded.placement.source_out - 4.98).abs() < f64::EPSILON);
         assert!((recorded.placement.speed - 0.996).abs() < 1e-12);
+        assert_eq!(
+            recorded.materialization_state().expect("state"),
+            TimelineClipMaterializationState::Recorded
+        );
+    }
+
+    #[test]
+    fn materially_short_take_shrinks_instead_of_inventing_slow_motion() {
+        let current = clip(100);
+        let recorded = current
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 3.0)
+            .expect("attach short Take");
+
+        assert!((recorded.placement.duration - 3.0).abs() < f64::EPSILON);
+        assert!((recorded.placement.source_out - 3.0).abs() < f64::EPSILON);
+        assert!((recorded.placement.speed - 1.0).abs() < f64::EPSILON);
         assert_eq!(
             recorded.materialization_state().expect("state"),
             TimelineClipMaterializationState::Recorded

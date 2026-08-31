@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ts_rs::TS;
 
 use axum::{
@@ -15,7 +17,8 @@ use uuid::Uuid;
 use vibe_cs_domain::{
     DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, MediaAsset,
     MediaMetadataStatus, MediaProxyStatus, ProjectChangeAuthor, ProjectEditOperation, ProjectPatch,
-    ProjectPatchScope, RecordingJob, RecordingRequest, TimelineClipMaterial,
+    ProjectPatchScope, RecordingJob, RecordingRequest, TimelineClip, TimelineClipMaterial,
+    TimelineTrack,
 };
 use vibe_cs_recording::{DirectorPolicy, build_director_plan};
 
@@ -845,7 +848,7 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         .get_project(project_id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
-    let mut replacements = Vec::new();
+    let mut replacements = HashMap::new();
     for output in &job.outputs {
         let Some(clip_id) = output
             .metadata
@@ -896,14 +899,17 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
             })
             .await?;
         let recorded = clip.with_recorded_take(output.id, asset_id, output.duration_seconds)?;
-        replacements.push(ProjectEditOperation::ReplaceClip {
-            clip_id,
-            clip: Box::new(recorded),
-        });
+        replacements.insert(clip_id, recorded);
     }
     if replacements.is_empty() {
         return Ok(());
     }
+    let replacement_count = replacements.len();
+    let operations = recorded_take_operations(
+        &project.document.tracks,
+        project.document.story_track_id,
+        &replacements,
+    );
     state
         .storage
         .apply_project_patch(
@@ -915,8 +921,8 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
                     operation_id: job_id,
                 },
                 reverts_change_group_id: None,
-                summary: format!("Attach {} recorded Take(s)", replacements.len()),
-                operations: replacements,
+                summary: format!("Attach {replacement_count} recorded Take(s)"),
+                operations,
             },
             Uuid::new_v4(),
             Utc::now(),
@@ -924,6 +930,51 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         .await?;
     state.events.publish("project", "edited", Some(project_id));
     Ok(())
+}
+
+fn recorded_take_operations(
+    tracks: &[TimelineTrack],
+    story_track_id: Uuid,
+    replacements: &HashMap<Uuid, TimelineClip>,
+) -> Vec<ProjectEditOperation> {
+    let mut operations = Vec::new();
+    for track in tracks {
+        if track.id == story_track_id
+            && track
+                .clips
+                .iter()
+                .any(|clip| replacements.contains_key(&clip.id))
+        {
+            let mut cursor = track.clips.first().map_or(0.0, |clip| clip.placement.start);
+            let clips = track
+                .clips
+                .iter()
+                .map(|clip| {
+                    let mut clip = replacements
+                        .get(&clip.id)
+                        .cloned()
+                        .unwrap_or_else(|| clip.clone());
+                    clip.placement.start = cursor;
+                    cursor += clip.placement.duration;
+                    clip
+                })
+                .collect();
+            operations.push(ProjectEditOperation::ReplaceTrackClips {
+                track_id: track.id,
+                clips,
+            });
+            continue;
+        }
+        operations.extend(track.clips.iter().filter_map(|clip| {
+            replacements.get(&clip.id).cloned().map(|replacement| {
+                ProjectEditOperation::ReplaceClip {
+                    clip_id: clip.id,
+                    clip: Box::new(replacement),
+                }
+            })
+        }));
+    }
+    operations
 }
 
 async fn reserve_active_job(state: &AppState, id: Uuid) -> ApiResult<ActiveJobReservation> {
@@ -987,5 +1038,64 @@ const fn execution_status(status: JobStatus) -> &'static str {
         JobStatus::Completed => "completed",
         JobStatus::Failed => "failed",
         JobStatus::Cancelled => "cancelled",
+    }
+}
+
+#[cfg(test)]
+mod recorded_take_operation_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn clip(id: u128, start: f64) -> TimelineClip {
+        serde_json::from_value(json!({
+            "id":Uuid::from_u128(id),
+            "name":format!("Clip {id}"),
+            "capture_intent":null,
+            "material":{"kind":"planned"},
+            "placement":{"start":start,"duration":5.0,"source_in":0.0,"source_out":5.0,"speed":1.0,"volume":1.0,"enabled":true},
+            "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
+            "effects":[],
+            "transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
+            "text":null,
+            "metadata":{},
+            "group_id":null,
+            "link_group_id":null,
+            "keyframes":[],
+            "speed_segments":[]
+        }))
+        .expect("Timeline Clip fixture")
+    }
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!((actual - expected).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn materially_short_story_take_ripples_every_following_clip() {
+        let story_track_id = Uuid::from_u128(10);
+        let clips = vec![clip(1, 0.0), clip(2, 5.0), clip(3, 10.0)];
+        let track = TimelineTrack {
+            id: story_track_id,
+            name: "Story".to_owned(),
+            kind: vibe_cs_domain::TrackKind::Video,
+            order: 0,
+            muted: false,
+            locked: false,
+            hidden: false,
+            clips: clips.clone(),
+        };
+        let mut shorter = clips[1].clone();
+        shorter.placement.duration = 3.0;
+        shorter.placement.source_out = 3.0;
+        let replacements = HashMap::from([(shorter.id, shorter)]);
+
+        let operations = recorded_take_operations(&[track], story_track_id, &replacements);
+        let [ProjectEditOperation::ReplaceTrackClips { clips, .. }] = operations.as_slice() else {
+            panic!("Story attachment must be one ripple operation");
+        };
+        assert_close(clips[0].placement.start, 0.0);
+        assert_close(clips[1].placement.start, 5.0);
+        assert_close(clips[1].placement.duration, 3.0);
+        assert_close(clips[2].placement.start, 8.0);
     }
 }

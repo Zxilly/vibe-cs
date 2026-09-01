@@ -283,9 +283,9 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | ID | 能力 | 产品要求 | 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | TL-PRO-01 | Proxy | 可生成/清理代理，Program 自动选择可用代理，导出仍用原始素材 | ✅ | P2 |
-| TL-PRO-02 | Nested Sequence | 选择片段创建子序列；父级作为单一 clip；双击回到源序列 | ⬜ | P3 |
+| TL-PRO-02 | Nested Sequence | 选择片段创建子序列；父级作为单一 clip；双击回到源序列 | ✅ | P3 |
 | TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ⬜ | P3 |
-| TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ⬜ | P3 |
+| TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ✅ | P3 |
 | TL-PRO-05 | Render Preview | In/Out 预渲染、状态条、失效管理 | ✅ | P3 |
 | TL-PRO-06 | Interchange | 导入/导出 OTIO/XML/EDL 的受支持子集 | ✅ | P3 |
 
@@ -521,6 +521,12 @@ fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，
 
 真实 Tauri/CDP 在 Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` 上验证：OTIO 为 2,595 bytes、`Timeline.1`，导出→解析→一次 Patch 令 revision 3→4，1 个 Track/1 个 Clip 的素材 UUID `a79b65bd-f67b-4861-94b3-4ebafc7d0e21` 和 source 0–8s 保持；FCP7 XML 880 bytes、CMX3600 EDL 388 bytes，均读回同一名称、素材 UUID 和 source range。直接绕过选择器写任意路径被 Tauri scope 拒绝；NativeShell save/read 和 UI 一次 Patch 另由工作区交互测试覆盖。console/page error 为零，截图位于本地 `target/interchange-audit/screenshots/`。
 
+### Step 32：Nested Sequence 与 Sequence Tabs — 健康
+
+确认：每个 Sequence 仍是一个 canonical Project/Editing Document，父 Timeline Clip 只使用 typed `TimelineClipMaterial::Sequence(project_id, project_revision, media_duration_seconds)` 引用子序列，不把递归文档塞进 Clip，也不增加第二套编辑器。只允许连续、启用且未锁定的 Story selection；Storage 在一个 SQLite Immediate transaction 中创建 child Project、用单一 Sequence Clip 替换 parent selection 并写入同一 Change Group，任何一步失败都不留下半个子序列。创建后自动用同一 `project_preview` renderer 生成 full child composite；Program 与 parent final export 都读取这份 exact child revision，子序列 revision 漂移时 Delivery Gate/Program 立即 stale，Refresh 在一个父 Project Patch 中更新 pinned revision、时长并 ripple 后续 Story，再重渲染。双击 Sequence Clip 打开 child；全宽 Sequence Tabs 使用 current-only workspace storage 记录最多 20 个 Project id，支持切换、关闭和重载恢复。
+
+真实 Tauri/CDP 从 parent Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` revision 4 创建 `Action core`：父 revision 4→5，child `b5ca17e0-3ebb-4742-91eb-f830d92eed87` revision 1，父只剩一个 8s Sequence Clip，自动 preview `d53cc7a1-9cab-40a9-bfe0-eae3eaab5a6a` ready 后 Delivery Gate 无 blocker、Program `readyState=4` 且 stream 指向 child preview。双击进入 child 后 Tabs 同时显示 parent/child；child Story 重命名使 revision 1→2，parent 不变但 status=stale、Program preview count 1→0、Delivery Gate blocker=stale。Refresh 令 parent 5→6、pin 1→2，并生成 preview `33c8c23a-7b9a-4e8f-b770-3090cb66405f`；ready 后 Program 恢复。parent revision 6 的真实 final export `6b029176-e965-42fc-b7ac-3cc421238576` completed，证明 nested composite 进入最终 MP4。console/page error 为零，截图位于本地 `target/nested-sequence-audit/screenshots/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -565,7 +571,7 @@ fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，
 - [x] Caption Track、字幕导航、SRT 和成片导出。
 - [x] In/Out Render Preview、状态条、revision 失效和受管清理。
 - [x] OTIO 多轨与 FCP7 XML/CMX3600 EDL Story 子集导入导出。
-- [ ] Nested Sequence 与 Sequence Tabs。
+- [x] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
 
 ## 13. Definition of Done

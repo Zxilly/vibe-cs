@@ -131,9 +131,28 @@ export function moveFreeClipGroup(
 export interface TimelineCrossTrackMovePlan {
   readonly updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[];
   readonly movedClipIds: readonly string[];
+  readonly insertedTrack: { readonly index: number; readonly track: TimelineTrack } | null;
 }
 
-/** Move one free-track selection to another compatible free track as Overwrite. */
+function movedCrossTrackClips(
+  moving: readonly TimelineClip[],
+  anchorClipId: string,
+  proposedAnchorStart: number,
+  fps: number,
+): readonly TimelineClip[] | null {
+  const anchor = moving.find((clip) => clip.id === anchorClipId);
+  if (moving.length === 0 || anchor === undefined) return null;
+  const safeFps = Math.max(1, fps);
+  const requestedDelta = Math.round((proposedAnchorStart - anchor.placement.start) * safeFps) / safeFps;
+  const minimumStart = Math.min(...moving.map((clip) => clip.placement.start));
+  const delta = Math.max(requestedDelta, -minimumStart);
+  return moving.map((clip) => ({
+    ...clip,
+    placement: { ...clip.placement, start: Math.round((clip.placement.start + delta) * safeFps) / safeFps },
+  })).sort((left, right) => left.placement.start - right.placement.start);
+}
+
+/** Move one selection across compatible tracks using Story compound semantics. */
 export function planCrossTrackMove({
   tracks,
   storyTrackId,
@@ -143,6 +162,9 @@ export function planCrossTrackMove({
   anchorClipId,
   proposedAnchorStart,
   fps,
+  audioTrackId,
+  newAudioTrackName = 'Audio',
+  followLinkedClips = true,
   createId,
 }: {
   readonly tracks: readonly TimelineTrack[];
@@ -153,6 +175,9 @@ export function planCrossTrackMove({
   readonly anchorClipId: string;
   readonly proposedAnchorStart: number;
   readonly fps: number;
+  readonly audioTrackId?: string | null;
+  readonly newAudioTrackName?: string;
+  readonly followLinkedClips?: boolean;
   readonly createId: () => string;
 }): TimelineCrossTrackMovePlan | null {
   const source = tracks.find((track) => track.id === sourceTrackId);
@@ -160,25 +185,127 @@ export function planCrossTrackMove({
   if (source === undefined
     || target === undefined
     || source.id === target.id
-    || source.id === storyTrackId
-    || target.id === storyTrackId
     || source.locked
     || target.locked
     || source.kind !== target.kind) return null;
   const moving = source.clips.filter((clip) => clipIds.has(clip.id));
-  const anchor = moving.find((clip) => clip.id === anchorClipId);
-  if (moving.length === 0 || anchor === undefined) return null;
-  const safeFps = Math.max(1, fps);
-  const requestedDelta = Math.round((proposedAnchorStart - anchor.placement.start) * safeFps) / safeFps;
-  const minimumStart = Math.min(...moving.map((clip) => clip.placement.start));
-  const delta = Math.max(requestedDelta, -minimumStart);
-  const moved = moving.map((clip) => ({
-    ...clip,
-    placement: {
-      ...clip.placement,
-      start: Math.round((clip.placement.start + delta) * safeFps) / safeFps,
-    },
-  })).sort((left, right) => left.placement.start - right.placement.start);
+  const moved = movedCrossTrackClips(moving, anchorClipId, proposedAnchorStart, fps);
+  if (moved === null) return null;
+
+  if (source.id === storyTrackId) {
+    if (target.kind !== 'video') return null;
+    const existingAudioTarget = tracks.find((track) => track.id === audioTrackId && track.kind === 'audio' && !track.locked);
+    const insertedTrack = existingAudioTarget === undefined ? {
+      index: tracks.length,
+      track: {
+        id: createId(),
+        name: newAudioTrackName,
+        kind: 'audio' as const,
+        order: tracks.length,
+        muted: false,
+        locked: false,
+        hidden: false,
+        clips: [] as TimelineClip[],
+      },
+    } : null;
+    const audioTarget = existingAudioTarget ?? insertedTrack!.track;
+    let targetClips = [...target.clips];
+    let audioClips = [...audioTarget.clips];
+    const movedIds: string[] = [];
+    for (const clip of moved) {
+      const linkGroupId = createId();
+      const video = {
+        ...clip,
+        link_group_id: linkGroupId,
+        placement: { ...clip.placement, volume: 0 },
+      };
+      const audio = {
+        ...clip,
+        id: createId(),
+        link_group_id: linkGroupId,
+        transitions: { ...clip.transitions, video_in: null, video_out: null },
+      };
+      targetClips = overwriteClipsAtTime(targetClips, video, video.placement.start, createId());
+      audioClips = overwriteClipsAtTime(audioClips, audio, audio.placement.start, createId());
+      movedIds.push(video.id, audio.id);
+    }
+    return {
+      updates: [
+        { trackId: source.id, clips: deleteRippleClips(source.clips, clipIds) },
+        { trackId: target.id, clips: targetClips },
+        ...(insertedTrack === null ? [{ trackId: audioTarget.id, clips: audioClips }] : []),
+      ],
+      movedClipIds: movedIds,
+      insertedTrack: insertedTrack === null ? null : {
+        ...insertedTrack,
+        track: { ...insertedTrack.track, clips: audioClips },
+      },
+    };
+  }
+
+  if (target.id === storyTrackId) {
+    if (source.kind !== 'video') return null;
+    const partnerByVideoId = new Map<string, { readonly track: TimelineTrack; readonly clip: TimelineClip }>();
+    const unlinkedPartnerByTrack = new Map<string, Set<string>>();
+    for (const video of moving) {
+      if (video.link_group_id === null) continue;
+      const partnerTrack = tracks.find((track) => track.kind === 'audio'
+        && track.clips.some((clip) => clip.link_group_id === video.link_group_id));
+      const partner = partnerTrack?.clips.find((clip) => clip.link_group_id === video.link_group_id);
+      if (partnerTrack === undefined || partner === undefined) continue;
+      if (partnerTrack.locked) return null;
+      if (followLinkedClips) partnerByVideoId.set(video.id, { track: partnerTrack, clip: partner });
+      else {
+        const ids = unlinkedPartnerByTrack.get(partnerTrack.id) ?? new Set<string>();
+        ids.add(partner.id);
+        unlinkedPartnerByTrack.set(partnerTrack.id, ids);
+      }
+    }
+    const firstStart = moved[0]?.placement.start ?? proposedAnchorStart;
+    let storyClips = [...target.clips];
+    let cursor = firstStart;
+    for (const video of moved) {
+      const partner = partnerByVideoId.get(video.id)?.clip;
+      const compound: TimelineClip = {
+        ...video,
+        link_group_id: null,
+        placement: { ...video.placement, start: cursor, volume: partner?.placement.volume ?? video.placement.volume },
+        transitions: {
+          ...video.transitions,
+          audio_in: partner?.transitions.audio_in ?? video.transitions.audio_in,
+          audio_out: partner?.transitions.audio_out ?? video.transitions.audio_out,
+        },
+      };
+      storyClips = insertRippleClipAtTime(storyClips, compound, cursor, createId());
+      cursor += compound.placement.duration;
+    }
+    const partnerIdsByTrack = new Map<string, Set<string>>();
+    for (const partner of partnerByVideoId.values()) {
+      const ids = partnerIdsByTrack.get(partner.track.id) ?? new Set<string>();
+      ids.add(partner.clip.id);
+      partnerIdsByTrack.set(partner.track.id, ids);
+    }
+    for (const [trackId, ids] of unlinkedPartnerByTrack) {
+      const existing = partnerIdsByTrack.get(trackId) ?? new Set<string>();
+      for (const id of ids) existing.add(id);
+      partnerIdsByTrack.set(trackId, existing);
+    }
+    const updates = [
+      { trackId: source.id, clips: source.clips.filter((clip) => !clipIds.has(clip.id)) },
+      { trackId: target.id, clips: storyClips },
+      ...[...partnerIdsByTrack].map(([trackId, ids]) => {
+        const track = tracks.find((candidate) => candidate.id === trackId)!;
+        return {
+          trackId,
+          clips: followLinkedClips
+            ? track.clips.filter((clip) => !ids.has(clip.id))
+            : track.clips.map((clip) => ids.has(clip.id) ? { ...clip, link_group_id: null } : clip),
+        };
+      }),
+    ];
+    return { updates, movedClipIds: moved.map((clip) => clip.id), insertedTrack: null };
+  }
+
   let targetClips = [...target.clips];
   for (const clip of moved) {
     targetClips = overwriteClipsAtTime(targetClips, clip, clip.placement.start, createId());
@@ -189,6 +316,7 @@ export function planCrossTrackMove({
       { trackId: target.id, clips: targetClips },
     ],
     movedClipIds: moved.map((clip) => clip.id),
+    insertedTrack: null,
   };
 }
 

@@ -98,6 +98,7 @@ import {
   trimRippleClipGroup,
   timelineClipsInRange,
   trimRippleClip,
+  type TimelineCrossTrackMovePlan,
 } from './timelineEditing';
 import {
   clipMediaDuration,
@@ -170,6 +171,7 @@ export interface ProjectTimelineProps {
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
+  readonly onApplyCrossTrackMove: (plan: TimelineCrossTrackMovePlan) => void;
   readonly onReplaceClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
@@ -245,6 +247,7 @@ export function ProjectTimeline({
   onReplaceTrack,
   onReplaceTrackClips,
   onReplaceTrackClipGroups,
+  onApplyCrossTrackMove,
   onReplaceClips,
   onPreviewClips,
   onPreviewRollingEdit,
@@ -660,14 +663,18 @@ export function ProjectTimeline({
   const previewCrossTrackTarget = (sourceTrackId: string, candidateTrackId: string | null): string | null => {
     const source = document.tracks.find((track) => track.id === sourceTrackId);
     const target = document.tracks.find((track) => track.id === candidateTrackId);
+    const storyBoundary = source?.id === document.story_track_id || target?.id === document.story_track_id;
+    const storySupported = !storyBoundary
+      || (source?.kind === 'video'
+        && target?.kind === 'video'
+        );
     const accepted = source !== undefined
       && target !== undefined
-      && source.id !== document.story_track_id
-      && target.id !== document.story_track_id
       && source.id !== target.id
       && !source.locked
       && !target.locked
       && source.kind === target.kind
+      && storySupported
       ? target.id
       : null;
     setCrossTrackTargetId(accepted);
@@ -692,13 +699,17 @@ export function ProjectTimeline({
       anchorClipId,
       proposedAnchorStart,
       fps: document.fps,
+      audioTrackId: document.tracks.find((track) => track.kind === 'audio' && !track.locked)?.id ?? null,
+      newAudioTrackName: t`音频 ${document.tracks.filter((track) => track.kind === 'audio').length + 1}`,
+      followLinkedClips: linkedSelectionEnabled,
       createId: () => globalThis.crypto.randomUUID(),
     });
     if (plan === null) return false;
     const delta = proposedAnchorStart - anchor.placement.start;
     const updates = [...plan.updates];
+    const plannedTrackIds = new Set(plan.updates.map((update) => update.trackId));
     for (const group of editableSelectedTrackGroups) {
-      if (group.track.id === sourceTrackId || group.track.id === targetTrackId) continue;
+      if (plannedTrackIds.has(group.track.id)) continue;
       const ids = new Set(group.clips.map((clip) => clip.id));
       const groupAnchor = group.clips[0];
       if (groupAnchor === undefined) continue;
@@ -709,7 +720,7 @@ export function ProjectTimeline({
           : moveFreeClipGroup(group.track.clips, ids, groupAnchor.id, groupAnchor.placement.start + delta, document.fps),
       });
     }
-    onReplaceTrackClipGroups(updates);
+    onApplyCrossTrackMove({ ...plan, updates });
     onSelectClips([
       ...plan.movedClipIds,
       ...editableSelectedTrackGroups

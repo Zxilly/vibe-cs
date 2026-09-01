@@ -344,4 +344,75 @@ describe('ripple Story Track edits', () => {
     expect(planCrossTrackMove({ ...input, storyTrackId: 'story' })).toBeNull();
     expect(planCrossTrackMove({ ...input, storyTrackId: 'story', targetTrackId: video.id })).toBeNull();
   });
+
+  it('splits a Story compound clip into linked free video and audio clips', () => {
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('s', 0, 2)] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [] };
+    let sequence = 0;
+    const plan = planCrossTrackMove({
+      tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: story.id, targetTrackId: video.id,
+      audioTrackId: audio.id, clipIds: new Set(['s']), anchorClipId: 's', proposedAnchorStart: 4, fps: 60,
+      createId: () => `id-${sequence += 1}`,
+    });
+    expect(plan?.updates[0]).toEqual({ trackId: story.id, clips: [] });
+    const movedVideo = plan?.updates[1]?.clips[0];
+    const movedAudio = plan?.updates[2]?.clips[0];
+    expect(movedVideo).toEqual(expect.objectContaining({ id: 's', placement: expect.objectContaining({ start: 4, volume: 0 }) }));
+    expect(movedAudio).toEqual(expect.objectContaining({ id: 'id-2', placement: expect.objectContaining({ start: 4, volume: 1 }) }));
+    expect(movedVideo?.link_group_id).toBe('id-1');
+    expect(movedAudio?.link_group_id).toBe('id-1');
+  });
+
+  it('creates one audio track inside the cross-track plan when Story has no audio target', () => {
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('s', 0, 2)] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [] };
+    let sequence = 0;
+    const plan = planCrossTrackMove({
+      tracks: [story, video], storyTrackId: story.id, sourceTrackId: story.id, targetTrackId: video.id,
+      audioTrackId: null, newAudioTrackName: 'Audio 1', clipIds: new Set(['s']), anchorClipId: 's', proposedAnchorStart: 2, fps: 60,
+      createId: () => `id-${sequence += 1}`,
+    });
+    expect(plan?.insertedTrack).toEqual(expect.objectContaining({
+      index: 2,
+      track: expect.objectContaining({ id: 'id-1', name: 'Audio 1', kind: 'audio', clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 2, volume: 1 }) })] }),
+    }));
+  });
+
+  it('recombines linked free video and audio clips when moved into Story', () => {
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('base', 0, 5)] };
+    const videoClip = { ...clip('v', 10, 2), link_group_id: 'linked', placement: { ...clip('v', 10, 2).placement, volume: 0 } };
+    const audioClip = { ...clip('a', 10, 2), link_group_id: 'linked', placement: { ...clip('a', 10, 2).placement, volume: 0.7 } };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [videoClip] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [audioClip] };
+    let sequence = 0;
+    const plan = planCrossTrackMove({
+      tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: video.id, targetTrackId: story.id,
+      clipIds: new Set(['v']), anchorClipId: 'v', proposedAnchorStart: 5, fps: 60,
+      createId: () => `id-${sequence += 1}`,
+    });
+    expect(plan?.updates.find((update) => update.trackId === video.id)?.clips).toEqual([]);
+    expect(plan?.updates.find((update) => update.trackId === audio.id)?.clips).toEqual([]);
+    expect(plan?.updates.find((update) => update.trackId === story.id)?.clips[1]).toEqual(expect.objectContaining({
+      id: 'v', link_group_id: null, placement: expect.objectContaining({ start: 5, volume: 0.7 }),
+    }));
+  });
+
+  it('unlinks but leaves free audio in place when Linked Selection is disabled', () => {
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [] };
+    const videoClip = { ...clip('v', 2, 2), link_group_id: 'linked', placement: { ...clip('v', 2, 2).placement, volume: 0 } };
+    const audioClip = { ...clip('a', 2, 2), link_group_id: 'linked', placement: { ...clip('a', 2, 2).placement, volume: 0.7 } };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [videoClip] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [audioClip] };
+    const plan = planCrossTrackMove({
+      tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: video.id, targetTrackId: story.id,
+      clipIds: new Set(['v']), anchorClipId: 'v', proposedAnchorStart: 0, fps: 60, followLinkedClips: false, createId: () => 'id',
+    });
+    expect(plan?.updates.find((update) => update.trackId === audio.id)?.clips).toEqual([
+      expect.objectContaining({ id: 'a', link_group_id: null, placement: expect.objectContaining({ start: 2, volume: 0.7 }) }),
+    ]);
+    expect(plan?.updates.find((update) => update.trackId === story.id)?.clips[0]).toEqual(expect.objectContaining({
+      id: 'v', link_group_id: null, placement: expect.objectContaining({ start: 0, volume: 0 }),
+    }));
+  });
 });

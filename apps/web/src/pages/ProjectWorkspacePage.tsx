@@ -89,6 +89,7 @@ import {
   TimelineProgramMonitor,
   type TimelineRollingPreview,
   type TimelineSlidePreview,
+  type TimelineCrossTrackMovePlan,
   type ProjectSourcePatch,
   type ProjectSourcePatchTargets,
   type ProjectSourceRange,
@@ -852,6 +853,25 @@ export function ProjectWorkspacePage() {
       )}
       onReplaceTrackClips={(trackId, clips) => mutateTrackClipUpdates([{ trackId, clips }])}
       onReplaceTrackClipGroups={mutateTrackClipUpdates}
+      onApplyCrossTrackMove={(plan: TimelineCrossTrackMovePlan) => {
+        const expanded = expandTrackClipUpdates(plan.updates);
+        mutate(
+          `跨轨移动片段`,
+          { kind: 'project' },
+          [
+            ...(plan.insertedTrack === null ? [] : [{
+              op: 'insert_track' as const,
+              index: plan.insertedTrack.index,
+              track: plan.insertedTrack.track,
+            }]),
+            ...expanded.map((update) => ({
+              op: 'replace_track_clips' as const,
+              track_id: update.trackId,
+              clips: [...update.clips],
+            })),
+          ],
+        );
+      }}
       onReplaceClips={(clips) => mutate(
         clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
         { kind: 'project' },

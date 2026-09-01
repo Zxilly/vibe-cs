@@ -3336,6 +3336,82 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
+  it('splits Story video and derived audio when moving a compound clip to a free track', async () => {
+    const applyProjectPatch = vi.fn();
+    const elementFromPoint = vi.fn<() => Element | null>();
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
+    renderWorkspace({ project: crossTrackProject(), applyProjectPatch });
+
+    const moving = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    fireEvent.pointerDown(moving, { pointerId: 204, button: 0, clientX: 500, clientY: 200 });
+    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    elementFromPoint.mockReturnValue(targetRow);
+    fireEvent.pointerMove(moving, { pointerId: 204, clientX: 500, clientY: 500, shiftKey: true });
+    expect(targetRow.className).toContain('ring-accent');
+    fireEvent.pointerUp(moving, { pointerId: 204, clientX: 500, clientY: 500, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalled());
+    const patch = applyProjectPatch.mock.calls[0]?.[0] as ProjectPatch;
+    const story = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === STORY_ID);
+    const video = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000162');
+    const audio = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000013');
+    expect(story).toEqual(expect.objectContaining({ clips: [expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) })] }));
+    const movedVideo = video?.op === 'replace_track_clips' ? video.clips.find((clip) => clip.id === CLIP_A) : null;
+    const movedAudio = audio?.op === 'replace_track_clips' ? audio.clips.find((clip) => clip.link_group_id === movedVideo?.link_group_id) : null;
+    expect(movedVideo).toEqual(expect.objectContaining({ placement: expect.objectContaining({ start: 0, volume: 0 }) }));
+    expect(movedAudio).toEqual(expect.objectContaining({ placement: expect.objectContaining({ start: 0, volume: 1 }) }));
+    expect(movedVideo?.link_group_id).toBeTruthy();
+  });
+
+  it('recombines linked free video and audio when moving into Story', async () => {
+    const applyProjectPatch = vi.fn();
+    const base = crossTrackProject();
+    const linkedProject: Project = {
+      ...base,
+      document: {
+        ...base.document,
+        tracks: base.document.tracks.map((track) => {
+          if (track.name === 'Source V2') return {
+            ...track,
+            clips: track.clips.map((clip) => ({ ...clip, link_group_id: 'cross-link', placement: { ...clip.placement, volume: 0 } })),
+          };
+          if (track.kind === 'audio') return {
+            ...track,
+            clips: [{
+              ...clip('00000000-0000-4000-8000-000000000164', 'Move me audio'),
+              link_group_id: 'cross-link',
+              placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0.8, enabled: true },
+            }],
+          };
+          return track;
+        }),
+      },
+    };
+    const elementFromPoint = vi.fn<() => Element | null>();
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
+    renderWorkspace({ project: linkedProject, applyProjectPatch });
+
+    const moving = await screen.findByRole('button', { name: /Move me 2\.0s · 未录制/u });
+    fireEvent.click(moving);
+    fireEvent.pointerDown(moving, { pointerId: 205, button: 0, clientX: 500, clientY: 400 });
+    const storyRow = screen.getByRole('row', { name: 'Story' });
+    elementFromPoint.mockReturnValue(storyRow);
+    fireEvent.pointerMove(moving, { pointerId: 205, clientX: 500, clientY: 200, shiftKey: true });
+    fireEvent.pointerUp(moving, { pointerId: 205, clientX: 500, clientY: 200, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalled());
+    const patch = applyProjectPatch.mock.calls[0]?.[0] as ProjectPatch;
+    const story = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === STORY_ID);
+    const source = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000160');
+    const audio = patch.operations.find((operation) => operation.op === 'replace_track_clips' && operation.track_id === '00000000-0000-4000-8000-000000000013');
+    expect(source).toEqual(expect.objectContaining({ clips: [] }));
+    expect(audio).toEqual(expect.objectContaining({ clips: [] }));
+    expect(story?.op === 'replace_track_clips' ? story.clips.find((clip) => clip.id === '00000000-0000-4000-8000-000000000161') : null).toEqual(expect.objectContaining({
+      link_group_id: null,
+      placement: expect.objectContaining({ start: 2, volume: 0.8 }),
+    }));
+  });
+
   it('keeps a locked linked track visible in selection but out of a cross-track move', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const project = linkedProject();

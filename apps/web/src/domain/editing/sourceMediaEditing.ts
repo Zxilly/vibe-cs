@@ -5,6 +5,7 @@ import type {
   TimelineClip,
   TimelineTrack,
 } from '../../shared/desktop/dto';
+import { isStillImageMediaAsset, mediaAssetEditDuration, projectMediaAssetKind } from './mediaDrag';
 import { insertRippleClipAtTime, overwriteClipsAtTime, placeFreeClipAtTime, timelineClipFromMediaAsset } from './timelineEditing';
 
 export interface SourceMediaPatch {
@@ -23,6 +24,56 @@ export interface SourceMediaEditPlan {
   readonly insertedClipIds: readonly string[];
   readonly insertedAudioTrackIndex: number | null;
   readonly selectedAudioTrackId: string | null;
+}
+
+export function replaceTimelineClipSource({ clip, track, asset, sourceRange }: {
+  readonly clip: TimelineClip;
+  readonly track: TimelineTrack;
+  readonly asset: MediaAsset;
+  readonly sourceRange: { readonly sourceIn: number; readonly sourceOut: number };
+}): TimelineClip | null {
+  if (track.locked || track.kind === 'text') return null;
+  const assetKind = projectMediaAssetKind(asset);
+  if ((track.kind === 'video' || track.kind === 'overlay') && assetKind !== 'video') return null;
+  if (track.kind === 'audio' && !asset.has_audio) return null;
+  const mediaDuration = mediaAssetEditDuration(asset);
+  if (mediaDuration === null || asset.metadata_status.status !== 'ready') return null;
+  if (isStillImageMediaAsset(asset) && clip.speed_segments.length > 0) return null;
+  const sourceIn = Math.min(mediaDuration, Math.max(0, sourceRange.sourceIn));
+  const requiredSourceDuration = clip.speed_segments.length === 0
+    ? clip.placement.duration * clip.placement.speed
+    : clip.speed_segments.reduce((duration, segment) => (
+      duration + (segment.end - segment.start) * segment.speed
+    ), 0);
+  const sourceOut = sourceIn + requiredSourceDuration;
+  if (!isStillImageMediaAsset(asset)
+    && (sourceOut > mediaDuration + 1e-6 || sourceOut > sourceRange.sourceOut + 1e-6)) return null;
+  const replacementMediaDuration = isStillImageMediaAsset(asset)
+    ? Math.max(mediaDuration, sourceOut)
+    : mediaDuration;
+  return {
+    ...clip,
+    name: asset.name,
+    capture_intent: null,
+    material: {
+      kind: 'asset',
+      asset_id: asset.id,
+      media_duration_seconds: replacementMediaDuration,
+    },
+    placement: {
+      ...clip.placement,
+      source_in: sourceIn,
+      source_out: sourceOut,
+    },
+    text: null,
+    metadata: {
+      ...(typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)
+        ? clip.metadata
+        : {}),
+      media_asset_id: asset.id,
+      media_kind: asset.kind,
+    },
+  };
 }
 
 export function planSourceMediaEdit({

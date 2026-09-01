@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EditingDocument, MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
-import { planSourceMediaEdit } from './sourceMediaEditing';
+import { planSourceMediaEdit, replaceTimelineClipSource } from './sourceMediaEditing';
 
 function clip(id: string, start: number, duration: number): TimelineClip {
   return {
@@ -63,6 +63,41 @@ function ids() {
 }
 
 describe('source media editing', () => {
+  it('replaces source media while preserving the Timeline edit and authored attributes', () => {
+    const original: TimelineClip = {
+      ...clip('replace-me', 3, 2),
+      placement: { ...clip('replace-me', 3, 2).placement, speed: 1.5, source_out: 3 },
+      transform: { x: 20, y: 10, scale_x: 1.2, scale_y: 1.2, rotation: 5, opacity: 0.8 },
+      effects: [{ id: 'fx', kind: 'blur', enabled: true, parameters: { radius: 4 } }],
+      transitions: { video_in: { kind: 'fade', duration_seconds: 0.5 }, video_out: null, audio_in: null, audio_out: null },
+      keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5 }],
+    };
+    const replacement = replaceTimelineClipSource({
+      clip: original,
+      track: VIDEO,
+      asset: { ...ASSET, duration_seconds: 12 },
+      sourceRange: { sourceIn: 4, sourceOut: 9 },
+    });
+
+    expect(replacement).toMatchObject({
+      id: original.id,
+      name: ASSET.name,
+      material: { kind: 'asset', asset_id: ASSET.id, media_duration_seconds: 12 },
+      placement: { start: 3, duration: 2, speed: 1.5, source_in: 4, source_out: 7 },
+      transform: original.transform,
+      effects: original.effects,
+      transitions: original.transitions,
+      keyframes: original.keyframes,
+    });
+  });
+
+  it('rejects incompatible or insufficient replacement sources', () => {
+    const target = clip('replace-me', 0, 5);
+    expect(replaceTimelineClipSource({ clip: target, track: VIDEO, asset: ASSET, sourceRange: { sourceIn: 0, sourceOut: 4 } })).toBeNull();
+    expect(replaceTimelineClipSource({ clip: target, track: VIDEO, asset: { ...ASSET, kind: 'audio' }, sourceRange: { sourceIn: 0, sourceOut: 4 } })).toBeNull();
+    expect(replaceTimelineClipSource({ clip: target, track: { ...VIDEO, locked: true }, asset: { ...ASSET, duration_seconds: 10 }, sourceRange: { sourceIn: 0, sourceOut: 10 } })).toBeNull();
+  });
+
   it('keeps Story AV in one compound clip and ripples once', () => {
     const plan = planSourceMediaEdit({
       document: DOCUMENT,

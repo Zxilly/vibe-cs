@@ -4821,6 +4821,63 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('replaces the selected Timeline clip source while preserving its edit and authored attributes', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-replacement',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\replacement.mp4',
+      name: 'Replacement angle',
+      kind: 'video',
+      duration_seconds: 12,
+      width: 1920,
+      height: 1080,
+      file_size: 4_096,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const authoredProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transform: { ...candidate.transform, x: 40 },
+            effects: [{ id: 'blur', kind: 'blur', enabled: true, parameters: { radius: 3 } }],
+            keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5 }],
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: authoredProject, assets: [asset], applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 Replacement angle' }));
+    fireEvent.click(screen.getByRole('button', { name: '用 Replacement angle 替换所选片段' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'time_range', start: 0, end: 5 },
+      operations: [{
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({
+          id: CLIP_A,
+          name: 'Replacement angle',
+          material: { kind: 'asset', asset_id: 'asset-replacement', media_duration_seconds: 12 },
+          placement: expect.objectContaining({ start: 0, duration: 5, source_in: 0, source_out: 5 }),
+          transform: expect.objectContaining({ x: 40 }),
+          effects: [expect.objectContaining({ id: 'blur', kind: 'blur' })],
+          keyframes: [expect.objectContaining({ id: 'opacity', property: 'opacity' })],
+        }),
+      }],
+    })));
+  });
+
   it('routes imported audio to the audio target without rippling Story', async () => {
     const asset: MediaAsset = {
       id: 'asset-audio',

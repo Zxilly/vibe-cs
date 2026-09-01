@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetStreamPath, mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
-import { Dialog } from '../../design/feedback';
+import { Dialog, Tooltip } from '../../design/feedback';
 import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
 import type { MediaAsset, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import {
@@ -55,6 +55,8 @@ export interface ProjectMediaPanelProps {
   readonly onImport: () => void;
   readonly onInsert: (asset: MediaAsset, sourceRange: ProjectSourceRange, sourcePatch: ProjectSourcePatch) => void;
   readonly onOverwrite: (asset: MediaAsset, sourceRange: ProjectSourceRange, sourcePatch: ProjectSourcePatch) => void;
+  readonly canReplace: (asset: MediaAsset, sourceRange: ProjectSourceRange) => boolean;
+  readonly onReplace: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
   readonly onClose?: (() => void) | undefined;
@@ -110,6 +112,8 @@ export function ProjectMediaPanel({
   onImport,
   onInsert,
   onOverwrite,
+  canReplace,
+  onReplace,
   onRelink,
   onDelete,
   onClose,
@@ -198,6 +202,11 @@ export function ProjectMediaPanel({
     && !busy
     && (selectedSourcePatch.video || selectedSourcePatch.audio)
     && canEditAsset(selectedImportedAsset, selectedSourcePatch);
+  const canReplaceSource = selectedImportedAsset !== null
+    && selectedImportedAsset.metadata_status.status === 'ready'
+    && !readOnly
+    && !busy
+    && canReplace(selectedImportedAsset, selectedSourceRange);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -418,6 +427,22 @@ export function ProjectMediaPanel({
                   <Trans>覆盖</Trans>
                   <span className="text-2xs text-neutral-500">.</span>
                 </Button>
+                <Tooltip content={canReplaceSource
+                  ? t`保留所选片段的时间位置、时长、效果和关键帧，只替换源素材`
+                  : t`需要先选择兼容片段，并确保源入点之后有足够素材`} side="top">
+                  <span className="flex-1">
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      variant="ghost"
+                      disabled={!canReplaceSource}
+                      aria-label={t`用 ${selectedImportedAsset.name} 替换所选片段`}
+                      onClick={() => onReplace(selectedImportedAsset, selectedSourceRange)}
+                    >
+                      <Trans>替换</Trans>
+                    </Button>
+                  </span>
+                </Tooltip>
               </div>
             </div>
           )}

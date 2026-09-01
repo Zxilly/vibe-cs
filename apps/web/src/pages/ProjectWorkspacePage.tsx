@@ -74,6 +74,7 @@ import {
   EDITOR_EFFECT_SCHEMAS,
   editorEffectParameter,
   planSourceMediaEdit,
+  replaceTimelineClipSource,
   projectMediaAssetKind,
   mediaAssetEditDuration,
   ProjectMediaPanel,
@@ -672,6 +673,28 @@ export function ProjectWorkspacePage() {
     }
     setSelectedClipIds(editPlan.insertedClipIds);
   };
+  const replacementClipForAsset = (asset: MediaAsset, sourceRange: ProjectSourceRange) => selected === null
+    ? null
+    : replaceTimelineClipSource({
+        clip: selected.clip,
+        track: selected.track,
+        asset,
+        sourceRange,
+      });
+  const replaceSelectedClipSource = (asset: MediaAsset, sourceRange: ProjectSourceRange) => {
+    const replacement = replacementClipForAsset(asset, sourceRange);
+    if (replacement === null) return;
+    mutate(
+      `用 ${asset.name} 替换片段 ${selected?.clip.name ?? replacement.name}`,
+      {
+        kind: 'time_range',
+        start: replacement.placement.start,
+        end: replacement.placement.start + replacement.placement.duration,
+      },
+      [{ op: 'replace_clip', clip_id: replacement.id, clip: replacement }],
+    );
+    setSelectedClipIds([replacement.id]);
+  };
   const importProjectMedia = async () => {
     if (!nativeShell.available) return;
     const paths = await nativeShell.chooseFiles({ title: t`导入项目素材` });
@@ -750,6 +773,8 @@ export function ProjectWorkspacePage() {
       onImport={() => void importProjectMedia()}
       onInsert={(asset, sourceRange, sourcePatch) => addMediaAsset(asset, 'insert', undefined, sourceRange, sourcePatch)}
       onOverwrite={(asset, sourceRange, sourcePatch) => addMediaAsset(asset, 'overwrite', undefined, sourceRange, sourcePatch)}
+      canReplace={(asset, sourceRange) => replacementClipForAsset(asset, sourceRange) !== null}
+      onReplace={replaceSelectedClipSource}
       onRelink={(asset) => void relinkProjectMedia(asset)}
       onDelete={(asset) => deleteMedia.mutate(asset.id)}
     />

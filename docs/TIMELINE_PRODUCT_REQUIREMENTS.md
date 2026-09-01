@@ -274,7 +274,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | TL-META-03 | Clip Marker | Marker 随源片段和 Source Monitor 存在 | ✅ | P2 |
 | TL-META-04 | Ripple Marker 设置 | Story 波纹时选择 sequence marker 跟随或固定 | ✅ | P2 |
 | TL-META-05 | Text Track | 在播放头创建文字，编辑内容、字体、颜色、背景、布局 | ✅ | P1 |
-| TL-META-06 | Caption Track | 字幕轨、字幕片段、前后字幕导航与导出 | ⬜ | P3 |
+| TL-META-06 | Caption Track | 字幕轨、字幕片段、前后字幕导航与导出 | ✅ | P3 |
 | TL-META-07 | CS 事件轨 | 击杀/回合等事件在自身时间范围内显示并可导航 | ✅ | P0 |
 | TL-META-08 | Tactical 同步 | Tactical Monitor 跟随 Transport，地图上下文不可用时稳定降级 | ✅ | P0 |
 
@@ -503,6 +503,12 @@ Tauri/CDP 使用两个真实 MP4，先把 selection order 从 Project 默认 `Au
 
 Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，revision 8→9 写入 Story volume keyframe(time 0,value 2)；播放至 0.200272s 时真实峰值为 22%。Mixer 内 Mute 随后 revision 9→10 把同一 Story `muted=true`，保留 keyframe；console/page error 为零，截图位于本地 `target/audio-mixer-audit/screenshots/01-mixer-touch-peak.png`。
 
+### Step 29：Caption Track 与字幕导出 — 健康
+
+确认：`caption` 是 canonical `TrackKind`，不借用普通 Text Track 名义，也不增加平行字幕模型；Caption Clip 仍是统一 Timeline Clip，但领域约束只允许无源媒体的生成文字，默认使用 48px、下移 360px、`#FFFFFF` 字色与 `#000000` 背景。Timeline 提供 C1 目标轨、创建、锁定/隐藏、移动/裁切/删除、上一个/下一个字幕和 SRT 导出；SRT 对可见且启用的 Caption Clip 按序列时间排序，输出毫秒级 SubRip timecode。Program Monitor 与 FFmpeg final export 读取同一 TextStyle/placement，文字和字幕片段显示“已生成”，不再冒充“未录制”。
+
+真实 Tauri/CDP 在项目 `d1076874-fc90-4502-a25e-c8404c0af97b` 上创建 Caption Track，revision 10→11；实机导出首先暴露并修复旧 Text 默认 CSS 颜色名与 FFmpeg `#RRGGBB` 契约不一致的问题。按当前默认重建后 revision 13→14，数据库精确保存 `color=#FFFFFF/background=#000000`；最终 MP4 `project-d1076874-fc90-4502-a25e-c8404c0af97b-6fe16bd3-4033-4208-b3e1-f920c5220a6b.mp4` 为 H.264/AAC、1920×1080、60fps、20.183333s、21,288,219 bytes，1s 抽帧确认白字黑底字幕已烧录，console/page error 为零。界面与抽帧证据位于本地 `target/caption-track-audit/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -544,9 +550,10 @@ Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，rev
 - [x] 代理媒体在统一 Project/Program 工作流中的生成和切换。
 - [x] Automate to Sequence 的排序、Marker placement、Insert/Overwrite 与默认转场。
 - [x] Audio Track Mixer、真实峰值和 Automation modes。
+- [x] Caption Track、字幕导航、SRT 和成片导出。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
-- [ ] Caption Track、Render Preview 和 OTIO 互换子集。
+- [ ] Render Preview 和 OTIO 互换子集。
 
 ## 13. Definition of Done
 

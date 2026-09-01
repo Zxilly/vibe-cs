@@ -233,7 +233,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-TRIM-07 | Time Remapping | 多速度段、边界拖动、Program/Export 同一映射 | ✅ | P2 |
 | TL-TRIM-08 | Trim Mode | Shift+T 进入双画面 Trim Monitor；优先使用已聚焦剪辑点，否则取播放头最近 Story cut；±1.5 秒循环预览；Left/Right 1 帧、Shift 5 帧；Ctrl/Shift 点击 Rolling Handle 选择同轨或跨轨多个 edit point，并用共同受限 delta 原子调整 | ✅ | P2 |
 | TL-TRIM-09 | Dynamic JKL Trim | Trim Mode 中 J/K/L 使用同一循环 Transport；重复 J/L 加速，K 在停止帧提交 Rolling trim | ✅ | P3 |
-| TL-TRIM-10 | Reverse/Freeze | 负速度、反向、Frame Hold/Freeze Frame | ⬜ | P2 |
+| TL-TRIM-10 | Reverse/Freeze | 负速度、反向、Frame Hold/Freeze Frame | ✅ | P2 |
 
 ### 7.9 转场、效果与关键帧
 
@@ -467,6 +467,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Source In/Out 与 Timeline In/Out 时长冲突时显示 Adobe 五种决定：Fit to Fill、Trim Head、Trim Tail、Ignore Sequence In、Ignore Sequence Out；不可满足 source handle 的选项禁用。最终 source range、sequence anchor、duration 与 speed 一次传入既有 Source Media planner，不增加第二写路径。Tauri 使用真实 6.989206s MP4 对 2–6s Timeline range 执行 Fit to Fill，revision 4→5 后 clip start=2、duration=4、source 0–6.989206、speed=1.7473015，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/20-fit-clip-dialog.png`。
 
+### Step 23：Reverse 与 Frame Hold — 健康
+
+确认：canonical `TimelinePlacement` 显式存储正速度幅值、`reverse` 和必需的 nullable `frame_hold_source_time`；负速度只作为 Inspector 的用户输入/显示，不把方向混入既有正值速度与修剪不变量。Program 和 FFmpeg 共用同一源时间映射；反向播放由 Timeline Transport 驱动稳定媒体池逐帧倒退，导出使用 `reverse`/`areverse`；Frame Hold 固定播放头下的源帧、静音预览，并以 `select first frame + tpad clone` 导出精确时长。反向/定格与 Time Remapping 互斥；定格片段修剪只改变 Timeline 几何，反向片段左右边缘按各自实际 Source Out/In 语义修剪；尚无反向坐标实现的 Rolling/Slide 明确不开放，避免静默错误。
+
+fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：revision 2→3 创建 4s、speed 1.7473015 的反向片段，播放头 0→2s 时 source 6.989206→3.494603s，继续播放至 Timeline 3.0456s 时 source 倒退至 1.667625s；revision 3→4 在 Timeline 1.5s 定格 source 4.368254s，播放至 2.506702s 后源时间不变。定格导出为 H.264/AAC、4.000s、60fps、240 帧，`freezedetect` 从 0s 覆盖文件末尾；revision 4→5 的反向导出同为 4.000s/240 帧，首帧匹配源末帧、末帧匹配源首帧，AAC RMS -19.40dB。fresh CDP session console/page error 为零；截图和抽帧证据位于本地 `target/reverse-freeze-audit/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -498,6 +504,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Transition alignment 与 transition copy/paste。
 - [x] Paste Attributes。
 - [x] Bezier/Ease keyframes。
+- [x] Reverse、负速度和 Frame Hold。
 
 ### Milestone 3：长项目和专业工作流
 

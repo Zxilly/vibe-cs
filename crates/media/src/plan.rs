@@ -119,6 +119,8 @@ struct RenderClip {
     source_in: f64,
     source_out: f64,
     speed: f64,
+    reverse: bool,
+    frame_hold_source_time: Option<f64>,
     volume: f64,
     pan: f64,
     transform: Transform,
@@ -168,6 +170,8 @@ impl From<&Project> for RenderProject {
                             source_in: clip.placement.source_in,
                             source_out: clip.placement.source_out,
                             speed: clip.placement.speed,
+                            reverse: clip.placement.reverse,
+                            frame_hold_source_time: clip.placement.frame_hold_source_time,
                             volume: clip.placement.volume,
                             pan: clip.placement.pan,
                             transform: clip.transform.clone(),
@@ -527,8 +531,25 @@ fn prepare_speed_sections(
     clip: &RenderClip,
     local_start: f64,
     local_end: f64,
+    fps: u32,
 ) -> MediaResult<Vec<PreparedSpeedSection>> {
+    if let Some(hold) = clip.frame_hold_source_time {
+        let frame = 1.0 / f64::from(fps.max(1));
+        let source_start = hold.min((clip.source_out - frame).max(clip.source_in));
+        return Ok(vec![PreparedSpeedSection {
+            source_start,
+            source_end: (source_start + frame).min(clip.source_out),
+            speed: 1.0,
+        }]);
+    }
     if clip.speed_segments.is_empty() {
+        if clip.reverse {
+            return Ok(vec![PreparedSpeedSection {
+                source_start: clip.source_out - local_end * clip.speed,
+                source_end: clip.source_out - local_start * clip.speed,
+                speed: clip.speed,
+            }]);
+        }
         return Ok(vec![PreparedSpeedSection {
             source_start: clip.source_in + local_start * clip.speed,
             source_end: clip.source_in + local_end * clip.speed,
@@ -631,7 +652,7 @@ fn build_editor_command<S: BuildHasher>(
             let rendered_duration = intersection_end - intersection_start;
             let local_start = intersection_start - clip.start;
             let local_end = intersection_end - clip.start;
-            let speed_sections = prepare_speed_sections(clip, local_start, local_end)?;
+            let speed_sections = prepare_speed_sections(clip, local_start, local_end, project.fps)?;
             let source_end = speed_sections
                 .last()
                 .map_or(clip.source_in, |section| section.source_end);
@@ -753,6 +774,7 @@ fn build_editor_command<S: BuildHasher>(
             if source_has_audio(source, item.track_kind)
                 && !item.track_muted
                 && (!any_solo || item.track_solo)
+                && item.clip.frame_hold_source_time.is_none()
             {
                 let audio_label = format!("audio{index}");
                 filters.push(build_audio_filter(item, input, &audio_label)?);
@@ -1044,15 +1066,29 @@ fn build_visual_filter(
     let clip = item.clip;
     let mut filters = Vec::new();
     let timing_label = format!("{label}timing");
-    if item.speed_sections.len() == 1 {
+    if clip.frame_hold_source_time.is_some() {
+        let section = item.speed_sections[0];
+        filters.push(format!(
+            "[{input}:v:0]trim=start={:.6}:end={:.6},select='eq(n,0)',setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration={:.6},trim=duration={:.6},setpts=PTS-STARTPTS[{timing_label}]",
+            section.source_start,
+            section.source_end,
+            item.duration,
+            item.duration
+        ));
+    } else if item.speed_sections.len() == 1 {
         let section = item.speed_sections[0];
         let (trim_start, trim_end) = if source.kind == EditorMediaKind::Image {
             (0.0, section.source_end - section.source_start)
         } else {
             (section.source_start, section.source_end)
         };
+        let reverse = if clip.reverse && source.kind != EditorMediaKind::Image {
+            ",reverse"
+        } else {
+            ""
+        };
         filters.push(format!(
-            "[{input}:v:0]trim=start={trim_start:.6}:end={trim_end:.6},setpts=(PTS-STARTPTS)/{:.6}[{timing_label}]",
+            "[{input}:v:0]trim=start={trim_start:.6}:end={trim_end:.6}{reverse},setpts=(PTS-STARTPTS)/{:.6}[{timing_label}]",
             section.speed
         ));
     } else {
@@ -1286,6 +1322,9 @@ fn build_audio_filter(
             "[{input}:a:0]atrim=start={:.6}:end={:.6},asetpts=PTS-STARTPTS",
             section.source_start, section.source_end
         );
+        if clip.reverse {
+            timing.push_str(",areverse");
+        }
         for tempo in atempo_chain(section.speed) {
             let _ = write!(timing, ",atempo={tempo:.6}");
         }
@@ -1865,6 +1904,8 @@ mod tests {
                             source_in: 0.0,
                             source_out: 5.0,
                             speed: 1.0,
+                            reverse: false,
+                            frame_hold_source_time: None,
                             volume: 1.0,
                             pan: 0.0,
                             enabled: true,
@@ -1916,6 +1957,101 @@ mod tests {
     }
 
     #[test]
+    fn reverse_and_frame_hold_generate_distinct_ffmpeg_timing_filters() {
+        let source = EditorMediaSource {
+            path: PathBuf::from("take.mp4"),
+            kind: EditorMediaKind::Video,
+            has_audio: true,
+        };
+        let project = RenderProject {
+            width: 1920,
+            height: 1080,
+            fps: 60,
+            duration_seconds: 4.0,
+            tracks: Vec::new(),
+        };
+        let mut clip = RenderClip {
+            id: Uuid::new_v4(),
+            asset_id: Some(Uuid::new_v4()),
+            start: 0.0,
+            duration: 4.0,
+            source_in: 1.0,
+            source_out: 5.0,
+            speed: 1.0,
+            reverse: true,
+            frame_hold_source_time: None,
+            volume: 1.0,
+            pan: 0.0,
+            transform: Transform::default(),
+            effects: Vec::new(),
+            video_transition_in: None,
+            video_transition_out: None,
+            audio_transition_in: None,
+            audio_transition_out: None,
+            text: None,
+            keyframes: Vec::new(),
+            speed_segments: Vec::new(),
+        };
+        let reverse_sections =
+            prepare_speed_sections(&clip, 0.0, 4.0, 60).expect("reverse sections");
+        let reverse_item = PreparedEditorClip {
+            track_kind: TrackKind::Video,
+            track_muted: false,
+            track_solo: false,
+            track_volume: 1.0,
+            track_pan: 0.0,
+            track_keyframes: &[],
+            clip: &clip,
+            source: Some(&source),
+            input_index: Some(0),
+            timeline_start: 0.0,
+            sequence_start: 0.0,
+            duration: 4.0,
+            local_start: 0.0,
+            speed_sections: reverse_sections,
+        };
+        let reverse_video = build_visual_filter(&project, &reverse_item, 0, "reverse")
+            .expect("reverse video filter");
+        let reverse_audio =
+            build_audio_filter(&reverse_item, 0, "reverse").expect("reverse audio filter");
+        assert!(reverse_video.contains("trim=start=1.000000:end=5.000000,reverse"));
+        assert!(
+            reverse_audio
+                .contains("atrim=start=1.000000:end=5.000000,asetpts=PTS-STARTPTS,areverse")
+        );
+        drop(reverse_item);
+
+        clip.reverse = false;
+        clip.duration = 7.0;
+        clip.frame_hold_source_time = Some(3.0);
+        let hold_sections = prepare_speed_sections(&clip, 0.0, 7.0, 60).expect("hold section");
+        let hold_item = PreparedEditorClip {
+            track_kind: TrackKind::Video,
+            track_muted: false,
+            track_solo: false,
+            track_volume: 1.0,
+            track_pan: 0.0,
+            track_keyframes: &[],
+            clip: &clip,
+            source: Some(&source),
+            input_index: Some(0),
+            timeline_start: 0.0,
+            sequence_start: 0.0,
+            duration: 7.0,
+            local_start: 0.0,
+            speed_sections: hold_sections,
+        };
+        let hold_video =
+            build_visual_filter(&project, &hold_item, 0, "hold").expect("hold video filter");
+        assert!(hold_video.contains("trim=start=3.000000:end=3.016667"));
+        assert!(hold_video.contains("select='eq(n,0)',setpts=PTS-STARTPTS"));
+        assert!(
+            hold_video
+                .contains("tpad=stop_mode=clone:stop_duration=7.000000,trim=duration=7.000000")
+        );
+    }
+
+    #[test]
     fn independent_audio_tracks_mix_with_gain_fades_and_mute_in_final_export() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let first_source = directory.path().join("first.wav");
@@ -1940,6 +2076,8 @@ mod tests {
                     source_in: 0.0,
                     source_out: 8.0,
                     speed: 1.0,
+                    reverse: false,
+                    frame_hold_source_time: None,
                     volume,
                     pan: 0.0,
                     enabled: true,

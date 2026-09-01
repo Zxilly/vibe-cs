@@ -1662,12 +1662,44 @@ function ClipInspector({
             type="number"
             step="0.1"
             className="border border-divider px-2 py-1.5 font-mono"
-            disabled={readOnly || draft.speed_segments.length > 0}
-            value={draft.placement[field]}
+            disabled={readOnly
+              || draft.speed_segments.length > 0
+              || (draft.placement.frame_hold_source_time !== null && field !== 'duration')}
+            value={field === 'speed' && draft.placement.reverse ? -draft.placement.speed : draft.placement[field]}
             onChange={(event) => setDraft(updateClipTimingField(draft, field, Number(event.currentTarget.value), fps))}
           />
         </label>
       ))}
+      {draft.text !== null || selected?.track.kind === 'text' ? null : (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={draft.placement.reverse}
+              disabled={readOnly || draft.speed_segments.length > 0 || draft.placement.frame_hold_source_time !== null}
+              onChange={(event) => setDraft({ ...draft, placement: { ...draft.placement, reverse: event.currentTarget.checked } })}
+            />
+            <Trans>反向播放</Trans>
+          </label>
+          <Button
+            size="sm"
+            variant={draft.placement.frame_hold_source_time === null ? 'secondary' : 'primary'}
+            disabled={readOnly || draft.speed_segments.length > 0 || selected?.track.kind === 'audio'}
+            onClick={() => setDraft({
+              ...draft,
+              placement: {
+                ...draft.placement,
+                reverse: false,
+                frame_hold_source_time: draft.placement.frame_hold_source_time === null
+                  ? clipSourceTimeAtLocalTime(draft, localTime)
+                  : null,
+              },
+            })}
+          >
+            {draft.placement.frame_hold_source_time === null ? <Trans>定格当前帧</Trans> : <Trans>取消定格</Trans>}
+          </Button>
+        </div>
+      )}
       {!canTimeRemap ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`时间重映射`}>
           <div className="flex items-center gap-2">
@@ -1677,7 +1709,7 @@ function ClipInspector({
                 className="ml-auto"
                 size="sm"
                 variant="secondary"
-                disabled={readOnly}
+                disabled={readOnly || draft.placement.reverse || draft.placement.frame_hold_source_time !== null}
                 onClick={() => setDraft(enableClipTimeRemapping(draft, globalThis.crypto.randomUUID()))}
               >
                 <Trans>启用</Trans>
@@ -2286,13 +2318,21 @@ function updateClipTimingField(
 ): TimelineClip {
   if (!Number.isFinite(value) || clip.speed_segments.length > 0) return clip;
   const placement = clip.placement;
+  if (placement.frame_hold_source_time !== null) {
+    if (field !== 'duration') return clip;
+    return {
+      ...clip,
+      placement: { ...placement, duration: Math.max(1 / Math.max(1, fps), value) },
+    };
+  }
   if (field === 'duration') {
     return rateStretchTimelineClip(clip, 'end', placement.start + value, fps);
   }
   if (field === 'speed') {
-    const speed = Math.min(MAX_TIMELINE_CLIP_SPEED, Math.max(MIN_TIMELINE_CLIP_SPEED, value));
+    const speed = Math.min(MAX_TIMELINE_CLIP_SPEED, Math.max(MIN_TIMELINE_CLIP_SPEED, Math.abs(value)));
     const sourceDuration = placement.source_out - placement.source_in;
-    return rateStretchTimelineClip(clip, 'end', placement.start + sourceDuration / speed, fps);
+    const stretched = rateStretchTimelineClip(clip, 'end', placement.start + sourceDuration / speed, fps);
+    return { ...stretched, placement: { ...stretched.placement, reverse: value < 0 } };
   }
   const frame = 1 / Math.max(1, fps);
   if (field === 'source_in') {
@@ -2300,6 +2340,16 @@ function updateClipTimingField(
       placement.source_out - placement.speed * frame,
       Math.max(0, value),
     );
+    if (placement.reverse) {
+      return {
+        ...clip,
+        placement: {
+          ...placement,
+          duration: (placement.source_out - sourceIn) / placement.speed,
+          source_in: sourceIn,
+        },
+      };
+    }
     const timelineDelta = (sourceIn - placement.source_in) / placement.speed;
     return {
       ...clip,
@@ -2318,6 +2368,19 @@ function updateClipTimingField(
     mediaDuration,
     Math.max(placement.source_in + placement.speed * frame, value),
   );
+  if (placement.reverse) {
+    const fixedEnd = placement.start + placement.duration;
+    const duration = (sourceOut - placement.source_in) / placement.speed;
+    return {
+      ...clip,
+      placement: {
+        ...placement,
+        start: fixedEnd - duration,
+        duration,
+        source_out: sourceOut,
+      },
+    };
+  }
   return {
     ...clip,
     placement: {

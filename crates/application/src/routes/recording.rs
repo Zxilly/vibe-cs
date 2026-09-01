@@ -1052,7 +1052,7 @@ mod recorded_take_operation_tests {
             "name":format!("Clip {id}"),
             "capture_intent":null,
             "material":{"kind":"planned"},
-            "placement":{"start":start,"duration":5.0,"source_in":0.0,"source_out":5.0,"speed":1.0,"volume":1.0,"pan":0.0,"enabled":true},
+            "placement":{"start":start,"duration":5.0,"source_in":0.0,"source_out":5.0,"speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
             "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
             "effects":[],
             "transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},

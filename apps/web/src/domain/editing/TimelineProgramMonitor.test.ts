@@ -9,7 +9,7 @@ function clip(transition: EditorTransitionKind): TimelineClip {
     name: 'Transition',
     capture_intent: null,
     material: { kind: 'planned' },
-    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
+    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, reverse: false, frame_hold_source_time: null, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
     transitions: {

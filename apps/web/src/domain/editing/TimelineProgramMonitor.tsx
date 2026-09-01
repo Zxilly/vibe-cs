@@ -231,7 +231,12 @@ export function TimelineProgramMonitor({
   }, [targetId]);
 
   useEffect(() => {
-    const videoDrivesForward = playbackRange === null && playbackRate > 0 && targetId !== null && presentedId === targetId;
+    const videoDrivesForward = playbackRange === null
+      && playbackRate > 0
+      && targetId !== null
+      && presentedId === targetId
+      && selected?.placement.reverse !== true
+      && selected?.placement.frame_hold_source_time === null;
     if (!playing || videoDrivesForward) return undefined;
     let frame = 0;
     let previous = performance.now();
@@ -262,7 +267,7 @@ export function TimelineProgramMonitor({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playbackRange, playbackRate, playing, presentedId, targetId, transportEnd, transportStart]);
+  }, [playbackRange, playbackRate, playing, presentedId, selected?.placement.frame_hold_source_time, selected?.placement.reverse, targetId, transportEnd, transportStart]);
 
   return (
     <section
@@ -902,7 +907,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
   const canRotateDirectly = !hasScaleKeyframes;
-  const videoPlaysForward = playing && transportRate > 0;
+  const videoPlaysForward = playing
+    && transportRate > 0
+    && !clip.placement.reverse
+    && clip.placement.frame_hold_source_time === null;
   const videoDrivesTimeline = videoPlaysForward && drivesTimeline;
 
   const seekLatest = () => {
@@ -934,7 +942,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       MAX_TIMELINE_CLIP_SPEED,
       Math.max(MIN_TIMELINE_CLIP_SPEED, playbackSpeed * Math.max(1, transportRate)),
     );
-    if (!playing || transportRate < 0) {
+    if (!videoPlaysForward) {
       if (!video.paused) video.pause();
       return;
     }
@@ -945,7 +953,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     return () => {
       if (!video.paused) video.pause();
     };
-  }, [playbackSpeed, playing, transportRate]);
+  }, [playbackSpeed, transportRate, videoPlaysForward]);
 
   useEffect(() => {
     const video = videoRef.current;

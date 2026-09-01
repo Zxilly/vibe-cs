@@ -35,6 +35,8 @@ function clip(id: string, start: number, duration = 10): TimelineClip {
       source_in: 0,
       source_out: duration,
       speed: 1,
+      reverse: false,
+      frame_hold_source_time: null,
       volume: 1,
       pan: 0,
       enabled: true,

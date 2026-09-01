@@ -6,6 +6,8 @@ export type TimelinePlacement = {
   source_in: number;
   source_out: number;
   speed: number;
+  reverse: boolean;
+  frame_hold_source_time: number | null;
   volume: number;
   pan: number;
   enabled: boolean;

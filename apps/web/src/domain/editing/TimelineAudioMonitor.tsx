@@ -134,7 +134,11 @@ function PooledTimelineAudio({
   const desiredTimeRef = useRef(desiredSourceTime);
   desiredTimeRef.current = desiredSourceTime;
   const output = evaluateTimelineAudioMix(track, clip, timelineTimeSeconds);
-  const muted = !active || !audible;
+  const canPlay = active
+    && audible
+    && !clip.placement.reverse
+    && clip.placement.frame_hold_source_time === null;
+  const muted = !canPlay;
   useMediaAudioOutput(audioRef, output.outputVolume, output.clipPan, output.trackPan, muted);
 
   const seekLatest = () => {
@@ -158,7 +162,7 @@ function PooledTimelineAudio({
       MAX_TIMELINE_CLIP_SPEED,
       Math.max(MIN_TIMELINE_CLIP_SPEED, playbackSpeed * Math.max(1, transportRate)),
     );
-    if (!active || !playing || transportRate <= 0) {
+    if (!canPlay || !playing || transportRate <= 0) {
       if (!audio.paused) audio.pause();
       return;
     }
@@ -169,7 +173,7 @@ function PooledTimelineAudio({
     return () => {
       if (!audio.paused) audio.pause();
     };
-  }, [active, playbackSpeed, playing, transportRate]);
+  }, [canPlay, playbackSpeed, playing, transportRate]);
 
   return (
     <audio

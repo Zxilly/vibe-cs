@@ -34,7 +34,7 @@ describe('resolveTimelineMaterial', () => {
         capture_fingerprint: 'a'.repeat(64),
         media_duration_seconds: 9.97,
       },
-      { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
+      { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, reverse: false, frame_hold_source_time: null, volume: 1, pan: 0, enabled: true },
     ).state).toBe('stale');
   });
 });

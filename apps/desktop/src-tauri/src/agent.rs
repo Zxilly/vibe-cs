@@ -543,6 +543,8 @@ impl StoryClipInput {
                 source_in: 0.0,
                 source_out: self.duration_seconds,
                 speed: 1.0,
+                reverse: false,
+                frame_hold_source_time: None,
                 volume: 1.0,
                 pan: 0.0,
                 enabled: true,

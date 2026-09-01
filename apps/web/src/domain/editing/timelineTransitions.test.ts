@@ -12,7 +12,7 @@ import {
 function clip(id: string, start: number): TimelineClip {
   return {
     id, name: id, capture_intent: null, material: { kind: 'planned' },
-    placement: { start, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
+    placement: { start, duration: 5, source_in: 0, source_out: 5, speed: 1, reverse: false, frame_hold_source_time: null, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [], transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
     text: null, metadata: {}, group_id: null, link_group_id: null, keyframes: [], speed_segments: [],

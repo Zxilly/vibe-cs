@@ -120,6 +120,7 @@ export function moveTimelineClip(clip: TimelineClip, start: number, fps: number)
 }
 
 export function canSlipTimelineClip(clip: TimelineClip, fps: number): boolean {
+  if (clip.placement.frame_hold_source_time !== null) return false;
   const mediaDuration = clipMediaDuration(clip);
   if (mediaDuration === null) return false;
   const frame = 1 / Math.max(1, fps);
@@ -141,6 +142,7 @@ export function constrainClipGroupSlipDelta(
   let minimum = Number.NEGATIVE_INFINITY;
   let maximum = Number.POSITIVE_INFINITY;
   for (const clip of clips) {
+    if (clip.placement.frame_hold_source_time !== null) return 0;
     const mediaDuration = clipMediaDuration(clip);
     if (mediaDuration === null) return 0;
     minimum = Math.max(minimum, -clip.placement.source_in);
@@ -191,7 +193,11 @@ export function rollTimelineEdit(
   const editTime = left.placement.start + left.placement.duration;
   if (Math.abs(right.placement.start - editTime) > 0.5 * frame
     || left.speed_segments.length > 0
-    || right.speed_segments.length > 0) return null;
+    || right.speed_segments.length > 0
+    || left.placement.reverse
+    || right.placement.reverse
+    || left.placement.frame_hold_source_time !== null
+    || right.placement.frame_hold_source_time !== null) return null;
 
   const minimum = Math.max(
     minimumClipTimelineDuration(left, fps) - left.placement.duration,
@@ -325,7 +331,11 @@ export function slideTimelineClip(
   if (Math.abs(previous.placement.start + previous.placement.duration - clip.placement.start) > 0.5 * frame
     || Math.abs(next.placement.start - clipEnd) > 0.5 * frame
     || previous.speed_segments.length > 0
-    || next.speed_segments.length > 0) return null;
+    || next.speed_segments.length > 0
+    || previous.placement.reverse
+    || next.placement.reverse
+    || previous.placement.frame_hold_source_time !== null
+    || next.placement.frame_hold_source_time !== null) return null;
 
   const minimum = Math.max(
     minimumClipTimelineDuration(previous, fps) - previous.placement.duration,
@@ -384,6 +394,7 @@ export function canSlideTimelineClip(
 
 export function canRateStretchTimelineClip(clip: TimelineClip): boolean {
   return clip.speed_segments.length === 0
+    && clip.placement.frame_hold_source_time === null
     && clip.placement.source_out - clip.placement.source_in > 1e-9;
 }
 
@@ -463,15 +474,30 @@ export function constrainClipGroupTrimDelta(
       }
       continue;
     }
+    if (placement.frame_hold_source_time !== null) {
+      if (edge === 'start') {
+        minimum = Math.max(minimum, -placement.start);
+        maximum = Math.min(maximum, placement.duration - frame);
+      } else {
+        minimum = Math.max(minimum, -(placement.duration - frame));
+      }
+      continue;
+    }
     if (edge === 'start') {
-      minimum = Math.max(minimum, -placement.start, -placement.source_in / placement.speed);
+      const sourceHandle = placement.reverse
+        ? (clipMediaDuration(clip) === null
+          ? 0
+          : -(clipMediaDuration(clip)! - placement.source_out) / placement.speed)
+        : -placement.source_in / placement.speed;
+      minimum = Math.max(minimum, -placement.start, sourceHandle);
       maximum = Math.min(maximum, placement.duration - frame);
     } else {
       minimum = Math.max(minimum, -(placement.duration - frame));
       const mediaDuration = clipMediaDuration(clip);
-      if (mediaDuration !== null) {
-        maximum = Math.min(maximum, (mediaDuration - placement.source_out) / placement.speed);
-      }
+      const sourceHandle = placement.reverse
+        ? placement.source_in / placement.speed
+        : mediaDuration === null ? Number.POSITIVE_INFINITY : (mediaDuration - placement.source_out) / placement.speed;
+      maximum = Math.min(maximum, sourceHandle);
     }
   }
   const snapped = Math.round(requestedDelta * Math.max(1, fps)) / Math.max(1, fps);
@@ -488,6 +514,28 @@ export function trimTimelineClip(
   const frame = 1 / Math.max(1, fps);
   const minimumDuration = MINIMUM_CLIP_FRAMES * frame;
   const placement = clip.placement;
+
+  if (placement.frame_hold_source_time !== null) {
+    if (edge === 'start') {
+      const maximumStart = placement.start + placement.duration - minimumDuration;
+      const nextStart = snapTimeToFrame(Math.min(maximumStart, Math.max(0, timelineSeconds)), fps);
+      return {
+        ...clip,
+        placement: {
+          ...placement,
+          start: nextStart,
+          duration: snapTimeToFrame(placement.start + placement.duration - nextStart, fps),
+        },
+      };
+    }
+    return {
+      ...clip,
+      placement: {
+        ...placement,
+        duration: snapTimeToFrame(Math.max(minimumDuration, timelineSeconds - placement.start), fps),
+      },
+    };
+  }
 
   if (clip.speed_segments.length > 0) {
     if (edge === 'start') {
@@ -531,9 +579,29 @@ export function trimTimelineClip(
 
   if (edge === 'start') {
     const maximumStart = placement.start + placement.duration - minimumDuration;
-    const minimumStart = Math.max(0, placement.start - placement.source_in / placement.speed);
+    const minimumStart = placement.reverse
+      ? Math.max(
+        0,
+        placement.start - Math.max(0, (mediaDurationSeconds ?? placement.source_out) - placement.source_out) / placement.speed,
+      )
+      : Math.max(0, placement.start - placement.source_in / placement.speed);
     const nextStart = snapTimeToFrame(Math.min(maximumStart, Math.max(minimumStart, timelineSeconds)), fps);
     const timelineDelta = nextStart - placement.start;
+    if (placement.reverse) {
+      const nextSourceOut = Math.max(
+        placement.source_in + minimumDuration * placement.speed,
+        placement.source_out - timelineDelta * placement.speed,
+      );
+      return {
+        ...clip,
+        placement: {
+          ...placement,
+          start: nextStart,
+          duration: (nextSourceOut - placement.source_in) / placement.speed,
+          source_out: nextSourceOut,
+        },
+      };
+    }
     const nextSourceIn = Math.max(0, Math.min(
       placement.source_out - minimumDuration * placement.speed,
       placement.source_in + timelineDelta * placement.speed,
@@ -551,6 +619,18 @@ export function trimTimelineClip(
   }
 
   const requestedDuration = Math.max(minimumDuration, timelineSeconds - placement.start);
+  if (placement.reverse) {
+    const nextSourceIn = Math.max(0, placement.source_out - requestedDuration * placement.speed);
+    const nextDuration = Math.max(minimumDuration, (placement.source_out - nextSourceIn) / placement.speed);
+    return {
+      ...clip,
+      placement: {
+        ...placement,
+        duration: snapTimeToFrame(nextDuration, fps),
+        source_in: nextSourceIn,
+      },
+    };
+  }
   const maximumSourceOut = mediaDurationSeconds ?? Number.POSITIVE_INFINITY;
   const nextSourceOut = Math.min(
     maximumSourceOut,
@@ -580,6 +660,7 @@ export function clipMediaDuration(clip: TimelineClip): number | null {
  * function so their presented frame cannot disagree with the rendered frame.
  */
 export function clipSourceTimeAtLocalTime(clip: TimelineClip, requestedLocalTime: number): number {
+  if (clip.placement.frame_hold_source_time !== null) return clip.placement.frame_hold_source_time;
   const localTime = Math.min(clip.placement.duration, Math.max(0, requestedLocalTime));
   const sourceOffset = clip.speed_segments.length === 0
     ? localTime * clip.placement.speed
@@ -588,19 +669,22 @@ export function clipSourceTimeAtLocalTime(clip: TimelineClip, requestedLocalTime
         ? offset
         : offset + Math.max(0, Math.min(localTime, segment.end) - segment.start) * segment.speed
     ), 0);
-  return Math.min(
-    clip.placement.source_out,
-    Math.max(clip.placement.source_in, clip.placement.source_in + sourceOffset),
-  );
+  const sourceTime = clip.placement.reverse
+    ? clip.placement.source_out - sourceOffset
+    : clip.placement.source_in + sourceOffset;
+  return Math.min(clip.placement.source_out, Math.max(clip.placement.source_in, sourceTime));
 }
 
 /** The inverse needed when a presented media frame advances the Timeline. */
 export function clipLocalTimeAtSourceTime(clip: TimelineClip, requestedSourceTime: number): number {
+  if (clip.placement.frame_hold_source_time !== null) return 0;
   const sourceTime = Math.min(
     clip.placement.source_out,
     Math.max(clip.placement.source_in, requestedSourceTime),
   );
-  const sourceOffset = sourceTime - clip.placement.source_in;
+  const sourceOffset = clip.placement.reverse
+    ? clip.placement.source_out - sourceTime
+    : sourceTime - clip.placement.source_in;
   if (clip.speed_segments.length === 0) {
     return Math.min(clip.placement.duration, Math.max(0, sourceOffset / clip.placement.speed));
   }
@@ -620,7 +704,10 @@ export function clipLocalTimeAtSourceTime(clip: TimelineClip, requestedSourceTim
 
 /** Instantaneous source playback rate at one clip-local Timeline offset. */
 export function clipPlaybackSpeedAtLocalTime(clip: TimelineClip, requestedLocalTime: number): number {
-  if (clip.speed_segments.length === 0) return clip.placement.speed;
+  if (clip.placement.frame_hold_source_time !== null) return 0;
+  if (clip.speed_segments.length === 0) {
+    return clip.placement.reverse ? -clip.placement.speed : clip.placement.speed;
+  }
   const localTime = Math.min(clip.placement.duration, Math.max(0, requestedLocalTime));
   return clip.speed_segments.find((segment) => (
     localTime >= segment.start && (localTime < segment.end || localTime === clip.placement.duration)
@@ -646,7 +733,9 @@ export function clipDemoTickAtTimelineTime(
 }
 
 export function enableClipTimeRemapping(clip: TimelineClip, segmentId: string): TimelineClip {
-  if (clip.speed_segments.length > 0) return clip;
+  if (clip.speed_segments.length > 0
+    || clip.placement.reverse
+    || clip.placement.frame_hold_source_time !== null) return clip;
   return {
     ...clip,
     speed_segments: [{

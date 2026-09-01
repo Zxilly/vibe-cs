@@ -40,7 +40,7 @@ const CLIP: TimelineClip = {
   name: 'Clip',
   capture_intent: null,
   material: { kind: 'asset', asset_id: 'asset', media_duration_seconds: 12 },
-  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
+  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, reverse: false, frame_hold_source_time: null, volume: 1, pan: 0, enabled: true },
   transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
   effects: [],
   transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
@@ -72,6 +72,45 @@ describe('timeline direct manipulation', () => {
     const trimmed = trimTimelineClip(CLIP, 'end', 30, 60, 12);
     expect(trimmed.placement.duration).toBe(10);
     expect(trimmed.placement.source_out).toBe(12);
+  });
+
+  it('trims reverse clips against the source edge presented at each Timeline edge', () => {
+    const reversed = { ...CLIP, placement: { ...CLIP.placement, reverse: true } };
+    const trimmedStart = trimTimelineClip(reversed, 'start', 12, 60, 12);
+    expect(trimmedStart.placement).toMatchObject({
+      start: 12,
+      duration: 6,
+      source_in: 2,
+      source_out: 8,
+      reverse: true,
+    });
+
+    const extendedStart = trimTimelineClip(reversed, 'start', 0, 60, 12);
+    expect(extendedStart.placement).toMatchObject({ start: 8, duration: 10, source_in: 2, source_out: 12 });
+
+    const extendedEnd = trimTimelineClip(reversed, 'end', 30, 60, 12);
+    expect(extendedEnd.placement).toMatchObject({ duration: 10, source_in: 0, source_out: 10 });
+  });
+
+  it('changes only Timeline geometry when trimming a held frame', () => {
+    const held = {
+      ...CLIP,
+      placement: { ...CLIP.placement, frame_hold_source_time: 6 },
+    };
+    expect(trimTimelineClip(held, 'start', 12, 60, 12).placement).toMatchObject({
+      start: 12,
+      duration: 6,
+      source_in: 2,
+      source_out: 10,
+      frame_hold_source_time: 6,
+    });
+    expect(trimTimelineClip(held, 'end', 22, 60, 12).placement).toMatchObject({
+      start: 10,
+      duration: 12,
+      source_in: 2,
+      source_out: 10,
+      frame_hold_source_time: 6,
+    });
   });
 
   it('snaps the closest moving edge within a screen-derived threshold', () => {
@@ -162,6 +201,9 @@ describe('timeline direct manipulation', () => {
     expect(canSlipTimelineClip(planned, 60)).toBe(false);
     expect(constrainClipGroupSlipDelta([planned], 1, 60)).toBe(0);
     expect(slipTimelineClip(planned, 1, 60)).toBe(planned);
+    const held = { ...CLIP, placement: { ...CLIP.placement, frame_hold_source_time: 6 } };
+    expect(canSlipTimelineClip(held, 60)).toBe(false);
+    expect(slipTimelineClip(held, 1, 60)).toBe(held);
   });
 
   it('rolls one shared edit point without changing the combined duration or outer edges', () => {
@@ -196,6 +238,8 @@ describe('timeline direct manipulation', () => {
     const remapped = { ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] };
     expect(rollTimelineEdit(CLIP, gap, 18, 60)).toBeNull();
     expect(rollTimelineEdit(remapped, { ...CLIP, id: 'right', placement: { ...CLIP.placement, start: 18 } }, 18, 60)).toBeNull();
+    const reversed = { ...CLIP, placement: { ...CLIP.placement, reverse: true } };
+    expect(rollTimelineEdit(reversed, { ...CLIP, id: 'right', placement: { ...CLIP.placement, start: 18 } }, 18, 60)).toBeNull();
   });
 
   it('rolls adjacent selected edit points with one constrained delta', () => {
@@ -257,6 +301,29 @@ describe('timeline direct manipulation', () => {
     expect(rateStretchTimelineClip(CLIP, 'end', 10.01, 60).placement).toEqual(expect.objectContaining({ duration: 0.5, speed: 16 }));
     expect(rateStretchTimelineClip(CLIP, 'end', 10_000, 60).placement).toEqual(expect.objectContaining({ duration: 128, speed: 0.0625 }));
     expect(canRateStretchTimelineClip({ ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] })).toBe(false);
+    expect(canRateStretchTimelineClip({
+      ...CLIP,
+      placement: { ...CLIP.placement, frame_hold_source_time: 6 },
+    })).toBe(false);
+  });
+
+  it('maps reverse and held clips through the canonical source clock', () => {
+    const reversed = { ...CLIP, placement: { ...CLIP.placement, reverse: true } };
+    expect(clipSourceTimeAtLocalTime(reversed, 0)).toBe(10);
+    expect(clipSourceTimeAtLocalTime(reversed, 3)).toBe(7);
+    expect(clipSourceTimeAtLocalTime(reversed, 8)).toBe(2);
+    expect(clipLocalTimeAtSourceTime(reversed, 10)).toBe(0);
+    expect(clipLocalTimeAtSourceTime(reversed, 7)).toBe(3);
+    expect(clipLocalTimeAtSourceTime(reversed, 2)).toBe(8);
+    expect(clipPlaybackSpeedAtLocalTime(reversed, 3)).toBe(-1);
+
+    const held = { ...CLIP, placement: { ...CLIP.placement, frame_hold_source_time: 6 } };
+    expect(clipSourceTimeAtLocalTime(held, 0)).toBe(6);
+    expect(clipSourceTimeAtLocalTime(held, 8)).toBe(6);
+    expect(clipLocalTimeAtSourceTime(held, 9)).toBe(0);
+    expect(clipPlaybackSpeedAtLocalTime(held, 3)).toBe(0);
+    expect(enableClipTimeRemapping(reversed, 'segment')).toBe(reversed);
+    expect(enableClipTimeRemapping(held, 'segment')).toBe(held);
   });
 
   it('maps segmented Timeline time to the same source sections as export', () => {
@@ -397,6 +464,13 @@ describe('timeline direct manipulation', () => {
       previous,
       { ...middle, placement: { ...middle.placement, start: 8 } },
       { ...next, placement: { ...next.placement, start: 16 }, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] },
+      8,
+      60,
+    )).toBeNull();
+    expect(slideTimelineClip(
+      { ...previous, placement: { ...previous.placement, reverse: true } },
+      { ...middle, placement: { ...middle.placement, start: 8 } },
+      { ...next, placement: { ...next.placement, start: 16 } },
       8,
       60,
     )).toBeNull();

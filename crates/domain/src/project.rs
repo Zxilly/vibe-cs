@@ -172,6 +172,9 @@ pub struct TimelinePlacement {
     pub source_in: f64,
     pub source_out: f64,
     pub speed: f64,
+    pub reverse: bool,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub frame_hold_source_time: Option<f64>,
     pub volume: f64,
     pub pan: f64,
     pub enabled: bool,
@@ -861,6 +864,11 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         || placement.source_in < 0.0
         || placement.source_out < placement.source_in
         || !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&placement.speed)
+        || placement.frame_hold_source_time.is_some_and(|time| {
+            !time.is_finite() || time < placement.source_in || time > placement.source_out
+        })
+        || ((placement.reverse || placement.frame_hold_source_time.is_some())
+            && !clip.speed_segments.is_empty())
         || placement.volume < 0.0
         || placement.volume > 4.0
         || !(-1.0..=1.0).contains(&placement.pan)
@@ -937,9 +945,10 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         return Err(invalid("clip has too many speed segments"));
     }
     if clip.speed_segments.is_empty() {
-        if ((placement.source_out - placement.source_in) - placement.duration * placement.speed)
-            .abs()
-            > 0.001
+        if placement.frame_hold_source_time.is_none()
+            && ((placement.source_out - placement.source_in) - placement.duration * placement.speed)
+                .abs()
+                > 0.001
         {
             return Err(invalid(
                 "constant-speed clip duration must match its source range",
@@ -1122,6 +1131,8 @@ mod tests {
                 source_in: 0.0,
                 source_out: 5.0,
                 speed: 1.0,
+                reverse: false,
+                frame_hold_source_time: None,
                 volume: 1.0,
                 pan: 0.0,
                 enabled: true,
@@ -1291,6 +1302,38 @@ mod tests {
 
         current.document.tracks[0].clips[0].placement.duration = 2.5;
         assert!(current.validate().is_ok());
+    }
+
+    #[test]
+    fn reverse_and_frame_hold_are_explicit_constant_speed_modes() {
+        let mut reversed = project();
+        reversed.document.tracks[0].clips[0].placement.reverse = true;
+        assert!(reversed.validate().is_ok());
+
+        let mut held = project();
+        held.document.tracks[0].clips[0].placement.duration = 12.0;
+        held.document.tracks[0].clips[0]
+            .placement
+            .frame_hold_source_time = Some(2.5);
+        held.document.duration_seconds = 12.0;
+        assert!(held.validate().is_ok());
+
+        held.document.tracks[0].clips[0]
+            .placement
+            .frame_hold_source_time = Some(6.0);
+        assert!(held.validate().is_err());
+
+        let mut incompatible = project();
+        incompatible.document.tracks[0].clips[0].placement.reverse = true;
+        incompatible.document.tracks[0].clips[0]
+            .speed_segments
+            .push(EditorSpeedSegment {
+                id: Uuid::from_u128(42),
+                start: 0.0,
+                end: 5.0,
+                speed: 1.0,
+            });
+        assert!(incompatible.validate().is_err());
     }
 
     #[test]

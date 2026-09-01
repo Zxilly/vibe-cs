@@ -7,7 +7,7 @@ function clip(id: string, start: number, sourceIn: number, sourceOut: number): T
   return {
     id, name: id, capture_intent: null,
     material: { kind: 'asset', asset_id: 'asset', media_duration_seconds: 20 },
-    placement: { start, duration: sourceOut - sourceIn, source_in: sourceIn, source_out: sourceOut, speed: 1, volume: 1, pan: 0, enabled: true },
+    placement: { start, duration: sourceOut - sourceIn, source_in: sourceIn, source_out: sourceOut, speed: 1, reverse: false, frame_hold_source_time: null, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 }, effects: [],
     transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null }, text: null,
     metadata: {}, group_id: null, link_group_id: null, keyframes: [], speed_segments: [],

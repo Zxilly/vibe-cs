@@ -148,8 +148,8 @@ Premiere 的标尺、播放头、Work Area 和底部 Zoom Scroll Bar 行为参�
 | TL-TR-04 | 多级 Shuttle | 重复 J/L 提升速度；K 停止；连续按键提升到 4× | ✅ | P2 |
 | TL-TR-05 | 编辑点导航 | Up/Down 在目标轨编辑点间移动，Shift 覆盖全部轨 | ✅ | P1 |
 | TL-TR-06 | 入出点 | I/O 设置，显式清除；Lift/Extract/导出消费同一范围 | ✅ | P0 |
-| TL-TR-07 | 跳转入出点 | Shift+I / Shift+O，清除单侧和双侧快捷键 | ⬜ | P1 |
-| TL-TR-08 | 循环播放 | 序列或 In/Out 范围循环 | ⬜ | P2 |
+| TL-TR-07 | 跳转入出点 | Shift+I / Shift+O，清除单侧和双侧快捷键 | ✅ | P1 |
+| TL-TR-08 | 循环播放 | 序列或 In/Out 范围循环 | ✅ | P2 |
 | TL-TR-09 | Match Frame | F 从播放头打开最高目标轨的精确源帧 | ✅ | P1 |
 | TL-TR-10 | 稳定媒体池 | 切片/拖播放头不重新挂载视频；seek 合并且保留上一帧 | ✅ | P0 |
 
@@ -322,8 +322,8 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 | Ripple to previous/next edit | Q / W | 同 | ✅ |
 | Zoom / Fit / Page | =, -, `\`, Page Up/Down | 同 | ✅ |
 | Match Frame / Extend Edit | F / E | 同 | ✅ |
-| Select All / Deselect All | Ctrl+A / Ctrl+Shift+A | Cmd 对应 | 🟡 缺后者 |
-| Enable Clip | Shift+E | Shift+Cmd+E | 🟡 缺快捷键 |
+| Select All / Deselect All | Ctrl+A / Ctrl+Shift+A | Cmd 对应 | ✅ |
+| Enable Clip | Shift+E | Shift+Cmd+E | ✅ |
 
 ## 9. 性能与可靠性要求
 
@@ -417,6 +417,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Story compound audio 和独立音频轨共用 canonical `TimelineTrack` 的 Mute/Solo、Volume、Pan 与全局时间关键帧；轨道头可切换 Volume/Pan automation，播放头处增删关键帧，关键帧在轨道上可见且拖动只在释放时提交一次。Clip Inspector 同时提供 Clip Volume/Pan 静态值和关键帧。Program 使用共享 Web Audio gain + 两级 Stereo Panner，导出使用同一线性插值表达式、Solo 选择和 FFmpeg gain/pan filter。关闭并重开页面后 Solo 与 Pan keyframe 保持，控制台和页面错误为空。实机截图位于本地 `target/audio-automation-audit/screenshots/02-controls-compact.png`、`03-pan-tooltip.png` 和 `04-solo-pan-keyframe.png`。
 
+### Step 11：In/Out 导航与循环 Transport — 健康
+
+确认：Shift+I/Shift+O 跳转到同一 Timeline In/Out，Alt+I/O/X 与 Ctrl/Cmd+Shift+I/O/X 可分别清除单侧或双侧；标记菜单提供相同的可见命令和禁用态。Loop 开关在有完整 In/Out 时向 Program Transport 提供该范围，否则循环完整序列；它复用 Trim Mode 已验证的边界回绕，不创建第二个时钟。Tauri CDP 验证 Tooltip、菜单语义、pressed 状态和零 console/page error；截图位于本地 `target/audio-automation-audit/screenshots/05-loop-tooltip.png` 与 `06-loop-enabled.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -442,7 +446,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Ripple Tool B。
 - [x] Trim Mode、多 edit-point selection、循环预览和键盘精调。
 - [x] Dynamic JKL Trim。
-- [ ] 多级 JKL shuttle、循环播放和 Go to In/Out。
+- [x] 多级 JKL shuttle、循环播放和 Go to In/Out。
 - [x] Group/Ungroup 与 out-of-sync 指示。
 - [x] Audio Solo、Pan、Track keyframes。
 - [ ] 转场 alignment、Paste Attributes、Bezier keyframes。

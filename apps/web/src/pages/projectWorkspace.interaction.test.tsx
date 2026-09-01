@@ -5000,6 +5000,66 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(cleanupMediaProxies).toHaveBeenCalledTimes(1));
   });
 
+  it('automates selected Project media to Story in selection order with default transitions', async () => {
+    const source = (id: string, name: string): MediaAsset => ({
+      id,
+      project_id: PROJECT.id,
+      path: `D:\\media\\${id}.mp4`,
+      name,
+      kind: 'video',
+      duration_seconds: 4,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      markers: [],
+      created_at: PROJECT.updated_at,
+    });
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 0,
+        tracks: PROJECT.document.tracks.map((track) => ({ ...track, clips: [] })),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, assets: [source('first', 'First'), source('second', 'Second')], applyProjectPatch });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('button', { name: '批量组接到序列' }));
+    const dialog = screen.getByRole('dialog', { name: '批量组接到序列' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /First/u }));
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: /First/u }));
+    fireEvent.change(within(dialog).getByRole('combobox', { name: '排序' }), { target: { value: 'selection' } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: '应用默认视频转场（0.5 秒 overlap）' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '组接' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({
+            name: 'Second',
+            placement: expect.objectContaining({ start: 0, duration: 3.5, source_in: 0.25, source_out: 3.75 }),
+            transitions: expect.objectContaining({ video_out: expect.objectContaining({ duration_seconds: 0.25 }) }),
+          }),
+          expect.objectContaining({
+            name: 'First',
+            placement: expect.objectContaining({ start: 3.5, duration: 3.5, source_in: 0.25, source_out: 3.75 }),
+            transitions: expect.objectContaining({ video_in: expect.objectContaining({ duration_seconds: 0.25 }) }),
+          }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
   it('switches the docked Project panel between Adobe-style List and Icon views', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

@@ -11,6 +11,7 @@ import {
   Gauge,
   Link2,
   List,
+  ListPlus,
   Pause,
   Play,
   BookmarkPlus,
@@ -67,10 +68,19 @@ export interface ProjectMediaPanelProps {
   readonly proxiesEnabled: boolean;
   readonly generatingProxyAssetId: string | null;
   readonly proxyCleanupBusy: boolean;
+  readonly sequenceMarkerCount: number;
   readonly onGenerateProxy: (asset: MediaAsset) => void;
   readonly onToggleProxies: () => void;
   readonly onCleanupProxies: () => void;
+  readonly onAutomateToSequence: (request: AutomateToSequenceRequest) => void;
   readonly onClose?: (() => void) | undefined;
+}
+
+export interface AutomateToSequenceRequest {
+  readonly assets: readonly MediaAsset[];
+  readonly placement: 'sequential' | 'markers';
+  readonly method: 'insert' | 'overwrite';
+  readonly applyDefaultTransitions: boolean;
 }
 
 export interface ProjectSourceRange {
@@ -131,9 +141,11 @@ export function ProjectMediaPanel({
   proxiesEnabled,
   generatingProxyAssetId,
   proxyCleanupBusy,
+  sequenceMarkerCount,
   onGenerateProxy,
   onToggleProxies,
   onCleanupProxies,
+  onAutomateToSequence,
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
@@ -144,6 +156,12 @@ export function ProjectMediaPanel({
   const [sourceRanges, setSourceRanges] = useState<Readonly<Record<string, ProjectSourceRange>>>({});
   const [sourcePatches, setSourcePatches] = useState<Readonly<Record<string, ProjectSourcePatch>>>({});
   const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
+  const [automateOpen, setAutomateOpen] = useState(false);
+  const [automateSelection, setAutomateSelection] = useState<readonly string[]>([]);
+  const [automateOrdering, setAutomateOrdering] = useState<'project' | 'selection'>('project');
+  const [automatePlacement, setAutomatePlacement] = useState<'sequential' | 'markers'>('sequential');
+  const [automateMethod, setAutomateMethod] = useState<'insert' | 'overwrite'>('insert');
+  const [automateTransitions, setAutomateTransitions] = useState(false);
   const items = useMemo(
     () => projectMediaItems(timelineTracks, assets, deliveryStateByClipId),
     [assets, deliveryStateByClipId, timelineTracks],
@@ -172,6 +190,9 @@ export function ProjectMediaPanel({
   const recordedItems = filtered.filter((item) => item.state === 'recorded');
   const importedItems = filtered.filter((item) => item.importedAsset !== null);
   const selectedSourceAsset = selected?.sourceAsset ?? null;
+  const automateAssets = assets.filter((asset) => projectMediaAssetKind(asset) === 'video'
+    && asset.metadata_status.status === 'ready'
+    && mediaAssetEditDuration(asset) !== null);
   const selectedImportedAsset = selected?.importedAsset ?? null;
   const selectedDuration = selected?.durationSeconds ?? 0;
   const defaultSourceRange = useMemo<ProjectSourceRange>(
@@ -295,6 +316,21 @@ export function ProjectMediaPanel({
             onClick={onCleanupProxies}
           >
             <Trash2 className="size-3.5" aria-hidden="true" />
+          </Button>
+        </Tooltip>
+        <Tooltip content={t`按 Project 顺序或序列标记批量组接所选视频`} side="bottom">
+          <Button
+            size="sm"
+            icon
+            variant="ghost"
+            aria-label={t`批量组接到序列`}
+            disabled={readOnly || busy || automateAssets.length === 0}
+            onClick={() => {
+              setAutomateSelection(automateAssets.map((asset) => asset.id));
+              setAutomateOpen(true);
+            }}
+          >
+            <ListPlus className="size-3.5" aria-hidden="true" />
           </Button>
         </Tooltip>
         <Button
@@ -558,6 +594,78 @@ export function ProjectMediaPanel({
           />
         )}
       </div>
+
+      <Dialog
+        open={automateOpen}
+        title={<Trans>批量组接到序列</Trans>}
+        confirmLabel={<Trans>组接</Trans>}
+        confirmDisabled={automateSelection.length === 0 || (automatePlacement === 'markers' && sequenceMarkerCount < automateSelection.length)}
+        onConfirm={() => {
+          const selectedIds = new Set(automateSelection);
+          const ordered = automateOrdering === 'selection'
+            ? automateSelection.flatMap((id) => automateAssets.find((asset) => asset.id === id) ?? [])
+            : automateAssets.filter((asset) => selectedIds.has(asset.id));
+          onAutomateToSequence({
+            assets: ordered,
+            placement: automatePlacement,
+            method: automateMethod,
+            applyDefaultTransitions: automatePlacement === 'sequential' && automateTransitions,
+          });
+          setAutomateOpen(false);
+        }}
+        onClose={() => setAutomateOpen(false)}
+      >
+        <div className="space-y-3 text-xs">
+          <fieldset className="space-y-1.5">
+            <legend className="font-semibold"><Trans>素材</Trans></legend>
+            {automateAssets.map((asset) => {
+              const index = automateSelection.indexOf(asset.id);
+              return <label key={asset.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={index >= 0}
+                  onChange={(event) => {
+                    const checked = event.currentTarget.checked;
+                    setAutomateSelection((current) => checked
+                      ? [...current, asset.id]
+                      : current.filter((id) => id !== asset.id));
+                  }}
+                />
+                <span className="min-w-0 flex-1 truncate">{asset.name}</span>
+                {index < 0 ? null : <span className="font-mono text-2xs text-neutral-500">#{index + 1}</span>}
+              </label>;
+            })}
+          </fieldset>
+          <label className="flex flex-col gap-1">
+            <Trans>排序</Trans>
+            <select className="border border-divider bg-bg px-2 py-1.5" value={automateOrdering} onChange={(event) => setAutomateOrdering(event.currentTarget.value as typeof automateOrdering)}>
+              <option value="project"><Trans>Project 顺序</Trans></option>
+              <option value="selection"><Trans>选择顺序</Trans></option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <Trans>放置</Trans>
+            <select className="border border-divider bg-bg px-2 py-1.5" value={automatePlacement} onChange={(event) => setAutomatePlacement(event.currentTarget.value as typeof automatePlacement)}>
+              <option value="sequential"><Trans>连续放置</Trans></option>
+              <option value="markers" disabled={sequenceMarkerCount === 0}><Trans>序列标记位置</Trans></option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <Trans>方法</Trans>
+            <select className="border border-divider bg-bg px-2 py-1.5" value={automateMethod} onChange={(event) => setAutomateMethod(event.currentTarget.value as typeof automateMethod)}>
+              <option value="insert"><Trans>插入编辑</Trans></option>
+              <option value="overwrite"><Trans>覆盖编辑</Trans></option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={automateTransitions} disabled={automatePlacement !== 'sequential'} onChange={(event) => setAutomateTransitions(event.currentTarget.checked)} />
+            <Trans>应用默认视频转场（0.5 秒 overlap）</Trans>
+          </label>
+          {automatePlacement !== 'markers' || sequenceMarkerCount >= automateSelection.length ? null : (
+            <p className="text-fail-text"><Trans>需要至少 {automateSelection.length} 个序列标记；当前只有 {sequenceMarkerCount} 个。</Trans></p>
+          )}
+        </div>
+      </Dialog>
 
       <Dialog
         open={deleteCandidate !== null}

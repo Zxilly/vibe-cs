@@ -79,6 +79,12 @@ export {
 export type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
 export { planRippleSequenceMarkers, type TimelineMarkerRipplePlan } from './timelineMarkers';
 export {
+  planAutomateToSequence,
+  type AutomateSequenceMethod,
+  type AutomateSequencePlacement,
+  type AutomateSequencePlan,
+} from './automateSequence';
+export {
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
   editorEffectParameter,

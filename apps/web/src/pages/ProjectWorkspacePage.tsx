@@ -105,6 +105,7 @@ import {
   isSupportedEditorEffectKind,
   moveEditorEffect,
   planRippleSequenceMarkers,
+  planAutomateToSequence,
   setEditorEffectParameter,
   setClipPanAtTime,
   setClipVolumeAtTime,
@@ -904,6 +905,7 @@ export function ProjectWorkspacePage() {
       proxiesEnabled={current.document.settings.use_media_proxies}
       generatingProxyAssetId={generateMediaProxy.variables ?? null}
       proxyCleanupBusy={cleanupMediaProxies.isPending}
+      sequenceMarkerCount={current.document.markers.length}
       canEditAsset={canApplySourcePatch}
       sourcePatchTargets={sourcePatchTargets}
       importAvailable={nativeShell.available}
@@ -936,6 +938,22 @@ export function ProjectWorkspacePage() {
           },
         }],
       )}
+      onAutomateToSequence={(request) => {
+        const plan = planAutomateToSequence({
+          document: current.document,
+          assets: request.assets,
+          placement: request.placement,
+          method: request.method,
+          startTime: transportTimeSeconds,
+          applyDefaultTransitions: request.applyDefaultTransitions,
+          createId: () => globalThis.crypto.randomUUID(),
+        });
+        if (plan === null) return;
+        const operation = plan.operations[0];
+        if (operation?.op !== 'replace_track_clips') return;
+        mutateTrackClipUpdates([{ trackId: operation.track_id, clips: operation.clips }]);
+        setSelectedClipIds(plan.insertedClipIds);
+      }}
     />
   );
   const programPanel = (

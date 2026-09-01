@@ -247,7 +247,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-FX-04 | 转场 Handles | 按可用源 handles 限制持续时间，缺帧时明确反馈 | ✅ | P1 |
 | TL-FX-05 | 效果栈 | 启用/禁用、排序、参数调整；Program/Export 顺序一致 | ✅ 支持当前 renderer-backed 集合 | P1 |
 | TL-FX-06 | 关键帧 | Timeline/Inspector 添加、移动、删除，静态值和动画值一致 | ✅ | P1 |
-| TL-FX-07 | 插值 | Hold、Linear、Bezier/Ease 与切线编辑 | 🟡 Hold/Linear；缺 Bezier | P2 |
+| TL-FX-07 | 插值 | Hold、Linear、Bezier/Ease 与切线编辑 | ✅ | P2 |
 | TL-FX-08 | Program 直接变换 | 移动、缩放、旋转；一次手势一次 Patch；锁定只读 | ✅ | P1 |
 | TL-FX-09 | Paste Attributes | Ctrl/Cmd+Alt+V 选择性粘贴变换、效果、关键帧、转场 | ✅ | P2 |
 
@@ -451,6 +451,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Ctrl/Cmd+Alt+V 打开选择性属性对话框，可独立粘贴 Transform、Effect、Keyframe、Transition 与 Volume/Pan；目标 Clip 的 identity、material、Timeline placement 和 speed 保持。Effect/Keyframe identity 重建，超出目标时长的 keyframe 丢弃，transition 使用目标 handle 夹取，多个目标一次提交。Tauri 首轮门禁发现并修复 React event `currentTarget` 被带入异步 updater 的崩溃；修复后 revision 12 → 14 完成真实属性粘贴，新 CDP session 的 console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/15-paste-attributes-dialog-fixed.png`。
 
+### Step 19：Bezier/Ease keyframe interpolation — 健康
+
+确认：canonical `EditorKeyframe` 显式携带 Hold/Linear/Bezier/Ease In/Ease Out/Ease In-Out 与入/出切线；不读取旧 shape。Web Program/Audio 和 FFmpeg export 使用同一分段 cubic Hermite 公式，Hold/Linear 保持明确分支；Inspector 在播放头关键帧上编辑 interpolation 和 Bezier tangents。fresh schema Tauri 中，X 从 0→1 的 1 秒 Bezier 段在 out tangent=2 时中点为 0.75；把 tangent 改为 1 并保存 revision 2→3 后，中点精确变为 0.625，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/16-bezier-midpoint.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -481,7 +485,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Audio Solo、Pan、Track keyframes。
 - [x] Transition alignment 与 transition copy/paste。
 - [x] Paste Attributes。
-- [ ] Bezier keyframes。
+- [x] Bezier/Ease keyframes。
 
 ### Milestone 3：长项目和专业工作流
 

@@ -282,7 +282,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 
 | ID | 能力 | 产品要求 | 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
-| TL-PRO-01 | Proxy | 可生成/清理代理，Program 自动选择可用代理，导出仍用原始素材 | 🟡 后端资产代理存在，统一工作区未形成完整控制/切换 | P2 |
+| TL-PRO-01 | Proxy | 可生成/清理代理，Program 自动选择可用代理，导出仍用原始素材 | ✅ | P2 |
 | TL-PRO-02 | Nested Sequence | 选择片段创建子序列；父级作为单一 clip；双击回到源序列 | ⬜ | P3 |
 | TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ⬜ | P3 |
 | TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ⬜ | P3 |
@@ -485,6 +485,12 @@ fresh current-schema Tauri/CDP 使用两个真实 MP4：revision 3→4 把 3s po
 
 fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：空 Timeline 的 Source Monitor 先把 source 3.5s 保存为 `chapter`、duration 1s、comment `Shared before Timeline insertion`，资产 route 立即读回；随后素材插入只令 Project revision 1→2，同一 Marker 自动同时出现在 Source Monitor（left 50.08%、width 14.31%）和 Timeline Clip（left 317.49px、width 90.71px），两处 hover 信息一致。fresh CDP session console/page error 为零；截图位于本地 `target/clip-marker-audit/screenshots/`。
 
+### Step 26：统一 Proxy 控制与无闪烁切换 — 健康
+
+确认：Project 面板提供单素材生成/重试状态、项目级代理预览开关和受管代理清理；`MediaAsset.proxy_status/proxy_path` 仍是唯一代理真值，Project Settings 只保存 `use_media_proxies` 决定 Program 路由。Program 在开关开启且代理 Ready 时选择带 `generated_at` cache key 的 `/proxy/stream`，其他状态自动回退 `/stream`；FFmpeg export 路径不读取 proxy 字段，继续使用资产原始 `path`。源切换复用稳定 Clip media pool，并把旧/新 source variant 同时挂载；候选 source 解码并 seek 到半帧误差内后才替换 presented key，Trim Monitor 也使用同一 readiness 语义。
+
+fresh current-schema Tauri/CDP 使用真实 13,930,809-byte、1920×1080/60fps MP4 生成 6,268,251-byte、1280×720/30fps 受管代理。初版实机 probe 在启用代理时捕获 6 个可见 `readyState<2` 的 16ms 样本；双 source variant 修复后，原片→代理 85 个样本中 `minReady=4`、空帧 0、active source 最大 1，URL 从原片稳定切到带 generation key 的代理。随后真实清理把代理→原片同样保持 `minReady=4`/空帧 0，删除代理文件并把资产重置为 `proxy_path=null/not_requested`，原片路径不变。Project revision 2→7 只记录代理预览开关，不把生成/清理伪装成 Timeline Edit；fresh CDP session console/page error 为零。截图位于本地 `target/proxy-controls-audit/screenshots/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -519,10 +525,11 @@ fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：空 Timeline 的 Sou
 - [x] Reverse、负速度和 Frame Hold。
 - [x] Marker 类型、注释、持续时间与 Ripple Sequence Markers。
 - [x] Source/Clip Marker 与 Timeline source-time 投影。
+- [x] Proxy 生成、项目开关、Program 自动路由和受管清理。
 
 ### Milestone 3：长项目和专业工作流
 
-- [ ] 代理媒体在统一 Project/Program 工作流中的生成和切换。
+- [x] 代理媒体在统一 Project/Program 工作流中的生成和切换。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
 - [ ] Caption Track、Render Preview 和 OTIO 互换子集。

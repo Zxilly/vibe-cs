@@ -424,6 +424,7 @@ export type { Transform } from './generated/Transform';
 export type { TextStyle } from './generated/TextStyle';
 export type { EditorEffect } from './generated/EditorEffect';
 export type { EditorKeyframeProperty } from './generated/EditorKeyframeProperty';
+export type { EditorKeyframeInterpolation } from './generated/EditorKeyframeInterpolation';
 export type { EditorKeyframe } from './generated/EditorKeyframe';
 export type { EditorSpeedSegment } from './generated/EditorSpeedSegment';
 export type { TrackKind } from './generated/TrackKind';

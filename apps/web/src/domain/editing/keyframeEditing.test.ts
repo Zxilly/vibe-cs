@@ -42,8 +42,8 @@ describe('canonical clip keyframe editing', () => {
     const updated = upsertClipKeyframe(earlier, 'x', 1.004, 40, 'replacement', 60);
 
     expect(updated.keyframes).toEqual([
-      { id: 'earlier', time: 1, property: 'x', value: 40 },
-      { id: 'later', time: 4, property: 'x', value: 120 },
+      { id: 'earlier', time: 1, property: 'x', value: 40, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+      { id: 'later', time: 4, property: 'x', value: 120, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
     ]);
     expect(clipKeyframeAtTime(updated, 'x', 1, 60)?.value).toBe(40);
   });
@@ -53,7 +53,7 @@ describe('canonical clip keyframe editing', () => {
     const both = upsertClipKeyframe(x, 'opacity', 1, 0.5, 'opacity', 60);
     const removed = removeClipKeyframe(both, 'x', 1, 60);
 
-    expect(removed.keyframes).toEqual([{ id: 'opacity', time: 1, property: 'opacity', value: 0.5 }]);
+    expect(removed.keyframes).toEqual([{ id: 'opacity', time: 1, property: 'opacity', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }]);
     expect(removeClipKeyframe(removed, 'x', 1, 60)).toBe(removed);
   });
 
@@ -65,6 +65,22 @@ describe('canonical clip keyframe editing', () => {
     expect(evaluateClipKeyframeProperty(animated, 'x', 4, 0)).toBe(60);
     expect(evaluateClipKeyframeProperty(animated, 'x', 8, 0)).toBe(100);
     expect(evaluateClipKeyframeProperty(CLIP, 'x', 4, 7)).toBe(7);
+  });
+
+  it('evaluates Hold, Bezier and Ease segments with canonical tangents', () => {
+    const first = upsertClipKeyframe(CLIP, 'x', 0, 0, 'first', 60);
+    const keyed = upsertClipKeyframe(first, 'x', 1, 1, 'second', 60);
+    const withInterpolation = (interpolation: typeof keyed.keyframes[0]['interpolation'], outTangent = 0) => ({
+      ...keyed,
+      keyframes: keyed.keyframes.map((keyframe, index) => index === 0
+        ? { ...keyframe, interpolation, out_tangent: outTangent }
+        : keyframe),
+    });
+    expect(evaluateClipKeyframeProperty(withInterpolation('hold'), 'x', 0.5, 0)).toBe(0);
+    expect(evaluateClipKeyframeProperty(withInterpolation('bezier', 2), 'x', 0.5, 0)).toBeCloseTo(0.75);
+    expect(evaluateClipKeyframeProperty(withInterpolation('ease_in'), 'x', 0.5, 0)).toBeCloseTo(0.375);
+    expect(evaluateClipKeyframeProperty(withInterpolation('ease_out'), 'x', 0.5, 0)).toBeCloseTo(0.625);
+    expect(evaluateClipKeyframeProperty(withInterpolation('ease_in_out'), 'x', 0.5, 0)).toBeCloseTo(0.5);
   });
 
   it('updates animated properties at the playhead and static properties at the base', () => {
@@ -80,8 +96,8 @@ describe('canonical clip keyframe editing', () => {
 
     expect(moved.transform).toMatchObject({ x: 0, y: 50 });
     expect(moved.keyframes).toEqual([
-      { id: 'x-0', time: 0, property: 'x', value: 10 },
-      { id: 'new-1', time: 1, property: 'x', value: 100 },
+      { id: 'x-0', time: 0, property: 'x', value: 10, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+      { id: 'new-1', time: 1, property: 'x', value: 100, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
     ]);
   });
 
@@ -104,8 +120,8 @@ describe('canonical clip keyframe editing', () => {
     const keyed = setClipVolumeAtTime(animated, 1, 1.5, 60, 'volume-1');
     expect(keyed.placement.volume).toBe(1);
     expect(keyed.keyframes).toEqual([
-      { id: 'volume-0', time: 0, property: 'volume', value: 1 },
-      { id: 'volume-1', time: 1, property: 'volume', value: 1.5 },
+      { id: 'volume-0', time: 0, property: 'volume', value: 1, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+      { id: 'volume-1', time: 1, property: 'volume', value: 1.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
     ]);
   });
 
@@ -116,8 +132,8 @@ describe('canonical clip keyframe editing', () => {
     const keyed = setClipPanAtTime(animated, 1, 0.75, 60, 'pan-1');
     expect(keyed.placement.pan).toBe(0);
     expect(keyed.keyframes).toEqual([
-      { id: 'pan-0', time: 0, property: 'pan', value: 0 },
-      { id: 'pan-1', time: 1, property: 'pan', value: 0.75 },
+      { id: 'pan-0', time: 0, property: 'pan', value: 0, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+      { id: 'pan-1', time: 1, property: 'pan', value: 0.75, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
     ]);
   });
 });

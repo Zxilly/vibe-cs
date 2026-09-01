@@ -55,7 +55,7 @@ describe('track audio automation', () => {
       'right',
     );
     const merged = moveTrackAudioKeyframe(automated, 'left', 2, 0, 60);
-    expect(merged.keyframes).toEqual([{ id: 'right', time: 2, property: 'pan', value: 0 }]);
+    expect(merged.keyframes).toEqual([{ id: 'right', time: 2, property: 'pan', value: 0, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }]);
     expect(removeTrackAudioKeyframe(merged, 'pan', 2, 60).keyframes).toEqual([]);
   });
 });

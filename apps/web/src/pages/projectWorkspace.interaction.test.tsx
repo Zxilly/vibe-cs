@@ -955,8 +955,8 @@ describe('unified project workspace', () => {
           clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
             ...candidate,
             keyframes: [
-              { id: 'volume-0', time: 0, property: 'volume', value: 1 },
-              { id: 'volume-1', time: 1, property: 'volume', value: 2 },
+              { id: 'volume-0', time: 0, property: 'volume', value: 1, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+              { id: 'volume-1', time: 1, property: 'volume', value: 2, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
             ],
           }),
         }),
@@ -978,7 +978,7 @@ describe('unified project workspace', () => {
           placement: expect.objectContaining({ volume: 1 }),
           keyframes: [
             expect.objectContaining({ id: 'volume-0', time: 0, value: 1 }),
-            expect.objectContaining({ id: 'volume-1', time: 1, property: 'volume', value: expect.closeTo(1.782_502, 5) }),
+            expect.objectContaining({ id: 'volume-1', time: 1, property: 'volume', value: expect.closeTo(1.782_502, 5), interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }),
           ],
         }),
       })],
@@ -2006,7 +2006,7 @@ describe('unified project workspace', () => {
             ...candidate,
             transform: { ...candidate.transform, x: 50 },
             effects: [{ id: 'blur-source', kind: 'blur', enabled: true, parameters: { radius: 4 } }],
-            keyframes: [{ id: 'opacity-source', time: 1, property: 'opacity', value: 0.5 }],
+            keyframes: [{ id: 'opacity-source', time: 1, property: 'opacity', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
           }),
         }),
       },
@@ -2541,8 +2541,8 @@ describe('unified project workspace', () => {
             ...candidate,
             transform: { ...candidate.transform, y: 54, scale_x: 1.2, scale_y: 0.8, rotation: 15, opacity: 0.5 },
             keyframes: [
-              { id: 'x-0', time: 0, property: 'x', value: 96 },
-              { id: 'x-1', time: 1, property: 'x', value: 192 },
+              { id: 'x-0', time: 0, property: 'x', value: 96, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+              { id: 'x-1', time: 1, property: 'x', value: 192, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
             ],
           }),
         }),
@@ -2579,8 +2579,8 @@ describe('unified project workspace', () => {
       placement: { ...clip(textClipId, 'Title').placement, duration: 5, source_out: 5 },
       transform: { ...clip(textClipId, 'Title').transform, x: 96, y: 54, opacity: 0.5 },
       keyframes: [
-        { id: 'title-x-0', time: 0, property: 'x', value: 96 },
-        { id: 'title-x-1', time: 1, property: 'x', value: 192 },
+        { id: 'title-x-0', time: 0, property: 'x', value: 96, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+        { id: 'title-x-1', time: 1, property: 'x', value: 192, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
       ],
       text: {
         content: 'NiKo',
@@ -2767,8 +2767,8 @@ describe('unified project workspace', () => {
               audio_in: { kind: 'constant_power', duration_seconds: 1 },
             },
             keyframes: [
-              { id: 'volume-0', time: 0, property: 'volume', value: 0.5 },
-              { id: 'volume-1', time: 1, property: 'volume', value: 1 },
+              { id: 'volume-0', time: 0, property: 'volume', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+              { id: 'volume-1', time: 1, property: 'volume', value: 1, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
             ],
           }),
         }),
@@ -2876,7 +2876,7 @@ describe('unified project workspace', () => {
           clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
             ...candidate,
             transform: { ...candidate.transform, y: 54 },
-            keyframes: [{ id: 'x-0', time: 0, property: 'x', value: 96 }],
+            keyframes: [{ id: 'x-0', time: 0, property: 'x', value: 96, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
           }),
         }),
       },
@@ -2909,7 +2909,7 @@ describe('unified project workspace', () => {
         clip_id: CLIP_A,
         clip: expect.objectContaining({
           transform: expect.objectContaining({ x: 0, y: 162 }),
-          keyframes: [expect.objectContaining({ id: 'x-0', time: 0, property: 'x', value: 288 })],
+          keyframes: [expect.objectContaining({ id: 'x-0', time: 0, property: 'x', value: 288, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  })],
         }),
       })],
     }));
@@ -5075,7 +5075,7 @@ describe('unified project workspace', () => {
             ...candidate,
             transform: { ...candidate.transform, x: 40 },
             effects: [{ id: 'blur', kind: 'blur', enabled: true, parameters: { radius: 3 } }],
-            keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5 }],
+            keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
           }),
         }),
       },
@@ -5717,6 +5717,40 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('authors Bezier interpolation and tangents on the canonical keyframe', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            keyframes: [
+              { id: 'x-0', time: 0, property: 'x', value: 0, interpolation: 'linear', in_tangent: 0, out_tangent: 0 },
+              { id: 'x-1', time: 1, property: 'x', value: 100, interpolation: 'linear', in_tangent: 0, out_tangent: 0 },
+            ],
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'x 插值' }), { target: { value: 'bezier' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'x 出切线' }), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([expect.objectContaining({
+          id: CLIP_A,
+          keyframes: expect.arrayContaining([expect.objectContaining({ id: 'x-0', interpolation: 'bezier', out_tangent: 2 })]),
+        })]),
+      })],
+    })));
+  });
+
   it('authors Volume keyframes from Inspector and keeps base volume unchanged', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
@@ -5752,9 +5786,9 @@ describe('unified project workspace', () => {
           clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
             ...candidate,
             keyframes: [
-              { id: 'x-1', time: 1, property: 'x', value: 100 },
-              { id: 'opacity-1', time: 1, property: 'opacity', value: 0.5 },
-              { id: 'x-3', time: 3, property: 'x', value: 200 },
+              { id: 'x-1', time: 1, property: 'x', value: 100, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+              { id: 'opacity-1', time: 1, property: 'opacity', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
+              { id: 'x-3', time: 3, property: 'x', value: 200, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  },
             ],
           }),
         }),

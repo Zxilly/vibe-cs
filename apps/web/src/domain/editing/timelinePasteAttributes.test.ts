@@ -20,7 +20,7 @@ describe('Paste Attributes', () => {
       placement: { ...clip('source').placement, volume: 2, pan: -0.5 },
       transform: { ...clip('source').transform, x: 40 },
       effects: [{ id: 'fx', kind: 'blur', enabled: true, parameters: { radius: 3 } }],
-      keyframes: [{ id: 'key', time: 1, property: 'opacity' as const, value: 0.5 }],
+      keyframes: [{ id: 'key', time: 1, property: 'opacity' as const, value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
       transitions: { ...clip('source').transitions, video_in: { kind: 'fade' as const, duration_seconds: 0.5 } },
     };
     let id = 0;
@@ -37,7 +37,7 @@ describe('Paste Attributes', () => {
     const source = {
       ...clip('source', 5),
       transitions: { ...clip('source').transitions, video_in: { kind: 'zoom' as const, duration_seconds: 3 } },
-      keyframes: [{ id: 'late', time: 4, property: 'x' as const, value: 20 }],
+      keyframes: [{ id: 'late', time: 4, property: 'x' as const, value: 20, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
     };
     const result = pasteTimelineClipAttributes(source, clip('target', 2), {
       transform: false, effects: false, keyframes: true, transitions: true, audio: false,

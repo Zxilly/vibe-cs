@@ -9,8 +9,9 @@ use std::{
 use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditorEffect, EditorKeyframe, EditorKeyframeProperty, EditorSpeedSegment, EditorTransition,
-    EditorTransitionKind, Project, TextStyle, TimelineClipMaterial, TrackKind, Transform,
+    EditorEffect, EditorKeyframe, EditorKeyframeInterpolation, EditorKeyframeProperty,
+    EditorSpeedSegment, EditorTransition, EditorTransitionKind, Project, TextStyle,
+    TimelineClipMaterial, TrackKind, Transform,
 };
 
 use crate::{CommandSpec, MediaError, MediaResult, io_error};
@@ -965,21 +966,49 @@ fn keyframe_expression_from(
     let points = keyframes
         .iter()
         .filter(|keyframe| keyframe.property == property)
-        .map(|keyframe| (keyframe.time, keyframe.value))
         .collect::<Vec<_>>();
-    let Some(&(first_time, first_value)) = points.first() else {
+    let mut points = points;
+    points.sort_by(|left, right| left.time.total_cmp(&right.time));
+    let Some(first) = points.first() else {
         return format!("{fallback:.6}");
     };
+    let (first_time, first_value) = (first.time, first.value);
     if points.len() == 1 {
         return format!("{first_value:.6}");
     }
-    let mut expression = format!("{:.6}", points.last().expect("points are non-empty").1);
+    let mut expression = format!("{:.6}", points.last().expect("points are non-empty").value);
     for pair in points.windows(2).rev() {
-        let (left_time, left_value) = pair[0];
-        let (right_time, right_value) = pair[1];
+        let left = pair[0];
+        let right = pair[1];
+        let (left_time, left_value) = (left.time, left.value);
+        let (right_time, right_value) = (right.time, right.value);
         let slope = (right_value - left_value) / (right_time - left_time);
-        let linear = format!("{left_value:.6}+({slope:.9})*(({time_variable})-{left_time:.6})");
-        expression = format!("if(lt(({time_variable}),{right_time:.6}),{linear},{expression})");
+        let u = format!(
+            "((({time_variable})-{left_time:.6})/{:.6})",
+            right_time - left_time
+        );
+        let segment = match left.interpolation {
+            EditorKeyframeInterpolation::Hold => format!("{left_value:.6}"),
+            EditorKeyframeInterpolation::Linear => {
+                format!("{left_value:.6}+({slope:.9})*(({time_variable})-{left_time:.6})")
+            }
+            interpolation => {
+                let (out_tangent, in_tangent) = match interpolation {
+                    EditorKeyframeInterpolation::Bezier => (left.out_tangent, right.in_tangent),
+                    EditorKeyframeInterpolation::EaseIn => (0.0, slope),
+                    EditorKeyframeInterpolation::EaseOut => (slope, 0.0),
+                    EditorKeyframeInterpolation::EaseInOut => (0.0, 0.0),
+                    EditorKeyframeInterpolation::Hold | EditorKeyframeInterpolation::Linear => {
+                        unreachable!()
+                    }
+                };
+                let duration = right_time - left_time;
+                format!(
+                    "(2*pow({u},3)-3*pow({u},2)+1)*{left_value:.6}+(pow({u},3)-2*pow({u},2)+{u})*{duration:.6}*{out_tangent:.9}+(-2*pow({u},3)+3*pow({u},2))*{right_value:.6}+(pow({u},3)-pow({u},2))*{duration:.6}*{in_tangent:.9}"
+                )
+            }
+        };
+        expression = format!("if(lt(({time_variable}),{right_time:.6}),{segment},{expression})");
     }
     format!("if(lt(({time_variable}),{first_time:.6}),{first_value:.6},{expression})")
 }
@@ -1939,6 +1968,9 @@ mod tests {
                         time: 4.0,
                         property: EditorKeyframeProperty::Volume,
                         value: 0.5,
+                        interpolation: EditorKeyframeInterpolation::Linear,
+                        in_tangent: 0.0,
+                        out_tangent: 0.0,
                     }]
                 } else {
                     Vec::new()
@@ -2086,12 +2118,18 @@ mod tests {
                 time: 0.0,
                 property: EditorKeyframeProperty::Volume,
                 value: 0.5,
+                interpolation: EditorKeyframeInterpolation::Linear,
+                in_tangent: 0.0,
+                out_tangent: 0.0,
             },
             EditorKeyframe {
                 id: Uuid::new_v4(),
                 time: 4.0,
                 property: EditorKeyframeProperty::Pan,
                 value: 0.5,
+                interpolation: EditorKeyframeInterpolation::Linear,
+                in_tangent: 0.0,
+                out_tangent: 0.0,
             },
         ];
         project.document.tracks[1].clips[0].placement.pan = -0.25;
@@ -2102,6 +2140,9 @@ mod tests {
                 time: 2.0,
                 property: EditorKeyframeProperty::Pan,
                 value: -0.5,
+                interpolation: EditorKeyframeInterpolation::Linear,
+                in_tangent: 0.0,
+                out_tangent: 0.0,
             });
         let solo = build_project_plan_with_sources(
             &project,
@@ -2116,6 +2157,38 @@ mod tests {
         assert!(!solo_filter.contains("amix="));
         assert!(solo_filter.matches("aeval=").count() >= 2);
         assert!(solo_filter.contains("volume='0.500000':eval=frame"));
+    }
+
+    #[test]
+    fn keyframe_expression_uses_hold_bezier_and_ease_segments() {
+        let mut points = vec![
+            EditorKeyframe {
+                id: Uuid::new_v4(),
+                time: 0.0,
+                property: EditorKeyframeProperty::X,
+                value: 0.0,
+                interpolation: EditorKeyframeInterpolation::Bezier,
+                in_tangent: 0.0,
+                out_tangent: 2.0,
+            },
+            EditorKeyframe {
+                id: Uuid::new_v4(),
+                time: 1.0,
+                property: EditorKeyframeProperty::X,
+                value: 1.0,
+                interpolation: EditorKeyframeInterpolation::Linear,
+                in_tangent: 0.0,
+                out_tangent: 0.0,
+            },
+        ];
+        let bezier = keyframe_expression_from(&points, EditorKeyframeProperty::X, "t", 0.0);
+        assert!(bezier.contains("pow(") && bezier.contains("2.000000000"));
+        points[0].interpolation = EditorKeyframeInterpolation::Hold;
+        let held = keyframe_expression_from(&points, EditorKeyframeProperty::X, "t", 0.0);
+        assert!(held.contains("if(lt((t),1.000000),0.000000"));
+        points[0].interpolation = EditorKeyframeInterpolation::EaseInOut;
+        let eased = keyframe_expression_from(&points, EditorKeyframeProperty::X, "t", 0.0);
+        assert!(eased.contains("pow(") && eased.contains("*0.000000000"));
     }
 
     fn filter_graph(command: &CommandSpec) -> Option<String> {

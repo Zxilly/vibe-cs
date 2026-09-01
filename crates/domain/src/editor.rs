@@ -42,6 +42,18 @@ pub enum EditorKeyframeProperty {
     Pan,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum EditorKeyframeInterpolation {
+    Hold,
+    Linear,
+    Bezier,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
@@ -50,6 +62,9 @@ pub struct EditorKeyframe {
     pub time: f64,
     pub property: EditorKeyframeProperty,
     pub value: f64,
+    pub interpolation: EditorKeyframeInterpolation,
+    pub in_tangent: f64,
+    pub out_tangent: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

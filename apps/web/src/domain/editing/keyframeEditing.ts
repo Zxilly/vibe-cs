@@ -1,4 +1,4 @@
-import type { EditorKeyframeProperty, TimelineClip } from '../../shared/desktop/dto';
+import type { EditorKeyframe, EditorKeyframeProperty, TimelineClip } from '../../shared/desktop/dto';
 import { snapTimeToFrame } from './timelineInteraction';
 
 export function clipLocalTimeAtTimeline(clip: TimelineClip, timelineTime: number, fps: number): number {
@@ -29,7 +29,9 @@ export function upsertClipKeyframe(
 ): TimelineClip {
   const time = snapTimeToFrame(Math.min(clip.placement.duration, Math.max(0, localTime)), fps);
   const existing = clipKeyframeAtTime(clip, property, time, fps);
-  const keyframe = { id: existing?.id ?? keyframeId, time, property, value };
+  const keyframe = existing === null
+    ? { id: keyframeId, time, property, value, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0 }
+    : { ...existing, time, value };
   const keyframes = existing === null
     ? [...clip.keyframes, keyframe]
     : clip.keyframes.map((candidate) => candidate.id === existing.id ? keyframe : candidate);
@@ -123,20 +125,45 @@ export function evaluateClipKeyframeProperty(
   localTime: number,
   fallback: number,
 ): number {
-  const keyframes = clip.keyframes
+  return evaluateEditorKeyframes(clip.keyframes, property, localTime, fallback);
+}
+
+export function evaluateEditorKeyframes(
+  keyframes: readonly EditorKeyframe[],
+  property: EditorKeyframeProperty,
+  time: number,
+  fallback: number,
+): number {
+  const points = keyframes
     .filter((keyframe) => keyframe.property === property)
     .sort((left, right) => left.time - right.time);
-  const first = keyframes[0];
+  const first = points[0];
   if (first === undefined) return fallback;
-  if (localTime <= first.time) return first.value;
-  const last = keyframes[keyframes.length - 1]!;
-  if (localTime >= last.time) return last.value;
-  for (let index = 1; index < keyframes.length; index += 1) {
-    const right = keyframes[index]!;
-    if (localTime > right.time) continue;
-    const left = keyframes[index - 1]!;
-    const progress = (localTime - left.time) / (right.time - left.time);
-    return left.value + (right.value - left.value) * progress;
+  if (time <= first.time) return first.value;
+  const last = points[points.length - 1]!;
+  if (time >= last.time) return last.value;
+  for (let index = 1; index < points.length; index += 1) {
+    const right = points[index]!;
+    if (time > right.time) continue;
+    const left = points[index - 1]!;
+    const duration = right.time - left.time;
+    const progress = (time - left.time) / duration;
+    if (left.interpolation === 'hold') return left.value;
+    if (left.interpolation === 'linear') return left.value + (right.value - left.value) * progress;
+    const slope = (right.value - left.value) / duration;
+    const [outTangent, inTangent] = left.interpolation === 'bezier'
+      ? [left.out_tangent, right.in_tangent]
+      : left.interpolation === 'ease_in'
+        ? [0, slope]
+        : left.interpolation === 'ease_out'
+          ? [slope, 0]
+          : [0, 0];
+    const p2 = progress * progress;
+    const p3 = p2 * progress;
+    return (2 * p3 - 3 * p2 + 1) * left.value
+      + (p3 - 2 * p2 + progress) * duration * outTangent
+      + (-2 * p3 + 3 * p2) * right.value
+      + (p3 - p2) * duration * inTangent;
   }
   return last.value;
 }

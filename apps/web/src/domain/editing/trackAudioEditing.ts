@@ -1,5 +1,6 @@
 import type { EditorKeyframe, TimelineTrack } from '../../shared/desktop/dto';
 import { snapTimeToFrame } from './timelineInteraction';
+import { evaluateEditorKeyframes } from './keyframeEditing';
 
 export type TrackAudioProperty = 'volume' | 'pan';
 
@@ -23,22 +24,7 @@ export function evaluateTrackAudioProperty(
   property: TrackAudioProperty,
   timelineTime: number,
 ): number {
-  const keyframes = track.keyframes
-    .filter((keyframe) => keyframe.property === property)
-    .sort((left, right) => left.time - right.time);
-  const first = keyframes[0];
-  if (first === undefined) return trackAudioPropertyValue(track, property);
-  if (timelineTime <= first.time) return first.value;
-  const last = keyframes[keyframes.length - 1]!;
-  if (timelineTime >= last.time) return last.value;
-  for (let index = 1; index < keyframes.length; index += 1) {
-    const right = keyframes[index]!;
-    if (timelineTime > right.time) continue;
-    const left = keyframes[index - 1]!;
-    const progress = (timelineTime - left.time) / (right.time - left.time);
-    return left.value + (right.value - left.value) * progress;
-  }
-  return last.value;
+  return evaluateEditorKeyframes(track.keyframes, property, timelineTime, trackAudioPropertyValue(track, property));
 }
 
 export function setTrackAudioAtTime(
@@ -67,7 +53,7 @@ export function upsertTrackAudioKeyframe(
   const time = snapTimeToFrame(Math.max(0, timelineTime), fps);
   const existing = trackAudioKeyframeAtTime(track, property, time, fps);
   const keyframe: EditorKeyframe = {
-    id: existing?.id ?? keyframeId,
+    ...(existing ?? { id: keyframeId, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0 }),
     time,
     property,
     value: constrainTrackAudioValue(property, value),
@@ -104,6 +90,7 @@ export function moveTrackAudioKeyframe(
   const collision = withoutExisting.find((keyframe) => keyframe.property === existing.property
     && Math.abs(keyframe.time - time) <= 0.5 / Math.max(1, fps));
   const replacement: EditorKeyframe = {
+    ...(collision ?? existing),
     id: collision?.id ?? keyframeId,
     property: existing.property,
     time,

@@ -70,7 +70,7 @@ describe('source media editing', () => {
       transform: { x: 20, y: 10, scale_x: 1.2, scale_y: 1.2, rotation: 5, opacity: 0.8 },
       effects: [{ id: 'fx', kind: 'blur', enabled: true, parameters: { radius: 4 } }],
       transitions: { video_in: { kind: 'fade', duration_seconds: 0.5 }, video_out: null, audio_in: null, audio_out: null },
-      keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5 }],
+      keyframes: [{ id: 'opacity', time: 1, property: 'opacity', value: 0.5, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
     };
     const replacement = replaceTimelineClipSource({
       clip: original,

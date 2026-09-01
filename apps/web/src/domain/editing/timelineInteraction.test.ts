@@ -236,7 +236,7 @@ describe('timeline direct manipulation', () => {
   });
 
   it('rate-stretches duration and speed while retaining source In and Out', () => {
-    const keyed = { ...CLIP, keyframes: [{ id: 'x', time: 4, property: 'x' as const, value: 100 }] };
+    const keyed = { ...CLIP, keyframes: [{ id: 'x', time: 4, property: 'x' as const, value: 100, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }] };
     const faster = rateStretchTimelineClip(keyed, 'end', 14, 60);
     expect(faster.placement).toEqual({ ...CLIP.placement, duration: 4, speed: 2 });
     expect(faster.keyframes[0]?.time).toBe(2);
@@ -306,7 +306,7 @@ describe('timeline direct manipulation', () => {
     const split = splitClipSpeedSegment(enabled, 4, 'right', 60);
     const keyed = {
       ...split,
-      keyframes: [{ id: 'x', time: 6, property: 'x' as const, value: 100 }],
+      keyframes: [{ id: 'x', time: 6, property: 'x' as const, value: 100, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
     };
     const faster = setClipSpeedSegmentSpeed(keyed, 'right', 2, 60);
 

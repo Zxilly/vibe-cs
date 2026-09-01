@@ -120,7 +120,7 @@ describe('Timeline audio monitor', () => {
         audio_in: { kind: 'constant_power' as const, duration_seconds: 2 },
         audio_out: { kind: 'constant_power' as const, duration_seconds: 2 },
       },
-      keyframes: [{ id: 'volume', time: 1, property: 'volume' as const, value: 1 }],
+      keyframes: [{ id: 'volume', time: 1, property: 'volume' as const, value: 1, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
     };
 
     expect(evaluateTimelineAudio(source, 0)).toEqual({ canonicalVolume: 1, fadeFactor: 0, outputVolume: 0 });
@@ -140,7 +140,7 @@ describe('Timeline audio monitor', () => {
       solo: true,
       volume: 0.5,
       pan: 0.25,
-      keyframes: [{ id: 'track-volume', time: 2, property: 'volume', value: 1 }],
+      keyframes: [{ id: 'track-volume', time: 2, property: 'volume', value: 1, interpolation: 'linear' as const, in_tangent: 0, out_tangent: 0  }],
       locked: false,
       hidden: false,
       clips: [],

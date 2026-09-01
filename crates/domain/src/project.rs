@@ -819,6 +819,8 @@ impl EditingDocument {
                         || !keyframe.time.is_finite()
                         || !(0.0..=self.duration_seconds).contains(&keyframe.time)
                         || !keyframe.value.is_finite()
+                        || !keyframe.in_tangent.is_finite()
+                        || !keyframe.out_tangent.is_finite()
                         || (keyframe.property == crate::EditorKeyframeProperty::Volume
                             && !(0.0..=4.0).contains(&keyframe.value))
                         || (keyframe.property == crate::EditorKeyframeProperty::Pan
@@ -874,6 +876,8 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
             || !keyframe.time.is_finite()
             || !(0.0..=placement.duration).contains(&keyframe.time)
             || !keyframe.value.is_finite()
+            || !keyframe.in_tangent.is_finite()
+            || !keyframe.out_tangent.is_finite()
             || (keyframe.property == crate::EditorKeyframeProperty::Volume
                 && !(0.0..=4.0).contains(&keyframe.value))
             || (keyframe.property == crate::EditorKeyframeProperty::Pan
@@ -1467,6 +1471,9 @@ mod tests {
             time: 1.0,
             property: crate::EditorKeyframeProperty::Pan,
             value: 0.5,
+            interpolation: crate::EditorKeyframeInterpolation::Linear,
+            in_tangent: 0.0,
+            out_tangent: 0.0,
         }];
         current.document.tracks[0].clips[0].placement.pan = 0.25;
         current.document.tracks[0].clips[0]
@@ -1476,6 +1483,9 @@ mod tests {
                 time: 1.0,
                 property: crate::EditorKeyframeProperty::Pan,
                 value: -0.5,
+                interpolation: crate::EditorKeyframeInterpolation::Linear,
+                in_tangent: 0.0,
+                out_tangent: 0.0,
             });
         assert!(current.validate().is_ok());
 

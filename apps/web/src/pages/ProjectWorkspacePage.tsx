@@ -121,6 +121,7 @@ import type {
   AgentToolCall,
   AgentToolDecisionKind,
   EditorKeyframeProperty,
+  EditorKeyframeInterpolation,
   EditorTransitionKind,
   JsonValue,
   MediaAsset,
@@ -1534,6 +1535,7 @@ function ClipInspector({
   }
   const localTime = clipLocalTimeAtTimeline(draft, timelineTimeSeconds, fps);
   const keyframeTimes = [...new Set(draft.keyframes.map((keyframe) => keyframe.time))].sort((left, right) => left - right);
+  const currentFrameKeyframes = draft.keyframes.filter((keyframe) => Math.abs(keyframe.time - localTime) <= 0.5 / fps);
   const previousKeyframeTime = [...keyframeTimes].reverse().find((time) => time < localTime - 0.5 / fps);
   const nextKeyframeTime = keyframeTimes.find((time) => time > localTime + 0.5 / fps);
   const visualProperties: Array<{
@@ -1858,6 +1860,61 @@ function ClipInspector({
           </section>
         );
       })()}
+      {currentFrameKeyframes.length === 0 ? null : (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`关键帧插值`}>
+          <h3 className="mb-2 text-xs font-semibold"><Trans>关键帧插值</Trans></h3>
+          {currentFrameKeyframes.map((keyframe) => (
+            <div key={keyframe.id} className="mt-2 grid grid-cols-[minmax(0,1fr)_110px] gap-2 text-xs">
+              <span className="truncate font-mono text-2xs">{keyframe.property}</span>
+              <select
+                className="border border-divider bg-bg px-2 py-1"
+                aria-label={t`${keyframe.property} 插值`}
+                disabled={readOnly}
+                value={keyframe.interpolation}
+                onChange={(event) => {
+                  const interpolation = event.currentTarget.value as EditorKeyframeInterpolation;
+                  setDraft({ ...draft, keyframes: draft.keyframes.map((candidate) => candidate.id === keyframe.id
+                    ? { ...candidate, interpolation }
+                    : candidate) });
+                }}
+              >
+                <option value="hold"><Trans>保持</Trans></option>
+                <option value="linear"><Trans>线性</Trans></option>
+                <option value="bezier">Bezier</option>
+                <option value="ease_in">Ease In</option>
+                <option value="ease_out">Ease Out</option>
+                <option value="ease_in_out">Ease In/Out</option>
+              </select>
+              {keyframe.interpolation !== 'bezier' ? null : (
+                <div className="col-span-2 grid grid-cols-2 gap-2">
+                  {([
+                    ['in_tangent', t`入切线`],
+                    ['out_tangent', t`出切线`],
+                  ] as const).map(([field, label]) => (
+                    <label key={field} className="flex items-center gap-2">
+                      <span className="flex-1">{label}</span>
+                      <input
+                        type="number"
+                        step={0.1}
+                        className="w-20 border border-divider bg-bg px-2 py-1 font-mono"
+                        aria-label={t`${keyframe.property} ${label}`}
+                        disabled={readOnly}
+                        value={keyframe[field]}
+                        onChange={(event) => {
+                          const value = Number(event.currentTarget.value);
+                          setDraft({ ...draft, keyframes: draft.keyframes.map((candidate) => candidate.id === keyframe.id
+                            ? { ...candidate, [field]: value }
+                            : candidate) });
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
       {visualProperties.length === 0 ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`变换与关键帧`}>
           <div className="mb-2 flex items-center gap-2">

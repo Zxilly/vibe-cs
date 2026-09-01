@@ -199,7 +199,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-ASM-08 | Duplicate | Ctrl/Cmd+Shift+/ 在目标位置复制选择 | ✅ | P2 |
 | TL-ASM-09 | Replace Edit | 用新源替换选中片段并保留时间位置、长度和效果 | ✅ | P1 |
 | TL-ASM-10 | Relink | 源文件改变位置后重连，不改变 Timeline identity | ✅ | P0 |
-| TL-ASM-11 | Automate to Sequence | 按 Project 排序/标记批量组接，并可应用默认转场 | ⬜ | P3 |
+| TL-ASM-11 | Automate to Sequence | 按 Project 排序/标记批量组接，并可应用默认转场 | ✅ | P3 |
 
 ### 7.7 片段移动、删除与范围编辑
 
@@ -491,6 +491,12 @@ fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：空 Timeline 的 Sou
 
 fresh current-schema Tauri/CDP 使用真实 13,930,809-byte、1920×1080/60fps MP4 生成 6,268,251-byte、1280×720/30fps 受管代理。初版实机 probe 在启用代理时捕获 6 个可见 `readyState<2` 的 16ms 样本；双 source variant 修复后，原片→代理 85 个样本中 `minReady=4`、空帧 0、active source 最大 1，URL 从原片稳定切到带 generation key 的代理。随后真实清理把代理→原片同样保持 `minReady=4`/空帧 0，删除代理文件并把资产重置为 `proxy_path=null/not_requested`，原片路径不变。Project revision 2→7 只记录代理预览开关，不把生成/清理伪装成 Timeline Edit；fresh CDP session console/page error 为零。截图位于本地 `target/proxy-controls-audit/screenshots/`。
 
+### Step 27：Automate to Sequence — 健康
+
+确认：Project 面板的批量组接对话框支持 Project/selection order、Sequential/Sequence Marker placement、Insert/Overwrite method 和可选默认视频转场。Planner 直接生成 canonical Story Timeline Clips：Marker placement 按 sequence marker 时间排序，Insert 逆序规划以保持原 marker 时刻；Sequential + transition 使用 0.5s clip overlap，从每个源两端各保留 0.25s handle，再复用默认 transition planner。整个批次只提交一次 `replace_track_clips`，Sync Lock 与 Ripple Sequence Markers 继续由工作区统一扩展，不增加 montage 写模型。
+
+Tauri/CDP 使用两个真实 MP4，先把 selection order 从 Project 默认 `Automate Second → Proxy Gate` 改为 `Proxy Gate → Automate Second`，选择 Overwrite + 0.5s overlap；revision 7→8 后 Story 只有两个连续片段：Proxy Gate start 0/duration 6.489206/source 0.25–6.739206，Automate Second start 6.489206/duration 13.68737/source 0.25–13.93737，cut 两侧各为 0.25s Fade。console/page error 为零，截图位于本地 `target/automate-sequence-audit/screenshots/`。行为依据 Adobe [Working with Storyboard](https://helpx.adobe.com/premiere-pro/how-to/storyboard-edits.html) 与 [Default transitions](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/set-and-apply-default-transitions.html)。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -507,7 +513,7 @@ fresh current-schema Tauri/CDP 使用真实 13,930,809-byte、1920×1080/60fps M
 - [x] 跨兼容轨垂直移动片段，保留 link/group identity，并完成 Story compound 音画拆分/合并。
 - [x] Deselect All、Enable Clip、Match Frame 快捷键。
 - [x] Extend Edit 与明确的 edit-point selection。
-- [ ] 明确 Clear 与 Ripple Delete 的菜单文案和非 Story 行为。
+- [x] Clear 与 Ripple Delete 文案和行为明确：Story 始终 gapless，非 Story 的 Clear 保留空隙、Ripple Delete 关闭空隙。
 
 验收：所有命令在锁定、链接、目标轨和 Agent Edit Lease 四种约束下都有交互测试。
 
@@ -530,6 +536,7 @@ fresh current-schema Tauri/CDP 使用真实 13,930,809-byte、1920×1080/60fps M
 ### Milestone 3：长项目和专业工作流
 
 - [x] 代理媒体在统一 Project/Program 工作流中的生成和切换。
+- [x] Automate to Sequence 的排序、Marker placement、Insert/Overwrite 与默认转场。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
 - [ ] Caption Track、Render Preview 和 OTIO 互换子集。

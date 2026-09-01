@@ -270,9 +270,9 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | ID | 能力 | 产品要求 | 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | TL-META-01 | Sequence Marker | M 添加，拖动、选择、编辑、删除、上一/下一、清空 | ✅ | P1 |
-| TL-META-02 | Marker 属性 | 名称、颜色、注释、持续时间和类型 | 🟡 名称/颜色/时间；缺注释、范围、类型 | P2 |
+| TL-META-02 | Marker 属性 | 名称、颜色、注释、持续时间和类型 | ✅ | P2 |
 | TL-META-03 | Clip Marker | Marker 随源片段和 Source Monitor 存在 | ⬜ | P2 |
-| TL-META-04 | Ripple Marker 设置 | Story 波纹时选择 sequence marker 跟随或固定 | ⬜ | P2 |
+| TL-META-04 | Ripple Marker 设置 | Story 波纹时选择 sequence marker 跟随或固定 | ✅ | P2 |
 | TL-META-05 | Text Track | 在播放头创建文字，编辑内容、字体、颜色、背景、布局 | ✅ | P1 |
 | TL-META-06 | Caption Track | 字幕轨、字幕片段、前后字幕导航与导出 | ⬜ | P3 |
 | TL-META-07 | CS 事件轨 | 击杀/回合等事件在自身时间范围内显示并可导航 | ✅ | P0 |
@@ -473,6 +473,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：revision 2→3 创建 4s、speed 1.7473015 的反向片段，播放头 0→2s 时 source 6.989206→3.494603s，继续播放至 Timeline 3.0456s 时 source 倒退至 1.667625s；revision 3→4 在 Timeline 1.5s 定格 source 4.368254s，播放至 2.506702s 后源时间不变。定格导出为 H.264/AAC、4.000s、60fps、240 帧，`freezedetect` 从 0s 覆盖文件末尾；revision 4→5 的反向导出同为 4.000s/240 帧，首帧匹配源末帧、末帧匹配源首帧，AAC RMS -19.40dB。fresh CDP session console/page error 为零；截图和抽帧证据位于本地 `target/reverse-freeze-audit/`。
 
+### Step 24：Marker 属性与 Ripple Sequence Markers — 健康
+
+确认：canonical `EditorMarker` 必需携带 Comment/Chapter/Segmentation 类型、注释和帧对齐持续时间，不读取旧 marker shape。零时长保持 point marker；持续时间大于零时在同一 Marker row 显示真实范围宽度，hover 汇总类型、开始时码、持续时间和注释。Marker 菜单持久化 Adobe 风格的 Ripple Sequence Markers 项目设置：关闭时 sequence marker 保持绝对时间；开启时 Story 的下游时间位移同时映射 Marker 起点和终点，跨越 edit point 的范围 Marker 相应伸缩；Extract 范围内 Marker 无论设置如何都删除。Track 与 Marker 更新复用一个 Project Patch，不增加 Marker 写模型。
+
+fresh current-schema Tauri/CDP 使用两个真实 MP4：revision 3→4 把 3s point marker 保存为 `segmentation`、duration 2s、comment `Preserve setup and payoff`，时间轴范围宽 181.4px，hover 信息完整；revision 6→7 开启 Ripple Sequence Markers；revision 7→8 把首 Story Clip 从 14.18737s 缩到 10s，同一 Change Group 中 `replace_track_clips` 令后片段 start 14.18737→10，`replace_markers` 令范围 Marker start 15→10.81263，类型/持续时间/注释保持。fresh CDP session console/page error 为零；截图位于本地 `target/marker-properties-audit/screenshots/`。产品行为依据 Adobe 官方 [Markers overview](https://helpx.adobe.com/premiere/desktop/organize-media/apply-labeling/overview-of-markers.html) 与 [Perform ripple edits](https://helpx.adobe.com/premiere/desktop/edit-projects/trim-clips/perform-ripple-edits.html)。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -505,6 +511,7 @@ fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：revision 2→3 创�
 - [x] Paste Attributes。
 - [x] Bezier/Ease keyframes。
 - [x] Reverse、负速度和 Frame Hold。
+- [x] Marker 类型、注释、持续时间与 Ripple Sequence Markers。
 
 ### Milestone 3：长项目和专业工作流
 

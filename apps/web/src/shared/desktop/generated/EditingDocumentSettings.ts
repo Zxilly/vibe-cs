@@ -6,4 +6,7 @@
  * Source Demos are explicit because an empty Story Track must still give the
  * Agent enough evidence to plan the first set of capture-ready clips.
  */
-export type EditingDocumentSettings = { source_demo_ids: Array<string> };
+export type EditingDocumentSettings = {
+  source_demo_ids: Array<string>;
+  ripple_sequence_markers: boolean;
+};

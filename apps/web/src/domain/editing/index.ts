@@ -77,6 +77,7 @@ export {
   snapTimeToFrame,
 } from './timelineInteraction';
 export type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
+export { planRippleSequenceMarkers, type TimelineMarkerRipplePlan } from './timelineMarkers';
 export {
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,

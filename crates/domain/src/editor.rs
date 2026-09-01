@@ -128,11 +128,23 @@ pub struct TextStyle {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum EditorMarkerKind {
+    Comment,
+    Chapter,
+    Segmentation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct EditorMarker {
     pub id: Uuid,
     pub time: f64,
+    pub duration: f64,
     pub label: String,
     pub color: String,
+    pub kind: EditorMarkerKind,
+    pub comment: String,
 }

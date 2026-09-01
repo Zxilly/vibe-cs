@@ -181,7 +181,7 @@ const PROJECT: Project = {
       { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] },
     ],
     markers: [],
-    settings: { source_demo_ids: [] },
+    settings: { source_demo_ids: [], ripple_sequence_markers: false },
   },
   created_at: '2026-08-28T00:00:00Z',
   updated_at: '2026-08-28T00:00:00Z',
@@ -1584,13 +1584,20 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
         op: 'replace_markers',
-        markers: [expect.objectContaining({ time: 0, label: '标记 1', color: '#2F6FED' })],
+        markers: [expect.objectContaining({
+          time: 0,
+          duration: 0,
+          label: '标记 1',
+          color: '#2F6FED',
+          kind: 'comment',
+          comment: '',
+        })],
       }],
     })));
   });
 
   it('edits and deletes an existing timeline marker', async () => {
-    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, label: 'ACE', color: '#2F6FED' };
+    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, duration: 0, label: 'ACE', color: '#2F6FED', kind: 'comment' as const, comment: '' };
     const project: Project = {
       ...PROJECT,
       document: { ...PROJECT.document, markers: [marker] },
@@ -1601,13 +1608,23 @@ describe('unified project workspace', () => {
     const markerButton = await screen.findByRole('button', { name: '标记 ACE 00:08.000' });
     fireEvent.doubleClick(markerButton);
     fireEvent.change(screen.getByRole('textbox', { name: '名称' }), { target: { value: 'ACE revised' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '时间' }), { target: { value: '9' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '时间' }), { target: { value: '7' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '类型' }), { target: { value: 'segmentation' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '持续时间' }), { target: { value: '2' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '注释' }), { target: { value: 'Round-deciding retake' } });
     fireEvent.click(screen.getByRole('button', { name: '保存标记' }));
 
     await waitFor(() => expect(editPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
         op: 'replace_markers',
-        markers: [{ ...marker, time: 9, label: 'ACE revised' }],
+        markers: [{
+          ...marker,
+          time: 7,
+          duration: 2,
+          label: 'ACE revised',
+          kind: 'segmentation',
+          comment: 'Round-deciding retake',
+        }],
       }],
     })));
 
@@ -1621,8 +1638,26 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('renders duration markers as ranges and exposes their typed comment on hover', async () => {
+    const marker = {
+      id: '00000000-0000-4000-8000-000000000108',
+      time: 2,
+      duration: 3,
+      label: 'Retake window',
+      color: '#10B981',
+      kind: 'segmentation' as const,
+      comment: 'Preserve the setup and payoff.',
+    };
+    renderWorkspace({ project: { ...PROJECT, document: { ...PROJECT.document, markers: [marker] } } });
+
+    const range = await screen.findByRole('button', { name: '标记 Retake window 00:02.000' });
+    expect(range.style.width).not.toBe('');
+    expect(range.title).toContain('分段 · Retake window · 00:02.000 · 持续 00:03.000');
+    expect(range.title).toContain('Preserve the setup and payoff.');
+  });
+
   it('drags a sequence marker with one frame-snapped Human Edit', async () => {
-    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, label: 'ACE', color: '#2F6FED' };
+    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, duration: 0, label: 'ACE', color: '#2F6FED', kind: 'comment' as const, comment: '' };
     const project: Project = {
       ...PROJECT,
       document: { ...PROJECT.document, markers: [marker] },
@@ -1647,7 +1682,7 @@ describe('unified project workspace', () => {
 
   it('toggles magnetic snapping for marker drags while preserving frame alignment', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
-    const marker = { id: '00000000-0000-4000-8000-000000000101', time: 8, label: 'Snap probe', color: '#2F6FED' };
+    const marker = { id: '00000000-0000-4000-8000-000000000101', time: 8, duration: 0, label: 'Snap probe', color: '#2F6FED', kind: 'comment' as const, comment: '' };
     const project: Project = {
       ...RECORDED_PROJECT,
       document: { ...RECORDED_PROJECT.document, markers: [marker] },
@@ -1688,8 +1723,8 @@ describe('unified project workspace', () => {
 
   it('selects and navigates sequence markers, then clears the selected marker by shortcut', async () => {
     const markers = [
-      { id: '00000000-0000-4000-8000-000000000101', time: 1, label: 'First', color: '#2F6FED' },
-      { id: '00000000-0000-4000-8000-000000000102', time: 4, label: 'Second', color: '#F59E0B' },
+      { id: '00000000-0000-4000-8000-000000000101', time: 1, duration: 0, label: 'First', color: '#2F6FED', kind: 'comment' as const, comment: '' },
+      { id: '00000000-0000-4000-8000-000000000102', time: 4, duration: 0, label: 'Second', color: '#F59E0B', kind: 'comment' as const, comment: '' },
     ];
     const project: Project = { ...PROJECT, document: { ...PROJECT.document, markers } };
     const applyProjectPatch = vi.fn();
@@ -1714,7 +1749,7 @@ describe('unified project workspace', () => {
   });
 
   it('opens the existing marker editor instead of creating a duplicate at the same frame', async () => {
-    const marker = { id: '00000000-0000-4000-8000-000000000103', time: 0, label: 'Existing', color: '#2F6FED' };
+    const marker = { id: '00000000-0000-4000-8000-000000000103', time: 0, duration: 0, label: 'Existing', color: '#2F6FED', kind: 'comment' as const, comment: '' };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: { ...PROJECT, document: { ...PROJECT.document, markers: [marker] } }, applyProjectPatch });
 
@@ -1724,7 +1759,7 @@ describe('unified project workspace', () => {
   });
 
   it('clears all sequence markers through the explicit marker command', async () => {
-    const marker = { id: '00000000-0000-4000-8000-000000000104', time: 2, label: 'Clear me', color: '#2F6FED' };
+    const marker = { id: '00000000-0000-4000-8000-000000000104', time: 2, duration: 0, label: 'Clear me', color: '#2F6FED', kind: 'comment' as const, comment: '' };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: { ...PROJECT, document: { ...PROJECT.document, markers: [marker] } }, applyProjectPatch });
 
@@ -1732,6 +1767,20 @@ describe('unified project workspace', () => {
     runMarkerCommand('清除全部标记');
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{ op: 'replace_markers', markers: [] }],
+    })));
+  });
+
+  it('toggles Adobe-style sequence marker ripple behavior through the marker menu', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    await screen.findByRole('button', { name: '标记操作' });
+    runMarkerCommand('波纹移动序列标记');
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_settings',
+        settings: { source_demo_ids: [], ripple_sequence_markers: true },
+      }],
     })));
   });
 
@@ -1785,7 +1834,29 @@ describe('unified project workspace', () => {
 
   it('extracts an In/Out range from every targeted track and preserves external gaps', async () => {
     const applyProjectPatch = vi.fn();
-    renderWorkspace({ project: targetedRangeProject(), applyProjectPatch });
+    const base = targetedRangeProject();
+    const outside = {
+      id: '00000000-0000-4000-8000-000000000111',
+      time: 3,
+      duration: 0,
+      label: 'Outside',
+      color: '#2F6FED',
+      kind: 'comment' as const,
+      comment: '',
+    };
+    renderWorkspace({
+      project: {
+        ...base,
+        document: {
+          ...base.document,
+          markers: [
+            { ...outside, id: '00000000-0000-4000-8000-000000000110', time: 0.5, label: 'Inside' },
+            outside,
+          ],
+        },
+      },
+      applyProjectPatch,
+    });
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
@@ -1811,6 +1882,7 @@ describe('unified project workspace', () => {
           track_id: '00000000-0000-4000-8000-000000000013',
           clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 0, duration: 9, source_in: 1 }) })],
         },
+        { op: 'replace_markers', markers: [outside] },
       ],
     })));
     expect(screen.queryByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeNull();
@@ -4191,7 +4263,23 @@ describe('unified project workspace', () => {
   it('uses Ripple Edit Tool B for live Story ripple and one Sync Lock commit', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const base = syncLockProject();
-    const project: Project = { ...base, document: { ...base.document, duration_seconds: 10 } };
+    const project: Project = {
+      ...base,
+      document: {
+        ...base.document,
+        duration_seconds: 10,
+        markers: [{
+          id: '00000000-0000-4000-8000-000000000109',
+          time: 8,
+          duration: 0,
+          label: 'Downstream',
+          color: '#2F6FED',
+          kind: 'comment',
+          comment: '',
+        }],
+        settings: { ...base.document.settings, ripple_sequence_markers: true },
+      },
+    };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project, applyProjectPatch });
 
@@ -4224,6 +4312,10 @@ describe('unified project workspace', () => {
           track_id: '00000000-0000-4000-8000-000000000097',
           clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 5 }) })],
         }),
+        {
+          op: 'replace_markers',
+          markers: [expect.objectContaining({ id: '00000000-0000-4000-8000-000000000109', time: 7 })],
+        },
       ],
     })));
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);

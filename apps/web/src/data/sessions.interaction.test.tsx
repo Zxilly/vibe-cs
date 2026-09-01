@@ -30,7 +30,7 @@ const PROJECT: Project = {
     story_track_id: '00000000-0000-4000-8000-000000000003',
     tracks: [],
     markers: [],
-    settings: { source_demo_ids: [] },
+    settings: { source_demo_ids: [], ripple_sequence_markers: false },
   },
   created_at: AT,
   updated_at: AT,

@@ -226,7 +226,10 @@ export interface ProjectTimelineProps {
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
-  readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
+  readonly onReplaceTrackClipGroups: (
+    groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
+    markers?: readonly EditorMarker[],
+  ) => void;
   readonly onApplyCrossTrackMove: (plan: TimelineCrossTrackMovePlan) => void;
   readonly onReplaceClips: (clips: readonly TimelineClip[], intent: 'link' | 'group') => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
@@ -237,6 +240,7 @@ export interface ProjectTimelineProps {
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
   readonly onReplaceMarkers: (markers: readonly EditorMarker[]) => void;
+  readonly onReplaceSettings: (settings: EditingDocument['settings']) => void;
   readonly onDropMediaAsset: (drop: TimelineMediaDrop) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
@@ -317,6 +321,7 @@ export function ProjectTimeline({
   onRemoveTrack,
   onReorderTracks,
   onReplaceMarkers,
+  onReplaceSettings,
   onDropMediaAsset,
   canUndo,
   onUndo,
@@ -1346,8 +1351,11 @@ export function ProjectTimeline({
     const marker: EditorMarker = {
       id: globalThis.crypto.randomUUID(),
       time: editPlayheadSeconds,
+      duration: 0,
       label: t`标记 ${number}`,
       color: DEFAULT_TIMELINE_MARKER_COLOR,
+      kind: 'comment',
+      comment: '',
     };
     setSelectedMarkerId(marker.id);
     onReplaceMarkers([...document.markers, marker]);
@@ -1381,7 +1389,9 @@ export function ProjectTimeline({
       clips: mode === 'lift'
         ? liftTimelineRange(track.clips, rangeStart, rangeEnd, globalThis.crypto.randomUUID())
         : extractTimelineRange(track.clips, rangeStart, rangeEnd, globalThis.crypto.randomUUID()),
-    })));
+    })), mode === 'extract'
+      ? document.markers.filter((marker) => marker.time < rangeStart || marker.time >= rangeEnd)
+      : undefined);
     onRangeChange(null, null);
   };
   const liftRange = () => editTargetedRange('lift');
@@ -2167,6 +2177,15 @@ export function ProjectTimeline({
             { id: 'edit', label: t`编辑所选标记`, disabled: selectedMarker === null, onSelect: editSelectedMarker },
             { id: 'delete', label: t`删除所选标记`, disabled: readOnly || selectedMarker === null, onSelect: deleteSelectedMarker },
             { id: 'clear', label: t`清除全部标记`, disabled: readOnly || document.markers.length === 0, onSelect: clearMarkers },
+            {
+              id: 'ripple-sequence-markers',
+              label: `${document.settings.ripple_sequence_markers ? '✓ ' : ''}${t`波纹移动序列标记`}`,
+              disabled: readOnly,
+              onSelect: () => onReplaceSettings({
+                ...document.settings,
+                ripple_sequence_markers: !document.settings.ripple_sequence_markers,
+              }),
+            },
           ]}
         />
         <OverflowMenu
@@ -2815,11 +2834,7 @@ export function ProjectTimeline({
               disabled={markerDraft.label.trim() === ''}
               onClick={() => {
                 onReplaceMarkers(document.markers.map((marker) => marker.id === markerDraft.id
-                  ? {
-                    ...markerDraft,
-                    label: markerDraft.label.trim(),
-                    time: snapTimeToFrame(Math.min(document.duration_seconds, Math.max(0, markerDraft.time)), document.fps),
-                  }
+                  ? normalizeEditorMarker(markerDraft, document.duration_seconds, document.fps)
                   : marker));
                 setMarkerDraft(null);
               }}
@@ -2842,6 +2857,39 @@ export function ProjectTimeline({
             <label className="flex items-center gap-2 text-xs">
               <Trans>颜色</Trans>
               <input type="color" value={markerDraft.color} onChange={(event) => setMarkerDraft({ ...markerDraft, color: event.currentTarget.value.toUpperCase() })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>类型</Trans>
+              <select
+                className="border border-divider bg-bg px-2 py-1.5"
+                value={markerDraft.kind}
+                onChange={(event) => setMarkerDraft({ ...markerDraft, kind: event.currentTarget.value as EditorMarker['kind'] })}
+              >
+                <option value="comment"><Trans>评论</Trans></option>
+                <option value="chapter"><Trans>章节</Trans></option>
+                <option value="segmentation"><Trans>分段</Trans></option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>持续时间</Trans>
+              <input
+                type="number"
+                min={0}
+                max={Math.max(0, document.duration_seconds - markerDraft.time)}
+                step={1 / document.fps}
+                className="border border-divider bg-bg px-2 py-1.5 font-mono"
+                value={markerDraft.duration}
+                onChange={(event) => setMarkerDraft({ ...markerDraft, duration: Number(event.currentTarget.value) })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>注释</Trans>
+              <textarea
+                rows={4}
+                className="resize-y border border-divider bg-bg px-2 py-1.5 leading-5"
+                value={markerDraft.comment}
+                onChange={(event) => setMarkerDraft({ ...markerDraft, comment: event.currentTarget.value })}
+              />
             </label>
           </div>
         )}
@@ -5976,7 +6024,10 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
   }, [marker.time]);
   const timeFromClientX = (clientX: number, active: NonNullable<typeof gesture.current>, shiftKey: boolean) => {
     const frameTime = snapTimeToFrame(
-      Math.min(durationSeconds, Math.max(0, active.time + pxToTime(scale, clientX - active.clientX))),
+      Math.min(
+        Math.max(0, durationSeconds - marker.duration),
+        Math.max(0, active.time + pxToTime(scale, clientX - active.clientX)),
+      ),
       fps,
     );
     if (shiftKey || snapPoints.length === 0) {
@@ -5998,7 +6049,15 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
   const available = nextMarkerTime === null
     ? contentWidth - left
     : timeToPx(scale, nextMarkerTime - visualTime);
-  const width = Math.max(6, Math.min(160, available - 3));
+  const width = marker.duration > 0
+    ? Math.max(6, Math.min(contentWidth - left, timeToPx(scale, marker.duration)))
+    : Math.max(6, Math.min(160, available - 3));
+  const markerTitle = [
+    `${markerKindLabel(marker.kind)} · ${marker.label}`,
+    formatMillisecondTimecode(visualTime),
+    ...(marker.duration > 0 ? [t`持续 ${formatMillisecondTimecode(marker.duration)}`] : []),
+    ...(marker.comment.trim() === '' ? [] : [marker.comment.trim()]),
+  ].join(' · ');
   return (
     <button
       type="button"
@@ -6009,7 +6068,7 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
       )}
       style={{ left, width }}
       aria-label={t`标记 ${marker.label} ${formatMillisecondTimecode(visualTime)}`}
-      title={`${marker.label} · ${formatMillisecondTimecode(visualTime)}`}
+      title={markerTitle}
       onClick={() => {
         if (ignoreClickRef.current) {
           ignoreClickRef.current = false;
@@ -6075,7 +6134,10 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
         const direction = event.key === 'ArrowRight' ? 1 : -1;
         const step = event.shiftKey ? 1 : 1 / fps;
         onMove(marker.id, snapTimeToFrame(
-          Math.min(durationSeconds, Math.max(0, marker.time + direction * step)),
+          Math.min(
+            Math.max(0, durationSeconds - marker.duration),
+            Math.max(0, marker.time + direction * step),
+          ),
           fps,
         ));
       }}
@@ -6084,6 +6146,25 @@ function TimelineMarkerItem({ marker, selected, nextMarkerTime, scale, contentWi
       <span className="min-w-0 truncate">{marker.label}</span>
     </button>
   );
+}
+
+function markerKindLabel(kind: EditorMarker['kind']): string {
+  if (kind === 'chapter') return t`章节`;
+  if (kind === 'segmentation') return t`分段`;
+  return t`评论`;
+}
+
+function normalizeEditorMarker(marker: EditorMarker, durationSeconds: number, fps: number): EditorMarker {
+  const frameRate = Math.max(1, fps);
+  const time = snapTimeToFrame(Math.min(durationSeconds, Math.max(0, marker.time)), frameRate);
+  const maximumDurationFrames = Math.max(0, Math.floor((durationSeconds - time) * frameRate + 1e-6));
+  const requestedDurationFrames = Math.max(0, Math.round(marker.duration * frameRate));
+  return {
+    ...marker,
+    label: marker.label.trim(),
+    time,
+    duration: Math.min(maximumDurationFrames, requestedDurationFrames) / frameRate,
+  };
 }
 
 const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks, onSelectClip, onSeek }: {

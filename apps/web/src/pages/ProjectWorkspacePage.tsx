@@ -101,6 +101,7 @@ import {
   removeClipKeyframe,
   isSupportedEditorEffectKind,
   moveEditorEffect,
+  planRippleSequenceMarkers,
   setEditorEffectParameter,
   setClipPanAtTime,
   setClipVolumeAtTime,
@@ -112,6 +113,7 @@ import {
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
+  EditorMarker,
   Project,
   ProjectChangeGroup,
   ProjectEditOperation,
@@ -570,14 +572,30 @@ export function ProjectWorkspacePage() {
   });
   const mutateTrackClipUpdates = (
     updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
+    explicitMarkers?: readonly EditorMarker[],
   ) => {
     const expanded = expandTrackClipUpdates(updates);
+    const story = current.document.tracks.find((track) => track.id === current.document.story_track_id);
+    const storyUpdate = expanded.find((update) => update.trackId === current.document.story_track_id);
+    const markerPlan = story === undefined || storyUpdate === undefined
+      ? null
+      : planRippleSequenceMarkers(
+          explicitMarkers ?? current.document.markers,
+          story.clips,
+          storyUpdate.clips,
+          current.document.settings.ripple_sequence_markers,
+          current.document.fps,
+        );
+    const nextMarkers = markerPlan?.markers ?? explicitMarkers;
     mutate(
       expanded.length === 1 ? `调整轨道片段` : `调整 ${expanded.length} 条轨道的片段`,
-      expanded.length === 1
+      expanded.length === 1 && nextMarkers === undefined
         ? { kind: 'track', track_id: expanded[0]!.trackId }
         : { kind: 'project' },
-      expanded.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+      [
+        ...expanded.map((update): ProjectEditOperation => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+        ...(nextMarkers === undefined ? [] : [{ op: 'replace_markers' as const, markers: [...nextMarkers] }]),
+      ],
     );
   };
   const seekTimeline = (seconds: number) => {
@@ -1047,6 +1065,11 @@ export function ProjectWorkspacePage() {
         `更新标记`,
         { kind: 'project' },
         [{ op: 'replace_markers', markers: [...markers] }],
+      )}
+      onReplaceSettings={(settings) => mutate(
+        `更新时间轴设置`,
+        { kind: 'project' },
+        [{ op: 'replace_settings', settings }],
       )}
       onDropMediaAsset={({ assetId, trackId, timeSeconds, mode }) => {
         const asset = mediaAssets.data?.items.find((candidate) => candidate.id === assetId);

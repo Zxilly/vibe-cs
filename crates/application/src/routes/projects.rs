@@ -214,6 +214,7 @@ async fn create_project(
             markers: Vec::new(),
             settings: EditingDocumentSettings {
                 source_demo_ids: request.source_demo_ids,
+                ripple_sequence_markers: false,
             },
         },
         created_at: now,

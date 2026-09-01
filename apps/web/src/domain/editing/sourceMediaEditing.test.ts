@@ -37,7 +37,7 @@ const DOCUMENT: EditingDocument = {
   story_track_id: STORY.id,
   tracks: [STORY, VIDEO, AUDIO],
   markers: [],
-  settings: { source_demo_ids: [] },
+  settings: { source_demo_ids: [], ripple_sequence_markers: false },
 };
 const ASSET: MediaAsset = {
   id: 'asset-av',

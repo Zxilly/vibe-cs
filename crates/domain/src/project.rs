@@ -62,6 +62,7 @@ pub struct EditingDocument {
 #[ts(export)]
 pub struct EditingDocumentSettings {
     pub source_demo_ids: Vec<Uuid>,
+    pub ripple_sequence_markers: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -796,6 +797,20 @@ impl EditingDocument {
         {
             return Err(invalid("project source demo identities must be unique"));
         }
+        let mut marker_ids = HashSet::new();
+        for marker in &self.markers {
+            if !marker_ids.insert(marker.id)
+                || !marker.time.is_finite()
+                || !marker.duration.is_finite()
+                || marker.time < 0.0
+                || marker.duration < 0.0
+                || marker.time + marker.duration > MAX_EDITOR_PROJECT_DURATION_SECONDS
+                || marker.label.trim().is_empty()
+                || !valid_editor_color(&marker.color)
+            {
+                return Err(invalid("sequence marker is invalid"));
+            }
+        }
 
         let mut track_ids = HashSet::new();
         let mut clip_ids = HashSet::new();
@@ -1001,6 +1016,11 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         TimelineClipMaterial::Planned => {}
     }
     Ok(())
+}
+
+fn valid_editor_color(color: &str) -> bool {
+    let bytes = color.as_bytes();
+    bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(u8::is_ascii_hexdigit)
 }
 
 fn validate_media_duration(duration: f64) -> Result<(), DomainError> {
@@ -1334,6 +1354,40 @@ mod tests {
                 speed: 1.0,
             });
         assert!(incompatible.validate().is_err());
+    }
+
+    #[test]
+    fn sequence_markers_require_current_typed_properties_and_valid_geometry() {
+        let marker = EditorMarker {
+            id: Uuid::from_u128(90),
+            time: 1.0,
+            duration: 2.0,
+            label: "Retake".to_owned(),
+            color: "#2F6FED".to_owned(),
+            kind: crate::EditorMarkerKind::Segmentation,
+            comment: "Round-deciding retake".to_owned(),
+        };
+        let mut current = project();
+        current.document.markers.push(marker.clone());
+        assert!(current.validate().is_ok());
+
+        let mut duplicate = current.clone();
+        duplicate.document.markers.push(marker);
+        assert!(duplicate.validate().is_err());
+
+        let mut invalid = current;
+        invalid.document.markers[0].duration = -1.0;
+        assert!(invalid.validate().is_err());
+
+        assert!(
+            serde_json::from_value::<EditorMarker>(serde_json::json!({
+                "id": Uuid::from_u128(91),
+                "time": 1.0,
+                "label": "old marker",
+                "color": "#2F6FED"
+            }))
+            .is_err()
+        );
     }
 
     #[test]

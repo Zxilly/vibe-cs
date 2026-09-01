@@ -32,8 +32,8 @@ describe('Timeline navigation', () => {
     expect(adjacentTimelineTime([0, 2, 5], 2, -1, 60)).toBe(0);
     expect(adjacentTimelineTime([0, 2, 5], 5, 1, 60)).toBeNull();
     const markers: EditorMarker[] = [
-      { id: 'm2', time: 4, label: 'M2', color: '#FFFFFF' },
-      { id: 'm1', time: 1, label: 'M1', color: '#FFFFFF' },
+      { id: 'm2', time: 4, duration: 0, label: 'M2', color: '#FFFFFF', kind: 'comment', comment: '' },
+      { id: 'm1', time: 1, duration: 0, label: 'M1', color: '#FFFFFF', kind: 'comment', comment: '' },
     ];
     expect(adjacentMarker(markers, 1, 1, 60)?.id).toBe('m2');
     expect(adjacentMarker(markers, 4, -1, 60)?.id).toBe('m1');

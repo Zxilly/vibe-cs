@@ -196,7 +196,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-ASM-05 | Overwrite | `.` 或 Source 按钮覆盖时间范围，不移动后续时间 | ✅ | P0 |
 | TL-ASM-06 | 三点/四点编辑 | Source In/Out + Timeline In/Out；范围冲突时可选择 Fit 行为 | 🟡 已有两侧范围，缺 Fit Clip 决策 | P2 |
 | TL-ASM-07 | Cut/Copy/Paste | Ctrl/Cmd+X/C/V；Paste Overwrite 与 Paste Insert；链接关系重建 | ✅ | P0 |
-| TL-ASM-08 | Duplicate | Ctrl/Cmd+Shift+/ 在目标位置复制选择 | ⬜ | P2 |
+| TL-ASM-08 | Duplicate | Ctrl/Cmd+Shift+/ 在目标位置复制选择 | ✅ | P2 |
 | TL-ASM-09 | Replace Edit | 用新源替换选中片段并保留时间位置、长度和效果 | ✅ | P1 |
 | TL-ASM-10 | Relink | 源文件改变位置后重连，不改变 Timeline identity | ✅ | P0 |
 | TL-ASM-11 | Automate to Sequence | 按 Project 排序/标记批量组接，并可应用默认转场 | ⬜ | P3 |
@@ -438,6 +438,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 15：时间码输入与轨道重命名 — 健康
 
 确认：Timeline footer 的播放头读数支持 `HH:MM:SS:FF` 直接输入、总帧数模式和独立 scrub handle；Enter 提交并按序列时长夹取，Escape 放弃，方向键按 1/5 帧移动。轨道名通过可聚焦的 inline 入口双击、Enter 或 F2 编辑，空名称/Escape 不提交，Story compound 只在 canonical 视频轨头显示一次重命名入口。Tauri CDP 输入 `00:00:04:30` 后播放头精确为 4.5s，切换总帧显示 `270`；随后 Story 重命名为 `Main Story`，revision 8 → 9 且 track ID 不变，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/11-timecode-frames.png` 与 `12-track-renamed.png`。
+
+### Step 16：Duplicate at playhead — 健康
+
+确认：Ctrl/Cmd+Shift+/ 与可见“在播放头复制所选片段”命令共用 selection snapshot 和 Paste Overwrite 规划；跨轨选择继续按目标轨 kind 映射，复制出的 Group/Link identity 按普通 Paste 规则重建，原 Clip 不变。Tauri CDP 在 10 秒播放头复制 A，revision 9 → 10；原 A 保持 ID `dccde5b8-d7f3-4512-a02d-6bc2f6e7c813`/start 0，新 A 使用 ID `1bd727b7-93e5-4828-993c-8697f03f782d`/start 10，B 保持 start 5，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/13-duplicate-at-playhead.png`。
 
 ## 12. 迭代计划
 

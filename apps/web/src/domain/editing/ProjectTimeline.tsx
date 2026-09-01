@@ -117,6 +117,7 @@ import {
   type TrackAudioProperty,
 } from './trackAudioEditing';
 import { readTimelineClipboard, writeTimelineClipboard } from './timelineWorkspaceSession';
+import { MarkerEditorFields, normalizeEditorMarker } from './MarkerEditorFields';
 import {
   deleteRippleClips,
   extractTimelineRange,
@@ -134,6 +135,7 @@ import {
 } from './timelineEditing';
 import {
   clipMediaDuration,
+  clipLocalTimeAtSourceTime,
   clipSourceTimeAtLocalTime,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
@@ -197,6 +199,7 @@ export interface ProjectTimelineProps {
   readonly projectId: string;
   readonly document: EditingDocument;
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
+  readonly sourceMarkersByAssetId?: ReadonlyMap<string, readonly EditorMarker[]>;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
@@ -263,6 +266,7 @@ interface RenderedTrack {
 const MIN_TRACK_HEIGHT = 32;
 const MAX_TRACK_HEIGHT = 180;
 const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
+const EMPTY_SOURCE_MARKERS = new Map<string, readonly EditorMarker[]>();
 
 function defaultTrackHeight(track: RenderedTrack): number {
   if (track.kind === 'video') return 84;
@@ -281,6 +285,7 @@ export function ProjectTimeline({
   projectId,
   document,
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
+  sourceMarkersByAssetId = EMPTY_SOURCE_MARKERS,
   selectedClipId,
   selectedClipIds,
   targetTrackId,
@@ -2497,6 +2502,7 @@ export function ProjectTimeline({
               displaySettings={displaySettings}
               selectedEditPoint={selectedEditPoint}
               deliveryStateByClipId={deliveryStateByClipId}
+              sourceMarkersByAssetId={sourceMarkersByAssetId}
               outOfSyncFramesByClipId={outOfSyncFramesByClipId}
               editTool={editTool}
               fps={document.fps}
@@ -2845,53 +2851,7 @@ export function ProjectTimeline({
         )}
       >
         {markerDraft === null ? <span /> : (
-          <div className="space-y-3">
-            <label className="flex flex-col gap-1 text-xs">
-              <Trans>名称</Trans>
-              <input className="border border-divider bg-bg px-2 py-1.5" value={markerDraft.label} onChange={(event) => setMarkerDraft({ ...markerDraft, label: event.currentTarget.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <Trans>时间</Trans>
-              <input type="number" min={0} max={document.duration_seconds} step={1 / document.fps} className="border border-divider bg-bg px-2 py-1.5 font-mono" value={markerDraft.time} onChange={(event) => setMarkerDraft({ ...markerDraft, time: Number(event.currentTarget.value) })} />
-            </label>
-            <label className="flex items-center gap-2 text-xs">
-              <Trans>颜色</Trans>
-              <input type="color" value={markerDraft.color} onChange={(event) => setMarkerDraft({ ...markerDraft, color: event.currentTarget.value.toUpperCase() })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <Trans>类型</Trans>
-              <select
-                className="border border-divider bg-bg px-2 py-1.5"
-                value={markerDraft.kind}
-                onChange={(event) => setMarkerDraft({ ...markerDraft, kind: event.currentTarget.value as EditorMarker['kind'] })}
-              >
-                <option value="comment"><Trans>评论</Trans></option>
-                <option value="chapter"><Trans>章节</Trans></option>
-                <option value="segmentation"><Trans>分段</Trans></option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <Trans>持续时间</Trans>
-              <input
-                type="number"
-                min={0}
-                max={Math.max(0, document.duration_seconds - markerDraft.time)}
-                step={1 / document.fps}
-                className="border border-divider bg-bg px-2 py-1.5 font-mono"
-                value={markerDraft.duration}
-                onChange={(event) => setMarkerDraft({ ...markerDraft, duration: Number(event.currentTarget.value) })}
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <Trans>注释</Trans>
-              <textarea
-                rows={4}
-                className="resize-y border border-divider bg-bg px-2 py-1.5 leading-5"
-                value={markerDraft.comment}
-                onChange={(event) => setMarkerDraft({ ...markerDraft, comment: event.currentTarget.value })}
-              />
-            </label>
-          </div>
+          <MarkerEditorFields marker={markerDraft} durationSeconds={document.duration_seconds} fps={document.fps} onChange={setMarkerDraft} />
         )}
       </Drawer>
     </ReviewPanel>
@@ -3247,7 +3207,7 @@ function timelineClipboardFromSelection(
   };
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, sourceMarkersByAssetId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
@@ -3258,6 +3218,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly displaySettings: TimelineDisplaySettings;
   readonly selectedEditPoint: { readonly clipId: string; readonly edge: 'start' | 'end' } | null;
   readonly deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>;
+  readonly sourceMarkersByAssetId: ReadonlyMap<string, readonly EditorMarker[]>;
   readonly outOfSyncFramesByClipId: ReadonlyMap<string, number>;
   readonly editTool: TimelineEditTool;
   readonly fps: number;
@@ -3550,6 +3511,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             displaySettings={displaySettings}
             repeatedFrames={displaySettings.repeatedFrames && repeatedClipIds.has(clip.id)}
             deliveryState={deliveryStateByClipId.get(clip.id)}
+            sourceMarkers={clip.material.kind === 'planned'
+              ? []
+              : sourceMarkersByAssetId.get(clip.material.asset_id) ?? []}
             outOfSyncFrames={outOfSyncFramesByClipId.get(clip.id) ?? 0}
             editTool={editTool}
             scale={scale}
@@ -4022,7 +3986,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -4033,6 +3997,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly displaySettings: TimelineDisplaySettings;
   readonly repeatedFrames: boolean;
   readonly deliveryState?: TimelineClipMaterializationState | undefined;
+  readonly sourceMarkers: readonly EditorMarker[];
   readonly outOfSyncFrames: number;
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
@@ -4082,6 +4047,13 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     for (const keyframe of clip.keyframes) groups.set(keyframe.time, (groups.get(keyframe.time) ?? 0) + 1);
     return [...groups.entries()].sort((left, right) => left[0] - right[0]);
   }, [clip.keyframes]);
+  const clipMarkers = sourceMarkers.flatMap((marker) => {
+    const markerEnd = marker.time + marker.duration;
+    if (markerEnd < clip.placement.source_in - 1e-6 || marker.time > clip.placement.source_out + 1e-6) return [];
+    const start = clipLocalTimeAtSourceTime(clip, Math.max(marker.time, clip.placement.source_in));
+    const end = clipLocalTimeAtSourceTime(clip, Math.min(markerEnd, clip.placement.source_out));
+    return [{ marker, start: Math.min(start, end), duration: Math.abs(end - start) }];
+  });
   const [visualClip, setVisualClip] = useState(clip);
   const visualClipRef = useRef(visualClip);
   visualClipRef.current = visualClip;
@@ -4627,6 +4599,41 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           }}
         />
       )) : null}
+      {clipMarkers.map(({ marker, start, duration }) => (
+        <span
+          key={`source-marker:${marker.id}`}
+          role="button"
+          tabIndex={0}
+          className="absolute top-0 z-40 h-2 min-w-0 border border-neutral-950/60 outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
+          style={{
+            left: timeToPx(scale, start),
+            width: duration > 0 ? Math.max(2, timeToPx(scale, duration)) : 2,
+            backgroundColor: marker.color,
+          }}
+          aria-label={t`片段标记 ${marker.label} ${formatMillisecondTimecode(marker.time)}`}
+          title={[
+            marker.label,
+            formatMillisecondTimecode(marker.time),
+            ...(marker.duration > 0 ? [t`持续 ${formatMillisecondTimecode(marker.duration)}`] : []),
+            ...(marker.comment.trim() === '' ? [] : [marker.comment.trim()]),
+          ].join(' · ')}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSeek(clip.placement.start + start);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            event.stopPropagation();
+            onSeek(clip.placement.start + start);
+          }}
+        />
+      ))}
       {repeatedFrames ? <span className="pointer-events-none absolute inset-x-0 top-0 z-40 h-1 bg-[repeating-linear-gradient(90deg,var(--color-warn)_0_4px,transparent_4px_8px)]" role="img" aria-label={t`重复帧 ${clip.name}`} /> : null}
       {displaySettings.names ? <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
@@ -4711,6 +4718,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.repeatedFrames === next.repeatedFrames
   && previous.selectedEditPoint === next.selectedEditPoint
   && previous.deliveryState === next.deliveryState
+  && previous.sourceMarkers === next.sourceMarkers
   && previous.outOfSyncFrames === next.outOfSyncFrames
   && previous.editTool === next.editTool
   && previous.storyTrack === next.storyTrack
@@ -6152,19 +6160,6 @@ function markerKindLabel(kind: EditorMarker['kind']): string {
   if (kind === 'chapter') return t`章节`;
   if (kind === 'segmentation') return t`分段`;
   return t`评论`;
-}
-
-function normalizeEditorMarker(marker: EditorMarker, durationSeconds: number, fps: number): EditorMarker {
-  const frameRate = Math.max(1, fps);
-  const time = snapTimeToFrame(Math.min(durationSeconds, Math.max(0, marker.time)), frameRate);
-  const maximumDurationFrames = Math.max(0, Math.floor((durationSeconds - time) * frameRate + 1e-6));
-  const requestedDurationFrames = Math.max(0, Math.round(marker.duration * frameRate));
-  return {
-    ...marker,
-    label: marker.label.trim(),
-    time,
-    duration: Math.min(maximumDurationFrames, requestedDurationFrames) / frameRate,
-  };
 }
 
 const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks, onSelectClip, onSeek }: {

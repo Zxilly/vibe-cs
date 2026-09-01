@@ -87,6 +87,7 @@ import type {
   MatchDownloadJob,
   MatchHistoryItem,
   MatchHistorySyncResult,
+  EditorMarker,
   MediaAsset,
   MediaProxyCleanup,
   OutputItem,
@@ -1075,6 +1076,11 @@ export const commands = {
     }),
   deleteMediaAsset: (id: string) =>
     request<void>(`/media/assets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  replaceMediaAssetMarkers: (id: string, markers: readonly EditorMarker[]) =>
+    request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/markers`, {
+      method: 'PUT',
+      body: { markers: [...markers] },
+    }),
   /** Renders the asset's audio stream into a second, managed audio asset. */
   extractAssetAudio: (id: string) =>
     request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/extract-audio`, {

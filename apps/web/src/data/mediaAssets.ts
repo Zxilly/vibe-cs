@@ -52,6 +52,7 @@ import {
 import type {
   AudioAnalysis,
   AudioAnalysisOptions,
+  EditorMarker,
   MediaAsset,
   WaveformResponse,
 } from '../shared/desktop/dto';
@@ -252,6 +253,20 @@ export function useDeleteMediaAsset() {
     onSuccess: async (_result, assetId) => {
       await invalidateMediaAssets(queryClient);
       forgetMediaAsset(queryClient, assetId);
+    },
+  });
+}
+
+export function useReplaceMediaAssetMarkers() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, markers }: { readonly id: string; readonly markers: readonly EditorMarker[] }) =>
+      client.replaceMediaAssetMarkers(id, markers),
+    onSuccess: async (_asset, { id }) => {
+      forgetMediaAsset(queryClient, id);
+      await invalidateMediaAssets(queryClient);
     },
   });
 }

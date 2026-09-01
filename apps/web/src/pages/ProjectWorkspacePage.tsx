@@ -46,6 +46,7 @@ import {
   useDeleteMediaAsset,
   useImportMediaAsset,
   useMediaAssets,
+  useReplaceMediaAssetMarkers,
   useRelinkMediaAsset,
 } from '../data/mediaAssets';
 import {
@@ -211,6 +212,11 @@ export function ProjectWorkspacePage() {
   const importMedia = useImportMediaAsset();
   const relinkMedia = useRelinkMediaAsset();
   const deleteMedia = useDeleteMediaAsset();
+  const replaceAssetMarkers = useReplaceMediaAssetMarkers();
+  const sourceMarkersByAssetId = useMemo(
+    () => new Map((mediaAssets.data?.items ?? []).map((asset) => [asset.id, asset.markers] as const)),
+    [mediaAssets.data?.items],
+  );
   const nativeShell = useNativeShell();
   const apply = useApplyProjectPatch();
   const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
@@ -869,6 +875,7 @@ export function ProjectWorkspacePage() {
     importMedia.error,
     relinkMedia.error,
     deleteMedia.error,
+    replaceAssetMarkers.error,
   ].find((error) => error !== null) ?? null;
   const mutationErrorDetail = dataErrorMessage(mutationError);
   const projectPanel = (
@@ -883,7 +890,7 @@ export function ProjectWorkspacePage() {
       matchedSourceFrame={matchedSourceFrame}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
-      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
+      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending || replaceAssetMarkers.isPending}
       canEditAsset={canApplySourcePatch}
       sourcePatchTargets={sourcePatchTargets}
       importAvailable={nativeShell.available}
@@ -902,6 +909,7 @@ export function ProjectWorkspacePage() {
       onReplace={replaceSelectedClipSource}
       onRelink={(asset) => void relinkProjectMedia(asset)}
       onDelete={(asset) => deleteMedia.mutate(asset.id)}
+      onReplaceAssetMarkers={(asset, markers) => replaceAssetMarkers.mutate({ id: asset.id, markers })}
     />
   );
   const programPanel = (
@@ -939,6 +947,7 @@ export function ProjectWorkspacePage() {
       projectId={current.id}
       document={current.document}
       deliveryStateByClipId={deliveryStateByClipId}
+      sourceMarkersByAssetId={sourceMarkersByAssetId}
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}

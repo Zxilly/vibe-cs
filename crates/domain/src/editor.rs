@@ -1,8 +1,12 @@
 //! Shared timeline value types used by the canonical Editing Document.
 
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
+
+use crate::DomainError;
 
 pub const MAX_EDITOR_KEYFRAMES_PER_CLIP: usize = 128;
 pub const MAX_EDITOR_SPEED_SEGMENTS: usize = 16;
@@ -147,4 +151,38 @@ pub struct EditorMarker {
     pub color: String,
     pub kind: EditorMarkerKind,
     pub comment: String,
+}
+
+/// Validates one complete marker collection at its owning sequence or source boundary.
+pub fn validate_editor_markers(
+    markers: &[EditorMarker],
+    maximum_time: f64,
+) -> Result<(), DomainError> {
+    if !maximum_time.is_finite()
+        || !(0.0..=MAX_EDITOR_PROJECT_DURATION_SECONDS).contains(&maximum_time)
+    {
+        return Err(DomainError::InvalidInput(
+            "marker time boundary is invalid".to_owned(),
+        ));
+    }
+    let mut marker_ids = HashSet::new();
+    for marker in markers {
+        let color = marker.color.as_bytes();
+        if !marker_ids.insert(marker.id)
+            || !marker.time.is_finite()
+            || !marker.duration.is_finite()
+            || marker.time < 0.0
+            || marker.duration < 0.0
+            || marker.time + marker.duration > maximum_time + 0.001
+            || marker.label.trim().is_empty()
+            || color.len() != 7
+            || color[0] != b'#'
+            || !color[1..].iter().all(u8::is_ascii_hexdigit)
+        {
+            return Err(DomainError::InvalidInput(
+                "editor marker collection is invalid".to_owned(),
+            ));
+        }
+    }
+    Ok(())
 }

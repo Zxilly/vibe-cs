@@ -54,6 +54,7 @@ const ASSET: MediaAsset = {
   proxy_status: { status: 'not_requested' },
   waveform: [0.2, 0.8],
   metadata_status: { status: 'ready' },
+  markers: [],
   created_at: '2026-08-31T00:00:00Z',
 };
 

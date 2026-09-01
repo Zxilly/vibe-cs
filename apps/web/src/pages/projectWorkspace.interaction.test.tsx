@@ -452,6 +452,7 @@ function renderWorkspace({
   cancelExportJob,
   relinkMediaAsset,
   deleteMediaAsset,
+  replaceMediaAssetMarkers,
   streamAgentChat,
   appendAgentSessionEntry,
   updateAgentTurn,
@@ -476,6 +477,7 @@ function renderWorkspace({
   readonly cancelExportJob?: ReturnType<typeof vi.fn> | undefined;
   readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
+  readonly replaceMediaAssetMarkers?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
@@ -496,6 +498,7 @@ function renderWorkspace({
       listMediaAssets: listMediaAssets ?? (() => Promise.resolve({ items: assets })),
       ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
       ...(deleteMediaAsset === undefined ? {} : { deleteMediaAsset }),
+      ...(replaceMediaAssetMarkers === undefined ? {} : { replaceMediaAssetMarkers }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
       ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
@@ -4860,6 +4863,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     renderWorkspace({ project: RECORDABLE_PROJECT, assets: [asset] });
@@ -4880,6 +4884,53 @@ describe('unified project workspace', () => {
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 A' }));
     fireEvent.click(within(panel).getByRole('button', { name: '录制片段 A' }));
     expect(screen.getByRole('dialog', { name: '录制缺失片段' }).textContent).toContain('录制 1 个尚未物化的时间线片段');
+  });
+
+  it('edits one source-time Clip Marker and projects it onto every matching Timeline clip', async () => {
+    const sourceMarker = {
+      id: '00000000-0000-4000-8000-000000000120',
+      time: 2,
+      duration: 1,
+      label: 'Source beat',
+      color: '#F59E0B',
+      kind: 'comment' as const,
+      comment: 'Original source note',
+    };
+    const asset: MediaAsset = {
+      id: 'asset-b',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\source-b.mp4',
+      name: 'Source B',
+      kind: 'video',
+      duration_seconds: 5,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      markers: [sourceMarker],
+      created_at: PROJECT.updated_at,
+    };
+    const replaceMediaAssetMarkers = vi.fn((_id: string, markers: readonly typeof sourceMarker[]) => Promise.resolve({ ...asset, markers }));
+    renderWorkspace({ assets: [asset], replaceMediaAssetMarkers });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 B' }));
+    const sourceMarkerButton = within(panel).getByRole('button', { name: '片段标记 Source beat 00:02.000' });
+    expect(sourceMarkerButton.title).toContain('Original source note');
+    expect(screen.getAllByRole('button', { name: '片段标记 Source beat 00:02.000' })).toHaveLength(2);
+
+    fireEvent.doubleClick(sourceMarkerButton);
+    fireEvent.change(screen.getByRole('textbox', { name: '注释' }), { target: { value: 'Shared master-source note' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存片段标记' }));
+
+    await waitFor(() => expect(replaceMediaAssetMarkers).toHaveBeenCalledWith('asset-b', [{
+      ...sourceMarker,
+      comment: 'Shared master-source note',
+    }]));
   });
 
   it('switches the docked Project panel between Adobe-style List and Icon views', async () => {
@@ -4998,6 +5049,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     renderWorkspace({
@@ -5039,6 +5091,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.2],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const relinkMediaAsset = vi.fn(async () => ({ ...asset, path: 'E:\\moved\\manage.wav' }));
@@ -5079,6 +5132,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'unavailable', message: 'source media file is missing' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     renderWorkspace({ project: RECORDED_PROJECT, assets: [referencedAsset] });
@@ -5108,6 +5162,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5143,7 +5198,7 @@ describe('unified project workspace', () => {
       id: 'asset-fit', project_id: PROJECT.id, path: 'D:\\media\\fit.mp4', name: 'Fit source', kind: 'video',
       duration_seconds: 6, width: 1920, height: 1080, file_size: 4_096, has_audio: true,
       proxy_path: null, proxy_status: { status: 'not_requested' }, waveform: null,
-      metadata_status: { status: 'ready' }, created_at: PROJECT.updated_at,
+      metadata_status: { status: 'ready' }, markers: [], created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, assets: [asset], applyProjectPatch });
@@ -5186,6 +5241,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5237,6 +5293,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.1, 0.5],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5287,6 +5344,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5323,6 +5381,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const authoredProject: Project = {
@@ -5380,6 +5439,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.1, 0.5, 0.2],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5427,6 +5487,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.2, 0.8],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     let serverProject = project;
@@ -5537,6 +5598,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.2, 0.8],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
@@ -5625,6 +5687,7 @@ describe('unified project workspace', () => {
       proxy_status: { status: 'not_requested' },
       waveform: [0.2],
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();

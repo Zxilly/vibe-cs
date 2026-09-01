@@ -35,6 +35,7 @@ pub struct MediaAsset {
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub waveform: Option<Vec<f32>>,
     pub metadata_status: MediaMetadataStatus,
+    pub markers: Vec<crate::EditorMarker>,
     pub created_at: DateTime<Utc>,
 }
 

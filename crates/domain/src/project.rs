@@ -797,20 +797,7 @@ impl EditingDocument {
         {
             return Err(invalid("project source demo identities must be unique"));
         }
-        let mut marker_ids = HashSet::new();
-        for marker in &self.markers {
-            if !marker_ids.insert(marker.id)
-                || !marker.time.is_finite()
-                || !marker.duration.is_finite()
-                || marker.time < 0.0
-                || marker.duration < 0.0
-                || marker.time + marker.duration > MAX_EDITOR_PROJECT_DURATION_SECONDS
-                || marker.label.trim().is_empty()
-                || !valid_editor_color(&marker.color)
-            {
-                return Err(invalid("sequence marker is invalid"));
-            }
-        }
+        crate::validate_editor_markers(&self.markers, MAX_EDITOR_PROJECT_DURATION_SECONDS)?;
 
         let mut track_ids = HashSet::new();
         let mut clip_ids = HashSet::new();
@@ -1016,11 +1003,6 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         TimelineClipMaterial::Planned => {}
     }
     Ok(())
-}
-
-fn valid_editor_color(color: &str) -> bool {
-    let bytes = color.as_bytes();
-    bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(u8::is_ascii_hexdigit)
 }
 
 fn validate_media_duration(duration: f64) -> Result<(), DomainError> {

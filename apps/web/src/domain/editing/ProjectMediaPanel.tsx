@@ -12,6 +12,7 @@ import {
   List,
   Pause,
   Play,
+  BookmarkPlus,
   Search,
   Trash2,
   X,
@@ -21,9 +22,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetStreamPath, mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
-import { Dialog, Tooltip } from '../../design/feedback';
+import { Dialog, Drawer, Tooltip } from '../../design/feedback';
 import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
-import type { MediaAsset, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import type { EditorMarker, MediaAsset, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
 import {
   clearProjectMediaDrag,
   isStillImageMediaAsset,
@@ -33,6 +35,7 @@ import {
 } from './mediaDrag';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import type { SourceMediaPatch } from './sourceMediaEditing';
+import { MarkerEditorFields, normalizeEditorMarker } from './MarkerEditorFields';
 
 export interface ProjectMediaPanelProps {
   readonly assets: readonly MediaAsset[];
@@ -59,6 +62,7 @@ export interface ProjectMediaPanelProps {
   readonly onReplace: (asset: MediaAsset, sourceRange: ProjectSourceRange) => void;
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
+  readonly onReplaceAssetMarkers: (asset: MediaAsset, markers: readonly EditorMarker[]) => void;
   readonly onClose?: (() => void) | undefined;
 }
 
@@ -116,6 +120,7 @@ export function ProjectMediaPanel({
   onReplace,
   onRelink,
   onDelete,
+  onReplaceAssetMarkers,
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
@@ -309,6 +314,9 @@ export function ProjectMediaPanel({
           sourceRange={selectedSourceRange}
           onSourceTimeChange={setSelectedSourceTime}
           onSourceRangeChange={setSelectedSourceRange}
+          readOnly={readOnly}
+          busy={busy}
+          onReplaceAssetMarkers={onReplaceAssetMarkers}
         />
         <div className="border-t border-divider bg-bg p-1">
           {(selected?.state === 'planned' || selected?.state === 'stale') && selected.timelineClip !== null ? (
@@ -627,13 +635,16 @@ function MediaItemSection({
   );
 }
 
-function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange, onSourceRangeChange }: {
+function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onSourceTimeChange, onSourceRangeChange, onReplaceAssetMarkers }: {
   readonly item: ProjectMediaItem | null;
   readonly fps: number;
   readonly sourceTime: number;
   readonly sourceRange: ProjectSourceRange;
+  readonly readOnly: boolean;
+  readonly busy: boolean;
   readonly onSourceTimeChange: (seconds: number) => void;
   readonly onSourceRangeChange: (range: ProjectSourceRange) => void;
+  readonly onReplaceAssetMarkers: (asset: MediaAsset, markers: readonly EditorMarker[]) => void;
 }) {
   const shell = useNativeShell();
   const [mountedAssets, setMountedAssets] = useState<readonly {
@@ -642,6 +653,7 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
   }[]>([]);
   const [displayedAssetId, setDisplayedAssetId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const mediaRefs = useRef(new Map<string, HTMLMediaElement>());
   const previewAssetId = item?.previewAssetId ?? null;
   const duration = Math.max(0, item?.durationSeconds ?? 0);
@@ -710,6 +722,21 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
     onSourceTimeChange(next);
   };
   const canMarkSourceRange = item !== null && duration >= frame;
+  const sourceAsset = item?.sourceAsset ?? null;
+  const sourceMarkers = sourceAsset?.markers ?? [];
+  const editSourceMarker = () => {
+    if (sourceAsset === null || readOnly || busy) return;
+    const existing = sourceMarkers.find((marker) => Math.abs(marker.time - sourceTime) <= 0.5 * frame);
+    setMarkerDraft(existing === undefined ? {
+      id: globalThis.crypto.randomUUID(),
+      time: sourceTime,
+      duration: 0,
+      label: t`片段标记 ${sourceMarkers.length + 1}`,
+      color: DEFAULT_TIMELINE_MARKER_COLOR,
+      kind: 'comment',
+      comment: '',
+    } : { ...existing });
+  };
   const markSourceIn = () => {
     const sourceIn = Math.min(duration - frame, Math.max(0, sourceTime));
     onSourceRangeChange({
@@ -727,6 +754,7 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
 
   const selectedPreviewReady = previewAssetId !== null && displayedAssetId === previewAssetId;
   return (
+    <>
     <div
       className="grid min-h-0 grid-rows-[minmax(0,1fr)_52px] bg-neutral-900"
       aria-label={t`源素材预览`}
@@ -854,7 +882,8 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
           <button type="button" className="grid size-6 place-items-center" aria-label={playing ? t`暂停源素材` : t`播放源素材`} disabled={previewAssetId === null || item?.isStillImage === true} onClick={togglePlayback}>{playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}</button>
           <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材下一帧`} disabled={item === null} onClick={() => stepFrame(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
           <span className="ml-1 font-mono text-2xs">{formatSourceTime(sourceTime)}</span>
-          <button type="button" className="ml-auto h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
+          <button type="button" className="ml-auto grid size-6 place-items-center" aria-label={t`在源播放头添加或编辑片段标记`} disabled={sourceAsset === null || readOnly || busy || duration <= 0} onClick={editSourceMarker}><BookmarkPlus className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
           <button type="button" className="h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
           <button type="button" className="mr-1 h-6 px-1.5 text-2xs" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
         </div>
@@ -872,6 +901,31 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
               style={{ left: `${duration <= 0 ? 0 : sourceTime / duration * 100}%` }}
             />
           </div>
+          {sourceMarkers.map((marker) => (
+            <button
+              key={marker.id}
+              type="button"
+              className="absolute top-0 z-20 h-3 min-w-0 border border-neutral-950/60"
+              style={{
+                left: `${duration <= 0 ? 0 : marker.time / duration * 100}%`,
+                width: marker.duration > 0
+                  ? `${duration <= 0 ? 0 : marker.duration / duration * 100}%`
+                  : 2,
+                backgroundColor: marker.color,
+              }}
+              aria-label={t`片段标记 ${marker.label} ${formatSourceTime(marker.time)}`}
+              title={[
+                marker.label,
+                formatSourceTime(marker.time),
+                ...(marker.duration > 0 ? [t`持续 ${formatSourceTime(marker.duration)}`] : []),
+                ...(marker.comment.trim() === '' ? [] : [marker.comment.trim()]),
+              ].join(' · ')}
+              onClick={() => onSourceTimeChange(marker.time)}
+              onDoubleClick={() => {
+                if (!readOnly && !busy) setMarkerDraft({ ...marker });
+              }}
+            />
+          ))}
           <input
             type="range"
             className="absolute inset-0 z-10 size-full cursor-ew-resize opacity-0 disabled:cursor-default"
@@ -887,6 +941,46 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, onSourceTimeChange,
         </div>
       </div>
     </div>
+    <Drawer
+      open={markerDraft !== null}
+      title={<Trans>编辑片段标记</Trans>}
+      description={markerDraft === null ? undefined : formatSourceTime(markerDraft.time)}
+      width="standard"
+      onClose={() => setMarkerDraft(null)}
+      footer={markerDraft === null || sourceAsset === null ? undefined : (
+        <>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => {
+              onReplaceAssetMarkers(sourceAsset, sourceMarkers.filter((marker) => marker.id !== markerDraft.id));
+              setMarkerDraft(null);
+            }}
+          >
+            <Trans>删除片段标记</Trans>
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={markerDraft.label.trim() === ''}
+            onClick={() => {
+              const marker = normalizeEditorMarker(markerDraft, duration, fps);
+              onReplaceAssetMarkers(sourceAsset, sourceMarkers.some((candidate) => candidate.id === marker.id)
+                ? sourceMarkers.map((candidate) => candidate.id === marker.id ? marker : candidate)
+                : [...sourceMarkers, marker]);
+              setMarkerDraft(null);
+            }}
+          >
+            <Trans>保存片段标记</Trans>
+          </Button>
+        </>
+      )}
+    >
+      {markerDraft === null ? <span /> : (
+        <MarkerEditorFields marker={markerDraft} durationSeconds={duration} fps={fps} onChange={setMarkerDraft} />
+      )}
+    </Drawer>
+    </>
   );
 }
 

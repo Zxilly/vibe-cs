@@ -11,7 +11,7 @@ use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Path, State},
     http::{HeaderMap, Response, StatusCode, header},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
@@ -63,6 +63,7 @@ pub(crate) fn router() -> Router<AppState> {
             get(get_asset).put(put_asset).delete(delete_asset),
         )
         .route("/api/media/assets/{id}/relink", post(relink_asset_path))
+        .route("/api/media/assets/{id}/markers", put(replace_asset_markers))
         .route(
             "/api/media/assets/{id}/replace",
             post(replace_asset_upload)
@@ -526,6 +527,7 @@ mod media_availability_tests {
             proxy_status: MediaProxyStatus::NotRequested,
             waveform: None,
             metadata_status: MediaMetadataStatus::Ready,
+            markers: Vec::new(),
             created_at: DateTime::UNIX_EPOCH,
         }
     }
@@ -1595,6 +1597,33 @@ async fn put_asset(
     Ok(Json(asset))
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReplaceAssetMarkersRequest {
+    markers: Vec<vibe_cs_domain::EditorMarker>,
+}
+
+async fn replace_asset_markers(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    ApiJson(request): ApiJson<ReplaceAssetMarkersRequest>,
+) -> ApiResult<Json<MediaAsset>> {
+    let id = parse_id(&id)?;
+    let mut asset = state
+        .storage
+        .get_asset(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("media asset"))?;
+    let duration = asset
+        .duration_seconds
+        .ok_or_else(|| ApiError::invalid("media asset duration is unavailable"))?;
+    vibe_cs_domain::validate_editor_markers(&request.markers, duration)?;
+    asset.markers = request.markers;
+    let asset = state.storage.put_asset(asset).await?;
+    state.events.publish("media_asset", "updated", Some(id));
+    Ok(Json(asset))
+}
+
 async fn delete_asset(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -1675,6 +1704,7 @@ async fn asset_from_path(
         proxy_status: MediaProxyStatus::NotRequested,
         waveform: None,
         metadata_status,
+        markers: Vec::new(),
         created_at: Utc::now(),
     })
 }

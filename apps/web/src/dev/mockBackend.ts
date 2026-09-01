@@ -821,6 +821,7 @@ const MEDIA_ASSETS: MediaAsset[] = [
     proxy_status: { status: 'not_requested' },
     waveform: null,
     metadata_status: { status: 'ready' },
+    markers: [],
     created_at: '2026-08-13T11:02:00Z',
   },
   {
@@ -838,6 +839,7 @@ const MEDIA_ASSETS: MediaAsset[] = [
     proxy_status: { status: 'not_requested' },
     waveform: null,
     metadata_status: { status: 'ready' },
+    markers: [],
     created_at: '2026-08-10T09:12:00Z',
   },
 ];

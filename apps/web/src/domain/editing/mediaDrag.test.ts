@@ -40,6 +40,7 @@ function asset(
     proxy_status: { status: 'not_requested' },
     waveform: null,
     metadata_status: metadataStatus,
+    markers: [],
     created_at: '2026-08-30T00:00:00Z',
   };
 }

@@ -895,6 +895,7 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
                 proxy_status: MediaProxyStatus::NotRequested,
                 waveform: None,
                 metadata_status: MediaMetadataStatus::Ready,
+                markers: Vec::new(),
                 created_at: output.created_at,
             })
             .await?;

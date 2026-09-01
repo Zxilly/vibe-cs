@@ -186,6 +186,7 @@ describe('ripple Story Track edits', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: '2026-08-29T00:00:00Z',
     };
     const inserted = insertRippleClipAtTime(
@@ -222,6 +223,7 @@ describe('ripple Story Track edits', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: '2026-08-29T00:00:00Z',
     };
 
@@ -247,6 +249,7 @@ describe('ripple Story Track edits', () => {
       proxy_status: { status: 'not_requested' },
       waveform: null,
       metadata_status: { status: 'ready' },
+      markers: [],
       created_at: '2026-08-29T00:00:00Z',
     };
 

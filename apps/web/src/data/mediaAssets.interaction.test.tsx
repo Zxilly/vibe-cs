@@ -45,6 +45,7 @@ function asset(overrides: Partial<MediaAsset> = {}): MediaAsset {
     proxy_status: { status: 'not_requested' },
     waveform: null,
     metadata_status: { status: 'ready' },
+    markers: [],
     created_at: '2026-08-15T09:00:00.000Z',
     ...overrides,
   };

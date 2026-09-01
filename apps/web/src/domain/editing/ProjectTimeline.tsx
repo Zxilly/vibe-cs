@@ -20,6 +20,7 @@ import {
   MoveLeft,
   MoveRight,
   MousePointer2,
+  Repeat2,
   SquarePlus,
   Star,
   Type,
@@ -171,6 +172,7 @@ export interface ProjectTimelineProps {
   readonly rangeInSeconds: number | null;
   readonly rangeOutSeconds: number | null;
   readonly transportPlaying: boolean;
+  readonly loopPlaybackEnabled: boolean;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
@@ -184,6 +186,7 @@ export interface ProjectTimelineProps {
   readonly onSeek: (seconds: number) => void;
   readonly onRangeChange: (rangeInSeconds: number | null, rangeOutSeconds: number | null) => void;
   readonly onTogglePlayback: () => void;
+  readonly onToggleLoopPlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
@@ -248,6 +251,7 @@ export function ProjectTimeline({
   rangeInSeconds,
   rangeOutSeconds,
   transportPlaying,
+  loopPlaybackEnabled,
   reviewGroup,
   readOnly,
   onSelectClip,
@@ -261,6 +265,7 @@ export function ProjectTimeline({
   onSeek,
   onRangeChange,
   onTogglePlayback,
+  onToggleLoopPlayback,
   onShuttle,
   onReplaceClip,
   onReplaceTrack,
@@ -1674,6 +1679,23 @@ export function ProjectTimeline({
           applyDefaultTransitionsToSelection();
           return;
         }
+        const clearRangeShortcut = event.altKey
+          || (event.shiftKey && (event.ctrlKey || event.metaKey));
+        if (clearRangeShortcut && event.key.toLowerCase() === 'i') {
+          event.preventDefault();
+          onRangeChange(null, rangeOutSeconds);
+          return;
+        }
+        if (clearRangeShortcut && event.key.toLowerCase() === 'o') {
+          event.preventDefault();
+          onRangeChange(rangeInSeconds, null);
+          return;
+        }
+        if (clearRangeShortcut && event.key.toLowerCase() === 'x') {
+          event.preventDefault();
+          onRangeChange(null, null);
+          return;
+        }
         if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
           copySelected();
@@ -1755,12 +1777,22 @@ export function ProjectTimeline({
           addMarker();
           return;
         }
-        if (event.key.toLowerCase() === 'i' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key.toLowerCase() === 'i' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          if (rangeInSeconds !== null) onSeek(rangeInSeconds);
+          return;
+        }
+        if (event.key.toLowerCase() === 'o' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          if (rangeOutSeconds !== null) onSeek(rangeOutSeconds);
+          return;
+        }
+        if (event.key.toLowerCase() === 'i' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           onRangeChange(editPlayheadSeconds, rangeOutSeconds);
           return;
         }
-        if (event.key.toLowerCase() === 'o' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key.toLowerCase() === 'o' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           onRangeChange(rangeInSeconds, editPlayheadSeconds);
           return;
@@ -1880,6 +1912,11 @@ export function ProjectTimeline({
           align="start"
           triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
           items={[
+            { id: 'go-in', label: t`跳转到入点`, disabled: rangeInSeconds === null, onSelect: () => rangeInSeconds === null ? undefined : onSeek(rangeInSeconds) },
+            { id: 'go-out', label: t`跳转到出点`, disabled: rangeOutSeconds === null, onSelect: () => rangeOutSeconds === null ? undefined : onSeek(rangeOutSeconds) },
+            { id: 'clear-in', label: t`清除入点`, disabled: rangeInSeconds === null, onSelect: () => onRangeChange(null, rangeOutSeconds) },
+            { id: 'clear-out', label: t`清除出点`, disabled: rangeOutSeconds === null, onSelect: () => onRangeChange(rangeInSeconds, null) },
+            { id: 'clear-range', label: t`清除入出点`, disabled: rangeInSeconds === null && rangeOutSeconds === null, onSelect: () => onRangeChange(null, null) },
             { id: 'add', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
             { id: 'previous', label: t`上一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, -1, document.fps) === null, onSelect: () => navigateMarker(-1) },
             { id: 'next', label: t`下一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, 1, document.fps) === null, onSelect: () => navigateMarker(1) },
@@ -1941,6 +1978,20 @@ export function ProjectTimeline({
             <button type="button" className="h-7 border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>×</button>
           )}
         </span>
+        <Tooltip content={loopPlaybackEnabled ? t`关闭循环播放` : t`循环播放：有完整入出点时循环范围，否则循环整个序列`} side="bottom">
+          <button
+            type="button"
+            className={cn(
+              'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+              loopPlaybackEnabled && 'border-accent-300 bg-accent-100 text-accent-text',
+            )}
+            aria-label={t`切换循环播放`}
+            aria-pressed={loopPlaybackEnabled}
+            onClick={onToggleLoopPlayback}
+          >
+            <Repeat2 className="size-3.5" aria-hidden="true" />
+          </button>
+        </Tooltip>
         {reviewChangeCount === 0 ? null : (
           <>
             <span className="text-xs text-neutral-500"><Trans>{reviewChangeCount} 处变更</Trans></span>

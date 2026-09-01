@@ -712,6 +712,38 @@ describe('unified project workspace', () => {
     }));
   }, 20_000);
 
+  it('navigates, clears and loops the shared Timeline In/Out range', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    const monitor = screen.getByRole('region', { name: '视频预览' });
+
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.keyDown(timeline, { key: 'i' });
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.keyDown(timeline, { key: 'o' });
+    stepTimelineSeconds(playhead, 1);
+    fireEvent.keyDown(timeline, { key: 'I', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(2);
+    fireEvent.keyDown(timeline, { key: 'O', shiftKey: true });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(4);
+
+    fireEvent.click(screen.getByRole('button', { name: '切换循环播放' }));
+    expect(screen.getByRole('button', { name: '切换循环播放' }).getAttribute('aria-pressed')).toBe('true');
+    expect(monitor.getAttribute('data-monitor-playback-range')).toBe('2:4');
+
+    fireEvent.keyDown(timeline, { key: 'O', ctrlKey: true, shiftKey: true });
+    expect(monitor.getAttribute('data-monitor-playback-range')).toBe('0:10');
+    fireEvent.keyDown(timeline, { key: 'o' });
+    fireEvent.keyDown(timeline, { key: 'i', altKey: true });
+    fireEvent.keyDown(timeline, { key: 'X', ctrlKey: true, shiftKey: true });
+    expect(screen.queryByRole('button', { name: '清除入出点' })).toBeNull();
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: '标记操作' }), { button: 0, ctrlKey: false });
+    expect(screen.getByRole('menuitem', { name: '跳转到入点' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: '跳转到出点' }).getAttribute('aria-disabled')).toBe('true');
+  }, 20_000);
+
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
     const previousClips = PROJECT.document.tracks[0]!.clips;
     const replacement = {

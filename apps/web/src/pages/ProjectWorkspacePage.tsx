@@ -231,6 +231,7 @@ export function ProjectWorkspacePage() {
   const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [loopPlaybackEnabled, setLoopPlaybackEnabled] = useState(false);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
@@ -435,6 +436,12 @@ export function ProjectWorkspacePage() {
   const hasExportRange = exportRangeStart !== null
     && exportRangeEnd !== null
     && exportRangeEnd - exportRangeStart >= 1 / current.document.fps;
+  const loopPlaybackRange = !loopPlaybackEnabled
+    ? null
+    : hasExportRange
+      ? { start: exportRangeStart, end: exportRangeEnd }
+      : { start: 0, end: current.document.duration_seconds };
+  const activePlaybackRange = trimPlaybackRange ?? loopPlaybackRange;
   const transportClip = previewProject.document.tracks
     .find((track) => track.id === previewProject.document.story_track_id)
     ?.clips.find((clip) => transportTimeSeconds >= clip.placement.start
@@ -759,7 +766,7 @@ export function ProjectWorkspacePage() {
       playbackRate={playbackRate}
       rollingPreview={timelineRollingPreview}
       slidePreview={timelineSlidePreview}
-      playbackRange={trimPlaybackRange}
+      playbackRange={activePlaybackRange}
       onTogglePlayback={togglePlayback}
       onShuttle={shuttlePlayback}
       onStepFrame={stepTimelineFrame}
@@ -791,6 +798,7 @@ export function ProjectWorkspacePage() {
       rangeInSeconds={rangeInSeconds}
       rangeOutSeconds={rangeOutSeconds}
       transportPlaying={playing}
+      loopPlaybackEnabled={loopPlaybackEnabled}
       reviewGroup={latestAgentChangeGroup}
       readOnly={readOnly || apply.isPending || revertChange.isPending}
       onSelectClip={selectTimelineClip}
@@ -847,6 +855,7 @@ export function ProjectWorkspacePage() {
         setRangeOutSeconds(rangeOut);
       }}
       onTogglePlayback={togglePlayback}
+      onToggleLoopPlayback={() => setLoopPlaybackEnabled((enabled) => !enabled)}
       onShuttle={shuttlePlayback}
       onReplaceClip={replaceTimelineClip}
       onReplaceTrack={(track) => mutate(

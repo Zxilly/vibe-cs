@@ -1974,6 +1974,27 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('duplicates the selection at the playhead without changing the original', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 5);
+    fireEvent.keyDown(timeline, { key: '/', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 5 }) }),
+          expect.objectContaining({ name: 'A', placement: expect.objectContaining({ start: 5, duration: 5 }) }),
+        ],
+      }],
+    })));
+    const clips = applyProjectPatch.mock.calls[0]?.[0].operations[0].clips as TimelineClip[];
+    expect(clips[1]?.id).not.toBe(CLIP_A);
+  });
+
   it('recovers Timeline selection, transport marks and clipboard after remount', async () => {
     const first = renderWorkspace();
     const timeline = await screen.findByRole('region', { name: '时间轴' });

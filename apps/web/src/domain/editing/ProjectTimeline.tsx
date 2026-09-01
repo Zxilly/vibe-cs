@@ -682,10 +682,14 @@ export function ProjectTimeline({
   ));
   const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
+  const selectedClipboard = canCopy ? timelineClipboardFromSelection(selectedTrackGroups) : null;
   const canToggleClipEnabled = !readOnly && editableSelectedTrackGroups.length > 0;
   const canPaste = !readOnly
     && clipboard !== null
     && resolveTimelinePasteTargets(document.tracks, targetTrackIdSet, clipboard) !== null;
+  const canDuplicate = !readOnly
+    && selectedClipboard !== null
+    && resolveTimelinePasteTargets(document.tracks, targetTrackIdSet, selectedClipboard) !== null;
   const canCopyTransition = selectedCutTransition !== null;
   const canPasteTransition = !readOnly
     && selectedTransition !== null
@@ -1019,17 +1023,7 @@ export function ProjectTimeline({
   };
 
   const copySelected = () => {
-    if (!canCopy) return;
-    const originTime = Math.min(...selectedClips.map((clip) => clip.placement.start));
-    setClipboard({
-      originTime,
-      duration: Math.max(...selectedClips.map((clip) => clip.placement.start + clip.placement.duration)) - originTime,
-      groups: selectedTrackGroups.map(({ track, clips: selected }) => ({
-        trackId: track.id,
-        trackKind: track.kind,
-        clips: selected,
-      })),
-    });
+    if (selectedClipboard !== null) setClipboard(selectedClipboard);
   };
   const cutSelected = () => {
     if (!canCopy || !canDelete) return;
@@ -1091,6 +1085,19 @@ export function ProjectTimeline({
     const plan = mode === 'insert'
       ? planTimelinePasteInsert({ ...input, fps: document.fps })
       : planTimelinePasteOverwrite(input);
+    if (plan === null) return;
+    onReplaceTrackClipGroups(plan.updates);
+    onSelectClips(plan.pastedClipIds);
+  };
+  const duplicateSelected = () => {
+    if (!canDuplicate || selectedClipboard === null) return;
+    const plan = planTimelinePasteOverwrite({
+      tracks: document.tracks,
+      targetTrackIds: targetTrackIdSet,
+      clipboard: selectedClipboard,
+      timelineTime: editPlayheadSeconds,
+      createId: () => globalThis.crypto.randomUUID(),
+    });
     if (plan === null) return;
     onReplaceTrackClipGroups(plan.updates);
     onSelectClips(plan.pastedClipIds);
@@ -1760,6 +1767,11 @@ export function ProjectTimeline({
           applyDefaultTransitionsToSelection();
           return;
         }
+        if (event.key === '/' && event.shiftKey && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          duplicateSelected();
+          return;
+        }
         const clearRangeShortcut = event.altKey
           || (event.shiftKey && (event.ctrlKey || event.metaKey));
         if (clearRangeShortcut && event.key.toLowerCase() === 'i') {
@@ -2002,6 +2014,7 @@ export function ProjectTimeline({
             { id: 'ungroup', label: t`取消组合所选片段`, disabled: !canUngroup, onSelect: ungroupSelectedClips },
             { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
+            { id: 'duplicate', label: t`在播放头复制所选片段`, disabled: !canDuplicate, onSelect: duplicateSelected },
             { id: 'copy-transition', label: t`复制所选转场`, disabled: !canCopyTransition, onSelect: copySelectedTransition },
             { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
             { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
@@ -2918,6 +2931,23 @@ function timelineClipsEqual(
 ): boolean {
   return current.length === replacement.length
     && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
+}
+
+function timelineClipboardFromSelection(
+  groups: readonly { readonly track: TimelineTrack; readonly clips: readonly TimelineClip[] }[],
+): TimelineClipboard | null {
+  const clips = groups.flatMap((group) => group.clips);
+  if (clips.length === 0) return null;
+  const originTime = Math.min(...clips.map((clip) => clip.placement.start));
+  return {
+    originTime,
+    duration: Math.max(...clips.map((clip) => clip.placement.start + clip.placement.duration)) - originTime,
+    groups: groups.map(({ track, clips: selected }) => ({
+      trackId: track.id,
+      trackKind: track.kind,
+      clips: selected,
+    })),
+  };
 }
 
 const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedEditPoint, deliveryStateByClipId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {

@@ -65,6 +65,7 @@ import {
   openLocalDirectory,
   revealLocalPath,
   saveLocalBytes,
+  readLocalBytes,
   writeLocalBytes,
   type LocalDialogFilter,
 } from '../shared/desktop/dialog';
@@ -119,6 +120,7 @@ export interface NativeShell {
    *  the pickers, this one has no meaningful "did nothing" answer, and
    *  `shared/desktop/dialog` already throws. */
   readonly writeBytes: (path: string, bytes: Uint8Array) => Promise<void>;
+  readonly readBytes: (path: string) => Promise<Uint8Array>;
   /** 「在资源管理器中定位」. `false` when there is no shell or no path. */
   readonly reveal: (path: string) => Promise<boolean>;
   readonly openDirectory: (path: string) => Promise<boolean>;
@@ -176,6 +178,7 @@ export const desktopNativeShell: NativeShell = {
       bytes: options.bytes,
     }),
   writeBytes: (path, bytes) => writeLocalBytes(path, bytes),
+  readBytes: (path) => readLocalBytes(path),
   reveal: (path) => revealLocalPath(path),
   openDirectory: (path) => openLocalDirectory(path),
   openExternalUrl: (url) => openExternalHttpsUrl(url),
@@ -204,6 +207,7 @@ export const unavailableNativeShell: NativeShell = {
   chooseSavePath: () => Promise.resolve(null),
   saveBytes: () => Promise.resolve(null),
   writeBytes: () => Promise.reject(new Error('A desktop save path is required.')),
+  readBytes: () => Promise.reject(new Error('A desktop file path is required.')),
   reveal: () => Promise.resolve(false),
   openDirectory: () => Promise.resolve(false),
   openExternalUrl: () => Promise.resolve(false),

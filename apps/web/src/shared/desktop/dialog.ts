@@ -104,6 +104,14 @@ export async function writeLocalBytes(path: string, bytes: Uint8Array): Promise<
   await writeFile(path, bytes);
 }
 
+export async function readLocalBytes(path: string): Promise<Uint8Array> {
+  if (!isDesktopShell() || !path.trim()) throw new Error('A desktop file path is required.');
+  const { readFile, stat } = await import('@tauri-apps/plugin-fs');
+  const metadata = await stat(path);
+  if (metadata.size > 32 * 1024 * 1024) throw new Error('The selected document exceeds 32 MiB.');
+  return readFile(path);
+}
+
 /** Reveals a local item using the desktop shell without exposing a command surface. */
 export async function revealLocalPath(path: string): Promise<boolean> {
   if (!isDesktopShell() || !path.trim()) return false;

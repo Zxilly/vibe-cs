@@ -10,6 +10,7 @@ import {
   CircleX,
   Download,
   Diamond,
+  FileOutput,
   LoaderCircle,
   PanelsTopLeft,
   Plus,
@@ -62,8 +63,8 @@ import {
   type AgentToolActivity,
 } from '../data/sessions';
 import { Empty, Skeleton } from '../design/data';
-import { Alert, Dialog, Drawer } from '../design/feedback';
-import { Page, Toolbar } from '../design/layout';
+import { Alert, Dialog, Drawer, toast } from '../design/feedback';
+import { OverflowMenu, Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import { DEFAULT_EDITOR_TEXT_BACKGROUND, DEFAULT_EDITOR_TEXT_COLOR } from '../design/timeline';
 import { formatMillisecondTimecode } from '../design/timeline/timeScale';
@@ -77,6 +78,7 @@ import {
   disableClipTimeRemapping,
   enableClipTimeRemapping,
   evaluateClipKeyframeProperty,
+  exportTimelineInterchange,
   expandSyncLockedStoryRippleUpdates,
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
@@ -108,6 +110,8 @@ import {
   trimRippleClip,
   removeClipKeyframe,
   isSupportedEditorEffectKind,
+  importTimelineInterchange,
+  interchangeFormatFromPath,
   moveEditorEffect,
   planRippleSequenceMarkers,
   planAutomateToSequence,
@@ -119,6 +123,7 @@ import {
   upsertClipKeyframe,
   writeTimelineWorkspaceSession,
   type SupportedEditorEffectKind,
+  type TimelineInterchangeFormat,
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
@@ -583,6 +588,51 @@ export function ProjectWorkspacePage() {
       summary,
       operations,
     }, onSuccess === undefined ? undefined : { onSuccess });
+  };
+  const exportInterchange = async (format: TimelineInterchangeFormat) => {
+    if (!nativeShell.available || readOnly) return;
+    const result = exportTimelineInterchange(current, mediaAssets.data?.items ?? [], format);
+    const baseName = current.name.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/gu, '-').slice(0, 100) || 'timeline';
+    const path = await nativeShell.saveBytes({
+      title: t`导出时间轴互换文件`,
+      defaultFileName: `${baseName}.${format}`,
+      filters: [{ name: format === 'otio' ? 'OpenTimelineIO' : format === 'xml' ? 'Final Cut Pro XML' : 'CMX3600 EDL', extensions: [format] }],
+      bytes: new TextEncoder().encode(result.text),
+    });
+    if (path !== null) toast.success(t`时间轴互换文件已导出`, {
+      description: result.warnings.length === 0 ? path : `${path}\n${result.warnings.join('\n')}`,
+    });
+  };
+  const importInterchange = async () => {
+    if (!nativeShell.available || readOnly) return;
+    const path = await nativeShell.chooseFile({
+      title: t`导入时间轴互换文件`,
+      filters: [
+        { name: 'Timeline interchange', extensions: ['otio', 'xml', 'edl'] },
+      ],
+    });
+    if (path === null) return;
+    const format = interchangeFormatFromPath(path);
+    if (format === null) throw new Error('Unsupported timeline interchange extension.');
+    const bytes = await nativeShell.readBytes(path);
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/u, '');
+    const result = importTimelineInterchange(
+      text,
+      format,
+      current.document,
+      mediaAssets.data?.items ?? [],
+      () => globalThis.crypto.randomUUID(),
+    );
+    mutate(
+      `导入 ${format.toUpperCase()} 时间轴`,
+      { kind: 'project' },
+      [...result.operations],
+      () => toast.success(t`时间轴互换文件已导入`, {
+        description: result.warnings.length === 0
+          ? `${result.trackCount} tracks · ${result.clipCount} clips`
+          : result.warnings.join('\n'),
+      }),
+    );
   };
   const expandTrackClipUpdates = (
     updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
@@ -1296,6 +1346,20 @@ export function ProjectWorkspacePage() {
           >
             <PanelsTopLeft className="size-3.5" aria-hidden="true" />
           </button>
+          <span data-window-no-drag>
+            <OverflowMenu
+              label={t`项目互换`}
+              triggerLabel={<><FileOutput className="size-3.5" aria-hidden="true" /><Trans>互换</Trans></>}
+              align="end"
+              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs disabled:text-neutral-300"
+              items={[
+                { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? String(error) })) },
+                { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
+                { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
+                { id: 'export-edl', label: t`导出 CMX3600 EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('edl').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
+              ]}
+            />
+          </span>
           <button
             type="button"
             data-window-no-drag

@@ -9,6 +9,14 @@ export {
   type ProjectRenderPreviewState,
 } from './renderPreview';
 export {
+  exportTimelineInterchange,
+  importTimelineInterchange,
+  interchangeFormatFromPath,
+  type TimelineInterchangeExport,
+  type TimelineInterchangeFormat,
+  type TimelineInterchangeImport,
+} from './timelineInterchange';
+export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,
   type ProjectSourcePatch,

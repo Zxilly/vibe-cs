@@ -10,6 +10,8 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-start-dragging",
     "dialog:default",
+    "fs:allow-read-file",
+    "fs:allow-stat",
     "fs:allow-write-file",
     "opener:default"
   ]

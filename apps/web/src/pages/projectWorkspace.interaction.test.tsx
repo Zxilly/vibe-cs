@@ -553,6 +553,76 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('button', { name: '重置工作区布局' })).toBeTruthy();
   });
 
+  it('exports the canonical timeline as an OTIO document through the native save seam', async () => {
+    const saveBytes = vi.fn<NativeShell['saveBytes']>(() => Promise.resolve('C:\\Temp\\timeline.otio'));
+    renderWorkspace({ shell: { ...unavailableNativeShell, available: true, saveBytes } });
+
+    fireEvent.pointerDown(await screen.findByRole('button', { name: '项目互换' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '导出 OpenTimelineIO…' }));
+
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledTimes(1));
+    const options = saveBytes.mock.calls[0]![0];
+    expect(options.defaultFileName).toBe('统一作品.otio');
+    const document = JSON.parse(new TextDecoder().decode(options.bytes));
+    expect(document).toMatchObject({ OTIO_SCHEMA: 'Timeline.1', name: '统一作品' });
+    expect(document.tracks.children[0].metadata.vibe_cs.track_kind).toBe('video');
+  });
+
+  it('imports an OTIO document as one canonical Project patch', async () => {
+    const imported = {
+      OTIO_SCHEMA: 'Timeline.1',
+      name: 'Imported',
+      metadata: {},
+      global_start_time: null,
+      tracks: {
+        OTIO_SCHEMA: 'Stack.1', name: 'tracks', source_range: null, effects: [], markers: [], metadata: {}, enabled: true,
+        children: [{
+          OTIO_SCHEMA: 'Track.1', name: 'Imported Story', kind: 'Video', source_range: null, effects: [], markers: [], metadata: {}, enabled: true,
+          children: [{
+            OTIO_SCHEMA: 'Clip.2', name: 'Imported Clip', enabled: true, effects: [], markers: [], metadata: {},
+            source_range: {
+              OTIO_SCHEMA: 'TimeRange.1',
+              start_time: { OTIO_SCHEMA: 'RationalTime.1', value: 60, rate: 60 },
+              duration: { OTIO_SCHEMA: 'RationalTime.1', value: 120, rate: 60 },
+            },
+            media_reference: { OTIO_SCHEMA: 'MissingReference.1', name: 'Imported Clip', metadata: {} },
+          }],
+        }],
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        chooseFile: () => Promise.resolve('C:\\Temp\\import.otio'),
+        readBytes: () => Promise.resolve(new TextEncoder().encode(JSON.stringify(imported))),
+      },
+    });
+
+    fireEvent.pointerDown(await screen.findByRole('button', { name: '项目互换' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '导入 OTIO / XML / EDL…' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      project_id: PROJECT.id,
+      base_revision: PROJECT.revision,
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track',
+          track_id: STORY_ID,
+          track: expect.objectContaining({ name: 'Imported Story', kind: 'video', clips: [expect.objectContaining({
+            name: 'Imported Clip',
+            material: { kind: 'planned' },
+            placement: expect.objectContaining({ start: 0, duration: 2, source_in: 1, source_out: 3 }),
+          })] }),
+        }),
+        { op: 'remove_track', track_id: '00000000-0000-4000-8000-000000000013' },
+        { op: 'replace_markers', markers: [] },
+      ],
+    })));
+  });
+
   it('writes Track Mixer automation through one canonical track replacement', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });

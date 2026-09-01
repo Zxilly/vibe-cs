@@ -260,7 +260,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-AUD-03 | Volume Keyframes | Clip/Track 级 Volume keyframe；Program/Export 预览一致 | ✅ | P1 |
 | TL-AUD-04 | 音频转场/Fade | 时间轴内调整淡入淡出，使用统一 transition schema | ✅ | P1 |
 | TL-AUD-05 | Pan/Balance | 轨道和片段 Pan，关键帧自动化 | ✅ | P2 |
-| TL-AUD-06 | Mixer | Track Mixer、Mute/Solo、表头、峰值表、Automation modes | ⬜ | P3 |
+| TL-AUD-06 | Mixer | Track Mixer、Mute/Solo、表头、峰值表、Automation modes | ✅ | P3 |
 | TL-AUD-07 | 音画同步提示 | Unlink 时记录最小相对同步参考；单侧移动后双方显示带符号帧差；恢复按钮按另一侧位移对齐，支持 Pointer/键盘并提交一个 Clip operation | ✅ | P2 |
 
 ### 7.11 标记、文字、字幕和事件
@@ -497,6 +497,12 @@ fresh current-schema Tauri/CDP 使用真实 13,930,809-byte、1920×1080/60fps M
 
 Tauri/CDP 使用两个真实 MP4，先把 selection order 从 Project 默认 `Automate Second → Proxy Gate` 改为 `Proxy Gate → Automate Second`，选择 Overwrite + 0.5s overlap；revision 7→8 后 Story 只有两个连续片段：Proxy Gate start 0/duration 6.489206/source 0.25–6.739206，Automate Second start 6.489206/duration 13.68737/source 0.25–13.93737，cut 两侧各为 0.25s Fade。console/page error 为零，截图位于本地 `target/automate-sequence-audit/screenshots/`。行为依据 Adobe [Working with Storyboard](https://helpx.adobe.com/premiere-pro/how-to/storyboard-edits.html) 与 [Default transitions](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/set-and-apply-default-transitions.html)。
 
+### Step 28：Audio Track Mixer — 健康
+
+确认：Audio Track Mixer 是可拖动贴靠的工作区 Panel，与 Agent 同属一个 tabset；每条可听轨显示 track header、纵向 Volume fader、Pan、Mute/Solo、真实 waveform peak meter 和 Off/Read/Write/Touch/Latch。Read 只读 canonical automation；Off 修改静态 Track 值；Touch 在播放头写一个 keyframe；Write 清除该属性旧 pass 并写当前到序列尾；Latch 保留过去、替换未来并锁存到序列尾。每次用户手势只提交一个 `replace_track`，不在播放每帧持久化；峰值表取当前 source-time 的后端 waveform bucket 乘以 canonical gain。
+
+Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，revision 8→9 写入 Story volume keyframe(time 0,value 2)；播放至 0.200272s 时真实峰值为 22%。Mixer 内 Mute 随后 revision 9→10 把同一 Story `muted=true`，保留 keyframe；console/page error 为零，截图位于本地 `target/audio-mixer-audit/screenshots/01-mixer-touch-peak.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -537,6 +543,7 @@ Tauri/CDP 使用两个真实 MP4，先把 selection order 从 Project 默认 `Au
 
 - [x] 代理媒体在统一 Project/Program 工作流中的生成和切换。
 - [x] Automate to Sequence 的排序、Marker placement、Insert/Overwrite 与默认转场。
+- [x] Audio Track Mixer、真实峰值和 Automation modes。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
 - [ ] Caption Track、Render Preview 和 OTIO 互换子集。

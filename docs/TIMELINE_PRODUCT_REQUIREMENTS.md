@@ -116,7 +116,7 @@ Timeline Clip 必须明确显示 Planned、Recorded、Imported、Stale/Needs Rec
 | TL-UI-03 | Timeline 焦点 | 指针操作后 Timeline 获得键盘焦点；面板焦点有明确视觉状态 | ✅ | P0 |
 | TL-UI-04 | 统一浅色设计系统 | 使用 `theme.css`、`design/timeline`、`design/review`，无页面私有时间几何 | ✅ | P0 |
 | TL-UI-05 | 轨道高度 | 单轨展开/折叠、拖动高度，视频缩略图和波形随高度重排 | ✅ | P1 |
-| TL-UI-06 | 轨道显示设置 | 切换片段名称、缩略图、波形、关键帧、重复帧/Through Edit 标记 | 🟡 目前名称、缩略图、波形和关键帧固定显示，无设置面板 | P2 |
+| TL-UI-06 | 轨道显示设置 | 切换片段名称、缩略图、波形、关键帧、重复帧/Through Edit 标记 | ✅ | P2 |
 | TL-UI-07 | 时间码输入 | 播放头时间码可点击输入、拖动 scrub、切换时间码/帧计数 | ✅ | P2 |
 | TL-UI-08 | 工具说明 | 所有工具 Hover/Focus 显示名称、快捷键、行为或不可用原因 | ✅ | P0 |
 
@@ -454,6 +454,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 19：Bezier/Ease keyframe interpolation — 健康
 
 确认：canonical `EditorKeyframe` 显式携带 Hold/Linear/Bezier/Ease In/Ease Out/Ease In-Out 与入/出切线；不读取旧 shape。Web Program/Audio 和 FFmpeg export 使用同一分段 cubic Hermite 公式，Hold/Linear 保持明确分支；Inspector 在播放头关键帧上编辑 interpolation 和 Bezier tangents。fresh schema Tauri 中，X 从 0→1 的 1 秒 Bezier 段在 out tangent=2 时中点为 0.75；把 tangent 改为 1 并保存 revision 2→3 后，中点精确变为 0.625，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/16-bezier-midpoint.png`。
+
+### Step 20：轨道显示设置与帧证据 — 健康
+
+确认：统一 Timeline 显示菜单独立控制 Clip name、video thumbnail、audio waveform、keyframe、repeated-frame 与 Through Edit layers，不改变时间几何或 Project Head。Through Edit 只由同 source、同 speed、Timeline 相邻且 source out/in 连续推导；Repeated Frame 只由同 source 区间真实重叠推导。Tauri 使用同一真实 MP4 的三个切段得到 2 个 Through Edit 标记（video/compound audio）和 3 个 repeated-frame 标记；关闭对应层后两者 DOM 计数均为 0，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/17-display-evidence.png` 与 `18-display-layers-hidden.png`。
 
 ## 12. 迭代计划
 

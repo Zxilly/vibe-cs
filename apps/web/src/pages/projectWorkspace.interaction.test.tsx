@@ -3044,6 +3044,39 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'k' });
   });
 
+  it('pans and zooms with H/Z tools and exposes smooth-scroll mode', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 600 },
+    });
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 300, left: 0, width: 1_000, height: 300, toJSON: () => ({}),
+    });
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    fireEvent.change(zoom, { target: { value: '2' } });
+    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+
+    fireEvent.click(screen.getByRole('button', { name: '手形工具 (H)' }));
+    viewport.scrollLeft = 100;
+    fireEvent.pointerDown(grid, { pointerId: 501, button: 0, clientX: 600, clientY: 150 });
+    fireEvent.pointerMove(grid, { pointerId: 501, clientX: 500, clientY: 120 });
+    fireEvent.pointerUp(grid, { pointerId: 501, clientX: 500, clientY: 120 });
+    expect(viewport.scrollLeft).toBeGreaterThan(100);
+
+    fireEvent.click(screen.getByRole('button', { name: '缩放工具 (Z)' }));
+    const before = Number(zoom.value);
+    fireEvent.pointerDown(grid, { pointerId: 502, button: 0, clientX: 600, clientY: 150 });
+    expect(Number(zoom.value)).toBeGreaterThan(before);
+
+    const smooth = screen.getByRole('button', { name: '切换平滑滚动' });
+    fireEvent.click(smooth);
+    expect(smooth.getAttribute('aria-pressed')).toBe('true');
+    clientWidth.mockRestore();
+  });
+
   it('edits, switches and scrubs the playhead timecode', async () => {
     renderWorkspace({ project: RECORDED_PROJECT });
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });

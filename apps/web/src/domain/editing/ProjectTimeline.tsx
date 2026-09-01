@@ -13,6 +13,7 @@ import {
   Diamond,
   Eye,
   Gauge,
+  Hand,
   Link2,
   LockKeyhole,
   Magnet,
@@ -162,7 +163,7 @@ import {
   type TimelineSlidePreview,
 } from './timelineInteraction';
 
-type TimelineEditTool = 'selection' | 'track_forward' | 'track_backward' | 'ripple' | 'razor' | 'slip' | 'rolling' | 'rate' | 'slide';
+type TimelineEditTool = 'selection' | 'track_forward' | 'track_backward' | 'ripple' | 'razor' | 'slip' | 'rolling' | 'rate' | 'slide' | 'hand' | 'zoom';
 
 interface SelectedTimelineTransition {
   readonly trackId: string;
@@ -336,6 +337,7 @@ export function ProjectTimeline({
     repeatedFrames: true,
     throughEdits: true,
   });
+  const [smoothScrollEnabled, setSmoothScrollEnabled] = useState(false);
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
@@ -384,6 +386,13 @@ export function ProjectTimeline({
     active: boolean;
     lastClientX: number;
     lastClientY: number;
+  } | null>(null);
+  const handGesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly clientY: number;
+    readonly scrollLeft: number;
+    readonly scrollTop: number;
   } | null>(null);
   const marqueeScrollFrameRef = useRef<number | null>(null);
   const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
@@ -679,15 +688,18 @@ export function ProjectTimeline({
     if (viewport === null) return;
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     const contentViewportWidth = Math.max(1, viewport.clientWidth - trackHead);
-    const next = timelineFollowScroll({
-      scrollPx: viewport.scrollLeft,
-      playheadPx: timeToPx(scale, playheadSeconds),
-      viewportPx: contentViewportWidth,
-      mode: transportPlaying ? 'page' : 'reveal',
-    });
+    const playheadPx = timeToPx(scale, playheadSeconds);
+    const next = transportPlaying && smoothScrollEnabled
+      ? playheadPx - contentViewportWidth / 2
+      : timelineFollowScroll({
+          scrollPx: viewport.scrollLeft,
+          playheadPx,
+          viewportPx: contentViewportWidth,
+          mode: transportPlaying ? 'page' : 'reveal',
+        });
     if (Math.abs(next - viewport.scrollLeft) <= 0.01) return;
     setTimelineScroll(next);
-  }, [contentWidth, playheadSeconds, scale, transportPlaying]);
+  }, [contentWidth, playheadSeconds, scale, smoothScrollEnabled, transportPlaying]);
   const rowTemplate = [
     ...renderedTracks.map((track) => `${collapsedTrackRows.has(track.id)
       ? MIN_TRACK_HEIGHT
@@ -1743,6 +1755,16 @@ export function ProjectTimeline({
           onShuttle(1);
           return;
         }
+        if (event.key.toLowerCase() === 'h' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          setEditTool('hand');
+          return;
+        }
+        if (event.key.toLowerCase() === 'z' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          setEditTool('zoom');
+          return;
+        }
         if (event.key.toLowerCase() === 'v' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           exitTrimMode();
@@ -2197,6 +2219,20 @@ export function ProjectTimeline({
         >
           <Magnet className="size-3.5" aria-hidden="true" />
         </button>
+        <Tooltip content={smoothScrollEnabled ? t`关闭播放头居中连续滚动` : t`播放时固定播放头在视口中央并连续滚动内容`} side="bottom">
+          <button
+            type="button"
+            className={cn(
+              'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+              smoothScrollEnabled && 'border-accent-300 bg-accent-100 text-accent-text',
+            )}
+            aria-label={t`切换平滑滚动`}
+            aria-pressed={smoothScrollEnabled}
+            onClick={() => setSmoothScrollEnabled((enabled) => !enabled)}
+          >
+            <MoveHorizontal className="size-3.5" aria-hidden="true" />
+          </button>
+        </Tooltip>
         <button
           type="button"
           className="h-7 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300"
@@ -2329,15 +2365,51 @@ export function ProjectTimeline({
         }}
       >
         <div
-          className="relative grid min-h-full"
+          className={cn('relative grid min-h-full', editTool === 'hand' && 'cursor-grab active:cursor-grabbing', editTool === 'zoom' && 'cursor-zoom-in')}
           role="rowgroup"
           aria-label={t`时间轴轨道网格`}
           style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}
+          onPointerDownCapture={(event) => {
+            if (event.button !== 0) return;
+            const viewport = viewportRef.current;
+            if (editTool === 'hand' && viewport !== null) {
+              event.preventDefault();
+              event.stopPropagation();
+              handGesture.current = {
+                pointerId: event.pointerId,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                scrollLeft: viewport.scrollLeft,
+                scrollTop: viewport.scrollTop,
+              };
+              try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch { /* Synthetic/non-primary pointer; window events still continue. */ }
+            } else if (editTool === 'zoom' && viewport !== null) {
+              event.preventDefault();
+              event.stopPropagation();
+              const bounds = viewport.getBoundingClientRect();
+              const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+              changeZoomMultiplier(effectiveZoomMultiplier * (event.altKey ? 0.5 : 2), event.clientX - bounds.left - trackHead);
+            }
+          }}
+          onPointerMoveCapture={(event) => {
+            const hand = handGesture.current;
+            if (hand === null || hand.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setTimelineScroll(hand.scrollLeft - (event.clientX - hand.clientX), hand.scrollTop - (event.clientY - hand.clientY));
+          }}
+          onPointerUpCapture={(event) => {
+            if (handGesture.current?.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            event.stopPropagation();
+            handGesture.current = null;
+            try { event.currentTarget.releasePointerCapture?.(event.pointerId); } catch { /* See capture note above. */ }
+          }}
           onPointerDown={(event) => {
             if (event.button !== 0 || !(event.target instanceof Element)) return;
+            const viewport = viewportRef.current;
             if (event.target.closest('button,[role="separator"]')) return;
             const position = marqueeContentPosition(event.clientX, event.clientY);
-            const viewport = viewportRef.current;
             if (position === null || viewport === null) return;
             const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
             if (position.x < trackHead) return;
@@ -2356,8 +2428,24 @@ export function ProjectTimeline({
               lastClientY: event.clientY,
             };
           }}
-          onPointerMove={updateMarqueeSelection}
+          onPointerMove={(event) => {
+            const hand = handGesture.current;
+            if (hand !== null && hand.pointerId === event.pointerId) {
+              event.preventDefault();
+              setTimelineScroll(
+                hand.scrollLeft - (event.clientX - hand.clientX),
+                hand.scrollTop - (event.clientY - hand.clientY),
+              );
+              return;
+            }
+            updateMarqueeSelection(event);
+          }}
           onPointerUp={(event) => {
+            if (handGesture.current?.pointerId === event.pointerId) {
+              handGesture.current = null;
+              event.currentTarget.releasePointerCapture?.(event.pointerId);
+              return;
+            }
             const gesture = marqueeGesture.current;
             if (gesture === null || gesture.pointerId !== event.pointerId) return;
             event.preventDefault();
@@ -2369,6 +2457,7 @@ export function ProjectTimeline({
             event.currentTarget.releasePointerCapture?.(event.pointerId);
           }}
           onPointerCancel={() => {
+            handGesture.current = null;
             const gesture = marqueeGesture.current;
             if (gesture !== null) onSelectClips(gesture.initialSelection);
             finishMarqueeSelection();
@@ -5082,6 +5171,24 @@ function TimelineToolStrip({
       enabled: true,
       pressed: editTool === 'selection',
       action: () => onChangeTool('selection'),
+    },
+    {
+      label: t`手形工具 (H)`,
+      description: t`拖动时间轴画布，不改变播放头或片段`,
+      unavailable: '',
+      icon: <Hand className="size-4" aria-hidden="true" />,
+      enabled: true,
+      pressed: editTool === 'hand',
+      action: () => onChangeTool('hand'),
+    },
+    {
+      label: t`缩放工具 (Z)`,
+      description: t`点击放大，Alt 点击缩小；以点击位置为锚点`,
+      unavailable: '',
+      icon: <ZoomIn className="size-4" aria-hidden="true" />,
+      enabled: true,
+      pressed: editTool === 'zoom',
+      action: () => onChangeTool('zoom'),
     },
     {
       label: t`向前选择轨道工具 (A)`,

@@ -1995,6 +1995,48 @@ describe('unified project workspace', () => {
     expect(clips[1]?.id).not.toBe(CLIP_A);
   });
 
+  it('selectively pastes copied clip attributes without replacing the target edit', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transform: { ...candidate.transform, x: 50 },
+            effects: [{ id: 'blur-source', kind: 'blur', enabled: true, parameters: { radius: 4 } }],
+            keyframes: [{ id: 'opacity-source', time: 1, property: 'opacity', value: 0.5 }],
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
+    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }));
+    fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true, altKey: true });
+    const dialog = screen.getByRole('dialog', { name: '选择性粘贴属性' });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: '转场' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '粘贴属性' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: expect.arrayContaining([expect.objectContaining({
+          id: CLIP_B,
+          name: 'B',
+          placement: expect.objectContaining({ start: 5, duration: 5 }),
+          transform: expect.objectContaining({ x: 50 }),
+          effects: [expect.objectContaining({ kind: 'blur', parameters: { radius: 4 } })],
+          keyframes: [expect.objectContaining({ property: 'opacity', time: 1, value: 0.5 })],
+        })]),
+      })],
+    })));
+  });
+
   it('selects and closes one or every free-track gap', async () => {
     const bRollId = '00000000-0000-4000-8000-000000000210';
     const freeProject: Project = {

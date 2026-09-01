@@ -38,7 +38,7 @@ import { mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review';
 import { OverflowMenu } from '../../design/layout';
-import { Drawer, Tooltip } from '../../design/feedback';
+import { Dialog, Drawer, Tooltip } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import {
   MAX_ZOOM,
@@ -96,6 +96,7 @@ import {
   resolveTimelinePasteTargets,
   type TimelineClipboard,
 } from './timelinePaste';
+import { pasteTimelineClipAttributes, type TimelinePasteAttributeSelection } from './timelinePasteAttributes';
 import {
   clearProjectMediaDrag,
   hasProjectMediaDrag,
@@ -372,6 +373,14 @@ export function ProjectTimeline({
   const [transitionClipboard, setTransitionClipboard] = useState<TimelineCutTransition | null>(null);
   const [selectedTransition, setSelectedTransition] = useState<SelectedTimelineTransition | null>(null);
   const [selectedGap, setSelectedGap] = useState<SelectedTimelineGap | null>(null);
+  const [pasteAttributesOpen, setPasteAttributesOpen] = useState(false);
+  const [pasteAttributeSelection, setPasteAttributeSelection] = useState<TimelinePasteAttributeSelection>({
+    transform: true,
+    effects: true,
+    keyframes: true,
+    transitions: true,
+    audio: false,
+  });
   const [clipboardSessionProjectId, setClipboardSessionProjectId] = useState<string | null>(null);
   useEffect(() => {
     setClipboard(readTimelineClipboard(projectId, globalThis.localStorage));
@@ -714,6 +723,8 @@ export function ProjectTimeline({
   const canDuplicate = !readOnly
     && selectedClipboard !== null
     && resolveTimelinePasteTargets(document.tracks, targetTrackIdSet, selectedClipboard) !== null;
+  const pasteAttributeSource = clipboard?.groups.flatMap((group) => group.clips)[0] ?? null;
+  const canPasteAttributes = !readOnly && pasteAttributeSource !== null && editableSelectedTrackGroups.length > 0;
   const canCopyTransition = selectedCutTransition !== null;
   const canPasteTransition = !readOnly
     && selectedTransition !== null
@@ -1138,6 +1149,25 @@ export function ProjectTimeline({
     if (plan === null) return;
     onReplaceTrackClipGroups(plan.updates);
     onSelectClips(plan.pastedClipIds);
+  };
+  const applyPasteAttributes = () => {
+    if (!canPasteAttributes || pasteAttributeSource === null) return;
+    onReplaceTrackClipGroups(editableSelectedTrackGroups.map((group) => {
+      const ids = new Set(group.clips.map((clip) => clip.id));
+      return {
+        trackId: group.track.id,
+        clips: group.track.clips.map((clip) => ids.has(clip.id)
+          ? pasteTimelineClipAttributes(
+              pasteAttributeSource,
+              clip,
+              pasteAttributeSelection,
+              document.fps,
+              () => globalThis.crypto.randomUUID(),
+            )
+          : clip),
+      };
+    }));
+    setPasteAttributesOpen(false);
   };
 
   const addTrack = (kind: TimelineTrack['kind']) => {
@@ -1809,6 +1839,11 @@ export function ProjectTimeline({
           duplicateSelected();
           return;
         }
+        if (event.key.toLowerCase() === 'v' && event.altKey && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          if (canPasteAttributes) setPasteAttributesOpen(true);
+          return;
+        }
         const clearRangeShortcut = event.altKey
           || (event.shiftKey && (event.ctrlKey || event.metaKey));
         if (clearRangeShortcut && event.key.toLowerCase() === 'i') {
@@ -2062,6 +2097,7 @@ export function ProjectTimeline({
             { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
             { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
             { id: 'paste-transition', label: t`粘贴转场到所选剪辑点`, disabled: !canPasteTransition, onSelect: pasteSelectedTransition },
+            { id: 'paste-attributes', label: t`选择性粘贴属性`, disabled: !canPasteAttributes, onSelect: () => setPasteAttributesOpen(true) },
             { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
             { id: 'close-gap', label: t`波纹删除所选间隙`, disabled: !canCloseSelectedGap, onSelect: closeSelectedGap },
             { id: 'close-all-gaps', label: t`关闭目标轨全部间隙`, disabled: !canCloseAllGaps, onSelect: closeAllTargetGaps },
@@ -2444,6 +2480,38 @@ export function ProjectTimeline({
           )}
         </div>
       </div>
+
+      <Dialog
+        open={pasteAttributesOpen}
+        title={<Trans>选择性粘贴属性</Trans>}
+        confirmLabel={<Trans>粘贴属性</Trans>}
+        confirmDisabled={!canPasteAttributes || !Object.values(pasteAttributeSelection).some(Boolean)}
+        onConfirm={applyPasteAttributes}
+        onClose={() => setPasteAttributesOpen(false)}
+      >
+        <p className="mb-2 text-xs text-neutral-600"><Trans>源：</Trans>{pasteAttributeSource?.name ?? '—'} · <Trans>目标片段：</Trans>{editableSelectedTrackGroups.reduce((count, group) => count + group.clips.length, 0)}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            ['transform', t`变换`],
+            ['effects', t`效果`],
+            ['keyframes', t`关键帧`],
+            ['transitions', t`转场`],
+            ['audio', t`音量与声像`],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 rounded-sm border border-divider px-2 py-1.5 text-xs">
+              <input
+                type="checkbox"
+                checked={pasteAttributeSelection[key]}
+                onChange={(event) => {
+                  const checked = event.currentTarget.checked;
+                  setPasteAttributeSelection((current) => ({ ...current, [key]: checked }));
+                }}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </Dialog>
 
       <footer className="flex h-10 flex-none items-center gap-4 border-t border-divider px-2 text-2xs text-neutral-600">
         <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>

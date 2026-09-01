@@ -3702,6 +3702,32 @@ describe('unified project workspace', () => {
     expect(screen.queryByText('Trim Mode')).toBeNull();
   });
 
+  it('selects adjacent Trim Mode edit points and adjusts them atomically', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: slideProject(), applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'T', shiftKey: true });
+    const secondCut = screen.getByRole('separator', { name: '滚动编辑 B / C' });
+    fireEvent.pointerDown(secondCut, { pointerId: 207, button: 0, clientX: 600, ctrlKey: true });
+    expect(screen.getByRole('status').textContent).toContain('Trim Mode · 2');
+    expect(secondCut.getAttribute('aria-current')).toBe('true');
+
+    fireEvent.keyDown(timeline, { key: 'ArrowRight' });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4 + 1 / 60, source_out: 4 + 1 / 60 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 + 1 / 60, duration: 2, source_in: 1 + 1 / 60, source_out: 3 + 1 / 60 }) }),
+          expect.objectContaining({ id: CLIP_C, placement: expect.objectContaining({ start: 6 + 1 / 60, duration: 4 - 1 / 60, source_in: 2 + 1 / 60 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
   it('rate-stretches one Story clip with live ripple and one commit', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const applyProjectPatch = vi.fn();

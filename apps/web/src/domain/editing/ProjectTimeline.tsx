@@ -122,6 +122,7 @@ import {
   moveTimelineClip,
   resolveTimelineSnap,
   rollTimelineEdit,
+  rollTimelineEdits,
   rateStretchTimelineClip,
   slideTimelineClip,
   snapTimeToFrame,
@@ -286,7 +287,12 @@ export function ProjectTimeline({
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [selectedEditPoint, setSelectedEditPoint] = useState<{ readonly clipId: string; readonly edge: 'start' | 'end' } | null>(null);
-  const [trimModeEdit, setTrimModeEdit] = useState<{ readonly leftClipId: string; readonly rightClipId: string; readonly editTime: number } | null>(null);
+  const [trimModeEdit, setTrimModeEdit] = useState<{ readonly trackId: string; readonly leftClipId: string; readonly rightClipId: string; readonly editTime: number } | null>(null);
+  const [additionalTrimModeEdits, setAdditionalTrimModeEdits] = useState<readonly { readonly trackId: string; readonly leftClipId: string; readonly rightClipId: string; readonly editTime: number }[]>([]);
+  const activeTrimModeEdits = trimModeEdit === null ? [] : [trimModeEdit, ...additionalTrimModeEdits];
+  const selectedTrimModeEditKeys = useMemo(() => new Set(activeTrimModeEdits.map((edit) => (
+    `${edit.trackId}:${edit.leftClipId}:${edit.rightClipId}`
+  ))), [additionalTrimModeEdits, trimModeEdit]);
   const [textDraft, setTextDraft] = useState<{
     readonly start: number;
     readonly maximumDuration: number;
@@ -735,9 +741,30 @@ export function ProjectTimeline({
   };
   const exitTrimMode = () => {
     setTrimModeEdit(null);
+    setAdditionalTrimModeEdits([]);
     setRollingPreviewTime(null);
     onPreviewRollingEdit(null);
     onTrimPlaybackRangeChange(null);
+  };
+  const presentTrimModeEdits = (edits: typeof activeTrimModeEdits) => {
+    const primary = edits[0];
+    if (primary === undefined) {
+      exitTrimMode();
+      return;
+    }
+    setTrimModeEdit(primary);
+    setAdditionalTrimModeEdits(edits.slice(1));
+    setRollingPreviewTime(primary.editTime);
+    onPreviewRollingEdit({
+      leftClipId: primary.leftClipId,
+      rightClipId: primary.rightClipId,
+      editTime: primary.editTime,
+    });
+    onTrimPlaybackRangeChange({
+      start: Math.max(0, primary.editTime - 1.5),
+      end: Math.min(document.duration_seconds, primary.editTime + 1.5),
+    });
+    onSeek(primary.editTime);
   };
   const enterTrimMode = () => {
     const story = document.tracks.find((track) => track.id === document.story_track_id);
@@ -754,38 +781,45 @@ export function ProjectTimeline({
     ))[0];
     if (point === undefined) return;
     const editTime = point.left.placement.start + point.left.placement.duration;
-    const preview = { leftClipId: point.left.id, rightClipId: point.right.id, editTime };
-    setTrimModeEdit(preview);
+    const preview = { trackId: story.id, leftClipId: point.left.id, rightClipId: point.right.id, editTime };
     setEditTool('rolling');
-    setRollingPreviewTime(editTime);
-    onPreviewRollingEdit(preview);
-    onTrimPlaybackRangeChange({
-      start: Math.max(0, editTime - 1.5),
-      end: Math.min(document.duration_seconds, editTime + 1.5),
-    });
-    onSeek(editTime);
+    presentTrimModeEdits([preview]);
     onShuttle(0);
   };
   const toggleTrimMode = () => trimModeEdit === null ? enterTrimMode() : exitTrimMode();
+  const toggleTrimModeEdit = (edit: { readonly trackId: string; readonly leftClipId: string; readonly rightClipId: string; readonly editTime: number }) => {
+    if (trimModeEdit === null) return;
+    const key = `${edit.trackId}:${edit.leftClipId}:${edit.rightClipId}`;
+    const index = activeTrimModeEdits.findIndex((candidate) => `${candidate.trackId}:${candidate.leftClipId}:${candidate.rightClipId}` === key);
+    if (index >= 0) {
+      if (activeTrimModeEdits.length === 1) return;
+      presentTrimModeEdits(activeTrimModeEdits.filter((_, candidateIndex) => candidateIndex !== index));
+    } else presentTrimModeEdits([...activeTrimModeEdits, edit]);
+  };
   const adjustTrimMode = (frames: number) => {
     if (trimModeEdit === null || readOnly) return;
-    const story = document.tracks.find((track) => track.id === document.story_track_id);
-    const left = story?.clips.find((clip) => clip.id === trimModeEdit.leftClipId);
-    const right = story?.clips.find((clip) => clip.id === trimModeEdit.rightClipId);
-    if (story === undefined || story.locked || left === undefined || right === undefined) return;
-    const edit = rollTimelineEdit(left, right, trimModeEdit.editTime + frames / document.fps, document.fps);
-    if (edit === null || Math.abs(edit.delta) <= 1e-9) return;
-    const clips = story.clips.map((clip) => clip.id === edit.left.id ? edit.left : clip.id === edit.right.id ? edit.right : clip);
-    const preview = { leftClipId: edit.left.id, rightClipId: edit.right.id, editTime: edit.editTime };
-    onReplaceTrackClips(story.id, clips);
-    setTrimModeEdit(preview);
-    setRollingPreviewTime(edit.editTime);
-    onPreviewRollingEdit(preview);
-    onTrimPlaybackRangeChange({
-      start: Math.max(0, edit.editTime - 1.5),
-      end: Math.min(document.duration_seconds, edit.editTime + 1.5),
+    const requestedDelta = frames / document.fps;
+    const grouped = new Map<string, typeof activeTrimModeEdits>();
+    for (const edit of activeTrimModeEdits) grouped.set(edit.trackId, [...(grouped.get(edit.trackId) ?? []), edit]);
+    const preliminary = [...grouped].map(([trackId, edits]) => {
+      const track = document.tracks.find((candidate) => candidate.id === trackId);
+      if (track === undefined || track.locked) return null;
+      const rolled = rollTimelineEdits(track.clips, edits, requestedDelta, document.fps);
+      return rolled === null ? null : { track, rolled };
     });
-    onSeek(edit.editTime);
+    if (preliminary.some((item) => item === null)) return;
+    const ready = preliminary.filter((item): item is NonNullable<typeof item> => item !== null);
+    const delta = requestedDelta < 0
+      ? Math.max(...ready.map((item) => item.rolled.delta))
+      : Math.min(...ready.map((item) => item.rolled.delta));
+    const updates = ready.map(({ track }) => {
+      const edits = grouped.get(track.id)!;
+      const rolled = rollTimelineEdits(track.clips, edits, delta, document.fps)!;
+      return { trackId: track.id, clips: rolled.clips };
+    });
+    const nextEdits = activeTrimModeEdits.map((edit) => ({ ...edit, editTime: edit.editTime + delta }));
+    onReplaceTrackClipGroups(updates);
+    presentTrimModeEdits(nextEdits);
   };
 
   const addEditAt = ({
@@ -1721,12 +1755,13 @@ export function ProjectTimeline({
       <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>}
         {trimModeEdit === null ? null : (
-          <span className="flex h-7 items-center gap-2 rounded-sm border border-accent-300 bg-accent-100 px-2 text-2xs text-accent-text" role="status">
-            <strong><Trans>Trim Mode</Trans></strong>
-            <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
-            <span><Trans>←/→ 1 帧 · Shift 5 帧</Trans></span>
-            <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出 Trim Mode`} onClick={exitTrimMode}>×</button>
-          </span>
+          <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
+            <span className="flex h-7 flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-2xs text-accent-text" role="status">
+              <strong><Trans>Trim Mode</Trans> · {activeTrimModeEdits.length}</strong>
+              <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
+              <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出 Trim Mode`} onClick={exitTrimMode}>×</button>
+            </span>
+          </Tooltip>
         )}
         <OverflowMenu
           label={t`添加轨道`}
@@ -2065,6 +2100,14 @@ export function ProjectTimeline({
                 ? null
                 : timelineDurationWithTrack(document, track.track.id, clips))}
               mediaDropPreview={mediaDropPreview?.trackId === track.track.id ? mediaDropPreview : null}
+              selectedTrimModeEditKeys={selectedTrimModeEditKeys}
+              trimModeActive={trimModeEdit !== null}
+              onToggleTrimModeEdit={(leftClipId, rightClipId, editTime) => toggleTrimModeEdit({
+                trackId: track.track.id,
+                leftClipId,
+                rightClipId,
+                editTime,
+              })}
               onMediaDragOver={(event) => previewMediaDrop(event, track)}
               onMediaDragLeave={(event) => {
                 if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
@@ -2539,7 +2582,7 @@ function timelineClipsEqual(
     && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedEditPoint, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onSelectEditPoint, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedEditPoint, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onSelectEditPoint, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
@@ -2594,6 +2637,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     readonly timeSeconds: number;
     readonly mode: 'insert' | 'overwrite';
   }) | null;
+  readonly selectedTrimModeEditKeys: ReadonlySet<string>;
+  readonly trimModeActive: boolean;
+  readonly onToggleTrimModeEdit: (leftClipId: string, rightClipId: string, editTime: number) => void;
   readonly onMediaDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
   readonly onMediaDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
   readonly onMediaDrop: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -2951,6 +2997,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             scale={scale}
             fps={fps}
             readOnly={readOnly || track.track.locked}
+            selected={selectedTrimModeEditKeys.has(`${track.track.id}:${point.left.id}:${point.right.id}`)}
+            selectionEnabled={trimModeActive}
             snapPoints={snapPoints}
             snapThresholdSeconds={snapThresholdSeconds}
             scrollLeftRef={scrollLeftRef}
@@ -2963,6 +3011,11 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onPreview={previewRolling}
             onCancel={clearRollingPreview}
             onCommit={commitRolling}
+            onToggleSelection={() => onToggleTrimModeEdit(
+              point.left.id,
+              point.right.id,
+              point.left.placement.start + point.left.placement.duration,
+            )}
           />
         ))}
       </div>
@@ -3018,7 +3071,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.crossTrackTargeted === next.crossTrackTargeted
   && previous.height === next.height
   && previous.collapsed === next.collapsed
-  && previous.mediaDropPreview === next.mediaDropPreview);
+  && previous.mediaDropPreview === next.mediaDropPreview
+  && previous.selectedTrimModeEditKeys === next.selectedTrimModeEditKeys
+  && previous.trimModeActive === next.trimModeActive);
 
 interface RollingEditPoint {
   readonly left: TimelineClip;
@@ -3054,12 +3109,14 @@ function slideEditTriples(clips: readonly TimelineClip[], fps: number): SlideEdi
   return triples;
 }
 
-function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, snapThresholdSeconds, scrollLeftRef, onDragAutoScroll, onSnapChange, onBegin, onPreview, onCancel, onCommit }: {
+function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, selectionEnabled, snapPoints, snapThresholdSeconds, scrollLeftRef, onDragAutoScroll, onSnapChange, onBegin, onPreview, onCancel, onCommit, onToggleSelection }: {
   readonly left: TimelineClip;
   readonly right: TimelineClip;
   readonly scale: TimeScale;
   readonly fps: number;
   readonly readOnly: boolean;
+  readonly selected: boolean;
+  readonly selectionEnabled: boolean;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly scrollLeftRef: React.RefObject<number>;
@@ -3069,6 +3126,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   readonly onPreview: (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => void;
   readonly onCancel: () => void;
   readonly onCommit: (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => void;
+  readonly onToggleSelection: () => void;
 }) {
   const boundary = left.placement.start + left.placement.duration;
   const [draft, setDraft] = useState<NonNullable<ReturnType<typeof rollTimelineEdit>> | null>(null);
@@ -3135,15 +3193,21 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
       className={cn(
         'absolute inset-y-0 z-[60] w-3 -translate-x-1/2 touch-none select-none outline-none',
         readOnly ? 'cursor-not-allowed' : 'cursor-col-resize focus-visible:ring-2 focus-visible:ring-accent-500',
+        selected && 'bg-accent-200/70 ring-2 ring-inset ring-accent-600',
       )}
       style={{ left: timeToPx(scale, visualEditTime) }}
       data-rolling-left-clip-id={left.id}
       data-rolling-right-clip-id={right.id}
       data-rolling-edit-time={visualEditTime}
+      aria-current={selected ? 'true' : undefined}
       onPointerDown={(event) => {
         if (readOnly || event.button !== 0) return;
         event.preventDefault();
         event.stopPropagation();
+        if (selectionEnabled && (event.ctrlKey || event.metaKey || event.shiftKey)) {
+          onToggleSelection();
+          return;
+        }
         event.currentTarget.setPointerCapture?.(event.pointerId);
         onBegin(boundary);
         const initial = rollTimelineEdit(left, right, boundary, fps);

@@ -59,6 +59,7 @@ export {
   disableClipTimeRemapping,
   enableClipTimeRemapping,
   rateStretchTimelineClip,
+  rollTimelineEdits,
   removeClipSpeedBoundary,
   setClipSpeedSegmentSpeed,
   splitClipSpeedSegment,

@@ -28,6 +28,7 @@ import {
   slipTimelineClip,
   splitClipSpeedSegment,
   rollTimelineEdit,
+  rollTimelineEdits,
   rateStretchTimelineClip,
   slideTimelineClip,
   trimTimelineClip,
@@ -195,6 +196,43 @@ describe('timeline direct manipulation', () => {
     const remapped = { ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] };
     expect(rollTimelineEdit(CLIP, gap, 18, 60)).toBeNull();
     expect(rollTimelineEdit(remapped, { ...CLIP, id: 'right', placement: { ...CLIP.placement, start: 18 } }, 18, 60)).toBeNull();
+  });
+
+  it('rolls adjacent selected edit points with one constrained delta', () => {
+    const clips = [
+      { ...CLIP, id: 'a', placement: { ...CLIP.placement, start: 0, duration: 5, source_in: 5, source_out: 10 } },
+      { ...CLIP, id: 'b', placement: { ...CLIP.placement, start: 5, duration: 5, source_in: 5, source_out: 10 } },
+      { ...CLIP, id: 'c', placement: { ...CLIP.placement, start: 10, duration: 5, source_in: 5, source_out: 10 } },
+    ];
+    const rolled = rollTimelineEdits(clips, [
+      { leftClipId: 'a', rightClipId: 'b' },
+      { leftClipId: 'b', rightClipId: 'c' },
+    ], 1, 60)!;
+    expect(rolled.delta).toBe(1);
+    expect(rolled.editTimes).toEqual([6, 11]);
+    expect(rolled.clips.map((clip) => [clip.id, clip.placement.start, clip.placement.duration, clip.placement.source_in, clip.placement.source_out])).toEqual([
+      ['a', 0, 6, 5, 11],
+      ['b', 6, 5, 6, 11],
+      ['c', 11, 4, 6, 10],
+    ]);
+  });
+
+  it('preserves constant-speed source duration for real fractional Story cuts', () => {
+    const clips = [
+      { ...CLIP, id: 'a', material: { kind: 'asset' as const, asset_id: 'asset-a', media_duration_seconds: 200 }, placement: { ...CLIP.placement, start: 0, duration: 30.083_333_969_116_21, source_in: 100.75, source_out: 130.833_333_969_116_2, speed: 1 } },
+      { ...CLIP, id: 'b', material: { kind: 'asset' as const, asset_id: 'asset-b', media_duration_seconds: 200 }, placement: { ...CLIP.placement, start: 30.083_333_969_116_21, duration: 4.307_664_871_215_82, source_in: 130.833_328_247_070_3, source_out: 135.140_993_118_286_13, speed: 1 } },
+      { ...CLIP, id: 'c', material: { kind: 'asset' as const, asset_id: 'asset-c', media_duration_seconds: 200 }, placement: { ...CLIP.placement, start: 34.390_998_840_332_03, duration: 50, source_in: 20, source_out: 70, speed: 1 } },
+    ];
+    const rolled = rollTimelineEdits(clips, [
+      { leftClipId: 'a', rightClipId: 'b' },
+      { leftClipId: 'b', rightClipId: 'c' },
+    ], -1 / 60, 60)!;
+    for (const clip of rolled.clips) {
+      expect(Math.abs(
+        clip.placement.source_out - clip.placement.source_in
+        - clip.placement.duration * clip.placement.speed,
+      )).toBeLessThan(1e-9);
+    }
   });
 
   it('rate-stretches duration and speed while retaining source In and Out', () => {

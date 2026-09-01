@@ -241,6 +241,63 @@ export function canRollTimelineEdit(left: TimelineClip, right: TimelineClip, fps
   return (earlier !== null && earlier.delta < -1e-9) || (later !== null && later.delta > 1e-9);
 }
 
+export interface TimelineRollingPointSelection {
+  readonly leftClipId: string;
+  readonly rightClipId: string;
+}
+
+export interface TimelineMultiRollingEdit {
+  readonly clips: readonly TimelineClip[];
+  readonly delta: number;
+  readonly editTimes: readonly number[];
+}
+
+/** Roll several Story edit points by one shared, source-bounded delta. */
+export function rollTimelineEdits(
+  clips: readonly TimelineClip[],
+  points: readonly TimelineRollingPointSelection[],
+  requestedDelta: number,
+  fps: number,
+): TimelineMultiRollingEdit | null {
+  if (points.length === 0) return null;
+  const candidates = points.map((point) => {
+    const left = clips.find((clip) => clip.id === point.leftClipId);
+    const right = clips.find((clip) => clip.id === point.rightClipId);
+    if (left === undefined || right === undefined) return null;
+    const boundary = left.placement.start + left.placement.duration;
+    return rollTimelineEdit(left, right, boundary + requestedDelta, fps);
+  });
+  if (candidates.some((candidate) => candidate === null)) return null;
+  const deltas = candidates.map((candidate) => candidate!.delta);
+  const delta = requestedDelta < 0 ? Math.max(...deltas) : Math.min(...deltas);
+  if (Math.abs(delta) <= 1e-9) return null;
+  const leftIds = new Set(points.map((point) => point.leftClipId));
+  const rightIds = new Set(points.map((point) => point.rightClipId));
+  const replacements = clips.map((clip) => {
+    const incoming = rightIds.has(clip.id);
+    const outgoing = leftIds.has(clip.id);
+    if (!incoming && !outgoing) return clip;
+    return {
+      ...clip,
+      placement: {
+        ...clip.placement,
+        start: clip.placement.start + (incoming ? delta : 0),
+        duration: clip.placement.duration + (outgoing ? delta : 0) - (incoming ? delta : 0),
+        source_in: clip.placement.source_in + (incoming ? delta * clip.placement.speed : 0),
+        source_out: clip.placement.source_out + (outgoing ? delta * clip.placement.speed : 0),
+      },
+    };
+  });
+  return {
+    clips: replacements,
+    delta,
+    editTimes: points.map((point) => {
+      const left = clips.find((clip) => clip.id === point.leftClipId)!;
+      return left.placement.start + left.placement.duration + delta;
+    }),
+  };
+}
+
 export interface TimelineSlideEdit {
   readonly previous: TimelineClip;
   readonly clip: TimelineClip;

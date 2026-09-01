@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import {
+  applyTimelineCutTransition,
   maximumTimelineTransitionDuration,
   planDefaultTimelineTransitions,
   setTimelineTransitionDuration,
+  timelineCutTransition,
 } from './timelineTransitions';
 
 function clip(id: string, start: number): TimelineClip {
@@ -71,5 +73,34 @@ describe('default Timeline transitions', () => {
       tracks: [text, locked], storyTrackId: 'story', targetTrackIds: new Set(['text', 'video']), selectedClipIds: new Set(),
       timelineTime: 5, channel: 'video', mode: 'at_playhead', fps: 60,
     })).toEqual([]);
+  });
+
+  it('derives and switches one canonical cut between Premiere alignments', () => {
+    const source = track('story', 'video');
+    const centered = planDefaultTimelineTransitions({
+      tracks: [source], storyTrackId: source.id, targetTrackIds: new Set([source.id]), selectedClipIds: new Set(),
+      timelineTime: 5, channel: 'video', mode: 'at_playhead', fps: 60,
+    })[0]!.clips;
+    const centeredTrack = { ...source, clips: [...centered] };
+    const cut = timelineCutTransition(centeredTrack, 'story-a', 'video', 'out', 60);
+    expect(cut).toMatchObject({ alignment: 'center_at_cut', durationSeconds: 1, leftDurationSeconds: 0.5, rightDurationSeconds: 0.5 });
+
+    const startAligned = applyTimelineCutTransition(centeredTrack, 'story-a', 'video', 'out', { ...cut!, alignment: 'start_at_cut' }, 60);
+    expect(startAligned[0]?.transitions.video_out).toBeNull();
+    expect(startAligned[1]?.transitions.video_in).toEqual({ kind: 'fade', duration_seconds: 1 });
+
+    const endAligned = applyTimelineCutTransition({ ...source, clips: startAligned }, 'story-b', 'video', 'in', { ...cut!, alignment: 'end_at_cut' }, 60);
+    expect(endAligned[0]?.transitions.video_out).toEqual({ kind: 'fade', duration_seconds: 1 });
+    expect(endAligned[1]?.transitions.video_in).toBeNull();
+  });
+
+  it('copies custom transition timing and rejects a video transition on audio', () => {
+    const source = track('story', 'video');
+    const left = setTimelineTransitionDuration(source.clips[0]!, 'video', 'out', 0.25, 60);
+    const right = setTimelineTransitionDuration(source.clips[1]!, 'video', 'in', 0.75, 60);
+    const customTrack = { ...source, clips: [left, right] };
+    const copied = timelineCutTransition(customTrack, left.id, 'video', 'out', 60);
+    expect(copied).toMatchObject({ alignment: 'custom_start', leftDurationSeconds: 0.25, rightDurationSeconds: 0.75 });
+    expect(applyTimelineCutTransition(customTrack, left.id, 'audio', 'out', copied, 60)).toEqual(customTrack.clips);
   });
 });

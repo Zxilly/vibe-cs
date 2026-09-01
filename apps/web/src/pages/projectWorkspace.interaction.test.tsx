@@ -1068,6 +1068,60 @@ describe('unified project workspace', () => {
     expect(await screen.findByRole('dialog', { name: '片段属性' })).toBeTruthy();
   });
 
+  it('aligns and copies a transition between canonical cut points', async () => {
+    const clipC = { ...clip('00000000-0000-4000-8000-000000000190', 'C'), placement: { ...clip('00000000-0000-4000-8000-000000000190', 'C').placement, start: 10 } };
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 15,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: [
+            { ...track.clips[0]!, transitions: { ...track.clips[0]!.transitions, video_out: { kind: 'fade', duration_seconds: 0.5 } } },
+            { ...track.clips[1]!, transitions: { ...track.clips[1]!.transitions, video_in: { kind: 'fade', duration_seconds: 0.5 } } },
+            clipC,
+          ],
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+
+    fireEvent.click(screen.getByRole('slider', { name: '视频出场转场 A' }));
+    expect(screen.getByRole('button', { name: '以剪辑点为中心' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '从剪辑点开始' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, transitions: expect.objectContaining({ video_out: null }) }),
+          expect.objectContaining({ id: CLIP_B, transitions: expect.objectContaining({ video_in: { kind: 'fade', duration_seconds: 1 } }) }),
+          expect.objectContaining({ id: clipC.id }),
+        ],
+      }],
+    })));
+
+    fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
+    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }));
+    fireEvent.click(screen.getByRole('slider', { name: '视频出场转场 B' }));
+    fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(2));
+    expect(applyProjectPatch).toHaveBeenLastCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A }),
+          expect.objectContaining({ id: CLIP_B, transitions: expect.objectContaining({ video_out: { kind: 'fade', duration_seconds: 0.5 } }) }),
+          expect.objectContaining({ id: clipC.id, transitions: expect.objectContaining({ video_in: { kind: 'fade', duration_seconds: 0.5 } }) }),
+        ],
+      }],
+    }));
+  });
+
   it('deletes a cross-track selection in one Project revision', async () => {
     const audioClipId = '00000000-0000-4000-8000-000000000016';
     const audioClip: TimelineClip = {

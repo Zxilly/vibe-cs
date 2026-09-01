@@ -73,6 +73,10 @@ pub struct TimelineTrack {
     pub kind: TrackKind,
     pub order: u32,
     pub muted: bool,
+    pub solo: bool,
+    pub volume: f64,
+    pub pan: f64,
+    pub keyframes: Vec<EditorKeyframe>,
     pub locked: bool,
     pub hidden: bool,
     pub clips: Vec<TimelineClip>,
@@ -169,6 +173,7 @@ pub struct TimelinePlacement {
     pub source_out: f64,
     pub speed: f64,
     pub volume: f64,
+    pub pan: f64,
     pub enabled: bool,
 }
 
@@ -792,11 +797,35 @@ impl EditingDocument {
         let mut track_ids = HashSet::new();
         let mut clip_ids = HashSet::new();
         for track in &self.tracks {
+            let mut keyframe_ids = HashSet::new();
             if !track_ids.insert(track.id) {
                 return Err(invalid("track identities must be unique"));
             }
             if track.name.trim().is_empty() {
                 return Err(invalid("track name cannot be empty"));
+            }
+            if !track.volume.is_finite()
+                || !(0.0..=4.0).contains(&track.volume)
+                || !track.pan.is_finite()
+                || !(-1.0..=1.0).contains(&track.pan)
+                || track.keyframes.len() > MAX_EDITOR_KEYFRAMES_PER_CLIP
+                || track.keyframes.iter().any(|keyframe| {
+                    !keyframe_ids.insert(keyframe.id)
+                        || !matches!(
+                            keyframe.property,
+                            crate::EditorKeyframeProperty::Volume
+                                | crate::EditorKeyframeProperty::Pan
+                        )
+                        || !keyframe.time.is_finite()
+                        || !(0.0..=self.duration_seconds).contains(&keyframe.time)
+                        || !keyframe.value.is_finite()
+                        || (keyframe.property == crate::EditorKeyframeProperty::Volume
+                            && !(0.0..=4.0).contains(&keyframe.value))
+                        || (keyframe.property == crate::EditorKeyframeProperty::Pan
+                            && !(-1.0..=1.0).contains(&keyframe.value))
+                })
+            {
+                return Err(invalid("track audio automation is invalid"));
             }
             for clip in &track.clips {
                 if !clip_ids.insert(clip.id) {
@@ -821,6 +850,7 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         placement.source_out,
         placement.speed,
         placement.volume,
+        placement.pan,
     ]
     .into_iter()
     .all(f64::is_finite)
@@ -831,11 +861,25 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         || !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&placement.speed)
         || placement.volume < 0.0
         || placement.volume > 4.0
+        || !(-1.0..=1.0).contains(&placement.pan)
     {
         return Err(invalid("clip placement is invalid"));
     }
     if clip.keyframes.len() > MAX_EDITOR_KEYFRAMES_PER_CLIP {
         return Err(invalid("clip has too many keyframes"));
+    }
+    let mut keyframe_ids = HashSet::new();
+    if clip.keyframes.iter().any(|keyframe| {
+        !keyframe_ids.insert(keyframe.id)
+            || !keyframe.time.is_finite()
+            || !(0.0..=placement.duration).contains(&keyframe.time)
+            || !keyframe.value.is_finite()
+            || (keyframe.property == crate::EditorKeyframeProperty::Volume
+                && !(0.0..=4.0).contains(&keyframe.value))
+            || (keyframe.property == crate::EditorKeyframeProperty::Pan
+                && !(-1.0..=1.0).contains(&keyframe.value))
+    }) {
+        return Err(invalid("clip keyframes are invalid"));
     }
     let video_transitions = [
         clip.transitions.video_in.as_ref(),
@@ -1075,6 +1119,7 @@ mod tests {
                 source_out: 5.0,
                 speed: 1.0,
                 volume: 1.0,
+                pan: 0.0,
                 enabled: true,
             },
             transform: Transform::default(),
@@ -1107,6 +1152,10 @@ mod tests {
                     kind: TrackKind::Video,
                     order: 0,
                     muted: false,
+                    solo: false,
+                    volume: 1.0,
+                    pan: 0.0,
+                    keyframes: Vec::new(),
                     locked: false,
                     hidden: false,
                     clips: vec![clip(100), clip(101)],
@@ -1405,6 +1454,39 @@ mod tests {
     fn project_document_rejects_a_non_video_story_track() {
         let mut current = project();
         current.document.tracks[0].kind = TrackKind::Audio;
+        assert!(current.validate().is_err());
+    }
+
+    #[test]
+    fn project_document_validates_clip_and_track_audio_automation() {
+        let mut current = project();
+        current.document.tracks[0].volume = 0.75;
+        current.document.tracks[0].pan = -0.25;
+        current.document.tracks[0].keyframes = vec![EditorKeyframe {
+            id: Uuid::from_u128(990),
+            time: 1.0,
+            property: crate::EditorKeyframeProperty::Pan,
+            value: 0.5,
+        }];
+        current.document.tracks[0].clips[0].placement.pan = 0.25;
+        current.document.tracks[0].clips[0]
+            .keyframes
+            .push(EditorKeyframe {
+                id: Uuid::from_u128(991),
+                time: 1.0,
+                property: crate::EditorKeyframeProperty::Pan,
+                value: -0.5,
+            });
+        assert!(current.validate().is_ok());
+
+        current.document.tracks[0].keyframes[0].value = 1.1;
+        assert!(current.validate().is_err());
+        current.document.tracks[0].keyframes[0].value = 0.5;
+        current.document.tracks[0].clips[0]
+            .keyframes
+            .last_mut()
+            .expect("pan keyframe")
+            .value = -1.1;
         assert!(current.validate().is_err());
     }
 

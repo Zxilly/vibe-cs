@@ -88,6 +88,7 @@ export {
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
+  setClipPanAtTime,
   setClipTransformAtTime,
   setClipVolumeAtTime,
   transformPropertyValue,

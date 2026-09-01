@@ -50,20 +50,22 @@ export function removeClipKeyframe(
   return { ...clip, keyframes: clip.keyframes.filter((keyframe) => keyframe.id !== existing.id) };
 }
 
-export function transformPropertyValue(clip: TimelineClip, property: Exclude<EditorKeyframeProperty, 'volume'>): number {
+type ClipTransformProperty = Exclude<EditorKeyframeProperty, 'volume' | 'pan'>;
+
+export function transformPropertyValue(clip: TimelineClip, property: ClipTransformProperty): number {
   return clip.transform[property];
 }
 
 export function setClipTransformAtTime(
   clip: TimelineClip,
   localTime: number,
-  values: Partial<Record<Exclude<EditorKeyframeProperty, 'volume'>, number>>,
+  values: Partial<Record<ClipTransformProperty, number>>,
   fps: number,
   createId: () => string,
 ): TimelineClip {
   let next = clip;
   for (const [property, value] of Object.entries(values) as Array<[
-    Exclude<EditorKeyframeProperty, 'volume'>,
+    ClipTransformProperty,
     number,
   ]>) {
     if (value === undefined) continue;
@@ -89,9 +91,22 @@ export function setClipVolumeAtTime(
     : { ...clip, placement: { ...clip.placement, volume: constrained } };
 }
 
+export function setClipPanAtTime(
+  clip: TimelineClip,
+  localTime: number,
+  pan: number,
+  fps: number,
+  keyframeId: string,
+): TimelineClip {
+  const constrained = Math.min(1, Math.max(-1, pan));
+  return clip.keyframes.some((keyframe) => keyframe.property === 'pan')
+    ? upsertClipKeyframe(clip, 'pan', localTime, constrained, keyframeId, fps)
+    : { ...clip, placement: { ...clip.placement, pan: constrained } };
+}
+
 export function canAnimateTransformProperty(
   clip: TimelineClip,
-  property: Exclude<EditorKeyframeProperty, 'volume'>,
+  property: ClipTransformProperty,
 ): boolean {
   const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');

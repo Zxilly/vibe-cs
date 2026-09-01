@@ -7,5 +7,6 @@ export type TimelinePlacement = {
   source_out: number;
   speed: number;
   volume: number;
+  pan: number;
   enabled: boolean;
 };

@@ -9,7 +9,7 @@ function clip(id: string, start: number, duration: number): TimelineClip {
     name: id,
     capture_intent: null,
     material: { kind: 'asset', asset_id: id, media_duration_seconds: duration },
-    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, enabled: true },
+    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
     transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
@@ -23,7 +23,7 @@ function clip(id: string, start: number, duration: number): TimelineClip {
 }
 
 function track(id: string, kind: TimelineTrack['kind'], clips: readonly TimelineClip[] = []): TimelineTrack {
-  return { id, name: id, kind, order: 0, muted: false, locked: false, hidden: false, clips: [...clips] };
+  return { id, name: id, kind, order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [...clips] };
 }
 
 const STORY = track('story', 'video', [clip('story-old', 0, 10)]);

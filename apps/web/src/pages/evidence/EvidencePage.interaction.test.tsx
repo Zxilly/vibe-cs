@@ -35,7 +35,7 @@ function stubClient(): { client: Partial<DesktopClient>; queries: unknown[] } {
           story_track_id: '00000000-0000-4000-8000-000000000002',
           tracks: [{
             id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
-            order: 0, muted: false, locked: false, hidden: false, clips: [],
+            order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [],
           }],
           markers: [], settings: { source_demo_ids: [] },
         },

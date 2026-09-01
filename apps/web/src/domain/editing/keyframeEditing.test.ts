@@ -7,6 +7,7 @@ import {
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
+  setClipPanAtTime,
   setClipTransformAtTime,
   setClipVolumeAtTime,
   upsertClipKeyframe,
@@ -17,7 +18,7 @@ const CLIP: TimelineClip = {
   name: 'Clip',
   capture_intent: null,
   material: { kind: 'asset', asset_id: 'asset', media_duration_seconds: 12 },
-  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, enabled: true },
+  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
   transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
   effects: [],
   transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
@@ -105,6 +106,18 @@ describe('canonical clip keyframe editing', () => {
     expect(keyed.keyframes).toEqual([
       { id: 'volume-0', time: 0, property: 'volume', value: 1 },
       { id: 'volume-1', time: 1, property: 'volume', value: 1.5 },
+    ]);
+  });
+
+  it('updates static pan or the current animated pan frame', () => {
+    const staticPan = setClipPanAtTime(CLIP, 1, -2, 60, 'unused');
+    expect(staticPan.placement.pan).toBe(-1);
+    const animated = upsertClipKeyframe(CLIP, 'pan', 0, 0, 'pan-0', 60);
+    const keyed = setClipPanAtTime(animated, 1, 0.75, 60, 'pan-1');
+    expect(keyed.placement.pan).toBe(0);
+    expect(keyed.keyframes).toEqual([
+      { id: 'pan-0', time: 0, property: 'pan', value: 0 },
+      { id: 'pan-1', time: 1, property: 'pan', value: 0.75 },
     ]);
   });
 });

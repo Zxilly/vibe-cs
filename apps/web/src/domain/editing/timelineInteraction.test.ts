@@ -40,7 +40,7 @@ const CLIP: TimelineClip = {
   name: 'Clip',
   capture_intent: null,
   material: { kind: 'asset', asset_id: 'asset', media_duration_seconds: 12 },
-  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, enabled: true },
+  placement: { start: 10, duration: 8, source_in: 2, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
   transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
   effects: [],
   transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },

@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
-import type { Project, TimelineClip, TimelineClipMaterializationState } from '../../shared/desktop/dto';
+import type { Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
   clipAudioFadeFactor,
@@ -22,6 +22,8 @@ import type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInt
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { TimelineAudioMonitor } from './TimelineAudioMonitor';
+import { resumeMediaAudioOutput, useMediaAudioOutput } from './mediaAudioOutput';
+import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioMix';
 
 interface PreviewMedia {
   readonly clip: TimelineClip;
@@ -29,9 +31,7 @@ interface PreviewMedia {
 }
 
 interface OverlayPreviewMedia extends PreviewMedia {
-  readonly trackId: string;
-  readonly trackOrder: number;
-  readonly trackMuted: boolean;
+  readonly track: TimelineTrack;
 }
 
 interface ImagePreviewMedia extends PreviewMedia {
@@ -196,9 +196,7 @@ export function TimelineProgramMonitor({
         if (assetId === null) continue;
         const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
         if (src !== null) result.push({
-          trackId: track.id,
-          trackOrder: track.order,
-          trackMuted: track.muted,
+          track,
           clip,
           src,
         });
@@ -372,6 +370,9 @@ export function TimelineProgramMonitor({
                     ? 0
                     : isTarget ? previewOffsetSeconds : 0;
                 const poolKey = `${clip.id}:${role}`;
+                const audioMix = story === null
+                  ? { outputVolume: 0, clipPan: 0, trackPan: 0 }
+                  : evaluateTimelineAudioMix(story, clip, clip.placement.start + offset);
                 return (
                   <PooledPreviewVideo
                     key={poolKey}
@@ -393,7 +394,10 @@ export function TimelineProgramMonitor({
                       : rollingSide !== null
                         ? `rolling:${rollingPreviewKey}:${poolKey}`
                         : `program:${targetId ?? ''}:${poolKey}`}
-                    forceMuted={story?.muted ?? false}
+                    forceMuted={story === null || !timelineTrackAudible(project, story)}
+                    audioGain={audioMix.outputVolume}
+                    clipPan={audioMix.clipPan}
+                    trackPan={audioMix.trackPan}
                     onTimelineTimeChange={(sourceSeconds) => {
                       if (previewSlot !== null || role !== 'program') return;
                       const timelineSeconds = clip.placement.start + clipLocalTimeAtSourceTime(clip, sourceSeconds);
@@ -428,10 +432,11 @@ export function TimelineProgramMonitor({
                   />
                 );
               })}
-              {overlayMedia.map(({ trackId, trackOrder, trackMuted, clip, src }) => {
+              {overlayMedia.map(({ track, clip, src }) => {
                 const active = timelineClipActiveAt(clip, targetTimelineTime);
-                const poolKey = `${trackId}:${clip.id}`;
+                const poolKey = `${track.id}:${clip.id}`;
                 const presented = active && overlayReadyIds.has(poolKey);
+                const audioMix = evaluateTimelineAudioMix(track, clip, targetTimelineTime);
                 return (
                   <PooledPreviewVideo
                     key={poolKey}
@@ -450,9 +455,12 @@ export function TimelineProgramMonitor({
                     transportRate={playbackRate}
                     readinessKey={`overlay:${poolKey}`}
                     drivesTimeline={false}
-                    forceMuted={trackMuted}
-                    layer={1 + trackOrder}
-                    trackId={trackId}
+                    forceMuted={!timelineTrackAudible(project, track)}
+                    audioGain={audioMix.outputVolume}
+                    clipPan={audioMix.clipPan}
+                    trackPan={audioMix.trackPan}
+                    layer={1 + track.order}
+                    trackId={track.id}
                     onTimelineTimeChange={() => {}}
                     onEnded={() => {}}
                     onReady={() => setOverlayReadyIds((current) => current.has(poolKey)
@@ -811,6 +819,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readinessKey,
   drivesTimeline = true,
   forceMuted = false,
+  audioGain = 1,
+  clipPan = 0,
+  trackPan = 0,
   layer,
   trackId,
   onTimelineTimeChange,
@@ -834,6 +845,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly readinessKey: string;
   readonly drivesTimeline?: boolean;
   readonly forceMuted?: boolean;
+  readonly audioGain?: number;
+  readonly clipPan?: number;
+  readonly trackPan?: number;
   readonly layer?: number;
   readonly trackId?: string;
   readonly onTimelineTimeChange: (sourceSeconds: number) => void;
@@ -842,6 +856,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly onReplaceClip: (clip: TimelineClip) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const outputMuted = forceMuted || poolRole === 'trim' || !presented;
+  useMediaAudioOutput(videoRef, audioGain, clipPan, trackPan, outputMuted);
   const desiredSourceTime = clipSourceTimeAtLocalTime(clip, offsetSeconds);
   const desiredTimeRef = useRef(desiredSourceTime);
   desiredTimeRef.current = desiredSourceTime;
@@ -850,6 +866,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const evaluatedTransform = evaluatePreviewTransform(clip, offsetSeconds);
+  const clipCanonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', offsetSeconds, clip.placement.volume);
+  const clipFadeFactor = clipAudioFadeFactor(clip, offsetSeconds);
   const [draftTransform, setDraftTransform] = useState<typeof evaluatedTransform | null>(null);
   const draftTransformRef = useRef(draftTransform);
   draftTransformRef.current = draftTransform;
@@ -877,7 +895,6 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   } | null>(null);
   const windowMouseUpRef = useRef<(() => void) | null>(null);
   const transform = draftTransform ?? evaluatedTransform;
-  const audio = evaluatePreviewAudio(clip, offsetSeconds);
   const previewFilter = evaluatePreviewFilter(clip, projectWidth);
   const previewTransition = evaluatePreviewTransition(clip, offsetSeconds, projectWidth);
   const playbackSpeed = clipPlaybackSpeedAtLocalTime(clip, offsetSeconds);
@@ -921,6 +938,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       if (!video.paused) video.pause();
       return;
     }
+    resumeMediaAudioOutput();
     void video.play().catch(() => {
       // The next explicit transport action can retry if WebView2 rejected play.
     });
@@ -940,11 +958,6 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     callbackId = video.requestVideoFrameCallback(reportPresentedFrame);
     return () => video.cancelVideoFrameCallback(callbackId);
   }, [videoDrivesTimeline]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video !== null) video.volume = Math.min(1, Math.max(0, audio.outputVolume));
-  }, [audio.outputVolume]);
 
   useEffect(() => () => {
     if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
@@ -1026,7 +1039,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       src={src}
       preload={target || presented ? 'auto' : 'metadata'}
       playsInline
-      muted={forceMuted || poolRole === 'trim' || !presented}
+      muted={outputMuted}
+      data-preview-audio-gain={audioGain}
+      data-preview-clip-pan={clipPan}
+      data-preview-track-pan={trackPan}
       controls={false}
       data-preview-target={target}
       data-preview-active={presented}
@@ -1051,9 +1067,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-scale-y={transform.scaleY}
       data-preview-rotation={transform.rotation}
       data-preview-opacity={transform.opacity}
-      data-preview-canonical-volume={audio.canonicalVolume}
-      data-preview-fade-factor={audio.fadeFactor}
-      data-preview-output-volume={audio.outputVolume}
+      data-preview-canonical-volume={clipCanonicalVolume}
+      data-preview-fade-factor={clipFadeFactor}
+      data-preview-output-volume={audioGain}
       data-preview-source-time={desiredTimeRef.current}
       data-preview-clip-speed={clip.placement.speed}
       data-preview-effects={previewFilter.kinds.join(',')}
@@ -1315,6 +1331,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   && previous.readinessKey === next.readinessKey
   && previous.drivesTimeline === next.drivesTimeline
   && previous.forceMuted === next.forceMuted
+  && previous.audioGain === next.audioGain
+  && previous.clipPan === next.clipPan
+  && previous.trackPan === next.trackPan
   && previous.layer === next.layer
   && previous.trackId === next.trackId
   && previous.onReplaceClip === next.onReplaceClip);
@@ -1383,12 +1402,6 @@ export function evaluatePreviewTransition(
     case 'spin': return { ...base, rotation: 0.35 * 180 / Math.PI * intensity };
     default: return NO_PREVIEW_TRANSITION;
   }
-}
-
-function evaluatePreviewAudio(clip: TimelineClip, localTime: number) {
-  const canonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', localTime, clip.placement.volume);
-  const fadeFactor = clipAudioFadeFactor(clip, localTime);
-  return { canonicalVolume, fadeFactor, outputVolume: canonicalVolume * fadeFactor };
 }
 
 function evaluatePreviewFilter(clip: TimelineClip, projectWidth: number) {

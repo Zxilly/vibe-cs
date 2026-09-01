@@ -36,6 +36,7 @@ function clip(id: string, start: number, duration = 10): TimelineClip {
       source_out: duration,
       speed: 1,
       volume: 1,
+      pan: 0,
       enabled: true,
     },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
@@ -328,12 +329,12 @@ describe('ripple Story Track edits', () => {
   it('moves free clips across compatible tracks with overwrite and stable identities', () => {
     const source = {
       id: 'source', name: 'Source', kind: 'video' as const, order: 1,
-      muted: false, locked: false, hidden: false,
+      muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
       clips: [clip('move', 2, 2)],
     };
     const target = {
       id: 'target', name: 'Target', kind: 'video' as const, order: 2,
-      muted: false, locked: false, hidden: false,
+      muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
       clips: [clip('covered', 0, 10)],
     };
     let sequence = 0;
@@ -352,8 +353,8 @@ describe('ripple Story Track edits', () => {
   });
 
   it('rejects Story, locked and incompatible cross-track moves', () => {
-    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [clip('a', 0, 1)] };
-    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [clip('a', 0, 1)] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] };
     const input = { tracks: [video, audio], storyTrackId: video.id, sourceTrackId: video.id, targetTrackId: audio.id, clipIds: new Set(['a']), anchorClipId: 'a', proposedAnchorStart: 1, fps: 60, createId: () => 'id' };
     expect(planCrossTrackMove(input)).toBeNull();
     expect(planCrossTrackMove({ ...input, storyTrackId: 'story' })).toBeNull();
@@ -361,9 +362,9 @@ describe('ripple Story Track edits', () => {
   });
 
   it('splits a Story compound clip into linked free video and audio clips', () => {
-    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('s', 0, 2)] };
-    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [] };
-    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [] };
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [clip('s', 0, 2)] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] };
     let sequence = 0;
     const plan = planCrossTrackMove({
       tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: story.id, targetTrackId: video.id,
@@ -380,8 +381,8 @@ describe('ripple Story Track edits', () => {
   });
 
   it('creates one audio track inside the cross-track plan when Story has no audio target', () => {
-    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('s', 0, 2)] };
-    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [] };
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [clip('s', 0, 2)] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] };
     let sequence = 0;
     const plan = planCrossTrackMove({
       tracks: [story, video], storyTrackId: story.id, sourceTrackId: story.id, targetTrackId: video.id,
@@ -395,11 +396,11 @@ describe('ripple Story Track edits', () => {
   });
 
   it('recombines linked free video and audio clips when moved into Story', () => {
-    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [clip('base', 0, 5)] };
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [clip('base', 0, 5)] };
     const videoClip = { ...clip('v', 10, 2), link_group_id: 'linked', placement: { ...clip('v', 10, 2).placement, volume: 0 } };
     const audioClip = { ...clip('a', 10, 2), link_group_id: 'linked', placement: { ...clip('a', 10, 2).placement, volume: 0.7 } };
-    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [videoClip] };
-    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [audioClip] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [videoClip] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [audioClip] };
     let sequence = 0;
     const plan = planCrossTrackMove({
       tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: video.id, targetTrackId: story.id,
@@ -414,11 +415,11 @@ describe('ripple Story Track edits', () => {
   });
 
   it('unlinks but leaves free audio in place when Linked Selection is disabled', () => {
-    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, locked: false, hidden: false, clips: [] };
+    const story = { id: 'story', name: 'Story', kind: 'video' as const, order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] };
     const videoClip = { ...clip('v', 2, 2), link_group_id: 'linked', placement: { ...clip('v', 2, 2).placement, volume: 0 } };
     const audioClip = { ...clip('a', 2, 2), link_group_id: 'linked', placement: { ...clip('a', 2, 2).placement, volume: 0.7 } };
-    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [videoClip] };
-    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [audioClip] };
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [videoClip] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [audioClip] };
     const plan = planCrossTrackMove({
       tracks: [story, video, audio], storyTrackId: story.id, sourceTrackId: video.id, targetTrackId: story.id,
       clipIds: new Set(['v']), anchorClipId: 'v', proposedAnchorStart: 0, fps: 60, followLinkedClips: false, createId: () => 'id',

@@ -544,6 +544,7 @@ impl StoryClipInput {
                 source_out: self.duration_seconds,
                 speed: 1.0,
                 volume: 1.0,
+                pan: 0.0,
                 enabled: true,
             },
             transform: Transform::default(),

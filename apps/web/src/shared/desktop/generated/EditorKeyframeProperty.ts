@@ -7,4 +7,5 @@ export type EditorKeyframeProperty =
   | "scale_y"
   | "rotation"
   | "opacity"
-  | "volume";
+  | "volume"
+  | "pan";

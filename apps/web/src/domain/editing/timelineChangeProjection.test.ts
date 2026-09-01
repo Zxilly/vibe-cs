@@ -11,7 +11,7 @@ function clip(id: string, start: number, duration: number): TimelineClip {
     name: id,
     capture_intent: null,
     material: { kind: 'asset', asset_id: `asset-${id}`, media_duration_seconds: 120 },
-    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, enabled: true },
+    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
     transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },

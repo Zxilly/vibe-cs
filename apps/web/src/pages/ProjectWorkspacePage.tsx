@@ -98,6 +98,7 @@ import {
   isSupportedEditorEffectKind,
   moveEditorEffect,
   setEditorEffectParameter,
+  setClipPanAtTime,
   setClipVolumeAtTime,
   setClipSpeedSegmentSpeed,
   splitClipSpeedSegment,
@@ -1435,7 +1436,7 @@ function ClipInspector({
   const previousKeyframeTime = [...keyframeTimes].reverse().find((time) => time < localTime - 0.5 / fps);
   const nextKeyframeTime = keyframeTimes.find((time) => time > localTime + 0.5 / fps);
   const visualProperties: Array<{
-    readonly property: Exclude<EditorKeyframeProperty, 'volume'>;
+    readonly property: Exclude<EditorKeyframeProperty, 'volume' | 'pan'>;
     readonly label: string;
     readonly step: number;
     readonly min?: number;
@@ -1712,45 +1713,47 @@ function ClipInspector({
         </section>
       )}
       {draft.text !== null || selected?.track.kind === 'text' ? null : (() => {
-        const volumeKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === 'volume');
-        const current = clipKeyframeAtTime(draft, 'volume', localTime, fps);
-        const volume = evaluateClipKeyframeProperty(draft, 'volume', localTime, draft.placement.volume);
+        const audioProperties = [
+          { property: 'volume' as const, label: t`音量`, min: 0, max: 4, step: 0.01, fallback: draft.placement.volume },
+          { property: 'pan' as const, label: t`声像`, min: -1, max: 1, step: 0.01, fallback: draft.placement.pan },
+        ];
         return (
-          <section className="mt-4 border-t border-divider pt-3" aria-label={t`音量关键帧`}>
-            <div className="grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
-              <span><Trans>音量</Trans>{volumeKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{volumeKeyframes.length}</span>}</span>
-              <input
-                type="number"
-                min={0}
-                max={4}
-                step={0.01}
-                className="min-w-0 border border-divider px-2 py-1.5 font-mono"
-                disabled={readOnly}
-                value={volume}
-                aria-label={t`音量`}
-                onChange={(event) => setDraft(setClipVolumeAtTime(
-                  draft,
-                  localTime,
-                  Number(event.currentTarget.value),
-                  fps,
-                  globalThis.crypto.randomUUID(),
-                ))}
-              />
-              <button
-                type="button"
-                className={cn(
-                  'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
-                  current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
-                )}
-                disabled={readOnly}
-                aria-label={current === null ? t`在播放头添加 音量 关键帧` : t`删除播放头的 音量 关键帧`}
-                onClick={() => setDraft(current === null
-                  ? upsertClipKeyframe(draft, 'volume', localTime, volume, globalThis.crypto.randomUUID(), fps)
-                  : removeClipKeyframe(draft, 'volume', localTime, fps))}
-              >
-                <Diamond className="size-3" fill={current === null ? 'none' : 'currentColor'} aria-hidden="true" />
-              </button>
-            </div>
+          <section className="mt-4 border-t border-divider pt-3" aria-label={t`音频自动化`}>
+            {audioProperties.map(({ property, label, min, max, step, fallback }) => {
+              const propertyKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === property);
+              const current = clipKeyframeAtTime(draft, property, localTime, fps);
+              const value = evaluateClipKeyframeProperty(draft, property, localTime, fallback);
+              return <div key={property} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
+                <span>{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
+                <input
+                  type="number"
+                  min={min}
+                  max={max}
+                  step={step}
+                  className="min-w-0 border border-divider px-2 py-1.5 font-mono"
+                  disabled={readOnly}
+                  value={value}
+                  aria-label={label}
+                  onChange={(event) => setDraft(property === 'volume'
+                    ? setClipVolumeAtTime(draft, localTime, Number(event.currentTarget.value), fps, globalThis.crypto.randomUUID())
+                    : setClipPanAtTime(draft, localTime, Number(event.currentTarget.value), fps, globalThis.crypto.randomUUID()))}
+                />
+                <button
+                  type="button"
+                  className={cn(
+                    'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
+                    current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
+                  )}
+                  disabled={readOnly}
+                  aria-label={current === null ? t`在播放头添加 ${label} 关键帧` : t`删除播放头的 ${label} 关键帧`}
+                  onClick={() => setDraft(current === null
+                    ? upsertClipKeyframe(draft, property, localTime, value, globalThis.crypto.randomUUID(), fps)
+                    : removeClipKeyframe(draft, property, localTime, fps))}
+                >
+                  <Diamond className="size-3" fill={current === null ? 'none' : 'currentColor'} aria-hidden="true" />
+                </button>
+              </div>;
+            })}
           </section>
         );
       })()}

@@ -6,7 +6,7 @@ import { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './time
 function clip(id: string, start: number, duration: number): TimelineClip {
   return {
     id, name: id, capture_intent: null, material: { kind: 'planned' },
-    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, enabled: true },
+    placement: { start, duration, source_in: 0, source_out: duration, speed: 1, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [], transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null }, text: null, metadata: {},
     group_id: null, link_group_id: null, keyframes: [], speed_segments: [],
@@ -14,7 +14,7 @@ function clip(id: string, start: number, duration: number): TimelineClip {
 }
 
 function track(id: string, clips: readonly TimelineClip[]): TimelineTrack {
-  return { id, name: id, kind: 'video', order: 0, muted: false, locked: false, hidden: false, clips: [...clips] };
+  return { id, name: id, kind: 'video', order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [...clips] };
 }
 
 describe('Timeline navigation', () => {

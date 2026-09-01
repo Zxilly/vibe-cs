@@ -12,6 +12,8 @@ import {
   MIN_TIMELINE_CLIP_SPEED,
 } from './timelineInteraction';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import { resumeMediaAudioOutput, useMediaAudioOutput } from './mediaAudioOutput';
+import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioMix';
 
 const MAX_POOLED_AUDIO_CLIPS = 32;
 
@@ -64,6 +66,7 @@ export function TimelineAudioMonitor({
           src={src}
           timelineTimeSeconds={timelineTime}
           active={active}
+          audible={timelineTrackAudible(project, track)}
           playing={playing}
           transportRate={playbackRate}
           fps={project.document.fps}
@@ -106,6 +109,7 @@ function PooledTimelineAudio({
   src,
   timelineTimeSeconds,
   active,
+  audible,
   playing,
   transportRate,
   fps,
@@ -115,6 +119,7 @@ function PooledTimelineAudio({
   readonly src: string;
   readonly timelineTimeSeconds: number;
   readonly active: boolean;
+  readonly audible: boolean;
   readonly playing: boolean;
   readonly transportRate: number;
   readonly fps: number;
@@ -128,7 +133,9 @@ function PooledTimelineAudio({
   const playbackSpeed = clipPlaybackSpeedAtLocalTime(clip, localTime);
   const desiredTimeRef = useRef(desiredSourceTime);
   desiredTimeRef.current = desiredSourceTime;
-  const output = evaluateTimelineAudio(clip, localTime);
+  const output = evaluateTimelineAudioMix(track, clip, timelineTimeSeconds);
+  const muted = !active || !audible;
+  useMediaAudioOutput(audioRef, output.outputVolume, output.clipPan, output.trackPan, muted);
 
   const seekLatest = () => {
     const audio = audioRef.current;
@@ -151,38 +158,35 @@ function PooledTimelineAudio({
       MAX_TIMELINE_CLIP_SPEED,
       Math.max(MIN_TIMELINE_CLIP_SPEED, playbackSpeed * Math.max(1, transportRate)),
     );
-    audio.muted = !active || track.muted;
     if (!active || !playing || transportRate <= 0) {
       if (!audio.paused) audio.pause();
       return;
     }
+    resumeMediaAudioOutput();
     void audio.play().catch(() => {
       // A later explicit transport action can retry a WebView2 media refusal.
     });
     return () => {
       if (!audio.paused) audio.pause();
     };
-  }, [active, playbackSpeed, playing, track.muted, transportRate]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio === null) return;
-    audio.volume = Math.min(1, Math.max(0, output.outputVolume));
-  }, [output.outputVolume]);
+  }, [active, playbackSpeed, playing, transportRate]);
 
   return (
     <audio
       ref={audioRef}
       src={src}
       preload={active ? 'auto' : 'metadata'}
-      muted={!active || track.muted}
+      muted={muted}
       controls={false}
       data-timeline-audio-clip-id={clip.id}
       data-timeline-audio-track-id={track.id}
       data-timeline-audio-active={active}
-      data-timeline-audio-muted={!active || track.muted}
+      data-timeline-audio-muted={muted}
       data-timeline-audio-source-time={desiredSourceTime}
-      data-timeline-audio-canonical-volume={output.canonicalVolume}
+      data-timeline-audio-canonical-volume={output.clipVolume}
+      data-timeline-audio-track-volume={output.trackVolume}
+      data-timeline-audio-clip-pan={output.clipPan}
+      data-timeline-audio-track-pan={output.trackPan}
       data-timeline-audio-fade-factor={output.fadeFactor}
       data-timeline-audio-output-volume={output.outputVolume}
       onLoadedMetadata={seekLatest}

@@ -500,6 +500,10 @@ mod tests {
                     kind: TrackKind::Video,
                     order: 0,
                     muted: false,
+                    solo: false,
+                    volume: 1.0,
+                    pan: 0.0,
+                    keyframes: Vec::new(),
                     locked: false,
                     hidden: false,
                     clips: vec![TimelineClip {
@@ -517,6 +521,7 @@ mod tests {
                             source_out: 5.0,
                             speed: 1.0,
                             volume: 1.0,
+                            pan: 0.0,
                             enabled: true,
                         },
                         transform: Transform::default(),

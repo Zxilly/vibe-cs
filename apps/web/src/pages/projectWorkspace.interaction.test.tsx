@@ -50,7 +50,7 @@ function clip(id: string, name: string): TimelineClip {
     name,
     capture_intent: null,
     material: { kind: 'planned' },
-    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     effects: [],
     transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
@@ -163,6 +163,10 @@ const PROJECT: Project = {
         kind: 'video',
         order: 0,
         muted: false,
+        solo: false,
+        volume: 1,
+        pan: 0,
+        keyframes: [],
         locked: false,
         hidden: false,
         clips: [
@@ -170,11 +174,11 @@ const PROJECT: Project = {
           {
             ...clip(CLIP_B, 'B'),
             material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 5 },
-            placement: { start: 5, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+            placement: { start: 5, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
           },
         ],
       },
-      { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, locked: false, hidden: false, clips: [] },
+      { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] },
     ],
     markers: [],
     settings: { source_demo_ids: [] },
@@ -195,7 +199,7 @@ const RECORDED_PROJECT: Project = {
         {
           ...clip(CLIP_B, 'B'),
           material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 6 },
-          placement: { start: 5, duration: 5, source_in: 1, source_out: 6, speed: 1, volume: 1, enabled: true },
+          placement: { start: 5, duration: 5, source_in: 1, source_out: 6, speed: 1, volume: 1, pan: 0, enabled: true },
         },
       ],
     }),
@@ -234,7 +238,7 @@ function linkedProject(): Project {
   const audioClip: TimelineClip = {
     ...clip(LINKED_AUDIO_CLIP_ID, 'Bed'),
     material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
-    placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     link_group_id: LINK_GROUP_ID,
   };
   return {
@@ -263,17 +267,17 @@ function groupedProject(): Project {
 function outOfSyncProject(): Project {
   const video: TimelineTrack = {
     id: '00000000-0000-4000-8000-000000000171', name: 'Detached video', kind: 'video', order: 2,
-    muted: false, locked: false, hidden: false,
+    muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
     clips: [{
       ...clip('00000000-0000-4000-8000-000000000172', 'Detached video'),
-      placement: { start: 2 + 2 / 60, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0, enabled: true },
+      placement: { start: 2 + 2 / 60, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0, pan: 0, enabled: true },
       metadata: { sync_reference_group_id: 'detached', sync_reference_start: 2 },
       link_group_id: null,
     }],
   };
   const audioClip: TimelineClip = {
     ...clip('00000000-0000-4000-8000-000000000173', 'Detached audio'),
-    placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+    placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, pan: 0, enabled: true },
     metadata: { sync_reference_group_id: 'detached', sync_reference_start: 2 },
     link_group_id: null,
   };
@@ -290,7 +294,7 @@ function targetedRangeProject(): Project {
   const audioClip: TimelineClip = {
     ...clip('00000000-0000-4000-8000-000000000092', 'Range audio'),
     material: { kind: 'asset', asset_id: 'asset-range-audio', media_duration_seconds: 10 },
-    placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, enabled: true },
+    placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
   };
   return {
     ...PROJECT,
@@ -308,7 +312,7 @@ function razorLinkedProject(): Project {
   const audioClip: TimelineClip = {
     ...clip('00000000-0000-4000-8000-000000000094', 'A audio'),
     material: { kind: 'asset', asset_id: 'asset-a', media_duration_seconds: 5 },
-    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    placement: { start: 0, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     link_group_id: linkGroupId,
   };
   return {
@@ -334,11 +338,15 @@ function navigationProject(): Project {
     kind: 'video',
     order: 2,
     muted: false,
+    solo: false,
+    volume: 1,
+    pan: 0,
+    keyframes: [],
     locked: false,
     hidden: false,
     clips: [{
       ...clip('00000000-0000-4000-8000-000000000096', 'Overlay'),
-      placement: { start: 2, duration: 6, source_in: 0, source_out: 6, speed: 1, volume: 1, enabled: true },
+      placement: { start: 2, duration: 6, source_in: 0, source_out: 6, speed: 1, volume: 1, pan: 0, enabled: true },
     }],
   };
   return {
@@ -354,11 +362,15 @@ function syncLockProject(): Project {
     kind: 'video',
     order: 2,
     muted: false,
+    solo: false,
+    volume: 1,
+    pan: 0,
+    keyframes: [],
     locked: false,
     hidden: false,
     clips: [{
       ...clip('00000000-0000-4000-8000-000000000098', 'Overlay'),
-      placement: { start: 6, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+      placement: { start: 6, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, pan: 0, enabled: true },
     }],
   };
   return {
@@ -370,18 +382,18 @@ function syncLockProject(): Project {
 function crossTrackProject(): Project {
   const source: TimelineTrack = {
     id: '00000000-0000-4000-8000-000000000160', name: 'Source V2', kind: 'video', order: 2,
-    muted: false, locked: false, hidden: false,
+    muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
     clips: [{
       ...clip('00000000-0000-4000-8000-000000000161', 'Move me'),
-      placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+      placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, pan: 0, enabled: true },
     }],
   };
   const target: TimelineTrack = {
     id: '00000000-0000-4000-8000-000000000162', name: 'Target V3', kind: 'video', order: 3,
-    muted: false, locked: false, hidden: false,
+    muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
     clips: [{
       ...clip('00000000-0000-4000-8000-000000000163', 'Covered'),
-      placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, enabled: true },
+      placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, pan: 0, enabled: true },
     }],
   };
   return {
@@ -839,7 +851,7 @@ describe('unified project workspace', () => {
     const audioClip: TimelineClip = {
       ...clip(audioClipId, 'Bed'),
       material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
-      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     };
     const project: Project = {
       ...PROJECT,
@@ -1029,7 +1041,7 @@ describe('unified project workspace', () => {
     const audioClip: TimelineClip = {
       ...clip(audioClipId, 'Bed'),
       material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
-      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     };
     const project: Project = {
       ...PROJECT,
@@ -1106,7 +1118,7 @@ describe('unified project workspace', () => {
     const audioClip: TimelineClip = {
       ...clip(audioClipId, 'Unlocked bed'),
       material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
-      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, pan: 0, enabled: true },
     };
     const project: Project = {
       ...PROJECT,
@@ -1906,6 +1918,10 @@ describe('unified project workspace', () => {
           kind: 'video',
           order: 2,
           muted: false,
+          solo: false,
+          volume: 1,
+          pan: 0,
+          keyframes: [],
           locked: false,
           hidden: false,
           clips: [],
@@ -2196,7 +2212,7 @@ describe('unified project workspace', () => {
     const audioClip: TimelineClip = {
       ...clip('00000000-0000-4000-8000-000000000088', 'Audio only'),
       material: { kind: 'asset', asset_id: 'asset-audio-only', media_duration_seconds: 8 },
-      placement: { start: 0, duration: 8, source_in: 0, source_out: 8, speed: 1, volume: 0.5, enabled: true },
+      placement: { start: 0, duration: 8, source_in: 0, source_out: 8, speed: 1, volume: 0.5, pan: 0, enabled: true },
     };
     const project: Project = {
       ...PROJECT,
@@ -2352,6 +2368,10 @@ describe('unified project workspace', () => {
           kind: 'text',
           order: RECORDED_PROJECT.document.tracks.length,
           muted: false,
+          solo: false,
+          volume: 1,
+          pan: 0,
+          keyframes: [],
           locked: false,
           hidden: false,
           clips: [textClip],
@@ -2411,6 +2431,10 @@ describe('unified project workspace', () => {
           kind: 'overlay',
           order: RECORDED_PROJECT.document.tracks.length,
           muted: true,
+          solo: false,
+          volume: 1,
+          pan: 0,
+          keyframes: [],
           locked: false,
           hidden: false,
           clips: [overlayClip],
@@ -3474,7 +3498,7 @@ describe('unified project workspace', () => {
             clips: [{
               ...clip('00000000-0000-4000-8000-000000000164', 'Move me audio'),
               link_group_id: 'cross-link',
-              placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0.8, enabled: true },
+              placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0.8, pan: 0, enabled: true },
             }],
           };
           return track;
@@ -4912,6 +4936,10 @@ describe('unified project workspace', () => {
             kind: 'video',
             order: 2,
             muted: false,
+            solo: false,
+            volume: 1,
+            pan: 0,
+            keyframes: [],
             locked: false,
             hidden: false,
             clips: [],
@@ -4997,6 +5025,10 @@ describe('unified project workspace', () => {
           kind: 'video',
           order: 2,
           muted: false,
+          solo: false,
+          volume: 1,
+          pan: 0,
+          keyframes: [],
           locked: false,
           hidden: false,
           clips: [],
@@ -5122,6 +5154,10 @@ describe('unified project workspace', () => {
             kind: 'text',
             order: 2,
             muted: false,
+            solo: false,
+            volume: 1,
+            pan: 0,
+            keyframes: [],
             locked: false,
             hidden: false,
             clips: [],
@@ -5151,6 +5187,22 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('Soloes an audio track through the canonical replace-track operation', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const music = await screen.findByRole('row', { name: 'Music' });
+    fireEvent.click(within(music).getByRole('button', { name: '切换 Solo Music' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        track: expect.objectContaining({ solo: true }),
+      }],
+    })));
+  });
+
   it('keeps output-disabled video and text tracks visible while removing them from Program', async () => {
     const textTrackId = '00000000-0000-4000-8000-000000000095';
     const hiddenProject: Project = {
@@ -5165,6 +5217,10 @@ describe('unified project workspace', () => {
             kind: 'text',
             order: RECORDED_PROJECT.document.tracks.length,
             muted: false,
+            solo: false,
+            volume: 1,
+            pan: 0,
+            keyframes: [],
             locked: false,
             hidden: true,
             clips: [],
@@ -5202,6 +5258,10 @@ describe('unified project workspace', () => {
             kind: 'text',
             order: 2,
             muted: false,
+            solo: false,
+            volume: 1,
+            pan: 0,
+            keyframes: [],
             locked: false,
             hidden: false,
             clips: [],

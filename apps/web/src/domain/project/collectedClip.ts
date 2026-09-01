@@ -67,6 +67,7 @@ export function timelineClipFromCollected(source: ProjectCollectedClip): Timelin
       source_out: 0,
       speed: 1,
       volume: 1,
+      pan: 0,
       enabled: true,
     },
     transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },

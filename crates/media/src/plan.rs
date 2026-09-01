@@ -101,6 +101,10 @@ struct RenderTrack {
     kind: TrackKind,
     order: u32,
     muted: bool,
+    solo: bool,
+    volume: f64,
+    pan: f64,
+    keyframes: Vec<EditorKeyframe>,
     hidden: bool,
     clips: Vec<RenderClip>,
 }
@@ -115,6 +119,7 @@ struct RenderClip {
     source_out: f64,
     speed: f64,
     volume: f64,
+    pan: f64,
     transform: Transform,
     effects: Vec<EditorEffect>,
     video_transition_in: Option<EditorTransition>,
@@ -141,6 +146,10 @@ impl From<&Project> for RenderProject {
                     kind: track.kind,
                     order: track.order,
                     muted: track.muted,
+                    solo: track.solo,
+                    volume: track.volume,
+                    pan: track.pan,
+                    keyframes: track.keyframes.clone(),
                     hidden: track.hidden,
                     clips: track
                         .clips
@@ -159,6 +168,7 @@ impl From<&Project> for RenderProject {
                             source_out: clip.placement.source_out,
                             speed: clip.placement.speed,
                             volume: clip.placement.volume,
+                            pan: clip.placement.pan,
                             transform: clip.transform.clone(),
                             effects: clip.effects.clone(),
                             video_transition_in: clip.transitions.video_in.clone(),
@@ -562,10 +572,16 @@ fn source_offset_at(segments: &[EditorSpeedSegment], time: f64) -> f64 {
 #[derive(Debug)]
 struct PreparedEditorClip<'a> {
     track_kind: TrackKind,
+    track_muted: bool,
+    track_solo: bool,
+    track_volume: f64,
+    track_pan: f64,
+    track_keyframes: &'a [EditorKeyframe],
     clip: &'a RenderClip,
     source: Option<&'a EditorMediaSource>,
     input_index: Option<usize>,
     timeline_start: f64,
+    sequence_start: f64,
     duration: f64,
     local_start: f64,
     speed_sections: Vec<PreparedSpeedSection>,
@@ -591,11 +607,15 @@ fn build_editor_command<S: BuildHasher>(
     let duration = range_end - range_start;
     let mut command = CommandSpec::default().args(["-hide_banner", "-nostdin", "-y"]);
     let mut prepared = Vec::new();
+    let any_solo = project
+        .tracks
+        .iter()
+        .any(|track| !track.hidden && !track.muted && track.solo);
     let mut next_input = 0_usize;
     let mut tracks = project
         .tracks
         .iter()
-        .filter(|track| !track.hidden && !track.muted)
+        .filter(|track| !track.hidden)
         .collect::<Vec<_>>();
     tracks.sort_by_key(|track| track.order);
     for track in tracks {
@@ -642,36 +662,49 @@ fn build_editor_command<S: BuildHasher>(
                         source.path.display()
                     )));
                 }
-                if source.kind == EditorMediaKind::Image {
-                    if !clip.speed_segments.is_empty() {
-                        return Err(MediaError::InvalidInput(format!(
-                            "image clip {} cannot use speed segments",
-                            clip.id
-                        )));
+                let audio_only_suppressed = (track.kind == TrackKind::Audio
+                    || source.kind == EditorMediaKind::Audio)
+                    && (track.muted || (any_solo && !track.solo));
+                if audio_only_suppressed {
+                    None
+                } else {
+                    if source.kind == EditorMediaKind::Image {
+                        if !clip.speed_segments.is_empty() {
+                            return Err(MediaError::InvalidInput(format!(
+                                "image clip {} cannot use speed segments",
+                                clip.id
+                            )));
+                        }
+                        command = command.args([
+                            OsString::from("-loop"),
+                            OsString::from("1"),
+                            OsString::from("-framerate"),
+                            OsString::from(project.fps.to_string()),
+                            OsString::from("-t"),
+                            OsString::from(format!("{:.6}", rendered_duration * clip.speed)),
+                        ]);
                     }
-                    command = command.args([
-                        OsString::from("-loop"),
-                        OsString::from("1"),
-                        OsString::from("-framerate"),
-                        OsString::from(project.fps.to_string()),
-                        OsString::from("-t"),
-                        OsString::from(format!("{:.6}", rendered_duration * clip.speed)),
-                    ]);
+                    command = command
+                        .args([OsString::from("-i"), source.path.as_os_str().to_os_string()]);
+                    let index = next_input;
+                    next_input += 1;
+                    Some(index)
                 }
-                command =
-                    command.args([OsString::from("-i"), source.path.as_os_str().to_os_string()]);
-                let index = next_input;
-                next_input += 1;
-                Some(index)
             } else {
                 None
             };
             prepared.push(PreparedEditorClip {
                 track_kind: track.kind,
+                track_muted: track.muted,
+                track_solo: track.solo,
+                track_volume: track.volume,
+                track_pan: track.pan,
+                track_keyframes: &track.keyframes,
                 clip,
                 source,
                 input_index,
                 timeline_start: intersection_start - range_start,
+                sequence_start: intersection_start,
                 duration: rendered_duration,
                 local_start,
                 speed_sections,
@@ -716,7 +749,10 @@ fn build_editor_command<S: BuildHasher>(
                 ));
                 previous_video = layer_label;
             }
-            if source_has_audio(source, item.track_kind) {
+            if source_has_audio(source, item.track_kind)
+                && !item.track_muted
+                && (!any_solo || item.track_solo)
+            {
                 let audio_label = format!("audio{index}");
                 filters.push(build_audio_filter(item, input, &audio_label)?);
                 audio_labels.push(audio_label);
@@ -917,8 +953,16 @@ fn keyframe_expression(
     time_variable: &str,
     fallback: f64,
 ) -> String {
-    let points = clip
-        .keyframes
+    keyframe_expression_from(&clip.keyframes, property, time_variable, fallback)
+}
+
+fn keyframe_expression_from(
+    keyframes: &[EditorKeyframe],
+    property: EditorKeyframeProperty,
+    time_variable: &str,
+    fallback: f64,
+) -> String {
+    let points = keyframes
         .iter()
         .filter(|keyframe| keyframe.property == property)
         .map(|keyframe| (keyframe.time, keyframe.value))
@@ -938,6 +982,12 @@ fn keyframe_expression(
         expression = format!("if(lt(({time_variable}),{right_time:.6}),{linear},{expression})");
     }
     format!("if(lt(({time_variable}),{first_time:.6}),{first_value:.6},{expression})")
+}
+
+fn track_has_keyframes(item: &PreparedEditorClip<'_>, property: EditorKeyframeProperty) -> bool {
+    item.track_keyframes
+        .iter()
+        .any(|keyframe| keyframe.property == property)
 }
 
 fn validate_transform(transform: &Transform) -> MediaResult<()> {
@@ -1257,6 +1307,37 @@ fn build_audio_filter(
     } else {
         let _ = write!(filter, "volume={:.6}", clip.volume);
     }
+    let clip_pan = keyframe_expression(
+        clip,
+        EditorKeyframeProperty::Pan,
+        &format!("t+{:.6}", item.local_start),
+        clip.pan,
+    );
+    if clip_has_keyframes(clip, &[EditorKeyframeProperty::Pan]) || clip.pan.abs() > f64::EPSILON {
+        append_pan_filter(&mut filter, &clip_pan);
+    }
+    let track_time = format!("t+{:.6}", item.sequence_start);
+    let track_volume = keyframe_expression_from(
+        item.track_keyframes,
+        EditorKeyframeProperty::Volume,
+        &track_time,
+        item.track_volume,
+    );
+    if track_has_keyframes(item, EditorKeyframeProperty::Volume) {
+        let _ = write!(filter, ",volume='{track_volume}':eval=frame");
+    } else if (item.track_volume - 1.0).abs() > f64::EPSILON {
+        let _ = write!(filter, ",volume={:.6}", item.track_volume);
+    }
+    let track_pan = keyframe_expression_from(
+        item.track_keyframes,
+        EditorKeyframeProperty::Pan,
+        &track_time,
+        item.track_pan,
+    );
+    if track_has_keyframes(item, EditorKeyframeProperty::Pan) || item.track_pan.abs() > f64::EPSILON
+    {
+        append_pan_filter(&mut filter, &track_pan);
+    }
     if let Some(transition) = clip.audio_transition_in.as_ref() {
         let transition_duration = validated_transition_duration(transition, item.duration)?;
         let curve = if transition.kind == EditorTransitionKind::ConstantPower {
@@ -1288,6 +1369,15 @@ fn build_audio_filter(
     );
     filters.push(filter);
     Ok(filters.join(";"))
+}
+
+fn append_pan_filter(filter: &mut String, pan: &str) {
+    let left_gain = format!("if(gt(({pan}),0),1-({pan}),1)");
+    let right_gain = format!("if(lt(({pan}),0),1+({pan}),1)");
+    let _ = write!(
+        filter,
+        ",aeval='val(0)*({left_gain})|val(1)*({right_gain})':c=stereo"
+    );
 }
 
 fn build_text_filter(
@@ -1726,6 +1816,10 @@ mod tests {
                     kind: TrackKind::Video,
                     order: 0,
                     muted: false,
+                    solo: false,
+                    volume: 1.0,
+                    pan: 0.0,
+                    keyframes: Vec::new(),
                     locked: false,
                     hidden: false,
                     clips: vec![TimelineClip {
@@ -1743,6 +1837,7 @@ mod tests {
                             source_out: 5.0,
                             speed: 1.0,
                             volume: 1.0,
+                            pan: 0.0,
                             enabled: true,
                         },
                         transform: Transform::default(),
@@ -1817,6 +1912,7 @@ mod tests {
                     source_out: 8.0,
                     speed: 1.0,
                     volume,
+                    pan: 0.0,
                     enabled: true,
                 },
                 transform: Transform::default(),
@@ -1866,6 +1962,10 @@ mod tests {
                         kind: TrackKind::Video,
                         order: 0,
                         muted: false,
+                        solo: false,
+                        volume: 1.0,
+                        pan: 0.0,
+                        keyframes: Vec::new(),
                         locked: false,
                         hidden: false,
                         clips: Vec::new(),
@@ -1876,6 +1976,10 @@ mod tests {
                         kind: TrackKind::Audio,
                         order: 1,
                         muted: false,
+                        solo: false,
+                        volume: 1.0,
+                        pan: 0.0,
+                        keyframes: Vec::new(),
                         locked: false,
                         hidden: false,
                         clips: vec![audio_clip("First", first_asset, 0.0, 1.0, true)],
@@ -1886,6 +1990,10 @@ mod tests {
                         kind: TrackKind::Audio,
                         order: 2,
                         muted: false,
+                        solo: false,
+                        volume: 1.0,
+                        pan: 0.0,
+                        keyframes: Vec::new(),
                         locked: false,
                         hidden: false,
                         clips: vec![audio_clip("Second", second_asset, 4.0, 0.25, false)],
@@ -1959,9 +2067,55 @@ mod tests {
         )
         .expect("muted audio plan");
         let muted_filter = filter_graph(&muted.command).expect("muted filter graph");
-        assert!(!muted.command.args.contains(&second_source.into_os_string()));
+        assert!(
+            !muted
+                .command
+                .args
+                .contains(&second_source.clone().into_os_string())
+        );
         assert!(!muted_filter.contains("amix="));
         assert!(muted_filter.contains("afade=t=in"));
+
+        project.document.tracks[2].muted = false;
+        project.document.tracks[1].solo = true;
+        project.document.tracks[1].volume = 0.5;
+        project.document.tracks[1].pan = 0.25;
+        project.document.tracks[1].keyframes = vec![
+            EditorKeyframe {
+                id: Uuid::new_v4(),
+                time: 0.0,
+                property: EditorKeyframeProperty::Volume,
+                value: 0.5,
+            },
+            EditorKeyframe {
+                id: Uuid::new_v4(),
+                time: 4.0,
+                property: EditorKeyframeProperty::Pan,
+                value: 0.5,
+            },
+        ];
+        project.document.tracks[1].clips[0].placement.pan = -0.25;
+        project.document.tracks[1].clips[0]
+            .keyframes
+            .push(EditorKeyframe {
+                id: Uuid::new_v4(),
+                time: 2.0,
+                property: EditorKeyframeProperty::Pan,
+                value: -0.5,
+            });
+        let solo = build_project_plan_with_sources(
+            &project,
+            &sources,
+            &directory.path().join("solo.mp4"),
+            &options,
+        )
+        .expect("solo audio plan");
+        let solo_filter = filter_graph(&solo.command).expect("solo filter graph");
+        assert!(solo.command.args.contains(&first_source.into_os_string()));
+        assert!(!solo.command.args.contains(&second_source.into_os_string()));
+        assert!(!solo_filter.contains("amix="));
+        assert!(solo_filter.matches("aeval=").count() >= 2);
+        assert!(solo_filter.contains("volume='0.500000':eval=frame"));
     }
 
     fn filter_graph(command: &CommandSpec) -> Option<String> {

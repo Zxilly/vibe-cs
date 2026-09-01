@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clapperboard,
+  Diamond,
   Eye,
   Gauge,
   Link2,
@@ -92,6 +93,15 @@ import {
   type ProjectMediaDragPayload,
 } from './mediaDrag';
 import { clipLocalTimeAtTimeline, evaluateClipKeyframeProperty, setClipVolumeAtTime } from './keyframeEditing';
+import {
+  evaluateTrackAudioProperty,
+  moveTrackAudioKeyframe,
+  removeTrackAudioKeyframe,
+  setTrackAudioAtTime,
+  trackAudioKeyframeAtTime,
+  upsertTrackAudioKeyframe,
+  type TrackAudioProperty,
+} from './trackAudioEditing';
 import {
   deleteRippleClips,
   extractTimelineRange,
@@ -1010,6 +1020,10 @@ export function ProjectTimeline({
       kind,
       order: document.tracks.length,
       muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+      keyframes: [],
       locked: false,
       hidden: false,
       clips: [],
@@ -1048,6 +1062,7 @@ export function ProjectTimeline({
         source_out: duration,
         speed: 1,
         volume: 1,
+        pan: 0,
         enabled: true,
       },
       transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
@@ -1080,6 +1095,10 @@ export function ProjectTimeline({
         kind: 'text',
         order: document.tracks.length,
         muted: false,
+        solo: false,
+        volume: 1,
+        pan: 0,
+        keyframes: [],
         locked: false,
         hidden: false,
         clips: [clip],
@@ -2699,6 +2718,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   const [rippleDrafts, setRippleDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const [rateDrafts, setRateDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const [slideDrafts, setSlideDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
+  const [automationProperty, setAutomationProperty] = useState<TrackAudioProperty>('volume');
   const commitTrackClips = (clips: readonly TimelineClip[]): boolean => {
     if (timelineClipsEqual(track.track.clips, clips)) return false;
     onReplaceTrackClips(track.track.id, clips);
@@ -2847,6 +2867,10 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         onToggleSyncLock={onToggleSyncLock}
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
+        timelineTimeSeconds={timelineTimeSeconds}
+        fps={fps}
+        automationProperty={automationProperty}
+        onAutomationPropertyChange={setAutomationProperty}
       />
       <div className={cn('relative min-h-0 overflow-hidden', track.track.hidden && 'opacity-45')} style={{ width: contentWidth }}>
         {mediaDropPreview === null ? null : (
@@ -3040,6 +3064,18 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             }}
           />
         ))}
+        {track.controls !== 'audio' || collapsed ? null : (
+          <TimelineTrackAutomation
+            track={track.track}
+            property={automationProperty}
+            scale={scale}
+            contentWidth={contentWidth}
+            height={height}
+            fps={fps}
+            readOnly={readOnly || track.track.locked}
+            onReplaceTrack={onReplaceTrack}
+          />
+        )}
         {editTool !== 'rolling' || track.derivedAudio ? null : editPoints.map((point) => (
           <TimelineRollingHandle
             key={`${point.left.id}:${point.right.id}`}
@@ -4848,7 +4884,166 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse }: {
+function TimelineTrackAudioControls({ track, timelineTimeSeconds, fps, property, readOnly, onPropertyChange, onReplaceTrack }: {
+  readonly track: TimelineTrack;
+  readonly timelineTimeSeconds: number;
+  readonly fps: number;
+  readonly property: TrackAudioProperty;
+  readonly readOnly: boolean;
+  readonly onPropertyChange: (property: TrackAudioProperty) => void;
+  readonly onReplaceTrack: (track: TimelineTrack) => void;
+}) {
+  const value = evaluateTrackAudioProperty(track, property, timelineTimeSeconds);
+  const current = trackAudioKeyframeAtTime(track, property, timelineTimeSeconds, fps);
+  const step = property === 'volume' ? 0.05 : 0.05;
+  const label = property === 'volume' ? formatGainDb(linearGainToDb(value)) : formatPan(value);
+  const adjust = (direction: -1 | 1) => onReplaceTrack(setTrackAudioAtTime(
+    track,
+    property,
+    timelineTimeSeconds,
+    value + direction * step,
+    fps,
+    globalThis.crypto.randomUUID(),
+  ));
+  return (
+    <span className="absolute bottom-1 left-10 right-2 flex h-5 items-center gap-1 font-normal text-neutral-500">
+      <Tooltip content={track.solo ? t`关闭 Solo` : t`Solo：只监听所有已 Solo 的音频轨`} side="top">
+        <button
+          type="button"
+          className={cn('grid size-5 place-items-center rounded-sm border border-divider font-mono text-2xs hover:bg-neutral-100', track.solo && 'border-accent-500 bg-accent-100 text-accent-text')}
+          aria-label={t`切换 Solo ${track.name}`}
+          aria-pressed={track.solo}
+          disabled={readOnly}
+          onClick={() => onReplaceTrack({ ...track, solo: !track.solo })}
+        >S</button>
+      </Tooltip>
+      <Tooltip content={property === 'volume' ? t`显示 Pan 轨道自动化` : t`显示 Volume 轨道自动化`} side="top">
+        <button
+          type="button"
+          className="grid size-5 place-items-center rounded-sm border border-divider font-mono text-2xs hover:bg-neutral-100"
+          aria-label={t`切换轨道自动化属性，当前 ${property === 'volume' ? 'Volume' : 'Pan'}`}
+          onClick={() => onPropertyChange(property === 'volume' ? 'pan' : 'volume')}
+        >{property === 'volume' ? 'V' : 'P'}</button>
+      </Tooltip>
+      <Tooltip content={property === 'volume' ? t`降低轨道音量` : t`向左调整声像`} side="top">
+        <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100" disabled={readOnly} onClick={() => adjust(-1)}>−</button>
+      </Tooltip>
+      <span className="w-9 whitespace-nowrap text-center font-mono text-2xs text-text" aria-label={t`当前轨道自动化值 ${label}`}>{property === 'volume' ? linearGainToDb(value).toFixed(1) : label}</span>
+      <Tooltip content={property === 'volume' ? t`提高轨道音量` : t`向右调整声像`} side="top">
+        <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100" disabled={readOnly} onClick={() => adjust(1)}>+</button>
+      </Tooltip>
+      <Tooltip content={current === null ? t`在播放头添加轨道关键帧` : t`删除播放头的轨道关键帧`} side="top">
+        <button
+          type="button"
+          className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', current !== null && 'text-accent-text')}
+          aria-label={current === null ? t`添加轨道关键帧` : t`删除轨道关键帧`}
+          disabled={readOnly}
+          onClick={() => onReplaceTrack(current === null
+            ? upsertTrackAudioKeyframe(track, property, timelineTimeSeconds, value, fps, globalThis.crypto.randomUUID())
+            : removeTrackAudioKeyframe(track, property, timelineTimeSeconds, fps))}
+        >
+          <Diamond className="size-3" fill={current === null ? 'none' : 'currentColor'} aria-hidden="true" />
+        </button>
+      </Tooltip>
+    </span>
+  );
+}
+
+function TimelineTrackAutomation({ track, property, scale, contentWidth, height, fps, readOnly, onReplaceTrack }: {
+  readonly track: TimelineTrack;
+  readonly property: TrackAudioProperty;
+  readonly scale: TimeScale;
+  readonly contentWidth: number;
+  readonly height: number;
+  readonly fps: number;
+  readonly readOnly: boolean;
+  readonly onReplaceTrack: (track: TimelineTrack) => void;
+}) {
+  const [draft, setDraft] = useState<{ readonly id: string; readonly time: number; readonly value: number } | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const gesture = useRef<{ readonly pointerId: number; readonly id: string } | null>(null);
+  const endTime = pxToTime(scale, contentWidth);
+  const keyframes = track.keyframes
+    .filter((keyframe) => keyframe.property === property)
+    .map((keyframe) => keyframe.id === draft?.id ? { ...keyframe, time: draft.time, value: draft.value } : keyframe)
+    .sort((left, right) => left.time - right.time);
+  const yForValue = (value: number) => (property === 'volume'
+    ? gainToTrackPercent(value)
+    : (1 - Math.min(1, Math.max(-1, value))) * 50) / 100 * Math.max(1, height - 8) + 4;
+  const points = [
+    { time: 0, value: evaluateTrackAudioProperty(track, property, 0) },
+    ...keyframes,
+    { time: endTime, value: evaluateTrackAudioProperty(track, property, endTime) },
+  ];
+  const updateDraft = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const active = gesture.current;
+    const lane = event.currentTarget.parentElement;
+    if (active === null || active.pointerId !== event.pointerId || lane === null) return;
+    const bounds = lane.getBoundingClientRect();
+    const time = snapTimeToFrame(pxToTime(scale, Math.min(contentWidth, Math.max(0, event.clientX - bounds.left))), fps);
+    const ratio = Math.min(1, Math.max(0, (event.clientY - bounds.top - 4) / Math.max(1, height - 8)));
+    const value = property === 'volume'
+      ? dbToLinearGain(MAX_CLIP_GAIN_DB + ratio * (MIN_CLIP_GAIN_DB - MAX_CLIP_GAIN_DB))
+      : 1 - ratio * 2;
+    setDraft({ id: active.id, time, value });
+  };
+  const commit = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    gesture.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    const replacement = draftRef.current;
+    setDraft(null);
+    if (replacement !== null) onReplaceTrack(moveTrackAudioKeyframe(track, replacement.id, replacement.time, replacement.value, fps));
+  };
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40" data-track-automation-property={property}>
+      <svg className="absolute inset-0 size-full overflow-visible" aria-hidden="true">
+        <polyline
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          className="text-accent-600"
+          points={points.map((point) => `${timeToPx(scale, point.time)},${yForValue(point.value)}`).join(' ')}
+        />
+      </svg>
+      {keyframes.map((keyframe) => (
+        <button
+          key={keyframe.id}
+          type="button"
+          className="pointer-events-auto absolute size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-accent-700 bg-bg hover:bg-accent-100 disabled:pointer-events-none"
+          style={{ left: timeToPx(scale, keyframe.time), top: yForValue(keyframe.value) }}
+          aria-label={t`${property === 'volume' ? 'Volume' : 'Pan'} 轨道关键帧 ${formatMillisecondTimecode(keyframe.time)}`}
+          disabled={readOnly}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            gesture.current = { pointerId: event.pointerId, id: keyframe.id };
+            setDraft({ id: keyframe.id, time: keyframe.time, value: keyframe.value });
+          }}
+          onPointerMove={updateDraft}
+          onPointerUp={commit}
+          onPointerCancel={() => { gesture.current = null; setDraft(null); }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+            event.preventDefault();
+            onReplaceTrack({ ...track, keyframes: track.keyframes.filter((candidate) => candidate.id !== keyframe.id) });
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function formatPan(value: number): string {
+  if (Math.abs(value) < 0.005) return 'C';
+  return `${value < 0 ? 'L' : 'R'}${Math.round(Math.abs(value) * 100)}`;
+}
+
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, timelineTimeSeconds = 0, fps = 60, automationProperty = 'volume', onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse, onAutomationPropertyChange }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
@@ -4861,15 +5056,22 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly syncLocked?: boolean | undefined;
   readonly syncLockVisible?: boolean | undefined;
   readonly collapsed?: boolean | undefined;
+  readonly timelineTimeSeconds?: number | undefined;
+  readonly fps?: number | undefined;
+  readonly automationProperty?: TrackAudioProperty | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
   readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
   readonly onTargetTrack?: ((trackId: string, kind: TimelineTrack['kind']) => void) | undefined;
   readonly onToggleSyncLock?: ((trackId: string, kind: TimelineTrack['kind'], allOfKind: boolean) => void) | undefined;
   readonly onToggleCollapse?: (() => void) | undefined;
+  readonly onAutomationPropertyChange?: ((property: TrackAudioProperty) => void) | undefined;
 }) {
   return (
-    <div className="sticky left-0 z-30 flex min-w-0 items-center gap-1 border-r border-divider bg-bg py-1 pl-10 pr-2 text-xs font-medium">
+    <div className={cn(
+      'sticky left-0 z-30 flex min-w-0 gap-1 border-r border-divider bg-bg pl-10 pr-2 text-xs font-medium',
+      controls === 'audio' && !collapsed ? 'items-start pb-7 pt-1' : 'items-center py-1',
+    )}>
       {track === undefined ? null : (
         <button
           type="button"
@@ -4966,6 +5168,17 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
             </>
           ) : null}
         </span>
+      )}
+      {track === undefined || controls !== 'audio' || collapsed ? null : (
+        <TimelineTrackAudioControls
+          track={track}
+          timelineTimeSeconds={timelineTimeSeconds}
+          fps={fps}
+          property={automationProperty}
+          readOnly={readOnly || track.locked}
+          onPropertyChange={(property) => onAutomationPropertyChange?.(property)}
+          onReplaceTrack={(replacement) => onReplaceTrack?.(replacement)}
+        />
       )}
     </div>
   );

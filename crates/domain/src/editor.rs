@@ -39,6 +39,7 @@ pub enum EditorKeyframeProperty {
     Rotation,
     Opacity,
     Volume,
+    Pan,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

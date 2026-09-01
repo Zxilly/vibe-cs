@@ -2588,6 +2588,22 @@ describe('unified project workspace', () => {
     expect(screen.queryByRole('button', { name: 'K 暂停时间轴' })).toBeNull();
   });
 
+  it('explains enabled and unavailable Timeline tools on hover or keyboard focus', async () => {
+    renderWorkspace();
+
+    const selection = await screen.findByRole('button', { name: '选择工具 (V)' });
+    fireEvent.focus(selection);
+    expect((await screen.findByRole('tooltip')).textContent).toContain('选择、移动和裁切时间轴片段');
+    fireEvent.blur(selection);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+
+    const slip = screen.getByRole('button', { name: '滑移工具 (Y)' }) as HTMLButtonElement;
+    expect(slip.disabled).toBe(true);
+    expect(slip.parentElement?.getAttribute('tabindex')).toBe('0');
+    fireEvent.focus(slip.parentElement as HTMLElement);
+    expect((await screen.findByRole('tooltip')).textContent).toContain('没有可滑移的未锁定媒体片段');
+  });
+
   it('reveals paused navigation and page-scrolls playback while track heads stay sticky', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     renderWorkspace({

@@ -103,6 +103,7 @@ import {
   type ProjectMediaDragPayload,
 } from './mediaDrag';
 import { clipLocalTimeAtTimeline, evaluateClipKeyframeProperty, setClipVolumeAtTime } from './keyframeEditing';
+import { closeAllTimelineGaps, closeTimelineGap, timelineGaps, type TimelineGap } from './timelineGaps';
 import {
   evaluateTrackAudioProperty,
   moveTrackAudioKeyframe,
@@ -166,6 +167,10 @@ interface SelectedTimelineTransition {
   readonly clipId: string;
   readonly channel: 'video' | 'audio';
   readonly edge: 'in' | 'out';
+}
+
+interface SelectedTimelineGap extends TimelineGap {
+  readonly trackId: string;
 }
 
 export interface TimelineMediaDrop {
@@ -366,6 +371,7 @@ export function ProjectTimeline({
   const [clipboard, setClipboard] = useState<TimelineClipboard | null>(null);
   const [transitionClipboard, setTransitionClipboard] = useState<TimelineCutTransition | null>(null);
   const [selectedTransition, setSelectedTransition] = useState<SelectedTimelineTransition | null>(null);
+  const [selectedGap, setSelectedGap] = useState<SelectedTimelineGap | null>(null);
   const [clipboardSessionProjectId, setClipboardSessionProjectId] = useState<string | null>(null);
   useEffect(() => {
     setClipboard(readTimelineClipboard(projectId, globalThis.localStorage));
@@ -406,6 +412,9 @@ export function ProjectTimeline({
         selectedTransition.edge,
         document.fps,
       );
+  const selectedGapTrack = selectedGap === null
+    ? null
+    : document.tracks.find((track) => track.id === selectedGap.trackId) ?? null;
   useEffect(() => {
     if (selectedTransition === null) return;
     const track = document.tracks.find((candidate) => candidate.id === selectedTransition.trackId);
@@ -415,6 +424,13 @@ export function ProjectTimeline({
       setSelectedTransition(null);
     }
   }, [document.tracks, selectedClipIds, selectedTransition]);
+  useEffect(() => {
+    if (selectedGap === null) return;
+    const exists = selectedGapTrack !== null && timelineGaps(selectedGapTrack.clips).some((gap) => (
+      Math.abs(gap.start - selectedGap.start) <= 1e-6 && Math.abs(gap.end - selectedGap.end) <= 1e-6
+    ));
+    if (!exists) setSelectedGap(null);
+  }, [selectedGap, selectedGapTrack]);
   const targetTrackIdSet = useMemo(() => new Set(targetTrackIds), [targetTrackIds]);
   const syncLockedTrackIdSet = useMemo(() => new Set(syncLockedTrackIds), [syncLockedTrackIds]);
   const targetedTracks = useMemo(
@@ -681,6 +697,14 @@ export function ProjectTimeline({
     !track.locked && track.clips.some((clip) => clipCrossesTime(clip, editPlayheadSeconds))
   ));
   const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
+  const canCloseSelectedGap = !readOnly
+    && selectedGap !== null
+    && selectedGapTrack?.locked === false
+    && selectedGapTrack.id !== document.story_track_id;
+  const targetedGapTracks = targetedTracks.filter((track) => (
+    !track.locked && track.id !== document.story_track_id && timelineGaps(track.clips).length > 0
+  ));
+  const canCloseAllGaps = !readOnly && targetedGapTracks.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
   const selectedClipboard = canCopy ? timelineClipboardFromSelection(selectedTrackGroups) : null;
   const canToggleClipEnabled = !readOnly && editableSelectedTrackGroups.length > 0;
@@ -979,6 +1003,19 @@ export function ProjectTimeline({
     const updatesByTrack = new Map(videoUpdates.map((update) => [update.trackId, update]));
     for (const update of audioUpdates) updatesByTrack.set(update.trackId, update);
     if (updatesByTrack.size > 0) onReplaceTrackClipGroups([...updatesByTrack.values()]);
+  };
+  const closeSelectedGap = () => {
+    if (!canCloseSelectedGap || selectedGap === null || selectedGapTrack === null) return;
+    onReplaceTrackClips(selectedGapTrack.id, closeTimelineGap(selectedGapTrack.clips, selectedGap));
+    setSelectedGap(null);
+  };
+  const closeAllTargetGaps = () => {
+    if (!canCloseAllGaps) return;
+    onReplaceTrackClipGroups(targetedGapTracks.map((track) => ({
+      trackId: track.id,
+      clips: closeAllTimelineGaps(track.clips),
+    })));
+    setSelectedGap(null);
   };
   const replaceSelectedCutTransition = (transition: TimelineCutTransition | null) => {
     if (readOnly || selectedTransition === null || selectedTransitionTrack === null || selectedTransitionTrack.locked) return;
@@ -1917,6 +1954,11 @@ export function ProjectTimeline({
           extractRange();
           return;
         }
+        if ((event.key === 'Delete' || event.key === 'Backspace') && canCloseSelectedGap) {
+          event.preventDefault();
+          closeSelectedGap();
+          return;
+        }
         if ((event.key === 'Delete' || event.key === 'Backspace') && canDelete) {
           event.preventDefault();
           deleteSelected();
@@ -2021,6 +2063,8 @@ export function ProjectTimeline({
             { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
             { id: 'paste-transition', label: t`粘贴转场到所选剪辑点`, disabled: !canPasteTransition, onSelect: pasteSelectedTransition },
             { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
+            { id: 'close-gap', label: t`波纹删除所选间隙`, disabled: !canCloseSelectedGap, onSelect: closeSelectedGap },
+            { id: 'close-all-gaps', label: t`关闭目标轨全部间隙`, disabled: !canCloseAllGaps, onSelect: closeAllTargetGaps },
             { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
             { id: 'redo', label: t`重做上一次剪辑`, disabled: !canRedo || readOnly, onSelect: onRedo },
           ]}
@@ -2264,6 +2308,7 @@ export function ProjectTimeline({
               selectedClipId={selectedClipId}
               selectedClipIds={selectedClipIdSet}
               selectedTransition={selectedTransition}
+              selectedGap={selectedGap}
               selectedEditPoint={selectedEditPoint}
               deliveryStateByClipId={deliveryStateByClipId}
               outOfSyncFramesByClipId={outOfSyncFramesByClipId}
@@ -2272,6 +2317,11 @@ export function ProjectTimeline({
               readOnly={readOnly}
               onSelectClip={onSelectClip}
               onSelectTransition={setSelectedTransition}
+              onSelectGap={(gap) => {
+                setSelectedTransition(null);
+                onSelectClips([]);
+                setSelectedGap({ trackId: track.track.id, ...gap });
+              }}
               onSelectEditPoint={(clipId, edge) => {
                 setSelectedEditPoint({ clipId, edge });
                 onSelectClip(clipId, false, false);
@@ -2950,13 +3000,14 @@ function timelineClipboardFromSelection(
   };
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedEditPoint, deliveryStateByClipId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedGap, selectedEditPoint, deliveryStateByClipId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
   readonly selectedTransition: SelectedTimelineTransition | null;
+  readonly selectedGap: SelectedTimelineGap | null;
   readonly selectedEditPoint: { readonly clipId: string; readonly edge: 'start' | 'end' } | null;
   readonly deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly outOfSyncFramesByClipId: ReadonlyMap<string, number>;
@@ -2965,6 +3016,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onSelectTransition: (transition: SelectedTimelineTransition | null) => void;
+  readonly onSelectGap: (gap: TimelineGap) => void;
   readonly onSelectEditPoint: (clipId: string, edge: 'start' | 'end') => void;
   readonly onPromoteClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
@@ -3199,6 +3251,31 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             audio={track.kind === 'audio'}
           />
         ) : null}
+        {track.track.id === storyTrackId ? null : timelineGaps(track.track.clips).map((gap) => {
+          const active = selectedGap?.trackId === track.track.id
+            && Math.abs(selectedGap.start - gap.start) <= 1e-6
+            && Math.abs(selectedGap.end - gap.end) <= 1e-6;
+          return <button
+            key={`gap:${gap.start}:${gap.end}`}
+            type="button"
+            className={cn(
+              'absolute inset-y-1 z-10 min-w-1 border border-dashed border-neutral-300 bg-neutral-100/45 text-2xs text-neutral-500 outline-none hover:border-accent-400 hover:bg-accent-100/50 focus-visible:ring-2 focus-visible:ring-accent-500',
+              active && 'border-accent-600 bg-accent-100 ring-2 ring-inset ring-accent-600',
+            )}
+            style={{ left: timeToPx(scale, gap.start), width: Math.max(2, timeToPx(scale, gap.duration)) }}
+            aria-label={t`间隙 ${track.label} ${formatMillisecondTimecode(gap.start)} 到 ${formatMillisecondTimecode(gap.end)}`}
+            aria-pressed={active}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onSelectGap(gap);
+            }}
+          >{timeToPx(scale, gap.duration) >= 56 ? <Trans>间隙</Trans> : null}</button>;
+        })}
         {track.clips.map((clip) => (
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
@@ -3459,6 +3536,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.selectedClipId === next.selectedClipId
   && previous.selectedClipIds === next.selectedClipIds
   && previous.selectedTransition === next.selectedTransition
+  && previous.selectedGap === next.selectedGap
   && previous.outOfSyncFramesByClipId === next.outOfSyncFramesByClipId
   && previous.selectedEditPoint === next.selectedEditPoint
   && previous.editTool === next.editTool

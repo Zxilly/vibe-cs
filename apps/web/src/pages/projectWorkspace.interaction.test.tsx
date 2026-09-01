@@ -1995,6 +1995,58 @@ describe('unified project workspace', () => {
     expect(clips[1]?.id).not.toBe(CLIP_A);
   });
 
+  it('selects and closes one or every free-track gap', async () => {
+    const bRollId = '00000000-0000-4000-8000-000000000210';
+    const freeProject: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: [...PROJECT.document.tracks, {
+          id: bRollId, name: 'B-Roll', kind: 'video', order: 2,
+          muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false,
+          clips: [
+            { ...clip('00000000-0000-4000-8000-000000000211', 'X'), placement: { ...clip('00000000-0000-4000-8000-000000000211', 'X').placement, start: 2, duration: 2, source_out: 2 } },
+            { ...clip('00000000-0000-4000-8000-000000000212', 'Y'), placement: { ...clip('00000000-0000-4000-8000-000000000212', 'Y').placement, start: 7, duration: 1, source_out: 1 } },
+          ],
+        }],
+      },
+    };
+    const oneGapPatch = vi.fn();
+    const first = renderWorkspace({ project: freeProject, applyProjectPatch: oneGapPatch });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const gap = screen.getByRole('button', { name: '间隙 B-Roll 00:04.000 到 00:07.000' });
+    fireEvent.click(gap);
+    expect(gap.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(timeline, { key: 'Delete' });
+    await waitFor(() => expect(oneGapPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips', track_id: bRollId,
+        clips: [
+          expect.objectContaining({ name: 'X', placement: expect.objectContaining({ start: 2 }) }),
+          expect.objectContaining({ name: 'Y', placement: expect.objectContaining({ start: 4 }) }),
+        ],
+      }],
+    })));
+    first.unmount();
+
+    const allGapsPatch = vi.fn();
+    renderWorkspace({ project: freeProject, applyProjectPatch: allGapsPatch });
+    await screen.findByRole('button', { name: '设为目标轨道 B-Roll' });
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 视频轨道 1' }));
+    fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 B-Roll' }));
+    openTimelineCommands();
+    fireEvent.click(screen.getByRole('menuitem', { name: '关闭目标轨全部间隙' }));
+    await waitFor(() => expect(allGapsPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips', track_id: bRollId,
+        clips: [
+          expect.objectContaining({ name: 'X', placement: expect.objectContaining({ start: 0 }) }),
+          expect.objectContaining({ name: 'Y', placement: expect.objectContaining({ start: 2 }) }),
+        ],
+      }],
+    })));
+  });
+
   it('recovers Timeline selection, transport marks and clipboard after remount', async () => {
     const first = renderWorkspace();
     const timeline = await screen.findByRole('region', { name: '时间轴' });

@@ -81,6 +81,7 @@ import {
   projectHistoryCommands,
   ProjectTimeline,
   ProjectWorkspaceDock,
+  readTimelineWorkspaceSession,
   resetProjectWorkspaceLayout,
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
@@ -104,6 +105,7 @@ import {
   setClipSpeedSegmentSpeed,
   splitClipSpeedSegment,
   upsertClipKeyframe,
+  writeTimelineWorkspaceSession,
   type SupportedEditorEffectKind,
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
@@ -233,6 +235,7 @@ export function ProjectWorkspacePage() {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [loopPlaybackEnabled, setLoopPlaybackEnabled] = useState(false);
+  const [timelineSessionReadyProjectId, setTimelineSessionReadyProjectId] = useState<string | null>(null);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
@@ -298,6 +301,69 @@ export function ProjectWorkspacePage() {
       { onSuccess: (created) => void navigate(`/projects/${encodeURIComponent(created.id)}`, { replace: true }) },
     );
   }, [create, navigate, projectId]);
+
+  useLayoutEffect(() => {
+    const loaded = project.data;
+    if (loaded === undefined || timelineSessionReadyProjectId === loaded.id) return;
+    const session = readTimelineWorkspaceSession(loaded.id, globalThis.localStorage);
+    if (session !== null) {
+      const allClipIds = new Set(loaded.document.tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+      const editableTrackIds = new Set(loaded.document.tracks.filter((track) => !track.locked).map((track) => track.id));
+      const allTrackIds = new Set(loaded.document.tracks.map((track) => track.id));
+      const targets = session.targetTrackIds.filter((trackId) => editableTrackIds.has(trackId));
+      const targetTracks = targets.map((trackId) => loaded.document.tracks.find((track) => track.id === trackId)!);
+      setLinkedSelectionEnabled(session.linkedSelectionEnabled);
+      setSelectedClipIds(session.selectedClipIds.filter((clipId) => allClipIds.has(clipId)));
+      setTargetTrackIds(new Set(targets));
+      setTargetTrackId(targets.at(-1) ?? null);
+      const reversedTargetTracks = [...targetTracks].reverse();
+      setMediaTargetTrackIds({
+        video: reversedTargetTracks.find((track) => track.kind === 'video')?.id ?? null,
+        audio: reversedTargetTracks.find((track) => track.kind === 'audio')?.id ?? null,
+      });
+      setSyncLockedTrackIds(new Set(session.syncLockedTrackIds.filter((trackId) => allTrackIds.has(trackId))));
+      setTimelineTimeSeconds(Math.min(loaded.document.duration_seconds, session.timelineTimeSeconds));
+      setRangeInSeconds(session.rangeInSeconds === null ? null : Math.min(loaded.document.duration_seconds, session.rangeInSeconds));
+      setRangeOutSeconds(session.rangeOutSeconds === null ? null : Math.min(loaded.document.duration_seconds, session.rangeOutSeconds));
+      setLoopPlaybackEnabled(session.loopPlaybackEnabled);
+      initializedSelectionProjectId.current = loaded.id;
+      initializedTargetProjectId.current = loaded.id;
+      initializedSyncLockProjectId.current = loaded.id;
+      knownSyncLockTrackIds.current = allTrackIds;
+    }
+    setTimelineSessionReadyProjectId(loaded.id);
+  }, [project.data, timelineSessionReadyProjectId]);
+
+  useEffect(() => {
+    const loaded = project.data;
+    if (loaded === undefined || timelineSessionReadyProjectId !== loaded.id) return undefined;
+    const timer = globalThis.setTimeout(() => writeTimelineWorkspaceSession(
+      loaded.id,
+      globalThis.localStorage,
+      {
+        selectedClipIds,
+        targetTrackIds: [...targetTrackIds],
+        syncLockedTrackIds: [...syncLockedTrackIds],
+        linkedSelectionEnabled,
+        timelineTimeSeconds,
+        rangeInSeconds,
+        rangeOutSeconds,
+        loopPlaybackEnabled,
+      },
+    ), 250);
+    return () => globalThis.clearTimeout(timer);
+  }, [
+    linkedSelectionEnabled,
+    loopPlaybackEnabled,
+    project.data,
+    rangeInSeconds,
+    rangeOutSeconds,
+    selectedClipIds,
+    syncLockedTrackIds,
+    targetTrackIds,
+    timelineSessionReadyProjectId,
+    timelineTimeSeconds,
+  ]);
 
   useEffect(() => {
     const loaded = project.data;
@@ -811,6 +877,7 @@ export function ProjectWorkspacePage() {
   const timelinePanel = (
     <ProjectTimeline
       docked
+      projectId={current.id}
       document={current.document}
       deliveryStateByClipId={deliveryStateByClipId}
       selectedClipId={selectedClipId}

@@ -7,6 +7,11 @@ export {
   type ProjectSourceRange,
 } from './ProjectMediaPanel';
 export { planSourceMediaEdit, replaceTimelineClipSource, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
+export {
+  readTimelineWorkspaceSession,
+  writeTimelineWorkspaceSession,
+  type TimelineWorkspaceSession,
+} from './timelineWorkspaceSession';
 export { planTimelineAddEdit, type TimelineAddEditPlan, type TimelineAddEditUpdate } from './timelineAddEdit';
 export {
   planTimelinePasteInsert,

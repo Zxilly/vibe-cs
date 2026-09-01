@@ -1920,6 +1920,39 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('recovers Timeline selection, transport marks and clipboard after remount', async () => {
+    const first = renderWorkspace();
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.pointerDown(clipB, { pointerId: 311, button: 0, clientX: 500 });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    stepTimelineSeconds(playhead, 3);
+    fireEvent.keyDown(timeline, { key: 'i' });
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.keyDown(timeline, { key: 'o' });
+    fireEvent.click(screen.getByRole('button', { name: '切换循环播放' }));
+    fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(globalThis.localStorage.getItem(`vibe-cs:timeline-session:${PROJECT.id}`)).not.toBeNull();
+      expect(globalThis.localStorage.getItem(`vibe-cs:timeline-clipboard:${PROJECT.id}`)).not.toBeNull();
+    }, { timeout: 2_000 });
+    first.unmount();
+
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+    const restoredPlayhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    await waitFor(() => expect(Number(restoredPlayhead.getAttribute('aria-valuenow'))).toBeCloseTo(5));
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).toContain('ring-accent');
+    expect(screen.getByLabelText('入出点范围 00:03.000 到 00:05.000')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '切换循环播放' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'v', ctrlKey: true });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({ op: 'replace_track_clips', track_id: STORY_ID })],
+    })));
+  }, 20_000);
+
   it('cuts the selected Story clip into the Timeline clipboard with Ctrl+X', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });

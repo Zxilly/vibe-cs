@@ -103,6 +103,7 @@ import {
   upsertTrackAudioKeyframe,
   type TrackAudioProperty,
 } from './trackAudioEditing';
+import { readTimelineClipboard, writeTimelineClipboard } from './timelineWorkspaceSession';
 import {
   deleteRippleClips,
   extractTimelineRange,
@@ -160,6 +161,7 @@ export interface TimelineMediaDrop {
 
 export interface ProjectTimelineProps {
   readonly docked?: boolean;
+  readonly projectId: string;
   readonly document: EditingDocument;
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly selectedClipId: string | null;
@@ -239,6 +241,7 @@ function defaultTrackHeight(track: RenderedTrack): number {
  */
 export function ProjectTimeline({
   docked = false,
+  projectId,
   document,
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   selectedClipId,
@@ -344,6 +347,15 @@ export function ProjectTimeline({
   const marqueeScrollFrameRef = useRef<number | null>(null);
   const marqueeWindowMouseUpRef = useRef<(() => void) | null>(null);
   const [clipboard, setClipboard] = useState<TimelineClipboard | null>(null);
+  const [clipboardSessionProjectId, setClipboardSessionProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    setClipboard(readTimelineClipboard(projectId, globalThis.localStorage));
+    setClipboardSessionProjectId(projectId);
+  }, [projectId]);
+  useEffect(() => {
+    if (clipboardSessionProjectId !== projectId) return;
+    writeTimelineClipboard(projectId, globalThis.localStorage, clipboard);
+  }, [clipboard, clipboardSessionProjectId, projectId]);
   useEffect(() => {
     if (selectedMarkerId !== null && !document.markers.some((marker) => marker.id === selectedMarkerId)) {
       setSelectedMarkerId(null);

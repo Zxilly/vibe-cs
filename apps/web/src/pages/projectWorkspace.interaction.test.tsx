@@ -4991,6 +4991,38 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('resolves a four-point duration mismatch through Fit to Fill', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-fit', project_id: PROJECT.id, path: 'D:\\media\\fit.mp4', name: 'Fit source', kind: 'video',
+      duration_seconds: 6, width: 1920, height: 1080, file_size: 4_096, has_audio: true,
+      proxy_path: null, proxy_status: { status: 'not_requested' }, waveform: null,
+      metadata_status: { status: 'ready' }, created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, assets: [asset], applyProjectPatch });
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
+    stepTimelineSeconds(playhead, 4);
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记出点' }));
+    fireEvent.click(screen.getByRole('option', { name: '选择素材 Fit source' }));
+    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Fit source' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Fit Clip：范围时长不同' });
+    expect((within(dialog).getByRole('radio', { name: '更改片段速度（Fit to Fill）' }) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: '应用四点编辑' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: expect.arrayContaining([expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: expect.arrayContaining([expect.objectContaining({
+          name: 'Fit source',
+          placement: expect.objectContaining({ start: 2, duration: 4, source_in: 0, source_out: 6, speed: 1.5 }),
+        })]),
+      })]),
+    })));
+  });
+
   it('drags Project Media onto Story through shared Timeline geometry and Ctrl Insert semantics', async () => {
     const asset: MediaAsset = {
       id: 'asset-drag-video',

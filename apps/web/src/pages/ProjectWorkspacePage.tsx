@@ -75,6 +75,7 @@ import {
   editorEffectParameter,
   planSourceMediaEdit,
   replaceTimelineClipSource,
+  resolveSourceMediaFit,
   projectMediaAssetKind,
   mediaAssetEditDuration,
   ProjectMediaPanel,
@@ -95,6 +96,7 @@ import {
   type ProjectSourcePatch,
   type ProjectSourcePatchTargets,
   type ProjectSourceRange,
+  type SourceMediaFitMode,
   trimRippleClip,
   removeClipKeyframe,
   isSupportedEditorEffectKind,
@@ -246,6 +248,13 @@ export function ProjectWorkspacePage() {
   const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
   const [matchedSourceFrame, setMatchedSourceFrame] = useState<{ readonly clipId: string; readonly sourceTime: number } | null>(null);
   const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
+  const [pendingFitEdit, setPendingFitEdit] = useState<{
+    readonly asset: MediaAsset;
+    readonly mode: 'insert' | 'overwrite';
+    readonly sourceRange: ProjectSourceRange;
+    readonly sourcePatch: ProjectSourcePatch;
+  } | null>(null);
+  const [sourceFitMode, setSourceFitMode] = useState<SourceMediaFitMode>('fit_to_fill');
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
@@ -504,6 +513,14 @@ export function ProjectWorkspacePage() {
   const hasExportRange = exportRangeStart !== null
     && exportRangeEnd !== null
     && exportRangeEnd - exportRangeStart >= 1 / current.document.fps;
+  const pendingFitResolution = pendingFitEdit === null || exportRangeStart === null || exportRangeEnd === null
+    ? null
+    : resolveSourceMediaFit({
+        sourceRange: pendingFitEdit.sourceRange,
+        sequenceRange: { start: exportRangeStart, end: exportRangeEnd },
+        mediaDuration: mediaAssetEditDuration(pendingFitEdit.asset) ?? 0,
+        mode: sourceFitMode,
+      });
   const loopPlaybackRange = !loopPlaybackEnabled
     ? null
     : hasExportRange
@@ -675,9 +692,31 @@ export function ProjectWorkspacePage() {
       video: projectMediaAssetKind(asset) === 'video',
       audio: projectMediaAssetKind(asset) === 'audio',
     },
+    fitMode?: SourceMediaFitMode,
   ) => {
-    if (mediaAssetEditDuration(asset) === null) return;
-    const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);
+    const mediaDuration = mediaAssetEditDuration(asset);
+    if (mediaDuration === null) return;
+    const sequenceRange = hasExportRange ? { start: exportRangeStart, end: exportRangeEnd } : null;
+    const sourceDuration = sourceRange === undefined ? null : sourceRange.sourceOut - sourceRange.sourceIn;
+    if (placement === undefined
+      && sourceRange !== undefined
+      && sequenceRange !== null
+      && fitMode === undefined
+      && sourceDuration !== null
+      && Math.abs(sourceDuration - (sequenceRange.end - sequenceRange.start)) > 0.5 / current.document.fps) {
+      setPendingFitEdit({ asset, mode, sourceRange, sourcePatch });
+      setSourceFitMode('fit_to_fill');
+      return;
+    }
+    const fit = placement === undefined && sourceRange !== undefined && sequenceRange !== null
+      ? resolveSourceMediaFit({ sourceRange, sequenceRange, mediaDuration, mode: fitMode ?? 'fit_to_fill' })
+      : null;
+    if (placement === undefined && sourceRange !== undefined && sequenceRange !== null && fit === null) return;
+    const editTimeSeconds = snapTimeToFrame(
+      fit?.editTimeSeconds ?? placement?.timeSeconds ?? transportTimeSeconds,
+      current.document.fps,
+    );
+    const effectiveSourceRange = fit?.sourceRange ?? sourceRange;
     const directTarget = placement === undefined ? null : mediaTargetTrack(asset, placement.trackId);
     const effectivePatch = placement === undefined ? sourcePatch : {
       video: directTarget?.kind === 'video',
@@ -699,7 +738,8 @@ export function ProjectWorkspacePage() {
       tracks: plan,
       mode,
       editTimeSeconds,
-      sourceRange,
+      sourceRange: effectiveSourceRange,
+      ...(fit === null ? {} : { timelineDurationSeconds: fit.timelineDurationSeconds, speed: fit.speed }),
       newAudioTrackName: t`音频轨道 ${current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1}`,
       createId: () => globalThis.crypto.randomUUID(),
     });
@@ -1179,6 +1219,42 @@ export function ProjectWorkspacePage() {
           agent: t`Agent`,
         }}
       />
+      <Dialog
+        open={pendingFitEdit !== null}
+        title={<Trans>Fit Clip：范围时长不同</Trans>}
+        confirmLabel={<Trans>应用四点编辑</Trans>}
+        confirmDisabled={pendingFitResolution === null}
+        onConfirm={() => {
+          if (pendingFitEdit === null || pendingFitResolution === null) return;
+          const edit = pendingFitEdit;
+          setPendingFitEdit(null);
+          addMediaAsset(edit.asset, edit.mode, undefined, edit.sourceRange, edit.sourcePatch, sourceFitMode);
+        }}
+        onClose={() => setPendingFitEdit(null)}
+      >
+        <p className="mb-3"><Trans>Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点编辑。</Trans></p>
+        <div className="space-y-2">
+          {([
+            ['fit_to_fill', t`更改片段速度（Fit to Fill）`],
+            ['trim_head', t`裁切片段头部（左侧）`],
+            ['trim_tail', t`裁切片段尾部（右侧）`],
+            ['ignore_sequence_in', t`忽略 Timeline 入点`],
+            ['ignore_sequence_out', t`忽略 Timeline 出点`],
+          ] as const).map(([mode, label]) => {
+            const available = pendingFitEdit !== null && exportRangeStart !== null && exportRangeEnd !== null
+              && resolveSourceMediaFit({
+                sourceRange: pendingFitEdit.sourceRange,
+                sequenceRange: { start: exportRangeStart, end: exportRangeEnd },
+                mediaDuration: mediaAssetEditDuration(pendingFitEdit.asset) ?? 0,
+                mode,
+              }) !== null;
+            return <label key={mode} className="flex items-center gap-2 rounded-sm border border-divider px-3 py-2 text-xs">
+              <input type="radio" name="source-fit-mode" value={mode} checked={sourceFitMode === mode} disabled={!available} onChange={() => setSourceFitMode(mode)} />
+              <span>{label}</span>
+            </label>;
+          })}
+        </div>
+      </Dialog>
       <Dialog
         open={externalConfirm?.kind === 'recording'}
         title={<Trans>录制缺失片段</Trans>}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EditingDocument, MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
-import { planSourceMediaEdit, replaceTimelineClipSource } from './sourceMediaEditing';
+import { planSourceMediaEdit, replaceTimelineClipSource, resolveSourceMediaFit } from './sourceMediaEditing';
 
 function clip(id: string, start: number, duration: number): TimelineClip {
   return {
@@ -63,6 +63,15 @@ function ids() {
 }
 
 describe('source media editing', () => {
+  it('resolves all Premiere four-point Fit Clip choices', () => {
+    const input = { sourceRange: { sourceIn: 2, sourceOut: 8 }, sequenceRange: { start: 10, end: 14 }, mediaDuration: 12 };
+    expect(resolveSourceMediaFit({ ...input, mode: 'fit_to_fill' })).toEqual({ sourceRange: input.sourceRange, editTimeSeconds: 10, timelineDurationSeconds: 4, speed: 1.5 });
+    expect(resolveSourceMediaFit({ ...input, mode: 'trim_head' })).toMatchObject({ sourceRange: { sourceIn: 4, sourceOut: 8 }, editTimeSeconds: 10, speed: 1 });
+    expect(resolveSourceMediaFit({ ...input, mode: 'trim_tail' })).toMatchObject({ sourceRange: { sourceIn: 2, sourceOut: 6 }, editTimeSeconds: 10, speed: 1 });
+    expect(resolveSourceMediaFit({ ...input, mode: 'ignore_sequence_in' })).toMatchObject({ editTimeSeconds: 8, timelineDurationSeconds: 6 });
+    expect(resolveSourceMediaFit({ ...input, mode: 'ignore_sequence_out' })).toMatchObject({ editTimeSeconds: 10, timelineDurationSeconds: 6 });
+  });
+
   it('replaces source media while preserving the Timeline edit and authored attributes', () => {
     const original: TimelineClip = {
       ...clip('replace-me', 3, 2),

@@ -6,7 +6,7 @@ export {
   type ProjectSourcePatchTargets,
   type ProjectSourceRange,
 } from './ProjectMediaPanel';
-export { planSourceMediaEdit, replaceTimelineClipSource, type SourceMediaEditPlan, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
+export { planSourceMediaEdit, replaceTimelineClipSource, resolveSourceMediaFit, type SourceMediaEditPlan, type SourceMediaFitMode, type SourceMediaPatch, type SourceMediaTrackPlan } from './sourceMediaEditing';
 export {
   readTimelineWorkspaceSession,
   writeTimelineWorkspaceSession,

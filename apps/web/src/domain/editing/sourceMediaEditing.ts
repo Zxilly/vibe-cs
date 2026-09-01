@@ -26,6 +26,43 @@ export interface SourceMediaEditPlan {
   readonly selectedAudioTrackId: string | null;
 }
 
+export type SourceMediaFitMode = 'fit_to_fill' | 'trim_head' | 'trim_tail' | 'ignore_sequence_in' | 'ignore_sequence_out';
+
+export interface ResolvedSourceMediaFit {
+  readonly sourceRange: { readonly sourceIn: number; readonly sourceOut: number };
+  readonly editTimeSeconds: number;
+  readonly timelineDurationSeconds: number;
+  readonly speed: number;
+}
+
+export function resolveSourceMediaFit({ sourceRange, sequenceRange, mediaDuration, mode }: {
+  readonly sourceRange: { readonly sourceIn: number; readonly sourceOut: number };
+  readonly sequenceRange: { readonly start: number; readonly end: number };
+  readonly mediaDuration: number;
+  readonly mode: SourceMediaFitMode;
+}): ResolvedSourceMediaFit | null {
+  const sourceDuration = sourceRange.sourceOut - sourceRange.sourceIn;
+  const sequenceDuration = sequenceRange.end - sequenceRange.start;
+  if (sourceDuration <= 0 || sequenceDuration <= 0) return null;
+  if (mode === 'fit_to_fill') {
+    return { sourceRange, editTimeSeconds: sequenceRange.start, timelineDurationSeconds: sequenceDuration, speed: sourceDuration / sequenceDuration };
+  }
+  if (mode === 'trim_head') {
+    const sourceIn = sourceRange.sourceOut - sequenceDuration;
+    if (sourceIn < 0) return null;
+    return { sourceRange: { sourceIn, sourceOut: sourceRange.sourceOut }, editTimeSeconds: sequenceRange.start, timelineDurationSeconds: sequenceDuration, speed: 1 };
+  }
+  if (mode === 'trim_tail') {
+    const sourceOut = sourceRange.sourceIn + sequenceDuration;
+    if (sourceOut > mediaDuration) return null;
+    return { sourceRange: { sourceIn: sourceRange.sourceIn, sourceOut }, editTimeSeconds: sequenceRange.start, timelineDurationSeconds: sequenceDuration, speed: 1 };
+  }
+  if (mode === 'ignore_sequence_in') {
+    return { sourceRange, editTimeSeconds: Math.max(0, sequenceRange.end - sourceDuration), timelineDurationSeconds: sourceDuration, speed: 1 };
+  }
+  return { sourceRange, editTimeSeconds: sequenceRange.start, timelineDurationSeconds: sourceDuration, speed: 1 };
+}
+
 export function replaceTimelineClipSource({ clip, track, asset, sourceRange }: {
   readonly clip: TimelineClip;
   readonly track: TimelineTrack;
@@ -84,6 +121,8 @@ export function planSourceMediaEdit({
   mode,
   editTimeSeconds,
   sourceRange,
+  timelineDurationSeconds,
+  speed,
   newAudioTrackName,
   createId,
 }: {
@@ -94,10 +133,20 @@ export function planSourceMediaEdit({
   readonly mode: 'insert' | 'overwrite';
   readonly editTimeSeconds: number;
   readonly sourceRange?: { readonly sourceIn: number; readonly sourceOut: number } | undefined;
+  readonly timelineDurationSeconds?: number | undefined;
+  readonly speed?: number | undefined;
   readonly newAudioTrackName: string;
   readonly createId: () => string;
 }): SourceMediaEditPlan | null {
-  const baseClip = timelineClipFromMediaAsset(asset, createId(), sourceRange);
+  const sourceClip = timelineClipFromMediaAsset(asset, createId(), sourceRange);
+  const baseClip = timelineDurationSeconds === undefined ? sourceClip : {
+    ...sourceClip,
+    placement: {
+      ...sourceClip.placement,
+      duration: timelineDurationSeconds,
+      speed: speed ?? (sourceClip.placement.source_out - sourceClip.placement.source_in) / timelineDurationSeconds,
+    },
+  };
   if (baseClip.placement.duration < 1 / document.fps) return null;
   const separateAudio = sourcePatch.audio && !tracks.embeddedAudio;
   const linked = sourcePatch.video && separateAudio ? createId() : null;

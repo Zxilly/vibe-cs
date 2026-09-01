@@ -179,7 +179,7 @@ Adobe 的基准行为参考 [Select clips](https://helpx.adobe.com/premiere/desk
 | TL-TRACK-03 | 重排轨道 | 非 Story 轨上下重排，保持 ID 和片段 | ✅ | P1 |
 | TL-TRACK-04 | 轨道锁定 | 锁定轨可看不可改，链接编辑不穿透锁 | ✅ | P0 |
 | TL-TRACK-05 | 输出控制 | 视频/文字 Eye，音频 Mute，Program 和导出一致 | ✅ | P0 |
-| TL-TRACK-06 | Solo | 单独监听一条或多条音频轨 | ⬜ | P2 |
+| TL-TRACK-06 | Solo | 单独监听一条或多条音频轨 | ✅ | P2 |
 | TL-TRACK-07 | 轨道命名 | 内联或 Inspector 重命名，保持 track ID | ⬜ | P2 |
 | TL-TRACK-08 | 跨轨移动 | 兼容片段可垂直拖到另一条轨并一次提交；自由轨使用 Overwrite；Story compound 离开 Story 时拆成共享 Link Group 的视频/音频，进入 Story 时重新合并；缺少音频轨时同一 Patch 创建 | ✅ | P1 |
 
@@ -255,9 +255,9 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | --- | --- | --- | --- | --- |
 | TL-AUD-01 | 波形 | 录制/导入素材生成真实波形；高缩放下不伪造细节 | ✅ | P0 |
 | TL-AUD-02 | Clip Gain | dB Rubber Band，拖动和键盘微调，限制与渲染器一致 | ✅ | P1 |
-| TL-AUD-03 | Volume Keyframes | Clip/Track 级 Volume keyframe；Program/Export 预览一致 | 🟡 Clip 已实现；Track automation 缺失 | P1 |
+| TL-AUD-03 | Volume Keyframes | Clip/Track 级 Volume keyframe；Program/Export 预览一致 | ✅ | P1 |
 | TL-AUD-04 | 音频转场/Fade | 时间轴内调整淡入淡出，使用统一 transition schema | ✅ | P1 |
-| TL-AUD-05 | Pan/Balance | 轨道和片段 Pan，关键帧自动化 | ⬜ | P2 |
+| TL-AUD-05 | Pan/Balance | 轨道和片段 Pan，关键帧自动化 | ✅ | P2 |
 | TL-AUD-06 | Mixer | Track Mixer、Mute/Solo、表头、峰值表、Automation modes | ⬜ | P3 |
 | TL-AUD-07 | 音画同步提示 | Unlink 时记录最小相对同步参考；单侧移动后双方显示带符号帧差；恢复按钮按另一侧位移对齐，支持 Pointer/键盘并提交一个 Clip operation | ✅ | P2 |
 
@@ -411,6 +411,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Group 与 Link 使用独立 identity 和选择规则；Unlink 后单侧移动时，视频显示 `+1f`、音频显示 `−1f`，两者来自相对参考位移而非绝对时间。点击视频的恢复同步提示后 revision 55 → 56 且偏移消失；随后通过统一 Undo 链完整恢复到仅含 Story compound 的 revision 63。
 
+### Step 10：Audio Solo、Pan 与 Track automation — 健康
+
+审计环境：fresh current-schema 数据库、Tauri debug + WebView2 CDP 9341、2160×1350，Project revision 1 → 3。
+
+确认：Story compound audio 和独立音频轨共用 canonical `TimelineTrack` 的 Mute/Solo、Volume、Pan 与全局时间关键帧；轨道头可切换 Volume/Pan automation，播放头处增删关键帧，关键帧在轨道上可见且拖动只在释放时提交一次。Clip Inspector 同时提供 Clip Volume/Pan 静态值和关键帧。Program 使用共享 Web Audio gain + 两级 Stereo Panner，导出使用同一线性插值表达式、Solo 选择和 FFmpeg gain/pan filter。关闭并重开页面后 Solo 与 Pan keyframe 保持，控制台和页面错误为空。实机截图位于本地 `target/audio-automation-audit/screenshots/02-controls-compact.png`、`03-pan-tooltip.png` 和 `04-solo-pan-keyframe.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -438,7 +444,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Dynamic JKL Trim。
 - [ ] 多级 JKL shuttle、循环播放和 Go to In/Out。
 - [x] Group/Ungroup 与 out-of-sync 指示。
-- [ ] Audio Solo、Pan、Track keyframes。
+- [x] Audio Solo、Pan、Track keyframes。
 - [ ] 转场 alignment、Paste Attributes、Bezier keyframes。
 
 ### Milestone 3：长项目和专业工作流

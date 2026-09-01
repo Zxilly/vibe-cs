@@ -1435,6 +1435,11 @@ async fn run_agent_chat(
                 AgentCommandError::unavailable(error.to_string())
             }
             vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
+            vibe_cs_agent::AgentError::Stalled { timeout_seconds } => {
+                AgentCommandError::unavailable(format!(
+                    "Agent 在 {timeout_seconds} 秒内没有产生新进展；已保留完成的工具 checkpoint。重试将从第一个未完成步骤继续。"
+                ))
+            }
         })
     });
     let response = match response {

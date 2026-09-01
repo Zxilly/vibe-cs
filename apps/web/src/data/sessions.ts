@@ -47,12 +47,10 @@
  *
  *   **The session is the record; the stream is not.** This hook writes the user
  *   entry and a stable assistant turn before opening the channel, then advances
- *   that turn conditionally through streaming/completed/cancelled/failed. It
- *   also sends completed session entries as the model history, so the desktop
- *   thread file is only a request trace rather than a second conversation.
- *   Desktop stamps `plan_id` + `based_on_revision` while capturing each
- *   proposal from the validated request context; this hook stores that base
- *   unchanged and never reconstructs it from whatever plan is open later.
+ *   that turn conditionally through streaming/completed/cancelled/failed. Each
+ *   completed tool call is checkpointed while the status stays `streaming`, so
+ *   a stalled provider or closed window cannot erase structured work that has
+ *   already finished. Text remains a local draft between checkpoints.
  *
  *   **Every terminal state invalidates.** Cancellation and failure are durable
  *   states with retry identity, not missing assistant messages.
@@ -358,6 +356,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     readonly projectId: string;
   } | null>(null);
   const inflightRef = useRef<{ text: string; toolCalls: AgentToolCall[] }>({ text: '', toolCalls: [] });
+  const checkpointWritesRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -373,17 +372,20 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       turnRef.current = null;
       if (turn !== null) {
         const inflight = inflightRef.current;
-        void client.updateAgentTurn(turn.sessionId, turn.entryId, {
-          expected_status: turn.status,
-          status: 'cancelled',
-          content: inflight.text,
-          tool_calls: inflight.toolCalls,
-          error: null,
-          metadata: null,
-        }).then(() => Promise.all([
-          invalidateSessions(queryClient),
-          invalidateAgentProject(queryClient, turn.projectId),
-        ]));
+        void checkpointWritesRef.current.catch(() => undefined).then(async () => {
+          await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+            expected_status: turn.status,
+            status: 'cancelled',
+            content: inflight.text,
+            tool_calls: inflight.toolCalls,
+            error: null,
+            metadata: null,
+          });
+          await Promise.all([
+            invalidateSessions(queryClient),
+            invalidateAgentProject(queryClient, turn.projectId),
+          ]);
+        });
       }
     };
   }, [client, queryClient]);
@@ -400,17 +402,20 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     turnRef.current = null;
     if (turn !== null) {
       const inflight = inflightRef.current;
-      void client.updateAgentTurn(turn.sessionId, turn.entryId, {
-        expected_status: turn.status,
-        status: 'cancelled',
-        content: inflight.text,
-        tool_calls: inflight.toolCalls,
-        error: null,
-        metadata: null,
-      }).then(() => Promise.all([
-        invalidateSessions(queryClient),
-        invalidateAgentProject(queryClient, turn.projectId),
-      ]));
+      void checkpointWritesRef.current.catch(() => undefined).then(async () => {
+        await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+          expected_status: turn.status,
+          status: 'cancelled',
+          content: inflight.text,
+          tool_calls: inflight.toolCalls,
+          error: null,
+          metadata: null,
+        });
+        await Promise.all([
+          invalidateSessions(queryClient),
+          invalidateAgentProject(queryClient, turn.projectId),
+        ]);
+      });
     }
     inflightRef.current = { text: '', toolCalls: [] };
   }, [client, queryClient]);
@@ -429,6 +434,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       setError(null);
       setActivity([]);
       inflightRef.current = { text: '', toolCalls: [] };
+      checkpointWritesRef.current = Promise.resolve();
 
       // The user entry is written first, so a failed stream still leaves the
       // question in the transcript rather than losing what the user typed.
@@ -481,6 +487,23 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           case 'toolCallFinished':
             upsertTerminalToolCall(toolCalls, event.toolCall);
             inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
+            {
+              const turn = turnRef.current;
+              const checkpointText = text;
+              const checkpointTools = [...toolCalls];
+              if (turn !== null) {
+                checkpointWritesRef.current = checkpointWritesRef.current.then(async () => {
+                  await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+                    expected_status: turn.status,
+                    status: 'streaming',
+                    content: checkpointText,
+                    tool_calls: checkpointTools,
+                    error: null,
+                    metadata: null,
+                  });
+                });
+              }
+            }
             if (mountedRef.current) {
               setActivity((current) => upsertToolActivity(current, event.toolCall));
             }
@@ -506,6 +529,11 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         );
       } catch (cause) {
         failure = messageOf(cause);
+      }
+      try {
+        await checkpointWritesRef.current;
+      } catch (cause) {
+        failure ??= messageOf(cause);
       }
 
       // `cancel` clears the ref, so this is how a cancelled request is told

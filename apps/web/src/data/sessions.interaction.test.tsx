@@ -207,6 +207,69 @@ describe('useAgentChatStream', () => {
     await act(async () => send);
   });
 
+  it('persists a completed tool checkpoint while the model is still running', async () => {
+    const finishStream = deferred<void>();
+    const updates: AgentTurnUpdate[] = [];
+    const toolCall: AgentToolCall = {
+      id: 'request-checkpoint:tool:1',
+      name: 'read_workspace',
+      input: { detail: 'summary' },
+      output: { revision: 1 },
+      status: 'completed',
+    };
+    const client: DesktopClientStub = {
+      appendAgentSessionEntry: async (_sessionId, draft) => {
+        if (draft.kind === 'user') {
+          return { kind: 'user', id: 'user-checkpoint', at: AT, content: draft.content };
+        }
+        if (draft.kind === 'tool_decision') {
+          return {
+            kind: 'tool_decision', id: 'decision-checkpoint', at: AT,
+            tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
+          };
+        }
+        return {
+          kind: 'assistant', id: 'turn-checkpoint', at: AT, content: draft.content,
+          tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
+          retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+        };
+      },
+      updateAgentTurn: async (_sessionId, entryId, update) => {
+        updates.push(update);
+        return {
+          kind: 'assistant', id: entryId, at: AT, request_id: 'request-checkpoint',
+          retry_of: null, ...update,
+        };
+      },
+      cancelAgentChat: async () => true,
+      streamAgentChat: async (_input, onEvent) => {
+        onEvent({ type: 'toolCallFinished', toolCall });
+        await finishStream.promise;
+        return { sessionId: SESSION_ID };
+      },
+    };
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: SESSION_ID }),
+      { client },
+    );
+
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.send({ message: '读取作品', projectId: PROJECT_ID });
+    });
+
+    await waitFor(() => expect(updates).toContainEqual(expect.objectContaining({
+      expected_status: 'streaming',
+      status: 'streaming',
+      tool_calls: [toolCall],
+    })));
+    expect(result.current.streaming).toBe(true);
+
+    finishStream.resolve();
+    await act(async () => send);
+    expect(updates.at(-1)).toMatchObject({ status: 'completed', tool_calls: [toolCall] });
+  });
+
   it('hands a terminal tool call to the durable conversation before clearing its live projection', async () => {
     let session: AgentSession = {
       id: SESSION_ID,

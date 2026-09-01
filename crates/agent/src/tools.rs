@@ -250,7 +250,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::ReadWorkspace,
             "read_workspace",
             ALL_MODES,
-            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status and counts. Before editing, use detail='timeline' plus the narrowest known trackIds or clipIds; omit selectors only for a deliberate whole-Project operation. Returns the exact current revision in both formats.",
+            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Use detail='timeline' only for placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the exact current revision in both formats.",
             object_schema(
                 json!({
                     "detail":{"type":"string","enum":["summary","timeline"],"default":"summary"},
@@ -833,11 +833,11 @@ mod tests {
 
     #[test]
     fn workspace_schema_defaults_to_summary_and_allows_targeted_timeline_detail() {
-        let schema = tool_catalog()
+        let tool = tool_catalog()
             .into_iter()
             .find(|tool| tool.name == "read_workspace")
-            .expect("workspace tool")
-            .parameters;
+            .expect("workspace tool");
+        let schema = &tool.parameters;
 
         assert_eq!(schema["additionalProperties"], false);
         assert_eq!(schema["properties"]["detail"]["default"], "summary");
@@ -845,6 +845,8 @@ mod tests {
             schema["properties"]["detail"]["enum"],
             json!(["summary", "timeline"])
         );
+        assert!(tool.description.contains("marker-only refreshes"));
+        assert!(tool.description.contains("markersTruncated=false"));
         assert_eq!(schema["properties"]["trackIds"]["maxItems"], 16);
         assert_eq!(schema["properties"]["clipIds"]["maxItems"], 64);
     }

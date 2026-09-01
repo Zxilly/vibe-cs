@@ -298,7 +298,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | TL-HIST-05 | Change Review | Agent 新增/删除/替换和波纹在真实时间位置呈现；可选中和撤销 Change Group | ✅ | P0 |
 | TL-HIST-06 | Edit Lease | Agent 操作期间人类只读；播放和检查继续；结束后恢复 | ✅ | P0 |
 | TL-HIST-07 | Revision delivery | Recording/Export/HITL 绑定 base revision；过期输出明确标识 | ✅ | P0 |
-| TL-HIST-08 | Crash recovery | 已完成的工具 checkpoint、Project Patch 和工作区布局可恢复 | ✅ Agent checkpoint/Project；🟡 Timeline 本地选择与剪贴板不恢复 | P1 |
+| TL-HIST-08 | Crash recovery | 已完成的工具 checkpoint、Project Patch 和工作区布局可恢复 | ✅ | P1 |
 
 ## 8. Premiere 快捷键基线
 
@@ -424,6 +424,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 12：Replace Edit — 健康
 
 确认：Project/Source Monitor 的“替换”动作只更新所选 Timeline Clip 的 source material、名称、source In/Out 和媒体 metadata，保留 Clip identity、Timeline start/duration/speed、Transform、Effect、Transition、Volume/Pan、Keyframe、Group/Link 与 Enable 状态。源类型不兼容、轨道锁定或源入点之后把手不足时动作禁用并由 Tooltip 解释；仍图像允许扩展到目标时长，但不会把不支持的 Speed Remap 带入图像。Tauri CDP 使用两个真实 MP4 完成 revision 4 → 5：Clip ID 保持 `dccde5b8-d7f3-4512-a02d-6bc2f6e7c813`，时长保持 5 秒，`x=32`、1 个 Effect 和 1 个 Keyframe 全部保持，source asset 改为 `c25eb40f-4352-4e90-9991-f2164ac0fc8e`，console/page error 为零。Tooltip 截图位于本地 `target/audio-automation-audit/screenshots/07-replace-tooltip.png`。
+
+### Step 13：Timeline 本地 crash recovery — 健康
+
+确认：项目级 current-only local document 恢复 Clip selection、目标轨、Sync Lock、Linked Selection、播放头、In/Out 和 Loop；Timeline clipboard 单独恢复完整多轨快照，重载后可立即 Paste。状态写入采用 250ms trailing debounce，播放过程中不会每帧同步写 localStorage；损坏或旧 shape 直接拒绝，不迁移、不影响 Project Head。Tauri CDP 在 revision 5 上选择同一 Clip、复制、设置 0–5 秒范围并启用 Loop，完整 reload 后播放头恢复为 5 秒、选中 ring 和 Loop 保持、Paste Overwrite/Insert 均 enabled，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/08-crash-recovery.png`。
 
 ## 12. 迭代计划
 

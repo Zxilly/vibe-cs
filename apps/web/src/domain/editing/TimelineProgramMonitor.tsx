@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetProxyStreamPath, mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
-import type { MediaAsset, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import type { ExportJobRecord, MediaAsset, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
   clipAudioFadeFactor,
@@ -24,6 +24,7 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 import { TimelineAudioMonitor } from './TimelineAudioMonitor';
 import { resumeMediaAudioOutput, useMediaAudioOutput } from './mediaAudioOutput';
 import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioMix';
+import { activeProjectRenderPreview, projectRenderPreviewStreamPath } from './renderPreview';
 
 interface PreviewMedia {
   readonly clip: TimelineClip;
@@ -69,6 +70,7 @@ export interface TimelineProgramMonitorProps {
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly mediaAssetsById?: ReadonlyMap<string, MediaAsset>;
   readonly useMediaProxies?: boolean;
+  readonly renderPreviews?: readonly ExportJobRecord[];
   readonly timelineTimeSeconds: number;
   readonly selectedClipId: string | null;
   readonly readOnly: boolean;
@@ -99,6 +101,7 @@ export function TimelineProgramMonitor({
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   mediaAssetsById = EMPTY_MEDIA_ASSETS,
   useMediaProxies = false,
+  renderPreviews = [],
   timelineTimeSeconds,
   selectedClipId,
   readOnly,
@@ -131,6 +134,16 @@ export function TimelineProgramMonitor({
     project.document.fps,
   );
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
+  const activeRenderPreview = rollingPreview !== null || slidePreview !== null || playbackRate < 0
+    ? null
+    : activeProjectRenderPreview(renderPreviews, project.revision, targetTimelineTime);
+  const activeRenderPreviewSrc = activeRenderPreview === null
+    ? null
+    : shell.mediaSrc(projectRenderPreviewStreamPath(activeRenderPreview.job.id));
+  const [presentedRenderPreviewId, setPresentedRenderPreviewId] = useState<string | null>(null);
+  const renderPreviewPresented = activeRenderPreview !== null
+    && activeRenderPreviewSrc !== null
+    && presentedRenderPreviewId === activeRenderPreview.job.id;
   const selectedDeliveryState = selected === null ? undefined : deliveryStateByClipId.get(selected.id);
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const targetId = !storyOutputEnabled
@@ -268,19 +281,26 @@ export function TimelineProgramMonitor({
     return result;
   }, [mediaAssetsById, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
-  const hasProgramStage = media.length > 0 || overlayMedia.length > 0 || imageMedia.length > 0 || textOverlays.length > 0;
+  const hasProgramStage = activeRenderPreviewSrc !== null
+    || media.length > 0
+    || overlayMedia.length > 0
+    || imageMedia.length > 0
+    || textOverlays.length > 0;
 
   useEffect(() => {
     if (targetMediaKey === null) setPresentedMediaKey(null);
   }, [targetMediaKey]);
 
   useEffect(() => {
-    const videoDrivesForward = playbackRange === null
+    const renderPreviewDrivesForward = renderPreviewPresented
+      && activeRenderPreview !== null
+      && playbackRate > 0;
+    const videoDrivesForward = renderPreviewDrivesForward || (playbackRange === null
       && playbackRate > 0
       && targetMediaKey !== null
       && presentedMediaKey === targetMediaKey
       && selected?.placement.reverse !== true
-      && selected?.placement.frame_hold_source_time === null;
+      && selected?.placement.frame_hold_source_time === null);
     if (!playing || videoDrivesForward) return undefined;
     let frame = 0;
     let previous = performance.now();
@@ -311,7 +331,7 @@ export function TimelineProgramMonitor({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playbackRange, playbackRate, playing, presentedMediaKey, selected?.placement.frame_hold_source_time, selected?.placement.reverse, targetMediaKey, transportEnd, transportStart]);
+  }, [activeRenderPreview, playbackRange, playbackRate, playing, presentedMediaKey, renderPreviewPresented, selected?.placement.frame_hold_source_time, selected?.placement.reverse, targetMediaKey, transportEnd, transportStart]);
 
   return (
     <section
@@ -397,7 +417,7 @@ export function TimelineProgramMonitor({
                   : rollingActive
                     ? rollingSide !== null
                     : role === 'program' && clip.id === targetId && desired;
-                const isPresented = !storyOutputEnabled
+                const isPresented = renderPreviewPresented || !storyOutputEnabled
                   ? false
                   : slideActive
                     ? slideReady ? slideSlot !== null && desired : role === 'program' && mediaKey === presentedMediaKey
@@ -484,7 +504,7 @@ export function TimelineProgramMonitor({
               {overlayMedia.map(({ track, clip, src }) => {
                 const active = timelineClipActiveAt(clip, targetTimelineTime);
                 const poolKey = `${track.id}:${clip.id}`;
-                const presented = active && overlayReadyIds.has(poolKey);
+                const presented = !renderPreviewPresented && active && overlayReadyIds.has(poolKey);
                 const audioMix = evaluateTimelineAudioMix(track, clip, targetTimelineTime);
                 return (
                   <PooledPreviewVideo
@@ -529,7 +549,7 @@ export function TimelineProgramMonitor({
                     src={src}
                     localTime={active ? targetTimelineTime - clip.placement.start : 0}
                     active={active}
-                    presented={active && imageReadyIds.has(poolKey)}
+                    presented={!renderPreviewPresented && active && imageReadyIds.has(poolKey)}
                     projectWidth={project.document.width}
                     projectHeight={project.document.height}
                     layer={layer}
@@ -540,7 +560,7 @@ export function TimelineProgramMonitor({
                   />
                 );
               })}
-              {textOverlays.map((overlay) => (
+              {renderPreviewPresented ? null : textOverlays.map((overlay) => (
                 <ProgramTextOverlayView
                   key={overlay.clip.id}
                   overlay={overlay}
@@ -548,6 +568,21 @@ export function TimelineProgramMonitor({
                   projectHeight={project.document.height}
                 />
               ))}
+              {activeRenderPreview === null || activeRenderPreviewSrc === null ? null : (
+                <RenderPreviewVideo
+                  key={activeRenderPreview.job.id}
+                  src={activeRenderPreviewSrc}
+                  timelineTime={targetTimelineTime}
+                  rangeStart={activeRenderPreview.job.range_start_seconds}
+                  rangeEnd={activeRenderPreview.job.range_end_seconds}
+                  fps={project.document.fps}
+                  playing={playing}
+                  playbackRate={playbackRate}
+                  presented={renderPreviewPresented}
+                  onReady={() => setPresentedRenderPreviewId(activeRenderPreview.job.id)}
+                  onTimelineTimeChange={onTimelineTimeChange}
+                />
+              )}
               {selectedDeliveryState !== 'stale' ? null : (
                 <span className="pointer-events-none absolute left-3 top-3 z-[60] rounded-sm border border-warn-border bg-warn-surface/95 px-2 py-1 text-2xs font-medium text-warn-text shadow-sm">
                   <Trans>素材未就绪 · 当前显示可用帧</Trans>
@@ -568,7 +603,9 @@ export function TimelineProgramMonitor({
                 </div>
               )}
             </div>
-            {(slideActive ? slideReady : rollingActive ? rollingReady : presentedMediaKey === targetMediaKey) ? null : (
+            {(activeRenderPreview !== null
+              ? renderPreviewPresented
+              : slideActive ? slideReady : rollingActive ? rollingReady : presentedMediaKey === targetMediaKey) ? null : (
               <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
@@ -865,6 +902,115 @@ function previewVideoLabel(clip: TimelineClip, slot: PreviewSlot | null): string
     default: return t`${clip.name} 视频预览`;
   }
 }
+
+const RenderPreviewVideo = memo(function RenderPreviewVideo({
+  src,
+  timelineTime,
+  rangeStart,
+  rangeEnd,
+  fps,
+  playing,
+  playbackRate,
+  presented,
+  onReady,
+  onTimelineTimeChange,
+}: {
+  readonly src: string;
+  readonly timelineTime: number;
+  readonly rangeStart: number;
+  readonly rangeEnd: number;
+  readonly fps: number;
+  readonly playing: boolean;
+  readonly playbackRate: number;
+  readonly presented: boolean;
+  readonly onReady: () => void;
+  readonly onTimelineTimeChange: (seconds: number) => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const desiredTime = Math.min(rangeEnd - rangeStart, Math.max(0, timelineTime - rangeStart));
+  const desiredTimeRef = useRef(desiredTime);
+  desiredTimeRef.current = desiredTime;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
+  onTimelineTimeChangeRef.current = onTimelineTimeChange;
+  const playingForward = playing && playbackRate > 0 && presented;
+
+  const seekLatest = () => {
+    if (playingForward) return;
+    const video = videoRef.current;
+    if (video === null || video.seeking) return;
+    if (Math.abs(video.currentTime - desiredTimeRef.current) <= 0.5 / Math.max(1, fps)) return;
+    try {
+      video.currentTime = desiredTimeRef.current;
+    } catch {
+      // Metadata or the target keyframe is not available yet; media events retry.
+    }
+  };
+  const reportReady = () => {
+    const video = videoRef.current;
+    if (video === null
+      || video.seeking
+      || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      || Math.abs(video.currentTime - desiredTimeRef.current) > 0.5 / Math.max(1, fps)) return;
+    onReadyRef.current();
+  };
+
+  useEffect(() => {
+    seekLatest();
+    reportReady();
+  }, [desiredTime, fps, playingForward]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null) return;
+    video.playbackRate = Math.min(MAX_TIMELINE_CLIP_SPEED, Math.max(0.1, playbackRate));
+    if (!playingForward) {
+      if (!video.paused) video.pause();
+      return;
+    }
+    resumeMediaAudioOutput();
+    void video.play().catch(() => undefined);
+    return () => {
+      if (!video.paused) video.pause();
+    };
+  }, [playbackRate, playingForward]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!playingForward || video === null || typeof video.requestVideoFrameCallback !== 'function') return undefined;
+    let callbackId = 0;
+    const reportFrame: VideoFrameRequestCallback = () => {
+      onTimelineTimeChangeRef.current(Math.min(rangeEnd, rangeStart + video.currentTime));
+      callbackId = video.requestVideoFrameCallback(reportFrame);
+    };
+    callbackId = video.requestVideoFrameCallback(reportFrame);
+    return () => video.cancelVideoFrameCallback(callbackId);
+  }, [playingForward, rangeEnd, rangeStart]);
+
+  return (
+    <video
+      ref={videoRef}
+      className="pointer-events-none absolute inset-0 z-[70] size-full bg-neutral-900 object-contain"
+      style={{ opacity: presented ? 1 : 0 }}
+      src={src}
+      preload="auto"
+      playsInline
+      muted={!presented}
+      aria-label={t`已渲染时间轴预览`}
+      data-render-preview-video
+      onLoadedMetadata={() => { seekLatest(); reportReady(); }}
+      onLoadedData={reportReady}
+      onSeeked={() => { seekLatest(); reportReady(); }}
+      onTimeUpdate={(event) => {
+        if (playingForward && typeof event.currentTarget.requestVideoFrameCallback !== 'function') {
+          onTimelineTimeChangeRef.current(Math.min(rangeEnd, rangeStart + event.currentTarget.currentTime));
+        }
+      }}
+      onEnded={() => onTimelineTimeChangeRef.current(rangeEnd)}
+    />
+  );
+});
 
 const PooledPreviewVideo = memo(function PooledPreviewVideo({
   clip,

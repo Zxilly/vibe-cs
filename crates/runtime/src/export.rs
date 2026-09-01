@@ -105,23 +105,34 @@ impl RuntimeExportPort {
         project_id: Uuid,
         request: &Value,
     ) -> Result<(ExportJobRecord, FilterPlan), DomainError> {
-        if kind != "project" {
+        if !matches!(kind, "project" | "project_preview") {
             return Err(DomainError::InvalidInput(format!(
                 "unsupported export kind: {kind}"
             )));
         }
-        let export_dir = self.data_dir.join("exports");
+        let request: ProjectRenderRequest =
+            serde_json::from_value(request.clone()).map_err(|error| {
+                DomainError::InvalidInput(format!("invalid export options: {error}"))
+            })?;
+        let export_dir = self.data_dir.join(if kind == "project_preview" {
+            "previews"
+        } else {
+            "exports"
+        });
         tokio::fs::create_dir_all(&export_dir)
             .await
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
-        let (plan, project_revision) = self.project_plan(project_id, &output, request).await?;
+        let (plan, project_revision, range_start_seconds, range_end_seconds) =
+            self.project_plan(project_id, &output, &request).await?;
         let now = Utc::now();
         let job = ExportJob {
             id,
             project_id,
             project_revision,
+            range_start_seconds,
+            range_end_seconds,
             status: JobStatus::Running,
             progress: 0.0,
             output_path: output.to_string_lossy().into_owned(),
@@ -143,8 +154,8 @@ impl RuntimeExportPort {
         &self,
         project_id: Uuid,
         output: &Path,
-        request: &Value,
-    ) -> Result<(FilterPlan, u64), DomainError> {
+        request: &ProjectRenderRequest,
+    ) -> Result<(FilterPlan, u64, f64, f64), DomainError> {
         let project = self
             .storage
             .get_project(project_id)
@@ -209,10 +220,6 @@ impl RuntimeExportPort {
                 },
             );
         }
-        let request: ProjectRenderRequest =
-            serde_json::from_value(request.clone()).map_err(|error| {
-                DomainError::InvalidInput(format!("invalid export options: {error}"))
-            })?;
         let encoder = Self::select_encoder(&request.encoder)?;
         let options = EditorRenderOptions {
             encoder,
@@ -221,8 +228,12 @@ impl RuntimeExportPort {
             range_end: request.range_end_seconds,
         };
         let revision = project.revision;
+        let range_start = request.range_start_seconds.unwrap_or(0.0);
+        let range_end = request
+            .range_end_seconds
+            .unwrap_or(project.document.duration_seconds);
         build_project_plan_with_sources(&project, &assets, output, &options)
-            .map(|plan| (plan, revision))
+            .map(|plan| (plan, revision, range_start, range_end))
             .map_err(map_media_error)
     }
 

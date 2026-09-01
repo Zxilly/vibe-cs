@@ -411,16 +411,19 @@ fn recording_stage_ordinal(stage: &str) -> Option<u64> {
 }
 
 fn export_activity(record: ExportJobRecord) -> ActivityItem {
+    let kind = record.kind;
     let job = record.job;
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
         available_actions.push(ActivityAction::Cancel);
     }
-    available_actions.push(ActivityAction::OpenOutputs);
+    if kind == "project" {
+        available_actions.push(ActivityAction::OpenOutputs);
+    }
     ActivityItem {
         id: format!("export:{}", job.id),
         kind: ActivityKind::Export,
-        subtype: Some(record.kind),
+        subtype: Some(kind),
         job_id: Some(job.id.to_string()),
         context_id: Some(job.project_id.to_string()),
         subject: (!job.output_path.trim().is_empty()).then(|| job.output_path.clone()),
@@ -641,6 +644,8 @@ mod tests {
                     id: job_id,
                     project_id,
                     project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 1.0,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),
@@ -835,6 +840,8 @@ mod tests {
                     id: job_id,
                     project_id,
                     project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 1.0,
                     status: JobStatus::Failed,
                     progress: 0.4,
                     output_path: "C:/exports/full-disk.mp4".to_owned(),
@@ -885,6 +892,8 @@ mod tests {
                     id: job_id,
                     project_id,
                     project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 1.0,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/fine.mp4".to_owned(),

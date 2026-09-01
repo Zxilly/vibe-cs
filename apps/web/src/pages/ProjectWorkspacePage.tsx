@@ -29,6 +29,9 @@ import {
   useApplyProjectPatch,
   useCreateProject,
   useExportProject,
+  useProjectRenderPreviews,
+  useRenderProjectPreview,
+  useClearProjectRenderPreviews,
   useProject,
   useProjectChangeGroups,
   useProjectDeliveryGate,
@@ -233,6 +236,9 @@ export function ProjectWorkspacePage() {
   const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
   const startRecording = useStartProjectRecording();
   const exportProject = useExportProject();
+  const renderPreviews = useProjectRenderPreviews(canonicalId);
+  const renderPreview = useRenderProjectPreview(canonicalId ?? '');
+  const clearRenderPreviews = useClearProjectRenderPreviews(canonicalId ?? '');
   const cancelTask = useCancelTask();
   const lens: EditingLens = 'multitrack';
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
@@ -882,6 +888,9 @@ export function ProjectWorkspacePage() {
     revertChange.error,
     startRecording.error,
     exportProject.error,
+    renderPreviews.error,
+    renderPreview.error,
+    clearRenderPreviews.error,
     cancelTask.error,
     importMedia.error,
     relinkMedia.error,
@@ -965,6 +974,7 @@ export function ProjectWorkspacePage() {
       deliveryStateByClipId={deliveryStateByClipId}
       mediaAssetsById={mediaAssetsById}
       useMediaProxies={current.document.settings.use_media_proxies}
+      renderPreviews={renderPreviews.data ?? []}
       timelineTimeSeconds={transportTimeSeconds}
       selectedClipId={selectedClipId}
       readOnly={readOnly || apply.isPending || selected?.track.locked === true}
@@ -993,9 +1003,12 @@ export function ProjectWorkspacePage() {
     <ProjectTimeline
       docked
       projectId={current.id}
+      projectRevision={current.revision}
       document={current.document}
       deliveryStateByClipId={deliveryStateByClipId}
       sourceMarkersByAssetId={sourceMarkersByAssetId}
+      renderPreviews={renderPreviews.data ?? []}
+      renderPreviewPending={renderPreview.isPending || clearRenderPreviews.isPending}
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}
@@ -1134,6 +1147,11 @@ export function ProjectWorkspacePage() {
         if (asset === undefined || track === undefined || track.locked || track.kind !== projectMediaAssetKind(asset)) return;
         addMediaAsset(asset, mode, { trackId, timeSeconds });
       }}
+      onRenderPreview={(start, end) => renderPreview.mutate({
+        rangeStartSeconds: start,
+        rangeEndSeconds: end,
+      })}
+      onClearRenderPreviews={() => clearRenderPreviews.mutate()}
       canUndo={historyCommands.undo !== null}
       onUndo={() => {
         if (historyCommands.undo === null || readOnly) return;
@@ -1495,7 +1513,7 @@ export function ProjectWorkspacePage() {
           className="m-4"
           variant="danger"
           detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
-          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
+          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
         >
           <Trans>操作没有完成</Trans>
         </Alert>

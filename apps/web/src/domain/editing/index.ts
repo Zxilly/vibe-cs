@@ -2,6 +2,13 @@ export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
 export { AudioTrackMixer, applyMixerAutomation, type MixerAutomationMode } from './AudioTrackMixer';
 export { adjacentCaptionClip, serializeCaptionSrt, timelineCaptionClips } from './captionEditing';
 export {
+  activeProjectRenderPreview,
+  projectRenderPreviewSegments,
+  projectRenderPreviewStreamPath,
+  type ProjectRenderPreviewSegment,
+  type ProjectRenderPreviewState,
+} from './renderPreview';
+export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,
   type ProjectSourcePatch,

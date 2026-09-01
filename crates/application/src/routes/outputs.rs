@@ -25,6 +25,7 @@ const MAXIMUM_OUTPUT_SCAN_PER_KIND: u32 = 2_000;
 const MAXIMUM_STAGED_CLEANUP: usize = 200;
 const RECORDINGS_DIRECTORY: &str = "recordings";
 const EXPORTS_DIRECTORY: &str = "exports";
+const PREVIEWS_DIRECTORY: &str = "previews";
 const TRASH_DIRECTORY: &str = ".output-trash";
 
 pub(crate) fn router() -> Router<AppState> {
@@ -166,8 +167,8 @@ impl ManagedRoots {
                 "The managed data directory is unavailable",
             )
         })?;
-        let mut output_directories = Vec::with_capacity(2);
-        for name in [RECORDINGS_DIRECTORY, EXPORTS_DIRECTORY] {
+        let mut output_directories = Vec::with_capacity(3);
+        for name in [RECORDINGS_DIRECTORY, EXPORTS_DIRECTORY, PREVIEWS_DIRECTORY] {
             let directory = data_dir.join(name);
             match fs::canonicalize(&directory).await {
                 Ok(directory) if directory.starts_with(&data) => output_directories.push(directory),
@@ -439,6 +440,7 @@ async fn list_all_outputs(
     }
     for export in exports
         .into_iter()
+        .filter(|record| record.kind == "project")
         .take(MAXIMUM_OUTPUT_SCAN_PER_KIND as usize)
     {
         items.push(StoredOutput::Export(export).into_dto(roots).await);
@@ -511,11 +513,7 @@ async fn resolve_output_path(state: &AppState, kind: &str, id: &str) -> ApiResul
     let kind = OutputKind::parse(kind)?;
     let id = parse_id(id)?;
     let roots = ManagedRoots::discover(state.data_dir()).await?;
-    let (items, _) = list_all_outputs(state, &roots, Some(kind)).await?;
-    let item = items
-        .into_iter()
-        .find(|item| item.id == id)
-        .ok_or_else(|| ApiError::not_found("output"))?;
+    let item = load_output(state, kind, id).await?.into_dto(&roots).await;
     if item.availability != OutputAvailability::Present {
         return Err(ApiError::not_found("output file"));
     }
@@ -1472,6 +1470,8 @@ mod tests {
                     id,
                     project_id,
                     project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 1.0,
                     status: JobStatus::Running,
                     progress: 0.5,
                     output_path: fixture
@@ -1509,6 +1509,55 @@ mod tests {
                 .await
                 .expect("storage")
                 .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn render_previews_stream_by_exact_id_but_never_enter_the_finished_output_library() {
+        let fixture = Fixture::new().await;
+        let preview_dir = fixture.root.path().join(PREVIEWS_DIRECTORY);
+        fs::create_dir_all(&preview_dir)
+            .await
+            .expect("preview directory");
+        let source = preview_dir.join("preview.mp4");
+        fs::write(&source, b"preview").await.expect("preview file");
+        let id = Uuid::new_v4();
+        let project_id = fixture.project().await;
+        let now = Utc::now();
+        fixture
+            .state
+            .storage
+            .put_export_job(ExportJobRecord {
+                kind: "project_preview".to_owned(),
+                job: ExportJob {
+                    id,
+                    project_id,
+                    project_revision: 1,
+                    range_start_seconds: 1.0,
+                    range_end_seconds: 3.0,
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: source.to_string_lossy().into_owned(),
+                    error: None,
+                    error_code: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("put preview");
+        let roots = ManagedRoots::discover(fixture.root.path())
+            .await
+            .expect("managed roots");
+        let (items, _) = list_all_outputs(&fixture.state, &roots, Some(OutputKind::Export))
+            .await
+            .expect("list outputs");
+        assert!(items.is_empty());
+        assert_eq!(
+            resolve_output_path(&fixture.state, "export", &id.to_string())
+                .await
+                .expect("preview stream path"),
+            source.to_string_lossy()
         );
     }
 

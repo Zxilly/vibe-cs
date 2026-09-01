@@ -12,7 +12,7 @@ use vibe_cs_domain::{
     EditingDocument, EditingDocumentSettings, Project, ProjectChangeAuthor, ProjectChangeGroup,
     ProjectEditLease, ProjectPatch, TimelineClipMaterializationState, TimelineTrack, TrackKind,
 };
-use vibe_cs_storage::ProjectLeaseAcquire;
+use vibe_cs_storage::{ExportJobRecord, ProjectLeaseAcquire};
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
 
@@ -31,6 +31,12 @@ pub(crate) fn router() -> Router<AppState> {
         .route(
             "/api/projects/{id}/export",
             axum::routing::post(export_project),
+        )
+        .route(
+            "/api/projects/{id}/render-previews",
+            get(list_render_previews)
+                .post(render_project_preview)
+                .delete(clear_render_previews),
         )
         .route(
             "/api/projects/{id}/change-groups/{change_group_id}/revert",
@@ -141,6 +147,24 @@ struct ProjectExportRequest {
 struct ProjectExportResponse {
     job_id: Uuid,
     status: String,
+}
+
+#[derive(Debug, Clone, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct ProjectRenderPreviewRequest {
+    encoder: String,
+    quality: u8,
+    range_start_seconds: f64,
+    range_end_seconds: f64,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct ProjectRenderPreviewCleanup {
+    removed: u32,
+    cancellation_requested: u32,
 }
 
 async fn list_projects(State(state): State<AppState>) -> ApiResult<Json<Vec<Project>>> {
@@ -353,6 +377,125 @@ async fn export_project(
     }))
 }
 
+async fn list_render_previews(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Vec<ExportJobRecord>>> {
+    let previews = state
+        .storage
+        .list_export_jobs(Some(id))
+        .await?
+        .into_iter()
+        .filter(|record| record.kind == "project_preview")
+        .collect();
+    Ok(Json(previews))
+}
+
+async fn render_project_preview(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(request): ApiJson<ProjectRenderPreviewRequest>,
+) -> ApiResult<Json<ProjectExportResponse>> {
+    let project = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    let export_request = ProjectExportRequest {
+        confirm: true,
+        encoder: request.encoder,
+        quality: request.quality,
+        range_start_seconds: Some(request.range_start_seconds),
+        range_end_seconds: Some(request.range_end_seconds),
+    };
+    validate_project_export_request(&export_request, project.document.duration_seconds)?;
+    let unresolved = project.unresolved_delivery_clips()?;
+    if !unresolved.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::PRECONDITION_FAILED,
+            "project_preview_delivery_gate_failed",
+            format!(
+                "{} enabled clips do not have compatible media",
+                unresolved.len()
+            ),
+        ));
+    }
+    let job = state
+        .exports
+        .start(
+            "project_preview",
+            id,
+            serde_json::json!({
+                "encoder": export_request.encoder,
+                "quality": export_request.quality,
+                "range_start_seconds": export_request.range_start_seconds,
+                "range_end_seconds": export_request.range_end_seconds,
+            }),
+        )
+        .await?;
+    state.events.publish("export_job", "created", Some(job.id));
+    Ok(Json(ProjectExportResponse {
+        job_id: job.id,
+        status: format!("{:?}", job.status).to_lowercase(),
+    }))
+}
+
+async fn clear_render_previews(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<ProjectRenderPreviewCleanup>> {
+    let records = state
+        .storage
+        .list_export_jobs(Some(id))
+        .await?
+        .into_iter()
+        .filter(|record| record.kind == "project_preview")
+        .collect::<Vec<_>>();
+    let preview_root = state.data_dir().join("previews");
+    let mut removed = 0_u32;
+    let mut cancellation_requested = 0_u32;
+    for record in records {
+        if !record.job.status.is_terminal() {
+            state.exports.cancel(record.job.id).await?;
+            cancellation_requested = cancellation_requested.saturating_add(1);
+            continue;
+        }
+        remove_managed_preview_file(&preview_root, &record.job.output_path).await?;
+        if state.storage.delete_export_job(record.job.id).await? {
+            removed = removed.saturating_add(1);
+        }
+    }
+    state.events.publish("export_job", "changed", None);
+    Ok(Json(ProjectRenderPreviewCleanup {
+        removed,
+        cancellation_requested,
+    }))
+}
+
+async fn remove_managed_preview_file(root: &std::path::Path, path: &str) -> ApiResult<()> {
+    let requested = std::path::PathBuf::from(path);
+    if !requested.exists() {
+        return Ok(());
+    }
+    let canonical_root = tokio::fs::canonicalize(root)
+        .await
+        .map_err(|_| ApiError::invalid("render preview root is unavailable"))?;
+    let canonical_path = tokio::fs::canonicalize(&requested)
+        .await
+        .map_err(|_| ApiError::invalid("render preview path is unavailable"))?;
+    if canonical_path.parent() != Some(canonical_root.as_path()) {
+        return Err(ApiError::invalid(
+            "render preview path is outside the managed preview directory",
+        ));
+    }
+    tokio::fs::remove_file(canonical_path)
+        .await
+        .map_err(|error| {
+            ApiError::invalid(format!("render preview could not be removed: {error}"))
+        })?;
+    Ok(())
+}
+
 fn validate_project_export_request(
     request: &ProjectExportRequest,
     duration_seconds: f64,
@@ -479,7 +622,8 @@ mod tests {
     };
     use serde_json::{Value, json};
     use tower::ServiceExt as _;
-    use vibe_cs_storage::Storage;
+    use vibe_cs_domain::{ExportJob, JobStatus};
+    use vibe_cs_storage::{ExportJobRecord, Storage};
 
     use super::*;
 
@@ -613,6 +757,149 @@ mod tests {
                 10.0,
             )
             .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn render_preview_list_and_cleanup_use_only_the_managed_preview_kind() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, directory) = dispatcher(storage.clone());
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({
+                "name":"Preview",
+                "width":1920,
+                "height":1080,
+                "fps":60,
+                "source_demo_ids":[]
+            })),
+        )
+        .await;
+        let project_id =
+            Uuid::parse_str(created["id"].as_str().expect("project id")).expect("project uuid");
+        let preview_dir = directory.path().join("data").join("previews");
+        tokio::fs::create_dir_all(&preview_dir)
+            .await
+            .expect("preview directory");
+        let preview_path = preview_dir.join("project_preview.mp4");
+        tokio::fs::write(&preview_path, b"preview")
+            .await
+            .expect("preview file");
+        let preview_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "project_preview".to_owned(),
+                job: ExportJob {
+                    id: preview_id,
+                    project_id,
+                    project_revision: 1,
+                    range_start_seconds: 1.0,
+                    range_end_seconds: 3.0,
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: preview_path.to_string_lossy().into_owned(),
+                    error: None,
+                    error_code: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("preview record");
+
+        let (status, previews) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/render-previews"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(previews[0]["job"]["id"], preview_id.to_string());
+
+        let (status, cleaned) = call(
+            &router,
+            Method::DELETE,
+            &format!("/api/projects/{project_id}/render-previews"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(cleaned, json!({"removed":1,"cancellation_requested":0}));
+        assert!(!preview_path.exists());
+        assert!(
+            storage
+                .get_export_job(preview_id)
+                .await
+                .expect("record read")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn render_preview_cleanup_never_removes_an_external_path() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, directory) = dispatcher(storage.clone());
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({
+                "name":"Preview boundary",
+                "width":1920,
+                "height":1080,
+                "fps":60,
+                "source_demo_ids":[]
+            })),
+        )
+        .await;
+        let project_id =
+            Uuid::parse_str(created["id"].as_str().expect("project id")).expect("project uuid");
+        let external = directory.path().join("external.mp4");
+        tokio::fs::write(&external, b"keep")
+            .await
+            .expect("external sentinel");
+        let preview_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "project_preview".to_owned(),
+                job: ExportJob {
+                    id: preview_id,
+                    project_id,
+                    project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 1.0,
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: external.to_string_lossy().into_owned(),
+                    error: None,
+                    error_code: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("preview record");
+
+        let (status, _) = call(
+            &router,
+            Method::DELETE,
+            &format!("/api/projects/{project_id}/render-previews"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 400);
+        assert!(external.exists());
+        assert!(
+            storage
+                .get_export_job(preview_id)
+                .await
+                .expect("record read")
+                .is_some()
         );
     }
 }

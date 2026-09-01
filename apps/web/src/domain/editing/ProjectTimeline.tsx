@@ -68,6 +68,7 @@ import { Waveform } from '../media';
 import type {
   EditingDocument,
   EditorMarker,
+  ExportJobRecord,
   ProjectChangeGroup,
   TimelineClip,
   TimelineClipMaterializationState,
@@ -125,6 +126,7 @@ import {
 import { readTimelineClipboard, writeTimelineClipboard } from './timelineWorkspaceSession';
 import { MarkerEditorFields, normalizeEditorMarker } from './MarkerEditorFields';
 import { adjacentCaptionClip, serializeCaptionSrt, timelineCaptionClips } from './captionEditing';
+import { projectRenderPreviewSegments } from './renderPreview';
 import {
   deleteRippleClips,
   extractTimelineRange,
@@ -204,9 +206,12 @@ export interface TimelineMediaDrop {
 export interface ProjectTimelineProps {
   readonly docked?: boolean;
   readonly projectId: string;
+  readonly projectRevision: number;
   readonly document: EditingDocument;
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly sourceMarkersByAssetId?: ReadonlyMap<string, readonly EditorMarker[]>;
+  readonly renderPreviews?: readonly ExportJobRecord[];
+  readonly renderPreviewPending?: boolean;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
@@ -252,6 +257,8 @@ export interface ProjectTimelineProps {
   readonly onReplaceMarkers: (markers: readonly EditorMarker[]) => void;
   readonly onReplaceSettings: (settings: EditingDocument['settings']) => void;
   readonly onDropMediaAsset: (drop: TimelineMediaDrop) => void;
+  readonly onRenderPreview?: ((start: number, end: number) => void) | undefined;
+  readonly onClearRenderPreviews?: (() => void) | undefined;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
   readonly canRedo: boolean;
@@ -290,9 +297,12 @@ function defaultTrackHeight(track: RenderedTrack): number {
 export function ProjectTimeline({
   docked = false,
   projectId,
+  projectRevision,
   document,
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   sourceMarkersByAssetId = EMPTY_SOURCE_MARKERS,
+  renderPreviews = [],
+  renderPreviewPending = false,
   selectedClipId,
   selectedClipIds,
   targetTrackId,
@@ -335,6 +345,8 @@ export function ProjectTimeline({
   onReplaceMarkers,
   onReplaceSettings,
   onDropMediaAsset,
+  onRenderPreview,
+  onClearRenderPreviews,
   canUndo,
   onUndo,
   canRedo,
@@ -601,6 +613,13 @@ export function ProjectTimeline({
     minMajorGapPx: 110,
     minMinorGapPx: 28,
   });
+  const renderPreviewSegments = projectRenderPreviewSegments(renderPreviews, projectRevision);
+  const previewRangeStart = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.min(rangeInSeconds, rangeOutSeconds);
+  const previewRangeEnd = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.max(rangeInSeconds, rangeOutSeconds);
   useLayoutEffect(() => {
     const nextScrollLeft = pendingZoomScrollRef.current;
     const viewport = viewportRef.current;
@@ -2271,18 +2290,38 @@ export function ProjectTimeline({
           triggerLabel={<><Eye className="size-3.5" aria-hidden="true" /><Trans>显示</Trans></>}
           align="start"
           triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
-          items={([
+          items={[
+            ...([
             ['names', t`片段名称`],
             ['thumbnails', t`视频缩略图`],
             ['waveforms', t`音频波形`],
             ['keyframes', t`关键帧`],
             ['repeatedFrames', t`重复帧标记`],
             ['throughEdits', t`Through Edit 标记`],
-          ] as const).map(([key, label]) => ({
+            ] as const).map(([key, label]) => ({
             id: key,
             label: `${displaySettings[key] ? '✓ ' : ''}${label}`,
             onSelect: () => toggleDisplaySetting(key),
-          }))}
+            })),
+            {
+              id: 'render-preview',
+              label: renderPreviewPending ? t`正在渲染预览…` : t`渲染入点到出点`,
+              disabled: readOnly
+                || renderPreviewPending
+                || previewRangeStart === null
+                || previewRangeEnd === null
+                || previewRangeEnd <= previewRangeStart,
+              onSelect: () => previewRangeStart === null || previewRangeEnd === null
+                ? undefined
+                : onRenderPreview?.(previewRangeStart, previewRangeEnd),
+            },
+            {
+              id: 'clear-render-previews',
+              label: t`删除预览文件`,
+              disabled: readOnly || renderPreviewPending || renderPreviews.length === 0,
+              onSelect: () => onClearRenderPreviews?.(),
+            },
+          ]}
         />
         <span className="max-w-48 truncate text-2xs text-neutral-500">
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
@@ -2423,6 +2462,23 @@ export function ProjectTimeline({
           <div className="relative h-full" style={{ width: contentWidth, transform: `translateX(${-scrollLeft}px)` }}>
             {ticks.filter((tick) => tick.major).map((tick) => (
               <span key={tick.time} className="absolute inset-y-0 -translate-x-1/2 border-l border-divider px-1 py-1" style={{ left: tick.px }}>{tick.label}</span>
+            ))}
+            {renderPreviewSegments.map((segment) => (
+              <span
+                key={segment.id}
+                className={cn(
+                  'pointer-events-none absolute bottom-0 h-1 min-w-px',
+                  segment.state === 'ready' && 'bg-ok',
+                  segment.state === 'rendering' && 'bg-warn',
+                  (segment.state === 'stale' || segment.state === 'failed') && 'bg-fail',
+                )}
+                style={{
+                  left: timeToPx(scale, segment.start),
+                  width: Math.max(1, timeToPx(scale, segment.end - segment.start)),
+                }}
+                title={`${segment.state} · ${formatMillisecondTimecode(segment.start)}–${formatMillisecondTimecode(segment.end)}`}
+                data-render-preview-state={segment.state}
+              />
             ))}
           </div>
         </div>

@@ -74,6 +74,8 @@ pub struct ExportJob {
     pub id: Uuid,
     pub project_id: Uuid,
     pub project_revision: u64,
+    pub range_start_seconds: f64,
+    pub range_end_seconds: f64,
     pub status: crate::JobStatus,
     pub progress: f64,
     pub output_path: String,
@@ -92,7 +94,7 @@ mod tests {
     use super::ExportJob;
 
     #[test]
-    fn export_job_requires_its_source_project_revision() {
+    fn export_job_requires_its_source_project_revision_and_render_range() {
         let mut value = json!({
             "id":"00000000-0000-4000-8000-000000000001",
             "project_id":"00000000-0000-4000-8000-000000000002",
@@ -107,7 +109,11 @@ mod tests {
         assert!(serde_json::from_value::<ExportJob>(value.clone()).is_err());
 
         value["project_revision"] = json!(7);
+        assert!(serde_json::from_value::<ExportJob>(value.clone()).is_err());
+        value["range_start_seconds"] = json!(1.0);
+        value["range_end_seconds"] = json!(5.0);
         let job = serde_json::from_value::<ExportJob>(value).expect("current Export Job");
         assert_eq!(job.project_revision, 7);
+        assert_eq!((job.range_start_seconds, job.range_end_seconds), (1.0, 5.0));
     }
 }

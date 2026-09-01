@@ -103,6 +103,7 @@ import type {
   PlayerMatchPage,
   PlayerProfile,
   PlayerReviewMetadata,
+  ProjectRenderPreviewCleanup,
   Project,
   ProjectChangeGroup,
   ProjectDeliveryGate,
@@ -509,6 +510,23 @@ export const commands = {
     `/projects/${encodeURIComponent(projectId)}/export`,
     { method: 'POST', body: { confirm: true, ...options }, timeoutMs: null },
   ),
+  listProjectRenderPreviews: (projectId: string, signal?: AbortSignal) =>
+    request<ExportJobRecord[]>(
+      `/projects/${encodeURIComponent(projectId)}/render-previews`,
+      { signal },
+    ),
+  renderProjectPreview: (
+    projectId: string,
+    options: { encoder: string; quality: number; range_start_seconds: number; range_end_seconds: number },
+  ) => request<{ job_id: string; status: string }>(
+    `/projects/${encodeURIComponent(projectId)}/render-previews`,
+    { method: 'POST', body: options, timeoutMs: null },
+  ),
+  clearProjectRenderPreviews: (projectId: string) =>
+    request<ProjectRenderPreviewCleanup>(
+      `/projects/${encodeURIComponent(projectId)}/render-previews`,
+      { method: 'DELETE', timeoutMs: null },
+    ),
   applyProjectPatch: (patch: ProjectPatch) =>
     request<ProjectPatchResult>(`/projects/${encodeURIComponent(patch.project_id)}`, {
       method: 'PATCH', body: patch,

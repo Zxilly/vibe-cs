@@ -142,6 +142,46 @@ export function useExportProject() {
   });
 }
 
+export function useProjectRenderPreviews(projectId: string | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.projects.renderPreviews(projectId ?? ''),
+    queryFn: projectId === null
+      ? skipToken
+      : ({ signal }: { signal: AbortSignal }) => client.listProjectRenderPreviews(projectId, signal),
+    ...resolveQueryTuning(tuning, { enabled: projectId !== null }),
+    refetchInterval: (query) => query.state.data?.some((record) => (
+      !['completed', 'failed', 'cancelled'].includes(record.job.status)
+    )) ? 500 : false,
+  });
+}
+
+export function useRenderProjectPreview(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rangeStartSeconds, rangeEndSeconds }: {
+      readonly rangeStartSeconds: number;
+      readonly rangeEndSeconds: number;
+    }) => client.renderProjectPreview(projectId, {
+      encoder: 'auto',
+      quality: 70,
+      range_start_seconds: rangeStartSeconds,
+      range_end_seconds: rangeEndSeconds,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.projects.renderPreviews(projectId) }),
+  });
+}
+
+export function useClearProjectRenderPreviews(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => client.clearProjectRenderPreviews(projectId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.projects.renderPreviews(projectId) }),
+  });
+}
+
 export function useRevertProjectChangeGroup(projectId: string) {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

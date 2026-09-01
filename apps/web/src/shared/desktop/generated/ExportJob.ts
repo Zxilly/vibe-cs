@@ -6,6 +6,8 @@ export type ExportJob = {
   id: string;
   project_id: string;
   project_revision: number;
+  range_start_seconds: number;
+  range_end_seconds: number;
   status: JobStatus;
   progress: number;
   output_path: string;

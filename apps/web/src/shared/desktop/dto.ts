@@ -406,6 +406,7 @@ export type { RecordedClipDto as RecordedClipRecord } from './generated/Recorded
 export type { WaveformResponse } from './generated/WaveformResponse';
 export type { ExportJob } from './generated/ExportJob';
 export type { ExportJobRecord } from './generated/ExportJobRecord';
+export type { ProjectRenderPreviewCleanup } from './generated/ProjectRenderPreviewCleanup';
 
 export type { OutputKind } from './generated/OutputKind';
 export type { OutputAvailability } from './generated/OutputAvailability';

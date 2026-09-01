@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../shared/desktop/dto';
+import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -455,6 +455,9 @@ function renderWorkspace({
   replaceMediaAssetMarkers,
   generateMediaProxy,
   cleanupMediaProxies,
+  listProjectRenderPreviews,
+  renderProjectPreview,
+  clearProjectRenderPreviews,
   streamAgentChat,
   appendAgentSessionEntry,
   updateAgentTurn,
@@ -482,6 +485,9 @@ function renderWorkspace({
   readonly replaceMediaAssetMarkers?: ReturnType<typeof vi.fn> | undefined;
   readonly generateMediaProxy?: ReturnType<typeof vi.fn> | undefined;
   readonly cleanupMediaProxies?: ReturnType<typeof vi.fn> | undefined;
+  readonly listProjectRenderPreviews?: ReturnType<typeof vi.fn> | undefined;
+  readonly renderProjectPreview?: ReturnType<typeof vi.fn> | undefined;
+  readonly clearProjectRenderPreviews?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
@@ -505,6 +511,9 @@ function renderWorkspace({
       ...(replaceMediaAssetMarkers === undefined ? {} : { replaceMediaAssetMarkers }),
       ...(generateMediaProxy === undefined ? {} : { generateMediaProxy }),
       ...(cleanupMediaProxies === undefined ? {} : { cleanupMediaProxies }),
+      listProjectRenderPreviews: listProjectRenderPreviews ?? (() => Promise.resolve([])),
+      ...(renderProjectPreview === undefined ? {} : { renderProjectPreview }),
+      ...(clearProjectRenderPreviews === undefined ? {} : { clearProjectRenderPreviews }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
       ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
@@ -5992,6 +6001,70 @@ describe('unified project workspace', () => {
     expect(options.defaultFileName).toBe('captions.srt');
     expect(new TextDecoder().decode(options.bytes)).toContain('00:00:02,000 --> 00:00:04,000\r\nFirst cue');
     expect(new TextDecoder().decode(options.bytes)).toContain('00:00:05,000 --> 00:00:07,000\r\nSecond cue');
+  });
+
+  it('renders the exact In/Out range through the preview route', async () => {
+    const renderProjectPreview = vi.fn(() => Promise.resolve({ job_id: 'preview-job', status: 'running' }));
+    renderWorkspace({ renderProjectPreview });
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(timeline, { key: 'i' });
+    stepTimelineSeconds(playhead, 5);
+    fireEvent.keyDown(timeline, { key: 'o' });
+    fireEvent.pointerDown(screen.getByRole('button', { name: '时间轴显示设置' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '渲染入点到出点' }));
+
+    await waitFor(() => expect(renderProjectPreview).toHaveBeenCalledWith(PROJECT.id, {
+      encoder: 'auto',
+      quality: 70,
+      range_start_seconds: 0,
+      range_end_seconds: 5,
+    }));
+  });
+
+  it('projects ready previews into Program, marks revision drift stale and clears managed previews', async () => {
+    const record: ExportJobRecord = {
+      kind: 'project_preview',
+      job: {
+        id: '00000000-0000-4000-8000-000000000600',
+        project_id: PROJECT.id,
+        project_revision: PROJECT.revision,
+        range_start_seconds: 0,
+        range_end_seconds: 5,
+        status: 'completed',
+        progress: 1,
+        output_path: 'C:/previews/preview.mp4',
+        error: null,
+        error_code: null,
+        created_at: '2026-09-02T00:00:00Z',
+        updated_at: '2026-09-02T00:00:01Z',
+      },
+    };
+    const clearProjectRenderPreviews = vi.fn(() => Promise.resolve({ removed: 1, cancellation_requested: 0 }));
+    const first = renderWorkspace({
+      listProjectRenderPreviews: vi.fn(() => Promise.resolve([record])),
+      clearProjectRenderPreviews,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const rendered = await screen.findByLabelText('已渲染时间轴预览');
+    expect(rendered.getAttribute('src')).toContain(`/outputs/export/${record.job.id}/stream`);
+    expect(document.querySelector('[data-render-preview-state="ready"]')).toBeTruthy();
+    fireEvent.pointerDown(screen.getByRole('button', { name: '时间轴显示设置' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除预览文件' }));
+    await waitFor(() => expect(clearProjectRenderPreviews).toHaveBeenCalledWith(PROJECT.id));
+    first.unmount();
+
+    renderWorkspace({
+      project: { ...PROJECT, revision: PROJECT.revision + 1 },
+      listProjectRenderPreviews: vi.fn(() => Promise.resolve([record])),
+    });
+    await waitFor(() => expect(document.querySelector('[data-render-preview-state="stale"]')).toBeTruthy());
+    expect(screen.queryByLabelText('已渲染时间轴预览')).toBeNull();
   });
 
   it('removes a non-Story track with a real Project operation', async () => {

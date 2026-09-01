@@ -237,11 +237,13 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 
 ### 7.9 转场、效果与关键帧
 
+转场对齐与复制基准参考 Adobe 官方 [Align and reposition transitions](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/align-transitions.html) 与 [Copy and paste transitions](https://helpx.adobe.com/premiere/desktop/add-video-effects/apply-video-transitions/copy-and-paste-transitions.html)。
+
 | ID | 能力 | 产品要求 | 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | TL-FX-01 | 默认视频转场 | Ctrl/Cmd+D 在目标 cut 应用；Shift+D 对选择应用 | ✅ | P1 |
 | TL-FX-02 | 默认音频转场 | Ctrl/Cmd+Shift+D 应用 Constant Power 语义 | ✅ | P1 |
-| TL-FX-03 | 转场对象 | 时间轴内可选择、拖持续时间、双击进入属性；Program/Export 共用类型 | 🟡 拖时长和 Inspector 已有，缺完整 alignment/复制粘贴 | P1 |
+| TL-FX-03 | 转场对象 | 时间轴内可选择、拖持续时间、双击进入属性；Program/Export 共用类型 | ✅ | P1 |
 | TL-FX-04 | 转场 Handles | 按可用源 handles 限制持续时间，缺帧时明确反馈 | ✅ | P1 |
 | TL-FX-05 | 效果栈 | 启用/禁用、排序、参数调整；Program/Export 顺序一致 | ✅ 支持当前 renderer-backed 集合 | P1 |
 | TL-FX-06 | 关键帧 | Timeline/Inspector 添加、移动、删除，静态值和动画值一致 | ✅ | P1 |
@@ -429,6 +431,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：项目级 current-only local document 恢复 Clip selection、目标轨、Sync Lock、Linked Selection、播放头、In/Out 和 Loop；Timeline clipboard 单独恢复完整多轨快照，重载后可立即 Paste。状态写入采用 250ms trailing debounce，播放过程中不会每帧同步写 localStorage；损坏或旧 shape 直接拒绝，不迁移、不影响 Project Head。Tauri CDP 在 revision 5 上选择同一 Clip、复制、设置 0–5 秒范围并启用 Loop，完整 reload 后播放头恢复为 5 秒、选中 ring 和 Loop 保持、Paste Overwrite/Insert 均 enabled，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/08-crash-recovery.png`。
 
+### Step 14：Transition alignment 与复制 — 健康
+
+确认：不增加第二个 Cut/Transition 模型；同一 cut 左侧 `video/audio_out` 与右侧 `video/audio_in` 直接表达 Adobe 的 End at Cut、Center at Cut、Start at Cut，非对称两侧自动显示为 Custom Start。选中时间轴转场后显示三种 alignment，切换一次提交整轨的一个 Project operation；Ctrl/Cmd+C 复制 kind、总时长、alignment 与非对称两侧时长，Ctrl/Cmd+V 只粘到同 channel 的所选 cut。Program 与 FFmpeg 继续消费同一对 edge transitions。Tauri CDP 从 revision 6 的 0.5s+0.5s centered Fade 切换到 revision 7 的右侧 1s Start at Cut，再把原 centered transition 粘到 B/C cut 形成 revision 8 的 0.5s+0.5s；console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/09-transition-start-at-cut.png` 与 `10-transition-pasted.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -457,7 +463,8 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] 多级 JKL shuttle、循环播放和 Go to In/Out。
 - [x] Group/Ungroup 与 out-of-sync 指示。
 - [x] Audio Solo、Pan、Track keyframes。
-- [ ] 转场 alignment、Paste Attributes、Bezier keyframes。
+- [x] Transition alignment 与 transition copy/paste。
+- [ ] Paste Attributes 与 Bezier keyframes。
 
 ### Milestone 3：长项目和专业工作流
 

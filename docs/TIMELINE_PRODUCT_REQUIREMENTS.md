@@ -145,12 +145,12 @@ Premiere 的标尺、播放头、Work Area 和底部 Zoom Scroll Bar 行为参�
 | TL-TR-01 | 播放/暂停 | Space 和 Program 按钮调用同一 Transport | ✅ | P0 |
 | TL-TR-02 | 帧步进 | Left/Right 一帧，Shift 五帧；Program 上一/下一帧一致 | ✅ | P0 |
 | TL-TR-03 | J/K/L Shuttle | J 反向、K 停止、L 正向 | ✅ | P0 |
-| TL-TR-04 | 多级 Shuttle | 重复 J/L 提升速度；K+J/L 慢速 | 🟡 当前只有 -1/0/+1 | P2 |
+| TL-TR-04 | 多级 Shuttle | 重复 J/L 提升速度；K 停止；连续按键提升到 4× | ✅ | P2 |
 | TL-TR-05 | 编辑点导航 | Up/Down 在目标轨编辑点间移动，Shift 覆盖全部轨 | ✅ | P1 |
 | TL-TR-06 | 入出点 | I/O 设置，显式清除；Lift/Extract/导出消费同一范围 | ✅ | P0 |
 | TL-TR-07 | 跳转入出点 | Shift+I / Shift+O，清除单侧和双侧快捷键 | ⬜ | P1 |
 | TL-TR-08 | 循环播放 | 序列或 In/Out 范围循环 | ⬜ | P2 |
-| TL-TR-09 | Match Frame | F 从播放头打开最高目标轨的源帧 | ⬜ | P1 |
+| TL-TR-09 | Match Frame | F 从播放头打开最高目标轨的精确源帧 | ✅ | P1 |
 | TL-TR-10 | 稳定媒体池 | 切片/拖播放头不重新挂载视频；seek 合并且保留上一帧 | ✅ | P0 |
 
 ### 7.4 选择、链接、分组与目标轨
@@ -161,14 +161,14 @@ Adobe 的基准行为参考 [Select clips](https://helpx.adobe.com/premiere/desk
 | --- | --- | --- | --- | --- |
 | TL-SEL-01 | 单选/加选/范围 | 点击单选、Ctrl/Cmd 加选、Shift 同轨范围选择 | ✅ | P0 |
 | TL-SEL-02 | 框选 | 空白处拖动框选，Ctrl/Cmd 增量框选，支持边缘滚动 | ✅ | P0 |
-| TL-SEL-03 | 全选/取消选择 | Ctrl/Cmd+A 选择目标轨；Ctrl/Cmd+Shift+A 清空 | 🟡 缺快捷键清空 | P1 |
+| TL-SEL-03 | 全选/取消选择 | Ctrl/Cmd+A 选择目标轨；Ctrl/Cmd+Shift+A 清空 | ✅ | P1 |
 | TL-SEL-04 | Track Select | A 向前、Shift+A 向后；Shift-click 跨全部轨 | ✅ | P1 |
 | TL-SEL-05 | Linked Selection | 全局开关；Alt 只选/只编辑一个声道 | ✅ | P1 |
 | TL-SEL-06 | Link/Unlink | Ctrl/Cmd+L 与按钮原子更新跨轨 link group | ✅ | P1 |
 | TL-SEL-07 | Group/Ungroup | Ctrl/Cmd+G 与 Ctrl/Cmd+Shift+G 形成可共同移动但不等同 A/V Link 的组 | ⬜ | P2 |
 | TL-SEL-08 | Track Targeting | 多目标轨控制 Add Edit、粘贴、导航、转场和 Match Frame | ✅，Match Frame 尚缺 | P0 |
 | TL-SEL-09 | Source Patching | Source 视频/音频分别映射目标轨，可禁用某个 source channel | ✅ | P0 |
-| TL-SEL-10 | Sync Lock | 每轨开关；Story 的 insert/ripple/extract 可按设置平移其他轨 | ⬜ | P1 |
+| TL-SEL-10 | Sync Lock | 每个 canonical 轨道有开关；Shift 点击切换同类轨；Story insert/ripple/extract/trim 用稳定 Clip identity 推导偏移并在同一 Patch 平移未锁自由轨 | ✅ | P1 |
 
 ### 7.5 轨道管理
 
@@ -210,13 +210,13 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-EDIT-03 | Add Edit | Ctrl/Cmd+K 目标轨，Ctrl/Cmd+Shift+K 全部未锁轨 | ✅ | P0 |
 | TL-EDIT-04 | Razor | C 点击切分；Shift 跨轨；Alt 仅当前声道 | ✅ | P0 |
 | TL-EDIT-05 | Clear | 删除选择并保留空隙 | ✅ 自由轨；⛔ Story 采用 gapless 产品语义 | P0 |
-| TL-EDIT-06 | Ripple Delete | 删除并关闭间隙；锁定/Sync Lock 决定其他轨移动 | 🟡 Story 已实现，其他轨 Sync Lock 尚缺 | P1 |
+| TL-EDIT-06 | Ripple Delete | 删除并关闭间隙；Track Lock 阻止修改，Sync Lock 决定其他轨移动 | ✅ | P1 |
 | TL-EDIT-07 | Gap 操作 | 选择 gap、Ripple Delete gap、关闭全部 gap | ⬜ | P2 |
 | TL-EDIT-08 | Lift | `;` 删除目标轨 In/Out 内容并保留范围空隙，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-09 | Extract | `'` 删除目标轨 In/Out 内容并闭合范围，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-10 | Q/W Ripple Trim | 把选中 Story 起点/终点波纹裁到播放头 | ✅ | P1 |
 | TL-EDIT-11 | Extend Edit | E 把选中剪辑点延伸到播放头 | ⬜ | P1 |
-| TL-EDIT-12 | Clip Enable | Shift+E 切换片段 enabled，Program/导出一致 | 🟡 数据和 Inspector 支持，缺 Timeline 快捷键 | P1 |
+| TL-EDIT-12 | Clip Enable | Shift+E 切换所选未锁片段 enabled，Program/导出一致 | ✅ | P1 |
 
 ### 7.8 精剪工具
 
@@ -373,7 +373,13 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：点击片段不会拖动它；选择状态、Program 帧和 Inspector/审阅入口使用同一 clip identity。
 
-机会：补齐 Deselect All、跨轨移动和 Sync Lock 后，选择模型才能完整支撑多轨 Premiere 工作流。
+机会：补齐跨轨移动、Group/Ungroup 和明确的 edit-point selection 后，选择模型才能完整支撑多轨 Premiere 工作流。
+
+### Step 4：Sync Lock 与多轨波纹 — 健康
+
+![Sync Lock 轨道控制](evidence/2026-09-01-timeline-sync-lock/01-sync-lock-controls.png)
+
+确认：Sync Lock 位于真实轨道头，Story compound audio 不重复展示第二个伪轨道开关；关闭后自由轨保持原位，开启后 Story 插入、提取、删除和时长变化会把符合条件的未锁轨道合并到同一个 Project Patch。跨越波纹边界的长片段保持原位，符合 Premiere 默认 Trim preference；纯 Story 重排不会误移动 B-roll。
 
 ## 12. 迭代计划
 
@@ -386,10 +392,11 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 ### Milestone 1：核心多轨一致性 — 下一轮
 
-- [ ] Sync Lock 轨道状态与可见开关。
-- [ ] Story insert/ripple/extract 对 Sync-Locked 轨道的一次原子 Patch。
+- [x] Sync Lock 轨道状态与可见开关。
+- [x] Story insert/ripple/extract/trim 对 Sync-Locked 轨道的一次原子 Patch。
 - [ ] 跨兼容轨垂直移动片段，保留 link/group identity。
-- [ ] Deselect All、Enable Clip、Extend Edit、Match Frame 快捷键。
+- [x] Deselect All、Enable Clip、Match Frame 快捷键。
+- [ ] Extend Edit 与明确的 edit-point selection。
 - [ ] 明确 Clear 与 Ripple Delete 的菜单文案和非 Story 行为。
 
 验收：所有命令在锁定、链接、目标轨和 Agent Edit Lease 四种约束下都有交互测试。

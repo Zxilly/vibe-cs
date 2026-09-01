@@ -165,7 +165,7 @@ Adobe 的基准行为参考 [Select clips](https://helpx.adobe.com/premiere/desk
 | TL-SEL-04 | Track Select | A 向前、Shift+A 向后；Shift-click 跨全部轨 | ✅ | P1 |
 | TL-SEL-05 | Linked Selection | 全局开关；Alt 只选/只编辑一个声道 | ✅ | P1 |
 | TL-SEL-06 | Link/Unlink | Ctrl/Cmd+L 与按钮原子更新跨轨 link group | ✅ | P1 |
-| TL-SEL-07 | Group/Ungroup | Ctrl/Cmd+G 与 Ctrl/Cmd+Shift+G 形成可共同移动但不等同 A/V Link 的组 | ⬜ | P2 |
+| TL-SEL-07 | Group/Ungroup | Ctrl/Cmd+G 与 Ctrl/Cmd+Shift+G 写入独立 `group_id`；Group 始终扩展选择和移动，Link 只在 Linked Selection 开启时扩展；复制粘贴继续重建组 identity | ✅ | P2 |
 | TL-SEL-08 | Track Targeting | 多目标轨控制 Add Edit、粘贴、导航、转场和 Match Frame | ✅，Match Frame 尚缺 | P0 |
 | TL-SEL-09 | Source Patching | Source 视频/音频分别映射目标轨，可禁用某个 source channel | ✅ | P0 |
 | TL-SEL-10 | Sync Lock | 每个 canonical 轨道有开关；Shift 点击切换同类轨；Story insert/ripple/extract/trim 用稳定 Clip identity 推导偏移并在同一 Patch 平移未锁自由轨 | ✅ | P1 |
@@ -259,7 +259,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-AUD-04 | 音频转场/Fade | 时间轴内调整淡入淡出，使用统一 transition schema | ✅ | P1 |
 | TL-AUD-05 | Pan/Balance | 轨道和片段 Pan，关键帧自动化 | ⬜ | P2 |
 | TL-AUD-06 | Mixer | Track Mixer、Mute/Solo、表头、峰值表、Automation modes | ⬜ | P3 |
-| TL-AUD-07 | 音画同步提示 | 解除链接后移动显示 out-of-sync 帧数，可一键恢复同步 | ⬜ | P2 |
+| TL-AUD-07 | 音画同步提示 | Unlink 时记录最小相对同步参考；单侧移动后双方显示带符号帧差；恢复按钮按另一侧位移对齐，支持 Pointer/键盘并提交一个 Clip operation | ✅ | P2 |
 
 ### 7.11 标记、文字、字幕和事件
 
@@ -373,7 +373,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：点击片段不会拖动它；选择状态、Program 帧和 Inspector/审阅入口使用同一 clip identity。
 
-机会：补齐跨轨移动、Group/Ungroup 和明确的 edit-point selection 后，选择模型才能完整支撑多轨 Premiere 工作流。
+机会：选择、跨轨、Group/Link 和 edit-point selection 已形成完整基础；后续重点转向音频自动化、转场属性和长项目工作流。
 
 ### Step 4：Sync Lock 与多轨波纹 — 健康
 
@@ -405,6 +405,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Trim Mode 芯片紧凑显示当前选中数量和主 cut 时间，完整快捷键放入统一 Tooltip；Ctrl/Shift 点击 Rolling Handle 可添加或移除同轨/跨轨剪辑点。所有选中 cut 先共同收敛到最严格的源 handle delta，再在一个 Project Patch 中更新；相邻 cut 共享的中间片段会同时修改 In/Out，形成正确的源窗口滑移。
 
+### Step 9：Group/Link 与 out-of-sync — 健康
+
+![音画不同步帧数](evidence/2026-09-01-timeline-sync-status/01-out-of-sync.png)
+
+确认：Group 与 Link 使用独立 identity 和选择规则；Unlink 后单侧移动时，视频显示 `+1f`、音频显示 `−1f`，两者来自相对参考位移而非绝对时间。点击视频的恢复同步提示后 revision 55 → 56 且偏移消失；随后通过统一 Undo 链完整恢复到仅含 Story compound 的 revision 63。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -431,7 +437,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Trim Mode、多 edit-point selection、循环预览和键盘精调。
 - [x] Dynamic JKL Trim。
 - [ ] 多级 JKL shuttle、循环播放和 Go to In/Out。
-- [ ] Group/Ungroup 与 out-of-sync 指示。
+- [x] Group/Ungroup 与 out-of-sync 指示。
 - [ ] Audio Solo、Pan、Track keyframes。
 - [ ] 转场 alignment、Paste Attributes、Bezier keyframes。
 

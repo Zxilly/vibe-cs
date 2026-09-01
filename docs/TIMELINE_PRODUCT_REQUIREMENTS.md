@@ -117,7 +117,7 @@ Timeline Clip 必须明确显示 Planned、Recorded、Imported、Stale/Needs Rec
 | TL-UI-04 | 统一浅色设计系统 | 使用 `theme.css`、`design/timeline`、`design/review`，无页面私有时间几何 | ✅ | P0 |
 | TL-UI-05 | 轨道高度 | 单轨展开/折叠、拖动高度，视频缩略图和波形随高度重排 | ✅ | P1 |
 | TL-UI-06 | 轨道显示设置 | 切换片段名称、缩略图、波形、关键帧、重复帧/Through Edit 标记 | 🟡 目前名称、缩略图、波形和关键帧固定显示，无设置面板 | P2 |
-| TL-UI-07 | 时间码输入 | 播放头时间码可点击输入、拖动 scrub、切换时间码/帧计数 | ⬜ | P2 |
+| TL-UI-07 | 时间码输入 | 播放头时间码可点击输入、拖动 scrub、切换时间码/帧计数 | ✅ | P2 |
 | TL-UI-08 | 工具说明 | 所有工具 Hover/Focus 显示名称、快捷键、行为或不可用原因 | ✅ | P0 |
 
 ### 7.2 时间导航、缩放与滚动
@@ -180,7 +180,7 @@ Adobe 的基准行为参考 [Select clips](https://helpx.adobe.com/premiere/desk
 | TL-TRACK-04 | 轨道锁定 | 锁定轨可看不可改，链接编辑不穿透锁 | ✅ | P0 |
 | TL-TRACK-05 | 输出控制 | 视频/文字 Eye，音频 Mute，Program 和导出一致 | ✅ | P0 |
 | TL-TRACK-06 | Solo | 单独监听一条或多条音频轨 | ✅ | P2 |
-| TL-TRACK-07 | 轨道命名 | 内联或 Inspector 重命名，保持 track ID | ⬜ | P2 |
+| TL-TRACK-07 | 轨道命名 | 内联或 Inspector 重命名，保持 track ID | ✅ | P2 |
 | TL-TRACK-08 | 跨轨移动 | 兼容片段可垂直拖到另一条轨并一次提交；自由轨使用 Overwrite；Story compound 离开 Story 时拆成共享 Link Group 的视频/音频，进入 Story 时重新合并；缺少音频轨时同一 Patch 创建 | ✅ | P1 |
 
 ### 7.6 素材组接与三点编辑
@@ -434,6 +434,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 14：Transition alignment 与复制 — 健康
 
 确认：不增加第二个 Cut/Transition 模型；同一 cut 左侧 `video/audio_out` 与右侧 `video/audio_in` 直接表达 Adobe 的 End at Cut、Center at Cut、Start at Cut，非对称两侧自动显示为 Custom Start。选中时间轴转场后显示三种 alignment，切换一次提交整轨的一个 Project operation；Ctrl/Cmd+C 复制 kind、总时长、alignment 与非对称两侧时长，Ctrl/Cmd+V 只粘到同 channel 的所选 cut。Program 与 FFmpeg 继续消费同一对 edge transitions。Tauri CDP 从 revision 6 的 0.5s+0.5s centered Fade 切换到 revision 7 的右侧 1s Start at Cut，再把原 centered transition 粘到 B/C cut 形成 revision 8 的 0.5s+0.5s；console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/09-transition-start-at-cut.png` 与 `10-transition-pasted.png`。
+
+### Step 15：时间码输入与轨道重命名 — 健康
+
+确认：Timeline footer 的播放头读数支持 `HH:MM:SS:FF` 直接输入、总帧数模式和独立 scrub handle；Enter 提交并按序列时长夹取，Escape 放弃，方向键按 1/5 帧移动。轨道名通过可聚焦的 inline 入口双击、Enter 或 F2 编辑，空名称/Escape 不提交，Story compound 只在 canonical 视频轨头显示一次重命名入口。Tauri CDP 输入 `00:00:04:30` 后播放头精确为 4.5s，切换总帧显示 `270`；随后 Story 重命名为 `Main Story`，revision 8 → 9 且 track ID 不变，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/11-timecode-frames.png` 与 `12-track-renamed.png`。
 
 ## 12. 迭代计划
 

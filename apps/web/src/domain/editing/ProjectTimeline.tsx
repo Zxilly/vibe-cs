@@ -69,6 +69,7 @@ import type {
   EditingDocument,
   EditorMarker,
   ExportJobRecord,
+  NestedSequenceMedia,
   ProjectChangeGroup,
   TimelineClip,
   TimelineClipMaterializationState,
@@ -212,6 +213,8 @@ export interface ProjectTimelineProps {
   readonly sourceMarkersByAssetId?: ReadonlyMap<string, readonly EditorMarker[]>;
   readonly renderPreviews?: readonly ExportJobRecord[];
   readonly renderPreviewPending?: boolean;
+  readonly nestedSequenceMediaByClipId?: ReadonlyMap<string, NestedSequenceMedia>;
+  readonly nestedSequencePending?: boolean;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
@@ -259,6 +262,9 @@ export interface ProjectTimelineProps {
   readonly onDropMediaAsset: (drop: TimelineMediaDrop) => void;
   readonly onRenderPreview?: ((start: number, end: number) => void) | undefined;
   readonly onClearRenderPreviews?: (() => void) | undefined;
+  readonly onCreateNestedSequence?: ((clipIds: readonly string[], name: string) => void) | undefined;
+  readonly onOpenNestedSequence?: ((projectId: string) => void) | undefined;
+  readonly onRefreshNestedSequence?: ((clipId: string) => void) | undefined;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
   readonly canRedo: boolean;
@@ -281,6 +287,7 @@ const MIN_TRACK_HEIGHT = 32;
 const MAX_TRACK_HEIGHT = 180;
 const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
 const EMPTY_SOURCE_MARKERS = new Map<string, readonly EditorMarker[]>();
+const EMPTY_NESTED_SEQUENCE_MEDIA = new Map<string, NestedSequenceMedia>();
 
 function defaultTrackHeight(track: RenderedTrack): number {
   if (track.kind === 'video') return 84;
@@ -303,6 +310,8 @@ export function ProjectTimeline({
   sourceMarkersByAssetId = EMPTY_SOURCE_MARKERS,
   renderPreviews = [],
   renderPreviewPending = false,
+  nestedSequenceMediaByClipId = EMPTY_NESTED_SEQUENCE_MEDIA,
+  nestedSequencePending = false,
   selectedClipId,
   selectedClipIds,
   targetTrackId,
@@ -347,6 +356,9 @@ export function ProjectTimeline({
   onDropMediaAsset,
   onRenderPreview,
   onClearRenderPreviews,
+  onCreateNestedSequence,
+  onOpenNestedSequence,
+  onRefreshNestedSequence,
   canUndo,
   onUndo,
   canRedo,
@@ -397,6 +409,7 @@ export function ProjectTimeline({
     readonly content: string;
     readonly duration: number;
   } | null>(null);
+  const [nestedSequenceName, setNestedSequenceName] = useState<string | null>(null);
   const [crossTrackTargetId, setCrossTrackTargetId] = useState<string | null>(null);
   const [trackHeights, setTrackHeights] = useState<Readonly<Record<string, number>>>({});
   const [collapsedTrackRows, setCollapsedTrackRows] = useState<ReadonlySet<string>>(new Set());
@@ -532,6 +545,21 @@ export function ProjectTimeline({
   const canChangeLinks = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
   const canGroup = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
   const canUngroup = !readOnly && selectedClips.some((clip) => clip.group_id !== null) && everySelectedTrackEditable;
+  const selectedStoryIndices = story === null ? [] : story.clips.flatMap((clip, index) => (
+    selectedClipIdSet.has(clip.id) ? [index] : []
+  ));
+  const canCreateNestedSequence = !readOnly
+    && !nestedSequencePending
+    && selectedTrackGroups.length === 1
+    && selectedTrackGroups[0]?.track.id === document.story_track_id
+    && selectedStoryIndices.length > 0
+    && selectedStoryIndices.at(-1)! - selectedStoryIndices[0]! + 1 === selectedStoryIndices.length;
+  const selectedNestedClip = selectedClips.length === 1 && selectedClips[0]?.material.kind === 'sequence'
+    ? selectedClips[0]
+    : null;
+  const selectedNestedMedia = selectedNestedClip === null
+    ? null
+    : nestedSequenceMediaByClipId.get(selectedNestedClip.id) ?? null;
   const playheadSeconds = Math.min(
     document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
@@ -2241,6 +2269,21 @@ export function ProjectTimeline({
             { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
             { id: 'group', label: t`组合所选片段`, disabled: !canGroup, onSelect: groupSelectedClips },
             { id: 'ungroup', label: t`取消组合所选片段`, disabled: !canUngroup, onSelect: ungroupSelectedClips },
+            {
+              id: 'create-nested-sequence',
+              label: t`从所选片段创建嵌套序列…`,
+              disabled: !canCreateNestedSequence,
+              onSelect: () => globalThis.setTimeout(
+                () => setNestedSequenceName(t`嵌套序列 ${document.tracks.filter((track) => track.clips.some((clip) => clip.material.kind === 'sequence')).length + 1}`),
+                0,
+              ),
+            },
+            {
+              id: 'refresh-nested-sequence',
+              label: nestedSequencePending ? t`正在刷新嵌套序列…` : t`刷新所选嵌套序列`,
+              disabled: readOnly || nestedSequencePending || selectedNestedClip === null || selectedNestedMedia?.status === 'rendering',
+              onSelect: () => selectedNestedClip === null ? undefined : onRefreshNestedSequence?.(selectedNestedClip.id),
+            },
             { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
             { id: 'duplicate', label: t`在播放头复制所选片段`, disabled: !canDuplicate, onSelect: duplicateSelected },
@@ -2648,7 +2691,14 @@ export function ProjectTimeline({
                 onSelectClip(clipId, false, false);
               }}
               onPromoteClip={onPromoteClip}
-              onInspectClip={onInspectClip}
+              onInspectClip={(clipId) => {
+                const candidate = track.clips.find((clip) => clip.id === clipId);
+                if (candidate?.material.kind === 'sequence') {
+                  onOpenNestedSequence?.(candidate.material.project_id);
+                } else {
+                  onInspectClip(clipId);
+                }
+              }}
               onRestoreClipSync={restoreClipSync}
               onSeek={onSeek}
               onRazor={(time, allTracks, followLinkedClips) => addEditAt({
@@ -2765,6 +2815,32 @@ export function ProjectTimeline({
           )}
         </div>
       </div>
+
+      <Dialog
+        open={nestedSequenceName !== null}
+        title={<Trans>创建嵌套序列</Trans>}
+        confirmLabel={<Trans>创建并打开</Trans>}
+        confirmDisabled={nestedSequenceName === null || nestedSequenceName.trim() === '' || !canCreateNestedSequence}
+        onConfirm={() => {
+          if (nestedSequenceName === null || !canCreateNestedSequence) return;
+          const name = nestedSequenceName.trim();
+          setNestedSequenceName(null);
+          onCreateNestedSequence?.(selectedClipIds, name);
+        }}
+        onClose={() => setNestedSequenceName(null)}
+      >
+        <label className="flex flex-col gap-1 text-xs">
+          <Trans>序列名称</Trans>
+          <input
+            autoFocus
+            className="border border-divider bg-bg px-2 py-1.5"
+            maxLength={200}
+            value={nestedSequenceName ?? ''}
+            onChange={(event) => setNestedSequenceName(event.currentTarget.value)}
+          />
+        </label>
+        <p className="mt-2 text-2xs leading-4 text-neutral-500"><Trans>所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。</Trans></p>
+      </Dialog>
 
       <Dialog
         open={pasteAttributesOpen}
@@ -3658,7 +3734,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             displaySettings={displaySettings}
             repeatedFrames={displaySettings.repeatedFrames && repeatedClipIds.has(clip.id)}
             deliveryState={deliveryStateByClipId.get(clip.id)}
-            sourceMarkers={clip.material.kind === 'planned'
+            sourceMarkers={clip.material.kind === 'planned' || clip.material.kind === 'sequence'
               ? []
               : sourceMarkersByAssetId.get(clip.material.asset_id) ?? []}
             outOfSyncFrames={outOfSyncFramesByClipId.get(clip.id) ?? 0}
@@ -4636,6 +4712,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           'grid size-full place-items-center truncate px-2 text-2xs',
           kind === 'caption' && 'border-y-2 border-accent-400 bg-accent-100 font-medium text-accent-text',
         )}>{clip.name}</span>
+      ) : clip.material.kind === 'sequence' ? (
+        <span className="grid size-full place-items-center bg-accent-100 px-2 text-2xs font-medium text-accent-text"><Trans>嵌套序列</Trans> · {clip.name}</span>
       ) : material.streamAssetId === null ? (
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (

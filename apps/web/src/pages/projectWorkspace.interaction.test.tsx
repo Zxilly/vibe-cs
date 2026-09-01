@@ -458,6 +458,10 @@ function renderWorkspace({
   listProjectRenderPreviews,
   renderProjectPreview,
   clearProjectRenderPreviews,
+  listProjects,
+  listNestedSequenceMedia,
+  createNestedSequence,
+  refreshNestedSequence,
   streamAgentChat,
   appendAgentSessionEntry,
   updateAgentTurn,
@@ -473,7 +477,7 @@ function renderWorkspace({
   readonly agentConfigured?: boolean;
   readonly project?: Project;
   readonly deliveryGate?: ProjectDeliveryGate;
-  readonly getProject?: (() => Promise<Project>) | undefined;
+  readonly getProject?: ((projectId: string) => Promise<Project>) | undefined;
   readonly getActivity?: ReturnType<typeof vi.fn> | undefined;
   readonly listMediaAssets?: ReturnType<typeof vi.fn> | undefined;
   readonly createProjectRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
@@ -488,6 +492,10 @@ function renderWorkspace({
   readonly listProjectRenderPreviews?: ReturnType<typeof vi.fn> | undefined;
   readonly renderProjectPreview?: ReturnType<typeof vi.fn> | undefined;
   readonly clearProjectRenderPreviews?: ReturnType<typeof vi.fn> | undefined;
+  readonly listProjects?: ReturnType<typeof vi.fn> | undefined;
+  readonly listNestedSequenceMedia?: ReturnType<typeof vi.fn> | undefined;
+  readonly createNestedSequence?: ReturnType<typeof vi.fn> | undefined;
+  readonly refreshNestedSequence?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
@@ -497,6 +505,7 @@ function renderWorkspace({
   return renderPage({
     element: <ProjectWorkspacePage />,
     client: {
+      listProjects: listProjects ?? (() => Promise.resolve([project])),
       getProject: getProject ?? (() => Promise.resolve(project)),
       getProjectDeliveryGate: () => Promise.resolve(deliveryGate),
       ...(getActivity === undefined ? {} : { getActivity }),
@@ -514,6 +523,9 @@ function renderWorkspace({
       listProjectRenderPreviews: listProjectRenderPreviews ?? (() => Promise.resolve([])),
       ...(renderProjectPreview === undefined ? {} : { renderProjectPreview }),
       ...(clearProjectRenderPreviews === undefined ? {} : { clearProjectRenderPreviews }),
+      listNestedSequenceMedia: listNestedSequenceMedia ?? (() => Promise.resolve([])),
+      ...(createNestedSequence === undefined ? {} : { createNestedSequence }),
+      ...(refreshNestedSequence === undefined ? {} : { refreshNestedSequence }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
       ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
@@ -6135,6 +6147,109 @@ describe('unified project workspace', () => {
     });
     await waitFor(() => expect(document.querySelector('[data-render-preview-state="stale"]')).toBeTruthy());
     expect(screen.queryByLabelText('已渲染时间轴预览')).toBeNull();
+  });
+
+  it('creates a nested sequence from consecutive Story clips through the dedicated atomic route', async () => {
+    const createNestedSequence = vi.fn(() => new Promise(() => undefined));
+    renderWorkspace({ createNestedSequence });
+    fireEvent.click(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }), { ctrlKey: true });
+    runTimelineCommand('从所选片段创建嵌套序列…');
+    const dialog = await screen.findByRole('dialog', { name: '创建嵌套序列' });
+    fireEvent.change(within(dialog).getByLabelText('序列名称'), { target: { value: 'Action core' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '创建并打开' }));
+
+    await waitFor(() => expect(createNestedSequence).toHaveBeenCalledWith(PROJECT.id, {
+      base_revision: PROJECT.revision,
+      name: 'Action core',
+      clip_ids: [CLIP_A, CLIP_B],
+    }));
+  });
+
+  it('opens a nested sequence by double-click, restores Sequence Tabs and previews its rendered child', async () => {
+    const nestedId = '00000000-0000-4000-8000-000000000620';
+    const nestedClipId = '00000000-0000-4000-8000-000000000621';
+    const previewId = '00000000-0000-4000-8000-000000000622';
+    const nestedClip: TimelineClip = {
+      ...clip(nestedClipId, 'Action core'),
+      material: { kind: 'sequence', project_id: nestedId, project_revision: 1, media_duration_seconds: 5 },
+      metadata: { nested_sequence: true },
+    };
+    const parent: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 5,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID ? { ...track, clips: [nestedClip] } : track),
+      },
+    };
+    const nested: Project = {
+      ...PROJECT,
+      id: nestedId,
+      name: 'Action core',
+      revision: 1,
+      document: { ...PROJECT.document, duration_seconds: 5, tracks: [PROJECT.document.tracks[0]!] },
+    };
+    globalThis.localStorage.setItem('vibe-cs:sequence-tabs:v1', JSON.stringify([parent.id, nested.id]));
+    const getProject = vi.fn((id: string) => Promise.resolve(id === nested.id ? nested : parent));
+    renderWorkspace({
+      project: parent,
+      getProject,
+      listProjects: vi.fn(() => Promise.resolve([parent, nested])),
+      listNestedSequenceMedia: vi.fn(() => Promise.resolve([{
+        clip_id: nestedClipId,
+        project_id: nestedId,
+        expected_revision: 1,
+        current_revision: 1,
+        status: 'ready',
+        preview_job_id: previewId,
+      }])),
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    expect(await screen.findByRole('navigation', { name: '打开的序列' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Action core' })).toBeTruthy();
+    expect((await screen.findByLabelText('Action core 视频预览')).getAttribute('src')).toContain(`/outputs/export/${previewId}/stream`);
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Action core 5\.0s · 已录制/u }));
+    await waitFor(() => expect(getProject).toHaveBeenCalledWith(nestedId, expect.anything()));
+  });
+
+  it('refreshes a stale nested sequence through the visible Timeline command', async () => {
+    const nestedId = '00000000-0000-4000-8000-000000000630';
+    const nestedClipId = '00000000-0000-4000-8000-000000000631';
+    const nestedClip: TimelineClip = {
+      ...clip(nestedClipId, 'Nested stale'),
+      material: { kind: 'sequence', project_id: nestedId, project_revision: 1, media_duration_seconds: 5 },
+    };
+    const parent: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 5,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID ? { ...track, clips: [nestedClip] } : track),
+      },
+    };
+    const refreshNestedSequence = vi.fn(() => new Promise(() => undefined));
+    renderWorkspace({
+      project: parent,
+      refreshNestedSequence,
+      listNestedSequenceMedia: vi.fn(() => Promise.resolve([{
+        clip_id: nestedClipId,
+        project_id: nestedId,
+        expected_revision: 1,
+        current_revision: 2,
+        status: 'stale',
+        preview_job_id: null,
+      }])),
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /Nested stale 5\.0s · 已录制/u }));
+    runTimelineCommand('刷新所选嵌套序列');
+    await waitFor(() => expect(refreshNestedSequence).toHaveBeenCalledWith(parent.id, nestedClipId, parent.revision));
   });
 
   it('removes a non-Story track with a real Project operation', async () => {

@@ -29,6 +29,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   useApplyProjectPatch,
   useCreateProject,
+  useProjects,
+  useNestedSequenceMedia,
+  useCreateNestedSequence,
+  useRefreshNestedSequence,
   useExportProject,
   useProjectRenderPreviews,
   useRenderProjectPreview,
@@ -112,6 +116,10 @@ import {
   isSupportedEditorEffectKind,
   importTimelineInterchange,
   interchangeFormatFromPath,
+  closeSequenceTab,
+  openSequenceTab,
+  readSequenceTabs,
+  writeSequenceTabs,
   moveEditorEffect,
   planRippleSequenceMarkers,
   planAutomateToSequence,
@@ -204,6 +212,7 @@ export function ProjectWorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const create = useCreateProject();
   const canonicalId = projectId === 'new' ? null : projectId;
+  const projects = useProjects();
   const project = useProject(canonicalId);
   const deliveryGate = useProjectDeliveryGate(canonicalId);
   const deliveryStateByClipId = useMemo(() => {
@@ -244,9 +253,17 @@ export function ProjectWorkspacePage() {
   const renderPreviews = useProjectRenderPreviews(canonicalId);
   const renderPreview = useRenderProjectPreview(canonicalId ?? '');
   const clearRenderPreviews = useClearProjectRenderPreviews(canonicalId ?? '');
+  const nestedSequenceMedia = useNestedSequenceMedia(canonicalId);
+  const createNestedSequence = useCreateNestedSequence(canonicalId ?? '');
+  const refreshNestedSequence = useRefreshNestedSequence(canonicalId ?? '');
+  const nestedSequenceMediaByClipId = useMemo(
+    () => new Map((nestedSequenceMedia.data ?? []).map((item) => [item.clip_id, item] as const)),
+    [nestedSequenceMedia.data],
+  );
   const cancelTask = useCancelTask();
   const lens: EditingLens = 'multitrack';
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
+  const [sequenceTabIds, setSequenceTabIds] = useState<readonly string[]>(() => readSequenceTabs(globalThis.localStorage));
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
   const initializedSelectionProjectId = useRef<string | null>(null);
   const initializedTargetProjectId = useRef<string | null>(null);
@@ -297,6 +314,23 @@ export function ProjectWorkspacePage() {
   const exportTask = useTask('export', exportProject.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
   const reportedExecutionIds = useRef(new Set<string>());
   const refreshedRecordingJobs = useRef(new Set<string>());
+  const nestedSequenceStatusKey = (nestedSequenceMedia.data ?? [])
+    .map((item) => `${item.clip_id}:${item.current_revision}:${item.status}:${item.preview_job_id ?? ''}`)
+    .join('|');
+
+  useEffect(() => {
+    if (canonicalId === null) return;
+    setSequenceTabIds((current) => {
+      const next = openSequenceTab(current, canonicalId);
+      writeSequenceTabs(globalThis.localStorage, next);
+      return next;
+    });
+  }, [canonicalId]);
+
+  useEffect(() => {
+    if (nestedSequenceMedia.data === undefined) return;
+    void deliveryGate.refetch();
+  }, [nestedSequenceStatusKey]);
 
   useEffect(() => {
     const task = recordingTask.data;
@@ -527,6 +561,22 @@ export function ProjectWorkspacePage() {
   }
 
   const current = project.data;
+  const openSequenceWorkspace = (id: string) => {
+    setSequenceTabIds((tabs) => {
+      const next = openSequenceTab(tabs, id);
+      writeSequenceTabs(globalThis.localStorage, next);
+      return next;
+    });
+    void navigate(`/projects/${id}`);
+  };
+  const closeSequenceWorkspace = (id: string) => {
+    setSequenceTabIds((tabs) => {
+      const result = closeSequenceTab(tabs, id);
+      writeSequenceTabs(globalThis.localStorage, result.tabs);
+      if (id === current.id) void navigate(result.nextActiveId === null ? '/projects' : `/projects/${result.nextActiveId}`);
+      return result.tabs;
+    });
+  };
   const previewProject = projectWithPreviewClips(current, timelinePreviewClips);
   const readOnly = agentChat.streaming || (lease.data !== null && lease.data !== undefined);
   const selected = findClip(current, selectedClipId);
@@ -941,6 +991,9 @@ export function ProjectWorkspacePage() {
     renderPreviews.error,
     renderPreview.error,
     clearRenderPreviews.error,
+    nestedSequenceMedia.error,
+    createNestedSequence.error,
+    refreshNestedSequence.error,
     cancelTask.error,
     importMedia.error,
     relinkMedia.error,
@@ -1025,6 +1078,7 @@ export function ProjectWorkspacePage() {
       mediaAssetsById={mediaAssetsById}
       useMediaProxies={current.document.settings.use_media_proxies}
       renderPreviews={renderPreviews.data ?? []}
+      nestedSequenceMediaByClipId={nestedSequenceMediaByClipId}
       timelineTimeSeconds={transportTimeSeconds}
       selectedClipId={selectedClipId}
       readOnly={readOnly || apply.isPending || selected?.track.locked === true}
@@ -1059,6 +1113,8 @@ export function ProjectWorkspacePage() {
       sourceMarkersByAssetId={sourceMarkersByAssetId}
       renderPreviews={renderPreviews.data ?? []}
       renderPreviewPending={renderPreview.isPending || clearRenderPreviews.isPending}
+      nestedSequenceMediaByClipId={nestedSequenceMediaByClipId}
+      nestedSequencePending={createNestedSequence.isPending || refreshNestedSequence.isPending}
       selectedClipId={selectedClipId}
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}
@@ -1202,6 +1258,18 @@ export function ProjectWorkspacePage() {
         rangeEndSeconds: end,
       })}
       onClearRenderPreviews={() => clearRenderPreviews.mutate()}
+      onCreateNestedSequence={(clipIds, name) => createNestedSequence.mutate({
+        baseRevision: current.revision,
+        name,
+        clipIds,
+      }, {
+        onSuccess: ({ nested_project: nested }) => openSequenceWorkspace(nested.id),
+      })}
+      onOpenNestedSequence={openSequenceWorkspace}
+      onRefreshNestedSequence={(clipId) => refreshNestedSequence.mutate({
+        clipId,
+        baseRevision: current.revision,
+      })}
       canUndo={historyCommands.undo !== null}
       onUndo={() => {
         if (historyCommands.undo === null || readOnly) return;
@@ -1386,6 +1454,13 @@ export function ProjectWorkspacePage() {
         </header>
       )}
     >
+      <ProjectSequenceTabs
+        ids={sequenceTabIds}
+        activeId={current.id}
+        projects={projects.data ?? []}
+        onOpen={openSequenceWorkspace}
+        onClose={closeSequenceWorkspace}
+      />
       <ProjectWorkspaceDock
         key={`${current.id}:${workspaceLayoutEpoch}`}
         projectId={current.id}
@@ -1577,12 +1652,39 @@ export function ProjectWorkspacePage() {
           className="m-4"
           variant="danger"
           detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
-          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
+          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); createNestedSequence.reset(); refreshNestedSequence.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
         >
           <Trans>操作没有完成</Trans>
         </Alert>
       )}
     </Page>
+  );
+}
+
+function ProjectSequenceTabs({ ids, activeId, projects, onOpen, onClose }: {
+  readonly ids: readonly string[];
+  readonly activeId: string;
+  readonly projects: readonly Project[];
+  readonly onOpen: (id: string) => void;
+  readonly onClose: (id: string) => void;
+}) {
+  const projectById = new Map(projects.map((project) => [project.id, project] as const));
+  return (
+    <nav className="flex h-8 flex-none items-end overflow-x-auto border-b border-divider bg-neutral-50 px-2" aria-label={t`打开的序列`}>
+      {ids.map((id) => {
+        const item = projectById.get(id);
+        const active = id === activeId;
+        return (
+          <span key={id} className={cn(
+            'flex h-7 min-w-28 max-w-56 items-center border-x border-t px-2 text-xs',
+            active ? 'border-divider bg-bg font-semibold text-text' : 'border-transparent text-neutral-500 hover:bg-neutral-100',
+          )}>
+            <button type="button" className="min-w-0 flex-1 truncate text-left" aria-current={active ? 'page' : undefined} onClick={() => onOpen(id)}>{item?.name ?? id}</button>
+            <button type="button" className="ml-2 grid size-4 flex-none place-items-center rounded-sm hover:bg-neutral-200" aria-label={t`关闭序列 ${item?.name ?? id}`} onClick={() => onClose(id)}>×</button>
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

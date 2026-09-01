@@ -6,7 +6,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { mediaAssetProxyStreamPath, mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
-import type { ExportJobRecord, MediaAsset, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import type { ExportJobRecord, MediaAsset, NestedSequenceMedia, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
   clipAudioFadeFactor,
@@ -63,6 +63,7 @@ type PreviewPoolRole = 'program' | 'trim';
 type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
 const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
 const EMPTY_MEDIA_ASSETS = new Map<string, MediaAsset>();
+const EMPTY_NESTED_SEQUENCE_MEDIA = new Map<string, NestedSequenceMedia>();
 
 export interface TimelineProgramMonitorProps {
   readonly showHeader?: boolean;
@@ -71,6 +72,7 @@ export interface TimelineProgramMonitorProps {
   readonly mediaAssetsById?: ReadonlyMap<string, MediaAsset>;
   readonly useMediaProxies?: boolean;
   readonly renderPreviews?: readonly ExportJobRecord[];
+  readonly nestedSequenceMediaByClipId?: ReadonlyMap<string, NestedSequenceMedia>;
   readonly timelineTimeSeconds: number;
   readonly selectedClipId: string | null;
   readonly readOnly: boolean;
@@ -102,6 +104,7 @@ export function TimelineProgramMonitor({
   mediaAssetsById = EMPTY_MEDIA_ASSETS,
   useMediaProxies = false,
   renderPreviews = [],
+  nestedSequenceMediaByClipId = EMPTY_NESTED_SEQUENCE_MEDIA,
   timelineTimeSeconds,
   selectedClipId,
   readOnly,
@@ -146,8 +149,9 @@ export function TimelineProgramMonitor({
     && presentedRenderPreviewId === activeRenderPreview.job.id;
   const selectedDeliveryState = selected === null ? undefined : deliveryStateByClipId.get(selected.id);
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
+  const selectedNestedMedia = selected === null ? null : nestedSequenceMediaByClipId.get(selected.id) ?? null;
   const targetId = !storyOutputEnabled
-    || selectedMaterial?.streamAssetId === null
+    || (selectedMaterial?.streamAssetId === null && selectedNestedMedia?.status !== 'ready')
     || (selected !== null && isStillImageTimelineClip(selected))
     ? null
     : selected?.id ?? null;
@@ -173,13 +177,20 @@ export function TimelineProgramMonitor({
     const result: PreviewMedia[] = [];
     for (const clip of clips) {
       if (isStillImageTimelineClip(clip)) continue;
+      if (clip.material.kind === 'sequence') {
+        const nested = nestedSequenceMediaByClipId.get(clip.id);
+        if (nested?.status !== 'ready' || nested.preview_job_id === null) continue;
+        const src = shell.mediaSrc(projectRenderPreviewStreamPath(nested.preview_job_id));
+        if (src !== null) result.push({ clip, src });
+        continue;
+      }
       const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
       if (assetId === null) continue;
       const src = shell.mediaSrc(programPreviewStreamPath(assetId, mediaAssetsById, useMediaProxies));
       if (src !== null) result.push({ clip, src });
     }
     return result;
-  }, [clips, mediaAssetsById, shell, useMediaProxies]);
+  }, [clips, mediaAssetsById, nestedSequenceMediaByClipId, shell, useMediaProxies]);
   const [mountedStorySources, setMountedStorySources] = useState<ReadonlyMap<string, readonly string[]>>(new Map());
   const media = useMemo<StoryPreviewMedia[]>(() => desiredMedia.flatMap((item) => {
     const mounted = mountedStorySources.get(item.clip.id) ?? [item.src];
@@ -249,6 +260,13 @@ export function TimelineProgramMonitor({
         || (track.kind !== 'video' && track.kind !== 'overlay')) continue;
       for (const clip of track.clips) {
         if (!clip.placement.enabled || isStillImageTimelineClip(clip)) continue;
+        if (clip.material.kind === 'sequence') {
+          const nested = nestedSequenceMediaByClipId.get(clip.id);
+          if (nested?.status !== 'ready' || nested.preview_job_id === null) continue;
+          const src = shell.mediaSrc(projectRenderPreviewStreamPath(nested.preview_job_id));
+          if (src !== null) result.push({ track, clip, src });
+          continue;
+        }
         const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
         if (assetId === null) continue;
         const src = shell.mediaSrc(previewStreamPath(assetId));
@@ -260,7 +278,7 @@ export function TimelineProgramMonitor({
       }
     }
     return result;
-  }, [mediaAssetsById, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
+  }, [mediaAssetsById, nestedSequenceMediaByClipId, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
   const imageMedia = useMemo(() => {
     const result: ImagePreviewMedia[] = [];
     for (const track of project.document.tracks) {

@@ -16,6 +16,7 @@ export {
   type TimelineInterchangeFormat,
   type TimelineInterchangeImport,
 } from './timelineInterchange';
+export { closeSequenceTab, openSequenceTab, readSequenceTabs, writeSequenceTabs } from './sequenceTabs';
 export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,

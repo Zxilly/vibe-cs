@@ -181,7 +181,7 @@ Adobe 的基准行为参考 [Select clips](https://helpx.adobe.com/premiere/desk
 | TL-TRACK-05 | 输出控制 | 视频/文字 Eye，音频 Mute，Program 和导出一致 | ✅ | P0 |
 | TL-TRACK-06 | Solo | 单独监听一条或多条音频轨 | ⬜ | P2 |
 | TL-TRACK-07 | 轨道命名 | 内联或 Inspector 重命名，保持 track ID | ⬜ | P2 |
-| TL-TRACK-08 | 自由跨轨移动 | 可把兼容片段垂直拖到另一条轨，并一次提交 | 🟡 自由视频/音频轨之间已支持 Overwrite、目标高亮和锁定拒绝；Story compound 音频拆分/合并待补 | P1 |
+| TL-TRACK-08 | 跨轨移动 | 兼容片段可垂直拖到另一条轨并一次提交；自由轨使用 Overwrite；Story compound 离开 Story 时拆成共享 Link Group 的视频/音频，进入 Story 时重新合并；缺少音频轨时同一 Patch 创建 | ✅ | P1 |
 
 ### 7.6 素材组接与三点编辑
 
@@ -400,7 +400,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 - [x] Sync Lock 轨道状态与可见开关。
 - [x] Story insert/ripple/extract/trim 对 Sync-Locked 轨道的一次原子 Patch。
-- [~] 跨兼容自由轨垂直移动片段，保留 link/group identity；Story compound 边界待补。
+- [x] 跨兼容轨垂直移动片段，保留 link/group identity，并完成 Story compound 音画拆分/合并。
 - [x] Deselect All、Enable Clip、Match Frame 快捷键。
 - [x] Extend Edit 与明确的 edit-point selection。
 - [ ] 明确 Clear 与 Ripple Delete 的菜单文案和非 Story 行为。

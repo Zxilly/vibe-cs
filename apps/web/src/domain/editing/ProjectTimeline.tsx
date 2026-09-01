@@ -52,6 +52,11 @@ import {
   zoomAtAnchor,
 } from '../../design/timeline/timeScale';
 import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
+import {
+  formatTimelinePosition,
+  parseTimelinePosition,
+  type TimelineTimeDisplayMode,
+} from '../../design/timeline/timelineTimecode';
 import { Waveform } from '../media';
 import type {
   EditingDocument,
@@ -306,6 +311,7 @@ export function ProjectTimeline({
   const timelineWheelHandlerRef = useRef<(event: WheelEvent) => void>(() => undefined);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimelineTimeDisplayMode>('timecode');
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
@@ -2383,6 +2389,14 @@ export function ProjectTimeline({
         ) : null}
         <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
+        <TimelineTimecodeControl
+          seconds={playheadSeconds}
+          durationSeconds={document.duration_seconds}
+          fps={document.fps}
+          mode={timeDisplayMode}
+          onModeChange={setTimeDisplayMode}
+          onSeek={onSeek}
+        />
         <TimelineZoomNavigator
           multiplier={effectiveZoomMultiplier}
           maximumMultiplier={maximumZoomMultiplier}
@@ -2582,6 +2596,111 @@ function timelineClipMaterialState(
   if (deliveryState === 'stale') return 'stale';
   if (deliveryState === 'unbound' || deliveryState === 'unrecorded') return 'planned';
   return resolveTimelineMaterial(clip.material, clip.placement).state;
+}
+
+function TimelineTimecodeControl({ seconds, durationSeconds, fps, mode, onModeChange, onSeek }: {
+  readonly seconds: number;
+  readonly durationSeconds: number;
+  readonly fps: number;
+  readonly mode: TimelineTimeDisplayMode;
+  readonly onModeChange: (mode: TimelineTimeDisplayMode) => void;
+  readonly onSeek: (seconds: number) => void;
+}) {
+  const formatted = formatTimelinePosition(seconds, fps, mode);
+  const [draft, setDraft] = useState(formatted);
+  const [editing, setEditing] = useState(false);
+  const cancelCommitRef = useRef(false);
+  const gesture = useRef<{ readonly pointerId: number; readonly clientX: number; readonly seconds: number } | null>(null);
+  useEffect(() => {
+    if (!editing) setDraft(formatted);
+  }, [editing, formatted]);
+  const commit = () => {
+    if (cancelCommitRef.current) {
+      cancelCommitRef.current = false;
+      setEditing(false);
+      setDraft(formatted);
+      return;
+    }
+    const parsed = parseTimelinePosition(draft, fps, mode);
+    setEditing(false);
+    if (parsed === null) setDraft(formatted);
+    else onSeek(Math.min(durationSeconds, Math.max(0, parsed)));
+  };
+  return (
+    <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider bg-bg">
+      <Tooltip content={mode === 'timecode' ? t`切换为总帧计数` : t`切换为 HH:MM:SS:FF 时间码`} side="top">
+        <button
+          type="button"
+          className="h-full border-r border-divider px-1.5 font-mono text-2xs hover:bg-neutral-100"
+          aria-label={t`切换时间显示模式`}
+          onClick={() => onModeChange(mode === 'timecode' ? 'frames' : 'timecode')}
+        >{mode === 'timecode' ? 'TC' : 'F'}</button>
+      </Tooltip>
+      <input
+        className="h-full w-24 bg-transparent px-2 text-center font-mono text-2xs text-text outline-none focus:bg-accent-100"
+        aria-label={mode === 'timecode' ? t`播放头时间码` : t`播放头帧计数`}
+        inputMode="numeric"
+        value={draft}
+        onFocus={(event) => {
+          cancelCommitRef.current = false;
+          setEditing(true);
+          event.currentTarget.select();
+        }}
+        onChange={(event) => setDraft(event.currentTarget.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+            event.currentTarget.blur();
+          }
+          else if (event.key === 'Escape') {
+            cancelCommitRef.current = true;
+            event.currentTarget.blur();
+          }
+        }}
+      />
+      <Tooltip content={t`水平拖动 scrub；方向键 1 帧，Shift 5 帧`} side="top">
+        <button
+          type="button"
+          role="slider"
+          className="grid h-full w-7 touch-none place-items-center border-l border-divider hover:bg-neutral-100"
+          aria-label={t`拖动播放头时间码`}
+          aria-valuemin={0}
+          aria-valuemax={durationSeconds}
+          aria-valuenow={seconds}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            gesture.current = { pointerId: event.pointerId, clientX: event.clientX, seconds };
+          }}
+          onPointerMove={(event) => {
+            const active = gesture.current;
+            if (active === null || active.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            const pixelsPerFrame = event.shiftKey ? 12 : 4;
+            const frameDelta = Math.round((event.clientX - active.clientX) / pixelsPerFrame);
+            onSeek(Math.min(durationSeconds, Math.max(0, active.seconds + frameDelta / fps)));
+          }}
+          onPointerUp={(event) => {
+            if (gesture.current?.pointerId !== event.pointerId) return;
+            gesture.current = null;
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }}
+          onPointerCancel={() => { gesture.current = null; }}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            const direction = event.key === 'ArrowRight' ? 1 : -1;
+            onSeek(seconds + direction * (event.shiftKey ? 5 : 1) / fps);
+          }}
+        >
+          <MoveHorizontal className="size-3" aria-hidden="true" />
+        </button>
+      </Tooltip>
+    </span>
+  );
 }
 
 function TimelineZoomNavigator({
@@ -3011,6 +3130,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         readOnly={readOnly}
         onReplaceTrack={onReplaceTrack}
         removable={track.track.id !== storyTrackId && !track.derivedAudio}
+        renamable={!track.derivedAudio}
         onRemoveTrack={onRemoveTrack}
         canMoveUp={!track.derivedAudio && nonStoryIndex > 0}
         canMoveDown={!track.derivedAudio && nonStoryIndex >= 0 && nonStoryIndex < nonStoryTrackIds.length - 1}
@@ -5231,13 +5351,14 @@ function formatPan(value: number): string {
   return `${value < 0 ? 'L' : 'R'}${Math.round(Math.abs(value) * 100)}`;
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, timelineTimeSeconds = 0, fps = 60, automationProperty = 'volume', onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse, onAutomationPropertyChange }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, renamable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, timelineTimeSeconds = 0, fps = 60, automationProperty = 'volume', onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse, onAutomationPropertyChange }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
   readonly track?: TimelineTrack | undefined;
   readonly readOnly?: boolean | undefined;
   readonly removable?: boolean | undefined;
+  readonly renamable?: boolean | undefined;
   readonly canMoveUp?: boolean | undefined;
   readonly canMoveDown?: boolean | undefined;
   readonly targeted?: boolean | undefined;
@@ -5255,6 +5376,18 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly onToggleCollapse?: (() => void) | undefined;
   readonly onAutomationPropertyChange?: ((property: TrackAudioProperty) => void) | undefined;
 }) {
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const cancelRenameRef = useRef(false);
+  const commitRename = () => {
+    if (cancelRenameRef.current) {
+      cancelRenameRef.current = false;
+      setNameDraft(null);
+      return;
+    }
+    const name = nameDraft?.trim() ?? '';
+    setNameDraft(null);
+    if (track !== undefined && name !== '' && name !== track.name) onReplaceTrack?.({ ...track, name });
+  };
   return (
     <div className={cn(
       'sticky left-0 z-30 flex min-w-0 gap-1 border-r border-divider bg-bg pl-10 pr-2 text-xs font-medium',
@@ -5291,7 +5424,38 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
           {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : 'T1'}
         </button>
       )}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {nameDraft !== null ? (
+        <input
+          autoFocus
+          className="h-6 min-w-0 flex-1 border border-accent-400 bg-bg px-1 text-xs outline-none"
+          aria-label={t`轨道名称`}
+          value={nameDraft}
+          onChange={(event) => setNameDraft(event.currentTarget.value)}
+          onBlur={commitRename}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+            else if (event.key === 'Escape') {
+              cancelRenameRef.current = true;
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      ) : renamable && track !== undefined ? (
+        <Tooltip content={readOnly || track.locked ? t`轨道当前只读` : t`双击、Enter 或 F2 重命名轨道`} side="top">
+          <button
+            type="button"
+            className="min-w-0 flex-1 truncate text-left outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
+            aria-label={t`重命名轨道 ${track.name}`}
+            disabled={readOnly || track.locked}
+            onDoubleClick={() => setNameDraft(track.name)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== 'F2') return;
+              event.preventDefault();
+              setNameDraft(track.name);
+            }}
+          >{label}</button>
+        </Tooltip>
+      ) : <span className="min-w-0 flex-1 truncate">{label}</span>}
       {track === undefined ? null : (
         <span className="flex flex-none items-center text-neutral-500">
           {controls === 'none' || !syncLockVisible ? null : (

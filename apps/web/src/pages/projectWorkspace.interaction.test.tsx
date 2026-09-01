@@ -2929,6 +2929,30 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'k' });
   });
 
+  it('edits, switches and scrubs the playhead timecode', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    const timecode = screen.getByRole('textbox', { name: '播放头时间码' });
+    fireEvent.focus(timecode);
+    fireEvent.change(timecode, { target: { value: '00:00:04:30' } });
+    fireEvent.keyDown(timecode, { key: 'Enter' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(4.5);
+
+    fireEvent.click(screen.getByRole('button', { name: '切换时间显示模式' }));
+    const frames = screen.getByRole('textbox', { name: '播放头帧计数' });
+    expect((frames as HTMLInputElement).value).toBe('270');
+    fireEvent.focus(frames);
+    fireEvent.change(frames, { target: { value: '120' } });
+    fireEvent.keyDown(frames, { key: 'Enter' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(2);
+
+    const scrub = screen.getByRole('slider', { name: '拖动播放头时间码' });
+    fireEvent.pointerDown(scrub, { pointerId: 401, button: 0, clientX: 100 });
+    fireEvent.pointerMove(scrub, { pointerId: 401, clientX: 140 });
+    fireEvent.pointerUp(scrub, { pointerId: 401, clientX: 140 });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeCloseTo(2 + 10 / 60);
+  });
+
   it('navigates target-track edits by default and every track with Shift', async () => {
     renderWorkspace({ project: navigationProject() });
 
@@ -5312,6 +5336,24 @@ describe('unified project workspace', () => {
 
     await waitFor(() => expect(removePatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{ op: 'remove_track', track_id: '00000000-0000-4000-8000-000000000013' }],
+    })));
+  });
+
+  it('renames a canonical track inline with one replace-track operation', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: '重命名轨道 Music' }));
+    const name = screen.getByRole('textbox', { name: '轨道名称' });
+    fireEvent.change(name, { target: { value: 'Music Bed' } });
+    fireEvent.keyDown(name, { key: 'Enter' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        track: expect.objectContaining({ id: '00000000-0000-4000-8000-000000000013', name: 'Music Bed' }),
+      }],
     })));
   });
 

@@ -40,6 +40,7 @@ export interface ProjectMediaPanelProps {
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly projectFps: number;
   readonly selectedTimelineClipId: string | null;
+  readonly matchedSourceFrame: { readonly clipId: string; readonly sourceTime: number } | null;
   readonly pending: boolean;
   readonly readOnly: boolean;
   readonly busy: boolean;
@@ -94,6 +95,7 @@ export function ProjectMediaPanel({
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
   projectFps,
   selectedTimelineClipId,
+  matchedSourceFrame,
   pending,
   readOnly,
   busy,
@@ -128,6 +130,12 @@ export function ProjectMediaPanel({
   useEffect(() => {
     if (selectedTimelineClipId !== null) setSelectedKey(`clip:${selectedTimelineClipId}`);
   }, [selectedTimelineClipId]);
+  useEffect(() => {
+    if (matchedSourceFrame === null) return;
+    const key = `clip:${matchedSourceFrame.clipId}`;
+    setSelectedKey(key);
+    setSourceTimes((current) => ({ ...current, [key]: matchedSourceFrame.sourceTime }));
+  }, [matchedSourceFrame]);
   useEffect(() => {
     if (selectedKey !== null && !items.some((item) => item.key === selectedKey)) setSelectedKey(null);
   }, [items, selectedKey]);

@@ -303,6 +303,26 @@ function navigationProject(): Project {
   };
 }
 
+function syncLockProject(): Project {
+  const overlay: TimelineTrack = {
+    id: '00000000-0000-4000-8000-000000000097',
+    name: 'B-Roll',
+    kind: 'video',
+    order: 2,
+    muted: false,
+    locked: false,
+    hidden: false,
+    clips: [{
+      ...clip('00000000-0000-4000-8000-000000000098', 'Overlay'),
+      placement: { start: 6, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+    }],
+  };
+  return {
+    ...PROJECT,
+    document: { ...PROJECT.document, tracks: [...PROJECT.document.tracks, overlay] },
+  };
+}
+
 function slideProject(): Project {
   const recorded = (id: string, name: string, start: number, duration: number, sourceIn: number): TimelineClip => ({
     ...clip(id, name),
@@ -1658,6 +1678,61 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('moves Sync-Locked free tracks in the same Story ripple patch', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: syncLockProject(), applyProjectPatch });
+
+    const syncLock = await screen.findByRole('button', { name: '切换同步锁定 B-Roll' });
+    await waitFor(() => expect(syncLock.getAttribute('aria-pressed')).toBe('true'));
+    runTimelineCommand('删除所选片段并闭合间隙');
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) })],
+        }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000097',
+          clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 1 }) })],
+        }),
+      ],
+    })));
+  });
+
+  it('leaves a free track fixed after its Sync Lock is disabled', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: syncLockProject(), applyProjectPatch });
+
+    const syncLock = await screen.findByRole('button', { name: '切换同步锁定 B-Roll' });
+    await waitFor(() => expect(syncLock.getAttribute('aria-pressed')).toBe('true'));
+    fireEvent.click(syncLock);
+    expect(syncLock.getAttribute('aria-pressed')).toBe('false');
+    runTimelineCommand('删除所选片段并闭合间隙');
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: STORY_ID },
+      operations: [expect.objectContaining({ op: 'replace_track_clips', track_id: STORY_ID })],
+    })));
+  });
+
+  it('Shift-clicks Sync Lock across every track of the same type', async () => {
+    renderWorkspace({ project: syncLockProject() });
+
+    const storySync = await screen.findByRole('button', { name: '切换同步锁定 视频轨道 1' });
+    const overlaySync = screen.getByRole('button', { name: '切换同步锁定 B-Roll' });
+    await waitFor(() => {
+      expect(storySync.getAttribute('aria-pressed')).toBe('true');
+      expect(overlaySync.getAttribute('aria-pressed')).toBe('true');
+    });
+    fireEvent.click(overlaySync, { shiftKey: true });
+    expect(storySync.getAttribute('aria-pressed')).toBe('false');
+    expect(overlaySync.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('adds to the same-track selection without dragging and deletes the batch in one ripple edit', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
@@ -2631,6 +2706,19 @@ describe('unified project workspace', () => {
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(0);
   });
 
+  it('matches the highest targeted Timeline frame to its source clip with F', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    stepTimelineSeconds(playhead, 6);
+    fireEvent.keyDown(timeline, { key: 'f' });
+
+    await waitFor(() => expect(clipB.className).toContain('ring-accent'));
+    expect((screen.getByRole('slider', { name: '源素材播放头' }) as HTMLInputElement).value).toBe('2');
+  });
+
   it('lets Space activate a focused Timeline button without also toggling transport', async () => {
     renderWorkspace();
 
@@ -2980,6 +3068,35 @@ describe('unified project workspace', () => {
       expect(clipB.className).toContain('ring-accent');
       expect(audio.className).toContain('ring-accent');
     });
+  });
+
+  it('clears the Timeline selection with the Premiere Ctrl+Shift+A shortcut', async () => {
+    renderWorkspace();
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    expect(clipA.className).toContain('ring-accent');
+    fireEvent.keyDown(timeline, { key: 'a', ctrlKey: true, shiftKey: true });
+    expect(clipA.className).not.toContain('ring-accent');
+  });
+
+  it('toggles selected clip output with the Premiere Shift+E shortcut', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'e', shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ enabled: false }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ enabled: true }) }),
+        ],
+      })],
+    })));
   });
 
   it('uses Track Select Forward for one track and Shift-click for all tracks', async () => {

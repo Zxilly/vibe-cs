@@ -69,6 +69,7 @@ import {
   disableClipTimeRemapping,
   enableClipTimeRemapping,
   evaluateClipKeyframeProperty,
+  expandSyncLockedStoryRippleUpdates,
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,
   editorEffectParameter,
@@ -211,9 +212,13 @@ export function ProjectWorkspacePage() {
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
   const initializedSelectionProjectId = useRef<string | null>(null);
   const initializedTargetProjectId = useRef<string | null>(null);
+  const initializedSyncLockProjectId = useRef<string | null>(null);
+  const knownSyncLockTrackIds = useRef<ReadonlySet<string>>(new Set());
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
   const [targetTrackIds, setTargetTrackIds] = useState<ReadonlySet<string>>(() => new Set());
   const targetTrackIdList = useMemo(() => [...targetTrackIds], [targetTrackIds]);
+  const [syncLockedTrackIds, setSyncLockedTrackIds] = useState<ReadonlySet<string>>(() => new Set());
+  const syncLockedTrackIdList = useMemo(() => [...syncLockedTrackIds], [syncLockedTrackIds]);
   const [mediaTargetTrackIds, setMediaTargetTrackIds] = useState<Readonly<{
     readonly video: string | null;
     readonly audio: string | null;
@@ -230,6 +235,7 @@ export function ProjectWorkspacePage() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [workspaceLayoutEpoch, setWorkspaceLayoutEpoch] = useState(0);
   const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
+  const [matchedSourceFrame, setMatchedSourceFrame] = useState<{ readonly clipId: string; readonly sourceTime: number } | null>(null);
   const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
@@ -350,6 +356,29 @@ export function ProjectWorkspacePage() {
     });
   }, [project.data, targetTrackId]);
 
+  useLayoutEffect(() => {
+    const loaded = project.data;
+    if (loaded === undefined) return;
+    const trackIds = new Set(loaded.document.tracks.map((track) => track.id));
+    if (initializedSyncLockProjectId.current !== loaded.id) {
+      initializedSyncLockProjectId.current = loaded.id;
+      knownSyncLockTrackIds.current = trackIds;
+      setSyncLockedTrackIds(trackIds);
+      return;
+    }
+    const previousTrackIds = knownSyncLockTrackIds.current;
+    knownSyncLockTrackIds.current = trackIds;
+    setSyncLockedTrackIds((currentIds) => {
+      const next = new Set([...currentIds].filter((trackId) => trackIds.has(trackId)));
+      for (const trackId of trackIds) {
+        if (!previousTrackIds.has(trackId)) next.add(trackId);
+      }
+      return next.size === currentIds.size && [...next].every((trackId) => currentIds.has(trackId))
+        ? currentIds
+        : next;
+    });
+  }, [project.data]);
+
   useEffect(() => {
     const duration = project.data?.document.duration_seconds;
     if (duration === undefined) return;
@@ -434,6 +463,27 @@ export function ProjectWorkspacePage() {
       summary,
       operations,
     }, onSuccess === undefined ? undefined : { onSuccess });
+  };
+  const expandTrackClipUpdates = (
+    updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
+  ) => expandSyncLockedStoryRippleUpdates({
+    tracks: current.document.tracks,
+    storyTrackId: current.document.story_track_id,
+    updates,
+    syncLockedTrackIds,
+    fps: current.document.fps,
+  });
+  const mutateTrackClipUpdates = (
+    updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
+  ) => {
+    const expanded = expandTrackClipUpdates(updates);
+    mutate(
+      expanded.length === 1 ? `调整轨道片段` : `调整 ${expanded.length} 条轨道的片段`,
+      expanded.length === 1
+        ? { kind: 'track', track_id: expanded[0]!.trackId }
+        : { kind: 'project' },
+      expanded.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+    );
   };
   const seekTimeline = (seconds: number) => {
     setTimelineTimeSeconds(Math.min(
@@ -576,13 +626,25 @@ export function ProjectWorkspacePage() {
       createId: () => globalThis.crypto.randomUUID(),
     });
     if (editPlan === null) return;
-    const singleTrackId = editPlan.operations.length === 1 && editPlan.operations[0]?.op === 'replace_track_clips'
-      ? editPlan.operations[0].track_id
+    const directTrackUpdates = editPlan.operations.flatMap((operation) => operation.op === 'replace_track_clips'
+      ? [{ trackId: operation.track_id, clips: operation.clips }]
+      : []);
+    const expandedTrackUpdates = expandTrackClipUpdates(directTrackUpdates);
+    const operations = [
+      ...editPlan.operations.filter((operation) => operation.op !== 'replace_track_clips'),
+      ...expandedTrackUpdates.map((update): ProjectEditOperation => ({
+        op: 'replace_track_clips',
+        track_id: update.trackId,
+        clips: [...update.clips],
+      })),
+    ];
+    const singleTrackId = operations.length === 1 && operations[0]?.op === 'replace_track_clips'
+      ? operations[0].track_id
       : null;
     mutate(
       `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
       singleTrackId === null ? { kind: 'project' } : { kind: 'track', track_id: singleTrackId },
-      [...editPlan.operations],
+      operations,
       editPlan.insertedAudioTrackIndex === null ? undefined : ({ project: updated }) => {
         const insertedTrack = updated.document.tracks[editPlan.insertedAudioTrackIndex!];
         const insertedClip = insertedTrack?.clips.find((clip) => (
@@ -660,6 +722,7 @@ export function ProjectWorkspacePage() {
       deliveryStateByClipId={deliveryStateByClipId}
       projectFps={current.document.fps}
       selectedTimelineClipId={selectedClipId}
+      matchedSourceFrame={matchedSourceFrame}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
       busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
@@ -718,6 +781,7 @@ export function ProjectWorkspacePage() {
       selectedClipIds={selectedClipIds}
       targetTrackId={targetTrackId}
       targetTrackIds={targetTrackIdList}
+      syncLockedTrackIds={syncLockedTrackIdList}
       linkedSelectionEnabled={linkedSelectionEnabled}
       timelineTimeSeconds={transportTimeSeconds}
       rangeInSeconds={rangeInSeconds}
@@ -746,10 +810,29 @@ export function ProjectWorkspacePage() {
           }));
         }
       }}
+      onToggleSyncLock={(trackId, kind, allOfKind) => {
+        setSyncLockedTrackIds((currentIds) => {
+          const enable = !currentIds.has(trackId);
+          const affected = allOfKind
+            ? current.document.tracks.filter((track) => track.kind === kind).map((track) => track.id)
+            : [trackId];
+          const next = new Set(currentIds);
+          for (const affectedId of affected) {
+            if (enable) next.add(affectedId);
+            else next.delete(affectedId);
+          }
+          return next;
+        });
+      }}
       onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
       onInspectClip={(clipId) => {
         setSelectedClipIds([clipId]);
         setInspectorOpen(true);
+      }}
+      onMatchFrame={(clipId, sourceTime) => {
+        setPlaying(false);
+        setSelectedClipIds([clipId]);
+        setMatchedSourceFrame({ clipId, sourceTime });
       }}
       onSeek={(seconds) => {
         setPlaying(false);
@@ -767,18 +850,8 @@ export function ProjectWorkspacePage() {
         { kind: 'track', track_id: track.id },
         [{ op: 'replace_track', track_id: track.id, track }],
       )}
-      onReplaceTrackClips={(trackId, clips) => mutate(
-        `调整轨道片段`,
-        { kind: 'track', track_id: trackId },
-        [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
-      )}
-      onReplaceTrackClipGroups={(updates) => mutate(
-        updates.length === 1 ? `调整轨道片段` : `调整 ${updates.length} 条轨道的片段`,
-        updates.length === 1
-          ? { kind: 'track', track_id: updates[0]!.trackId }
-          : { kind: 'project' },
-        updates.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
-      )}
+      onReplaceTrackClips={(trackId, clips) => mutateTrackClipUpdates([{ trackId, clips }])}
+      onReplaceTrackClipGroups={mutateTrackClipUpdates}
       onReplaceClips={(clips) => mutate(
         clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
         { kind: 'project' },
@@ -1103,11 +1176,7 @@ export function ProjectWorkspacePage() {
             const currentClip = track?.clips.find((candidate) => candidate.id === clip.id);
             if (track === null || track.locked || currentClip === undefined || sameTimelineClip(currentClip, clip)) return;
             if (track.id === current.document.story_track_id) {
-              mutate(
-                `修改 ${clip.name}`,
-                { kind: 'track', track_id: track.id },
-                [{ op: 'replace_track_clips', track_id: track.id, clips: trimRippleClip(track.clips, clip) }],
-              );
+              mutateTrackClipUpdates([{ trackId: track.id, clips: trimRippleClip(track.clips, clip) }]);
             } else {
               mutate(
                 `修改 ${clip.name}`,

@@ -18,6 +18,12 @@ export {
   type TimelinePasteOverwritePlan,
 } from './timelinePaste';
 export { timelineTrackSelection } from './timelineTrackSelection';
+export {
+  planSyncLockedStoryRipple,
+  expandSyncLockedStoryRippleUpdates,
+  storyRippleTimeAnchors,
+  type TimelineTrackClipUpdate,
+} from './timelineSyncLock';
 export { projectHistoryCommands, type ProjectHistoryCommands } from './projectHistory';
 export { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
 export { planDefaultTimelineTransitions, type TimelineTransitionUpdate } from './timelineTransitions';

@@ -100,6 +100,7 @@ import {
 } from './timelineEditing';
 import {
   clipMediaDuration,
+  clipSourceTimeAtLocalTime,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
   canSlideTimelineClip,
@@ -144,6 +145,7 @@ export interface ProjectTimelineProps {
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string | null;
   readonly targetTrackIds: readonly string[];
+  readonly syncLockedTrackIds: readonly string[];
   readonly linkedSelectionEnabled: boolean;
   readonly timelineTimeSeconds: number;
   readonly rangeInSeconds: number | null;
@@ -155,8 +157,10 @@ export interface ProjectTimelineProps {
   readonly onSelectClips: (clipIds: readonly string[]) => void;
   readonly onPromoteClip: (clipId: string) => void;
   readonly onTargetTrack: (trackId: string, kind: TimelineTrack['kind']) => void;
+  readonly onToggleSyncLock: (trackId: string, kind: TimelineTrack['kind'], allOfKind: boolean) => void;
   readonly onToggleLinkedSelection: () => void;
   readonly onInspectClip: (clipId: string) => void;
+  readonly onMatchFrame: (clipId: string, sourceTime: number) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onRangeChange: (rangeInSeconds: number | null, rangeOutSeconds: number | null) => void;
   readonly onTogglePlayback: () => void;
@@ -216,6 +220,7 @@ export function ProjectTimeline({
   selectedClipIds,
   targetTrackId,
   targetTrackIds,
+  syncLockedTrackIds,
   linkedSelectionEnabled,
   timelineTimeSeconds,
   rangeInSeconds,
@@ -227,8 +232,10 @@ export function ProjectTimeline({
   onSelectClips,
   onPromoteClip,
   onTargetTrack,
+  onToggleSyncLock,
   onToggleLinkedSelection,
   onInspectClip,
+  onMatchFrame,
   onSeek,
   onRangeChange,
   onTogglePlayback,
@@ -320,6 +327,7 @@ export function ProjectTimeline({
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
   const targetTrackIdSet = useMemo(() => new Set(targetTrackIds), [targetTrackIds]);
+  const syncLockedTrackIdSet = useMemo(() => new Set(syncLockedTrackIds), [syncLockedTrackIds]);
   const targetedTracks = useMemo(
     () => document.tracks.filter((track) => targetTrackIdSet.has(track.id)),
     [document.tracks, targetTrackIdSet],
@@ -578,6 +586,7 @@ export function ProjectTimeline({
   ));
   const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
   const canCopy = selectedTrackGroups.length > 0;
+  const canToggleClipEnabled = !readOnly && editableSelectedTrackGroups.length > 0;
   const canPaste = !readOnly
     && clipboard !== null
     && resolveTimelinePasteTargets(document.tracks, targetTrackIdSet, clipboard) !== null;
@@ -612,6 +621,18 @@ export function ProjectTimeline({
     if (next?.current === null || next === undefined) return;
     onSelectClip(next.current.id);
     onSeek(next.current.placement.start);
+  };
+  const matchFrameClip = [...targetedTracks]
+    .sort((left, right) => right.order - left.order)
+    .flatMap((track) => track.clips)
+    .find((clip) => editPlayheadSeconds >= clip.placement.start
+      && editPlayheadSeconds < clip.placement.start + clip.placement.duration) ?? null;
+  const matchFrame = () => {
+    if (matchFrameClip === null) return;
+    onMatchFrame(
+      matchFrameClip.id,
+      clipSourceTimeAtLocalTime(matchFrameClip, editPlayheadSeconds - matchFrameClip.placement.start),
+    );
   };
 
   const addEditAt = ({
@@ -718,6 +739,19 @@ export function ProjectTimeline({
     if (!canCopy || !canDelete) return;
     copySelected();
     deleteSelected();
+  };
+  const toggleSelectedClipEnabled = () => {
+    if (!canToggleClipEnabled) return;
+    const enable = editableSelectedTrackGroups.some((group) => group.clips.some((clip) => !clip.placement.enabled));
+    onReplaceTrackClipGroups(editableSelectedTrackGroups.map((group) => {
+      const ids = new Set(group.clips.map((clip) => clip.id));
+      return {
+        trackId: group.track.id,
+        clips: group.track.clips.map((clip) => ids.has(clip.id)
+          ? { ...clip, placement: { ...clip.placement, enabled: enable } }
+          : clip),
+      };
+    }));
   };
   const toggleSelectedClipLinks = () => {
     if (!canChangeLinks) return;
@@ -1376,7 +1410,19 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
-          onSelectClips(targetedTracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+          onSelectClips(event.shiftKey
+            ? []
+            : targetedTracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+          return;
+        }
+        if (event.key.toLowerCase() === 'e' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          toggleSelectedClipEnabled();
+          return;
+        }
+        if (event.key.toLowerCase() === 'f' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          matchFrame();
           return;
         }
         if (event.key.toLowerCase() === 'l' && (event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -1518,6 +1564,8 @@ export function ProjectTimeline({
             { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
             { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
             { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
+            { id: 'match-frame', label: t`匹配播放头源帧`, disabled: matchFrameClip === null, onSelect: matchFrame },
+            { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
             { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
             { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
@@ -1779,8 +1827,10 @@ export function ProjectTimeline({
               nonStoryTrackIds={nonStoryTrackIds}
               onReorderTrack={reorderTrack}
               targetTrackIds={targetTrackIdSet}
+              syncLocked={syncLockedTrackIdSet.has(track.track.id)}
               timelineTimeSeconds={playheadSeconds}
               onTargetTrack={onTargetTrack}
+              onToggleSyncLock={onToggleSyncLock}
               height={collapsedTrackRows.has(track.id)
                 ? MIN_TRACK_HEIGHT
                 : trackHeights[track.id] ?? defaultTrackHeight(track)}
@@ -2279,7 +2329,7 @@ function timelineClipsEqual(
     && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
@@ -2308,8 +2358,10 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly nonStoryTrackIds: readonly string[];
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
   readonly targetTrackIds: ReadonlySet<string>;
+  readonly syncLocked: boolean;
   readonly timelineTimeSeconds: number;
   readonly onTargetTrack: (trackId: string, kind: TimelineTrack['kind']) => void;
+  readonly onToggleSyncLock: (trackId: string, kind: TimelineTrack['kind'], allOfKind: boolean) => void;
   readonly height: number;
   readonly collapsed: boolean;
   readonly onHeightChange: (height: number) => void;
@@ -2456,6 +2508,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         onMoveTrack={onReorderTrack}
         targeted={targetTrackIds.has(track.track.id)}
         onTargetTrack={onTargetTrack}
+        syncLocked={syncLocked}
+        syncLockVisible={!track.derivedAudio}
+        onToggleSyncLock={onToggleSyncLock}
         collapsed={collapsed}
         onToggleCollapse={onToggleCollapse}
       />
@@ -2707,6 +2762,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.snapThresholdSeconds === next.snapThresholdSeconds
   && previous.nonStoryTrackIds === next.nonStoryTrackIds
   && previous.targetTrackIds === next.targetTrackIds
+  && previous.syncLocked === next.syncLocked
   && previous.height === next.height
   && previous.collapsed === next.collapsed
   && previous.mediaDropPreview === next.mediaDropPreview);
@@ -4321,7 +4377,7 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, collapsed = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleCollapse }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
@@ -4331,11 +4387,14 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly canMoveUp?: boolean | undefined;
   readonly canMoveDown?: boolean | undefined;
   readonly targeted?: boolean | undefined;
+  readonly syncLocked?: boolean | undefined;
+  readonly syncLockVisible?: boolean | undefined;
   readonly collapsed?: boolean | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
   readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
   readonly onTargetTrack?: ((trackId: string, kind: TimelineTrack['kind']) => void) | undefined;
+  readonly onToggleSyncLock?: ((trackId: string, kind: TimelineTrack['kind'], allOfKind: boolean) => void) | undefined;
   readonly onToggleCollapse?: (() => void) | undefined;
 }) {
   return (
@@ -4374,6 +4433,25 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {track === undefined ? null : (
         <span className="flex flex-none items-center text-neutral-500">
+          {controls === 'none' || !syncLockVisible ? null : (
+            <Tooltip
+              content={t`同步锁定：Story 插入、波纹删除、提取和波纹裁切时一起移动；Shift 点击切换同类轨道`}
+              side="top"
+            >
+              <button
+                type="button"
+                className={cn(
+                  'grid size-5 place-items-center rounded-sm hover:bg-neutral-100',
+                  syncLocked && 'text-accent-text',
+                )}
+                aria-label={t`切换同步锁定 ${label}`}
+                aria-pressed={syncLocked}
+                onClick={(event) => onToggleSyncLock?.(track.id, track.kind, event.shiftKey)}
+              >
+                <Link2 className="size-3" aria-hidden="true" />
+              </button>
+            </Tooltip>
+          )}
           {controls === 'none' ? null : (
             <button
               type="button"

@@ -215,7 +215,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-EDIT-08 | Lift | `;` 删除目标轨 In/Out 内容并保留范围空隙，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-09 | Extract | `'` 删除目标轨 In/Out 内容并闭合范围，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-10 | Q/W Ripple Trim | 把选中 Story 起点/终点波纹裁到播放头 | ✅ | P1 |
-| TL-EDIT-11 | Extend Edit | E 把选中剪辑点延伸到播放头 | ⬜ | P1 |
+| TL-EDIT-11 | Extend Edit | 聚焦起点/终点 Trim Handle 明确选择 edit point；E 把它延伸到播放头并复用 Story/自由轨修剪语义 | ✅ | P1 |
 | TL-EDIT-12 | Clip Enable | Shift+E 切换所选未锁片段 enabled，Program/导出一致 | ✅ | P1 |
 
 ### 7.8 精剪工具
@@ -321,7 +321,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 | Snap | S | 同 | ✅ |
 | Ripple to previous/next edit | Q / W | 同 | ✅ |
 | Zoom / Fit / Page | =, -, `\`, Page Up/Down | 同 | ✅ |
-| Match Frame / Extend Edit | F / E | 同 | ⬜ |
+| Match Frame / Extend Edit | F / E | 同 | ✅ |
 | Select All / Deselect All | Ctrl+A / Ctrl+Shift+A | Cmd 对应 | 🟡 缺后者 |
 | Enable Clip | Shift+E | Shift+Cmd+E | 🟡 缺快捷键 |
 
@@ -381,6 +381,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：Sync Lock 位于真实轨道头，Story compound audio 不重复展示第二个伪轨道开关；关闭后自由轨保持原位，开启后 Story 插入、提取、删除和时长变化会把符合条件的未锁轨道合并到同一个 Project Patch。跨越波纹边界的长片段保持原位，符合 Premiere 默认 Trim preference；纯 Story 重排不会误移动 B-roll。
 
+### Step 5：Edit-point selection 与 Extend Edit — 健康
+
+![选中的剪辑点](evidence/2026-09-01-timeline-extend-edit/01-selected-edit-point.png)
+
+确认：选中片段的起点和终点是可聚焦的 `separator`，Focus/选中态明确；E 使用当前播放头调用同一帧对齐 Trim operation，Story 时继续带动后续片段和 Sync-Locked 轨道。菜单中的“延伸所选剪辑点到播放头”与快捷键调用同一函数。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -396,7 +402,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Story insert/ripple/extract/trim 对 Sync-Locked 轨道的一次原子 Patch。
 - [ ] 跨兼容轨垂直移动片段，保留 link/group identity。
 - [x] Deselect All、Enable Clip、Match Frame 快捷键。
-- [ ] Extend Edit 与明确的 edit-point selection。
+- [x] Extend Edit 与明确的 edit-point selection。
 - [ ] 明确 Clear 与 Ripple Delete 的菜单文案和非 Story 行为。
 
 验收：所有命令在锁定、链接、目标轨和 Agent Edit Lease 四种约束下都有交互测试。

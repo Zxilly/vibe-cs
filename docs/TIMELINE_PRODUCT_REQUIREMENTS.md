@@ -271,7 +271,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | --- | --- | --- | --- | --- |
 | TL-META-01 | Sequence Marker | M 添加，拖动、选择、编辑、删除、上一/下一、清空 | ✅ | P1 |
 | TL-META-02 | Marker 属性 | 名称、颜色、注释、持续时间和类型 | ✅ | P2 |
-| TL-META-03 | Clip Marker | Marker 随源片段和 Source Monitor 存在 | ⬜ | P2 |
+| TL-META-03 | Clip Marker | Marker 随源片段和 Source Monitor 存在 | ✅ | P2 |
 | TL-META-04 | Ripple Marker 设置 | Story 波纹时选择 sequence marker 跟随或固定 | ✅ | P2 |
 | TL-META-05 | Text Track | 在播放头创建文字，编辑内容、字体、颜色、背景、布局 | ✅ | P1 |
 | TL-META-06 | Caption Track | 字幕轨、字幕片段、前后字幕导航与导出 | ⬜ | P3 |
@@ -479,6 +479,12 @@ fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：revision 2→3 创�
 
 fresh current-schema Tauri/CDP 使用两个真实 MP4：revision 3→4 把 3s point marker 保存为 `segmentation`、duration 2s、comment `Preserve setup and payoff`，时间轴范围宽 181.4px，hover 信息完整；revision 6→7 开启 Ripple Sequence Markers；revision 7→8 把首 Story Clip 从 14.18737s 缩到 10s，同一 Change Group 中 `replace_track_clips` 令后片段 start 14.18737→10，`replace_markers` 令范围 Marker start 15→10.81263，类型/持续时间/注释保持。fresh CDP session console/page error 为零；截图位于本地 `target/marker-properties-audit/screenshots/`。产品行为依据 Adobe 官方 [Markers overview](https://helpx.adobe.com/premiere/desktop/organize-media/apply-labeling/overview-of-markers.html) 与 [Perform ripple edits](https://helpx.adobe.com/premiere/desktop/edit-projects/trim-clips/perform-ripple-edits.html)。
 
+### Step 25：Source/Clip Marker — 健康
+
+确认：Clip Marker 归属 canonical `MediaAsset` 的 source time，不复制到每个 Timeline Clip。Source Monitor 在素材尚未进入 Timeline 时即可添加、编辑、删除并导航 Marker；专用 `PUT /media/assets/{id}/markers` 只更新 Marker 集合，不允许前端借全量资产写入改变路径、代理或探测元数据。素材进入一个或多个 Timeline Clip 后，Timeline Module 按每个 Clip 的 Source In/Out、速度和反向映射投影同一 Marker，裁切外 Marker 不显示；Source 和 Sequence Marker 共用一套 typed 字段与规范化组件。
+
+fresh current-schema Tauri/CDP 使用真实 6.989206s MP4：空 Timeline 的 Source Monitor 先把 source 3.5s 保存为 `chapter`、duration 1s、comment `Shared before Timeline insertion`，资产 route 立即读回；随后素材插入只令 Project revision 1→2，同一 Marker 自动同时出现在 Source Monitor（left 50.08%、width 14.31%）和 Timeline Clip（left 317.49px、width 90.71px），两处 hover 信息一致。fresh CDP session console/page error 为零；截图位于本地 `target/clip-marker-audit/screenshots/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -512,6 +518,7 @@ fresh current-schema Tauri/CDP 使用两个真实 MP4：revision 3→4 把 3s po
 - [x] Bezier/Ease keyframes。
 - [x] Reverse、负速度和 Frame Hold。
 - [x] Marker 类型、注释、持续时间与 Ripple Sequence Markers。
+- [x] Source/Clip Marker 与 Timeline source-time 投影。
 
 ### Milestone 3：长项目和专业工作流
 

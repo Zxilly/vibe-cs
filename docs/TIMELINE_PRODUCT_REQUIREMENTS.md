@@ -134,8 +134,8 @@ Premiere 的标尺、播放头、Work Area 和底部 Zoom Scroll Bar 行为参�
 | TL-NAV-06 | Windows 滚轮 | 普通滚轮只水平；Ctrl 临时只垂直；到边界不切换轴；Alt 围绕指针缩放 | ✅ | P0 |
 | TL-NAV-07 | 页面滚动 | Page Up/Down 左右移动一个可视页 | ✅ | P1 |
 | TL-NAV-08 | 播放跟随 | 默认 Page Scroll；播放头离开页面才翻页；暂停导航只做最小 reveal | ✅ | P0 |
-| TL-NAV-09 | Smooth Scroll | 可选让播放头固定在中间，内容连续滚动 | ⬜ | P2 |
-| TL-NAV-10 | 手形/缩放工具 | H 拖动画布、Z 点按缩放，作为 Zoom Bar 的等价入口 | ⬜ | P2 |
+| TL-NAV-09 | Smooth Scroll | 可选让播放头固定在中间，内容连续滚动 | ✅ | P2 |
+| TL-NAV-10 | 手形/缩放工具 | H 拖动画布、Z 点按缩放，作为 Zoom Bar 的等价入口 | ✅ | P2 |
 | TL-NAV-11 | 手势边缘滚动 | 拖片段、修剪、框选接近边缘时水平/垂直自动滚动 | ✅ | P1 |
 
 ### 7.3 Transport 与定位
@@ -458,6 +458,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 20：轨道显示设置与帧证据 — 健康
 
 确认：统一 Timeline 显示菜单独立控制 Clip name、video thumbnail、audio waveform、keyframe、repeated-frame 与 Through Edit layers，不改变时间几何或 Project Head。Through Edit 只由同 source、同 speed、Timeline 相邻且 source out/in 连续推导；Repeated Frame 只由同 source 区间真实重叠推导。Tauri 使用同一真实 MP4 的三个切段得到 2 个 Through Edit 标记（video/compound audio）和 3 个 repeated-frame 标记；关闭对应层后两者 DOM 计数均为 0，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/17-display-evidence.png` 与 `18-display-layers-hidden.png`。
+
+### Step 21：Smooth Scroll 与 H/Z 工具 — 健康
+
+确认：Smooth Scroll 是显式 Transport 选项，播放时将 playhead 保持在 content viewport 中央并连续移动 scroll；关闭后继续使用既有 Premiere page/reveal 模式。H Hand Tool 在 capture phase 接管 Clip/空白上的拖动，只改变同一 Timeline viewport 的水平/垂直 scroll；Z 点击放大、Alt 点击缩小，并调用 Zoom Navigator 相同的 anchor geometry。实机门禁发现并修复 Clip pointer handler 抢占 H 手势的问题；修复后真实拖动把 scrollLeft 100→300，Z 把 zoom 提升至 3.0917，Smooth `aria-pressed=true`，fresh CDP session console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/19-hand-zoom-smooth.png`。
 
 ## 12. 迭代计划
 

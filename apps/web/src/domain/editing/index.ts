@@ -103,6 +103,7 @@ export {
   timelineClipsInRange,
   timelineClipFromMediaAsset,
   trimRippleClip,
+  rippleTrimTrackClip,
   trimRippleClipGroup,
   trimFreeClipGroup,
 } from './timelineEditing';

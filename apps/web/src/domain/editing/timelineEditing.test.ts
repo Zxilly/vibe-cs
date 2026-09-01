@@ -17,9 +17,11 @@ import {
   timelineClipsInRange,
   timelineClipFromMediaAsset,
   trimRippleClip,
+  rippleTrimTrackClip,
   trimRippleClipGroup,
   trimFreeClipGroup,
 } from './timelineEditing';
+import { trimTimelineClip } from './timelineInteraction';
 
 function clip(id: string, start: number, duration = 10): TimelineClip {
   return {
@@ -93,6 +95,19 @@ describe('ripple Story Track edits', () => {
 
     expect(trimmed.map((item) => item.placement.start)).toEqual([0, 8, 18]);
     expect(trimmed[0]?.placement).toMatchObject({ duration: 8, source_in: 2 });
+  });
+
+  it('ripple trims one free-track edit while preserving earlier gaps', () => {
+    const clips = [clip('a', 0, 5), clip('b', 10, 5), clip('c', 20, 5)];
+    const end = rippleTrimTrackClip(clips, { ...clips[1]!, placement: { ...clips[1]!.placement, duration: 3, source_out: 3 } }, 'end');
+    expect(end.map((item) => [item.id, item.placement.start, item.placement.duration])).toEqual([
+      ['a', 0, 5], ['b', 10, 3], ['c', 18, 5],
+    ]);
+    const startReplacement = trimTimelineClip(clips[1]!, 'start', 12, 60, 30);
+    const start = rippleTrimTrackClip(clips, startReplacement, 'start');
+    expect(start.map((item) => [item.id, item.placement.start, item.placement.duration])).toEqual([
+      ['a', 0, 5], ['b', 10, 3], ['c', 18, 5],
+    ]);
   });
 
   it('trims selected Story clips with one shared delta and one reflow', () => {

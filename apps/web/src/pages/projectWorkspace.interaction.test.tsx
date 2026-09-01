@@ -3719,6 +3719,48 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('uses Ripple Edit Tool B for live Story ripple and one Sync Lock commit', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const base = syncLockProject();
+    const project: Project = { ...base, document: { ...base.document, duration_seconds: 10 } };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'b' });
+    expect(screen.getByRole('button', { name: '波纹编辑工具 (B)' }).getAttribute('aria-pressed')).toBe('true');
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    vi.spyOn(clipA, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 500, bottom: 84, left: 0, width: 500, height: 84, toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(clipA, { pointerId: 206, button: 0, clientX: 499 });
+    fireEvent.pointerMove(clipA, { pointerId: 206, clientX: 399 });
+
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).style.left).toBe('400px');
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(clipA, { pointerId: 206, clientX: 399 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [
+            expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 4 }) }),
+            expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
+          ],
+        }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000097',
+          clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 5 }) })],
+        }),
+      ],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    clientWidth.mockRestore();
+  }, 15_000);
+
   it('keeps Inspector duration and speed on the same Rate Stretch operation', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });

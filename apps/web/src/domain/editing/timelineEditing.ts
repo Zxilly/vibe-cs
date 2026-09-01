@@ -331,6 +331,26 @@ export function trimRippleClip(
   return reflow(next, clips[0]?.placement.start ?? 0);
 }
 
+/** Ripple one edit point while preserving gaps that already exist before it. */
+export function rippleTrimTrackClip(
+  clips: readonly TimelineClip[],
+  replacement: TimelineClip,
+  edge: 'start' | 'end',
+): TimelineClip[] {
+  const current = clips.find((clip) => clip.id === replacement.id);
+  if (current === undefined) return [...clips];
+  const durationDelta = replacement.placement.duration - current.placement.duration;
+  const currentEnd = current.placement.start + current.placement.duration;
+  const anchored = edge === 'start'
+    ? { ...replacement, placement: { ...replacement.placement, start: current.placement.start } }
+    : replacement;
+  return clips.map((clip) => {
+    if (clip.id === current.id) return anchored;
+    if (clip.placement.start < currentEnd - TIME_EPSILON) return clip;
+    return { ...clip, placement: { ...clip.placement, start: clip.placement.start + durationDelta } };
+  }).sort((left, right) => left.placement.start - right.placement.start);
+}
+
 function trimClipGroup(
   clips: readonly TimelineClip[],
   clipIds: ReadonlySet<string>,

@@ -4726,6 +4726,54 @@ describe('unified project workspace', () => {
     expect(panel.querySelector('[data-project-media-view="list"]')).toBeTruthy();
   });
 
+  it('toggles clip display layers and derives repeated-frame and Through Edit markers', async () => {
+    const source = (id: string, name: string, start: number, sourceIn: number, sourceOut: number): TimelineClip => ({
+      ...clip(id, name),
+      material: { kind: 'asset', asset_id: 'shared-source', media_duration_seconds: 20 },
+      placement: { ...clip(id, name).placement, start, duration: 5, source_in: sourceIn, source_out: sourceOut },
+      keyframes: name === 'A'
+        ? [{ id: 'x', time: 1, property: 'x', value: 10, interpolation: 'linear', in_tangent: 0, out_tangent: 0 }]
+        : [],
+    });
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 15,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID ? {
+          ...track,
+          clips: [
+            source(CLIP_A, 'A', 0, 0, 5),
+            source(CLIP_B, 'B', 5, 5, 10),
+            source('00000000-0000-4000-8000-000000000220', 'C', 10, 4, 9),
+          ],
+        } : track),
+      },
+    };
+    renderWorkspace({ project });
+    const clipA = await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
+    expect(screen.getAllByRole('img', { name: 'Through Edit 00:05.000' })).toHaveLength(2);
+    expect(screen.getAllByRole('img', { name: '重复帧 B' })).toHaveLength(1);
+    expect(screen.getAllByRole('img', { name: '重复帧 C' })).toHaveLength(1);
+    expect(clipA.querySelector('img')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '关键帧 00:01.000 1 个属性' })).toBeTruthy();
+
+    const toggle = (name: string) => {
+      fireEvent.pointerDown(screen.getByRole('button', { name: '时间轴显示设置' }), { button: 0, ctrlKey: false });
+      fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(name, 'u') }));
+    };
+    toggle('片段名称');
+    toggle('视频缩略图');
+    toggle('关键帧');
+    toggle('重复帧标记');
+    toggle('Through Edit 标记');
+    expect(clipA.querySelector('img')).toBeNull();
+    expect(clipA.querySelector('.bottom-0')).toBeNull();
+    expect(screen.queryByRole('button', { name: '关键帧 00:01.000 1 个属性' })).toBeNull();
+    expect(screen.queryByRole('img', { name: '重复帧 B' })).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Through Edit 00:05.000' })).toBeNull();
+  });
+
   it('keeps the last recorded source frame mounted until the next selected source is ready', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

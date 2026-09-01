@@ -225,7 +225,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | ID | 能力 | 产品要求 | 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | TL-TRIM-01 | Selection Trim | 选中片段后拖起点/终点；多选共享受限 delta；Alt 可只改一个链接声道 | ✅ | P0 |
-| TL-TRIM-02 | Ripple Tool B | 显式 B 工具，实时平移后续片段并更新时长 | 🟡 Story 的 Selection Trim/QW 已具波纹语义，缺 B 工具入口 | P1 |
+| TL-TRIM-02 | Ripple Tool B | 显式 B 工具；仅在片段边缘命中；拖动期间预览整条轨的后续位移和序列时长；Story 保持 gapless，自由轨保留既有前置间隙；释放时复用 Sync Lock 原子 Patch | ✅ | P1 |
 | TL-TRIM-03 | Rolling N | 移动相邻剪辑点，不改变组合时长，显示 Trim Monitor 帧 | ✅ | P1 |
 | TL-TRIM-04 | Slip Y | 改变 Source In/Out，不改变 Timeline 位置和时长；支持选择组 | ✅ | P1 |
 | TL-TRIM-05 | Slide U | 移动中间片段，同时补偿前后片段，外边界和自身时长不变 | ✅ | P1 |
@@ -307,7 +307,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 | 命令 | Windows | macOS | 当前 |
 | --- | --- | --- | --- |
 | Selection / Track Select | V / A / Shift+A | 同 | ✅ |
-| Ripple / Rolling / Rate / Razor / Slip / Slide | B / N / R / C / Y / U | 同 | 🟡 缺 B |
+| Ripple / Rolling / Rate / Razor / Slip / Slide | B / N / R / C / Y / U | 同 | ✅ |
 | Play / Shuttle | Space / J K L | 同 | ✅，缺多级速度 |
 | Add Edit / All Tracks | Ctrl+K / Ctrl+Shift+K | Cmd+K / Cmd+Shift+K | ✅ |
 | Insert / Overwrite | `,` / `.` | 同 | ✅ |
@@ -387,6 +387,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：选中片段的起点和终点是可聚焦的 `separator`，Focus/选中态明确；E 使用当前播放头调用同一帧对齐 Trim operation，Story 时继续带动后续片段和 Sync-Locked 轨道。菜单中的“延伸所选剪辑点到播放头”与快捷键调用同一函数。
 
+### Step 6：Ripple Edit Tool B — 健康
+
+![Live Ripple 预览](evidence/2026-09-01-timeline-ripple-tool/01-live-ripple-preview.png)
+
+确认：B 工具只在片段左右 12px 边缘开始 Ripple 手势；拖动期间后续 Story 片段、波形和序列时长使用同一 draft 更新，Project revision 保持不变；释放后只生成一个 Change Group，并由 Sync Lock 扩展到其他轨。实机提交后使用 Ctrl+Z 完整恢复，证明该操作使用权威历史而非视图回滚。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -409,7 +415,8 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 ### Milestone 2：精剪与音频效率
 
-- [ ] Ripple Tool B 与 Trim Mode。
+- [x] Ripple Tool B。
+- [ ] Trim Mode。
 - [ ] 多级 JKL shuttle、循环播放和 Go to In/Out。
 - [ ] Group/Ungroup 与 out-of-sync 指示。
 - [ ] Audio Solo、Pan、Track keyframes。

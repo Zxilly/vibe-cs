@@ -9,6 +9,7 @@
     "bindings": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-ts-bindings.ps1",
     "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm demo-worker:sidecar && pnpm --filter @vibe-cs/desktop dev",
     "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm demo-worker:sidecar && pnpm --filter @vibe-cs/desktop build",
+    "agent:eval": "node scripts/eval-agent.mjs",
     "build": "pnpm --filter @vibe-cs/web build",
     "test": "pnpm --filter @vibe-cs/web test",
     "typecheck": "pnpm --filter @vibe-cs/web typecheck",

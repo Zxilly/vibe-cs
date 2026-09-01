@@ -44,11 +44,14 @@ plan, montage, editor, or conversion pipeline.
 
 - `read_workspace`: reads live Project context with progressive disclosure.
   Its default `summary` response carries the exact revision, workspace lens,
-  selection, track/clip inventory and bounded material counts. An edit must use
-  `detail=timeline` with the narrowest known `trackIds` or `clipIds`; omitting
-  selectors is reserved for a deliberate whole-Project operation. A second
-  read in the same Agent turn sees the Head produced by an earlier edit tool
-  rather than the request-start checkpoint.
+  selection, track/clip inventory, markers and bounded material counts. A
+  marker-only edit uses the exact Current Turn Checkpoint marker list or
+  `summary`; when `markersTruncated=false`, its marker list is exact and no
+  track read is allowed. Placement, track, clip, effect,
+  and setting edits use `detail=timeline` with the narrowest known `trackIds`
+  or `clipIds`; omitting selectors is reserved for a deliberate whole-Project
+  operation. A second read in the same Agent turn sees the Head produced by an
+  earlier edit tool rather than the request-start checkpoint.
 - `read_demo_evidence`: queries authoritative persisted Demo analysis referenced
   by the Project. Player work supplies `playerName` or `playerId` and may narrow
   `demoIds` and event `kinds`; the host filters raw per-Demo highlights before a
@@ -74,9 +77,12 @@ plan, montage, editor, or conversion pipeline.
 - `request_project_export`: creates a human-confirmation request; it never
   launches FFmpeg.
 
-The Rig multi-turn tool loop has no fixed turn ceiling. Cancellation and the
-desktop-owned request deadline bound liveness. Provider keys never cross into
-the webview or tool output.
+The Rig multi-turn tool loop has no fixed turn ceiling. Explicit cancellation,
+the desktop-owned request deadline, and a 90-second no-progress watchdog bound
+liveness. Text, provider stream items, and tool lifecycle events all reset the
+watchdog; useful long tool sequences are therefore not capped. When it trips,
+completed tool checkpoints are preserved for retry. Provider keys never cross
+into the webview or tool output.
 
 ## Context assembly
 
@@ -84,6 +90,10 @@ the webview or tool output.
   persists the current user entry and streaming Assistant placeholder, then
   sends only `sessionId`, the current instruction and Workspace View State to
   the Desktop host. It never uploads a client-built model history.
+- Every completed tool call advances that Assistant entry from
+  `streaming -> streaming` before the model continues. Writes are serialized,
+  and a terminal completed/failed/cancelled update waits for the checkpoint
+  queue, so a late checkpoint cannot overwrite terminal state.
 - The Desktop host builds model history from completed durable entries before
   the active turn. Assistant prose is bounded conversational context; completed
   tool calls and HITL decisions are compact host-owned evidence. Failed turns
@@ -159,3 +169,28 @@ test the real Tauri page. A valid UI gate includes:
 
 Browser mock mode is useful for layout work but is not evidence for Tauri IPC,
 Edit Lease enforcement, recording, export, or an end-to-end Demo-to-MP4 result.
+
+## Agent eval harness
+
+Run the focused real-model eval against an already running debug Tauri window:
+
+```powershell
+pnpm agent:eval -- --cdp 9341 --project <project-uuid> --out target/agent-eval.json
+```
+
+Pass `--case workspace-summary` (repeatable) to run only selected cases while
+iterating on one measured regression.
+
+The runner uses `agent-browser` through the existing CDP surface and sends each
+case through the visible Agent input. It then grades the durable Agent Session,
+canonical Project, Change Group, Delivery Gate, and Output list. The four cases
+cover summary reads, clip-scoped disclosure, a marker-only Project Patch, and
+export HITL. The marker Change Group is immediately reverted when no concurrent
+revision intervened; export is always rejected. If a person edits concurrently,
+the runner fails closed instead of applying cleanup over the newer revision.
+
+The JSON report includes case pass/fail, wall time, tool trajectory, and provider
+token metadata. It is a local evaluation artifact and is not a second Agent
+runtime or a synthetic Project host. Add representative cases only when they
+can be graded from authoritative product outcomes. This follows the task/input/
+analysis loop described by the [OpenAI eval guide](https://developers.openai.com/api/docs/guides/evals).

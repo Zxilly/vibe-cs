@@ -194,7 +194,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-ASM-03 | 拖放组接 | 从 Project 拖到兼容轨；默认 Overwrite，Ctrl/Cmd 为 Insert | ✅ | P0 |
 | TL-ASM-04 | Insert | `,` 或 Source 按钮插入并波纹；使用 Source Patch | ✅ | P0 |
 | TL-ASM-05 | Overwrite | `.` 或 Source 按钮覆盖时间范围，不移动后续时间 | ✅ | P0 |
-| TL-ASM-06 | 三点/四点编辑 | Source In/Out + Timeline In/Out；范围冲突时可选择 Fit 行为 | 🟡 已有两侧范围，缺 Fit Clip 决策 | P2 |
+| TL-ASM-06 | 三点/四点编辑 | Source In/Out + Timeline In/Out；范围冲突时可选择 Fit 行为 | ✅ | P2 |
 | TL-ASM-07 | Cut/Copy/Paste | Ctrl/Cmd+X/C/V；Paste Overwrite 与 Paste Insert；链接关系重建 | ✅ | P0 |
 | TL-ASM-08 | Duplicate | Ctrl/Cmd+Shift+/ 在目标位置复制选择 | ✅ | P2 |
 | TL-ASM-09 | Replace Edit | 用新源替换选中片段并保留时间位置、长度和效果 | ✅ | P1 |
@@ -462,6 +462,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 21：Smooth Scroll 与 H/Z 工具 — 健康
 
 确认：Smooth Scroll 是显式 Transport 选项，播放时将 playhead 保持在 content viewport 中央并连续移动 scroll；关闭后继续使用既有 Premiere page/reveal 模式。H Hand Tool 在 capture phase 接管 Clip/空白上的拖动，只改变同一 Timeline viewport 的水平/垂直 scroll；Z 点击放大、Alt 点击缩小，并调用 Zoom Navigator 相同的 anchor geometry。实机门禁发现并修复 Clip pointer handler 抢占 H 手势的问题；修复后真实拖动把 scrollLeft 100→300，Z 把 zoom 提升至 3.0917，Smooth `aria-pressed=true`，fresh CDP session console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/19-hand-zoom-smooth.png`。
+
+### Step 22：三点/四点 Fit Clip — 健康
+
+确认：Source In/Out 与 Timeline In/Out 时长冲突时显示 Adobe 五种决定：Fit to Fill、Trim Head、Trim Tail、Ignore Sequence In、Ignore Sequence Out；不可满足 source handle 的选项禁用。最终 source range、sequence anchor、duration 与 speed 一次传入既有 Source Media planner，不增加第二写路径。Tauri 使用真实 6.989206s MP4 对 2–6s Timeline range 执行 Fit to Fill，revision 4→5 后 clip start=2、duration=4、source 0–6.989206、speed=1.7473015，console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/20-fit-clip-dialog.png`。
 
 ## 12. 迭代计划
 

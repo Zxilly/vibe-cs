@@ -1,4 +1,4 @@
-import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
+import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import { mediaAssetEditDuration } from './mediaDrag';
 import {
   clipMediaDuration,
@@ -126,6 +126,70 @@ export function moveFreeClipGroup(
   return clips.map((clip) => clipIds.has(clip.id)
     ? { ...clip, placement: { ...clip.placement, start: clip.placement.start + delta } }
     : clip).sort((left, right) => left.placement.start - right.placement.start);
+}
+
+export interface TimelineCrossTrackMovePlan {
+  readonly updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[];
+  readonly movedClipIds: readonly string[];
+}
+
+/** Move one free-track selection to another compatible free track as Overwrite. */
+export function planCrossTrackMove({
+  tracks,
+  storyTrackId,
+  sourceTrackId,
+  targetTrackId,
+  clipIds,
+  anchorClipId,
+  proposedAnchorStart,
+  fps,
+  createId,
+}: {
+  readonly tracks: readonly TimelineTrack[];
+  readonly storyTrackId: string;
+  readonly sourceTrackId: string;
+  readonly targetTrackId: string;
+  readonly clipIds: ReadonlySet<string>;
+  readonly anchorClipId: string;
+  readonly proposedAnchorStart: number;
+  readonly fps: number;
+  readonly createId: () => string;
+}): TimelineCrossTrackMovePlan | null {
+  const source = tracks.find((track) => track.id === sourceTrackId);
+  const target = tracks.find((track) => track.id === targetTrackId);
+  if (source === undefined
+    || target === undefined
+    || source.id === target.id
+    || source.id === storyTrackId
+    || target.id === storyTrackId
+    || source.locked
+    || target.locked
+    || source.kind !== target.kind) return null;
+  const moving = source.clips.filter((clip) => clipIds.has(clip.id));
+  const anchor = moving.find((clip) => clip.id === anchorClipId);
+  if (moving.length === 0 || anchor === undefined) return null;
+  const safeFps = Math.max(1, fps);
+  const requestedDelta = Math.round((proposedAnchorStart - anchor.placement.start) * safeFps) / safeFps;
+  const minimumStart = Math.min(...moving.map((clip) => clip.placement.start));
+  const delta = Math.max(requestedDelta, -minimumStart);
+  const moved = moving.map((clip) => ({
+    ...clip,
+    placement: {
+      ...clip.placement,
+      start: Math.round((clip.placement.start + delta) * safeFps) / safeFps,
+    },
+  })).sort((left, right) => left.placement.start - right.placement.start);
+  let targetClips = [...target.clips];
+  for (const clip of moved) {
+    targetClips = overwriteClipsAtTime(targetClips, clip, clip.placement.start, createId());
+  }
+  return {
+    updates: [
+      { trackId: source.id, clips: source.clips.filter((clip) => !clipIds.has(clip.id)) },
+      { trackId: target.id, clips: targetClips },
+    ],
+    movedClipIds: moved.map((clip) => clip.id),
+  };
 }
 
 export function trimRippleClip(

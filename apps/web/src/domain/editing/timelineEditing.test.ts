@@ -10,6 +10,7 @@ import {
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
+  planCrossTrackMove,
   overwriteClipsAtTime,
   placeFreeClipAtTime,
   splitRippleClip,
@@ -307,5 +308,40 @@ describe('ripple Story Track edits', () => {
       ['b', 10],
       ['c', 20],
     ]);
+  });
+
+  it('moves free clips across compatible tracks with overwrite and stable identities', () => {
+    const source = {
+      id: 'source', name: 'Source', kind: 'video' as const, order: 1,
+      muted: false, locked: false, hidden: false,
+      clips: [clip('move', 2, 2)],
+    };
+    const target = {
+      id: 'target', name: 'Target', kind: 'video' as const, order: 2,
+      muted: false, locked: false, hidden: false,
+      clips: [clip('covered', 0, 10)],
+    };
+    let sequence = 0;
+    const plan = planCrossTrackMove({
+      tracks: [source, target], storyTrackId: 'story', sourceTrackId: source.id, targetTrackId: target.id,
+      clipIds: new Set(['move']), anchorClipId: 'move', proposedAnchorStart: 4, fps: 60,
+      createId: () => `split-${sequence += 1}`,
+    });
+    expect(plan?.movedClipIds).toEqual(['move']);
+    expect(plan?.updates[0]).toEqual({ trackId: source.id, clips: [] });
+    expect(plan?.updates[1]?.clips).toEqual([
+      expect.objectContaining({ id: 'covered', placement: expect.objectContaining({ start: 0, duration: 4 }) }),
+      expect.objectContaining({ id: 'move', placement: expect.objectContaining({ start: 4, duration: 2 }) }),
+      expect.objectContaining({ id: 'split-1', placement: expect.objectContaining({ start: 6, duration: 4 }) }),
+    ]);
+  });
+
+  it('rejects Story, locked and incompatible cross-track moves', () => {
+    const video = { id: 'video', name: 'Video', kind: 'video' as const, order: 1, muted: false, locked: false, hidden: false, clips: [clip('a', 0, 1)] };
+    const audio = { id: 'audio', name: 'Audio', kind: 'audio' as const, order: 2, muted: false, locked: false, hidden: false, clips: [] };
+    const input = { tracks: [video, audio], storyTrackId: video.id, sourceTrackId: video.id, targetTrackId: audio.id, clipIds: new Set(['a']), anchorClipId: 'a', proposedAnchorStart: 1, fps: 60, createId: () => 'id' };
+    expect(planCrossTrackMove(input)).toBeNull();
+    expect(planCrossTrackMove({ ...input, storyTrackId: 'story' })).toBeNull();
+    expect(planCrossTrackMove({ ...input, storyTrackId: 'story', targetTrackId: video.id })).toBeNull();
   });
 });

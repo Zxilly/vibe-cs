@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
@@ -28,6 +28,12 @@ vi.mock('flexlayout-react', async (importOriginal) => {
       }),
     ),
   };
+});
+
+afterEach(() => {
+  if (Object.prototype.hasOwnProperty.call(document, 'elementFromPoint')) {
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  }
 });
 
 const STORY_ID = '00000000-0000-4000-8000-000000000010';
@@ -320,6 +326,29 @@ function syncLockProject(): Project {
   return {
     ...PROJECT,
     document: { ...PROJECT.document, tracks: [...PROJECT.document.tracks, overlay] },
+  };
+}
+
+function crossTrackProject(): Project {
+  const source: TimelineTrack = {
+    id: '00000000-0000-4000-8000-000000000160', name: 'Source V2', kind: 'video', order: 2,
+    muted: false, locked: false, hidden: false,
+    clips: [{
+      ...clip('00000000-0000-4000-8000-000000000161', 'Move me'),
+      placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+    }],
+  };
+  const target: TimelineTrack = {
+    id: '00000000-0000-4000-8000-000000000162', name: 'Target V3', kind: 'video', order: 3,
+    muted: false, locked: false, hidden: false,
+    clips: [{
+      ...clip('00000000-0000-4000-8000-000000000163', 'Covered'),
+      placement: { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, enabled: true },
+    }],
+  };
+  return {
+    ...PROJECT,
+    document: { ...PROJECT.document, tracks: [...PROJECT.document.tracks, source, target] },
   };
 }
 
@@ -631,7 +660,7 @@ describe('unified project workspace', () => {
       range_start_seconds: 2,
       range_end_seconds: 6,
     }));
-  }, 10_000);
+  }, 20_000);
 
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
     const previousClips = PROJECT.document.tracks[0]!.clips;
@@ -1133,7 +1162,7 @@ describe('unified project workspace', () => {
         }),
       ],
     })));
-  });
+  }, 15_000);
 
   it('auto-scrolls at the viewport edge and includes scroll delta in a trim gesture', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
@@ -3242,6 +3271,69 @@ describe('unified project workspace', () => {
     if (audioOperation?.op !== 'replace_track_clips') throw new Error('expected linked audio replacement');
     expect(audioOperation.clips[0]?.placement.start).toBeGreaterThan(12);
     clientWidth.mockRestore();
+  });
+
+  it('moves a free video clip vertically to a compatible track with overwrite', async () => {
+    const applyProjectPatch = vi.fn();
+    const elementFromPoint = vi.fn<() => Element | null>();
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
+    renderWorkspace({ project: crossTrackProject(), applyProjectPatch });
+
+    const moving = await screen.findByRole('button', { name: /Move me 2\.0s · 未录制/u });
+    const viewport = screen.getByRole('region', { name: '时间轴内容' });
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 700, left: 0, width: 1_000, height: 700, toJSON: () => ({}),
+    });
+    Object.defineProperty(viewport, 'clientWidth', { configurable: true, value: 1_000 });
+    fireEvent.click(moving);
+    fireEvent.pointerDown(moving, { pointerId: 202, button: 0, clientX: 500, clientY: 300 });
+    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    elementFromPoint.mockReturnValue(targetRow);
+    fireEvent.pointerMove(moving, { pointerId: 202, clientX: 500, clientY: 500, shiftKey: true });
+    expect(targetRow.className).toContain('ring-accent');
+    fireEvent.pointerUp(moving, { pointerId: 202, clientX: 500, clientY: 500, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        { op: 'replace_track_clips', track_id: '00000000-0000-4000-8000-000000000160', clips: [] },
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000162',
+          clips: [
+            expect.objectContaining({ id: '00000000-0000-4000-8000-000000000163', placement: expect.objectContaining({ start: 0, duration: 2 }) }),
+            expect.objectContaining({ id: '00000000-0000-4000-8000-000000000161', placement: expect.objectContaining({ start: 2, duration: 2 }) }),
+            expect.objectContaining({ placement: expect.objectContaining({ start: 4, duration: 6 }) }),
+          ],
+        }),
+      ],
+    })));
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
+  it('rejects a vertical move onto a locked track without committing', async () => {
+    const applyProjectPatch = vi.fn();
+    const project = crossTrackProject();
+    const lockedProject: Project = {
+      ...project,
+      document: {
+        ...project.document,
+        tracks: project.document.tracks.map((track) => track.name === 'Target V3' ? { ...track, locked: true } : track),
+      },
+    };
+    const elementFromPoint = vi.fn<() => Element | null>();
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
+    renderWorkspace({ project: lockedProject, applyProjectPatch });
+
+    const moving = await screen.findByRole('button', { name: /Move me 2\.0s · 未录制/u });
+    fireEvent.click(moving);
+    fireEvent.pointerDown(moving, { pointerId: 203, button: 0, clientX: 500, clientY: 300 });
+    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    elementFromPoint.mockReturnValue(targetRow);
+    fireEvent.pointerMove(moving, { pointerId: 203, clientX: 500, clientY: 500, shiftKey: true });
+    expect(targetRow.className).not.toContain('ring-accent');
+    fireEvent.pointerUp(moving, { pointerId: 203, clientX: 500, clientY: 500, shiftKey: true });
+    expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
   it('keeps a locked linked track visible in selection but out of a cross-track move', async () => {

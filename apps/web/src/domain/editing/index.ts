@@ -95,6 +95,8 @@ export {
   moveRippleClip,
   moveRippleClipGroup,
   moveFreeClipGroup,
+  planCrossTrackMove,
+  type TimelineCrossTrackMovePlan,
   overwriteClipsAtTime,
   placeFreeClipAtTime,
   splitRippleClip,

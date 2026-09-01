@@ -43,6 +43,7 @@ function timelineMaterialKey(clip: TimelineClip): string | null {
   switch (clip.material.kind) {
     case 'asset': return `asset:${clip.material.asset_id}`;
     case 'take': return `take:${clip.material.asset_id}`;
+    case 'sequence': return `sequence:${clip.material.project_id}:${clip.material.project_revision}`;
     case 'planned': return null;
   }
 }

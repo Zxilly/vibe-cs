@@ -407,6 +407,12 @@ export type { WaveformResponse } from './generated/WaveformResponse';
 export type { ExportJob } from './generated/ExportJob';
 export type { ExportJobRecord } from './generated/ExportJobRecord';
 export type { ProjectRenderPreviewCleanup } from './generated/ProjectRenderPreviewCleanup';
+export type { CreateNestedSequenceRequest } from './generated/CreateNestedSequenceRequest';
+export type { CreateNestedSequenceResponse } from './generated/CreateNestedSequenceResponse';
+export type { NestedSequenceMedia } from './generated/NestedSequenceMedia';
+export type { NestedSequenceMediaStatus } from './generated/NestedSequenceMediaStatus';
+export type { RefreshNestedSequenceRequest } from './generated/RefreshNestedSequenceRequest';
+export type { RefreshNestedSequenceResponse } from './generated/RefreshNestedSequenceResponse';
 
 export type { OutputKind } from './generated/OutputKind';
 export type { OutputAvailability } from './generated/OutputAvailability';

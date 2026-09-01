@@ -101,6 +101,65 @@ impl Storage {
         .await
     }
 
+    pub async fn create_nested_project(
+        &self,
+        child: Project,
+        parent_patch: ProjectPatch,
+        change_group_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> Result<(Project, Project, ProjectChangeGroup)> {
+        child.validate()?;
+        if child.revision != 1 || child.id == parent_patch.project_id {
+            return Err(StorageError::Domain(DomainError::InvalidInput(
+                "nested project must be a distinct revision 1 Project".to_owned(),
+            )));
+        }
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            authorize_project_patch(&transaction, &parent_patch)?;
+            if read_project(&transaction, child.id)?.is_some() {
+                return Err(StorageError::ProjectAlreadyExists(child.id));
+            }
+            let mut parent = read_project(&transaction, parent_patch.project_id)?
+                .ok_or_else(|| StorageError::Domain(DomainError::NotFound("project".to_owned())))?;
+            let group = parent.apply_patch(parent_patch, change_group_id, now)?;
+            transaction.execute(
+                "INSERT INTO projects(id, name, revision, created_at, updated_at, document_json) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    child.id.to_string(),
+                    child.name,
+                    sql_u64(child.revision)?,
+                    child.created_at.to_rfc3339(),
+                    child.updated_at.to_rfc3339(),
+                    encode(&child)?,
+                ],
+            )?;
+            let affected = transaction.execute(
+                "UPDATE projects SET name = ?2, revision = ?3, updated_at = ?4, document_json = ?5 \
+                 WHERE id = ?1 AND revision = ?6",
+                params![
+                    parent.id.to_string(),
+                    parent.name,
+                    sql_u64(parent.revision)?,
+                    parent.updated_at.to_rfc3339(),
+                    encode(&parent)?,
+                    sql_u64(group.from_revision)?,
+                ],
+            )?;
+            if affected != 1 {
+                return Err(StorageError::Domain(DomainError::Conflict(
+                    "project revision changed while nesting clips".to_owned(),
+                )));
+            }
+            insert_change_group(&transaction, &group)?;
+            transaction.commit()?;
+            Ok((parent, child, group))
+        })
+        .await
+    }
+
     pub async fn list_project_change_groups(
         &self,
         project_id: Uuid,

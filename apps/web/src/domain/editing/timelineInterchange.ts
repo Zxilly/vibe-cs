@@ -409,7 +409,7 @@ function nonStoryWarnings(document: EditingDocument, format: string): string[] {
 }
 
 function clipAssetId(clip: TimelineClip): string | null {
-  return clip.material.kind === 'planned' ? null : clip.material.asset_id;
+  return clip.material.kind === 'take' || clip.material.kind === 'asset' ? clip.material.asset_id : null;
 }
 
 function otioTimeRange(start: number, duration: number, rate: number): unknown {

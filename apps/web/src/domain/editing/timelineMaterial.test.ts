@@ -12,6 +12,7 @@ describe('resolveTimelineMaterial', () => {
       media_duration_seconds: 4,
     })).toEqual({
       streamAssetId: 'asset-1',
+      nestedProjectId: null,
       waveform: { kind: 'take', id: 'take-1' },
       state: 'recorded',
     });
@@ -20,8 +21,23 @@ describe('resolveTimelineMaterial', () => {
   it('does not invent media for a planned clip', () => {
     expect(resolveTimelineMaterial({ kind: 'planned' })).toEqual({
       streamAssetId: null,
+      nestedProjectId: null,
       waveform: null,
       state: 'planned',
+    });
+  });
+
+  it('keeps nested sequence identity separate from media assets', () => {
+    expect(resolveTimelineMaterial({
+      kind: 'sequence',
+      project_id: 'nested-1',
+      project_revision: 3,
+      media_duration_seconds: 8,
+    })).toEqual({
+      streamAssetId: null,
+      nestedProjectId: 'nested-1',
+      waveform: null,
+      state: 'recorded',
     });
   });
 

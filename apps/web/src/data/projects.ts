@@ -182,6 +182,68 @@ export function useClearProjectRenderPreviews(projectId: string) {
   });
 }
 
+export function useNestedSequenceMedia(projectId: string | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.projects.nestedSequences(projectId ?? ''),
+    queryFn: projectId === null
+      ? skipToken
+      : ({ signal }: { signal: AbortSignal }) => client.listNestedSequenceMedia(projectId, signal),
+    ...resolveQueryTuning(tuning, { enabled: projectId !== null }),
+    refetchInterval: (query) => query.state.data?.some((item) => item.status === 'rendering') ? 500 : false,
+  });
+}
+
+export function useCreateNestedSequence(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ baseRevision, name, clipIds }: {
+      readonly baseRevision: number;
+      readonly name: string;
+      readonly clipIds: readonly string[];
+    }) => client.createNestedSequence(projectId, {
+      base_revision: baseRevision,
+      name,
+      clip_ids: [...clipIds],
+    }),
+    onSuccess: ({ parent_project: parent, nested_project: nested, change_group: changeGroup }) => {
+      queryClient.setQueryData(qk.projects.detail(parent.id), parent);
+      queryClient.setQueryData(qk.projects.detail(nested.id), nested);
+      queryClient.setQueryData(
+        qk.projects.changeGroups(parent.id),
+        (current: readonly ProjectChangeGroup[] | undefined) => [changeGroup, ...(current ?? [])],
+      );
+      return Promise.all([
+        invalidateProjects(queryClient),
+        queryClient.invalidateQueries({ queryKey: qk.projects.deliveryGate(parent.id) }),
+        queryClient.invalidateQueries({ queryKey: qk.projects.nestedSequences(parent.id) }),
+      ]).then(() => undefined);
+    },
+  });
+}
+
+export function useRefreshNestedSequence(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ clipId, baseRevision }: { readonly clipId: string; readonly baseRevision: number }) =>
+      client.refreshNestedSequence(projectId, clipId, baseRevision),
+    onSuccess: ({ parent_project: parent, change_group: changeGroup }) => {
+      queryClient.setQueryData(qk.projects.detail(parent.id), parent);
+      queryClient.setQueryData(
+        qk.projects.changeGroups(parent.id),
+        (current: readonly ProjectChangeGroup[] | undefined) => [changeGroup, ...(current ?? [])],
+      );
+      return Promise.all([
+        invalidateProjects(queryClient),
+        queryClient.invalidateQueries({ queryKey: qk.projects.deliveryGate(parent.id) }),
+        queryClient.invalidateQueries({ queryKey: qk.projects.nestedSequences(parent.id) }),
+      ]).then(() => undefined);
+    },
+  });
+}
+
 export function useRevertProjectChangeGroup(projectId: string) {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

@@ -163,6 +163,9 @@ impl From<&Project> for RenderProject {
                             asset_id: match clip.material {
                                 TimelineClipMaterial::Take { asset_id, .. }
                                 | TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
+                                TimelineClipMaterial::Sequence { project_id, .. } => {
+                                    Some(project_id)
+                                }
                                 TimelineClipMaterial::Planned => None,
                             },
                             start: clip.placement.start,

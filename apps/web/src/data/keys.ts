@@ -309,6 +309,8 @@ export const qk = {
       [QUERY_NAMESPACE.projects, DETAIL, projectId, 'edit-lease'] as const,
     renderPreviews: (projectId: string) =>
       [QUERY_NAMESPACE.projects, DETAIL, projectId, 'render-previews'] as const,
+    nestedSequences: (projectId: string) =>
+      [QUERY_NAMESPACE.projects, DETAIL, projectId, 'nested-sequences'] as const,
   },
 
   /**

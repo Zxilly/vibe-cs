@@ -171,7 +171,8 @@ impl RuntimeExportPort {
             .filter_map(|clip| match clip.material {
                 vibe_cs_domain::TimelineClipMaterial::Take { asset_id, .. }
                 | vibe_cs_domain::TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
-                vibe_cs_domain::TimelineClipMaterial::Planned => None,
+                vibe_cs_domain::TimelineClipMaterial::Planned
+                | vibe_cs_domain::TimelineClipMaterial::Sequence { .. } => None,
             })
             .collect::<Vec<_>>();
         referenced_assets.extend(
@@ -216,6 +217,63 @@ impl RuntimeExportPort {
                 EditorMediaSource {
                     path,
                     kind,
+                    has_audio,
+                },
+            );
+        }
+        for clip in project
+            .document
+            .tracks
+            .iter()
+            .flat_map(|track| &track.clips)
+        {
+            let vibe_cs_domain::TimelineClipMaterial::Sequence {
+                project_id: nested_project_id,
+                project_revision,
+                media_duration_seconds,
+            } = &clip.material
+            else {
+                continue;
+            };
+            let nested = self
+                .storage
+                .get_project(*nested_project_id)
+                .await
+                .map_err(|error| storage_error(&error))?
+                .ok_or_else(|| {
+                    DomainError::NotFound(format!("nested sequence {nested_project_id}"))
+                })?;
+            if nested.revision != *project_revision {
+                return Err(DomainError::Conflict(format!(
+                    "nested sequence {nested_project_id} is at revision {}, parent expects {project_revision}",
+                    nested.revision
+                )));
+            }
+            let preview = self
+                .storage
+                .list_export_jobs(Some(*nested_project_id))
+                .await
+                .map_err(|error| storage_error(&error))?
+                .into_iter()
+                .find(|record| {
+                    record.kind == "project_preview"
+                        && record.job.project_revision == *project_revision
+                        && record.job.status == JobStatus::Completed
+                        && record.job.range_start_seconds <= 0.001
+                        && record.job.range_end_seconds + 0.001 >= *media_duration_seconds
+                })
+                .ok_or_else(|| {
+                    DomainError::Conflict(format!(
+                        "nested sequence {nested_project_id} has no current full render preview"
+                    ))
+                })?;
+            let path = PathBuf::from(preview.job.output_path);
+            let has_audio = self.probe_has_audio(&path).await.unwrap_or(true);
+            assets.insert(
+                nested_project_id.to_string(),
+                EditorMediaSource {
+                    path,
+                    kind: EditorMediaKind::Video,
                     has_audio,
                 },
             );

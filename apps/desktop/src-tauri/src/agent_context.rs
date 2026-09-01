@@ -67,16 +67,17 @@ pub(crate) fn workspace_context(
 }
 
 fn project_summary(project: &Project) -> Value {
-    let (planned, takes, assets) = project
+    let (planned, takes, assets, sequences) = project
         .document
         .tracks
         .iter()
         .flat_map(|track| &track.clips)
-        .fold((0_usize, 0_usize, 0_usize), |mut counts, clip| {
+        .fold((0_usize, 0_usize, 0_usize, 0_usize), |mut counts, clip| {
             match clip.material {
                 TimelineClipMaterial::Planned => counts.0 += 1,
                 TimelineClipMaterial::Take { .. } => counts.1 += 1,
                 TimelineClipMaterial::Asset { .. } => counts.2 += 1,
+                TimelineClipMaterial::Sequence { .. } => counts.3 += 1,
             }
             counts
         });
@@ -96,6 +97,7 @@ fn project_summary(project: &Project) -> Value {
                         TimelineClipMaterial::Planned => "planned",
                         TimelineClipMaterial::Take { .. } => "take",
                         TimelineClipMaterial::Asset { .. } => "asset",
+                        TimelineClipMaterial::Sequence { .. } => "sequence",
                     };
                     json!({
                         "id":clip.id,
@@ -141,6 +143,7 @@ fn project_summary(project: &Project) -> Value {
             "planned":planned,
             "takes":takes,
             "assets":assets,
+            "sequences":sequences,
         },
         "sourceDemoIds":project.document.settings.source_demo_ids,
     })

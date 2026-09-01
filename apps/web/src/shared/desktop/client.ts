@@ -49,6 +49,8 @@ import type {
   BeatAlignmentRequest,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
+  CreateNestedSequenceRequest,
+  CreateNestedSequenceResponse,
   CreateProjectRequest,
   CosmeticCatalog,
   CosmeticInspectionReport,
@@ -90,6 +92,7 @@ import type {
   EditorMarker,
   MediaAsset,
   MediaProxyCleanup,
+  NestedSequenceMedia,
   OutputItem,
   OutputKind,
   OutputPage,
@@ -104,6 +107,7 @@ import type {
   PlayerProfile,
   PlayerReviewMetadata,
   ProjectRenderPreviewCleanup,
+  RefreshNestedSequenceResponse,
   Project,
   ProjectChangeGroup,
   ProjectDeliveryGate,
@@ -526,6 +530,21 @@ export const commands = {
     request<ProjectRenderPreviewCleanup>(
       `/projects/${encodeURIComponent(projectId)}/render-previews`,
       { method: 'DELETE', timeoutMs: null },
+    ),
+  listNestedSequenceMedia: (projectId: string, signal?: AbortSignal) =>
+    request<NestedSequenceMedia[]>(
+      `/projects/${encodeURIComponent(projectId)}/nested-sequences`,
+      { signal },
+    ),
+  createNestedSequence: (projectId: string, body: CreateNestedSequenceRequest) =>
+    request<CreateNestedSequenceResponse>(
+      `/projects/${encodeURIComponent(projectId)}/nested-sequences`,
+      { method: 'POST', body, timeoutMs: null },
+    ),
+  refreshNestedSequence: (projectId: string, clipId: string, baseRevision: number) =>
+    request<RefreshNestedSequenceResponse>(
+      `/projects/${encodeURIComponent(projectId)}/nested-sequences/${encodeURIComponent(clipId)}/refresh`,
+      { method: 'POST', body: { base_revision: baseRevision }, timeoutMs: null },
     ),
   applyProjectPatch: (patch: ProjectPatch) =>
     request<ProjectPatchResult>(`/projects/${encodeURIComponent(patch.project_id)}`, {

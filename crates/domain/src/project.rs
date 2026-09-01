@@ -187,6 +187,11 @@ pub struct TimelinePlacement {
 #[ts(export)]
 pub enum TimelineClipMaterial {
     Planned,
+    Sequence {
+        project_id: Uuid,
+        project_revision: u64,
+        media_duration_seconds: f64,
+    },
     Take {
         take_id: Uuid,
         asset_id: Uuid,
@@ -407,6 +412,16 @@ impl TimelineClip {
                     },
                 )
             }
+            TimelineClipMaterial::Sequence {
+                media_duration_seconds,
+                ..
+            } => Ok(
+                if placement_fits_media(&self.placement, *media_duration_seconds) {
+                    TimelineClipMaterializationState::Recorded
+                } else {
+                    TimelineClipMaterializationState::Stale
+                },
+            ),
             TimelineClipMaterial::Asset {
                 media_duration_seconds,
                 ..
@@ -508,7 +523,7 @@ impl Project {
                 | TimelineClipMaterial::Asset {
                     asset_id: current, ..
                 } => *current == asset_id,
-                TimelineClipMaterial::Planned => false,
+                TimelineClipMaterial::Planned | TimelineClipMaterial::Sequence { .. } => false,
             })
         })
     }
@@ -1009,6 +1024,18 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
             media_duration_seconds,
             ..
         } => validate_media_duration(*media_duration_seconds)?,
+        TimelineClipMaterial::Sequence {
+            project_id,
+            project_revision,
+            media_duration_seconds,
+        } => {
+            if project_id.is_nil() || *project_revision == 0 {
+                return Err(invalid(
+                    "nested sequence identity and revision are required",
+                ));
+            }
+            validate_media_duration(*media_duration_seconds)?;
+        }
         TimelineClipMaterial::Planned => {}
     }
     Ok(())

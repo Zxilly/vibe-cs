@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditingDocument, EditingDocumentSettings, Project, ProjectChangeAuthor, ProjectChangeGroup,
-    ProjectEditLease, ProjectPatch, TimelineClipMaterializationState, TimelineTrack, TrackKind,
+    EditingDocument, EditingDocumentSettings, JobStatus, Project, ProjectChangeAuthor,
+    ProjectChangeGroup, ProjectEditLease, ProjectEditOperation, ProjectPatch, ProjectPatchScope,
+    TimelineClip, TimelineClipMaterial, TimelineClipMaterializationState, TimelineClipTransitions,
+    TimelinePlacement, TimelineTrack, TrackKind, Transform,
 };
 use vibe_cs_storage::{ExportJobRecord, ProjectLeaseAcquire};
 
@@ -37,6 +39,14 @@ pub(crate) fn router() -> Router<AppState> {
             get(list_render_previews)
                 .post(render_project_preview)
                 .delete(clear_render_previews),
+        )
+        .route(
+            "/api/projects/{id}/nested-sequences",
+            get(list_nested_sequence_media).post(create_nested_sequence),
+        )
+        .route(
+            "/api/projects/{id}/nested-sequences/{clip_id}/refresh",
+            axum::routing::post(refresh_nested_sequence),
         )
         .route(
             "/api/projects/{id}/change-groups/{change_group_id}/revert",
@@ -167,6 +177,64 @@ struct ProjectRenderPreviewCleanup {
     cancellation_requested: u32,
 }
 
+#[derive(Debug, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct CreateNestedSequenceRequest {
+    base_revision: u64,
+    name: String,
+    clip_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct CreateNestedSequenceResponse {
+    parent_project: Project,
+    nested_project: Project,
+    change_group: ProjectChangeGroup,
+    preview_job_id: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum NestedSequenceMediaStatus {
+    Ready,
+    Rendering,
+    Stale,
+    Failed,
+    Missing,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct NestedSequenceMedia {
+    clip_id: Uuid,
+    project_id: Uuid,
+    expected_revision: u64,
+    current_revision: u64,
+    status: NestedSequenceMediaStatus,
+    preview_job_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct RefreshNestedSequenceRequest {
+    base_revision: u64,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct RefreshNestedSequenceResponse {
+    parent_project: Project,
+    change_group: ProjectChangeGroup,
+    preview_job_id: Option<Uuid>,
+}
+
 async fn list_projects(State(state): State<AppState>) -> ApiResult<Json<Vec<Project>>> {
     Ok(Json(state.storage.list_projects().await?))
 }
@@ -192,11 +260,48 @@ async fn get_delivery_gate(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
-    let blockers = project
+    let mut blockers = project
         .delivery_blockers()?
         .into_iter()
         .map(|(clip_id, state)| ProjectDeliveryBlocker { clip_id, state })
         .collect::<Vec<_>>();
+    for clip in project
+        .document
+        .tracks
+        .iter()
+        .flat_map(|track| &track.clips)
+    {
+        let TimelineClipMaterial::Sequence {
+            project_id,
+            project_revision,
+            media_duration_seconds,
+        } = clip.material
+        else {
+            continue;
+        };
+        let nested = state.storage.get_project(project_id).await?;
+        let ready = nested
+            .as_ref()
+            .is_some_and(|nested| nested.revision == project_revision)
+            && state
+                .storage
+                .list_export_jobs(Some(project_id))
+                .await?
+                .into_iter()
+                .any(|record| {
+                    record.kind == "project_preview"
+                        && record.job.project_revision == project_revision
+                        && record.job.status == JobStatus::Completed
+                        && record.job.range_start_seconds <= 0.001
+                        && record.job.range_end_seconds + 0.001 >= media_duration_seconds
+                });
+        if !ready {
+            blockers.push(ProjectDeliveryBlocker {
+                clip_id: clip.id,
+                state: TimelineClipMaterializationState::Stale,
+            });
+        }
+    }
     Ok(Json(ProjectDeliveryGate {
         project_id: project.id,
         revision: project.revision,
@@ -472,6 +577,369 @@ async fn clear_render_previews(
     }))
 }
 
+async fn list_nested_sequence_media(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Vec<NestedSequenceMedia>>> {
+    let parent = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    let mut items = Vec::new();
+    for clip in parent.document.tracks.iter().flat_map(|track| &track.clips) {
+        let TimelineClipMaterial::Sequence {
+            project_id,
+            project_revision,
+            media_duration_seconds,
+        } = clip.material
+        else {
+            continue;
+        };
+        let nested = state.storage.get_project(project_id).await?;
+        let current_revision = nested.as_ref().map_or(0, |project| project.revision);
+        let preview = state
+            .storage
+            .list_export_jobs(Some(project_id))
+            .await?
+            .into_iter()
+            .find(|record| {
+                record.kind == "project_preview"
+                    && record.job.project_revision == project_revision
+                    && record.job.range_start_seconds <= 0.001
+                    && record.job.range_end_seconds + 0.001 >= media_duration_seconds
+            });
+        let status = if nested.is_none() {
+            NestedSequenceMediaStatus::Missing
+        } else if current_revision != project_revision {
+            NestedSequenceMediaStatus::Stale
+        } else {
+            match preview.as_ref().map(|record| record.job.status) {
+                Some(JobStatus::Completed) => NestedSequenceMediaStatus::Ready,
+                Some(
+                    JobStatus::Queued
+                    | JobStatus::Preparing
+                    | JobStatus::Running
+                    | JobStatus::Cancelling,
+                ) => NestedSequenceMediaStatus::Rendering,
+                Some(JobStatus::Failed | JobStatus::Cancelled) => NestedSequenceMediaStatus::Failed,
+                None => NestedSequenceMediaStatus::Missing,
+            }
+        };
+        items.push(NestedSequenceMedia {
+            clip_id: clip.id,
+            project_id,
+            expected_revision: project_revision,
+            current_revision,
+            status,
+            preview_job_id: preview.map(|record| record.job.id),
+        });
+    }
+    Ok(Json(items))
+}
+
+async fn start_nested_preview(state: &AppState, nested: &Project) -> Option<Uuid> {
+    match state
+        .exports
+        .start(
+            "project_preview",
+            nested.id,
+            serde_json::json!({
+                "encoder":"auto",
+                "quality":70,
+                "range_start_seconds":0.0,
+                "range_end_seconds":nested.document.duration_seconds,
+            }),
+        )
+        .await
+    {
+        Ok(job) => {
+            state.events.publish("export_job", "created", Some(job.id));
+            Some(job.id)
+        }
+        Err(error) => {
+            tracing::warn!(%error, project_id = %nested.id, "nested sequence preview was not started");
+            None
+        }
+    }
+}
+
+async fn refresh_nested_sequence(
+    State(state): State<AppState>,
+    Path((id, clip_id)): Path<(Uuid, Uuid)>,
+    ApiJson(request): ApiJson<RefreshNestedSequenceRequest>,
+) -> ApiResult<Json<RefreshNestedSequenceResponse>> {
+    let parent = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    if parent.revision != request.base_revision {
+        return Err(vibe_cs_domain::DomainError::Conflict(format!(
+            "project is at revision {}, nested refresh expects {}",
+            parent.revision, request.base_revision
+        ))
+        .into());
+    }
+    let story = parent
+        .document
+        .tracks
+        .iter()
+        .find(|track| track.id == parent.document.story_track_id)
+        .ok_or_else(|| ApiError::invalid("Story track does not exist"))?;
+    let index = story
+        .clips
+        .iter()
+        .position(|clip| clip.id == clip_id)
+        .ok_or_else(|| ApiError::not_found("nested sequence clip"))?;
+    let TimelineClipMaterial::Sequence { project_id, .. } = story.clips[index].material else {
+        return Err(ApiError::invalid("selected clip is not a nested sequence"));
+    };
+    let nested = state
+        .storage
+        .get_project(project_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("nested sequence"))?;
+    let old_duration = story.clips[index].placement.duration;
+    let new_duration = nested.document.duration_seconds;
+    let delta = new_duration - old_duration;
+    let mut clips = story.clips.clone();
+    let nested_name = {
+        let replacement = &mut clips[index];
+        replacement.material = TimelineClipMaterial::Sequence {
+            project_id,
+            project_revision: nested.revision,
+            media_duration_seconds: new_duration,
+        };
+        replacement.placement.duration = new_duration;
+        replacement.placement.source_in = 0.0;
+        replacement.placement.source_out = new_duration;
+        replacement.speed_segments.clear();
+        replacement.name.clone()
+    };
+    for clip in clips.iter_mut().skip(index + 1) {
+        clip.placement.start += delta;
+    }
+    let patch = ProjectPatch {
+        project_id: id,
+        base_revision: parent.revision,
+        scope: ProjectPatchScope::Project,
+        author: ProjectChangeAuthor::Human,
+        reverts_change_group_id: None,
+        summary: format!("Refresh nested sequence: {nested_name}"),
+        operations: vec![ProjectEditOperation::ReplaceTrackClips {
+            track_id: story.id,
+            clips,
+        }],
+    };
+    let (parent_project, change_group) = state
+        .storage
+        .apply_project_patch(patch, Uuid::new_v4(), Utc::now())
+        .await?;
+    state.events.publish(PROJECT_RESOURCE, "edited", Some(id));
+    let preview_job_id = start_nested_preview(&state, &nested).await;
+    Ok(Json(RefreshNestedSequenceResponse {
+        parent_project,
+        change_group,
+        preview_job_id,
+    }))
+}
+
+async fn create_nested_sequence(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(request): ApiJson<CreateNestedSequenceRequest>,
+) -> ApiResult<Json<CreateNestedSequenceResponse>> {
+    let parent = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    if parent.revision != request.base_revision {
+        return Err(vibe_cs_domain::DomainError::Conflict(format!(
+            "project is at revision {}, nesting expects {}",
+            parent.revision, request.base_revision
+        ))
+        .into());
+    }
+    let name = request.name.trim();
+    if name.is_empty() || name.chars().count() > 200 {
+        return Err(ApiError::invalid(
+            "nested sequence name must contain 1 to 200 characters",
+        ));
+    }
+    let selected_ids = request
+        .clip_ids
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
+    if selected_ids.is_empty() || selected_ids.len() > 500 {
+        return Err(ApiError::invalid(
+            "nested sequence requires between 1 and 500 selected clips",
+        ));
+    }
+    let story = parent
+        .document
+        .tracks
+        .iter()
+        .find(|track| track.id == parent.document.story_track_id)
+        .ok_or_else(|| ApiError::invalid("Story track does not exist"))?;
+    if story.locked {
+        return Err(
+            vibe_cs_domain::DomainError::Conflict("Story track is locked".to_owned()).into(),
+        );
+    }
+    let selected_indices = story
+        .clips
+        .iter()
+        .enumerate()
+        .filter_map(|(index, clip)| selected_ids.contains(&clip.id).then_some(index))
+        .collect::<Vec<_>>();
+    if selected_indices.len() != selected_ids.len() {
+        return Err(ApiError::invalid(
+            "nested sequence currently accepts clips from the Story track only",
+        ));
+    }
+    let first_index = *selected_indices.first().expect("non-empty selection");
+    let last_index = *selected_indices.last().expect("non-empty selection");
+    if last_index - first_index + 1 != selected_indices.len() {
+        return Err(ApiError::invalid(
+            "nested sequence selection must be consecutive on the Story track",
+        ));
+    }
+    let selected = &story.clips[first_index..=last_index];
+    if selected.iter().any(|clip| !clip.placement.enabled) {
+        return Err(ApiError::invalid("disabled Story clips cannot be nested"));
+    }
+    let range_start = selected
+        .iter()
+        .map(|clip| clip.placement.start)
+        .fold(f64::INFINITY, f64::min);
+    let range_end = selected
+        .iter()
+        .map(|clip| clip.placement.start + clip.placement.duration)
+        .fold(0.0_f64, f64::max);
+    let duration = range_end - range_start;
+    if !duration.is_finite() || duration <= 0.0 {
+        return Err(ApiError::invalid("nested sequence duration is invalid"));
+    }
+    let nested_id = Uuid::new_v4();
+    let nested_story_id = Uuid::new_v4();
+    let now = Utc::now();
+    let nested_clips = selected
+        .iter()
+        .map(|clip| {
+            let mut clip = clip.clone();
+            clip.id = Uuid::new_v4();
+            clip.placement.start -= range_start;
+            clip.group_id = None;
+            clip.link_group_id = None;
+            clip
+        })
+        .collect::<Vec<_>>();
+    let nested_project = Project {
+        id: nested_id,
+        name: name.to_owned(),
+        revision: 1,
+        document: EditingDocument {
+            width: parent.document.width,
+            height: parent.document.height,
+            fps: parent.document.fps,
+            duration_seconds: duration,
+            story_track_id: nested_story_id,
+            tracks: vec![TimelineTrack {
+                id: nested_story_id,
+                name: "Story".to_owned(),
+                kind: TrackKind::Video,
+                order: 0,
+                muted: false,
+                solo: false,
+                volume: 1.0,
+                pan: 0.0,
+                keyframes: Vec::new(),
+                locked: false,
+                hidden: false,
+                clips: nested_clips,
+            }],
+            markers: parent
+                .document
+                .markers
+                .iter()
+                .filter(|marker| marker.time >= range_start && marker.time < range_end)
+                .cloned()
+                .map(|mut marker| {
+                    marker.id = Uuid::new_v4();
+                    marker.time -= range_start;
+                    marker
+                })
+                .collect(),
+            settings: parent.document.settings.clone(),
+        },
+        created_at: now,
+        updated_at: now,
+    };
+    let nested_clip = TimelineClip {
+        id: Uuid::new_v4(),
+        name: name.to_owned(),
+        capture_intent: None,
+        material: TimelineClipMaterial::Sequence {
+            project_id: nested_id,
+            project_revision: 1,
+            media_duration_seconds: duration,
+        },
+        placement: TimelinePlacement {
+            start: range_start,
+            duration,
+            source_in: 0.0,
+            source_out: duration,
+            speed: 1.0,
+            reverse: false,
+            frame_hold_source_time: None,
+            volume: 1.0,
+            pan: 0.0,
+            enabled: true,
+        },
+        transform: Transform::default(),
+        effects: Vec::new(),
+        transitions: TimelineClipTransitions::default(),
+        text: None,
+        metadata: serde_json::json!({"nested_sequence":true}),
+        group_id: None,
+        link_group_id: None,
+        keyframes: Vec::new(),
+        speed_segments: Vec::new(),
+    };
+    let mut parent_clips = story.clips[..first_index].to_vec();
+    parent_clips.push(nested_clip);
+    parent_clips.extend_from_slice(&story.clips[last_index + 1..]);
+    let patch = ProjectPatch {
+        project_id: id,
+        base_revision: parent.revision,
+        scope: ProjectPatchScope::Project,
+        author: ProjectChangeAuthor::Human,
+        reverts_change_group_id: None,
+        summary: format!("Create nested sequence: {name}"),
+        operations: vec![ProjectEditOperation::ReplaceTrackClips {
+            track_id: story.id,
+            clips: parent_clips,
+        }],
+    };
+    let (parent_project, nested_project, change_group) = state
+        .storage
+        .create_nested_project(nested_project, patch, Uuid::new_v4(), now)
+        .await?;
+    state
+        .events
+        .publish(PROJECT_RESOURCE, "created", Some(nested_project.id));
+    state.events.publish(PROJECT_RESOURCE, "edited", Some(id));
+    let preview_job_id = start_nested_preview(&state, &nested_project).await;
+    Ok(Json(CreateNestedSequenceResponse {
+        parent_project,
+        nested_project,
+        change_group,
+        preview_job_id,
+    }))
+}
+
 async fn remove_managed_preview_file(root: &std::path::Path, path: &str) -> ApiResult<()> {
     let requested = std::path::PathBuf::from(path);
     if !requested.exists() {
@@ -659,6 +1127,25 @@ mod tests {
         (status, value)
     }
 
+    fn clip_json(id: Uuid, name: &str, start: f64) -> Value {
+        json!({
+            "id":id,
+            "name":name,
+            "capture_intent":null,
+            "material":{"kind":"asset","asset_id":Uuid::new_v4(),"media_duration_seconds":5.0},
+            "placement":{"start":start,"duration":5.0,"source_in":0.0,"source_out":5.0,"speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
+            "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
+            "effects":[],
+            "transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
+            "text":null,
+            "metadata":{},
+            "group_id":null,
+            "link_group_id":null,
+            "keyframes":[],
+            "speed_segments":[]
+        })
+    }
+
     #[tokio::test]
     async fn project_head_patch_and_revert_use_one_route_family() {
         let storage = Storage::open_in_memory().await.expect("storage");
@@ -714,6 +1201,80 @@ mod tests {
         assert_eq!(status, 200);
         assert_eq!(reverted["project"]["name"], "Unified");
         assert_eq!(reverted["project"]["revision"], 3);
+    }
+
+    #[tokio::test]
+    async fn consecutive_story_clips_become_one_atomic_nested_project_and_parent_clip() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({"name":"Parent","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+        )
+        .await;
+        let project_id = created["id"].as_str().expect("project id");
+        let story_id = created["document"]["story_track_id"]
+            .as_str()
+            .expect("story id");
+        let first = Uuid::new_v4();
+        let second = Uuid::new_v4();
+        let (status, patched) = call(
+            &router,
+            Method::PATCH,
+            &format!("/api/projects/{project_id}"),
+            Some(json!({
+                "project_id":project_id,
+                "base_revision":1,
+                "scope":{"kind":"project"},
+                "author":{"kind":"human"},
+                "reverts_change_group_id":null,
+                "summary":"Add clips",
+                "operations":[{"op":"replace_track_clips","track_id":story_id,"clips":[clip_json(first,"A",0.0),clip_json(second,"B",5.0)]}]
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(patched["project"]["revision"], 2);
+
+        let (status, nested) = call(
+            &router,
+            Method::POST,
+            &format!("/api/projects/{project_id}/nested-sequences"),
+            Some(json!({"base_revision":2,"name":"Action core","clip_ids":[first,second]})),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(nested["parent_project"]["revision"], 3);
+        assert_eq!(nested["nested_project"]["revision"], 1);
+        assert_eq!(nested["nested_project"]["document"]["duration_seconds"], 10.0);
+        assert_eq!(nested["nested_project"]["document"]["tracks"][0]["clips"].as_array().expect("child clips").len(), 2);
+        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"].as_array().expect("parent clips").len(), 1);
+        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["kind"], "sequence");
+        assert_eq!(nested["preview_job_id"], Value::Null);
+        let nested_id = nested["nested_project"]["id"].as_str().expect("nested id");
+        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["project_id"], nested_id);
+
+        let (_, media) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/nested-sequences"),
+            None,
+        )
+        .await;
+        assert_eq!(media[0]["status"], "missing");
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], false);
+        assert_eq!(gate["blockers"][0]["state"], "stale");
+        let (_, projects) = call(&router, Method::GET, "/api/projects", None).await;
+        assert_eq!(projects.as_array().expect("projects").len(), 2);
     }
 
     #[test]

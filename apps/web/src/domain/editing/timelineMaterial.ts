@@ -7,6 +7,7 @@ export type TimelineWaveformLocator =
 
 export interface TimelineMaterialView {
   readonly streamAssetId: string | null;
+  readonly nestedProjectId: string | null;
   readonly waveform: TimelineWaveformLocator;
   readonly state: 'planned' | 'recorded' | 'stale';
 }
@@ -17,17 +18,27 @@ export function resolveTimelineMaterial(
   placement?: TimelinePlacement,
 ): TimelineMaterialView {
   if (material.kind === 'planned') {
-    return { streamAssetId: null, waveform: null, state: 'planned' };
+    return { streamAssetId: null, nestedProjectId: null, waveform: null, state: 'planned' };
+  }
+  if (material.kind === 'sequence') {
+    return {
+      streamAssetId: null,
+      nestedProjectId: material.project_id,
+      waveform: null,
+      state: mediaCoversPlacement(material.media_duration_seconds, placement) ? 'recorded' : 'stale',
+    };
   }
   if (material.kind === 'take') {
     return {
       streamAssetId: material.asset_id,
+      nestedProjectId: null,
       waveform: { kind: 'take', id: material.take_id },
       state: mediaCoversPlacement(material.media_duration_seconds, placement) ? 'recorded' : 'stale',
     };
   }
   return {
     streamAssetId: material.asset_id,
+    nestedProjectId: null,
     waveform: { kind: 'asset', id: material.asset_id },
     state: mediaCoversPlacement(material.media_duration_seconds, placement) ? 'recorded' : 'stale',
   };

@@ -51,7 +51,7 @@ function project(audioTracks: TimelineTrack[]): Project {
         clips: [],
       }, ...audioTracks],
       markers: [],
-      settings: { source_demo_ids: [], ripple_sequence_markers: false },
+      settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: false },
     },
     created_at: '2026-08-30T00:00:00Z',
     updated_at: '2026-08-30T00:00:00Z',

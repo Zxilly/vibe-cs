@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { EditorTransitionKind, TimelineClip } from '../../shared/desktop/dto';
-import { advanceTimelineTransport, evaluatePreviewTransition, transportReachedBoundary } from './TimelineProgramMonitor';
+import type { EditorTransitionKind, MediaAsset, TimelineClip } from '../../shared/desktop/dto';
+import { advanceTimelineTransport, evaluatePreviewTransition, programPreviewStreamPath, transportReachedBoundary } from './TimelineProgramMonitor';
 
 function clip(transition: EditorTransitionKind): TimelineClip {
   return {
@@ -66,5 +66,33 @@ describe('Trim Mode transport range', () => {
     expect(transportReachedBoundary(6.5, 1, 6.5, 3.5)).toBe(true);
     expect(advanceTimelineTransport(3.6, 1, -1, 6.5, 3.5)).toBe(3.5);
     expect(transportReachedBoundary(3.5, -1, 6.5, 3.5)).toBe(true);
+  });
+});
+
+describe('Program proxy source selection', () => {
+  const asset: MediaAsset = {
+    id: 'asset',
+    project_id: 'project',
+    path: 'D:\\media\\source.mp4',
+    name: 'Source',
+    kind: 'video',
+    duration_seconds: 5,
+    width: 1920,
+    height: 1080,
+    file_size: 1,
+    has_audio: true,
+    proxy_path: 'D:\\proxy\\source.mp4',
+    proxy_status: { status: 'ready', generated_at: '2026-09-02T00:00:00Z' },
+    waveform: null,
+    metadata_status: { status: 'ready' },
+    markers: [],
+    created_at: '2026-09-02T00:00:00Z',
+  };
+
+  it('uses a ready proxy only when the Project setting enables it', () => {
+    const assets = new Map([[asset.id, asset]]);
+    expect(programPreviewStreamPath(asset.id, assets, true)).toContain('/proxy/stream');
+    expect(programPreviewStreamPath(asset.id, assets, false)).toBe('/api/media/assets/asset/stream');
+    expect(programPreviewStreamPath(asset.id, new Map(), true)).toBe('/api/media/assets/asset/stream');
   });
 });

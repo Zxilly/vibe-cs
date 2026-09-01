@@ -45,6 +45,8 @@ import { useNativeShell } from '../data/nativeShell';
 import {
   useDeleteMediaAsset,
   useImportMediaAsset,
+  useGenerateMediaProxy,
+  useCleanupMediaProxies,
   useMediaAssets,
   useReplaceMediaAssetMarkers,
   useRelinkMediaAsset,
@@ -213,9 +215,15 @@ export function ProjectWorkspacePage() {
   const relinkMedia = useRelinkMediaAsset();
   const deleteMedia = useDeleteMediaAsset();
   const replaceAssetMarkers = useReplaceMediaAssetMarkers();
-  const sourceMarkersByAssetId = useMemo(
-    () => new Map((mediaAssets.data?.items ?? []).map((asset) => [asset.id, asset.markers] as const)),
+  const generateMediaProxy = useGenerateMediaProxy();
+  const cleanupMediaProxies = useCleanupMediaProxies();
+  const mediaAssetsById = useMemo(
+    () => new Map((mediaAssets.data?.items ?? []).map((asset) => [asset.id, asset] as const)),
     [mediaAssets.data?.items],
+  );
+  const sourceMarkersByAssetId = useMemo(
+    () => new Map([...mediaAssetsById].map(([id, asset]) => [id, asset.markers] as const)),
+    [mediaAssetsById],
   );
   const nativeShell = useNativeShell();
   const apply = useApplyProjectPatch();
@@ -876,6 +884,8 @@ export function ProjectWorkspacePage() {
     relinkMedia.error,
     deleteMedia.error,
     replaceAssetMarkers.error,
+    generateMediaProxy.error,
+    cleanupMediaProxies.error,
   ].find((error) => error !== null) ?? null;
   const mutationErrorDetail = dataErrorMessage(mutationError);
   const projectPanel = (
@@ -890,7 +900,10 @@ export function ProjectWorkspacePage() {
       matchedSourceFrame={matchedSourceFrame}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
-      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending || replaceAssetMarkers.isPending}
+      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending || replaceAssetMarkers.isPending || generateMediaProxy.isPending}
+      proxiesEnabled={current.document.settings.use_media_proxies}
+      generatingProxyAssetId={generateMediaProxy.variables ?? null}
+      proxyCleanupBusy={cleanupMediaProxies.isPending}
       canEditAsset={canApplySourcePatch}
       sourcePatchTargets={sourcePatchTargets}
       importAvailable={nativeShell.available}
@@ -910,6 +923,19 @@ export function ProjectWorkspacePage() {
       onRelink={(asset) => void relinkProjectMedia(asset)}
       onDelete={(asset) => deleteMedia.mutate(asset.id)}
       onReplaceAssetMarkers={(asset, markers) => replaceAssetMarkers.mutate({ id: asset.id, markers })}
+      onGenerateProxy={(asset) => generateMediaProxy.mutate(asset.id)}
+      onCleanupProxies={() => cleanupMediaProxies.mutate()}
+      onToggleProxies={() => mutate(
+        `切换代理预览`,
+        { kind: 'project' },
+        [{
+          op: 'replace_settings',
+          settings: {
+            ...current.document.settings,
+            use_media_proxies: !current.document.settings.use_media_proxies,
+          },
+        }],
+      )}
     />
   );
   const programPanel = (
@@ -917,6 +943,8 @@ export function ProjectWorkspacePage() {
       showHeader={false}
       project={previewProject}
       deliveryStateByClipId={deliveryStateByClipId}
+      mediaAssetsById={mediaAssetsById}
+      useMediaProxies={current.document.settings.use_media_proxies}
       timelineTimeSeconds={transportTimeSeconds}
       selectedClipId={selectedClipId}
       readOnly={readOnly || apply.isPending || selected?.track.locked === true}

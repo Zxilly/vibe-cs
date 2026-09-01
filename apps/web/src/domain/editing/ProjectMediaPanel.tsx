@@ -8,6 +8,7 @@ import {
   FileVideo2,
   FolderInput,
   Grid2X2,
+  Gauge,
   Link2,
   List,
   Pause,
@@ -63,6 +64,12 @@ export interface ProjectMediaPanelProps {
   readonly onRelink: (asset: MediaAsset) => void;
   readonly onDelete: (asset: MediaAsset) => void;
   readonly onReplaceAssetMarkers: (asset: MediaAsset, markers: readonly EditorMarker[]) => void;
+  readonly proxiesEnabled: boolean;
+  readonly generatingProxyAssetId: string | null;
+  readonly proxyCleanupBusy: boolean;
+  readonly onGenerateProxy: (asset: MediaAsset) => void;
+  readonly onToggleProxies: () => void;
+  readonly onCleanupProxies: () => void;
   readonly onClose?: (() => void) | undefined;
 }
 
@@ -121,6 +128,12 @@ export function ProjectMediaPanel({
   onRelink,
   onDelete,
   onReplaceAssetMarkers,
+  proxiesEnabled,
+  generatingProxyAssetId,
+  proxyCleanupBusy,
+  onGenerateProxy,
+  onToggleProxies,
+  onCleanupProxies,
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
@@ -259,6 +272,31 @@ export function ProjectMediaPanel({
           ]}
           onChange={setView}
         />
+        <Tooltip content={proxiesEnabled ? t`Program 优先使用已就绪代理；不可用时自动回退原片` : t`Program 始终使用原始素材`} side="bottom">
+          <Button
+            size="sm"
+            icon
+            variant={proxiesEnabled ? 'primary' : 'ghost'}
+            aria-label={t`切换代理预览`}
+            aria-pressed={proxiesEnabled}
+            disabled={readOnly || busy}
+            onClick={onToggleProxies}
+          >
+            <Gauge className="size-3.5" aria-hidden="true" />
+          </Button>
+        </Tooltip>
+        <Tooltip content={t`删除不再生成中的受管代理；原始素材不会删除`} side="bottom">
+          <Button
+            size="sm"
+            icon
+            variant="ghost"
+            aria-label={t`清理代理媒体`}
+            disabled={proxyCleanupBusy || busy}
+            onClick={onCleanupProxies}
+          >
+            <Trash2 className="size-3.5" aria-hidden="true" />
+          </Button>
+        </Tooltip>
         <Button
           size="sm"
           variant="ghost"
@@ -356,6 +394,12 @@ export function ProjectMediaPanel({
                 <Link2 className="size-3.5" aria-hidden="true" />
                 <Trans>重新定位</Trans>
               </Button>
+              <AssetProxyButton
+                asset={selectedSourceAsset}
+                generating={generatingProxyAssetId === selectedSourceAsset.id}
+                busy={busy}
+                onGenerate={onGenerateProxy}
+              />
             </div>
           ) : (
             <div>
@@ -411,6 +455,13 @@ export function ProjectMediaPanel({
                 >
                   <Trash2 className="size-3.5" aria-hidden="true" />
                 </Button>
+                <AssetProxyButton
+                  asset={selectedImportedAsset}
+                  generating={generatingProxyAssetId === selectedImportedAsset.id}
+                  busy={busy}
+                  compact
+                  onGenerate={onGenerateProxy}
+                />
               </div>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -625,6 +676,9 @@ function MediaItemSection({
                   {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
                     <span className="text-fail-text"><Trans>不可用</Trans></span>
                   ) : null}
+                  {item.sourceAsset?.proxy_status.status === 'ready' ? <span className="text-ok"><Trans>代理就绪</Trans></span> : null}
+                  {item.sourceAsset?.proxy_status.status === 'generating' ? <span className="text-warn"><Trans>代理生成中</Trans></span> : null}
+                  {item.sourceAsset?.proxy_status.status === 'failed' ? <span className="text-fail-text"><Trans>代理失败</Trans></span> : null}
                 </span>
               </span>
             </button>
@@ -632,6 +686,41 @@ function MediaItemSection({
         })}
       </div>
     </section>
+  );
+}
+
+function AssetProxyButton({ asset, generating, busy, compact = false, onGenerate }: {
+  readonly asset: MediaAsset;
+  readonly generating: boolean;
+  readonly busy: boolean;
+  readonly compact?: boolean;
+  readonly onGenerate: (asset: MediaAsset) => void;
+}) {
+  const supported = projectMediaAssetKind(asset) === 'video' && !isStillImageMediaAsset(asset);
+  const label = asset.proxy_status.status === 'ready' ? t`重新生成代理 ${asset.name}` : t`生成代理 ${asset.name}`;
+  const detail = asset.proxy_status.status === 'ready'
+    ? t`代理已就绪；重新生成会原子替换受管代理文件`
+    : asset.proxy_status.status === 'failed'
+      ? t`上次代理生成失败；点击重试`
+      : asset.proxy_status.status === 'generating' || generating
+        ? t`正在生成可拖动预览使用的低分辨率代理`
+        : supported ? t`生成低分辨率代理；导出仍使用原始素材` : t`只有视频素材可生成代理`;
+  return (
+    <Tooltip content={detail} side="top">
+      <span>
+        <Button
+          size="sm"
+          icon={compact}
+          variant="ghost"
+          aria-label={label}
+          disabled={!supported || busy || generating || asset.proxy_status.status === 'generating'}
+          onClick={() => onGenerate(asset)}
+        >
+          <Gauge className="size-3.5" aria-hidden="true" />
+          {compact ? null : asset.proxy_status.status === 'ready' ? <Trans>代理就绪</Trans> : <Trans>生成代理</Trans>}
+        </Button>
+      </span>
+    </Tooltip>
   );
 }
 

@@ -215,6 +215,7 @@ async fn create_project(
             settings: EditingDocumentSettings {
                 source_demo_ids: request.source_demo_ids,
                 ripple_sequence_markers: false,
+                use_media_proxies: false,
             },
         },
         created_at: now,

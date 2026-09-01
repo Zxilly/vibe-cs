@@ -181,7 +181,7 @@ const PROJECT: Project = {
       { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [] },
     ],
     markers: [],
-    settings: { source_demo_ids: [], ripple_sequence_markers: false },
+    settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: false },
   },
   created_at: '2026-08-28T00:00:00Z',
   updated_at: '2026-08-28T00:00:00Z',
@@ -453,6 +453,8 @@ function renderWorkspace({
   relinkMediaAsset,
   deleteMediaAsset,
   replaceMediaAssetMarkers,
+  generateMediaProxy,
+  cleanupMediaProxies,
   streamAgentChat,
   appendAgentSessionEntry,
   updateAgentTurn,
@@ -478,6 +480,8 @@ function renderWorkspace({
   readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly replaceMediaAssetMarkers?: ReturnType<typeof vi.fn> | undefined;
+  readonly generateMediaProxy?: ReturnType<typeof vi.fn> | undefined;
+  readonly cleanupMediaProxies?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
@@ -499,6 +503,8 @@ function renderWorkspace({
       ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
       ...(deleteMediaAsset === undefined ? {} : { deleteMediaAsset }),
       ...(replaceMediaAssetMarkers === undefined ? {} : { replaceMediaAssetMarkers }),
+      ...(generateMediaProxy === undefined ? {} : { generateMediaProxy }),
+      ...(cleanupMediaProxies === undefined ? {} : { cleanupMediaProxies }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
       ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
@@ -1782,7 +1788,7 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{
         op: 'replace_settings',
-        settings: { source_demo_ids: [], ripple_sequence_markers: true },
+        settings: { source_demo_ids: [], ripple_sequence_markers: true, use_media_proxies: false },
       }],
     })));
   });
@@ -4130,7 +4136,12 @@ describe('unified project workspace', () => {
     expect(monitor.dataset.monitorMode).toBe('rolling');
     const targetVideos = [...monitor.querySelectorAll<HTMLVideoElement>('video[data-preview-target="true"]')];
     expect(targetVideos).toHaveLength(2);
-    targetVideos.forEach((video) => fireEvent.loadedData(video));
+    targetVideos.forEach((video) => {
+      Object.defineProperty(video, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
+      fireEvent.loadedData(video);
+      video.currentTime = Number(video.dataset.previewSourceTime);
+      fireEvent.seeked(video);
+    });
     await waitFor(() => expect(targetVideos.map((video) => video.dataset.previewSide).sort()).toEqual(['left', 'right']));
     expect(targetVideos.map((video) => video.closest<HTMLElement>('[data-preview-slot]')?.dataset.previewSlot).sort()).toEqual(['left', 'right']);
     expect(targetVideos.every((video) => video.closest('[data-preview-slot]')?.className.includes('overflow-hidden'))).toBe(true);
@@ -4699,6 +4710,12 @@ describe('unified project workspace', () => {
     expect(Number(monitor.dataset.monitorPoolSize)).toBe(6);
     const targets = [...monitor.querySelectorAll<HTMLVideoElement>('video[data-preview-target="true"]')];
     expect(targets).toHaveLength(4);
+    targets.forEach((video) => {
+      Object.defineProperty(video, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
+      fireEvent.loadedData(video);
+      video.currentTime = Number(video.dataset.previewSourceTime);
+      fireEvent.seeked(video);
+    });
     await waitFor(() => expect(targets.map((video) => video.dataset.previewSide).sort()).toEqual([
       'slide-in',
       'slide-next',
@@ -4931,6 +4948,56 @@ describe('unified project workspace', () => {
       ...sourceMarker,
       comment: 'Shared master-source note',
     }]));
+  });
+
+  it('generates, selects and cleans managed proxy media from the unified Project panel', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-b',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\source-b.mp4',
+      name: 'Source B',
+      kind: 'video',
+      duration_seconds: 5,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      markers: [],
+      created_at: PROJECT.updated_at,
+    };
+    const generateMediaProxy = vi.fn(() => Promise.resolve({
+      ...asset,
+      proxy_path: 'D:\\proxies\\source-b.mp4',
+      proxy_status: { status: 'ready' as const, generated_at: PROJECT.updated_at },
+    }));
+    const cleanupMediaProxies = vi.fn(() => Promise.resolve({
+      removed_files: 1,
+      freed_bytes: 1_024,
+      failed_files: [],
+      skipped_generating: 0,
+    }));
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], generateMediaProxy, cleanupMediaProxies, applyProjectPatch });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 B' }));
+    fireEvent.click(within(panel).getByRole('button', { name: '生成代理 Source B' }));
+    await waitFor(() => expect(generateMediaProxy).toHaveBeenCalledWith('asset-b'));
+
+    fireEvent.click(within(panel).getByRole('button', { name: '切换代理预览' }));
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_settings',
+        settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: true },
+      }],
+    })));
+
+    fireEvent.click(within(panel).getByRole('button', { name: '清理代理媒体' }));
+    await waitFor(() => expect(cleanupMediaProxies).toHaveBeenCalledTimes(1));
   });
 
   it('switches the docked Project panel between Adobe-style List and Icon views', async () => {

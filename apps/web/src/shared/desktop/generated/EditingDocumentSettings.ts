@@ -9,4 +9,5 @@
 export type EditingDocumentSettings = {
   source_demo_ids: Array<string>;
   ripple_sequence_markers: boolean;
+  use_media_proxies: boolean;
 };

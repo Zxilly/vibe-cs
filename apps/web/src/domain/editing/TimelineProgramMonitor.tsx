@@ -3,10 +3,10 @@ import { Trans } from '@lingui/react/macro';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LoaderCircle, Pause, Play } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
-import { mediaAssetStreamPath } from '../../data/mediaAssets';
+import { mediaAssetProxyStreamPath, mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
-import type { Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import type { MediaAsset, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
   clipAudioFadeFactor,
@@ -28,6 +28,11 @@ import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioM
 interface PreviewMedia {
   readonly clip: TimelineClip;
   readonly src: string;
+}
+
+interface StoryPreviewMedia extends PreviewMedia {
+  readonly mediaKey: string;
+  readonly desired: boolean;
 }
 
 interface OverlayPreviewMedia extends PreviewMedia {
@@ -56,11 +61,14 @@ interface ProgramTextOverlay {
 type PreviewPoolRole = 'program' | 'trim';
 type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
 const EMPTY_DELIVERY_STATES = new Map<string, TimelineClipMaterializationState>();
+const EMPTY_MEDIA_ASSETS = new Map<string, MediaAsset>();
 
 export interface TimelineProgramMonitorProps {
   readonly showHeader?: boolean;
   readonly project: Project;
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
+  readonly mediaAssetsById?: ReadonlyMap<string, MediaAsset>;
+  readonly useMediaProxies?: boolean;
   readonly timelineTimeSeconds: number;
   readonly selectedClipId: string | null;
   readonly readOnly: boolean;
@@ -89,6 +97,8 @@ export function TimelineProgramMonitor({
   showHeader = true,
   project,
   deliveryStateByClipId = EMPTY_DELIVERY_STATES,
+  mediaAssetsById = EMPTY_MEDIA_ASSETS,
+  useMediaProxies = false,
   timelineTimeSeconds,
   selectedClipId,
   readOnly,
@@ -146,7 +156,46 @@ export function TimelineProgramMonitor({
     && slideClip !== null
     && slideNext !== null
     && [slidePrevious, slideClip, slideNext].every((clip) => resolveTimelineMaterial(clip.material).streamAssetId !== null);
-  const [presentedId, setPresentedId] = useState<string | null>(targetId);
+  const desiredMedia = useMemo(() => {
+    const result: PreviewMedia[] = [];
+    for (const clip of clips) {
+      if (isStillImageTimelineClip(clip)) continue;
+      const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
+      if (assetId === null) continue;
+      const src = shell.mediaSrc(programPreviewStreamPath(assetId, mediaAssetsById, useMediaProxies));
+      if (src !== null) result.push({ clip, src });
+    }
+    return result;
+  }, [clips, mediaAssetsById, shell, useMediaProxies]);
+  const [mountedStorySources, setMountedStorySources] = useState<ReadonlyMap<string, readonly string[]>>(new Map());
+  const media = useMemo<StoryPreviewMedia[]>(() => desiredMedia.flatMap((item) => {
+    const mounted = mountedStorySources.get(item.clip.id) ?? [item.src];
+    const sources = mounted.includes(item.src) ? mounted : [...mounted.slice(-1), item.src];
+    return sources.map((src) => ({
+      clip: item.clip,
+      src,
+      mediaKey: `${item.clip.id}:${src}`,
+      desired: src === item.src,
+    }));
+  }), [desiredMedia, mountedStorySources]);
+  const targetMediaKey = targetId === null
+    ? null
+    : media.find((item) => item.clip.id === targetId && item.desired)?.mediaKey ?? null;
+  const [presentedMediaKey, setPresentedMediaKey] = useState<string | null>(targetMediaKey);
+  useEffect(() => {
+    setMountedStorySources((current) => {
+      let changed = false;
+      const next = new Map<string, readonly string[]>();
+      for (const item of desiredMedia) {
+        const sources = current.get(item.clip.id) ?? [];
+        const replacement = sources.includes(item.src) ? sources : [...sources.slice(-1), item.src];
+        if (replacement !== sources) changed = true;
+        next.set(item.clip.id, replacement);
+      }
+      if (next.size !== current.size) changed = true;
+      return changed ? next : current;
+    });
+  }, [desiredMedia]);
   const [overlayReadyIds, setOverlayReadyIds] = useState<ReadonlySet<string>>(new Set());
   const [imageReadyIds, setImageReadyIds] = useState<ReadonlySet<string>>(new Set());
   const rollingPreviewKey = rollingPreview === null ? '' : `${rollingPreview.leftClipId}:${rollingPreview.rightClipId}`;
@@ -158,28 +207,23 @@ export function TimelineProgramMonitor({
   const rollingReady = rollingActive
     && rollingReadyIds.has(rollingLeft.id)
     && rollingReadyIds.has(rollingRight.id);
+  const desiredMediaKeyForClip = (clip: TimelineClip) => media.find((item) => item.clip.id === clip.id && item.desired)?.mediaKey ?? '';
+  const slideClipMediaKey = slideClip === null ? '' : desiredMediaKeyForClip(slideClip);
+  const slidePreviousMediaKey = slidePrevious === null ? '' : desiredMediaKeyForClip(slidePrevious);
+  const slideNextMediaKey = slideNext === null ? '' : desiredMediaKeyForClip(slideNext);
   const slideReady = slideActive
-    && ['program', 'trim'].every((role) => slideReadyKeys.has(`${slideClip.id}:${role}`))
-    && slideReadyKeys.has(`${slidePrevious.id}:program`)
-    && slideReadyKeys.has(`${slideNext.id}:program`);
+    && slideClipMediaKey !== ''
+    && ['program', 'trim'].every((role) => slideReadyKeys.has(`${slideClipMediaKey}:${role}`))
+    && slideReadyKeys.has(`${slidePreviousMediaKey}:program`)
+    && slideReadyKeys.has(`${slideNextMediaKey}:program`);
   const timelineTimeRef = useRef(targetTimelineTime);
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   const onPlaybackEndRef = useRef(onPlaybackEnd);
   timelineTimeRef.current = targetTimelineTime;
   onTimelineTimeChangeRef.current = onTimelineTimeChange;
   onPlaybackEndRef.current = onPlaybackEnd;
+  const previewStreamPath = (assetId: string) => programPreviewStreamPath(assetId, mediaAssetsById, useMediaProxies);
 
-  const media = useMemo(() => {
-    const result: PreviewMedia[] = [];
-    for (const clip of clips) {
-      if (isStillImageTimelineClip(clip)) continue;
-      const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
-      if (assetId === null) continue;
-      const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
-      if (src !== null) result.push({ clip, src });
-    }
-    return result;
-  }, [clips, shell]);
   const pooledMedia = useMemo(() => media.flatMap((item) => [
     { ...item, role: 'program' as const },
     { ...item, role: 'trim' as const },
@@ -194,7 +238,7 @@ export function TimelineProgramMonitor({
         if (!clip.placement.enabled || isStillImageTimelineClip(clip)) continue;
         const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
         if (assetId === null) continue;
-        const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
+        const src = shell.mediaSrc(previewStreamPath(assetId));
         if (src !== null) result.push({
           track,
           clip,
@@ -203,7 +247,7 @@ export function TimelineProgramMonitor({
       }
     }
     return result;
-  }, [project.document.story_track_id, project.document.tracks, shell]);
+  }, [mediaAssetsById, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
   const imageMedia = useMemo(() => {
     const result: ImagePreviewMedia[] = [];
     for (const track of project.document.tracks) {
@@ -212,7 +256,7 @@ export function TimelineProgramMonitor({
         if (!clip.placement.enabled || !isStillImageTimelineClip(clip)) continue;
         const assetId = resolveTimelineMaterial(clip.material).streamAssetId;
         if (assetId === null) continue;
-        const src = shell.mediaSrc(mediaAssetStreamPath(assetId));
+        const src = shell.mediaSrc(previewStreamPath(assetId));
         if (src !== null) result.push({
           trackId: track.id,
           layer: track.id === project.document.story_track_id ? 0 : 1 + track.order,
@@ -222,19 +266,19 @@ export function TimelineProgramMonitor({
       }
     }
     return result;
-  }, [project.document.story_track_id, project.document.tracks, shell]);
+  }, [mediaAssetsById, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
   const hasProgramStage = media.length > 0 || overlayMedia.length > 0 || imageMedia.length > 0 || textOverlays.length > 0;
 
   useEffect(() => {
-    if (targetId === null) setPresentedId(null);
-  }, [targetId]);
+    if (targetMediaKey === null) setPresentedMediaKey(null);
+  }, [targetMediaKey]);
 
   useEffect(() => {
     const videoDrivesForward = playbackRange === null
       && playbackRate > 0
-      && targetId !== null
-      && presentedId === targetId
+      && targetMediaKey !== null
+      && presentedMediaKey === targetMediaKey
       && selected?.placement.reverse !== true
       && selected?.placement.frame_hold_source_time === null;
     if (!playing || videoDrivesForward) return undefined;
@@ -267,7 +311,7 @@ export function TimelineProgramMonitor({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playbackRange, playbackRate, playing, presentedId, selected?.placement.frame_hold_source_time, selected?.placement.reverse, targetId, transportEnd, transportStart]);
+  }, [playbackRange, playbackRate, playing, presentedMediaKey, selected?.placement.frame_hold_source_time, selected?.placement.reverse, targetMediaKey, transportEnd, transportStart]);
 
   return (
     <section
@@ -328,7 +372,7 @@ export function TimelineProgramMonitor({
               aria-label={t`节目画布`}
               data-program-stage
             >
-              {pooledMedia.map(({ clip, src, role }) => {
+              {pooledMedia.map(({ clip, src, mediaKey, desired, role }) => {
                 const rollingSide: PreviewSlot | null = !rollingActive || role !== 'program'
                   ? null
                   : clip.id === rollingLeft.id
@@ -352,14 +396,14 @@ export function TimelineProgramMonitor({
                   ? slideSlot !== null
                   : rollingActive
                     ? rollingSide !== null
-                    : role === 'program' && clip.id === targetId;
+                    : role === 'program' && clip.id === targetId && desired;
                 const isPresented = !storyOutputEnabled
                   ? false
                   : slideActive
-                    ? slideReady ? slideSlot !== null : role === 'program' && clip.id === presentedId
+                    ? slideReady ? slideSlot !== null && desired : role === 'program' && mediaKey === presentedMediaKey
                     : rollingActive
-                      ? rollingReady ? rollingSide !== null : role === 'program' && clip.id === presentedId
-                      : role === 'program' && clip.id === presentedId;
+                      ? rollingReady ? rollingSide !== null && desired : role === 'program' && mediaKey === presentedMediaKey
+                      : role === 'program' && mediaKey === presentedMediaKey;
                 const rollingDelta = rollingPreview === null ? 0 : targetTimelineTime - rollingPreview.editTime;
                 const offset = previewSlot === 'left' && playbackRange !== null
                   ? Math.min(clip.placement.duration, Math.max(0, clip.placement.duration - 1 / project.document.fps + rollingDelta))
@@ -374,7 +418,7 @@ export function TimelineProgramMonitor({
                     || previewSlot === 'slide-next'
                     ? 0
                     : isTarget ? previewOffsetSeconds : 0;
-                const poolKey = `${clip.id}:${role}`;
+                const poolKey = `${mediaKey}:${role}`;
                 const audioMix = story === null
                   ? { outputVolume: 0, clipPan: 0, trackPan: 0 }
                   : evaluateTimelineAudioMix(story, clip, clip.placement.start + offset);
@@ -431,7 +475,7 @@ export function TimelineProgramMonitor({
                             ? current
                             : { previewKey: rollingPreviewKey, readyKeys: new Set([...readyKeys, clip.id]) };
                         });
-                      } else if (role === 'program' && clip.id === targetId) setPresentedId(clip.id);
+                      } else if (role === 'program' && clip.id === targetId && desired) setPresentedMediaKey(mediaKey);
                     }}
                     onReplaceClip={onReplaceClip}
                   />
@@ -524,7 +568,7 @@ export function TimelineProgramMonitor({
                 </div>
               )}
             </div>
-            {(slideActive ? slideReady : rollingActive ? rollingReady : presentedId === targetId) ? null : (
+            {(slideActive ? slideReady : rollingActive ? rollingReady : presentedMediaKey === targetMediaKey) ? null : (
               <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
@@ -719,6 +763,17 @@ export function transportReachedBoundary(
   startSeconds = 0,
 ): boolean {
   return playbackRate < 0 ? timeSeconds <= startSeconds : playbackRate > 0 && timeSeconds >= durationSeconds;
+}
+
+export function programPreviewStreamPath(
+  assetId: string,
+  mediaAssetsById: ReadonlyMap<string, MediaAsset>,
+  useMediaProxies: boolean,
+): string {
+  const status = mediaAssetsById.get(assetId)?.proxy_status;
+  return useMediaProxies && status?.status === 'ready'
+    ? `${mediaAssetProxyStreamPath(assetId)}?v=${encodeURIComponent(status.generated_at)}`
+    : mediaAssetStreamPath(assetId);
 }
 
 function ProgramTransportBar({
@@ -925,6 +980,15 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       // Metadata has not arrived yet. loadedmetadata/loadeddata retries below.
     }
   };
+  const reportReadyIfCurrent = () => {
+    const video = videoRef.current;
+    if (video === null
+      || !target
+      || video.seeking
+      || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      || Math.abs(video.currentTime - desiredTimeRef.current) > 0.5 / Math.max(1, fps)) return;
+    onReadyRef.current();
+  };
 
   useEffect(() => {
     seekLatest();
@@ -932,7 +996,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (video !== null && target && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) onReadyRef.current();
+    if (video !== null) {
+      seekLatest();
+      reportReadyIfCurrent();
+    }
   }, [readinessKey, target]);
 
   useEffect(() => {
@@ -1039,6 +1106,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       }}
       data-preview-slot={previewSlot ?? 'program'}
       data-preview-pool-role={poolRole}
+      data-preview-proxy={src.includes('/proxy/stream')}
       data-preview-track-id={trackId ?? ''}
     >
     <video
@@ -1087,15 +1155,15 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       onLoadedMetadata={seekLatest}
       onLoadedData={() => {
         seekLatest();
-        if (target) onReady();
+        reportReadyIfCurrent();
       }}
       onCanPlay={() => {
         seekLatest();
-        if (target) onReady();
+        reportReadyIfCurrent();
       }}
       onSeeked={() => {
         seekLatest();
-        if (target) onReady();
+        reportReadyIfCurrent();
       }}
       onTimeUpdate={(event) => {
         if (!videoDrivesTimeline || typeof event.currentTarget.requestVideoFrameCallback === 'function') return;

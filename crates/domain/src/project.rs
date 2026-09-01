@@ -63,6 +63,7 @@ pub struct EditingDocument {
 pub struct EditingDocumentSettings {
     pub source_demo_ids: Vec<Uuid>,
     pub ripple_sequence_markers: bool,
+    pub use_media_proxies: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

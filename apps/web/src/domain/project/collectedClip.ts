@@ -42,7 +42,7 @@ export function collectedClipsPatch(
     operations: [
       {
         op: 'replace_settings',
-        settings: { source_demo_ids: sourceDemoIds, ripple_sequence_markers: false },
+        settings: { source_demo_ids: sourceDemoIds, ripple_sequence_markers: false, use_media_proxies: false },
       },
       ...clips.map((clip, offset) => ({
         op: 'insert_clip' as const,

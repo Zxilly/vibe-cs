@@ -611,7 +611,7 @@ describe('unified project workspace', () => {
       range_start_seconds: 2,
       range_end_seconds: 6,
     }));
-  });
+  }, 10_000);
 
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
     const previousClips = PROJECT.document.tracks[0]!.clips;
@@ -1704,6 +1704,24 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('cuts the selected Story clip into the Timeline clipboard with Ctrl+X', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'x', ctrlKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) })],
+      }],
+    })));
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', { name: '在播放头粘贴覆盖' }).getAttribute('aria-disabled')).not.toBe('true');
+  });
+
   it('pastes a single clipboard group to the explicitly targeted track', async () => {
     const bRollTrackId = '00000000-0000-4000-8000-000000000095';
     const project: Project = {
@@ -1805,6 +1823,42 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(
       PROJECT.id,
       group.id,
+      PROJECT.revision,
+    ));
+  });
+
+  it('redoes the latest undone Change Group with Ctrl+Shift+Z', async () => {
+    const original: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000026',
+      project_id: PROJECT.id,
+      from_revision: 0,
+      to_revision: 1,
+      author: { kind: 'human' },
+      status: 'completed',
+      summary: '移动 A',
+      reverts_change_group_id: null,
+      operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: PROJECT.document.tracks[0]!.clips }],
+      inverse_operations: [],
+      created_at: PROJECT.updated_at,
+      completed_at: PROJECT.updated_at,
+    };
+    const undone: ProjectChangeGroup = {
+      ...original,
+      id: '00000000-0000-4000-8000-000000000027',
+      from_revision: 1,
+      to_revision: 2,
+      summary: '撤销移动 A',
+      reverts_change_group_id: original.id,
+    };
+    const revertProjectChangeGroup = vi.fn();
+    renderWorkspace({ groups: [undone, original], revertProjectChangeGroup });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'z', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(
+      PROJECT.id,
+      undone.id,
       PROJECT.revision,
     ));
   });

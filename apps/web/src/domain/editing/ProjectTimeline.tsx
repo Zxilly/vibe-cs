@@ -176,6 +176,8 @@ export interface ProjectTimelineProps {
   readonly onDropMediaAsset: (drop: TimelineMediaDrop) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
+  readonly canRedo: boolean;
+  readonly onRedo: () => void;
 }
 
 interface RenderedTrack {
@@ -246,6 +248,8 @@ export function ProjectTimeline({
   onDropMediaAsset,
   canUndo,
   onUndo,
+  canRedo,
+  onRedo,
 }: ProjectTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const timelinePanelRef = useRef<HTMLDivElement>(null);
@@ -709,6 +713,11 @@ export function ProjectTimeline({
         clips: selected,
       })),
     });
+  };
+  const cutSelected = () => {
+    if (!canCopy || !canDelete) return;
+    copySelected();
+    deleteSelected();
   };
   const toggleSelectedClipLinks = () => {
     if (!canChangeLinks) return;
@@ -1360,6 +1369,11 @@ export function ProjectTimeline({
           copySelected();
           return;
         }
+        if (event.key.toLowerCase() === 'x' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          cutSelected();
+          return;
+        }
         if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey) && !event.altKey) {
           event.preventDefault();
           onSelectClips(targetedTracks.flatMap((track) => track.clips.map((clip) => clip.id)));
@@ -1448,7 +1462,20 @@ export function ProjectTimeline({
           deleteSelected();
           return;
         }
-        if (event.key.toLowerCase() === 'z' && (event.ctrlKey || event.metaKey) && canUndo && !readOnly) {
+        if (event.key.toLowerCase() === 'z'
+          && (event.ctrlKey || event.metaKey)
+          && event.shiftKey
+          && canRedo
+          && !readOnly) {
+          event.preventDefault();
+          onRedo();
+          return;
+        }
+        if (event.key.toLowerCase() === 'z'
+          && (event.ctrlKey || event.metaKey)
+          && !event.shiftKey
+          && canUndo
+          && !readOnly) {
           event.preventDefault();
           onUndo();
         }
@@ -1492,10 +1519,12 @@ export function ProjectTimeline({
             { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
             { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
+            { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
             { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
             { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
             { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
             { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
+            { id: 'redo', label: t`重做上一次剪辑`, disabled: !canRedo || readOnly, onSelect: onRedo },
           ]}
         />
         <OverflowMenu

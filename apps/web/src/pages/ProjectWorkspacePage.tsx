@@ -76,6 +76,7 @@ import {
   projectMediaAssetKind,
   mediaAssetEditDuration,
   ProjectMediaPanel,
+  projectHistoryCommands,
   ProjectTimeline,
   ProjectWorkspaceDock,
   resetProjectWorkspaceLayout,
@@ -408,15 +409,7 @@ export function ProjectWorkspacePage() {
       && transportTimeSeconds < clip.placement.start + clip.placement.duration) ?? null;
   const latestAgentChangeGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
   const pendingAgentReviewGroup = pendingDeliveryGroup(groups.data ?? [], agentSession.data ?? null);
-  const revertedChangeGroupIds = new Set(
-    (groups.data ?? []).flatMap((group) => group.reverts_change_group_id === null ? [] : [group.reverts_change_group_id]),
-  );
-  const latestUndoableGroup = (groups.data ?? []).find((group) =>
-    group.status === 'completed'
-    && group.operations.length > 0
-    && group.author.kind !== 'system'
-    && group.reverts_change_group_id === null
-    && !revertedChangeGroupIds.has(group.id));
+  const historyCommands = projectHistoryCommands(groups.data ?? []);
   const currentDeliveryGate = deliveryGate.data?.revision === current.revision ? deliveryGate.data : null;
   const deliveryGatePending = deliveryGate.isPending || (deliveryGate.error === null && currentDeliveryGate === null);
   const deliveryBlockers = currentDeliveryGate?.blockers ?? [];
@@ -820,11 +813,19 @@ export function ProjectWorkspacePage() {
         if (asset === undefined || track === undefined || track.locked || track.kind !== projectMediaAssetKind(asset)) return;
         addMediaAsset(asset, mode, { trackId, timeSeconds });
       }}
-      canUndo={latestUndoableGroup !== undefined}
+      canUndo={historyCommands.undo !== null}
       onUndo={() => {
-        if (latestUndoableGroup === undefined || readOnly) return;
+        if (historyCommands.undo === null || readOnly) return;
         revertChange.mutate({
-          changeGroupId: latestUndoableGroup.id,
+          changeGroupId: historyCommands.undo.id,
+          expectedRevision: current.revision,
+        });
+      }}
+      canRedo={historyCommands.redo !== null}
+      onRedo={() => {
+        if (historyCommands.redo === null || readOnly) return;
+        revertChange.mutate({
+          changeGroupId: historyCommands.redo.id,
           expectedRevision: current.revision,
         });
       }}

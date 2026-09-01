@@ -286,7 +286,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | TL-PRO-02 | Nested Sequence | 选择片段创建子序列；父级作为单一 clip；双击回到源序列 | ⬜ | P3 |
 | TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ⬜ | P3 |
 | TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ⬜ | P3 |
-| TL-PRO-05 | Render Preview | In/Out 预渲染、状态条、失效管理 | ⬜ | P3 |
+| TL-PRO-05 | Render Preview | In/Out 预渲染、状态条、失效管理 | ✅ | P3 |
 | TL-PRO-06 | Interchange | 导入/导出 OTIO/XML/EDL 的受支持子集 | ⬜ | P3 |
 
 ### 7.13 历史、协作与 Agent
@@ -509,6 +509,12 @@ Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，rev
 
 真实 Tauri/CDP 在项目 `d1076874-fc90-4502-a25e-c8404c0af97b` 上创建 Caption Track，revision 10→11；实机导出首先暴露并修复旧 Text 默认 CSS 颜色名与 FFmpeg `#RRGGBB` 契约不一致的问题。按当前默认重建后 revision 13→14，数据库精确保存 `color=#FFFFFF/background=#000000`；最终 MP4 `project-d1076874-fc90-4502-a25e-c8404c0af97b-6fe16bd3-4033-4208-b3e1-f920c5220a6b.mp4` 为 H.264/AAC、1920×1080、60fps、20.183333s、21,288,219 bytes，1s 抽帧确认白字黑底字幕已烧录，console/page error 为零。界面与抽帧证据位于本地 `target/caption-track-audit/`。
 
+### Step 30：In/Out Render Preview — 健康
+
+确认：Render Preview 复用唯一 Project FFmpeg renderer，不复制 Timeline 或 Effect 模型；`project_preview` 作业精确保存 Project revision、range start/end、progress 和受管文件路径。Preview 使用独立 `previews` 目录，成品库只列 `project` final exports；精确 preview job 仍可通过既有安全 output stream 读取。Timeline 标尺直接显示 Adobe 语义的黄色 rendering、绿色 ready、红色 stale/failed 状态条；“显示”菜单内提供 Render In to Out 和 Delete Preview Files，不增加无意义常驻按钮。Program 只使用 revision 完全相同且播放头位于半开区间内的 completed preview；候选视频解码并 seek 到当前时间后才覆盖原始稳定池，编辑 revision 改变后立即回退原时间轴。行为依据 Adobe [Render a section of a sequence](https://helpx.adobe.com/premiere/desktop/render-and-export/render-sequences-for-playback/render-a-section-of-a-sequence.html) 与 [Navigation controls in the Timeline](https://helpx.adobe.com/premiere/desktop/edit-projects/change-clip-sequence/navigation-controls-in-the-timeline.html)。
+
+fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，在 Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` 的 revision 2 渲染 2–5s：状态由 rendering→ready，播放头 3.5s 时 preview `readyState=4/currentTime=1.5`，播放 0.9s 后 Timeline 到 4.488359s、preview 到 2.500936s。把 Story 重命名使 revision 2→3 后状态立即 stale 且 Program preview count 1→0；清理后文件、记录和状态条均为零。revision 3 再渲染期间连续采样 500×20ms：ready visible blank 0、最大可见视频 1、最终只显示 preview，证明切换没有黑帧或双层闪烁。console/page error 为零，截图位于本地 `target/render-preview-audit/screenshots/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -551,9 +557,10 @@ Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，rev
 - [x] Automate to Sequence 的排序、Marker placement、Insert/Overwrite 与默认转场。
 - [x] Audio Track Mixer、真实峰值和 Automation modes。
 - [x] Caption Track、字幕导航、SRT 和成片导出。
+- [x] In/Out Render Preview、状态条、revision 失效和受管清理。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
-- [ ] Render Preview 和 OTIO 互换子集。
+- [ ] OTIO 互换子集。
 
 ## 13. Definition of Done
 

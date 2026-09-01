@@ -287,7 +287,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ⬜ | P3 |
 | TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ⬜ | P3 |
 | TL-PRO-05 | Render Preview | In/Out 预渲染、状态条、失效管理 | ✅ | P3 |
-| TL-PRO-06 | Interchange | 导入/导出 OTIO/XML/EDL 的受支持子集 | ⬜ | P3 |
+| TL-PRO-06 | Interchange | 导入/导出 OTIO/XML/EDL 的受支持子集 | ✅ | P3 |
 
 ### 7.13 历史、协作与 Agent
 
@@ -515,6 +515,12 @@ Tauri/CDP 在真实双片段 Story 上把 Mixer mode 从 Read 切到 Touch，rev
 
 fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，在 Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` 的 revision 2 渲染 2–5s：状态由 rendering→ready，播放头 3.5s 时 preview `readyState=4/currentTime=1.5`，播放 0.9s 后 Timeline 到 4.488359s、preview 到 2.500936s。把 Story 重命名使 revision 2→3 后状态立即 stale 且 Program preview count 1→0；清理后文件、记录和状态条均为零。revision 3 再渲染期间连续采样 500×20ms：ready visible blank 0、最大可见视频 1、最终只显示 preview，证明切换没有黑帧或双层闪烁。console/page error 为零，截图位于本地 `target/render-preview-audit/screenshots/`。
 
+### Step 31：OTIO / FCP7 XML / CMX3600 EDL Interchange — 健康
+
+确认：工作区“互换”菜单通过原生选择器导入 `.otio/.xml/.edl`，通过原生保存对话框分别导出三种格式；文件读取在 Tauri FS seam 先 `stat` 并限制为 32 MiB，只有用户选择获得的 scope 可读，未扩大为任意本机文件访问。OTIO 子集保存多轨、Gap、Timeline/source range、enabled、Text/Caption 和 Vibe CS asset identity；FCP7 XML 与 CMX3600 EDL 按 Adobe/CMX 的可靠子集只交换 Story video，并显式返回省略非 Story 轨的 warning。导入先按 UUID、完整路径、文件名顺序重连现有 Project Media，无法重连时产生明确的 planned/unlinked Clip；随后以 `replace_track + remove/insert_track + replace_markers` 一次 canonical Project Patch 替换当前时间轴，不增加 interchange 写模型。格式边界依据 OpenTimelineIO 官方 [Serialized schema](https://github.com/AcademySoftwareFoundation/OpenTimelineIO/blob/main/docs/tutorials/otio-serialized-schema.md)、Adobe [Export Final Cut Pro XML](https://helpx.adobe.com/premiere/desktop/render-and-export/export-files/export-a-project-as-a-final-cut-pro-xml-file.html) 和 [Export EDL](https://helpx.adobe.com/uk/premiere/desktop/render-and-export/export-files/export-a-project-as-an-edl-file.html)。
+
+真实 Tauri/CDP 在 Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` 上验证：OTIO 为 2,595 bytes、`Timeline.1`，导出→解析→一次 Patch 令 revision 3→4，1 个 Track/1 个 Clip 的素材 UUID `a79b65bd-f67b-4861-94b3-4ebafc7d0e21` 和 source 0–8s 保持；FCP7 XML 880 bytes、CMX3600 EDL 388 bytes，均读回同一名称、素材 UUID 和 source range。直接绕过选择器写任意路径被 Tauri scope 拒绝；NativeShell save/read 和 UI 一次 Patch 另由工作区交互测试覆盖。console/page error 为零，截图位于本地 `target/interchange-audit/screenshots/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -558,9 +564,9 @@ fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，
 - [x] Audio Track Mixer、真实峰值和 Automation modes。
 - [x] Caption Track、字幕导航、SRT 和成片导出。
 - [x] In/Out Render Preview、状态条、revision 失效和受管清理。
+- [x] OTIO 多轨与 FCP7 XML/CMX3600 EDL Story 子集导入导出。
 - [ ] Nested Sequence 与 Sequence Tabs。
 - [ ] Multicam 同步和播放中切角度。
-- [ ] OTIO 互换子集。
 
 ## 13. Definition of Done
 

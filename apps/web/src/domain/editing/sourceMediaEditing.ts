@@ -69,7 +69,7 @@ export function replaceTimelineClipSource({ clip, track, asset, sourceRange }: {
   readonly asset: MediaAsset;
   readonly sourceRange: { readonly sourceIn: number; readonly sourceOut: number };
 }): TimelineClip | null {
-  if (track.locked || track.kind === 'text') return null;
+  if (track.locked || track.kind === 'text' || track.kind === 'caption') return null;
   const assetKind = projectMediaAssetKind(asset);
   if ((track.kind === 'video' || track.kind === 'overlay') && assetKind !== 'video') return null;
   if (track.kind === 'audio' && !asset.has_audio) return null;

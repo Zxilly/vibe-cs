@@ -62,6 +62,7 @@ import { Empty, Skeleton } from '../design/data';
 import { Alert, Dialog, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
+import { DEFAULT_EDITOR_TEXT_BACKGROUND, DEFAULT_EDITOR_TEXT_COLOR } from '../design/timeline';
 import { formatMillisecondTimecode } from '../design/timeline/timeScale';
 import {
   canAnimateTransformProperty,
@@ -1742,7 +1743,10 @@ function ClipInspector({
     && typeof draft.metadata.media_kind === 'string'
     ? draft.metadata.media_kind.toLowerCase()
     : '';
-  const canTimeRemap = draft.text === null && selected?.track.kind !== 'text' && !mediaKind.startsWith('image');
+  const canTimeRemap = draft.text === null
+    && selected?.track.kind !== 'text'
+    && selected?.track.kind !== 'caption'
+    && !mediaKind.startsWith('image');
   const speedBoundaryAtPlayhead = draft.speed_segments.some((segment) => (
     Math.abs(segment.start - localTime) <= 0.5 / fps || Math.abs(segment.end - localTime) <= 0.5 / fps
   ));
@@ -1767,7 +1771,7 @@ function ClipInspector({
           />
         </label>
       ))}
-      {draft.text !== null || selected?.track.kind === 'text' ? null : (
+      {draft.text !== null || selected?.track.kind === 'text' || selected?.track.kind === 'caption' ? null : (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label className="flex items-center gap-2 text-xs">
             <input
@@ -1976,8 +1980,9 @@ function ClipInspector({
               <Trans>文字颜色</Trans>
               <input
                 type="color"
+                aria-label={t`文字颜色`}
                 disabled={readOnly}
-                value={htmlColorInputValue(textStyle.color, 'white')}
+                value={htmlColorInputValue(textStyle.color, DEFAULT_EDITOR_TEXT_COLOR)}
                 onChange={(event) => setDraft({ ...draft, text: { ...textStyle, color: event.currentTarget.value.toUpperCase() } })}
               />
             </label>
@@ -2002,7 +2007,7 @@ function ClipInspector({
               checked={textStyle.background !== null}
               onChange={(event) => setDraft({
                 ...draft,
-                text: { ...textStyle, background: event.currentTarget.checked ? 'black' : null },
+                text: { ...textStyle, background: event.currentTarget.checked ? DEFAULT_EDITOR_TEXT_BACKGROUND : null },
               })}
             />
             <Trans>启用文字背景</Trans>
@@ -2012,15 +2017,16 @@ function ClipInspector({
               <Trans>背景颜色</Trans>
               <input
                 type="color"
+                aria-label={t`背景颜色`}
                 disabled={readOnly}
-                value={htmlColorInputValue(textStyle.background, 'black')}
+                value={htmlColorInputValue(textStyle.background, DEFAULT_EDITOR_TEXT_BACKGROUND)}
                 onChange={(event) => setDraft({ ...draft, text: { ...textStyle, background: event.currentTarget.value.toUpperCase() } })}
               />
             </label>
           )}
         </section>
       )}
-      {draft.text !== null || selected?.track.kind === 'text' ? null : (() => {
+      {draft.text !== null || selected?.track.kind === 'text' || selected?.track.kind === 'caption' ? null : (() => {
         const audioProperties = [
           { property: 'volume' as const, label: t`音量`, min: 0, max: 4, step: 0.01, fallback: draft.placement.volume },
           { property: 'pan' as const, label: t`声像`, min: -1, max: 1, step: 0.01, fallback: draft.placement.pan },
@@ -2370,10 +2376,10 @@ function updateCaptureIntent(
   return { ...clip, capture_intent: { ...clip.capture_intent, ...update } };
 }
 
-function htmlColorInputValue(color: string, fallback: 'white' | 'black'): string {
+function htmlColorInputValue(color: string, fallback: string): string {
   if (/^#[0-9A-F]{6}$/iu.test(color)) return color.toUpperCase();
   const named = color.trim().toLowerCase();
-  const digit = (named === 'white' || (named !== 'black' && fallback === 'white')) ? 'F' : '0';
+  const digit = (named === 'white' || (named !== 'black' && fallback === DEFAULT_EDITOR_TEXT_COLOR)) ? 'F' : '0';
   return `#${digit.repeat(6)}`;
 }
 

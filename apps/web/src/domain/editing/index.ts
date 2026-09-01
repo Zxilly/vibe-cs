@@ -1,5 +1,6 @@
 export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
 export { AudioTrackMixer, applyMixerAutomation, type MixerAutomationMode } from './AudioTrackMixer';
+export { adjacentCaptionClip, serializeCaptionSrt, timelineCaptionClips } from './captionEditing';
 export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,

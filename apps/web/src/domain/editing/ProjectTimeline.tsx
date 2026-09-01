@@ -5,12 +5,14 @@ import {
   BetweenHorizontalEnd,
   BetweenHorizontalStart,
   Camera,
+  Captions,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
   Clapperboard,
   Diamond,
+  Download,
   Eye,
   Gauge,
   Hand,
@@ -52,7 +54,11 @@ import {
   type TimeScale,
   zoomAtAnchor,
 } from '../../design/timeline/timeScale';
-import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
+import {
+  DEFAULT_EDITOR_TEXT_BACKGROUND,
+  DEFAULT_EDITOR_TEXT_COLOR,
+  DEFAULT_TIMELINE_MARKER_COLOR,
+} from '../../design/timeline';
 import {
   formatTimelinePosition,
   parseTimelinePosition,
@@ -118,6 +124,7 @@ import {
 } from './trackAudioEditing';
 import { readTimelineClipboard, writeTimelineClipboard } from './timelineWorkspaceSession';
 import { MarkerEditorFields, normalizeEditorMarker } from './MarkerEditorFields';
+import { adjacentCaptionClip, serializeCaptionSrt, timelineCaptionClips } from './captionEditing';
 import {
   deleteRippleClips,
   extractTimelineRange,
@@ -253,11 +260,11 @@ export interface ProjectTimelineProps {
 
 interface RenderedTrack {
   readonly id: string;
-  readonly kind: 'video' | 'audio' | 'text';
+  readonly kind: 'video' | 'audio' | 'text' | 'caption';
   readonly label: string;
   readonly ariaLabel: string;
   readonly clips: readonly TimelineClip[];
-  readonly controls: 'video' | 'audio' | 'text' | 'none';
+  readonly controls: 'video' | 'audio' | 'text' | 'caption' | 'none';
   readonly icon: React.ReactNode;
   readonly track: TimelineTrack;
   readonly derivedAudio: boolean;
@@ -333,6 +340,7 @@ export function ProjectTimeline({
   canRedo,
   onRedo,
 }: ProjectTimelineProps) {
+  const nativeShell = useNativeShell();
   const viewportRef = useRef<HTMLDivElement>(null);
   const timelinePanelRef = useRef<HTMLDivElement>(null);
   const timelineWheelHandlerRef = useRef<(event: WheelEvent) => void>(() => undefined);
@@ -371,6 +379,7 @@ export function ProjectTimeline({
     `${edit.trackId}:${edit.leftClipId}:${edit.rightClipId}`
   ))), [additionalTrimModeEdits, trimModeEdit]);
   const [textDraft, setTextDraft] = useState<{
+    readonly kind: 'text' | 'caption';
     readonly start: number;
     readonly maximumDuration: number;
     readonly content: string;
@@ -1216,7 +1225,13 @@ export function ProjectTimeline({
   const addTrack = (kind: TimelineTrack['kind']) => {
     if (readOnly) return;
     const number = document.tracks.filter((track) => track.kind === kind).length + 1;
-    const kindLabel = kind === 'video' ? t`视频` : kind === 'audio' ? t`音频` : t`文字`;
+    const kindLabel = kind === 'video'
+      ? t`视频`
+      : kind === 'audio'
+        ? t`音频`
+        : kind === 'caption'
+          ? t`字幕`
+          : t`文字`;
     onInsertTrack({
       id: globalThis.crypto.randomUUID(),
       name: `${kindLabel} ${number}`,
@@ -1232,15 +1247,16 @@ export function ProjectTimeline({
       clips: [],
     }, document.tracks.length);
   };
-  const openTextClipDraft = () => {
+  const openTextClipDraft = (kind: 'text' | 'caption') => {
     if (readOnly) return;
     const frame = 1 / document.fps;
     const start = Math.min(editPlayheadSeconds, Math.max(0, document.duration_seconds - frame));
     const maximumDuration = Math.max(frame, document.duration_seconds - start);
     setTextDraft({
+      kind,
       start,
       maximumDuration,
-      content: t`文字`,
+      content: kind === 'caption' ? t`字幕` : t`文字`,
       duration: Math.min(5, maximumDuration),
     });
   };
@@ -1270,16 +1286,16 @@ export function ProjectTimeline({
         pan: 0,
         enabled: true,
       },
-      transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
+      transform: { x: 0, y: textDraft.kind === 'caption' ? 360 : 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
       effects: [],
       transitions: { video_in: null, video_out: null, audio_in: null, audio_out: null },
       text: {
         content,
         font_family: 'Arial',
         font_asset_id: null,
-        font_size: 72,
-        color: 'white',
-        background: 'black',
+        font_size: textDraft.kind === 'caption' ? 48 : 72,
+        color: DEFAULT_EDITOR_TEXT_COLOR,
+        background: DEFAULT_EDITOR_TEXT_BACKGROUND,
         align: 'center',
       },
       metadata: {},
@@ -1288,16 +1304,16 @@ export function ProjectTimeline({
       keyframes: [],
       speed_segments: [],
     };
-    const existing = document.tracks.find((track) => track.id === targetTrackId && track.kind === 'text' && !track.locked)
-      ?? document.tracks.find((track) => track.kind === 'text' && !track.locked)
+    const existing = document.tracks.find((track) => track.id === targetTrackId && track.kind === textDraft.kind && !track.locked)
+      ?? document.tracks.find((track) => track.kind === textDraft.kind && !track.locked)
       ?? null;
     if (existing === null) {
-      const number = document.tracks.filter((track) => track.kind === 'text').length + 1;
+      const number = document.tracks.filter((track) => track.kind === textDraft.kind).length + 1;
       const trackId = globalThis.crypto.randomUUID();
       onInsertTrack({
         id: trackId,
-        name: `${t`文字`} ${number}`,
-        kind: 'text',
+        name: `${textDraft.kind === 'caption' ? t`字幕` : t`文字`} ${number}`,
+        kind: textDraft.kind,
         order: document.tracks.length,
         muted: false,
         solo: false,
@@ -1308,12 +1324,12 @@ export function ProjectTimeline({
         hidden: false,
         clips: [clip],
       }, document.tracks.length);
-      onTargetTrack(trackId, 'text');
+      onTargetTrack(trackId, textDraft.kind);
     } else {
       onReplaceTrackClips(existing.id, [...existing.clips, clip].sort((left, right) => (
         left.placement.start - right.placement.start || left.id.localeCompare(right.id)
       )));
-      onTargetTrack(existing.id, 'text');
+      onTargetTrack(existing.id, textDraft.kind);
     }
     setTextDraft(null);
   };
@@ -1343,6 +1359,23 @@ export function ProjectTimeline({
     if (marker === null) return;
     setSelectedMarkerId(marker.id);
     onSeek(marker.time);
+  };
+  const captions = timelineCaptionClips(document.tracks);
+  const navigateCaption = (direction: -1 | 1) => {
+    const clip = adjacentCaptionClip(captions, playheadSeconds, direction);
+    if (clip === null) return;
+    onSelectClip(clip.id);
+    onSeek(clip.placement.start);
+  };
+  const exportCaptions = () => {
+    if (captions.length === 0 || !nativeShell.available) return;
+    const bytes = new TextEncoder().encode(`\uFEFF${serializeCaptionSrt(document.tracks)}`);
+    void nativeShell.saveBytes({
+      title: t`导出字幕`,
+      defaultFileName: 'captions.srt',
+      filters: [{ name: 'SubRip', extensions: ['srt'] }],
+      bytes,
+    });
   };
   const addMarker = () => {
     if (readOnly) return;
@@ -2119,6 +2152,7 @@ export function ProjectTimeline({
             { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
             { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
             { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
+            { id: 'caption', label: t`添加字幕轨道`, disabled: readOnly, onSelect: () => addTrack('caption') },
           ]}
         />
         <button
@@ -2127,10 +2161,49 @@ export function ProjectTimeline({
           aria-label={t`在播放头添加文字`}
           title={t`在播放头添加文字`}
           disabled={readOnly}
-          onClick={openTextClipDraft}
+          onClick={() => openTextClipDraft('text')}
         >
           <Type className="size-3.5" aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={t`在播放头添加字幕`}
+          title={t`在播放头添加字幕`}
+          disabled={readOnly}
+          onClick={() => openTextClipDraft('caption')}
+        >
+          <Captions className="size-3.5" aria-hidden="true" />
+        </button>
+        <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider">
+          <Tooltip content={t`上一个字幕`} side="bottom">
+            <button
+              type="button"
+              className="grid size-7 place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
+              aria-label={t`上一个字幕`}
+              disabled={adjacentCaptionClip(captions, playheadSeconds, -1) === null}
+              onClick={() => navigateCaption(-1)}
+            ><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+          </Tooltip>
+          <Tooltip content={t`下一个字幕`} side="bottom">
+            <button
+              type="button"
+              className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              aria-label={t`下一个字幕`}
+              disabled={adjacentCaptionClip(captions, playheadSeconds, 1) === null}
+              onClick={() => navigateCaption(1)}
+            ><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+          </Tooltip>
+          <Tooltip content={nativeShell.available ? t`导出 SRT 字幕` : t`需要桌面应用才能导出 SRT`} side="bottom">
+            <button
+              type="button"
+              className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              aria-label={t`导出 SRT 字幕`}
+              disabled={captions.length === 0 || !nativeShell.available}
+              onClick={exportCaptions}
+            ><Download className="size-3.5" aria-hidden="true" /></button>
+          </Tooltip>
+        </span>
         <OverflowMenu
           label={t`剪辑操作`}
           triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
@@ -2768,7 +2841,7 @@ export function ProjectTimeline({
       )}
       <Drawer
         open={textDraft !== null}
-        title={<Trans>添加文字</Trans>}
+        title={textDraft?.kind === 'caption' ? <Trans>添加字幕</Trans> : <Trans>添加文字</Trans>}
         description={textDraft === null ? undefined : formatMillisecondTimecode(textDraft.start)}
         width="standard"
         onClose={() => setTextDraft(null)}
@@ -2781,7 +2854,7 @@ export function ProjectTimeline({
               disabled={textDraft.content.trim() === '' || textDraft.duration < 1 / document.fps}
               onClick={insertTextClip}
             >
-              <Trans>添加文字</Trans>
+              {textDraft.kind === 'caption' ? <Trans>添加字幕</Trans> : <Trans>添加文字</Trans>}
             </Button>
           </>
         )}
@@ -2789,7 +2862,7 @@ export function ProjectTimeline({
         {textDraft === null ? <span /> : (
           <div className="space-y-3">
             <label className="flex flex-col gap-1 text-xs">
-              <Trans>文字内容</Trans>
+              {textDraft.kind === 'caption' ? <Trans>字幕内容</Trans> : <Trans>文字内容</Trans>}
               <textarea
                 autoFocus
                 rows={4}
@@ -2811,7 +2884,11 @@ export function ProjectTimeline({
                 onChange={(event) => setTextDraft({ ...textDraft, duration: Number(event.currentTarget.value) })}
               />
             </label>
-            <p className="text-2xs leading-4 text-neutral-500"><Trans>创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。</Trans></p>
+            <p className="text-2xs leading-4 text-neutral-500">
+              {textDraft.kind === 'caption'
+                ? <Trans>字幕会显示在独立字幕轨中，可前后导航、编辑样式并导出为 SRT。</Trans>
+                : <Trans>创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。</Trans>}
+            </p>
           </div>
         )}
       </Drawer>
@@ -3155,16 +3232,30 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
     }
     rows.push({
       id: track.id,
-      kind: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'text' : 'video',
+      kind: track.kind === 'audio'
+        ? 'audio'
+        : track.kind === 'caption'
+          ? 'caption'
+          : track.kind === 'text'
+            ? 'text'
+            : 'video',
       label: track.name,
       ariaLabel: track.name,
       clips: track.clips,
-      controls: track.kind === 'audio' ? 'audio' : track.kind === 'text' ? 'text' : 'video',
+      controls: track.kind === 'audio'
+        ? 'audio'
+        : track.kind === 'caption'
+          ? 'caption'
+          : track.kind === 'text'
+            ? 'text'
+            : 'video',
       icon: track.kind === 'audio'
         ? <Volume2 className="size-4" />
-        : track.kind === 'text'
-          ? <Type className="size-4" />
-          : <Camera className="size-4" />,
+        : track.kind === 'caption'
+          ? <Captions className="size-4" />
+          : track.kind === 'text'
+            ? <Type className="size-4" />
+            : <Camera className="size-4" />,
       track,
       derivedAudio: false,
     });
@@ -4124,8 +4215,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   }
   const visualLeft = timeToPx(scale, visualClip.placement.start);
   const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
-  const canSlip = kind !== 'text' && canSlipTimelineClip(clip, fps);
-  const canRateStretch = kind !== 'text' && canRateStretchTimelineClip(clip);
+  const canSlip = kind !== 'text' && kind !== 'caption' && canSlipTimelineClip(clip, fps);
+  const canRateStretch = kind !== 'text' && kind !== 'caption' && canRateStretchTimelineClip(clip);
   const gestureBaseClip = gesture.current?.clip ?? clip;
   const slipDelta = visualClip.placement.source_in - gestureBaseClip.placement.source_in;
   const slideDelta = visualClip.placement.start - gestureBaseClip.placement.start;
@@ -4447,7 +4538,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           onReplace(replacement, 'slide');
         }
       }}
-      aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
+      aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${clip.text !== null ? t`已生成` : material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
       data-timeline-clip-id={clip.id}
       data-source-in={visualClip.placement.source_in}
       data-source-out={visualClip.placement.source_out}
@@ -4484,7 +4575,12 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
             onReplace={(replacement) => onReplace(replacement, 'transition')}
           />
         </>
-      ) : kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
+      ) : kind === 'text' || kind === 'caption' ? (
+        <span className={cn(
+          'grid size-full place-items-center truncate px-2 text-2xs',
+          kind === 'caption' && 'border-y-2 border-accent-400 bg-accent-100 font-medium text-accent-text',
+        )}>{clip.name}</span>
+      ) : material.streamAssetId === null ? (
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (
         <>
@@ -5819,10 +5915,16 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
           disabled={track?.locked === true}
           onClick={() => track === undefined ? undefined : onTargetTrack?.(
             track.id,
-            controls === 'video' ? 'video' : controls === 'audio' ? 'audio' : 'text',
+            controls === 'video'
+              ? 'video'
+              : controls === 'audio'
+                ? 'audio'
+                : controls === 'caption'
+                  ? 'caption'
+                  : 'text',
           )}
         >
-          {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : 'T1'}
+          {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : controls === 'caption' ? 'C1' : 'T1'}
         </button>
       )}
       {nameDraft !== null ? (

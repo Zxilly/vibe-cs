@@ -839,6 +839,14 @@ impl EditingDocument {
                 if !clip_ids.insert(clip.id) {
                     return Err(invalid("clip identities must be unique"));
                 }
+                if matches!(track.kind, TrackKind::Text | TrackKind::Caption)
+                    && (clip.text.is_none()
+                        || !matches!(&clip.material, TimelineClipMaterial::Planned))
+                {
+                    return Err(invalid(
+                        "text and caption tracks accept only generated text clips",
+                    ));
+                }
                 validate_clip(clip)?;
             }
         }
@@ -1538,6 +1546,47 @@ mod tests {
     fn project_document_rejects_a_non_video_story_track() {
         let mut current = project();
         current.document.tracks[0].kind = TrackKind::Audio;
+        assert!(current.validate().is_err());
+    }
+
+    #[test]
+    fn caption_tracks_are_generated_text_only() {
+        let mut current = project();
+        let mut caption = clip(102);
+        caption.capture_intent = None;
+        caption.name = "Watch connector".to_owned();
+        caption.text = Some(TextStyle {
+            content: "Watch connector".to_owned(),
+            font_family: "Arial".to_owned(),
+            font_asset_id: None,
+            font_size: 48.0,
+            color: "#FFFFFF".to_owned(),
+            background: Some("#000000".to_owned()),
+            align: "center".to_owned(),
+        });
+        current.document.tracks.push(TimelineTrack {
+            id: Uuid::from_u128(11),
+            name: "English".to_owned(),
+            kind: TrackKind::Caption,
+            order: 1,
+            muted: false,
+            solo: false,
+            volume: 1.0,
+            pan: 0.0,
+            keyframes: Vec::new(),
+            locked: false,
+            hidden: false,
+            clips: vec![caption.clone()],
+        });
+        current.validate().expect("caption document");
+
+        current.document.tracks[1].clips[0].material = TimelineClipMaterial::Asset {
+            asset_id: Uuid::from_u128(12),
+            media_duration_seconds: 5.0,
+        };
+        assert!(current.validate().is_err());
+        current.document.tracks[1].clips[0] = caption;
+        current.document.tracks[1].clips[0].text = None;
         assert!(current.validate().is_err());
     }
 

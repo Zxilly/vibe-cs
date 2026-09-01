@@ -599,7 +599,7 @@ function programTextOverlays(project: Project, timelineTime: number): ProgramTex
     for (const clip of track.clips) {
       if (!clip.placement.enabled
         || clip.text === null
-        || (track.kind !== 'text' && resolveTimelineMaterial(clip.material).streamAssetId !== null)
+        || (!matchesTextTrack(track.kind) && resolveTimelineMaterial(clip.material).streamAssetId !== null)
         || timelineTime < clip.placement.start
         || timelineTime >= clip.placement.start + clip.placement.duration) continue;
       const localTime = timelineTime - clip.placement.start;
@@ -614,6 +614,10 @@ function programTextOverlays(project: Project, timelineTime: number): ProgramTex
     }
   }
   return overlays;
+}
+
+function matchesTextTrack(kind: Project['document']['tracks'][number]['kind']): boolean {
+  return kind === 'text' || kind === 'caption';
 }
 
 function timelineClipActiveAt(clip: TimelineClip, timelineTime: number): boolean {

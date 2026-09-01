@@ -2738,7 +2738,7 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(overlay.dataset.programTextX).toBe('192'));
     expect(overlay.style.left).toBe('60%');
 
-    fireEvent.doubleClick(screen.getByRole('button', { name: /Title 5\.0s · 未录制/u }));
+    fireEvent.doubleClick(screen.getByRole('button', { name: /Title 5\.0s · 已生成/u }));
     expect(await screen.findByRole('dialog', { name: '片段属性' })).toBeTruthy();
     const textStyle = screen.getByRole('region', { name: '文字样式' });
     expect((within(textStyle).getByLabelText('文字内容') as HTMLTextAreaElement).value).toBe('NiKo');
@@ -5907,8 +5907,8 @@ describe('unified project workspace', () => {
               content: 'Lower third',
               font_family: 'Arial',
               font_size: 72,
-              color: 'white',
-              background: 'black',
+              color: '#FFFFFF',
+              background: '#000000',
               align: 'center',
             }),
           })],
@@ -5916,6 +5916,82 @@ describe('unified project workspace', () => {
       }],
     })));
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a canonical caption clip with caption defaults through one Project operation', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加字幕' }));
+    const drawer = await screen.findByRole('dialog', { name: '添加字幕' });
+    fireEvent.change(within(drawer).getByLabelText('字幕内容'), { target: { value: 'Watch connector.' } });
+    fireEvent.change(within(drawer).getByLabelText('持续时间（秒）'), { target: { value: '2.5' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: '添加字幕' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'insert_track',
+        index: PROJECT.document.tracks.length,
+        track: expect.objectContaining({
+          name: '字幕 1',
+          kind: 'caption',
+          clips: [expect.objectContaining({
+            name: 'Watch connector.',
+            material: { kind: 'planned' },
+            placement: expect.objectContaining({ start: 0, duration: 2.5 }),
+            transform: expect.objectContaining({ y: 360 }),
+            text: expect.objectContaining({ content: 'Watch connector.', font_size: 48 }),
+          })],
+        }),
+      }],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates caption cues and exports the visible caption tracks as SRT', async () => {
+    const caption = (id: string, start: number, content: string): TimelineClip => ({
+      ...clip(id, content),
+      placement: { ...clip(id, content).placement, start, duration: 2, source_out: 2 },
+      transform: { ...clip(id, content).transform, y: 360 },
+      text: { content, font_family: 'Arial', font_asset_id: null, font_size: 48, color: '#FFFFFF', background: '#000000', align: 'center' },
+    });
+    const captionTrack: TimelineTrack = {
+      id: '00000000-0000-4000-8000-000000000515',
+      name: 'English',
+      kind: 'caption',
+      order: 2,
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+      keyframes: [],
+      locked: false,
+      hidden: false,
+      clips: [
+        caption('00000000-0000-4000-8000-000000000516', 2, 'First cue'),
+        caption('00000000-0000-4000-8000-000000000517', 5, 'Second cue'),
+      ],
+    };
+    const saveBytes = vi.fn<NativeShell['saveBytes']>(() => Promise.resolve('C:\\Temp\\captions.srt'));
+    renderWorkspace({
+      project: { ...PROJECT, document: { ...PROJECT.document, tracks: [...PROJECT.document.tracks, captionTrack] } },
+      shell: { ...unavailableNativeShell, available: true, saveBytes },
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '下一个字幕' }));
+    await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(2));
+    expect(screen.getByRole('button', { name: /First cue 2\.0s/u }).className).toContain('ring-accent');
+    fireEvent.click(screen.getByRole('button', { name: '下一个字幕' }));
+    await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5));
+    fireEvent.click(screen.getByRole('button', { name: '上一个字幕' }));
+    await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(2));
+
+    fireEvent.click(screen.getByRole('button', { name: '导出 SRT 字幕' }));
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledTimes(1));
+    const options = saveBytes.mock.calls[0]![0];
+    expect(options.defaultFileName).toBe('captions.srt');
+    expect(new TextDecoder().decode(options.bytes)).toContain('00:00:02,000 --> 00:00:04,000\r\nFirst cue');
+    expect(new TextDecoder().decode(options.bytes)).toContain('00:00:05,000 --> 00:00:07,000\r\nSecond cue');
   });
 
   it('removes a non-Story track with a real Project operation', async () => {

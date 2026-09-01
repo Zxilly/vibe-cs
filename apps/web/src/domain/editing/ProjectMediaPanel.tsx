@@ -1189,7 +1189,7 @@ function projectMediaItems(
   const referencedAssetIds = new Set<string>();
   const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   const timelineItems = tracks
-    .filter((track) => track.kind !== 'text')
+    .filter((track) => track.kind !== 'text' && track.kind !== 'caption')
     .flatMap((track) => track.clips.map((clip): ProjectMediaItem => {
       const material = resolveTimelineMaterial(clip.material, clip.placement);
       const deliveryState = deliveryStateByClipId.get(clip.id);

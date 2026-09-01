@@ -29,6 +29,7 @@ pub enum TrackKind {
     Video,
     Audio,
     Text,
+    Caption,
     Overlay,
 }
 

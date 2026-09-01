@@ -782,7 +782,8 @@ fn build_editor_command<S: BuildHasher>(
             }
         }
         if let Some(text) = item.clip.text.as_ref()
-            && (item.clip.asset_id.is_none() || item.track_kind == TrackKind::Text)
+            && (item.clip.asset_id.is_none()
+                || matches!(item.track_kind, TrackKind::Text | TrackKind::Caption))
         {
             let text_label = format!("text{index}");
             filters.push(build_text_filter(

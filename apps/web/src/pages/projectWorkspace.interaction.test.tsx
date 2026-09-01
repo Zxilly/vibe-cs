@@ -248,6 +248,44 @@ function linkedProject(): Project {
   };
 }
 
+function groupedProject(): Project {
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+        ? { ...track, clips: track.clips.map((clip) => ({ ...clip, group_id: '00000000-0000-4000-8000-000000000170' })) }
+        : track),
+    },
+  };
+}
+
+function outOfSyncProject(): Project {
+  const video: TimelineTrack = {
+    id: '00000000-0000-4000-8000-000000000171', name: 'Detached video', kind: 'video', order: 2,
+    muted: false, locked: false, hidden: false,
+    clips: [{
+      ...clip('00000000-0000-4000-8000-000000000172', 'Detached video'),
+      placement: { start: 2 + 2 / 60, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 0, enabled: true },
+      metadata: { sync_reference_group_id: 'detached', sync_reference_start: 2 },
+      link_group_id: null,
+    }],
+  };
+  const audioClip: TimelineClip = {
+    ...clip('00000000-0000-4000-8000-000000000173', 'Detached audio'),
+    placement: { start: 2, duration: 2, source_in: 0, source_out: 2, speed: 1, volume: 1, enabled: true },
+    metadata: { sync_reference_group_id: 'detached', sync_reference_start: 2 },
+    link_group_id: null,
+  };
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      tracks: [...PROJECT.document.tracks.map((track) => track.kind === 'audio' ? { ...track, clips: [audioClip] } : track), video],
+    },
+  };
+}
+
 function targetedRangeProject(): Project {
   const audioClip: TimelineClip = {
     ...clip('00000000-0000-4000-8000-000000000092', 'Range audio'),
@@ -3235,6 +3273,62 @@ describe('unified project workspace', () => {
       ],
     })));
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('groups selected clips independently from Linked Selection', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.pointerDown(clipB, { pointerId: 208, button: 0, ctrlKey: true, clientX: 400 });
+    fireEvent.keyDown(timeline, { key: 'g', ctrlKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalled());
+    const operations = (applyProjectPatch.mock.calls[0]?.[0] as ProjectPatch).operations;
+    expect(operations).toHaveLength(2);
+    expect(operations.every((operation) => operation.op === 'replace_clip' && operation.clip.group_id !== null)).toBe(true);
+    const groupIds = operations.flatMap((operation) => operation.op === 'replace_clip' ? [operation.clip.group_id] : []);
+    expect(new Set(groupIds).size).toBe(1);
+  });
+
+  it('always expands Group selection and ungroups it with Ctrl+Shift+G', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: groupedProject(), applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    expect(clipA.className).toContain('ring-accent');
+    expect(clipB.className).toContain('ring-accent');
+    fireEvent.click(screen.getByRole('button', { name: '切换链接选择' }));
+    fireEvent.click(clipA);
+    expect(clipB.className).toContain('ring-accent');
+    fireEvent.keyDown(timeline, { key: 'g', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [
+        expect.objectContaining({ op: 'replace_clip', clip: expect.objectContaining({ group_id: null }) }),
+        expect.objectContaining({ op: 'replace_clip', clip: expect.objectContaining({ group_id: null }) }),
+      ],
+    })));
+  });
+
+  it('shows unlinked AV drift in frames and restores the selected side', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: outOfSyncProject(), applyProjectPatch });
+
+    const restore = await screen.findByRole('button', { name: '恢复同步 Detached video +2 帧' });
+    expect(screen.getByRole('button', { name: '恢复同步 Detached audio -2 帧' })).toBeTruthy();
+    fireEvent.click(restore);
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: '00000000-0000-4000-8000-000000000172',
+        clip: expect.objectContaining({ placement: expect.objectContaining({ start: 2 }) }),
+      })],
+    })));
   });
 
   it('moves a linked cross-track selection in one Project Patch', async () => {

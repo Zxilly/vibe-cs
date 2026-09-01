@@ -308,7 +308,7 @@ export function ProjectWorkspacePage() {
         initializedSelectionProjectId.current = loaded.id;
         return firstClip === undefined
           ? []
-          : linkedSelectionEnabled ? expandLinkedClipIds(loaded, [firstClip.id]) : [firstClip.id];
+          : expandClipSelection(loaded, [firstClip.id], linkedSelectionEnabled);
       }
       const next = currentSelection.filter((clipId) => allIds.has(clipId));
       return next.length === currentSelection.length ? currentSelection : next;
@@ -317,7 +317,7 @@ export function ProjectWorkspacePage() {
 
   useEffect(() => {
     if (!linkedSelectionEnabled || project.data === undefined) return;
-    setSelectedClipIds((currentSelection) => expandLinkedClipIds(project.data!, currentSelection));
+    setSelectedClipIds((currentSelection) => expandClipSelection(project.data!, currentSelection, true));
   }, [linkedSelectionEnabled, project.data]);
 
   useEffect(() => {
@@ -519,16 +519,16 @@ export function ProjectWorkspacePage() {
         const track = current.document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId)
           && candidate.clips.some((clip) => clip.id === anchorId));
         if (track === undefined || anchorId === undefined) {
-          return linkedSelectionEnabled ? expandLinkedClipIds(current, [clipId]) : [clipId];
+          return expandClipSelection(current, [clipId], linkedSelectionEnabled);
         }
         const anchorIndex = track.clips.findIndex((clip) => clip.id === anchorId);
         const targetIndex = track.clips.findIndex((clip) => clip.id === clipId);
         const from = Math.min(anchorIndex, targetIndex);
         const to = Math.max(anchorIndex, targetIndex);
         const rangeIds = track.clips.slice(from, to + 1).map((clip) => clip.id);
-        return linkedSelectionEnabled ? expandLinkedClipIds(current, rangeIds) : rangeIds;
+        return expandClipSelection(current, rangeIds, linkedSelectionEnabled);
       }
-      const group = linkedSelectionEnabled ? expandLinkedClipIds(current, [clipId]) : [clipId];
+      const group = expandClipSelection(current, [clipId], linkedSelectionEnabled);
       if (!additive) return group;
       return group.every((groupId) => currentSelection.includes(groupId))
         ? currentSelection.filter((selectedId) => !group.includes(selectedId))
@@ -536,7 +536,7 @@ export function ProjectWorkspacePage() {
     });
   };
   const selectTimelineClips = (clipIds: readonly string[]) => {
-    setSelectedClipIds(linkedSelectionEnabled ? expandLinkedClipIds(current, clipIds) : clipIds);
+    setSelectedClipIds(expandClipSelection(current, clipIds, linkedSelectionEnabled));
   };
   const promoteTimelineClip = (clipId: string) => {
     setSelectedClipIds((currentSelection) => currentSelection.includes(clipId)
@@ -874,8 +874,10 @@ export function ProjectWorkspacePage() {
           ],
         );
       }}
-      onReplaceClips={(clips) => mutate(
-        clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
+      onReplaceClips={(clips, intent) => mutate(
+        intent === 'group'
+          ? clips.every((clip) => clip.group_id === null) ? `取消组合片段` : `组合片段`
+          : clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
         { kind: 'project' },
         clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
       )}
@@ -2708,16 +2710,25 @@ function findClip(project: Project, clipId: string | null) {
   return null;
 }
 
-function expandLinkedClipIds(project: Project, clipIds: readonly string[]): readonly string[] {
+function expandClipSelection(project: Project, clipIds: readonly string[], includeLinks: boolean): readonly string[] {
   const selected = new Set(clipIds);
   const anchor = clipIds[clipIds.length - 1];
-  const groups = new Set(project.document.tracks
-    .flatMap((track) => track.clips)
-    .filter((clip) => selected.has(clip.id) && clip.link_group_id !== null)
-    .map((clip) => clip.link_group_id!));
-  if (groups.size === 0) return [...selected];
-  for (const clip of project.document.tracks.flatMap((track) => track.clips)) {
-    if (clip.link_group_id !== null && groups.has(clip.link_group_id)) selected.add(clip.id);
+  const clips = project.document.tracks.flatMap((track) => track.clips);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const groups = new Set(clips.filter((clip) => selected.has(clip.id) && clip.group_id !== null).map((clip) => clip.group_id!));
+    const links = includeLinks
+      ? new Set(clips.filter((clip) => selected.has(clip.id) && clip.link_group_id !== null).map((clip) => clip.link_group_id!))
+      : new Set<string>();
+    for (const clip of clips) {
+      if (selected.has(clip.id)) continue;
+      if ((clip.group_id !== null && groups.has(clip.group_id))
+        || (clip.link_group_id !== null && links.has(clip.link_group_id))) {
+        selected.add(clip.id);
+        changed = true;
+      }
+    }
   }
   const expanded = [...selected];
   return anchor === undefined

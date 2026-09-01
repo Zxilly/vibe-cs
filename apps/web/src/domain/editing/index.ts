@@ -19,6 +19,12 @@ export {
 } from './timelinePaste';
 export { timelineTrackSelection } from './timelineTrackSelection';
 export {
+  clearTimelineClipSyncReference,
+  restoreTimelineClipSync,
+  timelineClipOutOfSyncFrames,
+  unlinkTimelineClipWithSyncReference,
+} from './timelineSyncStatus';
+export {
   planSyncLockedStoryRipple,
   expandSyncLockedStoryRippleUpdates,
   storyRippleTimeAnchors,

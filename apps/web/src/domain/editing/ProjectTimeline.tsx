@@ -67,6 +67,12 @@ import {
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
+import {
+  clearTimelineClipSyncReference,
+  restoreTimelineClipSync,
+  timelineClipOutOfSyncFrames,
+  unlinkTimelineClipWithSyncReference,
+} from './timelineSyncStatus';
 import { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
 import {
   planDefaultTimelineTransitions,
@@ -174,7 +180,7 @@ export interface ProjectTimelineProps {
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
   readonly onApplyCrossTrackMove: (plan: TimelineCrossTrackMovePlan) => void;
-  readonly onReplaceClips: (clips: readonly TimelineClip[]) => void;
+  readonly onReplaceClips: (clips: readonly TimelineClip[], intent: 'link' | 'group') => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
   readonly onPreviewSlideEdit: (preview: TimelineSlidePreview | null) => void;
@@ -357,6 +363,11 @@ export function ProjectTimeline({
     () => selectedTrackGroups.flatMap((group) => group.clips),
     [selectedTrackGroups],
   );
+  const allTimelineClips = useMemo(() => document.tracks.flatMap((track) => track.clips), [document.tracks]);
+  const outOfSyncFramesByClipId = useMemo(() => new Map(allTimelineClips.map((clip) => [
+    clip.id,
+    timelineClipOutOfSyncFrames(clip, allTimelineClips, document.fps),
+  ])), [allTimelineClips, document.fps]);
   const editableSelectedTrackGroups = useMemo(
     () => selectedTrackGroups.filter((group) => !group.track.locked),
     [selectedTrackGroups],
@@ -369,6 +380,8 @@ export function ProjectTimeline({
       ? selectedClips[0]!.link_group_id
       : null;
   const canChangeLinks = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
+  const canGroup = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
+  const canUngroup = !readOnly && selectedClips.some((clip) => clip.group_id !== null) && everySelectedTrackEditable;
   const playheadSeconds = Math.min(
     document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
@@ -942,8 +955,32 @@ export function ProjectTimeline({
   };
   const toggleSelectedClipLinks = () => {
     if (!canChangeLinks) return;
-    const linkGroupId = sharedLinkGroupId === null ? globalThis.crypto.randomUUID() : null;
-    onReplaceClips(selectedClips.map((clip) => ({ ...clip, link_group_id: linkGroupId })));
+    if (sharedLinkGroupId !== null) {
+      onReplaceClips(selectedClips.map(unlinkTimelineClipWithSyncReference), 'link');
+      return;
+    }
+    const linkGroupId = globalThis.crypto.randomUUID();
+    onReplaceClips(selectedClips.map((clip) => ({
+      ...clearTimelineClipSyncReference(clip),
+      link_group_id: linkGroupId,
+    })), 'link');
+  };
+  const restoreClipSync = (clipId: string) => {
+    const track = document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId));
+    const clip = track?.clips.find((candidate) => candidate.id === clipId);
+    if (track === undefined || track.locked || track.id === document.story_track_id || clip === undefined) return;
+    const replacement = restoreTimelineClipSync(clip, allTimelineClips, document.fps);
+    if (replacement === clip) return;
+    onReplaceClip(replacement);
+  };
+  const groupSelectedClips = () => {
+    if (!canGroup) return;
+    const groupId = globalThis.crypto.randomUUID();
+    onReplaceClips(selectedClips.map((clip) => ({ ...clip, group_id: groupId })), 'group');
+  };
+  const ungroupSelectedClips = () => {
+    if (!canUngroup) return;
+    onReplaceClips(selectedClips.map((clip) => ({ ...clip, group_id: null })), 'group');
   };
 
   const pasteClipboard = (mode: 'overwrite' | 'insert') => {
@@ -1655,6 +1692,12 @@ export function ProjectTimeline({
           toggleSelectedClipLinks();
           return;
         }
+        if (event.key.toLowerCase() === 'g' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          if (event.shiftKey) ungroupSelectedClips();
+          else groupSelectedClips();
+          return;
+        }
         if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey && canPaste) {
           event.preventDefault();
           pasteClipboard(event.shiftKey ? 'insert' : 'overwrite');
@@ -1800,6 +1843,8 @@ export function ProjectTimeline({
             { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
             { id: 'match-frame', label: t`匹配播放头源帧`, disabled: matchFrameClip === null, onSelect: matchFrame },
             { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
+            { id: 'group', label: t`组合所选片段`, disabled: !canGroup, onSelect: groupSelectedClips },
+            { id: 'ungroup', label: t`取消组合所选片段`, disabled: !canUngroup, onSelect: ungroupSelectedClips },
             { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
             { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
@@ -2031,6 +2076,7 @@ export function ProjectTimeline({
               selectedClipIds={selectedClipIdSet}
               selectedEditPoint={selectedEditPoint}
               deliveryStateByClipId={deliveryStateByClipId}
+              outOfSyncFramesByClipId={outOfSyncFramesByClipId}
               editTool={editTool}
               fps={document.fps}
               readOnly={readOnly}
@@ -2041,6 +2087,7 @@ export function ProjectTimeline({
               }}
               onPromoteClip={onPromoteClip}
               onInspectClip={onInspectClip}
+              onRestoreClipSync={restoreClipSync}
               onSeek={onSeek}
               onRazor={(time, allTracks, followLinkedClips) => addEditAt({
                 time,
@@ -2582,7 +2629,7 @@ function timelineClipsEqual(
     && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedEditPoint, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onSelectEditPoint, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedEditPoint, deliveryStateByClipId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
@@ -2590,6 +2637,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly selectedClipIds: ReadonlySet<string>;
   readonly selectedEditPoint: { readonly clipId: string; readonly edge: 'start' | 'end' } | null;
   readonly deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>;
+  readonly outOfSyncFramesByClipId: ReadonlyMap<string, number>;
   readonly editTool: TimelineEditTool;
   readonly fps: number;
   readonly readOnly: boolean;
@@ -2597,6 +2645,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onSelectEditPoint: (clipId: string, edge: 'start' | 'end') => void;
   readonly onPromoteClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
+  readonly onRestoreClipSync: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
@@ -2831,6 +2880,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             primary={selectedClipId === clip.id}
             selectedEditPoint={selectedEditPoint?.clipId === clip.id ? selectedEditPoint.edge : null}
             deliveryState={deliveryStateByClipId.get(clip.id)}
+            outOfSyncFrames={outOfSyncFramesByClipId.get(clip.id) ?? 0}
             editTool={editTool}
             scale={scale}
             fps={fps}
@@ -2845,6 +2895,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onMoveCrossTrack={(targetTrackId, start) => onMoveCrossTrack(targetTrackId, clip.id, start)}
             onPromote={() => onPromoteClip(clip.id)}
             onInspect={() => onInspectClip(clip.id)}
+            onRestoreSync={() => onRestoreClipSync(clip.id)}
             onSeek={onSeek}
             razorEnabled={!readOnly && !track.track.locked}
             onRazor={onRazor}
@@ -3056,6 +3107,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.contentWidth === next.contentWidth
   && previous.selectedClipId === next.selectedClipId
   && previous.selectedClipIds === next.selectedClipIds
+  && previous.outOfSyncFramesByClipId === next.outOfSyncFramesByClipId
   && previous.selectedEditPoint === next.selectedEditPoint
   && previous.editTool === next.editTool
   && previous.fps === next.fps
@@ -3278,7 +3330,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedEditPoint, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedEditPoint, deliveryState, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -3286,6 +3338,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly primary: boolean;
   readonly selectedEditPoint: 'start' | 'end' | null;
   readonly deliveryState?: TimelineClipMaterializationState | undefined;
+  readonly outOfSyncFrames: number;
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
   readonly canSlide: boolean;
@@ -3303,6 +3356,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onMoveCrossTrack: (targetTrackId: string, start: number) => boolean;
   readonly onPromote: () => void;
   readonly onInspect: () => void;
+  readonly onRestoreSync: () => void;
   readonly onSeek: (seconds: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
@@ -3772,8 +3826,33 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
             aria-hidden="true"
           />
           <Clapperboard className="absolute left-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
-          <Link2 className="absolute right-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
+          {clip.link_group_id === null ? null : <Link2 className="absolute right-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />}
         </>
+      )}
+      {outOfSyncFrames === 0 ? null : (
+        <span
+          role="button"
+          tabIndex={readOnly ? -1 : 0}
+          className="absolute right-1 top-1 z-50 rounded-sm border border-fail-border bg-fail-surface px-1 font-mono text-2xs font-semibold text-fail-text outline-none focus-visible:ring-2 focus-visible:ring-fail-border"
+          aria-label={t`恢复同步 ${clip.name} ${outOfSyncFrames > 0 ? '+' : ''}${outOfSyncFrames} 帧`}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!readOnly) onRestoreSync();
+          }}
+          onKeyDown={(event) => {
+            if (readOnly || (event.key !== 'Enter' && event.key !== ' ')) return;
+            event.preventDefault();
+            event.stopPropagation();
+            onRestoreSync();
+          }}
+        >
+          {outOfSyncFrames > 0 ? '+' : ''}{outOfSyncFrames}f
+        </span>
       )}
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
       {kind === 'video' ? (
@@ -3926,6 +4005,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.primary === next.primary
   && previous.selectedEditPoint === next.selectedEditPoint
   && previous.deliveryState === next.deliveryState
+  && previous.outOfSyncFrames === next.outOfSyncFrames
   && previous.editTool === next.editTool
   && previous.storyTrack === next.storyTrack
   && previous.canSlide === next.canSlide

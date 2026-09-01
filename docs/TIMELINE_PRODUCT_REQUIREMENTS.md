@@ -197,7 +197,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-ASM-06 | 三点/四点编辑 | Source In/Out + Timeline In/Out；范围冲突时可选择 Fit 行为 | 🟡 已有两侧范围，缺 Fit Clip 决策 | P2 |
 | TL-ASM-07 | Cut/Copy/Paste | Ctrl/Cmd+X/C/V；Paste Overwrite 与 Paste Insert；链接关系重建 | ✅ | P0 |
 | TL-ASM-08 | Duplicate | Ctrl/Cmd+Shift+/ 在目标位置复制选择 | ⬜ | P2 |
-| TL-ASM-09 | Replace Edit | 用新源替换选中片段并保留时间位置、长度和效果 | ⬜ | P1 |
+| TL-ASM-09 | Replace Edit | 用新源替换选中片段并保留时间位置、长度和效果 | ✅ | P1 |
 | TL-ASM-10 | Relink | 源文件改变位置后重连，不改变 Timeline identity | ✅ | P0 |
 | TL-ASM-11 | Automate to Sequence | 按 Project 排序/标记批量组接，并可应用默认转场 | ⬜ | P3 |
 
@@ -420,6 +420,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 11：In/Out 导航与循环 Transport — 健康
 
 确认：Shift+I/Shift+O 跳转到同一 Timeline In/Out，Alt+I/O/X 与 Ctrl/Cmd+Shift+I/O/X 可分别清除单侧或双侧；标记菜单提供相同的可见命令和禁用态。Loop 开关在有完整 In/Out 时向 Program Transport 提供该范围，否则循环完整序列；它复用 Trim Mode 已验证的边界回绕，不创建第二个时钟。Tauri CDP 验证 Tooltip、菜单语义、pressed 状态和零 console/page error；截图位于本地 `target/audio-automation-audit/screenshots/05-loop-tooltip.png` 与 `06-loop-enabled.png`。
+
+### Step 12：Replace Edit — 健康
+
+确认：Project/Source Monitor 的“替换”动作只更新所选 Timeline Clip 的 source material、名称、source In/Out 和媒体 metadata，保留 Clip identity、Timeline start/duration/speed、Transform、Effect、Transition、Volume/Pan、Keyframe、Group/Link 与 Enable 状态。源类型不兼容、轨道锁定或源入点之后把手不足时动作禁用并由 Tooltip 解释；仍图像允许扩展到目标时长，但不会把不支持的 Speed Remap 带入图像。Tauri CDP 使用两个真实 MP4 完成 revision 4 → 5：Clip ID 保持 `dccde5b8-d7f3-4512-a02d-6bc2f6e7c813`，时长保持 5 秒，`x=32`、1 个 Effect 和 1 个 Keyframe 全部保持，source asset 改为 `c25eb40f-4352-4e90-9991-f2164ac0fc8e`，console/page error 为零。Tooltip 截图位于本地 `target/audio-automation-audit/screenshots/07-replace-tooltip.png`。
 
 ## 12. 迭代计划
 

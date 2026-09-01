@@ -233,6 +233,7 @@ export function ProjectWorkspacePage() {
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
+  const [trimPlaybackRange, setTrimPlaybackRange] = useState<{ readonly start: number; readonly end: number } | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [workspaceLayoutEpoch, setWorkspaceLayoutEpoch] = useState(0);
   const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
@@ -388,9 +389,9 @@ export function ProjectWorkspacePage() {
 
   useEffect(() => {
     setTimelinePreviewClips([]);
-    setTimelineRollingPreview(null);
+    if (trimPlaybackRange === null) setTimelineRollingPreview(null);
     setTimelineSlidePreview(null);
-  }, [project.data?.revision]);
+  }, [project.data?.revision, trimPlaybackRange]);
 
   if (projectId === 'new' || project.isPending) {
     return (
@@ -757,6 +758,7 @@ export function ProjectWorkspacePage() {
       playbackRate={playbackRate}
       rollingPreview={timelineRollingPreview}
       slidePreview={timelineSlidePreview}
+      playbackRange={trimPlaybackRange}
       onTogglePlayback={togglePlayback}
       onShuttle={shuttlePlayback}
       onStepFrame={stepTimelineFrame}
@@ -880,6 +882,7 @@ export function ProjectWorkspacePage() {
       onPreviewClips={setTimelinePreviewClips}
       onPreviewRollingEdit={setTimelineRollingPreview}
       onPreviewSlideEdit={setTimelineSlidePreview}
+      onTrimPlaybackRangeChange={setTrimPlaybackRange}
       onInsertTrack={(track, index) => mutate(
         `添加轨道 ${track.name}`,
         { kind: 'project' },

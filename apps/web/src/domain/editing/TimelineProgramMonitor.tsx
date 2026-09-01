@@ -68,6 +68,7 @@ export interface TimelineProgramMonitorProps {
   readonly playbackRate: number;
   readonly rollingPreview: TimelineRollingPreview | null;
   readonly slidePreview: TimelineSlidePreview | null;
+  readonly playbackRange: { readonly start: number; readonly end: number } | null;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onStepFrame: (direction: -1 | 1) => void;
@@ -95,6 +96,7 @@ export function TimelineProgramMonitor({
   playbackRate,
   rollingPreview,
   slidePreview,
+  playbackRange,
   onTogglePlayback,
   onShuttle,
   onStepFrame,
@@ -110,6 +112,8 @@ export function TimelineProgramMonitor({
     project.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
+  const transportStart = Math.max(0, playbackRange?.start ?? 0);
+  const transportEnd = Math.min(project.document.duration_seconds, playbackRange?.end ?? project.document.duration_seconds);
   const selectedIndex = clipIndexAtTimelineTime(
     clips,
     targetTimelineTime,
@@ -229,7 +233,7 @@ export function TimelineProgramMonitor({
   }, [targetId]);
 
   useEffect(() => {
-    const videoDrivesForward = playbackRate > 0 && targetId !== null && presentedId === targetId;
+    const videoDrivesForward = playbackRange === null && playbackRate > 0 && targetId !== null && presentedId === targetId;
     if (!playing || videoDrivesForward) return undefined;
     let frame = 0;
     let previous = performance.now();
@@ -240,11 +244,19 @@ export function TimelineProgramMonitor({
         timelineTimeRef.current,
         elapsed,
         playbackRate,
-        project.document.duration_seconds,
+        transportEnd,
+        transportStart,
       );
       timelineTimeRef.current = next;
       onTimelineTimeChangeRef.current(next);
-      if (transportReachedBoundary(next, playbackRate, project.document.duration_seconds)) {
+      if (transportReachedBoundary(next, playbackRate, transportEnd, transportStart)) {
+        if (playbackRange !== null) {
+          const restart = playbackRate < 0 ? transportEnd : transportStart;
+          timelineTimeRef.current = restart;
+          onTimelineTimeChangeRef.current(restart);
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         onPlaybackEndRef.current();
         return;
       }
@@ -252,7 +264,7 @@ export function TimelineProgramMonitor({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playbackRate, playing, presentedId, project.document.duration_seconds, targetId]);
+  }, [playbackRange, playbackRate, playing, presentedId, targetId, transportEnd, transportStart]);
 
   return (
     <section
@@ -263,6 +275,7 @@ export function TimelineProgramMonitor({
       data-monitor-read-only={readOnly}
       data-monitor-playing={playing}
       data-monitor-duration={project.document.duration_seconds}
+      data-monitor-playback-range={playbackRange === null ? '' : `${transportStart}:${transportEnd}`}
       data-monitor-mode={slideActive ? 'slide' : rollingActive ? 'rolling' : 'program'}
       data-monitor-rolling-left-clip-id={rollingPreview?.leftClipId ?? ''}
       data-monitor-rolling-right-clip-id={rollingPreview?.rightClipId ?? ''}
@@ -344,7 +357,12 @@ export function TimelineProgramMonitor({
                     : rollingActive
                       ? rollingReady ? rollingSide !== null : role === 'program' && clip.id === presentedId
                       : role === 'program' && clip.id === presentedId;
-                const offset = previewSlot === 'left'
+                const rollingDelta = rollingPreview === null ? 0 : targetTimelineTime - rollingPreview.editTime;
+                const offset = previewSlot === 'left' && playbackRange !== null
+                  ? Math.min(clip.placement.duration, Math.max(0, clip.placement.duration - 1 / project.document.fps + rollingDelta))
+                  : previewSlot === 'right' && playbackRange !== null
+                    ? Math.min(clip.placement.duration, Math.max(0, rollingDelta))
+                    : previewSlot === 'left'
                   || previewSlot === 'slide-previous'
                   || previewSlot === 'slide-out'
                   ? Math.max(0, clip.placement.duration - 1 / project.document.fps)
@@ -504,7 +522,9 @@ export function TimelineProgramMonitor({
             title={slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}
             playing={playing}
             playbackRate={playbackRate}
-            timeSeconds={slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime}
+            timeSeconds={playbackRange !== null && playing
+              ? targetTimelineTime
+              : slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime}
             onTogglePlayback={onTogglePlayback}
             onShuttle={onShuttle}
             onStepFrame={onStepFrame}
@@ -671,10 +691,11 @@ export function advanceTimelineTransport(
   elapsedSeconds: number,
   playbackRate: number,
   durationSeconds: number,
+  startSeconds = 0,
 ): number {
   return Math.min(
     durationSeconds,
-    Math.max(0, currentTime + Math.max(0, elapsedSeconds) * playbackRate),
+    Math.max(startSeconds, currentTime + Math.max(0, elapsedSeconds) * playbackRate),
   );
 }
 
@@ -682,8 +703,9 @@ export function transportReachedBoundary(
   timeSeconds: number,
   playbackRate: number,
   durationSeconds: number,
+  startSeconds = 0,
 ): boolean {
-  return playbackRate < 0 ? timeSeconds <= 0 : playbackRate > 0 && timeSeconds >= durationSeconds;
+  return playbackRate < 0 ? timeSeconds <= startSeconds : playbackRate > 0 && timeSeconds >= durationSeconds;
 }
 
 function ProgramTransportBar({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { EditorTransitionKind, TimelineClip } from '../../shared/desktop/dto';
-import { evaluatePreviewTransition } from './TimelineProgramMonitor';
+import { advanceTimelineTransport, evaluatePreviewTransition, transportReachedBoundary } from './TimelineProgramMonitor';
 
 function clip(transition: EditorTransitionKind): TimelineClip {
   return {
@@ -57,5 +57,14 @@ describe('Program visual transition presentation', () => {
       progress: 0.25,
       scale: 1.135,
     });
+  });
+});
+
+describe('Trim Mode transport range', () => {
+  it('clamps forward and reverse transport to the loop boundaries', () => {
+    expect(advanceTimelineTransport(6.4, 1, 1, 6.5, 3.5)).toBe(6.5);
+    expect(transportReachedBoundary(6.5, 1, 6.5, 3.5)).toBe(true);
+    expect(advanceTimelineTransport(3.6, 1, -1, 6.5, 3.5)).toBe(3.5);
+    expect(transportReachedBoundary(3.5, -1, 6.5, 3.5)).toBe(true);
   });
 });

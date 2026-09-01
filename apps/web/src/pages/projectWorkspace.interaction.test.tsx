@@ -3668,6 +3668,40 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('enters Trim Mode with Shift+T and rolls the selected cut by frames', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'T', shiftKey: true });
+    expect(screen.getByRole('status').textContent).toContain('Trim Mode');
+    expect(screen.getByRole('status').textContent).toContain('00:05.000');
+    const monitor = screen.getByRole('region', { name: '视频预览' });
+    expect(monitor.dataset.monitorMode).toBe('rolling');
+    expect(monitor.dataset.monitorPlaybackRange).toBe('3.5:6.5');
+    expect(monitor.dataset.monitorRollingLeftClipId).toBe(CLIP_A);
+    expect(monitor.dataset.monitorRollingRightClipId).toBe(CLIP_B);
+
+    fireEvent.keyDown(timeline, { key: ' ' });
+    expect(monitor.dataset.monitorPlaying).toBe('true');
+    fireEvent.keyDown(timeline, { key: 'k' });
+    expect(monitor.dataset.monitorPlaying).toBe('false');
+
+    fireEvent.keyDown(timeline, { key: 'ArrowLeft' });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 4 + 59 / 60 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 + 59 / 60, duration: 5 + 1 / 60 }) }),
+        ],
+      })],
+    })));
+    fireEvent.keyDown(timeline, { key: 'Escape' });
+    expect(screen.queryByText('Trim Mode')).toBeNull();
+  });
+
   it('rate-stretches one Story clip with live ripple and one commit', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const applyProjectPatch = vi.fn();

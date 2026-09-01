@@ -177,6 +177,7 @@ export interface ProjectTimelineProps {
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
   readonly onPreviewSlideEdit: (preview: TimelineSlidePreview | null) => void;
+  readonly onTrimPlaybackRangeChange: (range: { readonly start: number; readonly end: number } | null) => void;
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
@@ -253,6 +254,7 @@ export function ProjectTimeline({
   onPreviewClips,
   onPreviewRollingEdit,
   onPreviewSlideEdit,
+  onTrimPlaybackRangeChange,
   onInsertTrack,
   onRemoveTrack,
   onReorderTracks,
@@ -284,6 +286,7 @@ export function ProjectTimeline({
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [selectedEditPoint, setSelectedEditPoint] = useState<{ readonly clipId: string; readonly edge: 'start' | 'end' } | null>(null);
+  const [trimModeEdit, setTrimModeEdit] = useState<{ readonly leftClipId: string; readonly rightClipId: string; readonly editTime: number } | null>(null);
   const [textDraft, setTextDraft] = useState<{
     readonly start: number;
     readonly maximumDuration: number;
@@ -729,6 +732,60 @@ export function ProjectTimeline({
         .flatMap((group) => group.clips.map((clip) => clip.id)),
     ]);
     return true;
+  };
+  const exitTrimMode = () => {
+    setTrimModeEdit(null);
+    setRollingPreviewTime(null);
+    onPreviewRollingEdit(null);
+    onTrimPlaybackRangeChange(null);
+  };
+  const enterTrimMode = () => {
+    const story = document.tracks.find((track) => track.id === document.story_track_id);
+    if (story === undefined || story.locked) return;
+    const points = rollingEditPoints(story.clips, document.fps);
+    const selectedPoint = selectedEditPoint === null ? undefined : points.find((point) => (
+      selectedEditPoint.edge === 'end'
+        ? point.left.id === selectedEditPoint.clipId
+        : point.right.id === selectedEditPoint.clipId
+    ));
+    const point = selectedPoint ?? [...points].sort((left, right) => (
+      Math.abs(left.left.placement.start + left.left.placement.duration - editPlayheadSeconds)
+      - Math.abs(right.left.placement.start + right.left.placement.duration - editPlayheadSeconds)
+    ))[0];
+    if (point === undefined) return;
+    const editTime = point.left.placement.start + point.left.placement.duration;
+    const preview = { leftClipId: point.left.id, rightClipId: point.right.id, editTime };
+    setTrimModeEdit(preview);
+    setEditTool('rolling');
+    setRollingPreviewTime(editTime);
+    onPreviewRollingEdit(preview);
+    onTrimPlaybackRangeChange({
+      start: Math.max(0, editTime - 1.5),
+      end: Math.min(document.duration_seconds, editTime + 1.5),
+    });
+    onSeek(editTime);
+    onShuttle(0);
+  };
+  const toggleTrimMode = () => trimModeEdit === null ? enterTrimMode() : exitTrimMode();
+  const adjustTrimMode = (frames: number) => {
+    if (trimModeEdit === null || readOnly) return;
+    const story = document.tracks.find((track) => track.id === document.story_track_id);
+    const left = story?.clips.find((clip) => clip.id === trimModeEdit.leftClipId);
+    const right = story?.clips.find((clip) => clip.id === trimModeEdit.rightClipId);
+    if (story === undefined || story.locked || left === undefined || right === undefined) return;
+    const edit = rollTimelineEdit(left, right, trimModeEdit.editTime + frames / document.fps, document.fps);
+    if (edit === null || Math.abs(edit.delta) <= 1e-9) return;
+    const clips = story.clips.map((clip) => clip.id === edit.left.id ? edit.left : clip.id === edit.right.id ? edit.right : clip);
+    const preview = { leftClipId: edit.left.id, rightClipId: edit.right.id, editTime: edit.editTime };
+    onReplaceTrackClips(story.id, clips);
+    setTrimModeEdit(preview);
+    setRollingPreviewTime(edit.editTime);
+    onPreviewRollingEdit(preview);
+    onTrimPlaybackRangeChange({
+      start: Math.max(0, edit.editTime - 1.5),
+      end: Math.min(document.duration_seconds, edit.editTime + 1.5),
+    });
+    onSeek(edit.editTime);
   };
 
   const addEditAt = ({
@@ -1339,6 +1396,16 @@ export function ProjectTimeline({
       onKeyDown={(event) => {
         if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
         if (event.key === ' ' && event.target instanceof HTMLButtonElement) return;
+        if (event.key.toLowerCase() === 't' && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          toggleTrimMode();
+          return;
+        }
+        if (event.key === 'Escape' && trimModeEdit !== null) {
+          event.preventDefault();
+          exitTrimMode();
+          return;
+        }
         if (event.key === 'PageUp' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           scrollTimelinePage(-1);
@@ -1369,6 +1436,10 @@ export function ProjectTimeline({
           event.preventDefault();
           const direction = event.key === 'ArrowRight' ? 1 : -1;
           const frames = event.shiftKey ? 5 : 1;
+          if (trimModeEdit !== null) {
+            adjustTrimMode(direction * frames);
+            return;
+          }
           onSeek(Math.min(
             document.duration_seconds,
             Math.max(0, playheadSeconds + direction * frames / document.fps),
@@ -1387,6 +1458,12 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'k' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
+          if (trimModeEdit !== null && transportPlaying) {
+            const frames = Math.round((playheadSeconds - trimModeEdit.editTime) * document.fps);
+            onShuttle(0);
+            adjustTrimMode(frames);
+            return;
+          }
           onShuttle(0);
           return;
         }
@@ -1397,6 +1474,7 @@ export function ProjectTimeline({
         }
         if (event.key.toLowerCase() === 'v' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
+          exitTrimMode();
           setEditTool('selection');
           onPreviewClips([]);
           setRollingPreviewTime(null);
@@ -1642,6 +1720,14 @@ export function ProjectTimeline({
     >
       <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>}
+        {trimModeEdit === null ? null : (
+          <span className="flex h-7 items-center gap-2 rounded-sm border border-accent-300 bg-accent-100 px-2 text-2xs text-accent-text" role="status">
+            <strong><Trans>Trim Mode</Trans></strong>
+            <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
+            <span><Trans>←/→ 1 帧 · Shift 5 帧</Trans></span>
+            <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出 Trim Mode`} onClick={exitTrimMode}>×</button>
+          </span>
+        )}
         <OverflowMenu
           label={t`添加轨道`}
           triggerLabel={<><SquarePlus className="size-3.5" aria-hidden="true" /><Trans>添加轨道</Trans></>}
@@ -1784,6 +1870,7 @@ export function ProjectTimeline({
         canRateTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some(canRateStretchTimelineClip))}
         canSlideTool={!readOnly && document.tracks.some((track) => !track.locked && slideEditTriples(track.clips, document.fps).length > 0)}
         onChangeTool={(tool) => {
+          if (trimModeEdit !== null) exitTrimMode();
           if (tool === 'slip') onShuttle(0);
           if (tool === 'rolling') onShuttle(0);
           if (tool === 'rate') onShuttle(0);

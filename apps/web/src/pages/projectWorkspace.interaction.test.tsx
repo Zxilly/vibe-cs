@@ -1105,6 +1105,36 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('extends a focused edit point to the playhead with E and preserves Sync Lock', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: syncLockProject(), applyProjectPatch });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    const endHandle = screen.getByRole('separator', { name: '裁切片段终点' });
+    endHandle.focus();
+    expect(endHandle.className).toContain('ring-accent');
+    stepTimelineSeconds(playhead, 4);
+    fireEvent.keyDown(endHandle, { key: 'e' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [
+            expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 4 }) }),
+            expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
+          ],
+        }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000097',
+          clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 5 }) })],
+        }),
+      ],
+    })));
+  });
+
   it('auto-scrolls at the viewport edge and includes scroll delta in a trim gesture', async () => {
     const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
     const applyProjectPatch = vi.fn();

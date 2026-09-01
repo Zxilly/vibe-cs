@@ -278,6 +278,7 @@ export function ProjectTimeline({
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const [selectedEditPoint, setSelectedEditPoint] = useState<{ readonly clipId: string; readonly edge: 'start' | 'end' } | null>(null);
   const [textDraft, setTextDraft] = useState<{
     readonly start: number;
     readonly maximumDuration: number;
@@ -632,6 +633,26 @@ export function ProjectTimeline({
     onMatchFrame(
       matchFrameClip.id,
       clipSourceTimeAtLocalTime(matchFrameClip, editPlayheadSeconds - matchFrameClip.placement.start),
+    );
+  };
+  const extendSelectedEditToPlayhead = () => {
+    if (readOnly || selectedEditPoint === null) return;
+    const track = document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === selectedEditPoint.clipId));
+    const clip = track?.clips.find((candidate) => candidate.id === selectedEditPoint.clipId);
+    if (track === undefined || track.locked || clip === undefined) return;
+    const replacement = trimTimelineClip(
+      clip,
+      selectedEditPoint.edge,
+      editPlayheadSeconds,
+      document.fps,
+      clipMediaDuration(clip),
+    );
+    if (JSON.stringify(replacement.placement) === JSON.stringify(clip.placement)) return;
+    onReplaceTrackClips(
+      track.id,
+      track.id === document.story_track_id
+        ? trimRippleClip(track.clips, replacement)
+        : track.clips.map((candidate) => candidate.id === clip.id ? replacement : candidate),
     );
   };
 
@@ -1420,6 +1441,11 @@ export function ProjectTimeline({
           toggleSelectedClipEnabled();
           return;
         }
+        if (event.key.toLowerCase() === 'e' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          extendSelectedEditToPlayhead();
+          return;
+        }
         if (event.key.toLowerCase() === 'f' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           matchFrame();
@@ -1566,6 +1592,7 @@ export function ProjectTimeline({
             { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
             { id: 'match-frame', label: t`匹配播放头源帧`, disabled: matchFrameClip === null, onSelect: matchFrame },
             { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
+            { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
             { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
             { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
             { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
@@ -1792,11 +1819,16 @@ export function ProjectTimeline({
               contentWidth={contentWidth}
               selectedClipId={selectedClipId}
               selectedClipIds={selectedClipIdSet}
+              selectedEditPoint={selectedEditPoint}
               deliveryStateByClipId={deliveryStateByClipId}
               editTool={editTool}
               fps={document.fps}
               readOnly={readOnly}
               onSelectClip={onSelectClip}
+              onSelectEditPoint={(clipId, edge) => {
+                setSelectedEditPoint({ clipId, edge });
+                onSelectClip(clipId, false, false);
+              }}
               onPromoteClip={onPromoteClip}
               onInspectClip={onInspectClip}
               onSeek={onSeek}
@@ -2329,17 +2361,19 @@ function timelineClipsEqual(
     && current.every((clip, index) => JSON.stringify(clip) === JSON.stringify(replacement[index]));
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedEditPoint, deliveryStateByClipId, editTool, fps, readOnly, onSelectClip, onSelectEditPoint, onPromoteClip, onInspectClip, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
+  readonly selectedEditPoint: { readonly clipId: string; readonly edge: 'start' | 'end' } | null;
   readonly deliveryStateByClipId: ReadonlyMap<string, TimelineClipMaterializationState>;
   readonly editTool: TimelineEditTool;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
+  readonly onSelectEditPoint: (clipId: string, edge: 'start' | 'end') => void;
   readonly onPromoteClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
@@ -2544,6 +2578,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
             primary={selectedClipId === clip.id}
+            selectedEditPoint={selectedEditPoint?.clipId === clip.id ? selectedEditPoint.edge : null}
             deliveryState={deliveryStateByClipId.get(clip.id)}
             editTool={editTool}
             scale={scale}
@@ -2554,6 +2589,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             localTime={clipLocalTimeAtTimeline(clip, timelineTimeSeconds, fps)}
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
+            onSelectEditPoint={(edge) => onSelectEditPoint(clip.id, edge)}
             onPromote={() => onPromoteClip(clip.id)}
             onInspect={() => onInspectClip(clip.id)}
             onSeek={onSeek}
@@ -2752,6 +2788,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.contentWidth === next.contentWidth
   && previous.selectedClipId === next.selectedClipId
   && previous.selectedClipIds === next.selectedClipIds
+  && previous.selectedEditPoint === next.selectedEditPoint
   && previous.editTool === next.editTool
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
@@ -2961,12 +2998,13 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedEditPoint, deliveryState, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectEditPoint, onPromote, onInspect, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
   readonly primary: boolean;
+  readonly selectedEditPoint: 'start' | 'end' | null;
   readonly deliveryState?: TimelineClipMaterializationState | undefined;
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
@@ -2980,6 +3018,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly localTime: number;
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
+  readonly onSelectEditPoint: (edge: 'start' | 'end') => void;
   readonly onPromote: () => void;
   readonly onInspect: () => void;
   readonly onSeek: (seconds: number) => void;
@@ -3482,16 +3521,26 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         <>
           <span
             role="separator"
+            tabIndex={0}
             aria-label={t`裁切片段起点`}
-            className="absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize border-l-2 border-accent-500 bg-accent-100/20"
+            className={cn(
+              'absolute inset-y-0 left-0 z-10 w-2 cursor-ew-resize border-l-2 border-accent-500 bg-accent-100/20 outline-none focus-visible:ring-2 focus-visible:ring-accent-600',
+              selectedEditPoint === 'start' && 'bg-accent-200/70 ring-2 ring-inset ring-accent-600',
+            )}
+            onFocus={() => onSelectEditPoint('start')}
             onPointerDown={(event) => beginGesture(event, 'start')}
             onPointerMove={updateGesture}
             onPointerUp={finishGesture}
           />
           <span
             role="separator"
+            tabIndex={0}
             aria-label={t`裁切片段终点`}
-            className="absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize border-r-2 border-accent-500 bg-accent-100/20"
+            className={cn(
+              'absolute inset-y-0 right-0 z-10 w-2 cursor-ew-resize border-r-2 border-accent-500 bg-accent-100/20 outline-none focus-visible:ring-2 focus-visible:ring-accent-600',
+              selectedEditPoint === 'end' && 'bg-accent-200/70 ring-2 ring-inset ring-accent-600',
+            )}
+            onFocus={() => onSelectEditPoint('end')}
             onPointerDown={(event) => beginGesture(event, 'end')}
             onPointerMove={updateGesture}
             onPointerUp={finishGesture}
@@ -3545,6 +3594,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.derivedAudio === next.derivedAudio
   && previous.selected === next.selected
   && previous.primary === next.primary
+  && previous.selectedEditPoint === next.selectedEditPoint
   && previous.deliveryState === next.deliveryState
   && previous.editTool === next.editTool
   && previous.storyTrack === next.storyTrack

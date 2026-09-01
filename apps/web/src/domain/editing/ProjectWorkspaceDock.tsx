@@ -88,5 +88,6 @@ function isProjectWorkspacePanel(value: string | undefined): value is ProjectWor
     || value === 'program'
     || value === 'tactical'
     || value === 'timeline'
-    || value === 'agent';
+    || value === 'agent'
+    || value === 'mixer';
 }

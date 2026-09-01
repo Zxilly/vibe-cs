@@ -1,4 +1,5 @@
 export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
+export { AudioTrackMixer, applyMixerAutomation, type MixerAutomationMode } from './AudioTrackMixer';
 export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,

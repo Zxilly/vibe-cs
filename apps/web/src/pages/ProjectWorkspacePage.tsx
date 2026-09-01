@@ -65,6 +65,7 @@ import { Button, cn } from '../design/primitives';
 import { formatMillisecondTimecode } from '../design/timeline/timeScale';
 import {
   canAnimateTransformProperty,
+  AudioTrackMixer,
   clipDemoTickAtTimelineTime,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
@@ -1209,12 +1210,29 @@ export function ProjectWorkspacePage() {
       }}
     />
   );
+  const mixerPanel = (
+    <AudioTrackMixer
+      tracks={current.document.tracks}
+      storyTrackId={current.document.story_track_id}
+      timelineTimeSeconds={transportTimeSeconds}
+      durationSeconds={current.document.duration_seconds}
+      fps={current.document.fps}
+      playing={playing}
+      readOnly={readOnly}
+      onReplaceTrack={(track) => mutate(
+        `混音轨 ${track.name}`,
+        { kind: 'track', track_id: track.id },
+        [{ op: 'replace_track', track_id: track.id, track }],
+      )}
+    />
+  );
   const dockPanels = {
     project: projectPanel,
     program: programPanel,
     tactical: tacticalPanel,
     timeline: timelinePanel,
     agent: agentPanel,
+    mixer: mixerPanel,
   } as const;
 
   return (
@@ -1295,6 +1313,7 @@ export function ProjectWorkspacePage() {
           tactical: t`战术示意`,
           timeline: t`时间轴（变更审阅）`,
           agent: t`Agent`,
+          mixer: t`音轨混音器`,
         }}
       />
       <Dialog

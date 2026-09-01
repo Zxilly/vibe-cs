@@ -9,7 +9,7 @@ import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 vi.mock('flexlayout-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('flexlayout-react')>();
   const React = await import('react');
-  const panelIds = ['project-panel', 'program-panel', 'tactical-panel', 'timeline-panel', 'agent-panel'];
+  const panelIds = ['project-panel', 'program-panel', 'tactical-panel', 'timeline-panel', 'agent-panel', 'mixer-panel'];
   return {
     ...actual,
     Layout: ({ model, factory, onRenderTab }: React.ComponentProps<typeof actual.Layout>) => React.createElement(
@@ -539,8 +539,33 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('tab', { name: '战术示意' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: '时间轴（变更审阅）' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Agent' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '音轨混音器' })).toBeTruthy();
     expect(document.querySelector('[data-dock-panel="project"]')).toBeTruthy();
     expect(screen.getByRole('button', { name: '重置工作区布局' })).toBeTruthy();
+  });
+
+  it('writes Track Mixer automation through one canonical track replacement', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const mixer = await screen.findByRole('region', { name: '音轨混音器' });
+    const story = within(mixer).getByLabelText('混音轨 Story');
+    const volume = within(story).getByRole('slider', { name: '轨道音量 Story' }) as HTMLInputElement;
+    expect(volume.disabled).toBe(true);
+    fireEvent.change(within(story).getByRole('combobox', { name: '自动化模式 Story' }), { target: { value: 'touch' } });
+    fireEvent.change(volume, { target: { value: '2' } });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track',
+        track_id: STORY_ID,
+        track: expect.objectContaining({
+          id: STORY_ID,
+          keyframes: [expect.objectContaining({ time: 0, property: 'volume', value: 2 })],
+        }),
+      }],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
   it('shows recorded and unrecorded state on the unified timeline', async () => {

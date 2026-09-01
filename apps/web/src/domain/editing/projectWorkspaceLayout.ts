@@ -1,6 +1,6 @@
 import { Model, type IJsonModel } from 'flexlayout-react';
 
-export type ProjectWorkspacePanel = 'project' | 'program' | 'tactical' | 'timeline' | 'agent';
+export type ProjectWorkspacePanel = 'project' | 'program' | 'tactical' | 'timeline' | 'agent' | 'mixer';
 
 export const PROJECT_WORKSPACE_PANELS: readonly ProjectWorkspacePanel[] = [
   'project',
@@ -8,6 +8,7 @@ export const PROJECT_WORKSPACE_PANELS: readonly ProjectWorkspacePanel[] = [
   'tactical',
   'timeline',
   'agent',
+  'mixer',
 ];
 
 interface WorkspaceLayoutStorage {
@@ -98,7 +99,10 @@ export function createProjectWorkspaceLayout(): IJsonModel {
           id: 'agent-group',
           name: 'Agent panel',
           weight: 20,
-          children: [tab('agent-panel', 'Agent', 'agent')],
+          children: [
+            tab('agent-panel', 'Agent', 'agent'),
+            tab('mixer-panel', 'Audio Track Mixer', 'mixer'),
+          ],
         },
       ],
     },

@@ -231,8 +231,8 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-TRIM-05 | Slide U | 移动中间片段，同时补偿前后片段，外边界和自身时长不变 | ✅ | P1 |
 | TL-TRIM-06 | Rate Stretch R | 拖边改变时长和速度；Story 实时波纹；Inspector 同一语义 | ✅ | P1 |
 | TL-TRIM-07 | Time Remapping | 多速度段、边界拖动、Program/Export 同一映射 | ✅ | P2 |
-| TL-TRIM-08 | Trim Mode | Shift+T 进入双画面 Trim Monitor，选择多个 edit point，循环预览 | ⬜ | P2 |
-| TL-TRIM-09 | Dynamic JKL Trim | Trim Mode 中 JKL 播放并在停止位置提交裁切 | ⬜ | P3 |
+| TL-TRIM-08 | Trim Mode | Shift+T 进入双画面 Trim Monitor；优先使用已聚焦剪辑点，否则取播放头最近 Story cut；±1.5 秒循环预览；Left/Right 1 帧、Shift 5 帧；支持多个 edit point | 🟡 单剪辑点、循环与键盘精调已实现；多 edit-point selection 待补 | P2 |
+| TL-TRIM-09 | Dynamic JKL Trim | Trim Mode 中 J/K/L 使用同一循环 Transport；重复 J/L 加速，K 在停止帧提交 Rolling trim | ✅ | P3 |
 | TL-TRIM-10 | Reverse/Freeze | 负速度、反向、Frame Hold/Freeze Frame | ⬜ | P2 |
 
 ### 7.9 转场、效果与关键帧
@@ -393,6 +393,12 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：B 工具只在片段左右 12px 边缘开始 Ripple 手势；拖动期间后续 Story 片段、波形和序列时长使用同一 draft 更新，Project revision 保持不变；释放后只生成一个 Change Group，并由 Sync Lock 扩展到其他轨。实机提交后使用 Ctrl+Z 完整恢复，证明该操作使用权威历史而非视图回滚。
 
+### Step 7：Trim Mode 与循环 Transport — 健康，待多点扩展
+
+![Trim Mode](evidence/2026-09-01-timeline-trim-mode/01-trim-mode.png)
+
+确认：Shift+T 在最近 Story cut 建立持久 Trim Mode，Program 复用稳定媒体池显示 Out/In 双画面；Transport 被限制在剪辑点前后各 1.5 秒并循环，实机播放读数从 00:30.083 推进到 00:30.852 后仍位于范围内；Space 停止、Escape 退出。Left/Right 和 K 的裁切仍写入统一 Rolling operation。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -416,7 +422,8 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Milestone 2：精剪与音频效率
 
 - [x] Ripple Tool B。
-- [ ] Trim Mode。
+- [~] Trim Mode 单剪辑点、循环预览和键盘精调；多 edit-point selection 待补。
+- [x] Dynamic JKL Trim。
 - [ ] 多级 JKL shuttle、循环播放和 Go to In/Out。
 - [ ] Group/Ungroup 与 out-of-sync 指示。
 - [ ] Audio Solo、Pan、Track keyframes。

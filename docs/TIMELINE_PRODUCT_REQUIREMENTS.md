@@ -211,7 +211,7 @@ Adobe 的 Insert/Overwrite 与 Source Patching 参考 [Add media using Source Pa
 | TL-EDIT-04 | Razor | C 点击切分；Shift 跨轨；Alt 仅当前声道 | ✅ | P0 |
 | TL-EDIT-05 | Clear | 删除选择并保留空隙 | ✅ 自由轨；⛔ Story 采用 gapless 产品语义 | P0 |
 | TL-EDIT-06 | Ripple Delete | 删除并关闭间隙；Track Lock 阻止修改，Sync Lock 决定其他轨移动 | ✅ | P1 |
-| TL-EDIT-07 | Gap 操作 | 选择 gap、Ripple Delete gap、关闭全部 gap | ⬜ | P2 |
+| TL-EDIT-07 | Gap 操作 | 选择 gap、Ripple Delete gap、关闭全部 gap | ✅ | P2 |
 | TL-EDIT-08 | Lift | `;` 删除目标轨 In/Out 内容并保留范围空隙，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-09 | Extract | `'` 删除目标轨 In/Out 内容并闭合范围，同时复制到剪贴板 | ✅ | P1 |
 | TL-EDIT-10 | Q/W Ripple Trim | 把选中 Story 起点/终点波纹裁到播放头 | ✅ | P1 |
@@ -442,6 +442,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 ### Step 16：Duplicate at playhead — 健康
 
 确认：Ctrl/Cmd+Shift+/ 与可见“在播放头复制所选片段”命令共用 selection snapshot 和 Paste Overwrite 规划；跨轨选择继续按目标轨 kind 映射，复制出的 Group/Link identity 按普通 Paste 规则重建，原 Clip 不变。Tauri CDP 在 10 秒播放头复制 A，revision 9 → 10；原 A 保持 ID `dccde5b8-d7f3-4512-a02d-6bc2f6e7c813`/start 0，新 A 使用 ID `1bd727b7-93e5-4828-993c-8697f03f782d`/start 10，B 保持 start 5，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/13-duplicate-at-playhead.png`。
+
+### Step 17：Free-track Gap 操作 — 健康
+
+确认：非 Story 自由轨的 leading/internal gaps 是可聚焦、可选择的真实时间对象；Delete 与“波纹删除所选间隙”共用 close-one 纯函数，只把 gap 终点之后的片段左移。可见“关闭目标轨全部间隙”按目标轨批量打包且一次提交；Story 不渲染 gap，也不改变既有 gapless 语义。Tauri CDP 在 revision 11 的 B-Roll 轨选择 4–7s gap 后按 Delete，revision 12 中 X 保持 start 2，Y 从 start 7 移到 4，leading 0–2s gap 保持，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/14-gap-selected.png`。
 
 ## 12. 迭代计划
 

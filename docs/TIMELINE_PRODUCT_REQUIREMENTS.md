@@ -249,7 +249,7 @@ Adobe 工具基准参考 [Tools panel](https://helpx.adobe.com/premiere/desktop/
 | TL-FX-06 | 关键帧 | Timeline/Inspector 添加、移动、删除，静态值和动画值一致 | ✅ | P1 |
 | TL-FX-07 | 插值 | Hold、Linear、Bezier/Ease 与切线编辑 | 🟡 Hold/Linear；缺 Bezier | P2 |
 | TL-FX-08 | Program 直接变换 | 移动、缩放、旋转；一次手势一次 Patch；锁定只读 | ✅ | P1 |
-| TL-FX-09 | Paste Attributes | Ctrl/Cmd+Alt+V 选择性粘贴变换、效果、关键帧、转场 | ⬜ | P2 |
+| TL-FX-09 | Paste Attributes | Ctrl/Cmd+Alt+V 选择性粘贴变换、效果、关键帧、转场 | ✅ | P2 |
 
 ### 7.10 音频
 
@@ -447,6 +447,10 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 
 确认：非 Story 自由轨的 leading/internal gaps 是可聚焦、可选择的真实时间对象；Delete 与“波纹删除所选间隙”共用 close-one 纯函数，只把 gap 终点之后的片段左移。可见“关闭目标轨全部间隙”按目标轨批量打包且一次提交；Story 不渲染 gap，也不改变既有 gapless 语义。Tauri CDP 在 revision 11 的 B-Roll 轨选择 4–7s gap 后按 Delete，revision 12 中 X 保持 start 2，Y 从 start 7 移到 4，leading 0–2s gap 保持，console/page error 为零。截图位于本地 `target/audio-automation-audit/screenshots/14-gap-selected.png`。
 
+### Step 18：Paste Attributes — 健康
+
+确认：Ctrl/Cmd+Alt+V 打开选择性属性对话框，可独立粘贴 Transform、Effect、Keyframe、Transition 与 Volume/Pan；目标 Clip 的 identity、material、Timeline placement 和 speed 保持。Effect/Keyframe identity 重建，超出目标时长的 keyframe 丢弃，transition 使用目标 handle 夹取，多个目标一次提交。Tauri 首轮门禁发现并修复 React event `currentTarget` 被带入异步 updater 的崩溃；修复后 revision 12 → 14 完成真实属性粘贴，新 CDP session 的 console/page error 为空。截图位于本地 `target/audio-automation-audit/screenshots/15-paste-attributes-dialog-fixed.png`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -476,7 +480,8 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 - [x] Group/Ungroup 与 out-of-sync 指示。
 - [x] Audio Solo、Pan、Track keyframes。
 - [x] Transition alignment 与 transition copy/paste。
-- [ ] Paste Attributes 与 Bezier keyframes。
+- [x] Paste Attributes。
+- [ ] Bezier keyframes。
 
 ### Milestone 3：长项目和专业工作流
 

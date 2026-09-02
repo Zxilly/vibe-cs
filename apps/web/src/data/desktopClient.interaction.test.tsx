@@ -16,7 +16,7 @@ import { commands } from '../shared/desktop/client';
 import { DesktopClientProvider, useDesktopClient, type DesktopClient } from './desktopClient';
 
 function fake(label: string): Partial<DesktopClient> {
-  return { health: () => Promise.reject(new Error(label)) };
+  return { getConfig: () => Promise.reject(new Error(label)) };
 }
 
 describe('useDesktopClient', () => {

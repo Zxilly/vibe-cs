@@ -62,7 +62,6 @@ import { useState, type ReactNode } from 'react';
 
 import { useAppConfig, useTestLlm, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
-import { useServiceAction } from '../../data/serviceAction';
 import {
   retentionOptionId,
   useAgentSessionStorage,
@@ -106,8 +105,6 @@ export function AiAgentSection() {
   // The vocabulary tables hold `MessageDescriptor`s so the words are looked up
   // at render rather than frozen at import — see `domain/agent/types.ts`.
   const { i18n } = useLingui();
-  const service = useServiceAction();
-
   const config = useAppConfig();
   const updateConfig = useUpdateAppConfig();
   const testLlm = useTestLlm();
@@ -193,8 +190,8 @@ export function AiAgentSection() {
         hasApiKey={config.data?.llm_has_api_key ?? null}
         loading={config.isPending}
         error={dataErrorMessage(config.error)}
-        disabled={service.blocked || updateConfig.isPending || testLlm.isPending}
-        disabledReason={service.blocked ? service.buttonProps.disabledReason : undefined}
+        disabled={updateConfig.isPending || testLlm.isPending}
+        disabledReason={updateConfig.isPending ? t`正在保存` : testLlm.isPending ? t`正在测试` : undefined}
         saving={updateConfig.isPending}
         testing={testLlm.isPending}
         testResult={testLlm.data === undefined ? null : `${testLlm.data.provider} · ${testLlm.data.model}`}
@@ -239,16 +236,12 @@ export function AiAgentSection() {
           <>
             <RetentionRow
               current={current}
-              disabled={service.blocked || updateSettings.isPending}
-              disabledReason={
-                service.blocked ? service.buttonProps.disabledReason : undefined
-              }
+              disabled={updateSettings.isPending}
+              disabledReason={updateSettings.isPending ? t`正在保存` : undefined}
               onChange={(retention) => void write({ ...current, session_retention: retention })}
               onApplyNow={() => {
                 setConfirming('retention');
               }}
-              applyProps={service.buttonProps}
-              applySuffix={service.suffix}
             />
 
           </>
@@ -271,8 +264,6 @@ export function AiAgentSection() {
             setConfirming('clear');
           }}
           busy={exportSessions.isPending || clearSessions.isPending}
-          service={service.buttonProps}
-          serviceSuffix={service.suffix}
         />
       </Block>
 
@@ -303,13 +294,13 @@ export function AiAgentSection() {
               name="show-evidence-reads"
               ariaLabel={t`显示 Agent 读取了哪些证据`}
               checked={current.show_evidence_reads}
-              disabled={service.blocked || updateSettings.isPending}
+              disabled={updateSettings.isPending}
               onChange={(next) => void write({ ...current, show_evidence_reads: next })}
             />
 
             <VideoLengthRow
               value={current.default_video_seconds}
-              disabled={service.blocked || updateSettings.isPending}
+              disabled={updateSettings.isPending}
               onCommit={(seconds) => void write({ ...current, default_video_seconds: seconds })}
             />
 
@@ -330,7 +321,7 @@ export function AiAgentSection() {
                 options={SHOT_VIEW_OPTIONS.map((view) => ({
                   value: view.value,
                   label: i18n._(view.label),
-                  disabled: service.blocked || updateSettings.isPending,
+                  disabled: updateSettings.isPending,
                 }))}
                 onChange={(next) => void write({ ...current, default_camera_style: next })}
               />
@@ -349,12 +340,12 @@ export function AiAgentSection() {
                   {
                     value: 'professional' as const,
                     label: <Trans>专业</Trans>,
-                    disabled: service.blocked || updateSettings.isPending,
+                    disabled: updateSettings.isPending,
                   },
                   {
                     value: 'broadcast' as const,
                     label: <Trans>节目化</Trans>,
-                    disabled: service.blocked || updateSettings.isPending,
+                    disabled: updateSettings.isPending,
                   },
                 ]}
                 onChange={(tone) => void write({ ...current, commentary_tone: tone })}
@@ -821,8 +812,6 @@ interface RetentionRowProps {
   readonly disabledReason: string | undefined;
   readonly onChange: (retention: AgentSessionRetention) => void;
   readonly onApplyNow: () => void;
-  readonly applyProps: { disabled: boolean; disabledReason?: string };
-  readonly applySuffix: ReactNode;
 }
 
 function RetentionRow({
@@ -831,8 +820,6 @@ function RetentionRow({
   disabledReason,
   onChange,
   onApplyNow,
-  applyProps,
-  applySuffix,
 }: RetentionRowProps) {
   const choices = retentionChoices(current.session_retention);
 
@@ -872,9 +859,8 @@ function RetentionRow({
         <p className="min-w-0 flex-1 text-xs leading-normal text-neutral-600">
           <Trans>新策略不会立即清理旧对话。要现在清理，点「立即应用」。</Trans>
         </p>
-        <Button size="sm" data-setting-action="apply-retention" onClick={onApplyNow} {...applyProps}>
+        <Button size="sm" data-setting-action="apply-retention" onClick={onApplyNow}>
           <Trans>立即应用</Trans>
-          {applySuffix}
         </Button>
       </div>
     </div>
@@ -996,8 +982,6 @@ interface StorageRowProps {
   readonly exportError: string | null;
   readonly onClear: () => void;
   readonly busy: boolean;
-  readonly service: { disabled: boolean; disabledReason?: string };
-  readonly serviceSuffix: ReactNode;
 }
 
 /**
@@ -1019,8 +1003,6 @@ function StorageRow({
   exportError,
   onClear,
   busy,
-  service,
-  serviceSuffix,
 }: StorageRowProps) {
   const conversation = formatBytes(bytes);
 
@@ -1072,19 +1054,17 @@ function StorageRow({
           size="sm"
           data-setting-action="export"
           onClick={onExport}
-          {...(service.disabled ? service : busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
+          {...(busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
         >
           <Trans>导出</Trans>
-          {serviceSuffix}
         </Button>
         <Button
           size="sm"
           data-setting-action="clear"
           onClick={onClear}
-          {...(service.disabled ? service : busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
+          {...(busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
         >
           <Trans>清空对话</Trans>
-          {serviceSuffix}
         </Button>
       </div>
     </div>

@@ -448,8 +448,7 @@ fn lossy_path(path: Option<&Path>) -> Option<String> {
     path.map(|path| path.to_string_lossy().into_owned())
 }
 
-#[derive(Debug, Serialize, TS)]
-#[ts(export)]
+#[derive(Debug, Serialize)]
 struct HealthResponse {
     status: &'static str,
     version: &'static str,

@@ -28,22 +28,20 @@ import {
 import { taskStatusOfActivity } from './taskModel';
 import { TASK_POLL_DETAIL_MS } from './taskPolling';
 import { useTaskActions } from './useTaskActions';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 export interface TaskDetailBodyProps {
   readonly item: ActivityItem;
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
   readonly compact?: boolean | undefined;
 }
 
-export function TaskDetailBody({ item, service, now, compact = false }: TaskDetailBodyProps) {
+export function TaskDetailBody({ item, now, compact = false }: TaskDetailBodyProps) {
   const isAnalysis = item.kind === 'analysis';
   const analysis = useAnalysisRun(isAnalysis ? item.job_id : null, {
     pollWhileActiveMs: TASK_POLL_DETAIL_MS,
   });
 
-  const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
+  const bind = useTaskActions(now === undefined ? {} : { now });
   const bound = bind(item);
   const status = taskStatusOfActivity(item.status);
 

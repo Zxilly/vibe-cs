@@ -30,7 +30,6 @@ import { useEffect, useState } from 'react';
 import { rejectWatchPath, type WatchPathRejection } from '../../data/config';
 import { Dialog, Alert } from '../../design/feedback';
 import { Checkbox, Field, Input } from '../../design/primitives';
-import type { ServiceActionButtonProps } from './serviceAction';
 
 export interface AddWatchDirectoryDialogProps {
   readonly open: boolean;
@@ -40,7 +39,6 @@ export interface AddWatchDirectoryDialogProps {
   readonly onAdd: (path: string) => Promise<unknown>;
   readonly saving: boolean;
   readonly error: string | null;
-  readonly service: ServiceActionButtonProps;
 }
 
 export function AddWatchDirectoryDialog({
@@ -50,7 +48,6 @@ export function AddWatchDirectoryDialog({
   onAdd,
   saving,
   error,
-  service,
 }: AddWatchDirectoryDialogProps) {
   const [path, setPath] = useState('');
 
@@ -79,7 +76,7 @@ export function AddWatchDirectoryDialog({
       title={<Trans>添加监听目录</Trans>}
       onClose={onClose}
       confirmLabel={<Trans>开始监听</Trans>}
-      confirmDisabled={rejection !== null || saving || service.disabled}
+      confirmDisabled={rejection !== null || saving}
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">
@@ -112,10 +109,6 @@ export function AddWatchDirectoryDialog({
             <Trans>服务当前按目录递归监听，子目录会一同纳入</Trans>
           </p>
         </div>
-
-        {service.disabled && service.disabledReason !== undefined ? (
-          <p className="text-xs leading-normal text-neutral-700">{service.disabledReason}</p>
-        ) : null}
 
         {error === null ? null : (
           <Alert

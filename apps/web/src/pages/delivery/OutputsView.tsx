@@ -36,7 +36,6 @@ import type { OutputItem, OutputQuery } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import { OutputCard, OutputCardSkeleton } from './OutputCard';
 import { outputDeletionRemovesFile } from './outputModel';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 /** Two rows of two on a 1100px window; the artboard draws four cards. */
 export const OUTPUT_PAGE_SIZE = 12;
@@ -68,11 +67,10 @@ function filterQuery(filter: OutputFilter): OutputQuery {
 }
 
 export interface OutputsViewProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function OutputsView({ service, now }: OutputsViewProps) {
+export function OutputsView({ now }: OutputsViewProps) {
   const [filter, setFilter] = useState<OutputFilter>('all');
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
@@ -195,7 +193,6 @@ export function OutputsView({ service, now }: OutputsViewProps) {
                 emphasized={page === 1 && filter === 'all' && index === 0}
                 onReveal={onReveal}
                 onDelete={onDelete}
-                service={service}
                 {...(now === undefined ? {} : { now })}
               />
             ))}

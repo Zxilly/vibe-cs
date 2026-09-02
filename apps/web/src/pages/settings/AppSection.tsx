@@ -35,7 +35,6 @@ import { Alert } from '../../design/feedback';
 import { Seg, Input } from '../../design/primitives';
 import { useAppConfig, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
-import { useServiceAction } from '../../data/serviceAction';
 import type { AppConfig } from '../../shared/desktop/dto';
 import { SettingsBlock, SettingsRow } from './settingsShared';
 
@@ -54,12 +53,11 @@ const THEMES = ['light', 'dark'] as const;
 export function AppSection() {
   const config = useAppConfig();
   const update = useUpdateAppConfig();
-  const service = useServiceAction();
   const [manifestDraft, setManifestDraft] = useState<string | null>(null);
 
   const current = config.data;
-  const blocked = service.blocked || update.isPending;
-  const blockedReason = service.blocked ? service.buttonProps.disabledReason : undefined;
+  const blocked = update.isPending;
+  const blockedReason = blocked ? t`正在保存` : undefined;
   const write = (next: AppConfig) => void update.mutateAsync(next).catch(() => undefined);
 
   const configError = dataErrorMessage(config.error);

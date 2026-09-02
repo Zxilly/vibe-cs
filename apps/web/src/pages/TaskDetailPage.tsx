@@ -41,14 +41,11 @@ import { Button } from '../design/primitives';
 import { parseTaskLocator } from './delivery/taskDetailModel';
 import { TaskDetailBody } from './delivery/TaskDetailBody';
 import { TASK_POLL_DETAIL_MS } from './delivery/taskPolling';
-import { useServiceAction } from '../data/serviceAction';
 import { RouteLink } from './RouteLink';
 
 export function TaskDetailPage() {
   const { taskId = '' } = useParams<{ taskId: string }>();
   const locator = parseTaskLocator(taskId);
-  const service = useServiceAction();
-
   const task = useTask(locator?.kind ?? null, locator?.jobId ?? null, {
     pollWhileActiveMs: TASK_POLL_DETAIL_MS,
   });
@@ -104,7 +101,7 @@ export function TaskDetailPage() {
           <Skeleton width="86%" />
         </div>
       ) : (
-        <TaskDetailBody item={task.data} service={service} />
+        <TaskDetailBody item={task.data} />
       )}
     </Page>
   );

@@ -3,7 +3,6 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useRef, useState } from 'react';
 
 import { dataErrorMessage } from './data/errors';
-import { useServiceAction } from './data/serviceAction';
 import { useTaskFeed } from './data/tasks';
 import { Empty } from './design/data';
 import { Alert, Drawer } from './design/feedback';
@@ -34,8 +33,7 @@ const GROUPS = [
 
 export function ActivityDrawer({ open, onClose, onUnreadChange }: ActivityDrawerProps) {
   const feed = useTaskFeed({ page: 1, page_size: 50 }, { pollWhileActiveMs: TASK_POLL_FEED_MS });
-  const service = useServiceAction();
-  const bind = useTaskActions({ service });
+  const bind = useTaskActions();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const previous = useRef<ActivityStatusSnapshot | null>(null);
@@ -80,7 +78,7 @@ export function ActivityDrawer({ open, onClose, onUnreadChange }: ActivityDrawer
           <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)} className="self-start">
             <Trans>‹ 返回后台任务</Trans>
           </Button>
-          <TaskDetailBody item={selected} service={service} compact />
+          <TaskDetailBody item={selected} compact />
         </div>
       )}
     </Drawer>

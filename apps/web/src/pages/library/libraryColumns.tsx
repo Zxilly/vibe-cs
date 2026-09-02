@@ -38,7 +38,7 @@ import {
   isDemoFileMissing,
   type DemoStatusTone,
 } from './libraryFormat';
-import { unavailableAction, type ServiceActionButtonProps } from './serviceAction';
+import { unavailableAction, type ActionAvailability } from './actionAvailability';
 
 /**
  * The two hooks the row actions need. Both come from the page, because both
@@ -49,11 +49,8 @@ export interface LibraryColumnHandlers {
   /** 「分析」 on an unanalysed row. */
   readonly onAnalyse: (demo: DemoSummary) => void;
   readonly onCreateProject: (demo: DemoSummary) => void;
-  /** Disabled + reason while the local service is down (「· 需要服务」). */
-  readonly analyseButtonProps: ServiceActionButtonProps;
-  readonly createButtonProps: ServiceActionButtonProps;
-  /** The tail the artboard appends to a blocked action's label. */
-  readonly serviceSuffix: ReactNode | undefined;
+  readonly analyseButtonProps: ActionAvailability;
+  readonly createButtonProps: ActionAvailability;
 }
 
 /** The one column 列配置 may not hide, and the id the sort map keys on. */
@@ -251,7 +248,6 @@ function RowAction({
         {/* A verb — Analyze. The bare 「分析」 msgid is the task-kind noun
             (Analysis) in `domain/task/taskVocabulary`. */}
         <Trans context="row-action">分析</Trans>
-        {handlers.serviceSuffix}
       </Button>
     );
   }

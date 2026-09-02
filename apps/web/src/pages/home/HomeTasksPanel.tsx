@@ -30,7 +30,6 @@ import { Toolbar } from '../../design/layout';
 import { TaskFeedList } from '../delivery/TaskFeedList';
 import { TASK_POLL_DIGEST_MS } from '../delivery/taskPolling';
 import { useTaskActions } from '../delivery/useTaskActions';
-import type { ServiceActionState } from '../../data/serviceAction';
 import { RouteLink } from '../RouteLink';
 
 /**
@@ -41,16 +40,15 @@ import { RouteLink } from '../RouteLink';
 const RUNNING_TASK_LIMIT = 5;
 
 export interface HomeTasksPanelProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function HomeTasksPanel({ service, now }: HomeTasksPanelProps) {
+export function HomeTasksPanel({ now }: HomeTasksPanelProps = {}) {
   const feed = useTaskFeed(
     { state: 'active', page: 1, page_size: RUNNING_TASK_LIMIT },
     { pollWhileActiveMs: TASK_POLL_DIGEST_MS },
   );
-  const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
+  const bind = useTaskActions(now === undefined ? {} : { now });
 
   const errorMessage = feed.isError
     ? dataErrorMessage(feed.error) ?? t`读取进行中的任务失败。`

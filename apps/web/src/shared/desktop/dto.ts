@@ -40,7 +40,6 @@ export type EntityId = string;
 
 /* ── service health, storage, setup ───────────────────────────────────────── */
 
-export type { HealthResponse as ApiHealth } from './generated/HealthResponse';
 export type { StorageStatusResponse as StorageStatus } from './generated/StorageStatusResponse';
 export type { DetectedPathsResponse as DetectedPaths } from './generated/DetectedPathsResponse';
 

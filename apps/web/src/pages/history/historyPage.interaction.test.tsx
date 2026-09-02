@@ -12,9 +12,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../../shared/desktop/dto';
 import { HistoryWorkspace } from '../HistoryPage';
-import { HEALTHY, renderPage } from '../delivery/test/renderPage';
+import { renderPage } from '../delivery/test/renderPage';
 import { matchHistoryItem } from './test/fixtures';
-import { reasonOf } from '../../test/reason';
 
 function page(items: MatchHistoryItem[]): Paginated<MatchHistoryItem> {
   return { items, total: items.length, page: 1, page_size: 50 };
@@ -71,13 +70,12 @@ function client(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function render(stub: Record<string, unknown>, online = true) {
+function render(stub: Record<string, unknown>) {
   return renderPage({
     element: <HistoryWorkspace />,
     client: stub,
     route: '/history',
     pattern: '/history',
-    ...(online ? { health: HEALTHY } : {}),
   });
 }
 
@@ -192,18 +190,5 @@ describe('同步最近比赛', () => {
     const notice = await screen.findByRole('alert');
     expect(within(notice).getByText(/Steam 凭据已过期/u)).toBeTruthy();
     expect(within(notice).getByRole('button', { name: '去设置检查 Steam 连接' })).toBeTruthy();
-  });
-});
-
-describe('服务离线', () => {
-  it('disables the writes with the reason attached, and keeps the list readable', async () => {
-    render(client(), false);
-
-    expect(await screen.findByText('de_ancient')).toBeTruthy();
-
-    const sync = screen.getByRole('button', { name: /同步最近比赛/u });
-    expect(sync.hasAttribute('disabled')).toBe(true);
-    expect(reasonOf(sync)).toContain('本地服务');
-    expect(screen.getByRole('button', { name: '下载' }).hasAttribute('disabled')).toBe(true);
   });
 });

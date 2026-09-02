@@ -12,7 +12,6 @@
  *   desktopClient.tsx the injectable seam between the hooks and Tauri
  *   queryTuning.ts   `enabled` / `pollMs`, the two knobs a caller may turn
  *   errors.ts        a rejected query, in a shape a Notice can render
- *   health.ts        the local-service probe `app/boundary/ServiceGate` calls
  *   demos / players / evidence / tasks / outputs / config — one file per domain
  *
  * `sessions.ts`, `plans.ts` and `editNotifier.ts` are phase 3e (§4.5): their
@@ -24,9 +23,7 @@ export { createQueryClient, queryClient } from './queryClient';
 export {
   QUERY_NAMESPACE,
   isKeyPrefixOf,
-  isServiceProbeKey,
   qk,
-  refreshesOnServiceRecovery,
   type PageQuery,
   type PlayerDirectoryQuery,
   type PlayerDirectorySort,
@@ -49,7 +46,6 @@ export {
 
 export { dataErrorMessage, toDataError, type DataError } from './errors';
 
-export { invalidateServiceHealth, probeServiceHealth, serviceHealthKey } from './health';
 
 export {
   invalidateDemo,

@@ -53,7 +53,6 @@ import { Page, SelectionBar, Toolbar } from '../design/layout';
 import { Button, Badge } from '../design/primitives';
 import type { MatchHistoryItem } from '../shared/desktop/dto';
 import { RouteLink } from './RouteLink';
-import { useServiceAction } from '../data/serviceAction';
 import { MatchHistoryTable } from './history/MatchHistoryTable';
 import { DEMO_RETENTION_DAYS, matchHistoryCounts } from './history/matchHistoryRows';
 import { formatSyncedAt, latestSyncedAt } from './history/matchHistorySync';
@@ -69,7 +68,6 @@ const DOWNLOAD_POLL_MS = 2_000;
 export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boolean | undefined }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const service = useServiceAction();
 
   /* Selection is genuinely page-local: it is a staging area for one download
      batch, not an address anybody would share. Compare `/players`, where the
@@ -99,8 +97,6 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
 
   /* The download actions are blocked by the same thing every other write on
      every other page is blocked by, and they say so with the same sentence. */
-  const actionDisabledReason = service.buttonProps.disabledReason;
-
   const selectedRows = rows.filter((row) => selected.has(row.id));
 
   /**
@@ -156,11 +152,9 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
             <Button
               variant="primary"
               onClick={() => sync.mutate()}
-              {...service.buttonProps}
               {...(sync.isPending ? { disabled: true } : {})}
             >
               {sync.isPending ? <Trans>正在同步…</Trans> : <Trans>同步最近比赛</Trans>}
-              {service.suffix}
             </Button>
           }
         />
@@ -199,10 +193,8 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
                 variant="primary"
                 size="sm"
                 onClick={() => startDownloads(selectedRows, true)}
-                {...service.buttonProps}
               >
                 <Trans>下载选中的 {selected.size} 场</Trans>
-                {service.suffix}
               </Button>
             }
           >
@@ -269,7 +261,6 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
             const jobId = jobIdFor(item);
             if (jobId !== undefined) cancel.mutate(jobId);
           }}
-          {...(actionDisabledReason === undefined ? {} : { actionDisabledReason })}
           loading={history.isPending}
           skeleton={<TableSkeleton rows={8} stage={t`正在读取比赛历史`} className="m-4" />}
           empty={

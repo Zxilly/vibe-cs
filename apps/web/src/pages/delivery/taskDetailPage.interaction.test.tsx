@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnalysisRunDetail } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { TaskDetailPage } from '../TaskDetailPage';
-import { HEALTHY, renderPage } from './test/renderPage';
+import { renderPage } from './test/renderPage';
 
 const ANALYSIS: ActivityItem = {
   id: 'analysis:run-1',
@@ -93,17 +93,6 @@ function stubs(item: ActivityItem = ANALYSIS) {
 }
 
 function render(taskId: string, client: Record<string, unknown>) {
-  return renderPage({
-    element: <TaskDetailPage />,
-    client,
-    route: `/delivery/task/${encodeURIComponent(taskId)}`,
-    pattern: '/delivery/task/:taskId',
-    health: HEALTHY,
-  });
-}
-
-/** The same page with the health entry never seeded — the offline state. */
-function renderOffline(taskId: string, client: Record<string, unknown>) {
   return renderPage({
     element: <TaskDetailPage />,
     client,
@@ -218,18 +207,4 @@ describe('重试 / 取消', () => {
     expect(screen.queryByRole('button', { name: '取消' })).toBeNull();
   });
 
-  it('blocks the write while the service is not connected, and says why', async () => {
-    const { client, started } = stubs();
-    renderOffline('analysis:run-1', client);
-
-    // The record still reads; only the write is gated.
-    expect(await screen.findByText('开始校验输入文件')).toBeTruthy();
-
-    // The failure Notice keeps its recovery action — disabled, with the reason
-    // attached, which is 「不隐藏、不静默失败」.
-    const recovery = screen.getByRole('button', { name: '重试' });
-    expect(recovery.hasAttribute('disabled')).toBe(true);
-    fireEvent.click(recovery);
-    expect(started).toEqual([]);
-  });
 });

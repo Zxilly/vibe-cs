@@ -33,14 +33,12 @@ import {
   recorder,
   renderLibrary,
 } from './test/renderLibrary';
-import { reasonOf } from '../../test/reason';
 
 const ONLINE = {
   demos: demoPage([DEMO_FIXTURE]),
   watch: WATCH_FIXTURE,
   tags: [TAG_FIXTURE],
   config: CONFIG_FIXTURE,
-  serviceOnline: true,
 } as const;
 
 let media: MatchMediaStub | null = null;
@@ -203,33 +201,6 @@ describe('the Inspector', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-inspector="drawer"]')).not.toBeNull();
     });
-  });
-});
-
-describe('需要服务', () => {
-  it('refuses to import while the gate has not answered, and says why', () => {
-    const importer = recorder({ discovered: 0, imported: 0, updated: 0, skipped: 0, errors: [] });
-    renderLibrary({
-      seed: { ...ONLINE, serviceOnline: false },
-      client: { importDemos: importer.call },
-    });
-
-    const button = screen.getByRole('button', { name: /导入 Demo/u }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(reasonOf(button)).toContain('本地服务');
-
-    button.click();
-
-    // 不静默失败 also means 不偷偷执行: the dialog never opens, nothing is sent.
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(importer.calls()).toBe(0);
-  });
-
-  it('keeps the read-only page fully usable while blocked', () => {
-    renderLibrary({ seed: { ...ONLINE, serviceOnline: false } });
-
-    expect(screen.getAllByText('Aurora vs Meridian')).not.toHaveLength(0);
-    expect(screen.getByRole('navigation', { name: '分页' })).toBeTruthy();
   });
 });
 

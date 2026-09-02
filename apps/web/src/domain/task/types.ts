@@ -92,14 +92,12 @@ export type TaskStatus =
  *   game-unavailable  「CS2 与受管录制环境已就绪」, negated — the shell's
  *                     environment block only appears when it blocks a task
  *   source-missing    「文件不在原位 · 记录仍在，文件已被移动或删除」
- *   service-offline   §4.1 / ServiceGate 「本地服务离线」
  *   timeout           「观察者视角短暂丢失」 escalated past its retry budget
  */
 export type TaskFailureReason =
   | 'disk-space'
   | 'game-unavailable'
   | 'source-missing'
-  | 'service-offline'
   | 'timeout'
   | 'unknown';
 

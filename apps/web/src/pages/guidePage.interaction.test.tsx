@@ -10,7 +10,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { HEALTHY, renderPage } from './delivery/test/renderPage';
+import { renderPage } from './delivery/test/renderPage';
 import { GuidePage } from './GuidePage';
 import { FIRST_RUN_STEPS } from './home/firstRunSteps';
 import { FirstRunStrip } from './home/FirstRunStrip';
@@ -42,7 +42,6 @@ function render(element: React.ReactElement, overrides: Record<string, unknown> 
       quickCheck: () => Promise.resolve(CHECKS),
       ...overrides,
     },
-    health: HEALTHY,
   });
 }
 
@@ -133,13 +132,4 @@ describe('使用引导', () => {
     expect(document.querySelector('a[href="/settings?section=advanced&item=dependencies"]')).not.toBeNull();
   });
 
-  it('offers a re-check, disabled with a reason while the service is down', async () => {
-    renderPage({
-      element: <GuidePage />,
-      client: { quickCheck: () => Promise.resolve(CHECKS) },
-      health: undefined,
-    });
-    const button = await screen.findByRole('button', { name: /重新检查/u });
-    expect(button.hasAttribute('disabled')).toBe(true);
-  });
 });

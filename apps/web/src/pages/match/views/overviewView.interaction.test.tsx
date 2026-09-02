@@ -129,8 +129,6 @@ describe('the three states', () => {
     });
 
     expect(await screen.findByRole('button', { name: /开始分析/u })).toBeTruthy();
-    // 「不隐藏、不静默失败」: the service is down under vitest, so the action is
-    // present and disabled with the reason attached.
-    expect(screen.getByRole('button', { name: /开始分析/u }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /开始分析/u }).hasAttribute('disabled')).toBe(false);
   });
 });

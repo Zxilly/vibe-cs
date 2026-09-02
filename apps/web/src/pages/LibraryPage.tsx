@@ -27,13 +27,6 @@
  * overlays renders its own failure beside its own confirm button, because that
  * is where the retry belongs.
  *
- * ## 需要服务
- *
- * 导入 / 分析 / 删除 / 监听目录 are all service-backed. They are disabled with
- * the reason written on them and the 「· 需要服务」 tail appended — never hidden
- * — via `pages/library/serviceAction`, which is a stand-in for
- * `app/boundary`'s `useServiceAction()` that §2.1 rule 3 puts out of a page's
- * reach. See that file's header.
  */
 
 import { t } from '@lingui/core/macro';
@@ -94,7 +87,7 @@ import {
   type LibraryAddress,
   type LibraryView,
 } from './library/libraryQuery';
-import { alsoDisabled, unavailableAction, useLibraryServiceAction } from './library/serviceAction';
+import { unavailableAction } from './library/actionAvailability';
 import { HistoryWorkspace } from './HistoryPage';
 
 /** One overlay at a time — five dialogs and one drawer. */
@@ -122,7 +115,6 @@ function DemoLibraryPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
-  const service = useLibraryServiceAction();
   const create = useCreateProject();
   const applyProject = useApplyProjectPatch();
 
@@ -238,27 +230,24 @@ function DemoLibraryPage() {
         onAnalyse: (demo: DemoSummary) => {
           analyse([demo.id]);
         },
-        analyseButtonProps: alsoDisabled(service.buttonProps, startAnalysis.isPending),
+        analyseButtonProps: { disabled: startAnalysis.isPending },
         onCreateProject: createProject,
-        createButtonProps: alsoDisabled(service.buttonProps, create.isPending || applyProject.isPending),
-        serviceSuffix: service.suffix,
+        createButtonProps: { disabled: create.isPending || applyProject.isPending },
       }),
-    [applyProject.isPending, create.isPending, service.buttonProps, service.suffix, startAnalysis.isPending],
+    [applyProject.isPending, create.isPending, startAnalysis.isPending],
   );
 
   const importAction = (
-    <Button variant="primary" {...service.buttonProps} onClick={() => { setOverlay('import'); }}>
+    <Button variant="primary" onClick={() => { setOverlay('import'); }}>
       <Trans>导入 Demo</Trans>
-      {service.suffix}
     </Button>
   );
 
   const emptyActions = (
     <>
       {importAction}
-      <Button {...service.buttonProps} onClick={() => { setOverlay('watch'); }}>
+      <Button onClick={() => { setOverlay('watch'); }}>
         <Trans>添加目录</Trans>
-        {service.suffix}
       </Button>
     </>
   );
@@ -277,23 +266,21 @@ function DemoLibraryPage() {
         <Button
           variant="primary"
           size="sm"
-          {...alsoDisabled(service.buttonProps, startAnalysis.isPending)}
+          disabled={startAnalysis.isPending}
           onClick={() => {
             analyse([...selected]);
           }}
         >
           <Plural value={selected.size} other="分析选中的 # 场" />
-          {service.suffix}
         </Button>
       }
     >
       <Button
         size="sm"
-        {...alsoDisabled(service.buttonProps, create.isPending || applyProject.isPending)}
+        disabled={create.isPending || applyProject.isPending}
         onClick={() => createSeriesProject(selectedDemos)}
       >
         <Trans>用 Agent 创作</Trans>
-        {service.suffix}
       </Button>
       <OverflowMenu
         label={t`添加标签`}
@@ -303,7 +290,7 @@ function DemoLibraryPage() {
         items={tags.data?.map((tag) => ({
           id: tag.id,
           label: tag.name,
-          disabled: service.buttonProps.disabled || tagBatch.isPending,
+          disabled: tagBatch.isPending,
           onSelect: () => {
             tagBatch.mutate({
               demo_ids: [...selected],
@@ -321,9 +308,8 @@ function DemoLibraryPage() {
       >
         <Trans>导出元数据</Trans>
       </Button>
-      <Button size="sm" variant="danger" {...service.buttonProps} onClick={() => { setOverlay('delete'); }}>
+      <Button size="sm" variant="danger" onClick={() => { setOverlay('delete'); }}>
         <Trans>删除记录</Trans>
-        {service.suffix}
       </Button>
     </SelectionBar>
   );
@@ -353,8 +339,6 @@ function DemoLibraryPage() {
           : updateDemo.mutateAsync({ demoId: activeDemo.id, update: { remark } })
       }
       savingRemark={updateDemo.isPending}
-      service={service.buttonProps}
-      serviceSuffix={service.suffix}
     />
   );
 
@@ -529,7 +513,6 @@ function DemoLibraryPage() {
         onImport={(files) => importDemos.mutateAsync(files)}
         importing={importDemos.isPending}
         error={dataErrorMessage(importDemos.error)}
-        service={service.buttonProps}
       />
 
       <WatchDirectoriesDrawer
@@ -553,8 +536,6 @@ function DemoLibraryPage() {
           rescan.mutate();
         }}
         busy={watchBusy}
-        service={service.buttonProps}
-        serviceSuffix={service.suffix}
       />
 
       <AddWatchDirectoryDialog
@@ -566,7 +547,6 @@ function DemoLibraryPage() {
         onAdd={(path) => setWatchDirectories([...watchPaths, path])}
         saving={setWatchPaths.isPending}
         error={dataErrorMessage(setWatchPaths.error)}
-        service={service.buttonProps}
       />
 
       <ColumnConfigDialog
@@ -603,7 +583,6 @@ function DemoLibraryPage() {
         }}
         deleting={deleteDemos.isPending}
         error={dataErrorMessage(deleteDemos.error)}
-        service={service.buttonProps}
       />
     </Page>
   );

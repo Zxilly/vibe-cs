@@ -40,7 +40,6 @@ import { Button, Seg, Slider } from '../../design/primitives';
 import { useAppConfig, useQuickCheck, useStorageStatus, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
-import { useServiceAction } from '../../data/serviceAction';
 import type {
   AppConfig,
   DependencyCheck,
@@ -77,7 +76,6 @@ export function GameSection() {
   const checks = useQuickCheck();
   const storage = useStorageStatus();
   const update = useUpdateAppConfig();
-  const service = useServiceAction();
   const shell = useNativeShell();
   const openDirectory = useOpenDirectory();
   const shellAction = useNativeShellAction();
@@ -85,8 +83,8 @@ export function GameSection() {
 
   const current = config.data;
   const busy = update.isPending || picking;
-  const blocked = service.blocked || busy;
-  const blockedReason = service.blocked ? service.buttonProps.disabledReason : undefined;
+  const blocked = busy;
+  const blockedReason = blocked ? t`正在处理` : undefined;
 
   const write = (next: AppConfig) => void update.mutateAsync(next).catch(() => undefined);
   const writeRecording = (patch: Partial<AppConfig['recording']>) => {
@@ -276,7 +274,7 @@ export function GameSection() {
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={service.blocked || checks.isFetching}
+                disabled={checks.isFetching}
                 disabledReason={blockedReason ?? t`正在检查`}
                 onClick={() => void checks.refetch()}
               >

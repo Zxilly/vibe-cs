@@ -32,7 +32,6 @@ import { Button, cn } from '../../design/primitives';
 import type { OutputItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import { formatBytes, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
-import type { ServiceActionState } from '../../data/serviceAction';
 import { Blueprint } from '../../design/layout';
 import { formatOutputMedia } from './outputModel';
 import { useNativeShell } from '../../data/nativeShell';
@@ -43,8 +42,6 @@ export interface OutputCardProps {
   readonly onReveal: (output: OutputItem) => void;
   /** 移除记录 / 删除. */
   readonly onDelete: (output: OutputItem) => void;
-  /** Gates the one action that reaches the service. */
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
@@ -58,7 +55,6 @@ export function OutputCard({
   output,
   onReveal,
   onDelete,
-  service,
   now,
   timeZone,
   className,
@@ -166,10 +162,8 @@ export function OutputCard({
             variant="ghost"
             size="sm"
             onClick={() => onDelete(output)}
-            {...service.buttonProps}
           >
             {outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}
-            {service.suffix}
           </Button>
         </div>
       </Blueprint>
@@ -245,11 +239,9 @@ export function OutputCard({
             variant="ghost"
             size="sm"
             onClick={() => onDelete(output)}
-            {...service.buttonProps}
             className="ml-auto"
           >
             {outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}
-            {service.suffix}
           </Button>
         </div>
       </div>

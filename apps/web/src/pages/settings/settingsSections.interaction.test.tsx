@@ -13,7 +13,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppConfig, QuickCheckResponse, StorageStatus } from '../../shared/desktop/dto';
-import { HEALTHY, renderPage } from '../delivery/test/renderPage';
+import { renderPage } from '../delivery/test/renderPage';
 import { AdvancedSection } from './AdvancedSection';
 import { AppSection } from './AppSection';
 import { FilesSection } from './FilesSection';
@@ -86,7 +86,6 @@ interface Harness {
 function render(
   element: React.ReactElement,
   overrides: Record<string, unknown> = {},
-  options: { readonly offline?: boolean } = {},
 ): Harness {
   const written: AppConfig[] = [];
   const client: Record<string, unknown> = {
@@ -104,7 +103,6 @@ function render(
   renderPage({
     element,
     client,
-    ...(options.offline === true ? { health: undefined } : { health: HEALTHY }),
   });
   return { written };
 }
@@ -272,15 +270,6 @@ describe('游戏与录制', () => {
     render(<GameSection />);
     await loaded('游戏');
     expect(document.body.textContent).toContain('改动只影响之后新建的录制任务');
-  });
-
-  it('disables the writes with a written reason while the service is down', async () => {
-    render(<GameSection />, {}, { offline: true });
-    await loaded('语音');
-
-    expect(screen.getByRole('switch', { name: 'HUD' }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('radio', { name: '全部静音' }).hasAttribute('disabled')).toBe(true);
-    expect(document.querySelector('[data-disabled-reason]')?.textContent).toContain('本地服务');
   });
 
   it('never writes a partial recording object', async () => {

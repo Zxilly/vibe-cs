@@ -23,18 +23,16 @@ import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import type { OutputItem } from '../../shared/desktop/dto';
 import { OutputCard, OutputCardSkeleton } from '../delivery/OutputCard';
-import type { ServiceActionState } from '../../data/serviceAction';
 import { RouteLink } from '../RouteLink';
 
 /** What the artboard draws. */
 const RECENT_OUTPUT_COUNT = 2;
 
 export interface RecentOutputsPanelProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
+export function RecentOutputsPanel({ now }: RecentOutputsPanelProps = {}) {
   const outputs = useOutputList({ page: 1, page_size: RECENT_OUTPUT_COUNT });
   const reveal = useRevealOutput();
   const remove = useDeleteOutput();
@@ -100,7 +98,6 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
               output={output}
               onReveal={onReveal}
               onDelete={onDelete}
-              service={service}
               {...(now === undefined ? {} : { now })}
             />
           ))

@@ -16,12 +16,9 @@
 
 import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
-
 import { Drawer, Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import type { DemoWatchStatus } from '../../shared/desktop/dto';
-import { alsoDisabled, type ServiceActionButtonProps } from './serviceAction';
 
 /**
  * `DemoWatchRootStatus.state` is a plain `string` on the wire — Rust writes it
@@ -48,8 +45,6 @@ export interface WatchDirectoriesDrawerProps {
   readonly onRemove: (path: string) => void;
   readonly onRescan: () => void;
   readonly busy: boolean;
-  readonly service: ServiceActionButtonProps;
-  readonly serviceSuffix: ReactNode | undefined;
 }
 
 export function WatchDirectoriesDrawer({
@@ -63,8 +58,6 @@ export function WatchDirectoriesDrawer({
   onRemove,
   onRescan,
   busy,
-  service,
-  serviceSuffix,
 }: WatchDirectoriesDrawerProps) {
   const roots = status?.roots ?? [];
 
@@ -76,13 +69,11 @@ export function WatchDirectoriesDrawer({
       description={<Plural value={roots.length} other="# 个目录" />}
       footer={
         <>
-          <Button size="sm" onClick={onRescan} {...alsoDisabled(service, busy)}>
+          <Button size="sm" onClick={onRescan} disabled={busy}>
             <Trans>重新扫描</Trans>
-            {serviceSuffix}
           </Button>
-          <Button size="sm" variant="primary" onClick={onAdd} {...service}>
+          <Button size="sm" variant="primary" onClick={onAdd}>
             <Trans>添加目录</Trans>
-            {serviceSuffix}
           </Button>
         </>
       }
@@ -128,7 +119,7 @@ export function WatchDirectoriesDrawer({
                 onClick={() => {
                   onRemove(root.path);
                 }}
-                {...alsoDisabled(service, busy)}
+                disabled={busy}
               >
                 <Trans>停止监听</Trans>
               </Button>

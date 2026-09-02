@@ -39,11 +39,8 @@ import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { OutputsView } from './delivery/OutputsView';
 import { formatBytes } from './delivery/outputModel';
-import { useServiceAction } from '../data/serviceAction';
 
 export function DeliveryPage() {
-  const service = useServiceAction();
-
   /*
    * 「34 个输出 · 218 GB 可用」. Both halves are real reads: the count is the
    * output list's own `total` (a one-row page, so the count arrives without
@@ -76,16 +73,14 @@ export function DeliveryPage() {
               id: 'cleanup',
               label: <Trans>清理无效记录</Trans>,
               onSelect: () => cleanup.mutate(undefined),
-              disabled: service.blocked || cleanup.isPending,
+              disabled: cleanup.isPending,
               control: (
                 <Button
                   size="md"
                   onClick={() => cleanup.mutate(undefined)}
-                  {...service.buttonProps}
                   {...(cleanup.isPending ? { disabled: true } : {})}
                 >
                   <Trans>清理无效记录</Trans>
-                  {service.suffix}
                 </Button>
               ),
             },
@@ -93,7 +88,7 @@ export function DeliveryPage() {
         />
       }
     >
-      <OutputsView service={service} />
+      <OutputsView />
     </Page>
   );
 }

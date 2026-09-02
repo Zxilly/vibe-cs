@@ -21,9 +21,8 @@
  *   failure   an in-place `Notice` with 重试. §4.1 sets `throwOnError: false`
  *             precisely so the error lands next to the thing that failed.
  *
- * 「开始分析」 needs the local service, so it carries `useServiceAction`'s
- * disabled state and its written reason plus the 「· 需要服务」 tail — 「不隐藏、
- * 不静默失败」 applies to a recovery action as much as to a toolbar.
+ * 「开始分析」 invokes the local Tauri host directly; an IPC error is rendered
+ * by the mutation beside this recovery action.
  */
 
 import { Trans } from '@lingui/react/macro';
@@ -35,7 +34,6 @@ import { Button, cn } from '../../../design/primitives';
 import { useStartDemoAnalysis } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
-import { useServiceAction } from '../../../data/serviceAction';
 import { CS2_TICK_RATE } from '../../../domain/match';
 import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { RouteLink } from '../../RouteLink';
@@ -185,12 +183,11 @@ export function ViewSkeleton({ rows = 5 }: { readonly rows?: number }) {
  * a button this page can press itself — six views offered 「开始分析」 in place
  * and three did not. One component, so that cannot drift again.
  *
- * The primary action carries `useServiceAction`, so with the service down it is
- * disabled with the reason written on it rather than hidden.
+ * The primary action invokes the local host and shows any mutation failure in
+ * this view.
  */
 export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
   const start = useStartDemoAnalysis();
-  const service = useServiceAction();
 
   return (
     <Empty
@@ -199,9 +196,8 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
       className="m-3.5"
       actions={
         <>
-          <Button variant="primary" {...service.buttonProps} onClick={() => start.mutate([demoId])}>
+          <Button variant="primary" onClick={() => start.mutate([demoId])}>
             <Trans>开始分析</Trans>
-            {service.suffix}
           </Button>
           <RouteLink to="/library">
             <Trans>回到资料库</Trans>

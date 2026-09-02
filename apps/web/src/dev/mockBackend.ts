@@ -40,7 +40,6 @@ import type {
   AgentSessionStorageStats,
   AgentStatus,
   AgentWorkspaceSettings,
-  ApiHealth,
   AppConfig,
   AvatarCacheStatus,
   DemoRecord,
@@ -947,7 +946,6 @@ type Handler = (context: {
  */
 const ROUTES: Array<[string, string, Handler]> = [
   /* health, setup, runtime */
-  ['GET', '/health', () => ({ status: 'ok', version: '0.1.0-dev', started_at: '2026-08-15T08:55:00Z' } satisfies ApiHealth)],
   ['GET', '/app/runtime-state', () => ({
     status: 'ok',
     version: '0.1.0-dev',

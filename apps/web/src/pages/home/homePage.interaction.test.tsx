@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import type { ActivityQuery, OutputItem, OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { HomePage } from '../HomePage';
-import { HEALTHY, renderPage } from '../delivery/test/renderPage';
+import { renderPage } from '../delivery/test/renderPage';
 
 const RUNNING: ActivityItem = {
   id: 'analysis:run-1',
@@ -95,7 +95,7 @@ const CLIENT = {
 
 describe('工作台首页', () => {
   it('removes the task progress wall and raw task ids from the first screen', async () => {
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
     expect(await screen.findByText('需要我处理')).toBeTruthy();
     expect(screen.queryByText('analysis:run-1')).toBeNull();
@@ -103,7 +103,7 @@ describe('工作台首页', () => {
   });
 
   it('raises the one failure that can still be recovered', async () => {
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
     const block = await screen.findByRole('region', { name: '失败可恢复' });
     expect(within(block).getByText(/磁盘空间不足/u)).toBeTruthy();
@@ -125,7 +125,6 @@ describe('工作台首页', () => {
         ),
       },
       route: '/',
-      health: HEALTHY,
     });
 
     const block = await screen.findByRole('region', { name: '失败可恢复' });
@@ -134,7 +133,7 @@ describe('工作台首页', () => {
   });
 
   it('leaves finished files out of the workbench now that they have their own destination', async () => {
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
     await screen.findByText('需要我处理');
     expect(screen.queryByText('Kael_Mirage_1v3.mp4')).toBeNull();
@@ -142,7 +141,7 @@ describe('工作台首页', () => {
   });
 
   it('draws exactly the three IA blocks in their required order', async () => {
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
     await screen.findByText('需要我处理');
     const blocks = [...document.querySelectorAll('[data-home-layout="three-sections"] > [data-home-block]')];
@@ -156,7 +155,7 @@ describe('工作台首页', () => {
   it('says nothing about the environment while nothing is blocked', async () => {
     // 「环境问题只在阻塞相应任务时出现在这里」 — a banner on a healthy
     // workbench is the thing that sentence rules out.
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
     await screen.findByText('需要我处理');
     expect(document.querySelector('[data-home-block="environment"]')).toBeNull();
   });
@@ -176,7 +175,6 @@ describe('工作台首页', () => {
           }),
       },
       route: '/',
-      health: HEALTHY,
     });
 
     await waitFor(() => {
@@ -190,7 +188,7 @@ describe('工作台首页', () => {
   });
 
   it('keeps the main action on the bar at any width', async () => {
-    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
     const primary = (await screen.findAllByRole('button', { name: '新建作品' }))[0];
     // §8: the main action never enters an overflow menu — `Toolbar` keeps it in
@@ -203,7 +201,6 @@ describe('工作台首页', () => {
       element: <HomePage />,
       client: { ...CLIENT, listDemos: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 1 }) },
       route: '/',
-      health: HEALTHY,
     });
 
     expect(await screen.findByText('从导入 Demo 开始')).toBeTruthy();

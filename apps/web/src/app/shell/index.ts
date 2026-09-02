@@ -39,7 +39,6 @@ export {
   createWindowTitleBarController,
   WindowTitleBar,
   type DesktopWindowAdapter,
-  type ShellServiceStatus,
   type WindowTitleBarController,
   type WindowTitleBarProps,
 } from './WindowTitleBar';

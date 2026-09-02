@@ -72,27 +72,6 @@ describe('WindowTitleBar', () => {
     expect(html).toContain('h-[var(--h-ctl-sm)]');
   });
 
-  it('reports the local service with a marker and a sentence, not colour alone', () => {
-    const online = renderMarkup(<WindowTitleBar adapter={null} serviceStatus="online" />);
-    expect(online).toContain('data-titlebar-service="online"');
-    expect(online).toContain('本地服务在线');
-    expect(online).toContain('data-status="ok"');
-    expect(online).toContain('data-shape="filled"');
-
-    const offline = renderMarkup(<WindowTitleBar adapter={null} serviceStatus="offline" />);
-    expect(offline).toContain('data-titlebar-service="offline"');
-    expect(offline).toContain('本地服务未连接');
-    // 「本地服务离线」artboard: the dot goes hollow brick red, the line takes
-    // the darkened ink of --color-fail-text.
-    expect(offline).toContain('data-status="fail"');
-    expect(offline).toContain('data-shape="hollow"');
-    expect(offline).toContain('text-fail-text');
-
-    const checking = renderMarkup(<WindowTitleBar adapter={null} serviceStatus="checking" />);
-    expect(checking).toContain('data-titlebar-service="checking"');
-    expect(checking).toContain('正在连接本地服务');
-  });
-
   it('puts the three window controls on the right, each with a name', () => {
     const html = renderMarkup(<WindowTitleBar adapter={null} />);
 

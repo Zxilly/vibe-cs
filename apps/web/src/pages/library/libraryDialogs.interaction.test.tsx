@@ -33,7 +33,6 @@ const ONLINE = {
   watch: WATCH_FIXTURE,
   tags: [TAG_FIXTURE],
   config: CONFIG_FIXTURE,
-  serviceOnline: true,
 } as const;
 
 const SCAN_RESULT = { discovered: 1, imported: 1, updated: 0, skipped: 0, errors: [] };

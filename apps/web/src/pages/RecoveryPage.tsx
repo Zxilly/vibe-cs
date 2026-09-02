@@ -49,7 +49,6 @@ import { Button } from '../design/primitives';
 import { useRecoverConfiguration, useRecoveryStatus } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
 import { useCleanupMissingOutputs, useCleanupStagedOutputs } from '../data/outputs';
-import { useServiceAction } from '../data/serviceAction';
 
 type Pending = 'config' | 'staged' | 'missing';
 
@@ -58,7 +57,6 @@ export function RecoveryPage() {
   const recoverConfig = useRecoverConfiguration();
   const cleanupStaged = useCleanupStagedOutputs();
   const cleanupMissing = useCleanupMissingOutputs();
-  const service = useServiceAction();
   const [confirming, setConfirming] = useState<Pending | null>(null);
 
   const statusError = dataErrorMessage(status.error);
@@ -68,8 +66,8 @@ export function RecoveryPage() {
     dataErrorMessage(cleanupMissing.error);
 
   const busy = recoverConfig.isPending || cleanupStaged.isPending || cleanupMissing.isPending;
-  const blocked = service.blocked || busy;
-  const blockedReason = service.blocked ? service.buttonProps.disabledReason : t`正在处理`;
+  const blocked = busy;
+  const blockedReason = t`正在处理`;
 
   return (
     <Page

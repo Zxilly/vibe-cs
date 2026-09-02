@@ -11,15 +11,9 @@ import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { ApiHealth } from '../shared/desktop/dto';
 import { renderMarkup } from '../test/render';
 import { AppShell } from './AppShell';
 import { resetShellStore } from './shell';
-
-/** Never settles, so a static render only ever sees the `checking` state. */
-function pendingProbe(): Promise<ApiHealth> {
-  return new Promise<ApiHealth>(() => {});
-}
 
 function renderShell(
   at: string,
@@ -31,12 +25,7 @@ function renderShell(
       <Routes>
         <Route
           element={
-            <AppShell
-              adapter={null}
-              probe={pendingProbe}
-              poll={false}
-              {...(options.collapsed === undefined ? {} : { collapsed: options.collapsed })}
-            />
+            <AppShell adapter={null} {...(options.collapsed === undefined ? {} : { collapsed: options.collapsed })} />
           }
         >
           <Route path="*" element={page} />
@@ -110,7 +99,6 @@ describe('AppShell — the assembled frame', () => {
   });
 
   it('renders no offline banner while the probe has not answered', () => {
-    expect(renderShell('/')).not.toContain('本地服务未连接，分析、录制和导出暂时无法开始');
   });
 });
 

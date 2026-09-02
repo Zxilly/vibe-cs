@@ -48,10 +48,6 @@ import { Toaster } from '../design/feedback';
 import { useShellCollapsed } from '../design/layout';
 import {
   RouteBoundary,
-  ServiceGate,
-  ServiceOfflineNotice,
-  useService,
-  type ServiceGateProps,
 } from './boundary';
 import { CommandPalette, useCommandPalette } from './command';
 import { routeCrumb } from './routeCrumb';
@@ -80,10 +76,6 @@ export interface AppShellProps {
    * "no window" (browser dev server). Tests pass their own.
    */
   adapter?: DesktopWindowAdapter | null | undefined;
-  /** The health probe `ServiceGate` polls. Defaults to the desktop IPC command. */
-  probe?: ServiceGateProps['probe'] | undefined;
-  /** Background health polling. Tests turn it off so no timer outlives them. */
-  poll?: boolean | undefined;
   /**
    * The rail badges — 「Agent 创作」 and 「任务记录」 in Frame. Empty this round:
    * both counts are server data (phases 3e and 3a).
@@ -91,17 +83,8 @@ export interface AppShellProps {
   badges?: Readonly<Partial<Record<ShellNavItemId, number>>> | undefined;
 }
 
-export function AppShell({ collapsed, adapter, probe, poll, badges }: AppShellProps) {
-  /* `exactOptionalPropertyTypes`: `ServiceGate` declares `probe?: (…) => …`
-     without `| undefined`, so the prop has to be absent rather than undefined. */
-  return (
-    <ServiceGate
-      {...(probe === undefined ? {} : { probe })}
-      {...(poll === undefined ? {} : { poll })}
-    >
-      <ShellFrame collapsed={collapsed} adapter={adapter} badges={badges} />
-    </ServiceGate>
-  );
+export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
+  return <ShellFrame collapsed={collapsed} adapter={adapter} badges={badges} />;
 }
 
 interface ShellFrameProps {
@@ -111,13 +94,11 @@ interface ShellFrameProps {
 }
 
 /**
- * The frame proper. Split from `AppShell` because the title bar's status dot
- * reads `useService()`, which only resolves *inside* the gate.
+ * The frame proper.
  */
 function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const service = useService();
   const palette = useCommandPalette();
   const viewportFolded = useShellCollapsed();
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
@@ -178,17 +159,12 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
         mode={mode}
         onModeChange={switchMode}
         crumb={focusedProject ? null : <RouteBreadcrumb segments={crumb} />}
-        serviceStatus={service.status}
         navCollapsed={navCollapsed}
         adapter={adapter}
         onOpenCommandPalette={palette.openPalette}
         onOpenActivity={() => setActivityOpen(true)}
         activityUnreadCount={activityUnread}
       />
-
-      {/* 「重连成功后横幅收起」 falls out of the state: the notice renders null
-          while the service answers, so it is mounted unconditionally. */}
-      <ServiceOfflineNotice />
 
       <div data-shell-row className="flex min-h-0 flex-1">
         {focusedProject ? null : <SideNav mode={mode} collapsed={navCollapsed} badges={badges} />}

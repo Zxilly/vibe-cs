@@ -125,10 +125,7 @@ export function useRecoveryStatus(tuning: DataQueryTuning = {}) {
 
 /**
  * Runtime state: version, data directory, the active recording job id and the
- * playback session. Distinct from the health probe — health answers 「服务在不
- * 在」 and is excluded from the recovery invalidation; this answers 「服务现在
- * 在做什么」 and must refresh when the service comes back, which is why it lives
- * under `config` and not under `service` (see `keys.ts`).
+ * playback session.
  */
 export function useRuntimeState(tuning: DataQueryTuning = {}) {
   const client = useDesktopClient();

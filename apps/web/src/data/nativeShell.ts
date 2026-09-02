@@ -6,8 +6,7 @@
  * external-URL guard — and `shared/desktop/client.ts` holds `desktopMediaUrl`,
  * which turns a service path into the `vibe-cs-media:` URL the Tauri CSP lets a
  * `<video>` or `<audio>` element load. `pages/**` may not import either
- * (`scripts/check-web-layers.mjs` rule 6), so this file is the door, exactly as
- * `data/serviceAction.tsx` is the door onto the health probe.
+ * (`scripts/check-web-layers.mjs` rule 6), so this file is the one door.
  *
  * ## Why a context and not nine exported functions
  *
@@ -17,9 +16,7 @@
  * behind an `isDesktopShell()` guard. Under vitest that guard is `false`, so a
  * page that called them directly would silently do nothing and a test would
  * have to `vi.mock` a plugin module per file to observe anything at all. With a
- * context, a test mounts `NativeShellProvider` with a plain object of spies —
- * the same arrangement `DesktopClientProvider` already uses, and for the same
- * reason.
+ * context, a test mounts `NativeShellProvider` with a plain object of spies.
  *
  * **`available` is a rendered fact, not a silent branch.** 「不隐藏、不静默失败」
  * applies here as much as to a service-backed action: outside the desktop shell
@@ -243,10 +240,9 @@ export function useNativeShell(): NativeShell {
 /* ── 「禁用并写明原因」 ───────────────────────────────────────────────────── */
 
 /**
- * Spreadable onto `design/primitives/Button`, the same pair
- * `ServiceActionState.buttonProps` produces. `disabledReason` is *absent*
- * rather than `undefined` when the shell is there, because the workspace
- * compiles with `exactOptionalPropertyTypes`.
+ * Spreadable onto `design/primitives/Button`. `disabledReason` is absent rather
+ * than `undefined` when the shell is there because the workspace compiles with
+ * `exactOptionalPropertyTypes`.
  */
 export interface NativeShellActionProps {
   readonly disabled: boolean;
@@ -264,11 +260,8 @@ export interface NativeShellActionState {
  *   const shellAction = useNativeShellAction();
  *   <Button {...shellAction.buttonProps} onClick={…}>…</Button>
  *
- * Deliberately *not* merged with `useServiceAction()`: they block for different
- * reasons and recover at different times — the service can come back without a
- * reload, the browser cannot become a desktop app — so a page that shows one
- * sentence for both would be telling the user to wait for something that is
- * never going to happen.
+ * A browser preview cannot become a desktop app without a reload, so native
+ * file actions keep this explicit capability check.
  */
 export function useNativeShellAction(): NativeShellActionState {
   const { available } = useNativeShell();

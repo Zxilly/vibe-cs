@@ -60,7 +60,6 @@ export function taskFailureLabels(): Readonly<Record<TaskFailureReason, ReactNod
     'disk-space': <Trans>磁盘空间不足</Trans>,
     'game-unavailable': <Trans>录制环境未就绪</Trans>,
     'source-missing': <Trans>源文件不在原位</Trans>,
-    'service-offline': <Trans>本地服务离线</Trans>,
     timeout: <Trans>等待超时</Trans>,
     unknown: <Trans>未知原因</Trans>,
   };

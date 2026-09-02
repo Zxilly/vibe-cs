@@ -24,7 +24,7 @@ import { stubMatchMedia, type MatchMediaStub } from '../../design/layout/collaps
 import type { OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed } from '../../shared/desktop/viewModels';
 import { DeliveryPage } from '../DeliveryPage';
-import { HEALTHY, renderPage } from './test/renderPage';
+import { renderPage } from './test/renderPage';
 
 const FEED: ActivityFeed = {
   items: [],
@@ -55,7 +55,6 @@ describe('1100 × 700', () => {
       element: <DeliveryPage />,
       client: CLIENT,
       route: '/delivery',
-      health: HEALTHY,
     });
 
     await waitFor(() => {
@@ -74,7 +73,6 @@ describe('1100 × 700', () => {
       element: <DeliveryPage />,
       client: CLIENT,
       route: '/delivery',
-      health: HEALTHY,
     });
 
     await waitFor(() => {
@@ -89,7 +87,6 @@ describe('1100 × 700', () => {
       element: <DeliveryPage />,
       client: CLIENT,
       route: '/delivery',
-      health: HEALTHY,
     });
 
     await waitFor(() => expect(container.querySelector('[data-toolbar]')).not.toBeNull());

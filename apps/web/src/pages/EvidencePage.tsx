@@ -27,17 +27,8 @@
  * (`design/layout`) is the same observation the Inspector makes, so the two
  * cannot disagree, and no media query is written here.
  *
- * ── Service degradation: see the phase report ──────────────────────────────
- *
- * The brief asks for `app/boundary`'s `useServiceAction()` on the actions that
- * need the local service. `pages/**` may not import `app/**` — §2.1 rule 3,
- * enforced by `scripts/check-web-layers.mjs` — and `useServiceAction` is only
- * exported from `app/boundary/ServiceGate`, so the two instructions contradict
- * each other and the lint wins. Nothing is faked in its place: a failed read
- * renders as a `Notice` with a recovery action, and the actions whose *write*
- * path does not exist yet are disabled with the reason spelled out
- * (`writeSeamReason` below), which is the same visible-and-explained shape
- * the shell rule asks for.
+ * A failed read renders as a `Notice` with a recovery action. Actions whose
+ * write path does not exist are disabled with the reason spelled out.
  */
 
 import { t } from '@lingui/core/macro';

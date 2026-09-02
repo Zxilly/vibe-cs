@@ -26,22 +26,20 @@ import { RouteLink } from '../RouteLink';
 import { TaskFeedList } from './TaskFeedList';
 import { TASK_POLL_FEED_MS } from './taskPolling';
 import { useTaskActions } from './useTaskActions';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 /** What 「11 输出与任务记录」 draws in the rail. */
 export const TASK_RAIL_COUNT = 4;
 
 export interface TaskRecordRailProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function TaskRecordRail({ service, now }: TaskRecordRailProps) {
+export function TaskRecordRail({ now }: TaskRecordRailProps) {
   const feed = useTaskFeed(
     { page: 1, page_size: TASK_RAIL_COUNT },
     { pollWhileActiveMs: TASK_POLL_FEED_MS },
   );
-  const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
+  const bind = useTaskActions(now === undefined ? {} : { now });
 
   const errorMessage = feed.isError
     ? dataErrorMessage(feed.error) ?? t`读取后台任务失败。`

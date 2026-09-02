@@ -38,7 +38,6 @@ import { RouteLink } from '../RouteLink';
 import { TaskFeedList } from './TaskFeedList';
 import { TASK_POLL_FEED_MS } from './taskPolling';
 import { useTaskActions } from './useTaskActions';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 /** 「最近 50 条」 — see the module note. */
 export const TASK_RECORD_PAGE_SIZE = 50;
@@ -58,11 +57,10 @@ function stateFilterLabels(): Readonly<Record<TaskStateFilter, string>> {
 }
 
 export interface TaskRecordViewProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function TaskRecordView({ service, now }: TaskRecordViewProps) {
+export function TaskRecordView({ now }: TaskRecordViewProps) {
   const [state, setState] = useState<TaskStateFilter>('all');
   const [page, setPage] = useState(1);
 
@@ -73,7 +71,7 @@ export function TaskRecordView({ service, now }: TaskRecordViewProps) {
   };
 
   const feed = useTaskFeed(query, { pollWhileActiveMs: TASK_POLL_FEED_MS });
-  const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
+  const bind = useTaskActions(now === undefined ? {} : { now });
 
   const labels = stateFilterLabels();
   const items = feed.data?.items ?? [];

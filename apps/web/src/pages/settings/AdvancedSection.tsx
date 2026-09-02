@@ -44,7 +44,6 @@ import {
 } from '../../data/config';
 import { useRevealPath } from '../../data/nativeShell';
 import { dataErrorMessage } from '../../data/errors';
-import { useServiceAction } from '../../data/serviceAction';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
 
 export function AdvancedSection() {
@@ -52,7 +51,6 @@ export function AdvancedSection() {
   const checks = useQuickCheck();
   const hlae = useHlaeStatus();
   const prepareHlae = usePrepareManagedHlae();
-  const service = useServiceAction();
   const exportDiagnostics = useExportDiagnostics();
   const revealPath = useRevealPath();
 
@@ -150,8 +148,8 @@ export function AdvancedSection() {
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={service.blocked || checks.isFetching}
-                disabledReason={service.buttonProps.disabledReason ?? t`正在检查`}
+                disabled={checks.isFetching}
+                disabledReason={t`正在检查`}
                 onClick={() => void checks.refetch()}
               >
                 <Trans>重新检查</Trans>
@@ -209,12 +207,10 @@ export function AdvancedSection() {
                 <Button
                   variant="primary"
                   size="sm"
-                  disabled={service.blocked || prepareHlae.isPending}
+                  disabled={prepareHlae.isPending}
                   {...(prepareHlae.isPending
                     ? { disabledReason: t`正在下载并校验采集组件` }
-                    : service.buttonProps.disabledReason === undefined
-                      ? {}
-                      : { disabledReason: service.buttonProps.disabledReason })}
+                    : {})}
                   onClick={() => prepareHlae.mutate()}
                 >
                   {prepareHlae.isPending ? <Trans>正在准备</Trans> : <Trans>准备采集组件</Trans>}
@@ -250,12 +246,8 @@ export function AdvancedSection() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={exportDiagnostics.isPending || service.blocked}
-              disabledReason={
-                exportDiagnostics.isPending
-                  ? t`正在写入报告`
-                  : (service.buttonProps.disabledReason ?? '')
-              }
+              disabled={exportDiagnostics.isPending}
+              disabledReason={exportDiagnostics.isPending ? t`正在写入报告` : ''}
               onClick={() => exportDiagnostics.mutate()}
             >
               <Trans>导出</Trans>

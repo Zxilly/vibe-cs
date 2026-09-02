@@ -45,7 +45,6 @@ import type { TaskLink, TaskSummary } from '../../domain/task';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskKindOfActivity, taskStagePositionOf, taskStatusOfActivity, toTaskSummary } from './taskModel';
 import { canCancelTask, taskRestartEvent } from './taskTransitions';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {
@@ -80,7 +79,6 @@ export interface TaskCardBindings {
 }
 
 export interface TaskActionsOptions {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
@@ -88,7 +86,7 @@ export interface TaskActionsOptions {
  * The one place the delivery surface binds a record to its writes. Both views
  * and the workbench digest call it, so 取消 means the same thing in all three.
  */
-export function useTaskActions({ service, now }: TaskActionsOptions) {
+export function useTaskActions({ now }: TaskActionsOptions = {}) {
   const navigate = useNavigate();
   const cancel = useCancelTask();
   const retry = useRetryTask();
@@ -115,12 +113,10 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
       ...(stage === undefined ? {} : { stageId: stage.id }),
     };
 
-    const serviceReady = !service.blocked;
     const jobId = item.job_id;
 
     const cancellable =
       jobId !== null
-      && serviceReady
       && canCancelTask(lifecycle)
       && item.available_actions.includes('cancel');
 
@@ -129,10 +125,6 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
     const restartable = jobId !== null && restartEvent !== null && retryAction !== null;
 
     const run = (): void => {
-      // Defensive: the button is disabled while the service is unreachable, and
-      // a keyboard or a test that gets past that must still not fire an IPC
-      // call that can only fail.
-      if (!serviceReady) return;
       if (jobId === null || retryAction === null) return;
       if (retryAction === 'retry_recording') {
         if (item.context_id !== null) {
@@ -149,7 +141,7 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
 
     const summary = toTaskSummary(item, {
       ...(now === undefined ? {} : { now }),
-      recovery: recoveryFor({ item, restartable, restartEvent, run, navigate, service }),
+      recovery: recoveryFor({ item, restartable, restartEvent, run, navigate }),
       ...(status === 'cancelled' ? { note: <Trans>可重新发起</Trans> } : {}),
     });
 
@@ -165,10 +157,7 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
           ? {
             label: restartEvent.type === 'RESTART' ? 'restart' : 'retry',
             run,
-            disabled: service.buttonProps.disabled,
-            ...(service.buttonProps.disabledReason === undefined
-              ? {}
-              : { disabledReason: service.buttonProps.disabledReason }),
+            disabled: false,
           }
           : undefined,
     };
@@ -189,15 +178,13 @@ interface RecoveryInput {
   readonly restartEvent: { readonly type: string } | null;
   readonly run: () => void;
   readonly navigate: (to: string) => void;
-  readonly service: ServiceActionState;
 }
 
-function recoveryFor({ item, restartable, restartEvent, run, navigate, service }: RecoveryInput) {
+function recoveryFor({ item, restartable, restartEvent, run, navigate }: RecoveryInput) {
   if (restartable && restartEvent !== null) {
     return {
       label: <Trans>重试</Trans>,
       onAction: run,
-      ...(service.blocked ? { disabled: true } : {}),
     };
   }
 

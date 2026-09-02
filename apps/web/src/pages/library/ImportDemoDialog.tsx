@@ -29,7 +29,6 @@ import { useRef, useState, type DragEvent } from 'react';
 
 import { Dialog, Alert } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
-import type { ServiceActionButtonProps } from './serviceAction';
 
 /** `.zip` is in the artboard's copy: the service unpacks archives of demos. */
 const ACCEPTED_EXTENSIONS = '.dem,.zip';
@@ -42,8 +41,6 @@ export interface ImportDemoDialogProps {
   readonly importing: boolean;
   /** A failed import, already turned into a sentence by `data/errors`. */
   readonly error: string | null;
-  /** 「· 需要服务」 while the local service is down. */
-  readonly service: ServiceActionButtonProps;
 }
 
 export function ImportDemoDialog({
@@ -52,7 +49,6 @@ export function ImportDemoDialog({
   onImport,
   importing,
   error,
-  service,
 }: ImportDemoDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [staged, setStaged] = useState<readonly File[]>([]);
@@ -83,7 +79,6 @@ export function ImportDemoDialog({
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
-    if (service.disabled) return;
     setStaged([...event.dataTransfer.files]);
   };
 
@@ -92,7 +87,7 @@ export function ImportDemoDialog({
       open={open}
       title={<Trans>导入 Demo</Trans>}
       onClose={close}
-      confirmDisabled={service.disabled || importing}
+      confirmDisabled={importing}
       confirmLabel={
         staged.length === 0 ? (
           <Trans>选择文件</Trans>
@@ -134,10 +129,6 @@ export function ImportDemoDialog({
         <p className="text-xs leading-normal text-neutral-600">
           <Trans>校验文件头与大小；同一份内容不会重复入库</Trans>
         </p>
-
-        {service.disabled && service.disabledReason !== undefined ? (
-          <p className="text-xs leading-normal text-neutral-700">{service.disabledReason}</p>
-        ) : null}
 
         {staged.length > 0 ? (
           <div>

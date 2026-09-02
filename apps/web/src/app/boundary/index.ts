@@ -1,12 +1,7 @@
 /**
  * Shell layer 3 — boundaries and degradation.
  *
- * Two contracts the shell owns so no page has to re-derive them:
- *
- *   ServiceGate    local service reachability. One query, one provider, one
- *                  hook; pages ask `useServiceAction()` instead of keeping
- *                  their own `source: 'loading' | 'service' | 'unavailable'`.
- *   RouteBoundary  the 空 · 加载 · 错误 states of a route, plus 404.
+ * RouteBoundary owns the 空 · 加载 · 错误 states of a route, plus 404.
  *
  * ── 全局提示（Toast/Notice 宿主）: 设计稿没有这个位置 ─────────────────────
  *
@@ -25,37 +20,6 @@
  * none is built here. `design/feedback/Notice` is the whole story; the only
  * shell-level instance of it is `ServiceOfflineNotice`.
  */
-
-export {
-  ServiceGate,
-  ServiceOfflineBanner,
-  ServiceOfflineNotice,
-  ServiceRequiredHint,
-  ServiceStatusMarker,
-  SERVICE_REQUIRED_ROW_CLASS,
-  useService,
-  useServiceAction,
-  type ServiceActionButtonProps,
-  type ServiceActionState,
-  type ServiceGateProps,
-  type ServiceOfflineBannerProps,
-  type ServiceState,
-  type ServiceStatusMarkerProps,
-} from './ServiceGate';
-
-export {
-  isServiceDegraded,
-  serviceActionBlocked,
-  serviceErrorMessage,
-  servicePollIntervalMs,
-  serviceStatusOf,
-  shouldRefreshAfterRecovery,
-  SERVICE_HEALTH_KEY,
-  SERVICE_POLL_OFFLINE_MS,
-  SERVICE_POLL_ONLINE_MS,
-  type ServiceQuerySnapshot,
-  type ServiceStatus,
-} from '../../data/serviceHealth';
 
 export {
   NotFound,

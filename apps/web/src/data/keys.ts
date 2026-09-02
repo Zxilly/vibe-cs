@@ -25,17 +25,6 @@
  * filters never collide. Spreading the fields into positional slots instead
  * would make every new filter a breaking change to the key.
  *
- * ## The `service` namespace is special
- *
- * `app/boundary/ServiceGate` invalidates "everything except the probe" on
- * recovery with the predicate `entry.queryKey[0] !== 'service'` (§4.1
- * 「重连成功后 invalidateQueries 全量刷新」). That predicate is only correct
- * while `service` holds the probe *and nothing else* — anything parked there
- * would silently stop refreshing after a reconnect. So the health probe is the
- * sole inhabitant, and `isServiceProbeKey` is the same predicate written once.
- * Service-adjacent reads that must refresh on recovery (quick check, storage,
- * runtime state) live under `config`.
- *
  * `sessions` and `plans` carry keys but no hooks this round: their models
  * (§4.5) are settled with the backend in phase 3e, and a hook written now would
  * be a guess. The namespaces are reserved so 3e does not have to renumber the
@@ -119,7 +108,6 @@ export interface MatchHistoryQuery {
  * them.
  */
 export const QUERY_NAMESPACE = {
-  service: 'service',
   demos: 'demos',
   match: 'match',
   history: 'history',
@@ -143,15 +131,6 @@ const DETAIL = 'detail';
 /* ── the factory ─────────────────────────────────────────────────────────── */
 
 export const qk = {
-  /** The local-service heartbeat. One key, and nothing else may join it — see
-   *  the note on `isServiceProbeKey`. */
-  service: {
-    all: [QUERY_NAMESPACE.service] as const,
-    /** Must stay deep-equal to `app/boundary/serviceHealth`'s
-     *  `SERVICE_HEALTH_KEY`; `keys.test.ts` asserts it. */
-    health: () => [QUERY_NAMESPACE.service, 'health'] as const,
-  },
-
   /**
    * Demo library. Written by: import / scan / rescan / metadata edit / tag
    * edit / delete → invalidate `qk.demos.all`. A single-demo rename only needs
@@ -457,22 +436,6 @@ export const qk = {
   },
 } as const;
 
-/* ── predicates ──────────────────────────────────────────────────────────── */
-
-/**
- * `true` for the health probe and nothing else. This is `ServiceGate`'s
- * recovery predicate, written where the keys are: it invalidates every query
- * whose key this rejects, and re-entering the probe from inside its own success
- * path would loop.
- */
-export function isServiceProbeKey(key: readonly unknown[]): boolean {
-  return key[0] === QUERY_NAMESPACE.service;
-}
-
-/** The complement — "everything refreshed when the service comes back". */
-export function refreshesOnServiceRecovery(key: readonly unknown[]): boolean {
-  return !isServiceProbeKey(key);
-}
 
 /**
  * Whether `prefix` addresses `key` the way `invalidateQueries` does: segment by

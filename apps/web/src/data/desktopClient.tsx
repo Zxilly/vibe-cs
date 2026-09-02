@@ -28,9 +28,6 @@ import { commands } from '../shared/desktop/client';
 
 export type DesktopClient = Pick<
   typeof commands,
-  // service
-  | 'health'
-  // demos
   | 'listDemos'
   | 'getDemo'
   | 'getDemoMetadata'

@@ -7,9 +7,7 @@
  *      Inspector — is really assembled from `design/**`, not re-implemented
  *   2. the three states are all reachable and none of them invents data (no
  *      percentage, no progress bar, no fabricated count)
- *   3. every service-backed action renders **disabled with its reason** while
- *      the gate has not said 「在线」 — 「不隐藏、不静默失败」
- *   4. the two §7 views, table and card, both come off the same address
+ *   3. the two §7 views, table and card, both come off the same address
  *
  * Nothing here touches IPC: the bridge is an empty stub and the rows arrive by
  * seeding the cache, which is the only way a `renderToStaticMarkup` tree can
@@ -45,7 +43,6 @@ const ONLINE = {
   watch: WATCH_FIXTURE,
   tags: [TAG_FIXTURE],
   config: CONFIG_FIXTURE,
-  serviceOnline: true,
 } as const;
 
 describe('the frame', () => {
@@ -124,7 +121,7 @@ describe('the table', () => {
 
 describe('the states', () => {
   it('loads with a skeleton and no invented percentage', () => {
-    const html = renderLibraryMarkup({ seed: { serviceOnline: true } });
+    const html = renderLibraryMarkup({ seed: {} });
     expect(html).toContain('正在读取资料库');
     // A percentage in *text*, not in a class or a skeleton bar's width — the
     // rule is 「有真实分母时才用进度条，否则只给阶段名」.
@@ -146,28 +143,6 @@ describe('the states', () => {
     });
     expect(html).toContain('没有命中的证据');
     expect(html).toContain('清空条件');
-  });
-});
-
-describe('需要服务', () => {
-  const offline = renderLibraryMarkup({ seed: { ...ONLINE, serviceOnline: false } });
-
-  it('disables 导入 Demo and writes the reason on it, instead of hiding it', () => {
-    expect(offline).toContain('导入 Demo');
-    expect(offline).toContain('· 需要服务');
-    expect(offline).toContain('正在连接本地服务，稍后即可使用');
-    expect(offline).toContain('disabled=""');
-  });
-
-  it('leaves the read-only content alone', () => {
-    // 「只读内容照常可用」 — the rows, the pager and the Inspector still render.
-    expect(offline).toContain('Aurora vs Meridian');
-    expect(offline).toContain('共 1 条');
-  });
-
-  it('enables the same action once the gate has an answer', () => {
-    const online = renderLibraryMarkup({ seed: ONLINE });
-    expect(online).not.toContain('· 需要服务');
   });
 });
 

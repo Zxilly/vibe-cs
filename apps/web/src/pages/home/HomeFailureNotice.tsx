@@ -25,21 +25,19 @@ import { useTaskFeed } from '../../data/tasks';
 import { TaskCard } from '../../domain/task';
 import { RouteLink } from '../RouteLink';
 import { useTaskActions } from '../delivery/useTaskActions';
-import type { ServiceActionState } from '../../data/serviceAction';
 
 export interface HomeFailureNoticeProps {
-  readonly service: ServiceActionState;
   readonly now?: Date | undefined;
 }
 
-export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
+export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
   /*
    * No polling. A failure does not un-fail, and a *new* one can only appear
    * when a running task ends — which the 进行中 panel above is already polling
    * for, and whose mutations invalidate `qk.tasks.all` for both panels.
    */
   const feed = useTaskFeed({ state: 'failed', page: 1, page_size: 1 });
-  const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
+  const bind = useTaskActions(now === undefined ? {} : { now });
 
   /* The service contract filters this feed, but keeping the status guard here
      prevents a permissive mock or a stale cache page from putting a running

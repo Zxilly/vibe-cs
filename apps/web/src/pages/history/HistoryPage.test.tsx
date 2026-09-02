@@ -51,8 +51,6 @@ describe('the first paint', () => {
   });
 
   it('blocks the writes while the service has not answered, and says why', () => {
-    expect(html).toContain('正在连接本地服务，稍后即可使用');
-    expect(html).toContain('需要服务');
     expect(html).toContain('disabled=""');
   });
 

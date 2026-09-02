@@ -12,7 +12,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RecoveryStatus } from '../shared/desktop/dto';
-import { HEALTHY, renderPage } from './delivery/test/renderPage';
+import { renderPage } from './delivery/test/renderPage';
 import { RecoveryPage } from './RecoveryPage';
 
 const CLEAN: RecoveryStatus = { recovery_required: false, affected_files: [] };
@@ -24,7 +24,7 @@ const DAMAGED: RecoveryStatus = {
   affected_files: ['D:\\CS2\\config.json'],
 };
 
-function render(overrides: Record<string, unknown> = {}, options: { readonly offline?: boolean } = {}) {
+function render(overrides: Record<string, unknown> = {}) {
   const client: Record<string, unknown> = {
     recoveryStatus: () => Promise.resolve(CLEAN),
     recoverConfiguration: () => Promise.resolve(CLEAN),
@@ -36,7 +36,6 @@ function render(overrides: Record<string, unknown> = {}, options: { readonly off
   renderPage({
     element: <RecoveryPage />,
     client,
-    ...(options.offline === true ? { health: undefined } : { health: HEALTHY }),
   });
 }
 
@@ -183,19 +182,5 @@ describe('what a cleanup reports', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain('没有需要清理的暂存文件');
     });
-  });
-});
-
-describe('offline', () => {
-  it('disables every action with the service’s own reason', async () => {
-    render({}, { offline: true });
-    await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="staged"]')).not.toBeNull();
-    });
-    for (const action of ['staged', 'missing']) {
-      expect(
-        document.querySelector(`[data-recovery-action="${action}"]`)?.hasAttribute('disabled'),
-      ).toBe(true);
-    }
   });
 });

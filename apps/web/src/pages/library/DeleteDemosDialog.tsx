@@ -17,7 +17,6 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { Dialog, Alert } from '../../design/feedback';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { partitionForDelete } from './libraryFormat';
-import type { ServiceActionButtonProps } from './serviceAction';
 
 export interface DeleteDemosDialogProps {
   readonly open: boolean;
@@ -27,7 +26,6 @@ export interface DeleteDemosDialogProps {
   readonly onDelete: () => Promise<unknown>;
   readonly deleting: boolean;
   readonly error: string | null;
-  readonly service: ServiceActionButtonProps;
 }
 
 export function DeleteDemosDialog({
@@ -37,7 +35,6 @@ export function DeleteDemosDialog({
   onDelete,
   deleting,
   error,
-  service,
 }: DeleteDemosDialogProps) {
   const { managed, external } = partitionForDelete(demos);
 
@@ -59,7 +56,7 @@ export function DeleteDemosDialog({
       title={<Plural value={demos.length} other="删除 # 条记录？" />}
       onClose={onClose}
       confirmLabel={<Trans>删除</Trans>}
-      confirmDisabled={deleting || demos.length === 0 || service.disabled}
+      confirmDisabled={deleting || demos.length === 0}
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">
@@ -84,10 +81,6 @@ export function DeleteDemosDialog({
             </li>
           ))}
         </ul>
-
-        {service.disabled && service.disabledReason !== undefined ? (
-          <p className="text-xs leading-normal text-neutral-700">{service.disabledReason}</p>
-        ) : null}
 
         {error === null ? null : (
           <Alert

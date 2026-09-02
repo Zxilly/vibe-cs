@@ -47,11 +47,6 @@ describe('the three blocks the fifth round split the section into', () => {
     expect(html).toContain('data-setting-action="export"');
   });
 
-  it('disables the service-backed actions and writes the reason', () => {
-    const html = section();
-    expect(html).toContain('· 需要服务');
-    expect(html).toContain('暂时不能执行');
-  });
 });
 
 describe('§4.5.3 rule ① on the panel', () => {

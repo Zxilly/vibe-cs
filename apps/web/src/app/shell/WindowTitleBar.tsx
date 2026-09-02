@@ -4,7 +4,7 @@
  * The shell draws it as three stretches across one 48px bar:
  *
  *   ┌ 216px ────────┬ flex:1 ─────────────────────────────┬ 3 × 46px ┐
- *   │ V  VIBE CS    │ crumb   ⌕ 跳转、搜索…  CTRL K   ● 本地服务在线 │ ─ ▢ ✕ │
+ *   │ V  VIBE CS    │ crumb   ⌕ 跳转、搜索…  CTRL K   │ ─ ▢ ✕ │
  *   └───────────────┴─────────────────────────────────────┴──────────┘
  *
  * The left block is exactly `--w-nav` wide and carries the same right-hand
@@ -46,18 +46,9 @@ import {
 import { cn } from '../../design/layout';
 import { Kbd } from '../../design/primitives';
 import { isDesktopShell } from '../../shared/desktop/dialog';
-import { ServiceStatusMarker, type ServiceStatus } from '../boundary';
 import { useShellStore } from './shellStore';
 import type { WorkspaceMode } from './navigation';
 import { WorkspaceModeMenu } from './WorkspaceModeMenu';
-
-/**
- * The local service state the top bar reports. This is an alias, not a second
- * union: `ServiceGate` (§4.1) owns the states, and the dot itself is
- * `ServiceStatusMarker` — the title bar renders the only instance of it in the
- * whole shell, so there is exactly one implementation of «● 本地服务在线».
- */
-export type ShellServiceStatus = ServiceStatus;
 
 export interface DesktopWindowAdapter {
   minimize(): Promise<void>;
@@ -131,7 +122,6 @@ export interface WindowTitleBarProps {
   onModeChange?: ((mode: WorkspaceMode) => void) | undefined;
   /** 「资料库 › Aurora vs Meridian › 概览」. Owned by the route. */
   crumb?: ReactNode;
-  serviceStatus?: ShellServiceStatus;
   /** Opens the command palette. The Ctrl K key binding belongs to the palette. */
   onOpenCommandPalette?: (() => void) | undefined;
   /** Opens the shell-level background activity drawer. */
@@ -147,17 +137,6 @@ export interface WindowTitleBarProps {
   adapter?: DesktopWindowAdapter | null | undefined;
   className?: string | undefined;
 }
-
-/* 「本地服务离线」 artboard: the offline line is the only one that takes a
-   colour — the darkened brick red `theme.css` records as `--color-fail-text`,
-   and `ServiceStatusMarker` already applies it. The two neutral steps below are
-   the title bar's own inks; the marker is rendered by nothing else, but leaving
-   the tone here keeps the marker itself free of a caller's typography. */
-const SERVICE_TEXT_CLASS: Record<ShellServiceStatus, string> = {
-  checking: 'text-neutral-600',
-  online: 'text-neutral-700',
-  offline: 'text-fail-text',
-};
 
 /* Windows caption controls use a system-width backplate rather than the
    product spacing scale. 46px is the logical caption width; the title bar
@@ -178,7 +157,6 @@ export function WindowTitleBar({
   mode,
   onModeChange,
   crumb,
-  serviceStatus = 'checking',
   onOpenCommandPalette,
   onOpenActivity,
   activityUnreadCount = 0,
@@ -346,9 +324,6 @@ export function WindowTitleBar({
               </button>
             )}
 
-            <span data-titlebar-service={serviceStatus} className="flex flex-none items-center">
-              <ServiceStatusMarker status={serviceStatus} className={SERVICE_TEXT_CLASS[serviceStatus]} />
-            </span>
           </>
         )}
       </div>

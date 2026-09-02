@@ -27,7 +27,7 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { Inspector } from '../../design/layout';
 import { Alert, StatusDot } from '../../design/feedback';
@@ -45,8 +45,7 @@ import {
   formatScore,
   isDemoAnalysable,
 } from './libraryFormat';
-import { alsoDisabled, unavailableAction, type ServiceActionButtonProps } from './serviceAction';
-import type { ReactNode } from 'react';
+import { unavailableAction } from './actionAvailability';
 
 export interface LibraryInspectorProps {
   readonly demo: DemoSummary | undefined;
@@ -63,8 +62,6 @@ export interface LibraryInspectorProps {
   readonly onSaveRemark: (remark: string) => Promise<unknown>;
   readonly savingRemark: boolean;
 
-  readonly service: ServiceActionButtonProps;
-  readonly serviceSuffix: ReactNode | undefined;
   /** Test seam for the §8 breakpoint; production leaves it to the component. */
   readonly collapsed?: boolean | undefined;
 }
@@ -81,8 +78,6 @@ export function LibraryInspector({
   onPlay,
   onSaveRemark,
   savingRemark,
-  service,
-  serviceSuffix,
   collapsed,
 }: LibraryInspectorProps) {
   const { i18n } = useLingui();
@@ -140,9 +135,8 @@ export function LibraryInspector({
             <Trans>打开比赛工作区</Trans>
           </Button>
         ) : (
-          <Button size="sm" variant="primary" {...alsoDisabled(service, analysing)} onClick={onAnalyse}>
+          <Button size="sm" variant="primary" disabled={analysing} onClick={onAnalyse}>
             <Trans>开始分析</Trans>
-            {serviceSuffix}
           </Button>
         )
       }
@@ -157,17 +151,15 @@ export function LibraryInspector({
               size="lg"
               variant="primary"
               block
-              {...alsoDisabled(service, analysing)}
+              disabled={analysing}
               onClick={onAnalyse}
             >
               <Trans>开始分析</Trans>
-              {serviceSuffix}
             </Button>
           )}
           <div className="flex gap-2">
-            <Button size="sm" grow {...service} onClick={onPlay}>
+            <Button size="sm" grow onClick={onPlay}>
               <Trans>游戏内回放</Trans>
-              {serviceSuffix}
             </Button>
             <Button
               size="sm"
@@ -260,13 +252,12 @@ export function LibraryInspector({
         <div className="mt-2">
           <Button
             size="sm"
-            {...alsoDisabled(service, savingRemark || remark === demo.remark)}
+            disabled={savingRemark || remark === demo.remark}
             onClick={() => {
               void onSaveRemark(remark);
             }}
           >
             <Trans>保存备注</Trans>
-            {serviceSuffix}
           </Button>
         </div>
       </section>

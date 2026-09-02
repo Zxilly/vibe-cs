@@ -37,7 +37,6 @@ import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useQuickCheck } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
-import { useServiceAction } from '../data/serviceAction';
 import type { DependencyCheck, DependencyState } from '../shared/desktop/dto';
 import { FIRST_RUN_STEPS } from './home/firstRunSteps';
 import { RouteLink } from './RouteLink';
@@ -45,7 +44,6 @@ import { settingsPath } from './settings/settingsRoutes';
 
 export function GuidePage() {
   const checks = useQuickCheck();
-  const service = useServiceAction();
   const error = dataErrorMessage(checks.error);
 
   return (
@@ -95,8 +93,8 @@ export function GuidePage() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={service.blocked || checks.isFetching}
-              disabledReason={service.buttonProps.disabledReason ?? t`正在检查`}
+              disabled={checks.isFetching}
+              disabledReason={t`正在检查`}
               onClick={() => void checks.refetch()}
             >
               <Trans>重新检查</Trans>

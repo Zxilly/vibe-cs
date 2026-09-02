@@ -7,21 +7,18 @@
  *      the invalidation chain from the page's side; `data/taskWrites` proves it
  *      from the data side, and both are needed — the page could bind the wrong
  *      job id and the data test would still pass.
- *   2. A service that is not connected disables the writes and says why
- *      (「不隐藏、不静默失败」), while the reading half of the page keeps working.
- *   3. The `?view=` switch is a real navigation, so the back button and a deep
+ *   2. The `?view=` switch is a real navigation, so the back button and a deep
  *      link both keep working.
  */
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { OutputItem, OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { ActivityDrawer } from '../../ActivityDrawer';
 import { DeliveryPage } from '../DeliveryPage';
-import { HEALTHY, renderPage } from './test/renderPage';
-import { reasonOf } from '../../test/reason';
+import { renderPage } from './test/renderPage';
 import { unavailableNativeShell } from '../../data/nativeShell';
 
 const RUNNING: ActivityItem = {
@@ -127,11 +124,10 @@ function stubs(): Stubs {
   };
 }
 
-function renderActivity(client: Record<string, unknown>, health = HEALTHY) {
+function renderActivity(client: Record<string, unknown>) {
   return renderPage({
     element: <ActivityDrawer open onClose={() => undefined} onUnreadChange={() => undefined} />,
     client,
-    health,
   });
 }
 
@@ -139,7 +135,7 @@ describe('成品 › 成品文件', () => {
   it('prints the count and the free space the header promises', async () => {
     const { client } = stubs();
     renderPage({
-      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+      element: <DeliveryPage />, client, route: '/delivery',
       shell: {
         ...unavailableNativeShell,
         available: true,
@@ -154,7 +150,7 @@ describe('成品 › 成品文件', () => {
   it('lists the produced files with their path and a way to find them', async () => {
     const { client } = stubs();
     renderPage({
-      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+      element: <DeliveryPage />, client, route: '/delivery',
       shell: {
         ...unavailableNativeShell,
         available: true,
@@ -172,7 +168,7 @@ describe('成品 › 成品文件', () => {
   it('uses one comparable file row and anchors the newest output', async () => {
     const { client } = stubs();
     const { container } = renderPage({
-      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+      element: <DeliveryPage />, client, route: '/delivery',
     });
 
     await screen.findByRole('heading', { name: 'Kael 1v3' });
@@ -320,32 +316,5 @@ describe('密度 (§10.3)', () => {
     await screen.findByRole('heading', { name: '进行中 · 50' });
     expect(document.querySelector('[data-overlay="drawer"] .overflow-y-auto')).not.toBeNull();
     expect(container.querySelector('[data-page-body]')).toBeNull();
-  });
-});
-
-describe('本地服务离线', () => {
-  it('disables the writes, writes the reason, and leaves the reading half alone', async () => {
-    const { client } = stubs();
-    // No `health`: the probe has never answered, which is what the shell shows
-    // as 「正在连接本地服务」 and what blocks an action.
-    renderPage({ element: <DeliveryPage />, client, route: '/delivery' });
-
-    // Read-only content is still there.
-    expect(await screen.findByText('Kael_Mirage_1v3.mp4')).toBeTruthy();
-
-    const cleanup = screen.getByRole('button', { name: /清理无效记录/u });
-    expect(cleanup.hasAttribute('disabled')).toBe(true);
-    expect(reasonOf(cleanup)).toMatch(/服务/u);
-
-    // 定位文件 is a shell action, not a service call — it stays available.
-    expect(screen.getByRole('button', { name: '定位文件' }).hasAttribute('disabled')).toBe(false);
-  });
-
-  it('marks the blocked action with the artboard s 「· 需要服务」 tail', async () => {
-    const { client } = stubs();
-    renderPage({ element: <DeliveryPage />, client, route: '/delivery' });
-
-    const cleanup = await screen.findByRole('button', { name: /清理无效记录/u });
-    expect(within(cleanup).getByText(/需要服务/u)).toBeTruthy();
   });
 });

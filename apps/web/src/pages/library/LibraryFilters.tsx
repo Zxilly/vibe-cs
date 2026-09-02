@@ -38,7 +38,7 @@ import { Search } from 'lucide-react';
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
 import { Badge, Button, InputGroup, InputGroupAddon, InputGroupInput } from '../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../shared/desktop/dto';
-import { unavailableAction } from './serviceAction';
+import { unavailableAction } from './actionAvailability';
 import type { LibraryAddress } from './libraryQuery';
 
 /** The wire's six record states, in the order `DemoRecord.status` declares. */

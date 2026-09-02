@@ -47,7 +47,6 @@ import {
 } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
-import { useServiceAction } from '../../data/serviceAction';
 import type { SteamConfig } from '../../shared/desktop/dto';
 import { formatBytes, PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
 
@@ -56,7 +55,6 @@ export function FilesSection() {
   const storage = useStorageStatus();
   const update = useUpdateAppConfig();
   const setWatchPaths = useSetDemoWatchPaths();
-  const service = useServiceAction();
   const shell = useNativeShell();
   const openDirectory = useOpenDirectory();
   const shellAction = useNativeShellAction();
@@ -66,8 +64,8 @@ export function FilesSection() {
 
   const current = config.data;
   const busy = update.isPending || setWatchPaths.isPending || picking;
-  const blocked = service.blocked || busy;
-  const blockedReason = service.blocked ? service.buttonProps.disabledReason : undefined;
+  const blocked = busy;
+  const blockedReason = blocked ? t`正在处理` : undefined;
 
   const configError = dataErrorMessage(config.error);
   const writeError = dataErrorMessage(update.error) ?? dataErrorMessage(setWatchPaths.error);

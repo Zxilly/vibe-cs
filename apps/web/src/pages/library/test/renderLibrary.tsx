@@ -13,11 +13,6 @@
  *     a stub can be injected. The stub is a plain object; anything the test
  *     does not exercise stays absent.
  *
- * The service gate is seeded the same way. `pages/library/serviceAction` reads
- * `qk.service.health()` read-only, so writing a payload there is 「服务在线」 and
- * writing nothing is 「还没连上」 — which is the blocked state every
- * service-backed button must render.
- *
  * Lives under `test/` so `lingui.config.ts` keeps its fixture Chinese out of the
  * catalogue and vitest does not mistake it for a test file.
  */
@@ -129,8 +124,6 @@ export interface LibrarySeed {
   readonly watch?: DemoWatchStatus | undefined;
   readonly tags?: readonly ReviewTag[] | undefined;
   readonly config?: AppConfig | undefined;
-  /** Anything at all means 「服务在线」; absent means the gate blocks. */
-  readonly serviceOnline?: boolean | undefined;
 }
 
 export interface LibraryHarnessOptions {
@@ -175,9 +168,6 @@ function seedCache(queryClient: QueryClient, at: string, seed: LibrarySeed): voi
   if (seed.watch !== undefined) queryClient.setQueryData(qk.demos.watch(), seed.watch);
   if (seed.tags !== undefined) queryClient.setQueryData(qk.demos.reviewTags(), [...seed.tags]);
   if (seed.config !== undefined) queryClient.setQueryData(qk.config.app(), seed.config);
-  if (seed.serviceOnline === true) {
-    queryClient.setQueryData(qk.service.health(), { status: 'ok', version: '0.1.0' });
-  }
 }
 
 function tree(queryClient: QueryClient, at: string, client: DesktopClient): ReactElement {

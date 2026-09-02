@@ -21,13 +21,8 @@
  * that interrupts on states nobody has defined is one people learn to ignore —
  * but it is now a decision to make then, not a defence to carry.
  *
- * ── It is not the service gate ───────────────────────────────────────────
- *
- * `app/boundary/ServiceGate` already owns "the local service is down", and it
- * covers the whole shell. This block is about the *environment the service
- * needs to do work* — CS2's location, the capture component — which is a
- * different failure with a different fix, and it is only reachable when the
- * service is up to report it.
+ * This block is about the environment required for work — CS2's location and
+ * the capture implementation — and reports only actionable failures.
  */
 
 import { t } from '@lingui/core/macro';

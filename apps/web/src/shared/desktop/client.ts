@@ -38,7 +38,6 @@ import type {
   AgentWorkspaceSettings,
   AnalysisRun,
   AnalysisRunDetail,
-  ApiHealth,
   AppConfig,
   AudioAnalysis,
   AudioAnalysisOptions,
@@ -594,7 +593,6 @@ export const commands = {
     request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? DEFAULT_AUDIO_ANALYSIS_OPTIONS)}`),
   alignClipsToBeats: (body: BeatAlignmentRequest) =>
     request<BeatAlignmentDraft>('/media/audio/align-clips', { method: 'POST', body }),
-  health: (signal?: AbortSignal) => request<ApiHealth>('/health', { signal }),
   quickCheck: (signal?: AbortSignal) =>
     request<QuickCheckResponse>('/config/quick-check', { signal }),
   listDemos: async (query: DemoQuery, signal?: AbortSignal) => {

@@ -14,7 +14,7 @@ use vibe_cs_domain::{
     TimelineClip, TimelineClipMaterial, TimelineClipMaterializationState, TimelineClipTransitions,
     TimelinePlacement, TimelineTrack, TrackKind, Transform,
 };
-use vibe_cs_storage::{ExportJobRecord, ProjectLeaseAcquire};
+use vibe_cs_storage::ExportJobRecord;
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
 
@@ -52,14 +52,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/projects/{id}/change-groups/{change_group_id}/revert",
             axum::routing::post(revert_change_group),
         )
-        .route(
-            "/api/projects/{id}/edit-lease",
-            get(get_edit_lease).post(acquire_edit_lease),
-        )
-        .route(
-            "/api/projects/{id}/edit-lease/{lease_id}",
-            axum::routing::put(heartbeat_edit_lease).delete(release_edit_lease),
-        )
+        .route("/api/projects/{id}/edit-lease", get(get_edit_lease))
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -104,30 +97,6 @@ struct ProjectDeliveryGate {
 #[ts(export)]
 struct RevertProjectChangeGroupRequest {
     expected_revision: u64,
-}
-
-#[derive(Debug, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-struct AcquireProjectEditLeaseRequest {
-    session_id: Uuid,
-    turn_id: Uuid,
-    base_revision: u64,
-}
-
-#[derive(Debug, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-struct HeartbeatProjectEditLeaseRequest {
-    heartbeat_at: chrono::DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-struct ProjectEditLeaseResponse {
-    acquired: bool,
-    lease: ProjectEditLease,
 }
 
 #[derive(Debug, Deserialize, TS)]
@@ -399,7 +368,11 @@ async fn create_project_recording_plan(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
-    require_project_revision(&project, request.expected_revision, "recording confirmation")?;
+    require_project_revision(
+        &project,
+        request.expected_revision,
+        "recording confirmation",
+    )?;
     let selected = request
         .clip_ids
         .into_iter()
@@ -1031,70 +1004,11 @@ async fn revert_change_group(
     }))
 }
 
-async fn acquire_edit_lease(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-    ApiJson(request): ApiJson<AcquireProjectEditLeaseRequest>,
-) -> ApiResult<Json<ProjectEditLeaseResponse>> {
-    let now = Utc::now();
-    let lease = ProjectEditLease {
-        id: Uuid::new_v4(),
-        project_id: id,
-        session_id: request.session_id,
-        turn_id: request.turn_id,
-        base_revision: request.base_revision,
-        acquired_at: now,
-        heartbeat_at: now,
-    };
-    let response = match state.storage.acquire_project_edit_lease(lease).await? {
-        ProjectLeaseAcquire::Acquired(lease) => ProjectEditLeaseResponse {
-            acquired: true,
-            lease,
-        },
-        ProjectLeaseAcquire::Held(lease) => ProjectEditLeaseResponse {
-            acquired: false,
-            lease,
-        },
-    };
-    Ok(Json(response))
-}
-
 async fn get_edit_lease(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Option<ProjectEditLease>>> {
     Ok(Json(state.storage.get_project_edit_lease(id).await?))
-}
-
-async fn heartbeat_edit_lease(
-    State(state): State<AppState>,
-    Path((id, lease_id)): Path<(Uuid, Uuid)>,
-    ApiJson(request): ApiJson<HeartbeatProjectEditLeaseRequest>,
-) -> ApiResult<StatusCode> {
-    if state
-        .storage
-        .heartbeat_project_edit_lease(id, lease_id, request.heartbeat_at)
-        .await?
-    {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(ApiError::not_found("project edit lease"))
-    }
-}
-
-async fn release_edit_lease(
-    State(state): State<AppState>,
-    Path((id, lease_id)): Path<(Uuid, Uuid)>,
-) -> ApiResult<StatusCode> {
-    if state
-        .storage
-        .release_project_edit_lease(id, lease_id)
-        .await?
-    {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(ApiError::not_found("project edit lease"))
-    }
 }
 
 #[cfg(test)]
@@ -1227,7 +1141,9 @@ mod tests {
             &router,
             Method::POST,
             "/api/projects",
-            Some(json!({"name":"Consent","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+            Some(
+                json!({"name":"Consent","width":1920,"height":1080,"fps":60,"source_demo_ids":[]}),
+            ),
         )
         .await;
         let project_id = created["id"].as_str().expect("project id");

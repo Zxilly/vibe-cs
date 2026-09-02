@@ -271,6 +271,9 @@ impl Storage {
             let mut connection = open()?;
             schema::configure(&connection)?;
             schema::run(&mut connection)?;
+            // Edit leases are process-owned. No Agent turn survives an app restart, so
+            // retaining one would only leave the Project incorrectly read-only.
+            connection.execute("DELETE FROM project_edit_leases", [])?;
             reconcile_evidence_projections(&mut connection)?;
             Ok::<_, StorageError>(connection)
         })

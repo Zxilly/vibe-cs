@@ -116,9 +116,6 @@ export type { ProjectPatchResult } from './generated/ProjectPatchResult';
 export type { ProjectDeliveryBlocker } from './generated/ProjectDeliveryBlocker';
 export type { ProjectDeliveryGate } from './generated/ProjectDeliveryGate';
 export type { RevertProjectChangeGroupRequest } from './generated/RevertProjectChangeGroupRequest';
-export type { AcquireProjectEditLeaseRequest } from './generated/AcquireProjectEditLeaseRequest';
-export type { HeartbeatProjectEditLeaseRequest } from './generated/HeartbeatProjectEditLeaseRequest';
-export type { ProjectEditLeaseResponse } from './generated/ProjectEditLeaseResponse';
 
 /** The generic page envelope every paginated route flattens into its response. */
 export type { Page as Paginated } from './generated/Page';

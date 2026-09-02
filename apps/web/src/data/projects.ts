@@ -7,9 +7,7 @@ import {
 } from '@tanstack/react-query';
 
 import type {
-  AcquireProjectEditLeaseRequest,
   CreateProjectRequest,
-  HeartbeatProjectEditLeaseRequest,
   ProjectChangeGroup,
   ProjectPatch,
 } from '../shared/desktop/dto';
@@ -304,29 +302,6 @@ export function useRevertProjectChangeGroup(projectId: string) {
         queryClient.invalidateQueries({ queryKey: qk.projects.changeGroups(project.id) }),
       ]).then(() => undefined);
     },
-  });
-}
-
-export function useAcquireProjectEditLease(projectId: string) {
-  const client = useDesktopClient();
-  return useMutation({
-    mutationFn: (request: AcquireProjectEditLeaseRequest) =>
-      client.acquireProjectEditLease(projectId, request),
-  });
-}
-
-export function useHeartbeatProjectEditLease(projectId: string, leaseId: string) {
-  const client = useDesktopClient();
-  return useMutation({
-    mutationFn: (request: HeartbeatProjectEditLeaseRequest) =>
-      client.heartbeatProjectEditLease(projectId, leaseId, request),
-  });
-}
-
-export function useReleaseProjectEditLease(projectId: string) {
-  const client = useDesktopClient();
-  return useMutation({
-    mutationFn: (leaseId: string) => client.releaseProjectEditLease(projectId, leaseId),
   });
 }
 

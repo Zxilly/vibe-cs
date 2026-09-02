@@ -114,11 +114,8 @@ import type {
   ProjectChangeGroup,
   ProjectDeliveryGate,
   ProjectEditLease,
-  ProjectEditLeaseResponse,
   ProjectPatch,
   ProjectPatchResult,
-  AcquireProjectEditLeaseRequest,
-  HeartbeatProjectEditLeaseRequest,
   QuickCheckResponse,
   RadarOverviewRecord,
   RecordedClipRecord,
@@ -579,22 +576,6 @@ export const commands = {
       `/projects/${encodeURIComponent(projectId)}/edit-lease`,
       { signal },
     ),
-  acquireProjectEditLease: (projectId: string, requestBody: AcquireProjectEditLeaseRequest) =>
-    request<ProjectEditLeaseResponse>(`/projects/${encodeURIComponent(projectId)}/edit-lease`, {
-      method: 'POST', body: requestBody,
-    }),
-  heartbeatProjectEditLease: (
-    projectId: string,
-    leaseId: string,
-    requestBody: HeartbeatProjectEditLeaseRequest,
-  ) => request<void>(
-    `/projects/${encodeURIComponent(projectId)}/edit-lease/${encodeURIComponent(leaseId)}`,
-    { method: 'PUT', body: requestBody },
-  ),
-  releaseProjectEditLease: (projectId: string, leaseId: string) => request<void>(
-    `/projects/${encodeURIComponent(projectId)}/edit-lease/${encodeURIComponent(leaseId)}`,
-    { method: 'DELETE' },
-  ),
   getAgentWorkspaceSettings: (signal?: AbortSignal) =>
     request<AgentWorkspaceSettings>('/agent/workspace/settings', { signal }),
   updateAgentWorkspaceSettings: (settings: AgentWorkspaceSettings) =>

@@ -1356,7 +1356,7 @@ async fn run_agent_chat(
         loop {
             interval.tick().await;
             match heartbeat_storage
-                .heartbeat_project_edit_lease(heartbeat_project_id, heartbeat_lease_id, Utc::now())
+                .heartbeat_project_edit_lease(heartbeat_project_id, heartbeat_lease_id)
                 .await
             {
                 Ok(true) => {}

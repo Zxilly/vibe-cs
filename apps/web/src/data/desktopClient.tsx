@@ -177,9 +177,6 @@ export type DesktopClient = Pick<
   | 'listProjectChangeGroups'
   | 'revertProjectChangeGroup'
   | 'getProjectEditLease'
-  | 'acquireProjectEditLease'
-  | 'heartbeatProjectEditLease'
-  | 'releaseProjectEditLease'
   /* ── recording shot presets (phase 3f, 「08 录制计划与镜头预览」) ──
      `/api/recording/shot-presets`, behind the shot inspector's 「存为预设」.
      There is no `expected_revision` anywhere in this group: nothing on the

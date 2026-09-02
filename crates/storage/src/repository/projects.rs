@@ -9,6 +9,8 @@ use vibe_cs_domain::{
 use super::{Storage, decode, encode, sql_u64};
 use crate::{Result, StorageError};
 
+const PROJECT_EDIT_LEASE_TIMEOUT_SECONDS: i64 = 30;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProjectLeaseAcquire {
     Acquired(ProjectEditLease),
@@ -73,7 +75,7 @@ impl Storage {
         self.run(move |connection| {
             let transaction =
                 connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            authorize_project_patch(&transaction, &patch)?;
+            authorize_project_patch(&transaction, &patch, Utc::now())?;
             let mut project = read_project(&transaction, patch.project_id)?
                 .ok_or_else(|| StorageError::Domain(DomainError::NotFound("project".to_owned())))?;
             let group = project.apply_patch(patch, change_group_id, now)?;
@@ -117,7 +119,7 @@ impl Storage {
         self.run(move |connection| {
             let transaction =
                 connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            authorize_project_patch(&transaction, &parent_patch)?;
+            authorize_project_patch(&transaction, &parent_patch, Utc::now())?;
             if read_project(&transaction, child.id)?.is_some() {
                 return Err(StorageError::ProjectAlreadyExists(child.id));
             }
@@ -195,7 +197,7 @@ impl Storage {
         self.run(move |connection| {
             let transaction =
                 connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            if read_project_edit_lease(&transaction, project_id)?.is_some() {
+            if read_live_project_edit_lease(&transaction, project_id, Utc::now())?.is_some() {
                 return Err(StorageError::Domain(DomainError::Conflict(
                     "Project is read-only while an Agent Operation holds the edit lease".to_owned(),
                 )));
@@ -248,7 +250,7 @@ impl Storage {
 
     pub async fn acquire_project_edit_lease(
         &self,
-        lease: ProjectEditLease,
+        mut lease: ProjectEditLease,
     ) -> Result<ProjectLeaseAcquire> {
         self.run(move |connection| {
             let transaction =
@@ -267,11 +269,10 @@ impl Storage {
                     lease.base_revision
                 ))));
             }
-            let stale_before = lease.acquired_at - chrono::Duration::seconds(30);
-            transaction.execute(
-                "DELETE FROM project_edit_leases WHERE project_id = ?1 AND heartbeat_at < ?2",
-                params![lease.project_id.to_string(), stale_before.to_rfc3339()],
-            )?;
+            let now = Utc::now();
+            lease.acquired_at = now;
+            lease.heartbeat_at = now;
+            let live_lease = read_live_project_edit_lease(&transaction, lease.project_id, now)?;
             let inserted = transaction.execute(
                 "INSERT INTO project_edit_leases(\
                     project_id, id, session_id, turn_id, base_revision, acquired_at, heartbeat_at\
@@ -289,13 +290,11 @@ impl Storage {
             let outcome = if inserted == 1 {
                 ProjectLeaseAcquire::Acquired(lease)
             } else {
-                ProjectLeaseAcquire::Held(
-                    read_project_edit_lease(&transaction, lease.project_id)?.ok_or_else(|| {
-                        StorageError::Domain(DomainError::Conflict(
-                            "project edit lease disappeared during acquisition".to_owned(),
-                        ))
-                    })?,
-                )
+                ProjectLeaseAcquire::Held(live_lease.ok_or_else(|| {
+                    StorageError::Domain(DomainError::Conflict(
+                        "project edit lease disappeared during acquisition".to_owned(),
+                    ))
+                })?)
             };
             transaction.commit()?;
             Ok(outcome)
@@ -307,7 +306,7 @@ impl Storage {
         &self,
         project_id: Uuid,
     ) -> Result<Option<ProjectEditLease>> {
-        self.run(move |connection| read_project_edit_lease(connection, project_id))
+        self.run(move |connection| read_live_project_edit_lease(connection, project_id, Utc::now()))
             .await
     }
 
@@ -315,7 +314,6 @@ impl Storage {
         &self,
         project_id: Uuid,
         lease_id: Uuid,
-        heartbeat_at: DateTime<Utc>,
     ) -> Result<bool> {
         self.run(move |connection| {
             Ok(connection.execute(
@@ -323,7 +321,7 @@ impl Storage {
                 params![
                     project_id.to_string(),
                     lease_id.to_string(),
-                    heartbeat_at.to_rfc3339(),
+                    Utc::now().to_rfc3339(),
                 ],
             )? == 1)
         })
@@ -397,8 +395,12 @@ fn allocate_inserted_project_ids(patch: &mut ProjectPatch) {
     }
 }
 
-fn authorize_project_patch(transaction: &Transaction<'_>, patch: &ProjectPatch) -> Result<()> {
-    let lease = read_project_edit_lease(transaction, patch.project_id)?;
+fn authorize_project_patch(
+    transaction: &Transaction<'_>,
+    patch: &ProjectPatch,
+    now: DateTime<Utc>,
+) -> Result<()> {
+    let lease = read_live_project_edit_lease(transaction, patch.project_id, now)?;
     match (&patch.author, lease) {
         (ProjectChangeAuthor::Human | ProjectChangeAuthor::System { .. }, None) => Ok(()),
         (ProjectChangeAuthor::Human, Some(_)) => Err(StorageError::Domain(DomainError::Conflict(
@@ -523,6 +525,19 @@ fn read_project_edit_lease(
             },
         )
         .transpose()
+}
+
+fn read_live_project_edit_lease(
+    connection: &rusqlite::Connection,
+    project_id: Uuid,
+    now: DateTime<Utc>,
+) -> Result<Option<ProjectEditLease>> {
+    let stale_before = now - chrono::Duration::seconds(PROJECT_EDIT_LEASE_TIMEOUT_SECONDS);
+    connection.execute(
+        "DELETE FROM project_edit_leases WHERE project_id = ?1 AND heartbeat_at < ?2",
+        params![project_id.to_string(), stale_before.to_rfc3339()],
+    )?;
+    read_project_edit_lease(connection, project_id)
 }
 
 fn invalid_stored(field: &str) -> StorageError {
@@ -660,13 +675,16 @@ mod tests {
             acquired_at: DateTime::UNIX_EPOCH,
             heartbeat_at: DateTime::UNIX_EPOCH,
         };
-        assert!(matches!(
-            storage
-                .acquire_project_edit_lease(first.clone())
-                .await
-                .expect("first lease"),
-            ProjectLeaseAcquire::Acquired(_)
-        ));
+        let acquired = match storage
+            .acquire_project_edit_lease(first.clone())
+            .await
+            .expect("first lease")
+        {
+            ProjectLeaseAcquire::Acquired(lease) => lease,
+            ProjectLeaseAcquire::Held(_) => panic!("first lease must be acquired"),
+        };
+        assert!(acquired.acquired_at > DateTime::UNIX_EPOCH);
+        assert_eq!(acquired.acquired_at, acquired.heartbeat_at);
         let second = ProjectEditLease {
             id: Uuid::from_u128(123),
             turn_id: Uuid::from_u128(124),
@@ -677,13 +695,109 @@ mod tests {
                 .acquire_project_edit_lease(second)
                 .await
                 .expect("held lease"),
-            ProjectLeaseAcquire::Held(first.clone())
+            ProjectLeaseAcquire::Held(acquired.clone())
         );
         assert!(
             storage
-                .release_project_edit_lease(created.id, first.id)
+                .release_project_edit_lease(created.id, acquired.id)
                 .await
                 .expect("release")
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_project_edit_lease_does_not_block_human_edits() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let created = storage.create_project(project()).await.expect("create");
+        let lease = ProjectEditLease {
+            id: Uuid::from_u128(130),
+            project_id: created.id,
+            session_id: Uuid::from_u128(131),
+            turn_id: Uuid::from_u128(132),
+            base_revision: created.revision,
+            acquired_at: Utc::now(),
+            heartbeat_at: Utc::now(),
+        };
+        storage
+            .acquire_project_edit_lease(lease)
+            .await
+            .expect("acquire lease");
+        storage
+            .run(move |connection| {
+                connection.execute(
+                    "UPDATE project_edit_leases SET heartbeat_at = ?2 WHERE project_id = ?1",
+                    params![
+                        created.id.to_string(),
+                        (Utc::now() - chrono::Duration::minutes(1)).to_rfc3339(),
+                    ],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("age lease");
+
+        assert_eq!(
+            storage
+                .get_project_edit_lease(created.id)
+                .await
+                .expect("read lease"),
+            None
+        );
+        let (updated, _) = storage
+            .apply_project_patch(
+                ProjectPatch {
+                    project_id: created.id,
+                    base_revision: created.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: ProjectChangeAuthor::Human,
+                    reverts_change_group_id: None,
+                    summary: "Rename after stale lease".to_owned(),
+                    operations: vec![ProjectEditOperation::RenameProject {
+                        name: "Recovered".to_owned(),
+                    }],
+                },
+                Uuid::from_u128(133),
+                Utc::now(),
+            )
+            .await
+            .expect("human edit");
+        assert_eq!(updated.name, "Recovered");
+    }
+
+    #[tokio::test]
+    async fn reopening_storage_clears_process_owned_project_edit_leases() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("vibe-cs.sqlite3");
+        let storage = Storage::open(&database_path).await.expect("storage");
+        let created = storage.create_project(project()).await.expect("create");
+        storage
+            .acquire_project_edit_lease(ProjectEditLease {
+                id: Uuid::from_u128(140),
+                project_id: created.id,
+                session_id: Uuid::from_u128(141),
+                turn_id: Uuid::from_u128(142),
+                base_revision: created.revision,
+                acquired_at: Utc::now(),
+                heartbeat_at: Utc::now(),
+            })
+            .await
+            .expect("acquire lease");
+        assert!(
+            storage
+                .get_project_edit_lease(created.id)
+                .await
+                .expect("read lease")
+                .is_some()
+        );
+        drop(storage);
+
+        let reopened = Storage::open(&database_path).await.expect("reopen storage");
+        assert_eq!(
+            reopened
+                .get_project_edit_lease(created.id)
+                .await
+                .expect("read lease after restart"),
+            None
         );
     }
 }

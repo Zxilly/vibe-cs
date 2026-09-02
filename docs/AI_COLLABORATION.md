@@ -34,7 +34,8 @@ plan, montage, editor, or conversion pipeline.
   region. Their divider changes the width ratio; neither side is a floating
   window or a separate editing surface.
 - Recording and final export are external executions. They always require an
-  explicit human confirmation, including when Agent Auto mode is enabled.
+  explicit human confirmation; reversible timeline edits apply directly and
+  remain undoable.
 - Capture Intent and Timeline Placement are separate. Placement-only edits keep
   a Take compatible; changing capture-producing fields makes it stale.
 - Final export is fail-closed until every enabled clip has compatible media.
@@ -77,12 +78,12 @@ plan, montage, editor, or conversion pipeline.
 - `request_project_export`: creates a human-confirmation request; it never
   launches FFmpeg.
 
-The Rig multi-turn tool loop has no fixed turn ceiling. Explicit cancellation,
-the desktop-owned request deadline, and a 90-second no-progress watchdog bound
-liveness. Text, provider stream items, and tool lifecycle events all reset the
-watchdog; useful long tool sequences are therefore not capped. When it trips,
-completed tool checkpoints are preserved for retry. Provider keys never cross
-into the webview or tool output.
+The Rig multi-turn tool loop has no fixed turn or wall-clock ceiling. Explicit
+cancellation and a 90-second no-progress watchdog bound liveness. Text,
+provider stream items, and tool lifecycle events all reset the watchdog;
+useful long tool sequences are therefore not capped. When it trips, completed
+tool checkpoints are preserved for retry. Provider keys never cross into the
+webview or tool output.
 
 ## Context assembly
 

@@ -366,7 +366,6 @@ export function ProjectWorkspacePage() {
       sessionId: agentSessionId,
       projectId,
       mode: 'hlae',
-      autoMode: true,
       message: outcome,
       workspaceContext: { projectId, lens: 'multitrack', selectedClipId },
     }).catch(() => reportedExecutionIds.current.delete(next.id));
@@ -970,7 +969,6 @@ export function ProjectWorkspacePage() {
       sessionId,
       projectId: current.id,
       mode: 'hlae',
-      autoMode: true,
       message,
       workspaceContext: { projectId: current.id, lens, selectedClipId },
     });

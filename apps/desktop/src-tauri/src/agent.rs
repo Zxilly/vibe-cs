@@ -936,8 +936,6 @@ pub(crate) struct AgentChatInput {
     project_id: Uuid,
     workspace_context: AgentWorkspaceContext,
     mode: EmbeddedAgentMode,
-    #[serde(default)]
-    auto_mode: bool,
     message: String,
 }
 
@@ -1388,7 +1386,6 @@ async fn run_agent_chat(
             project: project_context,
         },
         tool_host,
-        auto_mode: input.auto_mode,
     };
     let mut pending_text = String::new();
     let response = vibe_cs_agent::run_agent(request, cancellation, |event| match event {

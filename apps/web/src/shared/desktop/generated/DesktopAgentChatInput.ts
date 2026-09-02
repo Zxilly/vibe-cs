@@ -8,6 +8,5 @@ export type DesktopAgentChatInput = {
   projectId: string;
   workspaceContext: DesktopAgentWorkspaceContext;
   mode: AgentMode;
-  autoMode: boolean;
   message: string;
 };

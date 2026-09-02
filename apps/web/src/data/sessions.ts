@@ -304,7 +304,6 @@ export interface AgentChatSend {
   /** Failed/cancelled assistant entry this new turn retries. */
   readonly retryOf?: string | null | undefined;
   readonly mode?: AgentChatInput['mode'];
-  readonly autoMode?: boolean | undefined;
   readonly projectId: string;
   readonly workspaceContext?: Partial<AgentChatInput['workspaceContext']>;
 }
@@ -685,7 +684,6 @@ function buildChatInput(
       selectedClipId: context.selectedClipId ?? null,
     },
     mode: input.mode ?? 'edit',
-    autoMode: input.autoMode ?? false,
     message: input.message,
   };
 }

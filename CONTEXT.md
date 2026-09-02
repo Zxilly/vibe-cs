@@ -80,12 +80,8 @@ _Avoid_: requiring a matching Agent tool for every control
 An Agent edit to content or settings not visible in the current **Editing Lens**. It is allowed, but the interface must identify what changed, which lens reveals it, and how to undo it.
 _Avoid_: silent hidden mutation, treating lens as permission
 
-**Agent Auto**:
-The policy for reversible Agent edits. When enabled, edits apply directly to the **Editing Document** and enter its undo history; when disabled, the same edits remain a preview until accepted.
-_Avoid_: permission to record, export, delete media, or perform hidden side effects
-
 **External Execution**:
-An operation outside reversible document editing, including CS2/HLAE recording, final export, or local media deletion. External Execution always requires explicit confirmation, regardless of **Agent Auto**.
+An operation outside reversible document editing, including CS2/HLAE recording, final export, or local media deletion. External Execution always requires explicit human confirmation.
 _Avoid_: treating execution as an Agent edit
 
 **Change Group**:
@@ -192,7 +188,7 @@ _Avoid_: client-side project aggregation, editable read model
 >
 > **Developer:** No. It is only the bounded state this Agent Operation needs so repeated turns do not resend old transcripts or evidence.
 >
-> **Editor:** Agent Auto is on. Can it start recording after fixing the timeline?
+> **Editor:** Can the Agent start recording after fixing the timeline?
 >
 > **Developer:** No. The timeline fix applies directly, but recording is External Execution and still requires explicit confirmation.
 >

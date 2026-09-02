@@ -15,7 +15,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
       - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File vendor/demoparser/verify-manifest.ps1
       - run: cargo test --manifest-path vendor/demoparser/parser/Cargo.toml --lib
       - run: cargo test --manifest-path vendor/demoparser/csgoproto/Cargo.toml
@@ -56,7 +65,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
 
@@ -73,6 +82,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1
       - run: cargo test -p vibe-cs-agent
       - run: pnpm demo-worker:sidecar
       - run: cargo test -p vibe-cs-desktop published_demo_worker_matches_the_build_manifest -- --ignored --nocapture

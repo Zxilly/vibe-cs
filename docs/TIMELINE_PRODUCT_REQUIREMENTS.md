@@ -284,7 +284,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | --- | --- | --- | --- | --- |
 | TL-PRO-01 | Proxy | 可生成/清理代理，Program 自动选择可用代理，导出仍用原始素材 | ✅ | P2 |
 | TL-PRO-02 | Nested Sequence | 选择片段创建子序列；父级作为单一 clip；双击回到源序列 | ✅ | P3 |
-| TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ⬜ | P3 |
+| TL-PRO-03 | Multicam | 按时间码/音频/标记同步；播放中切角度；保留源角度 | ✅ | P3 |
 | TL-PRO-04 | Sequence Tabs | 多序列打开、切换、恢复布局 | ✅ | P3 |
 | TL-PRO-05 | Render Preview | In/Out 预渲染、状态条、失效管理 | ✅ | P3 |
 | TL-PRO-06 | Interchange | 导入/导出 OTIO/XML/EDL 的受支持子集 | ✅ | P3 |
@@ -317,7 +317,7 @@ Adobe 官方 [Default keyboard shortcuts](https://helpx.adobe.com/premiere/deskt
 | Cut / Copy / Paste / Paste Insert | Ctrl+X/C/V / Ctrl+Shift+V | Cmd 对应 | ✅ |
 | Undo / Redo | Ctrl+Z / Ctrl+Shift+Z | Cmd 对应 | ✅ |
 | Link | Ctrl+L | Cmd+L | ✅ |
-| Group / Ungroup | Ctrl+G / Ctrl+Shift+G | Cmd 对应 | ⬜ |
+| Group / Ungroup | Ctrl+G / Ctrl+Shift+G | Cmd 对应 | ✅ |
 | Mark In/Out | I / O | 同 | ✅ |
 | Add / next / previous marker | M / Shift+M / Ctrl+Shift+M | Adobe macOS 对应 | ✅ |
 | Snap | S | 同 | ✅ |
@@ -527,6 +527,12 @@ fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，
 
 真实 Tauri/CDP 从 parent Project `af6eb1ad-b0d4-4ba2-997d-697e6b689b8c` revision 4 创建 `Action core`：父 revision 4→5，child `b5ca17e0-3ebb-4742-91eb-f830d92eed87` revision 1，父只剩一个 8s Sequence Clip，自动 preview `d53cc7a1-9cab-40a9-bfe0-eae3eaab5a6a` ready 后 Delivery Gate 无 blocker、Program `readyState=4` 且 stream 指向 child preview。双击进入 child 后 Tabs 同时显示 parent/child；child Story 重命名使 revision 1→2，parent 不变但 status=stale、Program preview count 1→0、Delivery Gate blocker=stale。Refresh 令 parent 5→6、pin 1→2，并生成 preview `33c8c23a-7b9a-4e8f-b770-3090cb66405f`；ready 后 Program 恢复。parent revision 6 的真实 final export `6b029176-e965-42fc-b7ac-3cc421238576` completed，证明 nested composite 进入最终 MP4。console/page error 为零，截图位于本地 `target/nested-sequence-audit/screenshots/`。
 
+### Step 33：Multicam 同步与播放中切角 — 健康
+
+确认：Project 面板以 2–9 个真实 video assets 创建 Multicam，明确选择 Embedded Source Timecode、Audio Waveform 或 exact Clip Marker；不把文件创建时间冒充 timecode。Native probe 从 container/video-stream `timecode` tag 按 exact rational fps 解析；Audio 使用固定 100 Hz peak envelope、±30s normalized cross-correlation 和最低置信度门禁；Marker 要求每个 angle 都有同名 source marker。创建以一个 Project Patch 替换现有 Timeline：Story 为 Angle 1，其余 camera 各占 video track；固定音频模式增加一个独立 Audio track 并把 camera clip volume 置零，Switch Audio 则让音频随启用 angle。每个 Clip metadata 保存 group/angle/name/sync method；Program Multi-Camera View 同时稳定 seek 所有 angle，点击时即使播放中也在同一 Timeline time 对所有 camera tracks 做 source-contiguous split，并只启用所选新段；一个切角只提交一个 Change Group，源 angle 永远保留。行为依据 Adobe [Create multi-camera source sequences](https://helpx.adobe.com/premiere/desktop/edit-projects/set-up-multi-camera-sequences-for-editing/create-a-multi-camera-source-sequence.html) 与 [Multi-Camera display mode](https://helpx.adobe.com/premiere/desktop/get-started/source-and-program-monitor-adjustments/choose-a-display-mode.html)。
+
+真实 Tauri/CDP Project `789404ba-5ae4-47fa-aefe-d6b8e74a6720` 验证三条路径：Marker sync 使用 Camera Two=3s、Camera One=2s 的 `Clap`，angle 2 start=1s，使两点都落在 Timeline 3s；播放中在 3.098667s 切到 angle 2，revision 2→3，两条 video tracks 各拆成 source_out/source_in 完全相接的两段，Angle 1 新段 disabled、Angle 2 新段 enabled，固定 `Multicam Audio` 仍是一个未切割 20.183333s Clip。Program 两个 camera buttons 同时显示，4s 时 angle 2 `aria-pressed=true` 且 active video `readyState=4`。真实 final export `de4244ba-96f2-4f25-b307-f75e07866bbc` completed。Audio sync 使用真实脉冲 MP4，1s 延迟被恢复为 angle 2 `source_in=1s`；Timecode sync 使用 `01:00:00:00` / `01:00:01:00` MP4，恢复 angle 2 start=1s。低相关性的真实游戏连续音频按设计返回 confidence too low，不伪造同步。console/page error 为零，截图与合成测试媒体位于本地 `target/multicam-audit/`。
+
 ## 12. 迭代计划
 
 ### Milestone 0：历史与基础命令闭环 — 本轮完成
@@ -572,7 +578,7 @@ fresh current-schema Tauri/CDP 使用真实 1920×1080/60fps H.264/AAC 素材，
 - [x] In/Out Render Preview、状态条、revision 失效和受管清理。
 - [x] OTIO 多轨与 FCP7 XML/CMX3600 EDL Story 子集导入导出。
 - [x] Nested Sequence 与 Sequence Tabs。
-- [ ] Multicam 同步和播放中切角度。
+- [x] Multicam Timecode/Audio/Marker 同步、Multi-Camera View 和播放中切角。
 
 ## 13. Definition of Done
 

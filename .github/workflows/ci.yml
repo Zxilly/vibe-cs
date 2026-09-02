@@ -34,6 +34,8 @@ jobs:
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-rust-format.ps1
       - name: ts-rs binding configuration is accurate and quiet
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-ts-binding-config.ps1
+      - name: build the desktop sidecar required by Tauri binding tests
+        run: pnpm demo-worker:sidecar
       - name: generate TypeScript bindings with one Windows writer
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-ts-bindings.ps1
       - name: wire types are in step with the Rust

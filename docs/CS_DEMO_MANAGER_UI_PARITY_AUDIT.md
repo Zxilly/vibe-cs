@@ -603,7 +603,7 @@ fresh Tauri 最大化显式选择 M2+M3 后排序仍保留 2 条，thead 没有 
 - Queue 的编辑计划已持久化到本地 WebView storage；真实 Tauri 已验证从 R20 FalleN 4K 加入制作后整页 reload 仍恢复相同片段与选择。
 - 执行后的 recording job 持久化到 SQLite；runtime state 暴露 durable active job id，当前 Queue 会优先用它执行 cancel，即使丰富 job 详情尚未 hydration 或暂时读取失败也不会静默 no-op。
 - 主机重启不会猜测从任意 capture 点续跑：恢复逻辑先复核 job-scoped staging/publication，能证明成品已发布则补齐 completed；否则将遗留 running 标为 failed、遗留 cancelling 标为 cancelled，并保留失败原因。
-- failed/cancelled recording 只有在 durable request IDs、published prefix 与 cursor 精确证明一个 unpublished suffix 且 parent 尚无 child 时才暴露 retry。短期 plan 绑定 parent ID、`updated_at` 与 suffix SHA-256，execute 再验后原子创建唯一 durable child；parent、已发布 clips 和 error 不变，拒绝 native consent 创建 0 个 child。
+- failed/cancelled recording 只有在 durable request IDs、published prefix 与 cursor 精确证明一个 unpublished suffix 且 parent 尚无 child 时才暴露 retry。短期 plan 绑定 parent ID、`updated_at` 与 suffix SHA-256，execute 再验 acknowledgement 后原子创建唯一 durable child；parent、已发布 clips 和 error 不变，拒绝界面确认创建 0 个 child。
 - OBS 已退出公开 API、产品录制实现和界面；录制代码使用应用托管的 HLAE 离线帧/WAV 与 Windows Media Foundation H.264/AAC，Output Library 单独管理成品，但真实 CS2/HLAE 成片门禁尚未通过。
 - Queue 零项在 1100×700 已只显示一个“打开资料库”CTA；无意义的零值 stats、空列表布局和固定操作 dock 不再占据首屏。
 - Production 概览已移除文章式宽度上限，并读取最近四条持久 Activity；最大化与流程并列，1100×700 堆叠到流程下方。current-build 只显示真实 completed M1 analysis，没有生成预览数据。

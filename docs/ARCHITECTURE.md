@@ -86,7 +86,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - `agent` owns one in-process Rig model/tool loop, provider URL policy, streaming limits, the
   Current Turn Checkpoint and eight typed Project/evidence/execution tools. The loop has no
   product-defined total turn or tool-call ceiling; explicit cancellation and the desktop request
-  deadline own liveness. The model has no filesystem, shell or process execution tool.
+  deadline own liveness. There is one complete tool catalog and one prompt; no Guide/Edit/HLAE
+  runtime modes. The model has no filesystem, shell or process execution tool.
 - `desktop` owns Agent Context Assembly. It reads the one durable `AgentSession`, excludes the
   active user/streaming placeholder, compacts completed tool evidence and HITL decisions, and
   passes only that host-owned history to `agent`. The removed local `agent/threads/*.json` store is
@@ -95,7 +96,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - Project context is progressively disclosed. The Current Turn Checkpoint and
   `read_workspace(detail=summary)` expose an exact revision plus bounded inventory. Exact editable
   fields require `detail=timeline` and may be filtered by track or clip identities. Demo evidence
-  and cinematic context remain bounded targeted reads. This keeps the model's attention on the
+  and cinematic context remain bounded targeted reads; they are not eagerly duplicated into every
+  turn. This keeps the model's attention on the
   smallest high-signal context while the host retains full canonical state.
 - Agent edits apply directly to the canonical Project through revision-bound `ProjectPatch` or the
   high-level atomic `replace_story_timeline` operation and produce one Change Group. Recording and
@@ -217,11 +219,9 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   with a source project links to the Editor by exact project ID; an absent requested project fails
   closed to an explicit notice and blank document instead of selecting another project.
   Analysis navigation preserves an exact `run=<uuid>` identity for a started or explicitly selected
-  attempt. An XState v5 machine owns only the renderer request/observation lifecycle
-  (`loading -> observing -> ready | cancelled | failed | unavailable`), aborts stale route work and
-  publishes the exact observed run; it does not own durable task truth or infer a terminal outcome
-  from Demo lifecycle. Durable run state remains Rust/SQLite authority. The machine fetches a
-  completed result through the producer-bound run endpoint; an already-ready Demo opened without a
+  attempt. Durable run state and `available_actions` remain Rust/SQLite authority; the renderer does
+  not reconstruct a second lifecycle. A completed result is fetched through the producer-bound run
+  endpoint; an already-ready Demo opened without a
   run can still use the Demo result route, whose row is producer-bound in storage. Activity uses
   `analysis:<run_id>`, displays the persisted stage, input fingerprint, error and ordered events, and
   starts retry as a new run without rewriting the failed or interrupted attempt. It never invents an
@@ -407,7 +407,7 @@ transformed 2,600 modules, and the paired worker remained
 second same-session retry; automatic dismissal when one exact task advances is supported by the new
 deterministic TDD and 24-test focused gate, not claimed as a repeated visual observation.
 
-The later Analysis cancellation/XState product gate used exact source
+The later Analysis cancellation product gate used exact source
 `adf4d08f7b4524a9f451362d30b44bc05ac51db9`, fresh identifier
 `app.vibecs.analysiscancel-xstate-audit`, desktop SHA-256
 `b64c6a94da0e0c9d4259ddc0959a945473a5a343534e72ede2243d71618c3c3` and paired worker/manifest
@@ -420,7 +420,7 @@ attempt. More importantly, real M3 run `96009b44-b7ca-4bf1-9d20-ae2d4e872192` wa
 and persisted zero result rows. Its Demo returned to `Discovered` with the original SHA-256 preserved,
 and its event tail was `cancelled/cancelled` with detail `analysis_cancelled_by_user`. Activity exact
 selection survived a full restart, the cancelled-only filter returned the cancelled attempts, and the
-Analysis XState terminal notice linked to that exact Activity run. Accepted screenshots are
+Analysis terminal notice linked to that exact Activity run. Accepted screenshots are
 `target-currentaudit-next/analysiscancel-xstate-visual/screenshots/06-activity-parser-running-cancellable-max.png`,
 `07-activity-parser-cancelled-max.png`, `08-activity-parser-cancelled-1100.png`,
 `09-activity-cancelled-restart-1100.png`, `10-activity-cancelled-filter-1100.png` and

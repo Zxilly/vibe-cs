@@ -29,7 +29,6 @@
 | React 19 / Vite 8 / TypeScript 7 | 无更换理由 |
 | react-router-dom 7（hash 模式） | Tauri `frontendDist` 走文件协议，必须 hash |
 | zustand 5 | 壳层与偏好状态；服务端数据交给 Query，职责收窄 |
-| xstate 5 | 从「只有 analysis 用」升格为统一任务生命周期模型，见 §4.3 |
 | lucide-react | Industry 明确规定 Lucide、stroke-width 1.5，完全契合 |
 | tailwindcss 4 | 已锁定 |
 | vitest | 保留，测试分层调整见 §6 |
@@ -287,11 +286,11 @@ export const qk = {
 
 `sidebarCollapsed` / `agentRailExpanded` / `theme` / `language` / `restoreLastRoute` / `reduceMotion` / 各表的列配置与保存的视图。**不再承载服务端数据。**
 
-### 4.3 任务生命周期（xstate）
+### 4.3 任务生命周期
 
 设计稿把任务阶段画成了产品的一等公民：录制 6 阶段（启动·跳转·采集·稳定·编码·发布）、分析 5 阶段、导出、下载，且都要求「失败可安全回退到某阶段后重试」「影响范围写清楚」。现有 `analysisLifecycleMachine` 只覆盖分析一种。
 
-方案：统一成 `domain/task/taskMachine.ts` 一台机器，阶段序列由任务类型参数化。工作台首页、交付页、任务详情、资料库行内进度共享同一台机器的快照，不各自维护进度状态。机器的输入来自 `data/tasks.ts` 的 query，输出只是呈现状态——**推进由后端事件驱动，前端不模拟进度**（设计稿明写「有真实分母时才用进度条，否则只给阶段名」）。
+任务状态、进度和 `available_actions` 由 Rust/SQLite 返回。前端只映射显示阶段，不重建第二套生命周期，也不模拟进度。
 
 ### 4.4 比赛工作区上下文
 
@@ -353,7 +352,7 @@ Composition { shotSlot → { takeId, shotId } }
 
 #### 4.5.3 三条硬规则
 
-**① 录制只由一次显式确认启动。** 接受变更不触发录制，手动编辑不触发录制，切换会话不触发录制。设计稿在设置「行为边界」里把这条做成了**不可关闭**的开关（开关本身画成禁用态）。这必须落进 `taskMachine`，不能只靠 UI 摆放。
+**① 录制只由一次显式确认启动。** 接受变更不触发录制，手动编辑不触发录制，切换会话不触发录制。录制 execute 路由验证明确 acknowledgement，界面只显示同一条规则。
 
 **② 用户手动编辑永不需要 Agent 批准，Agent 也不得自动回滚用户的编辑。**
 
@@ -419,7 +418,7 @@ AgentProposal{ kind, title, payload }
 
 那 10 个 Tauri 命令是：`desktop_call` / `desktop_binary` / `desktop_upload`（bridge）、
 `agent_status` / `agent_thread` / `agent_chat` / `agent_cancel`（agent）、
-`list_hlae_bundles` / `reveal_hlae_bundle`（hlae）、`toggle_ace_overlay_prototype`（原型，随 §7 一并下线）。
+未进入当前产品的 HLAE bundle 浏览命令和 ACE overlay 原型已删除。
 
 **对 §4.6 的直接影响**：那 10 项契约缺口应当实现为 `crates/application/src/routes/` 下的**新增 axum 路由**，
 与现有 106 条保持一致的注册、提取器与错误处理，而不是新增 `generate_handler!` 条目。
@@ -506,7 +505,7 @@ vitest `environment: 'node'`，167 个测试文件：123 个纯逻辑（`.test.t
 
 | 项目 | 环境 | 覆盖 | 数量预估 |
 | --- | --- | --- | --- |
-| `unit` | node | 纯逻辑：presentation / query 选择器 / selection / taskMachine / proposal 折叠 / token 归纳表 | ~140，现有 123 个大部分可平移 |
+| `unit` | node | 纯逻辑：presentation / query 选择器 / selection / proposal 折叠 / token 归纳表 | ~140，现有 123 个大部分可平移 |
 | `markup` | node | `renderToStaticMarkup` 结构与 aria 断言 | ~50，现有 41 个可平移 |
 | `interaction` | jsdom | 焦点、键盘、浮层、折叠、禁用态 | ~30，全新 |
 
@@ -604,7 +603,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 0.5 | **多轨时间轴技术原型**（只验证交互可行性，不接数据） | 剃刀 / 吸附 / 拖拽 / 缩放跑通 |
 | 1 | 壳层：TitleBar / SideNav 两态 / AgentRail 两态 / CommandPalette / RouteBoundary / 1100×700 折叠 | 空壳可跑，interaction 测试绿 |
 | 2 | 领域组件：MatchContextBar / DataTable+Inspector / TaskCard+StageTimeline / MapCanvas / Transport / Waveform | 各自有 markup + interaction 测试；1100×700 密度复核通过 |
-| 3a | 交付（输出 + 任务记录 + 任务详情） | 验证 TaskCard / StageTimeline / taskMachine |
+| 3a | 交付（输出 + 任务记录 + 任务详情） | 验证 TaskCard / StageTimeline / host-owned actions |
 | 3b | 资料库（表格 + 卡片 + Inspector + 饰品改写）+ 5 个对话框 | 验证 DataTable / Dialog / Query 失效链路 |
 | 3c | 比赛工作区 9 个子视图 | 最大一块 |
 | 3d | 证据检索 / 玩家目录 / 玩家档案 / 比赛历史 | |
@@ -732,7 +731,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 2. **`Toolbar` 的 `inlineActionsWhenCollapsed` 复核结论**：组件默认 0 保留（组件量不到自己的标题宽度），但短标题页（library / delivery）应显式传 2——折叠下 940px 减去标题 132 + meta 170 + 更多 62 + 主动作 104 + gap 58 = 剩 414px，一个三字 ghost 按钮约 76px。现在 15 个页面全是占位页、没有一处传 actions，所以这条要由阶段 3 接页面时落实。算术写在 `domain/density.test.tsx` 的注释里。
 3. **§10.1 缺口 3 / §10.2 缺口 9 仍未收口**（`design/layout/Inspector` 与 `design/feedback/Drawer` 两套焦点陷阱）。本轮只验证了 Inspector 折叠态的结构契约（46px 摘要条 + 主动作留在条上 + 抽屉入口在），没有碰焦点管理。
 4. **分析流水线的 5 个阶段没有中文标签。** §4.3 只写了「阶段 3/5」这个位置，没有四个阶段的用户可读名。`ANALYSIS_STAGE_IDS` 取 dto 的 `AnalysisRunStage` 去掉四个终态，剩下的裸 id 由页面层传 label——要么产品补名，要么确认后端 `ActivityItem.stage` 可直接给用户看。
-5. **`MAX_TASK_ATTEMPTS = 3`、`cancelled.RESTART`、「只有录制需要显式确认」三条都是推断**，§4.3 / §4.5.3 没写。每条都在 `taskMachine.ts` 注释里写了依据，但需要产品确认。
+5. 前端推断的 retry budget 和任务状态机已删除；重试能力只读 host 的 `available_actions`。
 6. **楼层（多层地图）只有 `heatBinning` 做了过滤。** `PathLayer` / `EngagementLayer` / `CameraPathLayer` 的记录带 floor 字段但没有筛选，也没有楼层切换控件——3c 要判断楼层是图层自己的事还是页面的事。
 7. **热力图需要服务端聚合。** 上万个点不能从前端顶起来，需要一份按 demo 的采样查询，落在 `data/**`；`HeatLayer` 只吃已经分好箱的 `HeatDistribution`。
 8. **底图图片没有交付路径。** Tauri CSP 是 `default-src 'self'`，雷达底图只能走 `vibe-cs-media:` 或本地打包资源。`MapCanvas` 只留了 `basemap: ReactNode` 的口子，3c 接页面时要定。
@@ -1438,7 +1437,7 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 
 ### 10.13.2 被移除的依赖是四个，不是三个
 
-`@assistant-ui/react`、`@xzdarcy/react-timeline-editor`、`wavesurfer.js` 是计划里的三个，**`@xstate/react` 是第四个**：多轨编辑器用的是自己写的 store，没有任何组件订阅状态机。`xstate` 本体留着——`domain/task/taskMachine.ts` 与 `pages/delivery/taskTransitions.ts` 在用。
+`@assistant-ui/react`、`@xzdarcy/react-timeline-editor`、`wavesurfer.js` 均未进入当前产品。任务生命周期由 Rust/SQLite 持有，前端不依赖 XState。
 
 同时加了一个 devDependency：`@lingui/message-utils`，理由见 10.13.4。
 

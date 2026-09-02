@@ -459,7 +459,7 @@ mutation 结果只在仍持有 selection lease 时生效。`retry_analysis` 返�
 
 当前 action contract 始终允许从 download Activity 回到 Match History；`retry_download` 只对 latest failed/cancelled eligible attempt 开放，并要求没有 active/newer sibling、match 尚未 downloaded、当前 Steam ID 和 32 位 hexadecimal Web API key 语法有效且 record owner 与当前账户一致。runtime 在持久化前再次检查配置与 owner；失败时不创建 queued job，也不修改 match record。通过后 retry 才复用原 match id 创建新 queued job，旧 job、error 与 transferred bytes 保持为历史事实。该 contract 已通过 application/runtime/Web TDD，但未真实制造 Steam failure，也不证明 key 在线有效或网络下载一定成功。
 
-Recording Activity 的 `retry_recording` 只对 failed/cancelled、没有 child 且能由 durable request IDs、published prefix 与 cursor 精确证明 unpublished suffix 的 parent 开放。用户先得到绑定 parent ID、`updated_at` 和 suffix SHA-256 的短期 plan；native consent 通过后 execute 再验并原子创建唯一 child，拒绝 consent 则创建 0 个 child。parent、既有 outputs 和 error 保持原事实，启动中断不会留下一个被 UI 当作可继续的非终态孤儿。该 contract 已通过 domain/storage/application/runtime/Web TDD；最新 fresh Activity 的 `recording + failed` 结果为 0，因此没有 retry UI 的产品证据，也未启动 CS2/HLAE。
+Recording Activity 的 `retry_recording` 只对 failed/cancelled、没有 child 且能由 durable request IDs、published prefix 与 cursor 精确证明 unpublished suffix 的 parent 开放。用户先得到绑定 parent ID、`updated_at` 和 suffix SHA-256 的短期 plan；界面确认后 execute 再验 acknowledgement 并原子创建唯一 child，拒绝确认则创建 0 个 child。parent、既有 outputs 和 error 保持原事实，启动中断不会留下一个被 UI 当作可继续的非终态孤儿。该 contract 已通过 domain/storage/application/runtime/Web TDD；最新 fresh Activity 的 `recording + failed` 结果为 0，因此没有 retry UI 的产品证据，也未启动 CS2/HLAE。
 
 ### 5.5 Evidence Annotation、CSDM Comment/Tags 与 Team
 

@@ -355,8 +355,10 @@ pub fn decode_hlae_tga_bgra(
             continue;
         }
         for (source_pixel, output_pixel) in source_row
-            .chunks_exact(3)
-            .zip(output_row.chunks_exact_mut(4))
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(output_row.as_chunks_mut::<4>().0.iter_mut())
         {
             output_pixel[..3].copy_from_slice(source_pixel);
             output_pixel[3] = u8::MAX;

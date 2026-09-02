@@ -267,7 +267,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReplaceStoryTimeline,
             "replace_story_timeline",
-            "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, rejects non-POV cameras without four in-range spatial samples, validates the staged timeline, and commits one undoable Change Group.",
+            "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, and commits one undoable Change Group. Each shot carries a purposeful camera intent, an HLAE camera style, a concrete rationale, and optional per-shot presentation. The host rejects mismatched intent/style pairs and non-POV cameras without four in-range spatial samples.",
             replace_story_schema(),
         ),
         definition(
@@ -448,13 +448,36 @@ fn replace_story_schema() -> Value {
                         "postRollSeconds":{"type":"number","minimum":0,"maximum":30},
                         "durationSeconds":{"type":"number","exclusiveMinimum":0,"maximum":120},
                         "cameraStyle":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},
-                        "rationale":{"type":"string","maxLength":500}
+                        "cameraIntent":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},
+                        "rationale":{"type":"string","minLength":8,"maxLength":500},
+                        "presentation":recording_presentation_schema()
                     },
-                    "required":["name","demoId","playerId","startTick","endTick","durationSeconds","cameraStyle"]
+                    "required":["name","demoId","playerId","startTick","endTick","durationSeconds","cameraStyle","cameraIntent","rationale"]
                 }
             }
         }),
         &["projectId", "baseRevision", "summary", "clips"],
+    )
+}
+
+fn recording_presentation_schema() -> Value {
+    object_schema(
+        json!({
+            "cameraFov":{"type":"number","minimum":60,"maximum":140},
+            "viewmodelFov":{"type":"number","minimum":54,"maximum":68},
+            "flashAlpha":{"type":"integer","minimum":0,"maximum":255},
+            "showHud":{"type":"boolean"},
+            "showRadar":{"type":"boolean"},
+            "voice":{"type":"string","enum":["all_players","muted","target_only"]}
+        }),
+        &[
+            "cameraFov",
+            "viewmodelFov",
+            "flashAlpha",
+            "showHud",
+            "showRadar",
+            "voice",
+        ],
     )
 }
 
@@ -860,6 +883,46 @@ mod tests {
         assert_eq!(schema["properties"]["maximumHighlights"]["maximum"], 128);
         assert_eq!(schema["properties"]["demoIds"]["maxItems"], 16);
         assert_eq!(schema["required"], json!([]));
+    }
+
+    #[test]
+    fn story_replan_schema_keeps_purposeful_complex_hlae_shots() {
+        let tool = tool_catalog()
+            .into_iter()
+            .find(|tool| tool.name == "replace_story_timeline")
+            .expect("story replacement tool");
+        let clip = &tool.parameters["properties"]["clips"]["items"];
+
+        assert_eq!(
+            clip["properties"]["cameraStyle"]["enum"],
+            json!([
+                "pov", "orbit", "dolly", "static", "tracking", "crane", "flyby"
+            ])
+        );
+        assert_eq!(
+            clip["properties"]["cameraIntent"]["enum"],
+            json!([
+                "player_pov",
+                "establish_location",
+                "follow_entry",
+                "reveal_duel",
+                "hold_crossfire",
+                "rise_after_climax",
+                "transition_through_space"
+            ])
+        );
+        assert!(clip["required"].as_array().is_some_and(|required| {
+            required.contains(&json!("cameraIntent")) && required.contains(&json!("rationale"))
+        }));
+        assert_eq!(
+            clip["properties"]["presentation"]["additionalProperties"],
+            false
+        );
+        assert_eq!(
+            clip["properties"]["presentation"]["properties"]["voice"]["enum"],
+            json!(["all_players", "muted", "target_only"])
+        );
+        assert!(tool.description.contains("HLAE camera style"));
     }
 
     #[test]

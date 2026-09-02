@@ -19,8 +19,9 @@ use vibe_cs_agent::{
 use vibe_cs_domain::{
     AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
     HlaeCameraStyle, LlmParameterStyle, ProjectChangeAuthor, ProjectEditLease,
-    ProjectEditOperation, ProjectPatch, ProjectPatchScope, RoundReplayArtifact, TimelineClip,
-    TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement, Transform,
+    ProjectEditOperation, ProjectPatch, ProjectPatchScope, RecordingPresentation,
+    RecordingVoicePolicy, RoundReplayArtifact, TimelineClip, TimelineClipMaterial,
+    TimelineClipTransitions, TimelinePlacement, Transform,
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
@@ -259,6 +260,7 @@ struct DesktopAgentToolHost {
 
 impl DesktopAgentToolHost {
     async fn validate_story_camera(&self, clip: &StoryClipInput) -> Result<(), String> {
+        clip.validate_camera_design()?;
         if matches!(clip.camera_style, HlaeCameraStyle::Pov) {
             return Ok(());
         }
@@ -512,12 +514,31 @@ struct StoryClipInput {
     post_roll_seconds: f64,
     duration_seconds: f64,
     camera_style: HlaeCameraStyle,
-    #[serde(default)]
+    camera_intent: StoryCameraIntent,
     rationale: String,
+    #[serde(default)]
+    presentation: Option<StoryPresentationInput>,
 }
 
 impl StoryClipInput {
+    fn validate_camera_design(&self) -> Result<(), String> {
+        if !self.camera_intent.supports(self.camera_style) {
+            return Err(format!(
+                "clip '{}' camera style does not express its camera intent",
+                self.name
+            ));
+        }
+        if self.rationale.trim().chars().count() < 8 {
+            return Err(format!(
+                "clip '{}' camera rationale must explain a concrete map-space purpose",
+                self.name
+            ));
+        }
+        Ok(())
+    }
+
     fn into_timeline_clip(self, start: f64) -> TimelineClip {
+        let presentation = self.presentation.map(Into::into);
         TimelineClip {
             id: Uuid::new_v4(),
             name: self.name,
@@ -531,7 +552,7 @@ impl StoryClipInput {
                 post_roll_seconds: self.post_roll_seconds,
                 victim_pov: false,
                 camera_style: self.camera_style,
-                presentation: None,
+                presentation,
             }),
             material: TimelineClipMaterial::Planned,
             placement: TimelinePlacement {
@@ -550,11 +571,70 @@ impl StoryClipInput {
             effects: Vec::new(),
             transitions: TimelineClipTransitions::default(),
             text: None,
-            metadata: json!({"rationale": self.rationale}),
+            metadata: json!({
+                "camera_intent": self.camera_intent,
+                "camera_rationale": self.rationale,
+            }),
             group_id: None,
             link_group_id: None,
             keyframes: Vec::new(),
             speed_segments: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum StoryCameraIntent {
+    PlayerPov,
+    EstablishLocation,
+    FollowEntry,
+    RevealDuel,
+    HoldCrossfire,
+    RiseAfterClimax,
+    TransitionThroughSpace,
+}
+
+impl StoryCameraIntent {
+    const fn supports(self, style: HlaeCameraStyle) -> bool {
+        match self {
+            Self::PlayerPov => matches!(style, HlaeCameraStyle::Pov),
+            Self::EstablishLocation => {
+                matches!(style, HlaeCameraStyle::Static | HlaeCameraStyle::Crane)
+            }
+            Self::FollowEntry => {
+                matches!(style, HlaeCameraStyle::Tracking | HlaeCameraStyle::Dolly)
+            }
+            Self::RevealDuel => {
+                matches!(style, HlaeCameraStyle::Dolly | HlaeCameraStyle::Orbit)
+            }
+            Self::HoldCrossfire => matches!(style, HlaeCameraStyle::Static),
+            Self::RiseAfterClimax => matches!(style, HlaeCameraStyle::Crane),
+            Self::TransitionThroughSpace => matches!(style, HlaeCameraStyle::Flyby),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoryPresentationInput {
+    camera_fov: f64,
+    viewmodel_fov: f64,
+    flash_alpha: u8,
+    show_hud: bool,
+    show_radar: bool,
+    voice: RecordingVoicePolicy,
+}
+
+impl From<StoryPresentationInput> for RecordingPresentation {
+    fn from(value: StoryPresentationInput) -> Self {
+        Self {
+            camera_fov: value.camera_fov,
+            viewmodel_fov: value.viewmodel_fov,
+            flash_alpha: value.flash_alpha,
+            show_hud: value.show_hud,
+            show_radar: value.show_radar,
+            voice: value.voice,
         }
     }
 }
@@ -1576,8 +1656,59 @@ mod tests {
             post_roll_seconds: 2.0,
             duration_seconds: 12.0,
             camera_style: HlaeCameraStyle::Pov,
+            camera_intent: StoryCameraIntent::PlayerPov,
             rationale: "keep the verified action".to_owned(),
+            presentation: None,
         }
+    }
+
+    #[test]
+    fn agent_story_clip_preserves_complex_hlae_camera_design() {
+        let mut input = story_input();
+        input.camera_style = HlaeCameraStyle::Crane;
+        input.camera_intent = StoryCameraIntent::RiseAfterClimax;
+        input.rationale =
+            "Rise above the verified final engagement after the last elimination.".to_owned();
+        input.presentation = Some(StoryPresentationInput {
+            camera_fov: 90.0,
+            viewmodel_fov: 68.0,
+            flash_alpha: 96,
+            show_hud: false,
+            show_radar: false,
+            voice: RecordingVoicePolicy::Muted,
+        });
+
+        input
+            .validate_camera_design()
+            .expect("purposeful camera design");
+        let clip = input.into_timeline_clip(0.0);
+        let capture = clip.capture_intent.expect("Capture Intent");
+        assert_eq!(capture.camera_style, HlaeCameraStyle::Crane);
+        assert_eq!(
+            capture
+                .presentation
+                .expect("per-shot presentation")
+                .flash_alpha,
+            96
+        );
+        assert_eq!(clip.metadata["camera_intent"], "rise_after_climax");
+        assert!(
+            clip.metadata["camera_rationale"]
+                .as_str()
+                .is_some_and(|value| { value.contains("final engagement") })
+        );
+    }
+
+    #[test]
+    fn agent_story_clip_rejects_a_camera_style_that_does_not_match_its_intent() {
+        let mut input = story_input();
+        input.camera_style = HlaeCameraStyle::Flyby;
+        input.camera_intent = StoryCameraIntent::HoldCrossfire;
+
+        let error = input
+            .validate_camera_design()
+            .expect_err("a flyby cannot hold a readable crossfire");
+        assert!(error.contains("does not express its camera intent"));
     }
 
     #[test]

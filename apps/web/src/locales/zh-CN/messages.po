@@ -5855,6 +5855,11 @@ msgstr "没有购买记录"
 msgid "没有道具记录"
 msgstr "没有道具记录"
 
+#: src/data/nativeShell.ts:328
+#: src/data/nativeShell.ts:331
+msgid "没能定位这个文件"
+msgstr "没能定位这个文件"
+
 #: src/data/nativeShell.ts:310
 #: src/data/nativeShell.ts:313
 msgid "没能打开这个目录"

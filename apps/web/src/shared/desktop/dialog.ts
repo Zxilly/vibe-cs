@@ -123,8 +123,8 @@ export async function revealLocalPath(path: string): Promise<boolean> {
 /** Opens a service-owned directory only inside the desktop shell. */
 export async function openLocalDirectory(path: string): Promise<boolean> {
   if (!isDesktopShell() || !path.trim()) return false;
-  const { openPath } = await import('@tauri-apps/plugin-opener');
-  await openPath(path);
+  const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+  await revealItemInDir(path);
   return true;
 }
 

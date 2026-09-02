@@ -42,7 +42,7 @@ import {
   useQuickCheck,
   useRuntimeState,
 } from '../../data/config';
-import { useOpenDirectory } from '../../data/nativeShell';
+import { useRevealPath } from '../../data/nativeShell';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
@@ -54,7 +54,7 @@ export function AdvancedSection() {
   const prepareHlae = usePrepareManagedHlae();
   const service = useServiceAction();
   const exportDiagnostics = useExportDiagnostics();
-  const openDirectory = useOpenDirectory();
+  const revealPath = useRevealPath();
 
   const runtimeError = dataErrorMessage(runtime.error);
   const checksError = dataErrorMessage(checks.error);
@@ -264,7 +264,7 @@ export function AdvancedSection() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => openDirectory(exportDiagnostics.data.path)}
+                onClick={() => revealPath(exportDiagnostics.data.path)}
               >
                 <Trans>定位文件</Trans>
               </Button>

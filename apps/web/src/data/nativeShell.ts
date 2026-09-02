@@ -316,3 +316,21 @@ export function useOpenDirectory(): (path: string) => void {
     [shell],
   );
 }
+
+export function useRevealPath(): (path: string) => void {
+  const shell = useNativeShell();
+
+  return useCallback(
+    (path: string) => {
+      void shell
+        .reveal(path)
+        .then((revealed) => {
+          if (!revealed) toast.error(t`没能定位这个文件`, { description: path });
+        })
+        .catch(() => {
+          toast.error(t`没能定位这个文件`, { description: path });
+        });
+    },
+    [shell],
+  );
+}

@@ -1,0 +1,37 @@
+name: dependency-security
+
+on:
+  push:
+    paths:
+      - "**/Cargo.toml"
+      - Cargo.lock
+      - pnpm-lock.yaml
+      - .github/workflows/security.yml
+  pull_request:
+    paths:
+      - "**/Cargo.toml"
+      - Cargo.lock
+      - pnpm-lock.yaml
+      - .github/workflows/security.yml
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit Rust dependencies
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - name: Audit production web dependencies
+        run: pnpm audit --prod

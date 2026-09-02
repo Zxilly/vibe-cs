@@ -5856,6 +5856,11 @@ msgstr "No purchase record"
 msgid "没有道具记录"
 msgstr "No utility record"
 
+#: src/data/nativeShell.ts:328
+#: src/data/nativeShell.ts:331
+msgid "没能定位这个文件"
+msgstr "Could not reveal this file"
+
 #: src/data/nativeShell.ts:310
 #: src/data/nativeShell.ts:313
 msgid "没能打开这个目录"

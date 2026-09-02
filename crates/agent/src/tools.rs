@@ -41,7 +41,7 @@ pub(crate) enum ToolLifecycleEvent {
         name: String,
         input: Value,
     },
-    Finished(CapturedToolCall),
+    Finished,
 }
 
 #[derive(Debug, Default)]
@@ -81,6 +81,13 @@ impl ToolState {
 
     pub(crate) async fn snapshot(&self) -> Vec<CapturedToolCall> {
         self.captures.lock().await.tool_calls.clone()
+    }
+
+    pub(crate) async fn snapshot_since(&self, cursor: &mut usize) -> Vec<CapturedToolCall> {
+        let captures = self.captures.lock().await;
+        let new_calls = captures.tool_calls[*cursor..].to_vec();
+        *cursor = captures.tool_calls.len();
+        new_calls
     }
 
     async fn execute(
@@ -173,7 +180,7 @@ impl ToolState {
                     status: CapturedToolCallStatus::Failed,
                 };
                 self.captures.lock().await.tool_calls.push(call.clone());
-                let _ = self.lifecycle.send(ToolLifecycleEvent::Finished(call));
+                let _ = self.lifecycle.send(ToolLifecycleEvent::Finished);
                 return Err(error);
             }
         };
@@ -185,7 +192,7 @@ impl ToolState {
             status,
         };
         self.captures.lock().await.tool_calls.push(call.clone());
-        let _ = self.lifecycle.send(ToolLifecycleEvent::Finished(call));
+        let _ = self.lifecycle.send(ToolLifecycleEvent::Finished);
         Ok(output)
     }
 
@@ -929,10 +936,11 @@ mod tests {
         ));
         assert!(matches!(
             lifecycle.recv().await,
-            Some(ToolLifecycleEvent::Finished(ref call))
-                if call.status == CapturedToolCallStatus::Completed
-                    && call.output["deliveryGate"]["ready"] == true
+            Some(ToolLifecycleEvent::Finished)
         ));
+        let calls = state.snapshot().await;
+        assert_eq!(calls[0].status, CapturedToolCallStatus::Completed);
+        assert_eq!(calls[0].output["deliveryGate"]["ready"], true);
     }
 
     #[tokio::test]
@@ -1054,9 +1062,26 @@ mod tests {
         ));
         assert!(matches!(
             lifecycle.recv().await,
-            Some(ToolLifecycleEvent::Finished(ref call))
-                if call.id == "turn-hitl:tool:1"
-                    && call.status == CapturedToolCallStatus::AwaitingConfirmation
+            Some(ToolLifecycleEvent::Finished)
         ));
+    }
+
+    #[tokio::test]
+    async fn tool_checkpoint_cursor_returns_only_new_calls() {
+        let (state, _lifecycle) = ToolState::new(AgentContext::default(), None, "turn-cursor");
+        let mut cursor = 0;
+        state
+            .execute(ToolKind::ReadWorkspace, "read_workspace", json!({}))
+            .await
+            .expect("first tool");
+        assert_eq!(state.snapshot_since(&mut cursor).await.len(), 1);
+        assert!(state.snapshot_since(&mut cursor).await.is_empty());
+        state
+            .execute(ToolKind::ReadWorkspace, "read_workspace", json!({}))
+            .await
+            .expect("second tool");
+        let calls = state.snapshot_since(&mut cursor).await;
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "turn-cursor:tool:2");
     }
 }

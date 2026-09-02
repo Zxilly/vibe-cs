@@ -1,6 +1,5 @@
 mod tools;
 
-use std::collections::HashSet;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -26,6 +25,7 @@ pub use tools::{CapturedToolCall, CapturedToolCallStatus, query_demo_evidence};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 const AGENT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(90);
+const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Debug, Clone, Default)]
 pub struct Cancellation {
@@ -196,7 +196,7 @@ pub enum AgentError {
     Stalled { timeout_seconds: u64 },
 }
 
-/// Run one bounded, cancellable Rig tool loop and emit host-facing stream events.
+/// Run one cancellable Rig tool loop and emit host-facing stream events.
 ///
 /// # Errors
 ///
@@ -213,11 +213,13 @@ where
     let provider_secret = request.config.api_key.clone();
     let base_url = request.config.base_url.trim_end_matches('/');
     let model_name = request.config.model.clone();
+    let http_client = provider_http_client()?;
     match request.config.provider_protocol {
         AgentProviderProtocol::OpenAi => {
             let client = openai::Client::builder()
                 .api_key(provider_secret)
                 .base_url(base_url)
+                .http_client(http_client)
                 .build()
                 .map_err(|error| {
                     AgentError::Invalid(format!("invalid provider configuration: {error}"))
@@ -235,6 +237,7 @@ where
             let client = anthropic::Client::builder()
                 .api_key(provider_secret)
                 .base_url(base_url)
+                .http_client(http_client)
                 .build()
                 .map_err(|error| {
                     AgentError::Invalid(format!("invalid provider configuration: {error}"))
@@ -248,6 +251,16 @@ where
             .await
         }
     }
+}
+
+fn provider_http_client() -> Result<reqwest::Client, AgentError> {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(PROVIDER_CONNECT_TIMEOUT)
+        .build()
+        .map_err(|error| {
+            AgentError::Invalid(format!("unable to configure provider client: {error}"))
+        })
 }
 
 async fn run_agent_with_model<M, F>(
@@ -316,7 +329,7 @@ where
         .collect::<Vec<_>>();
     let mut content = String::new();
     let mut usage = None;
-    let mut emitted_tool_calls = HashSet::<String>::new();
+    let mut emitted_tool_cursor = 0_usize;
     for attempt in 0..2 {
         let stream = agent
             .stream_prompt(prompt)
@@ -327,7 +340,7 @@ where
             .max_turns(usize::MAX);
         let mut stream = tokio::select! {
             () = cancellation.cancelled() => {
-                emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+                emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                 return Err(AgentError::Cancelled);
             },
             result = tokio::time::timeout(inactivity_timeout, stream) => result.map_err(|_| {
@@ -337,11 +350,11 @@ where
         loop {
             let item = tokio::select! {
                 () = cancellation.cancelled() => {
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Cancelled);
                 },
                 () = tokio::time::sleep(inactivity_timeout) => {
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Stalled {
                         timeout_seconds: inactivity_timeout.as_secs(),
                     });
@@ -352,10 +365,13 @@ where
                             tools::ToolLifecycleEvent::Started { id, name, input } => {
                                 emit(AgentStreamEvent::ToolCallStarted { id, name, input });
                             }
-                            tools::ToolLifecycleEvent::Finished(tool_call) => {
-                                if emitted_tool_calls.insert(tool_call.id.clone()) {
-                                    emit(AgentStreamEvent::ToolCallFinished(tool_call));
-                                }
+                            tools::ToolLifecycleEvent::Finished => {
+                                emit_new_tool_checkpoints(
+                                    &state,
+                                    &mut emitted_tool_cursor,
+                                    &mut emit,
+                                )
+                                .await;
                             }
                         }
                     }
@@ -367,11 +383,11 @@ where
             let item = match item {
                 Ok(item) => item,
                 Err(error) => {
-                    // A bounded multi-turn run can fail after several successful
+                    // A multi-turn run can fail after several successful
                     // evidence reads. Emit those completed calls before returning
                     // the terminal error so the durable turn retains what really
                     // happened and a retry is reviewable rather than opaque.
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Provider(safe_error(
                         &error.to_string(),
                         &provider_secret,
@@ -382,14 +398,11 @@ where
                 MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
                     Text { text, .. },
                 )) => {
-                    content.push_str(&text);
                     emit(AgentStreamEvent::TextDelta(text));
                 }
                 MultiTurnStreamItem::FinalResponse(response) => {
                     usage = AgentUsage::from_reported(response.usage());
-                    if content.trim().is_empty() {
-                        response.output().trim().clone_into(&mut content);
-                    }
+                    content = response.output().trim().to_owned();
                     break;
                 }
                 _ => {}
@@ -397,10 +410,10 @@ where
             // Rig can spend a long time reasoning between tool turns. Checkpoint
             // every completed structured call as soon as the stream yields again,
             // so a later provider failure or host deadline does not erase it.
-            emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+            emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
         }
         let tool_calls = state.snapshot().await;
-        emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+        emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
 
         if content.trim().is_empty() && attempt == 0 && !tool_calls.is_empty() {
             prompt = continuation_prompt(&original_message, &tool_calls);
@@ -411,7 +424,7 @@ where
         break;
     }
     let tool_calls = state.snapshot().await;
-    emit_new_tool_checkpoints(&state, &mut emitted_tool_calls, &mut emit).await;
+    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
     let content = content.trim().to_owned();
     if content.is_empty() {
         return Err(AgentError::Provider(
@@ -427,15 +440,13 @@ where
 
 async fn emit_new_tool_checkpoints<F>(
     state: &tools::ToolState,
-    emitted_tool_calls: &mut HashSet<String>,
+    emitted_tool_cursor: &mut usize,
     emit: &mut F,
 ) where
     F: FnMut(AgentStreamEvent),
 {
-    for tool_call in state.snapshot().await {
-        if emitted_tool_calls.insert(tool_call.id.clone()) {
-            emit(AgentStreamEvent::ToolCallFinished(tool_call));
-        }
+    for tool_call in state.snapshot_since(emitted_tool_cursor).await {
+        emit(AgentStreamEvent::ToolCallFinished(tool_call));
     }
 }
 
@@ -836,6 +847,64 @@ mod tests {
         );
         assert!(!safe.contains("super-secret"));
         assert!(!safe.contains('\n'));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn provider_requests_do_not_follow_redirects() {
+        let destination = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind redirect destination");
+        let destination_address = destination.local_addr().expect("destination address");
+        let provider = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind provider");
+        let provider_address = provider.local_addr().expect("provider address");
+        let redirect = tokio::spawn(async move {
+            let (mut stream, _) = provider.accept().await.expect("provider request");
+            let _ = read_http_json(&mut stream).await;
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 307 Temporary Redirect\r\nlocation: http://{destination_address}/stolen\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .expect("write redirect");
+        });
+
+        let result = run_agent(
+            AgentRequest {
+                request_id: "redirect-policy".into(),
+                mode: AgentMode::Guide,
+                message: "hello".into(),
+                history: Vec::new(),
+                config: AgentConfig {
+                    provider: "redirect-test".into(),
+                    model: "redirect-test-model".into(),
+                    base_url: format!("http://{provider_address}/v1"),
+                    api_key: "rig-e2e-secret".into(),
+                    provider_protocol: AgentProviderProtocol::OpenAi,
+                    custom_instructions: String::new(),
+                    provider_parameters: json!({}),
+                },
+                context: AgentContext::default(),
+                tool_host: None,
+                auto_mode: true,
+            },
+            &Cancellation::new(),
+            |_| {},
+        )
+        .await;
+
+        redirect.await.expect("redirect response");
+        assert!(matches!(result, Err(AgentError::Provider(_))));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), destination.accept())
+                .await
+                .is_err(),
+            "the provider authorization request must not cross a redirect"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

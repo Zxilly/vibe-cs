@@ -31,7 +31,6 @@ use crate::{
 };
 
 const TEXT_DELTA_BATCH_BYTES: usize = 256;
-const MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL: usize = 979;
 const ROUND_REPLAY_ENVELOPE_BYTES: usize = 12;
 const MAXIMUM_CINEMATIC_SAMPLES: usize = 16;
 
@@ -1392,24 +1391,13 @@ async fn run_agent_chat(
         auto_mode: input.auto_mode,
     };
     let mut pending_text = String::new();
-    let mut text_event_count = 0_usize;
-    let turn_timeout = if input.auto_mode {
-        Duration::from_secs(15 * 60)
-    } else {
-        Duration::from_secs(10 * 60)
-    };
-    let response = tokio::time::timeout(
-        turn_timeout,
-        vibe_cs_agent::run_agent(request, cancellation, |event| match event {
+    let response = vibe_cs_agent::run_agent(request, cancellation, |event| match event {
             EmbeddedAgentStreamEvent::TextDelta(delta) => {
                 pending_text.push_str(&delta);
-                if pending_text.len() >= TEXT_DELTA_BATCH_BYTES
-                    && text_event_count < MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL
-                {
+                if pending_text.len() >= TEXT_DELTA_BATCH_BYTES {
                     let _ = on_event.send(AgentEvent::TextDelta {
                         delta: std::mem::take(&mut pending_text),
                     });
-                    text_event_count += 1;
                 }
             }
             EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
@@ -1422,17 +1410,9 @@ async fn run_agent_chat(
                     tool_call: domain_tool_call(tool_call),
                 });
             }
-        }),
-    )
+        })
     .await
-    .map_err(|_| {
-        AgentCommandError::unavailable(format!(
-            "agent request timed out after {} minutes; completed tool checkpoints were preserved",
-            turn_timeout.as_secs() / 60
-        ))
-    })
-    .and_then(|response| {
-        response.map_err(|error| match error {
+    .map_err(|error| match error {
             vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
             vibe_cs_agent::AgentError::Cancelled => {
                 AgentCommandError::unavailable(error.to_string())
@@ -1443,7 +1423,6 @@ async fn run_agent_chat(
                     "Agent 在 {timeout_seconds} 秒内没有产生新进展；已保留完成的工具 checkpoint。重试将从第一个未完成步骤继续。"
                 ))
             }
-        })
     });
     let response = match response {
         Ok(response) => response,

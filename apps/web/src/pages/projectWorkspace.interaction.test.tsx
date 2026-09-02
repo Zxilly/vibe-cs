@@ -6856,6 +6856,7 @@ describe('unified project workspace', () => {
   });
 
   it('renders Agent GitHub-flavored Markdown tables as accessible tables', async () => {
+    const openExternalUrl = vi.fn(() => Promise.resolve(true));
     const session: AgentSession = {
       id: '00000000-0000-4000-8000-000000000030',
       title: 'Agent · Markdown',
@@ -6863,16 +6864,21 @@ describe('unified project workspace', () => {
       updated_at: '2026-08-28T10:01:00Z',
       entries: [{
         kind: 'assistant', id: 'a-markdown', at: '2026-08-28T10:01:00Z',
-        content: '| 交付项 | 说明 |\n| --- | --- |\n| 时间线微调 | 换片段、改顺序 |',
+        content: '| 交付项 | 说明 |\n| --- | --- |\n| 时间线微调 | 换片段、改顺序 |\n\n[打开参考](https://example.com/reference)',
         tool_calls: [], status: 'completed', request_id: 'request-markdown',
         retry_of: null, error: null, metadata: null,
       }],
     };
-    renderWorkspace({ session });
+    renderWorkspace({
+      session,
+      shell: { ...unavailableNativeShell, available: true, openExternalUrl },
+    });
 
     const table = await screen.findByRole('table');
     expect(within(table).getByRole('columnheader', { name: '交付项' })).toBeTruthy();
     expect(within(table).getByRole('cell', { name: '换片段、改顺序' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: '打开参考' }));
+    expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/reference');
   });
 
   it('binds a persisted HITL decision to one tool call instead of clearing it with arbitrary text', async () => {

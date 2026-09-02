@@ -1413,7 +1413,7 @@ msgstr "Project workspace"
 msgid "作品工作区面板"
 msgstr "Project Workspace Panel"
 
-#: src/pages/ProjectWorkspacePage.tsx:3197
+#: src/pages/ProjectWorkspacePage.tsx:3214
 msgid "作品版本已变化，这次请求已经过期。请拒绝后让 Agent 重新请求。"
 msgstr "The project changed, so this request has expired. Reject it and ask the Agent to request it again."
 
@@ -1530,11 +1530,11 @@ msgstr "Trim mode"
 msgid "修改"
 msgstr "Modification"
 
-#: src/pages/ProjectWorkspacePage.tsx:3328
+#: src/pages/ProjectWorkspacePage.tsx:3345
 msgid "修改已写入时间线。"
 msgstr "Changes applied to the timeline."
 
-#: src/pages/ProjectWorkspacePage.tsx:3292
+#: src/pages/ProjectWorkspacePage.tsx:3309
 msgid "修改时间线"
 msgstr "Edit timeline"
 
@@ -1575,11 +1575,11 @@ msgstr "Allow the export requested by the Agent."
 msgid "允许 Agent 请求的录制操作。"
 msgstr "Allow the recording requested by the Agent."
 
-#: src/pages/ProjectWorkspacePage.tsx:3216
+#: src/pages/ProjectWorkspacePage.tsx:3233
 msgid "允许导出"
 msgstr "Allow export"
 
-#: src/pages/ProjectWorkspacePage.tsx:3216
+#: src/pages/ProjectWorkspacePage.tsx:3233
 msgid "允许录制"
 msgstr "Allow recording"
 
@@ -2003,7 +2003,7 @@ msgstr "Analyze"
 msgid "分析 · 下载 · 录制 · 导出"
 msgstr "Analysis · download · recording · export"
 
-#: src/pages/ProjectWorkspacePage.tsx:3290
+#: src/pages/ProjectWorkspacePage.tsx:3307
 msgid "分析 Demo"
 msgstr "Analyze Demo"
 
@@ -3480,11 +3480,11 @@ msgstr "Dashboard"
 msgid "工作模式"
 msgstr "Work mode"
 
-#: src/pages/ProjectWorkspacePage.tsx:3330
+#: src/pages/ProjectWorkspacePage.tsx:3347
 msgid "工具已返回结果。"
 msgstr "The tool returned a result."
 
-#: src/pages/ProjectWorkspacePage.tsx:3308
+#: src/pages/ProjectWorkspacePage.tsx:3325
 msgid "工具执行失败，作品没有改动。"
 msgstr "The tool failed. No changes were made to the project."
 
@@ -3496,7 +3496,7 @@ msgstr "Align Left"
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
-#: src/pages/ProjectWorkspacePage.tsx:3176
+#: src/pages/ProjectWorkspacePage.tsx:3193
 msgid "已允许"
 msgstr "Allowed"
 
@@ -3534,7 +3534,7 @@ msgstr "Handled"
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/task/taskVocabulary.tsx:47
 #: src/pages/delivery/TaskRecordView.tsx:55
-#: src/pages/ProjectWorkspacePage.tsx:3179
+#: src/pages/ProjectWorkspacePage.tsx:3196
 msgid "已完成"
 msgstr "Done"
 
@@ -3575,7 +3575,7 @@ msgstr "Recorded"
 msgid "已录制 {recordedCount}"
 msgstr "Recorded {recordedCount}"
 
-#: src/pages/ProjectWorkspacePage.tsx:3175
+#: src/pages/ProjectWorkspacePage.tsx:3192
 msgid "已拒绝"
 msgstr "Rejected"
 
@@ -3629,19 +3629,19 @@ msgstr "A view with this name already exists"
 msgid "已要求 Agent 继续修改"
 msgstr "Asked the Agent to keep making changes"
 
-#: src/pages/ProjectWorkspacePage.tsx:3325
+#: src/pages/ProjectWorkspacePage.tsx:3342
 msgid "已读取作品版本、轨道和素材概况。"
 msgstr "Read the project version, tracks, and media overview."
 
-#: src/pages/ProjectWorkspacePage.tsx:3324
+#: src/pages/ProjectWorkspacePage.tsx:3341
 msgid "已读取目标轨道或片段的可编辑时间线字段。"
 msgstr "Read the editable timeline fields for the target track or clip."
 
-#: src/pages/ProjectWorkspacePage.tsx:3326
+#: src/pages/ProjectWorkspacePage.tsx:3343
 msgid "已读取经过验证的 Demo 事件。"
 msgstr "Read verified Demo events."
 
-#: src/pages/ProjectWorkspacePage.tsx:3327
+#: src/pages/ProjectWorkspacePage.tsx:3344
 msgid "已读取镜头路径与战术上下文。"
 msgstr "Read camera paths and tactical context."
 
@@ -4066,7 +4066,7 @@ msgstr "The finished file will be written as MP4 to \"Finished Files\". Once the
 msgid "成片导出"
 msgstr "Final export"
 
-#: src/pages/ProjectWorkspacePage.tsx:3193
+#: src/pages/ProjectWorkspacePage.tsx:3210
 msgid "成片已准备好导出。确认后才会写出 MP4 文件。"
 msgstr "The finished file is ready to export. The MP4 will only be written after you confirm."
 
@@ -4203,11 +4203,11 @@ msgstr "Open folder"
 msgid "打开第 {0} 回合"
 msgstr "Open round {0}"
 
-#: src/pages/ProjectWorkspacePage.tsx:3179
+#: src/pages/ProjectWorkspacePage.tsx:3196
 msgid "执行中"
 msgstr "Running"
 
-#: src/pages/ProjectWorkspacePage.tsx:3179
+#: src/pages/ProjectWorkspacePage.tsx:3196
 msgid "执行失败"
 msgstr "Execution failed"
 
@@ -4320,7 +4320,7 @@ msgstr "Defuse"
 msgid "拆弹成功"
 msgstr "Bomb defused"
 
-#: src/pages/ProjectWorkspacePage.tsx:3218
+#: src/pages/ProjectWorkspacePage.tsx:3235
 msgid "拒绝"
 msgstr "Reject"
 
@@ -4640,7 +4640,7 @@ msgstr "Whole match · events"
 msgid "整场比赛"
 msgstr "Full match"
 
-#: src/pages/ProjectWorkspacePage.tsx:3329
+#: src/pages/ProjectWorkspacePage.tsx:3346
 msgid "整条 Story 轨道已替换。"
 msgstr "The entire Story track was replaced."
 
@@ -4760,10 +4760,18 @@ msgstr "Rotate Program view {0}"
 msgid "无"
 msgstr "None"
 
+#: src/pages/ProjectWorkspacePage.tsx:3090
+msgid "无法安全打开这个链接"
+msgstr "This link cannot be opened safely"
+
 #: src/pages/delivery/OutputsView.tsx:94
 #: src/pages/home/RecentOutputsPanel.tsx:48
 msgid "无法定位这个文件。"
 msgstr "Could not locate this file."
+
+#: src/pages/ProjectWorkspacePage.tsx:3091
+msgid "无法打开这个链接"
+msgstr "Could not open this link"
 
 #: src/shared/desktop/client.ts:186
 #: src/shared/desktop/client.ts:215
@@ -4815,7 +4823,7 @@ msgstr "Time"
 msgid "时间码"
 msgstr "Timecode"
 
-#: src/pages/ProjectWorkspacePage.tsx:3204
+#: src/pages/ProjectWorkspacePage.tsx:3221
 msgid "时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。"
 msgstr "The timeline still has clips that aren't ready. Record, re-record, or relink them before exporting."
 
@@ -5210,7 +5218,7 @@ msgstr "View change {0}"
 msgid "查看全部 {0} 条"
 msgstr "View all {0}"
 
-#: src/pages/ProjectWorkspacePage.tsx:3184
+#: src/pages/ProjectWorkspacePage.tsx:3201
 msgid "查看工具详情"
 msgstr "View tool details"
 
@@ -5436,11 +5444,11 @@ msgstr "Recording"
 msgid "正在打开这个页面"
 msgstr "Opening this page"
 
-#: src/pages/ProjectWorkspacePage.tsx:3319
+#: src/pages/ProjectWorkspacePage.tsx:3336
 msgid "正在执行工具…"
 msgstr "Running tool…"
 
-#: src/pages/ProjectWorkspacePage.tsx:3313
+#: src/pages/ProjectWorkspacePage.tsx:3330
 msgid "正在按目标身份读取可编辑时间线字段…"
 msgstr "Reading editable timeline fields as the target identity…"
 
@@ -5448,7 +5456,7 @@ msgstr "Reading editable timeline fields as the target identity…"
 msgid "正在更新战术图"
 msgstr "Updating tactical map"
 
-#: src/pages/ProjectWorkspacePage.tsx:3317
+#: src/pages/ProjectWorkspacePage.tsx:3334
 msgid "正在校验并提交增量修改…"
 msgstr "Validating and submitting incremental changes…"
 
@@ -5458,11 +5466,11 @@ msgstr "Validating and submitting incremental changes…"
 msgid "正在检查"
 msgstr "Checking"
 
-#: src/pages/ProjectWorkspacePage.tsx:3203
+#: src/pages/ProjectWorkspacePage.tsx:3220
 msgid "正在检查当前作品能否交付。"
 msgstr "Checking whether the current project is ready to deliver."
 
-#: src/pages/ProjectWorkspacePage.tsx:3318
+#: src/pages/ProjectWorkspacePage.tsx:3335
 msgid "正在检查整条 Story 轨道…"
 msgstr "Checking the entire Story track…"
 
@@ -5498,7 +5506,7 @@ msgstr "Reading"
 msgid "正在读取任务详情"
 msgstr "Reading the task detail"
 
-#: src/pages/ProjectWorkspacePage.tsx:3314
+#: src/pages/ProjectWorkspacePage.tsx:3331
 msgid "正在读取作品版本和素材概况…"
 msgstr "Reading project version and media summary…"
 
@@ -5534,7 +5542,7 @@ msgstr "Reading the watch status"
 msgid "正在读取空间证据"
 msgstr "Reading spatial evidence"
 
-#: src/pages/ProjectWorkspacePage.tsx:3315
+#: src/pages/ProjectWorkspacePage.tsx:3332
 msgid "正在读取经过验证的 Demo 事件…"
 msgstr "Reading verified Demo events…"
 
@@ -5543,7 +5551,7 @@ msgstr "Reading verified Demo events…"
 msgid "正在读取资料库"
 msgstr "Reading the library"
 
-#: src/pages/ProjectWorkspacePage.tsx:3316
+#: src/pages/ProjectWorkspacePage.tsx:3333
 msgid "正在读取镜头路径与战术上下文…"
 msgstr "Reading camera path and tactical context…"
 
@@ -6826,12 +6834,12 @@ msgstr "Page {slot}"
 msgid "第一人称"
 msgstr "First person"
 
-#: src/pages/ProjectWorkspacePage.tsx:3178
+#: src/pages/ProjectWorkspacePage.tsx:3195
 msgid "等待你确认"
 msgstr "Waiting for your confirmation"
 
 #: src/domain/task/taskVocabulary.tsx:43
-#: src/pages/ProjectWorkspacePage.tsx:3178
+#: src/pages/ProjectWorkspacePage.tsx:3195
 msgid "等待确认"
 msgstr "Awaiting confirmation"
 
@@ -6994,7 +7002,7 @@ msgstr "Zoom Program view {0}"
 msgid "缩略图条，共 {0} 帧"
 msgstr "Film strip, {0} frames"
 
-#: src/pages/ProjectWorkspacePage.tsx:3192
+#: src/pages/ProjectWorkspacePage.tsx:3209
 msgid "缺失片段已排好录制任务。确认后才会启动 CS2 和采集组件。"
 msgstr "Recording tasks are queued for the missing clips. CS2 and the capture component won't start until you confirm."
 
@@ -7296,11 +7304,11 @@ msgstr "Request parameters must be a JSON object"
 msgid "请求参数格式"
 msgstr "Request parameter format"
 
-#: src/pages/ProjectWorkspacePage.tsx:3295
+#: src/pages/ProjectWorkspacePage.tsx:3312
 msgid "请求导出"
 msgstr "Request export"
 
-#: src/pages/ProjectWorkspacePage.tsx:3294
+#: src/pages/ProjectWorkspacePage.tsx:3311
 msgid "请求录制片段"
 msgstr "Request clip recording"
 
@@ -7388,7 +7396,7 @@ msgstr "The highlights of this match could not be read: {failure}"
 msgid "读不到采集组件状态：{hlaeError}"
 msgstr "Could not read the capture component state: {hlaeError}"
 
-#: src/pages/ProjectWorkspacePage.tsx:3289
+#: src/pages/ProjectWorkspacePage.tsx:3306
 msgid "读取作品摘要"
 msgstr "Read project summary"
 
@@ -7406,7 +7414,7 @@ msgstr "Could not read the finished-file list."
 msgid "读取成片列表失败。"
 msgstr "Couldn't load the finished files list."
 
-#: src/pages/ProjectWorkspacePage.tsx:3288
+#: src/pages/ProjectWorkspacePage.tsx:3305
 msgid "读取时间线详情"
 msgstr "Read timeline details"
 
@@ -7418,7 +7426,7 @@ msgstr "The read is read-only, so a retry changes no record and re-downloads no 
 msgid "读取进行中的任务失败。"
 msgstr "Reading the running tasks failed."
 
-#: src/pages/ProjectWorkspacePage.tsx:3291
+#: src/pages/ProjectWorkspacePage.tsx:3308
 msgid "读取镜头上下文"
 msgstr "Read cinematic context"
 
@@ -7645,11 +7653,11 @@ msgstr "No trend to draw yet"
 msgid "还没有后台任务"
 msgstr "No background tasks yet"
 
-#: src/pages/ProjectWorkspacePage.tsx:3303
+#: src/pages/ProjectWorkspacePage.tsx:3320
 msgid "还没有开始导出，等你确认。"
 msgstr "Export hasn't started. Waiting for your confirmation."
 
-#: src/pages/ProjectWorkspacePage.tsx:3302
+#: src/pages/ProjectWorkspacePage.tsx:3319
 msgid "还没有开始录制，等你确认。"
 msgstr "Recording hasn't started. Waiting for your confirmation."
 
@@ -8373,7 +8381,7 @@ msgstr "Duplicate frame {0}"
 msgid "重复帧标记"
 msgstr "Duplicate frame marker"
 
-#: src/pages/ProjectWorkspacePage.tsx:3293
+#: src/pages/ProjectWorkspacePage.tsx:3310
 msgid "重排时间线"
 msgstr "Replan timeline"
 
@@ -8619,7 +8627,7 @@ msgstr "A highlight reel is started from the match workspace or from the Agent"
 msgid "雷达"
 msgstr "Radar"
 
-#: src/pages/ProjectWorkspacePage.tsx:3189
+#: src/pages/ProjectWorkspacePage.tsx:3206
 msgid "需要你的确认"
 msgstr "Your confirmation is required"
 

@@ -3065,6 +3065,7 @@ function ConversationEntry({
 }
 
 function AgentMarkdown({ children }: { readonly children: string }) {
+  const shell = useNativeShell();
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -3077,6 +3078,22 @@ function AgentMarkdown({ children }: { readonly children: string }) {
         table: ({ children: content }) => <div className="mb-2 overflow-x-auto last:mb-0"><table className="w-full border-collapse text-left text-xs leading-5">{content}</table></div>,
         th: ({ children: content }) => <th className="border border-divider bg-neutral-50 px-2 py-1.5 font-semibold text-text">{content}</th>,
         td: ({ children: content }) => <td className="border border-divider px-2 py-1.5 align-top text-neutral-700">{content}</td>,
+        a: ({ children: content, href }) => (
+          <a
+            className="text-accent-text underline underline-offset-2 hover:text-accent-700"
+            href={href}
+            rel="noreferrer"
+            onClick={(event) => {
+              event.preventDefault();
+              const target = href ?? '';
+              void shell.openExternalUrl(target).then((opened) => {
+                if (!opened) toast.error(t`无法安全打开这个链接`, { description: target });
+              }).catch(() => toast.error(t`无法打开这个链接`, { description: target }));
+            }}
+          >
+            {content}
+          </a>
+        ),
       }}
     >
       {children}

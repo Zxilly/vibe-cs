@@ -6,10 +6,12 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $dependencyRoot = Join-Path $repositoryRoot '.deps'
 $destination = Join-Path $dependencyRoot 'ffmpeg'
-$sdkVersion = 'ffmpeg-n8.1.2-34-g9b6c8969e0-win64-lgpl-shared-8.1'
+$sdkVersion = 'ffmpeg-n8.1-latest-win64-lgpl-shared-8.1'
 $archive = Join-Path $dependencyRoot "$sdkVersion.zip"
-$downloadUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-11-13-11/ffmpeg-n8.1.2-34-g9b6c8969e0-win64-lgpl-shared-8.1.zip'
-$expectedSha256 = '026f3ba22f0acf4fe58bf4da28a7eb64ffb107b270119684b91e4cace3b577aa'
+$releaseBaseUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest'
+$downloadUrl = "$releaseBaseUrl/$sdkVersion.zip"
+$checksumUrl = "$releaseBaseUrl/checksums.sha256"
+$checksumFile = Join-Path $dependencyRoot 'ffmpeg-checksums.sha256'
 $markerName = '.vibe-cs-sdk-version'
 $cliExecutables = @('ffmpeg.exe', 'ffplay.exe', 'ffprobe.exe')
 
@@ -24,6 +26,18 @@ function Remove-FfmpegCliExecutables {
     }
 }
 
+function Invoke-VerifiedDownload {
+    param(
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$OutputPath
+    )
+
+    & curl.exe --fail --location --silent --show-error --retry 3 --connect-timeout 20 --output $OutputPath $Uri
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to download $Uri"
+    }
+}
+
 if ((Test-Path -LiteralPath (Join-Path $destination 'lib\avcodec.lib')) -and
     (Test-Path -LiteralPath (Join-Path $destination $markerName)) -and
     ((Get-Content -Raw -LiteralPath (Join-Path $destination $markerName)).Trim() -eq $sdkVersion)) {
@@ -32,9 +46,30 @@ if ((Test-Path -LiteralPath (Join-Path $destination 'lib\avcodec.lib')) -and
 }
 
 New-Item -ItemType Directory -Force -Path $dependencyRoot | Out-Null
+$checksumPartial = "$checksumFile.partial"
+Remove-Item -LiteralPath $checksumPartial -Force -ErrorAction SilentlyContinue
+Invoke-VerifiedDownload -Uri $checksumUrl -OutputPath $checksumPartial
+Move-Item -LiteralPath $checksumPartial -Destination $checksumFile -Force
+$archiveName = Split-Path -Leaf $archive
+$checksumPattern = '^([0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($archiveName) + '$'
+$checksumLine = Get-Content -LiteralPath $checksumFile |
+    Where-Object { $_ -match $checksumPattern } |
+    Select-Object -First 1
+if ($null -eq $checksumLine) {
+    throw "The FFmpeg release checksum manifest does not contain $archiveName"
+}
+$expectedSha256 = [regex]::Match($checksumLine, $checksumPattern).Groups[1].Value.ToLowerInvariant()
+
+if (Test-Path -LiteralPath $archive) {
+    $cachedSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+    if ($cachedSha256 -ne $expectedSha256) {
+        Remove-Item -LiteralPath $archive -Force
+    }
+}
 if (-not (Test-Path -LiteralPath $archive)) {
     $partial = "$archive.partial"
-    Invoke-WebRequest -Uri $downloadUrl -OutFile $partial
+    Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+    Invoke-VerifiedDownload -Uri $downloadUrl -OutputPath $partial
     Move-Item -LiteralPath $partial -Destination $archive
 }
 

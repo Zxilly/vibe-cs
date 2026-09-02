@@ -57,19 +57,21 @@ const MAX_EVIDENCE_ITEMS_PER_ANALYSIS: usize = 200_000;
 const MAX_EVIDENCE_SOURCE_ID_CHARS: usize = 256;
 
 #[cfg(windows)]
-const LLM_API_KEY_ENVELOPE_PREFIX: &str = "dpapi:";
+const SECRET_ENVELOPE_PREFIX: &str = "dpapi:";
 #[cfg(windows)]
-const LLM_API_KEY_DPAPI_PURPOSE: &[u8] = b"Vibe CS app_config.llm.api_key";
+const CONFIG_SECRET_DPAPI_PURPOSE: &[u8] = b"Vibe CS app_config secret";
 #[cfg(windows)]
-const MAX_LLM_API_KEY_BYTES: usize = 64 * 1024;
+const MAX_CONFIG_SECRET_BYTES: usize = 64 * 1024;
 #[cfg(windows)]
-const MAX_LLM_API_KEY_ENVELOPE_HEX_BYTES: usize = (MAX_LLM_API_KEY_BYTES + 4 * 1024) * 2;
+const MAX_CONFIG_SECRET_ENVELOPE_HEX_BYTES: usize = (MAX_CONFIG_SECRET_BYTES + 4 * 1024) * 2;
 
 #[cfg(windows)]
-fn llm_api_key_purpose(config: &AppConfig) -> [u8; 32] {
+fn config_secret_purpose(field: &str, scope: &[&str]) -> [u8; 32] {
     let mut digest = Sha256::new();
-    digest.update(LLM_API_KEY_DPAPI_PURPOSE);
-    for component in [config.llm.provider.trim(), config.llm.base_url.trim()] {
+    digest.update(CONFIG_SECRET_DPAPI_PURPOSE);
+    digest.update(field.len().to_le_bytes());
+    digest.update(field.as_bytes());
+    for component in scope {
         digest.update(component.len().to_le_bytes());
         digest.update(component.as_bytes());
     }
@@ -77,26 +79,72 @@ fn llm_api_key_purpose(config: &AppConfig) -> [u8; 32] {
 }
 
 #[cfg(windows)]
-fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
-    let mut stored = config.clone();
-    if stored.llm.api_key.is_empty() {
-        return Ok(stored);
+fn protect_config_secret(value: &mut String, purpose: &[u8]) -> Result<()> {
+    if value.is_empty() {
+        return Ok(());
     }
-    if stored.llm.api_key.len() > MAX_LLM_API_KEY_BYTES {
+    if value.len() > MAX_CONFIG_SECRET_BYTES {
         return Err(StorageError::SecretProtection);
     }
-    let ciphertext = vibe_cs_platform_windows::protect_user_secret(
-        stored.llm.api_key.as_bytes(),
-        &llm_api_key_purpose(&stored),
-    )
-    .map_err(|_| StorageError::SecretProtection)?;
-    stored.llm.api_key = format!("{LLM_API_KEY_ENVELOPE_PREFIX}{}", hex::encode(ciphertext));
+    let ciphertext = vibe_cs_platform_windows::protect_user_secret(value.as_bytes(), purpose)
+        .map_err(|_| StorageError::SecretProtection)?;
+    *value = format!("{}{}", SECRET_ENVELOPE_PREFIX, hex::encode(ciphertext));
+    Ok(())
+}
+
+#[cfg(windows)]
+fn recover_config_secret(value: &mut String, purpose: &[u8]) -> Result<()> {
+    if value.is_empty() {
+        return Ok(());
+    }
+    let Some(encoded) = value.strip_prefix(SECRET_ENVELOPE_PREFIX) else {
+        return Err(StorageError::SecretRecovery);
+    };
+    if encoded.is_empty() || encoded.len() > MAX_CONFIG_SECRET_ENVELOPE_HEX_BYTES {
+        return Err(StorageError::SecretRecovery);
+    }
+    let ciphertext = hex::decode(encoded).map_err(|_| StorageError::SecretRecovery)?;
+    let mut plaintext = vibe_cs_platform_windows::unprotect_user_secret(&ciphertext, purpose)
+        .map_err(|_| StorageError::SecretRecovery)?;
+    if plaintext.len() > MAX_CONFIG_SECRET_BYTES {
+        plaintext.fill(0);
+        return Err(StorageError::SecretRecovery);
+    }
+    let recovered = std::str::from_utf8(&plaintext)
+        .map(str::to_owned)
+        .map_err(|_| StorageError::SecretRecovery);
+    plaintext.fill(0);
+    *value = recovered?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
+    let mut stored = config.clone();
+    let llm_purpose = config_secret_purpose(
+        "llm.api_key",
+        &[stored.llm.provider.trim(), stored.llm.base_url.trim()],
+    );
+    let steam_web_purpose =
+        config_secret_purpose("steam.web_api_key", &[stored.steam.steam_id.trim()]);
+    let steam_auth_purpose =
+        config_secret_purpose("steam.authentication_code", &[stored.steam.steam_id.trim()]);
+    let steam_share_purpose =
+        config_secret_purpose("steam.known_share_code", &[stored.steam.steam_id.trim()]);
+    protect_config_secret(&mut stored.llm.api_key, &llm_purpose)?;
+    protect_config_secret(&mut stored.steam.web_api_key, &steam_web_purpose)?;
+    protect_config_secret(&mut stored.steam.authentication_code, &steam_auth_purpose)?;
+    protect_config_secret(&mut stored.steam.known_share_code, &steam_share_purpose)?;
     Ok(stored)
 }
 
 #[cfg(not(windows))]
 fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
-    if config.llm.api_key.is_empty() {
+    if config.llm.api_key.is_empty()
+        && config.steam.web_api_key.is_empty()
+        && config.steam.authentication_code.is_empty()
+        && config.steam.known_share_code.is_empty()
+    {
         Ok(config.clone())
     } else {
         Err(StorageError::SecretPersistenceUnsupported)
@@ -105,37 +153,82 @@ fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
 
 #[cfg(windows)]
 fn config_from_persistence(mut config: AppConfig) -> Result<AppConfig> {
-    if config.llm.api_key.is_empty() {
-        return Ok(config);
-    }
-    let Some(encoded) = config.llm.api_key.strip_prefix(LLM_API_KEY_ENVELOPE_PREFIX) else {
-        return Err(StorageError::SecretRecovery);
-    };
-    if encoded.is_empty() || encoded.len() > MAX_LLM_API_KEY_ENVELOPE_HEX_BYTES {
-        return Err(StorageError::SecretRecovery);
-    }
-    let ciphertext = hex::decode(encoded).map_err(|_| StorageError::SecretRecovery)?;
-    let mut plaintext =
-        vibe_cs_platform_windows::unprotect_user_secret(&ciphertext, &llm_api_key_purpose(&config))
-            .map_err(|_| StorageError::SecretRecovery)?;
-    if plaintext.len() > MAX_LLM_API_KEY_BYTES {
-        plaintext.fill(0);
-        return Err(StorageError::SecretRecovery);
-    }
-    let api_key = std::str::from_utf8(&plaintext)
-        .map(str::to_owned)
-        .map_err(|_| StorageError::SecretRecovery);
-    plaintext.fill(0);
-    config.llm.api_key = api_key?;
+    let llm_purpose = config_secret_purpose(
+        "llm.api_key",
+        &[config.llm.provider.trim(), config.llm.base_url.trim()],
+    );
+    let steam_web_purpose =
+        config_secret_purpose("steam.web_api_key", &[config.steam.steam_id.trim()]);
+    let steam_auth_purpose =
+        config_secret_purpose("steam.authentication_code", &[config.steam.steam_id.trim()]);
+    let steam_share_purpose =
+        config_secret_purpose("steam.known_share_code", &[config.steam.steam_id.trim()]);
+    recover_config_secret(&mut config.llm.api_key, &llm_purpose)?;
+    recover_config_secret(&mut config.steam.web_api_key, &steam_web_purpose)?;
+    recover_config_secret(&mut config.steam.authentication_code, &steam_auth_purpose)?;
+    recover_config_secret(&mut config.steam.known_share_code, &steam_share_purpose)?;
     Ok(config)
 }
 
 #[cfg(not(windows))]
 fn config_from_persistence(config: AppConfig) -> Result<AppConfig> {
-    if config.llm.api_key.is_empty() {
+    if config.llm.api_key.is_empty()
+        && config.steam.web_api_key.is_empty()
+        && config.steam.authentication_code.is_empty()
+        && config.steam.known_share_code.is_empty()
+    {
         Ok(config)
     } else {
         Err(StorageError::SecretPersistenceUnsupported)
+    }
+}
+
+#[cfg(all(test, windows))]
+mod config_secret_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn every_persisted_config_secret_is_dpapi_protected() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut config = AppConfig::default();
+        config.llm.provider = "opencode".to_owned();
+        config.llm.base_url = "https://provider.example/v1".to_owned();
+        config.llm.api_key = "llm-secret-value".to_owned();
+        config.steam.steam_id = "76561198000000000".to_owned();
+        config.steam.web_api_key = "steam-web-secret-value".to_owned();
+        config.steam.authentication_code = "steam-auth-secret-value".to_owned();
+        config.steam.known_share_code = "steam-share-secret-value".to_owned();
+
+        storage
+            .put_config(config.clone())
+            .await
+            .expect("persist protected config");
+        let raw = storage
+            .run(|connection| {
+                connection
+                    .query_row(
+                        "SELECT document_json FROM app_config WHERE key = 'app'",
+                        [],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .map_err(StorageError::from)
+            })
+            .await
+            .expect("raw persisted config");
+
+        for secret in [
+            &config.llm.api_key,
+            &config.steam.web_api_key,
+            &config.steam.authentication_code,
+            &config.steam.known_share_code,
+        ] {
+            assert!(!raw.contains(secret), "plaintext secret reached SQLite");
+        }
+        assert_eq!(raw.matches(SECRET_ENVELOPE_PREFIX).count(), 4);
+        assert_eq!(
+            storage.get_config().await.expect("recover config"),
+            Some(config)
+        );
     }
 }
 

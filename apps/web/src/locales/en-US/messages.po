@@ -15,12 +15,12 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 
 #. placeholder {0}: cleanupStaged.data.failed
-#: src/pages/RecoveryPage.tsx:203
+#: src/pages/RecoveryPage.tsx:201
 msgid " 另有 {0} 个删不掉，可能正被占用。"
 msgstr " {0} more could not be deleted, possibly in use."
 
-#: src/pages/RecoveryPage.tsx:206
-#: src/pages/RecoveryPage.tsx:248
+#: src/pages/RecoveryPage.tsx:204
+#: src/pages/RecoveryPage.tsx:246
 msgid " 这次只扫描了一部分，可能还有剩余。"
 msgstr " This pass scanned only part of it; some may remain."
 
@@ -28,26 +28,22 @@ msgstr " This pass scanned only part of it; some may remain."
 msgid "。放宽时间范围通常最有效。"
 msgstr ". Widening the time range usually helps most."
 
-#: src/data/serviceAction.tsx:81
-msgid "· 需要服务"
-msgstr "· Service required"
-
-#: src/ActivityDrawer.tsx:81
+#: src/ActivityDrawer.tsx:79
 msgid "‹ 返回后台任务"
 msgstr "‹ Back to background tasks"
 
 #. placeholder {0}: cleanupMissing.data.deleted
-#: src/pages/RecoveryPage.tsx:242
+#: src/pages/RecoveryPage.tsx:240
 msgid "{0, plural, =0 {没有失效记录。} other {已移除 # 条失效记录。}}"
 msgstr "{0, plural, =0 {No stale records.} other {Removed # stale records.}}"
 
 #. placeholder {0}: cleanupStaged.data.deleted
-#: src/pages/RecoveryPage.tsx:195
+#: src/pages/RecoveryPage.tsx:193
 msgid "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
 msgstr "{0, plural, =0 {Nothing staged to clean.} other {Cleaned # staged files.}}"
 
 #. placeholder {0}: watchPaths.length
-#: src/pages/settings/FilesSection.tsx:262
+#: src/pages/settings/FilesSection.tsx:260
 msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个目录里的新 Demo 会自动进入资料库。}}"
 msgstr "{0, plural, =0 {Nothing is discovered automatically right now.} other {New Demos in these # folders join the library automatically.}}"
 
@@ -57,12 +53,12 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:373
+#: src/pages/LibraryPage.tsx:357
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, one {# watched folder} other {# watched folders}}"
 
 #. placeholder {0}: roots.length
-#: src/pages/library/WatchDirectoriesDrawer.tsx:76
+#: src/pages/library/WatchDirectoriesDrawer.tsx:69
 msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, one {# folder} other {# folders}}"
 
@@ -72,47 +68,47 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, one {# round} other {# rounds}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:371
+#: src/pages/LibraryPage.tsx:355
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, one {# match} other {# matches}}"
 
 #. placeholder {0}: retention.days
-#: src/pages/settings/AiAgentSection.tsx:891
+#: src/pages/settings/AiAgentSection.tsx:877
 msgid "{0, plural, other {# 天}}"
 msgstr "{0, plural, one {# day} other {# days}}"
 
 #. placeholder {0}: external.length
-#: src/pages/library/DeleteDemosDialog.tsx:74
+#: src/pages/library/DeleteDemosDialog.tsx:71
 msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 msgstr "{0, plural, one {# of them is an external file: only the record is removed, and the file on disk is kept.} other {# of them are external files: only the records are removed, and the files on disk are kept.}}"
 
 #. placeholder {0}: managed.length
-#: src/pages/library/DeleteDemosDialog.tsx:68
+#: src/pages/library/DeleteDemosDialog.tsx:65
 msgid "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
 msgstr "{0, plural, one {# of them is a managed file and goes to a rollback staging area, cleared after 24 hours.} other {# of them are managed files and go to a rollback staging area, cleared after 24 hours.}}"
 
 #. placeholder {0}: retention.count
-#: src/pages/settings/AiAgentSection.tsx:889
+#: src/pages/settings/AiAgentSection.tsx:875
 msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, one {Last # conversation} other {Last # conversations}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:285
+#: src/pages/LibraryPage.tsx:274
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, one {Analyze # selected match} other {Analyze # selected matches}}"
 
 #. placeholder {0}: demos.length
-#: src/pages/library/DeleteDemosDialog.tsx:59
+#: src/pages/library/DeleteDemosDialog.tsx:56
 msgid "{0, plural, other {删除 # 条记录？}}"
 msgstr "{0, plural, one {Delete # record?} other {Delete # records?}}"
 
 #. placeholder {0}: staged.length
-#: src/pages/library/ImportDemoDialog.tsx:100
+#: src/pages/library/ImportDemoDialog.tsx:95
 msgid "{0, plural, other {导入 # 个文件}}"
 msgstr "{0, plural, one {Import # file} other {Import # files}}"
 
 #. placeholder {0}: exportResult.count
-#: src/pages/settings/AiAgentSection.tsx:1043
+#: src/pages/settings/AiAgentSection.tsx:1025
 msgid "{0, plural, other {已导出 # 条对话}}"
 msgstr "{0, plural, other {Exported # conversations}}"
 
@@ -219,7 +215,7 @@ msgstr "{0} Next Clip In Point Preview"
 
 #. placeholder {0}: formatRounds(demo.total_rounds)
 #: src/pages/library/LibraryCards.tsx:186
-#: src/pages/library/LibraryInspector.tsx:198
+#: src/pages/library/LibraryInspector.tsx:190
 msgid "{0} 回合"
 msgstr "{0} rounds"
 
@@ -230,7 +226,7 @@ msgstr "{0} matches"
 
 #. placeholder {0}: availability.indexed_demos
 #. placeholder {1}: availability.indexed_items
-#: src/pages/EvidencePage.tsx:171
+#: src/pages/EvidencePage.tsx:162
 msgid "{0} 场比赛 · {1} 条规范化证据"
 msgstr "{0} matches · {1} normalized evidence rows"
 
@@ -317,8 +313,8 @@ msgid "{0} 视频预览"
 msgstr "{0} video preview"
 
 #. placeholder {0}: shown.toFixed(1)
-#: src/pages/settings/GameSection.tsx:376
-#: src/pages/settings/GameSection.tsx:381
+#: src/pages/settings/GameSection.tsx:374
+#: src/pages/settings/GameSection.tsx:379
 msgid "{0} 秒"
 msgstr "{0}s"
 
@@ -384,7 +380,7 @@ msgstr "{count, plural, one {Retried # time · retry limit reached, no more auto
 msgid "{count, plural, other {第 # 次重试}}"
 msgstr "{count, plural, one {Retry #} other {Retry #}}"
 
-#: src/pages/settings/AiAgentSection.tsx:694
+#: src/pages/settings/AiAgentSection.tsx:685
 msgid "{customCount} 项自定义"
 msgstr "{customCount} custom parameters"
 
@@ -438,11 +434,11 @@ msgstr "{pendingCount, plural, one {# pending} other {# pending}}"
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "Position heatmap for {playerName} on {mapName}"
 
-#: src/pages/settings/AiAgentSection.tsx:187
+#: src/pages/settings/AiAgentSection.tsx:184
 msgid "{removed, plural, other {已删除 # 条对话，剪辑单、后台任务和成片都还在}}"
 msgstr "{removed, plural, other {Deleted # conversations. Shot list, background tasks, and finished files are kept}}"
 
-#: src/pages/settings/AiAgentSection.tsx:637
+#: src/pages/settings/AiAgentSection.tsx:628
 msgid "{reserved} 由 Agent 运行时统一生成"
 msgstr "The Agent runtime generates {reserved}"
 
@@ -459,11 +455,11 @@ msgstr "{score} rounds"
 msgid "{seconds} 秒"
 msgstr "{seconds}s"
 
-#: src/pages/settings/AiAgentSection.tsx:969
+#: src/pages/settings/AiAgentSection.tsx:955
 msgid "{seconds} 秒左右"
 msgstr "About {seconds} sec"
 
-#: src/pages/settings/AiAgentSection.tsx:1061
+#: src/pages/settings/AiAgentSection.tsx:1043
 msgid "{sessionCount, plural, other {# 条对话}}"
 msgstr "{sessionCount, plural, one {# conversation} other {# conversations}}"
 
@@ -508,11 +504,11 @@ msgstr "{tickRate} tick"
 msgid "{total, plural, other {共 # 条}}"
 msgstr "{total, plural, one {# row} other {# rows}}"
 
-#: src/pages/DeliveryPage.tsx:68
+#: src/pages/DeliveryPage.tsx:65
 msgid "{total} 个成品文件"
 msgstr "{total} finished files"
 
-#: src/pages/DeliveryPage.tsx:70
+#: src/pages/DeliveryPage.tsx:67
 msgid "{total} 个成品文件 · {available} 可用"
 msgstr "{total} finished files · {available} available"
 
@@ -615,7 +611,7 @@ msgstr "Agent"
 msgid "Agent · 工具"
 msgstr "Agent · Tool"
 
-#: src/pages/settings/AiAgentSection.tsx:975
+#: src/pages/settings/AiAgentSection.tsx:961
 msgid "Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。"
 msgstr "The Agent uses this duration when planning the shot list. It won't cut a longer finished file short."
 
@@ -627,11 +623,11 @@ msgstr "Agent changes awaiting review"
 msgid "Agent 创作"
 msgstr "Agent studio"
 
-#: src/pages/settings/AiAgentSection.tsx:321
+#: src/pages/settings/AiAgentSection.tsx:312
 msgid "Agent 创建片段时默认使用这个视角。每个片段仍可单独调整。"
 msgstr "New clips created by the Agent use this view by default. You can still adjust each clip."
 
-#: src/pages/settings/AiAgentSection.tsx:363
+#: src/pages/settings/AiAgentSection.tsx:354
 msgid "Agent 撰写点评和片段说明时使用的语气。"
 msgstr "The tone the Agent uses for reviews and clip descriptions."
 
@@ -644,7 +640,7 @@ msgstr "Agent added clips · {0}"
 msgid "Agent 正在编辑 · 你暂时只能查看"
 msgstr "Agent is editing · View only for now"
 
-#: src/pages/settings/AiAgentSection.tsx:776
+#: src/pages/settings/AiAgentSection.tsx:767
 msgid "Agent 运行时统一生成 model、messages、tools、tool_choice、stream 与认证字段。"
 msgstr "The Agent runtime generates model, messages, tools, tool_choice, stream, and authentication fields."
 
@@ -667,19 +663,19 @@ msgstr "AI workbench"
 msgid "AI 点评"
 msgstr "AI commentary"
 
-#: src/pages/settings/AiAgentSection.tsx:535
+#: src/pages/settings/AiAgentSection.tsx:526
 msgid "API 地址"
 msgstr "API endpoint"
 
-#: src/pages/settings/AiAgentSection.tsx:542
+#: src/pages/settings/AiAgentSection.tsx:533
 msgid "API 密钥"
 msgstr "API key"
 
-#: src/pages/settings/AiAgentSection.tsx:765
+#: src/pages/settings/AiAgentSection.tsx:756
 msgid "API 密钥和私密请求头由上方的连接配置保管。"
 msgstr "API keys and private request headers are stored in the connection settings above."
 
-#: src/pages/settings/GameSection.tsx:123
+#: src/pages/settings/GameSection.tsx:121
 msgid "CS2 位置"
 msgstr "CS2 location"
 
@@ -701,7 +697,7 @@ msgstr "CT purchases"
 msgid "D"
 msgstr "D"
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:98
+#: src/pages/library/AddWatchDirectoryDialog.tsx:95
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
@@ -714,7 +710,7 @@ msgstr "Demo tick: {0}"
 #: src/app/shell/navigation.tsx:86
 #: src/app/shell/navigation.tsx:110
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:368
+#: src/pages/LibraryPage.tsx:352
 msgid "Demo 资料库"
 msgstr "Demo library"
 
@@ -730,8 +726,8 @@ msgstr "Demo library · table view"
 msgid "Fit Clip：范围时长不同"
 msgstr "Fit Clip: Range durations differ"
 
-#: src/pages/settings/GameSection.tsx:203
-#: src/pages/settings/GameSection.tsx:206
+#: src/pages/settings/GameSection.tsx:201
+#: src/pages/settings/GameSection.tsx:204
 msgid "HUD"
 msgstr "HUD"
 
@@ -774,7 +770,7 @@ msgstr "Kael wallbang kills"
 msgid "L 正向播放"
 msgstr "L Play forward"
 
-#: src/pages/settings/AiAgentSection.tsx:535
+#: src/pages/settings/AiAgentSection.tsx:526
 msgid "OpenAI 兼容接口，填写到 /v1。"
 msgstr "OpenAI-compatible endpoint, including /v1."
 
@@ -835,27 +831,27 @@ msgid "Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点
 msgstr "Source In/Out and Timeline In/Out durations differ. Choose how to complete the four-point edit."
 
 #. placeholder {0}: formatSyncedAt(syncedAt)
-#: src/pages/HistoryPage.tsx:140
+#: src/pages/HistoryPage.tsx:136
 msgid "Steam · 上次同步 {0}"
 msgstr "Steam · last synced {0}"
 
-#: src/pages/settings/FilesSection.tsx:282
+#: src/pages/settings/FilesSection.tsx:280
 msgid "Steam ID"
 msgstr "Steam ID"
 
-#: src/pages/settings/FilesSection.tsx:295
+#: src/pages/settings/FilesSection.tsx:293
 msgid "Steam Web API 密钥"
 msgstr "Steam Web API key"
 
-#: src/pages/HistoryPage.tsx:138
+#: src/pages/HistoryPage.tsx:134
 msgid "Steam 上的对局记录与回放下载"
 msgstr "Match records on Steam and demo downloads"
 
 #: src/app/routeCrumb.ts:112
-#: src/pages/LibraryPage.tsx:111
-#: src/pages/LibraryPage.tsx:383
-#: src/pages/LibraryPage.tsx:386
-#: src/pages/settings/FilesSection.tsx:274
+#: src/pages/LibraryPage.tsx:104
+#: src/pages/LibraryPage.tsx:367
+#: src/pages/LibraryPage.tsx:370
+#: src/pages/settings/FilesSection.tsx:272
 msgid "Steam 下载"
 msgstr "Steam downloads"
 
@@ -863,16 +859,16 @@ msgstr "Steam downloads"
 msgid "Steam 比赛历史"
 msgstr "Steam match history"
 
-#: src/pages/settings/FilesSection.tsx:313
+#: src/pages/settings/FilesSection.tsx:311
 msgid "Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。"
 msgstr "The Steam match-history authentication code, in XXXX-XXXXX-XXXX format."
 
-#: src/pages/HistoryPage.tsx:147
-#: src/pages/HistoryPage.tsx:150
+#: src/pages/HistoryPage.tsx:143
+#: src/pages/HistoryPage.tsx:146
 msgid "Steam 设置"
 msgstr "Steam settings"
 
-#: src/pages/settings/FilesSection.tsx:311
+#: src/pages/settings/FilesSection.tsx:309
 msgid "Steam 验证码"
 msgstr "Steam authentication code"
 
@@ -898,11 +894,11 @@ msgstr "T purchases"
 msgid "TAB 切换分组"
 msgstr "TAB Switch group"
 
-#: src/pages/settings/AiAgentSection.tsx:731
+#: src/pages/settings/AiAgentSection.tsx:722
 msgid "Temperature"
 msgstr "Temperature"
 
-#: src/pages/settings/AiAgentSection.tsx:750
+#: src/pages/settings/AiAgentSection.tsx:741
 msgid "Temperature 和 Top P 通常只需设置一个。"
 msgstr "You usually only need to set Temperature or Top P, not both."
 
@@ -935,19 +931,19 @@ msgstr "tick range"
 msgid "tick 未定位"
 msgstr "tick not located"
 
-#: src/pages/settings/AiAgentSection.tsx:740
+#: src/pages/settings/AiAgentSection.tsx:731
 msgid "Top P"
 msgstr "Top P"
 
-#: src/pages/HistoryPage.tsx:189
+#: src/pages/HistoryPage.tsx:183
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "The official Valve link. Connectors for platforms such as FACEIT are not available yet"
 
-#: src/pages/GuidePage.tsx:63
+#: src/pages/GuidePage.tsx:61
 msgid "三步"
 msgstr "Three steps"
 
-#: src/pages/GuidePage.tsx:56
+#: src/pages/GuidePage.tsx:54
 msgid "三步做出第一条视频，以及这台机器现在能做什么"
 msgstr "Three steps to your first video, and what this machine can do right now"
 
@@ -997,13 +993,13 @@ msgstr "Saved {0}"
 #. placeholder {0}: status.imported
 #. placeholder {1}: status.updated
 #. placeholder {2}: status.missing
-#: src/pages/library/WatchDirectoriesDrawer.tsx:141
+#: src/pages/library/WatchDirectoriesDrawer.tsx:132
 msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 msgstr "Last scan: {0} imported · {1} updated · {2} missing"
 
 #. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
-#: src/pages/settings/AdvancedSection.tsx:147
-#: src/pages/settings/GameSection.tsx:273
+#: src/pages/settings/AdvancedSection.tsx:145
+#: src/pages/settings/GameSection.tsx:271
 msgid "上次检查 {0}"
 msgstr "Last checked {0}"
 
@@ -1072,11 +1068,11 @@ msgstr "Download"
 msgid "下载中"
 msgstr "Downloading"
 
-#: src/pages/HistoryPage.tsx:184
+#: src/pages/HistoryPage.tsx:178
 msgid "下载中 {activeCount}"
 msgstr "{activeCount} downloading"
 
-#: src/pages/HistoryPage.tsx:216
+#: src/pages/HistoryPage.tsx:208
 msgid "下载后自动分析"
 msgstr "Analyze after download"
 
@@ -1084,38 +1080,38 @@ msgstr "Analyze after download"
 msgid "下载失败"
 msgstr "Download failed"
 
-#: src/pages/settings/AdvancedSection.tsx:223
+#: src/pages/settings/AdvancedSection.tsx:219
 msgid "下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到应用数据目录。"
 msgstr "Download the official pinned HLAE build, verify its SHA-256 digest, and install it in the app data directory."
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:204
+#: src/pages/HistoryPage.tsx:197
 msgid "下载选中的 {0} 场"
 msgstr "Download the {0} selected matches"
 
-#: src/pages/RecoveryPage.tsx:133
+#: src/pages/RecoveryPage.tsx:131
 msgid "不会删除 Demo、录制结果、成片、作品或对话记录。"
 msgstr "This won't delete Demos, recordings, finished files, projects, or conversation history."
 
-#: src/pages/RecoveryPage.tsx:179
+#: src/pages/RecoveryPage.tsx:177
 msgid "不会删除已完成的录制结果、成片或资料库记录。"
 msgstr "This won't delete finished recordings, finished files, or library entries."
 
-#: src/pages/RecoveryPage.tsx:225
+#: src/pages/RecoveryPage.tsx:223
 msgid "不会删除磁盘上的现有文件，只移除失效记录。"
 msgstr "This won't delete existing files on disk; it only removes stale records."
 
 #: src/domain/editing/ProjectMediaPanel.tsx:875
 #: src/pages/evidence/EvidenceDetail.tsx:149
-#: src/pages/settings/AdvancedSection.tsx:184
+#: src/pages/settings/AdvancedSection.tsx:182
 msgid "不可用"
 msgstr "Unavailable"
 
-#: src/pages/settings/AdvancedSection.tsx:180
+#: src/pages/settings/AdvancedSection.tsx:178
 msgid "不可用时录制无法启动。"
 msgstr "Recording cannot begin while this is unavailable."
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:88
+#: src/pages/library/AddWatchDirectoryDialog.tsx:85
 msgid "不接受符号链接根目录"
 msgstr "A symlinked root folder is not accepted"
 
@@ -1139,7 +1135,7 @@ msgstr "No later than {0}"
 msgid "不足 1 秒"
 msgstr "Under 1s"
 
-#: src/pages/settings/AiAgentSection.tsx:351
+#: src/pages/settings/AiAgentSection.tsx:342
 msgid "专业"
 msgstr "Professional"
 
@@ -1155,8 +1151,8 @@ msgstr "Both modes use the same demos, matches, players, and evidence; this only
 msgid "主导航"
 msgstr "Main navigation"
 
-#: src/pages/settings/AppSection.tsx:109
-#: src/pages/settings/AppSection.tsx:117
+#: src/pages/settings/AppSection.tsx:107
+#: src/pages/settings/AppSection.tsx:115
 msgid "主题"
 msgstr "Theme"
 
@@ -1164,7 +1160,7 @@ msgstr "Theme"
 msgid "之后可随时用窗口左上角的模式按钮切换，不会复制或移动任何数据。"
 msgstr "You can switch anytime with the mode button in the top-left. No data will be copied or moved."
 
-#: src/pages/settings/FilesSection.tsx:121
+#: src/pages/settings/FilesSection.tsx:119
 msgid "之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。"
 msgstr "Every new file is written here from now on. Files already written are not moved and stay in the old directory."
 
@@ -1210,7 +1206,7 @@ msgstr "The binary replay has an invalid bomb marker"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "The binary replay exceeds the 128 MiB limit"
 
-#: src/shared/desktop/client.ts:235
+#: src/shared/desktop/client.ts:234
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
@@ -1247,11 +1243,11 @@ msgstr "Alive"
 msgid "仅爆头"
 msgstr "Headshots only"
 
-#: src/pages/settings/FilesSection.tsx:329
+#: src/pages/settings/FilesSection.tsx:327
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
 
-#: src/pages/LibraryPage.tsx:112
+#: src/pages/LibraryPage.tsx:105
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "Sync recent matches from Steam and download replays"
 
@@ -1331,7 +1327,7 @@ msgstr "The task is running locally and will return to this conversation when do
 msgid "任务每进入一个阶段，都会在这里留下一行。"
 msgstr "Every stage the task enters leaves a line here."
 
-#: src/pages/delivery/TaskDetailBody.tsx:129
+#: src/pages/delivery/TaskDetailBody.tsx:127
 msgid "任务编号"
 msgstr "Task ID"
 
@@ -1353,8 +1349,8 @@ msgid "伤害 出 / 入"
 msgstr "Damage dealt / taken"
 
 #: src/app/shell/RouteBreadcrumb.tsx:44
-#: src/pages/library/LibraryInspector.tsx:226
-#: src/pages/settings/FilesSection.tsx:119
+#: src/pages/library/LibraryInspector.tsx:218
+#: src/pages/settings/FilesSection.tsx:117
 msgid "位置"
 msgstr "Location"
 
@@ -1377,7 +1373,7 @@ msgstr "Position sampling"
 msgid "低 {0}"
 msgstr "Low {0}"
 
-#: src/pages/delivery/TaskDetailBody.tsx:137
+#: src/pages/delivery/TaskDetailBody.tsx:135
 msgid "作业编号"
 msgstr "Job ID"
 
@@ -1430,11 +1426,11 @@ msgid "你仍可查看预览和时间轴。Agent 完成后即可继续编辑。"
 msgstr "You can still view the preview and timeline. Editing resumes when the Agent finishes."
 
 #: src/app/command/commandRegistry.ts:221
-#: src/pages/GuidePage.tsx:55
+#: src/pages/GuidePage.tsx:53
 msgid "使用引导"
 msgstr "Getting started"
 
-#: src/pages/settings/AiAgentSection.tsx:692
+#: src/pages/settings/AiAgentSection.tsx:683
 msgid "使用提供方默认值"
 msgstr "Use provider defaults"
 
@@ -1450,7 +1446,7 @@ msgstr "Example: delete the second marker and leave everything else unchanged"
 msgid "例如：重新规划成 3 分钟 NiKo 集锦"
 msgstr "For example: Replan this as a three-minute NiKo highlight reel"
 
-#: src/pages/settings/AdvancedSection.tsx:114
+#: src/pages/settings/AdvancedSection.tsx:112
 msgid "依赖检查"
 msgstr "Dependency checks"
 
@@ -1458,12 +1454,12 @@ msgstr "Dependency checks"
 msgid "保存"
 msgstr "Save"
 
-#: src/pages/settings/FilesSection.tsx:379
+#: src/pages/settings/FilesSection.tsx:377
 msgid "保存 Steam 设置"
 msgstr "Save Steam settings"
 
-#: src/pages/EvidencePage.tsx:184
-#: src/pages/EvidencePage.tsx:187
+#: src/pages/EvidencePage.tsx:175
+#: src/pages/EvidencePage.tsx:178
 #: src/pages/library/LibraryFilters.tsx:193
 #: src/pages/library/SaveViewDialog.tsx:52
 msgid "保存为视图"
@@ -1473,7 +1469,7 @@ msgstr "Save as view"
 msgid "保存修改"
 msgstr "Save changes"
 
-#: src/pages/library/LibraryInspector.tsx:268
+#: src/pages/library/LibraryInspector.tsx:260
 msgid "保存备注"
 msgstr "Save note"
 
@@ -1485,7 +1481,7 @@ msgstr "Saves the current search, filters, sort and column setup"
 msgid "保存标记"
 msgstr "Save Marker"
 
-#: src/pages/settings/AiAgentSection.tsx:499
+#: src/pages/settings/AiAgentSection.tsx:490
 msgid "保存模型设置"
 msgstr "Save model settings"
 
@@ -1506,11 +1502,11 @@ msgstr "Saved views last until the app is closed"
 msgid "保持"
 msgstr "Keep"
 
-#: src/pages/settings/AiAgentSection.tsx:893
+#: src/pages/settings/AiAgentSection.tsx:879
 msgid "保留 0 条"
 msgstr "Keep 0"
 
-#: src/pages/settings/AiAgentSection.tsx:842
+#: src/pages/settings/AiAgentSection.tsx:829
 msgid "保留多久"
 msgstr "How long to keep"
 
@@ -1518,7 +1514,7 @@ msgstr "How long to keep"
 msgid "保留所选片段的时间位置、时长、效果和关键帧，只替换源素材"
 msgstr "Keep the selected clip's position, duration, effects, and keyframes, and replace only the source media"
 
-#: src/pages/settings/AiAgentSection.tsx:146
+#: src/pages/settings/AiAgentSection.tsx:143
 msgid "保留策略没有应用成功"
 msgstr "The retention policy was not applied"
 
@@ -1554,16 +1550,16 @@ msgstr "Make a highlight reel"
 msgid "停止 Agent"
 msgstr "Stop Agent"
 
-#: src/pages/settings/AiAgentSection.tsx:753
+#: src/pages/settings/AiAgentSection.tsx:744
 msgid "停止序列"
 msgstr "Stop sequence"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:133
+#: src/pages/library/WatchDirectoriesDrawer.tsx:124
 msgid "停止监听"
 msgstr "Stop watching"
 
 #. placeholder {0}: root.path
-#: src/pages/library/WatchDirectoriesDrawer.tsx:127
+#: src/pages/library/WatchDirectoriesDrawer.tsx:118
 msgid "停止监听 {0}"
 msgstr "Stop watching {0}"
 
@@ -1622,7 +1618,7 @@ msgstr "In/Out range {0} to {1}"
 msgid "入切线"
 msgstr "In tangent"
 
-#: src/pages/library/LibraryInspector.tsx:229
+#: src/pages/library/LibraryInspector.tsx:221
 msgid "入库时间"
 msgstr "Cataloged"
 
@@ -1634,8 +1630,8 @@ msgstr "In point"
 msgid "全选本页"
 msgstr "Select all on this page"
 
-#: src/pages/delivery/OutputsView.tsx:49
-#: src/pages/delivery/TaskRecordView.tsx:52
+#: src/pages/delivery/OutputsView.tsx:48
+#: src/pages/delivery/TaskRecordView.tsx:51
 #: src/pages/evidence/EvidenceConditions.tsx:49
 #: src/pages/library/LibraryFilters.tsx:140
 #: src/pages/library/LibraryFilters.tsx:231
@@ -1646,16 +1642,16 @@ msgstr "Select all on this page"
 msgid "全部"
 msgstr "All"
 
-#: src/pages/HistoryPage.tsx:171
+#: src/pages/HistoryPage.tsx:165
 msgid "全部 {total}"
 msgstr "All {total}"
 
-#: src/pages/home/HomeTasksPanel.tsx:67
+#: src/pages/home/HomeTasksPanel.tsx:65
 msgid "全部任务"
 msgstr "All tasks"
 
-#: src/pages/settings/AiAgentSection.tsx:887
-#: src/pages/settings/GameSection.tsx:295
+#: src/pages/settings/AiAgentSection.tsx:873
+#: src/pages/settings/GameSection.tsx:293
 msgid "全部保留"
 msgstr "Keep all"
 
@@ -1663,15 +1659,15 @@ msgstr "Keep all"
 msgid "全部修改"
 msgstr "All changes"
 
-#: src/pages/delivery/TaskRecordRail.tsx:80
+#: src/pages/delivery/TaskRecordRail.tsx:78
 msgid "全部后台任务"
 msgstr "All background tasks"
 
-#: src/pages/settings/AiAgentSection.tsx:1065
+#: src/pages/settings/AiAgentSection.tsx:1047
 msgid "全部存在本机，不上传。"
 msgstr "All of it stays on this machine; nothing is uploaded."
 
-#: src/pages/home/RecentOutputsPanel.tsx:66
+#: src/pages/home/RecentOutputsPanel.tsx:64
 msgid "全部成品文件"
 msgstr "All finished files"
 
@@ -1679,7 +1675,7 @@ msgstr "All finished files"
 msgid "全部状态"
 msgstr "All statuses"
 
-#: src/pages/settings/GameSection.tsx:299
+#: src/pages/settings/GameSection.tsx:297
 msgid "全部静音"
 msgstr "Mute everything"
 
@@ -1740,12 +1736,12 @@ msgstr "{0} highlights in total, {1} under the current filter"
 msgid "共 {total} 名选手"
 msgstr "{total} players in total"
 
-#: src/pages/HistoryPage.tsx:298
+#: src/pages/HistoryPage.tsx:289
 msgid "共 {total} 场对局"
 msgstr "{total} matches in total"
 
 #. placeholder {0}: items.length
-#: src/ActivityDrawer.tsx:153
+#: src/ActivityDrawer.tsx:151
 msgid "共 {total} 条 · 第 1–{0} 条"
 msgstr "{total} total · showing 1–{0}"
 
@@ -1834,8 +1830,8 @@ msgstr "Dismiss notice"
 msgid "关闭目标轨全部间隙"
 msgstr "Close all gaps on target track"
 
-#: src/app/shell/WindowTitleBar.tsx:392
-#: src/app/shell/WindowTitleBar.tsx:393
+#: src/app/shell/WindowTitleBar.tsx:367
+#: src/app/shell/WindowTitleBar.tsx:368
 msgid "关闭窗口"
 msgstr "Close window"
 
@@ -1866,8 +1862,8 @@ msgstr "The other kinds still hold {0}."
 msgid "再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。"
 msgstr "Select one more player to compare. You can compare up to {limit}; more selections make each column narrower."
 
-#: src/app/shell/WindowTitleBar.tsx:380
-#: src/app/shell/WindowTitleBar.tsx:381
+#: src/app/shell/WindowTitleBar.tsx:355
+#: src/app/shell/WindowTitleBar.tsx:356
 msgid "最大化窗口"
 msgstr "Maximize window"
 
@@ -1875,8 +1871,8 @@ msgstr "Maximize window"
 msgid "最大化面板"
 msgstr "Maximize panel"
 
-#: src/app/shell/WindowTitleBar.tsx:369
-#: src/app/shell/WindowTitleBar.tsx:370
+#: src/app/shell/WindowTitleBar.tsx:344
+#: src/app/shell/WindowTitleBar.tsx:345
 msgid "最小化窗口"
 msgstr "Minimize window"
 
@@ -1894,15 +1890,15 @@ msgstr "Last modified"
 msgid "最近出场"
 msgstr "Last seen"
 
-#: src/pages/settings/FilesSection.tsx:327
+#: src/pages/settings/FilesSection.tsx:325
 msgid "最近分享代码"
 msgstr "Latest share code"
 
-#: src/pages/home/RecentOutputsPanel.tsx:63
+#: src/pages/home/RecentOutputsPanel.tsx:61
 msgid "最近成品文件"
 msgstr "Recent finished files"
 
-#: src/pages/delivery/TaskDetailBody.tsx:106
+#: src/pages/delivery/TaskDetailBody.tsx:104
 msgid "最近更新"
 msgstr "Last update"
 
@@ -1915,7 +1911,7 @@ msgstr "Recent matches"
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "Recent matches could not be read: {matchesError}"
 
-#: src/pages/library/LibraryInspector.tsx:255
+#: src/pages/library/LibraryInspector.tsx:247
 msgid "写下这场值得回头看的地方"
 msgstr "Write down what is worth revisiting in this match"
 
@@ -1923,11 +1919,11 @@ msgstr "Write down what is worth revisiting in this match"
 msgid "写注释"
 msgstr "Write a note"
 
-#: src/pages/settings/AiAgentSection.tsx:866
+#: src/pages/settings/AiAgentSection.tsx:853
 msgid "决定对话列表保留多久。成片和后台任务不会删除。"
 msgstr "Decides how long conversations are kept. Finished files and background tasks are not deleted."
 
-#: src/pages/settings/GameSection.tsx:225
+#: src/pages/settings/GameSection.tsx:223
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "Whose voice is kept in the recorded audio."
 
@@ -1938,7 +1934,7 @@ msgstr "Whose voice is kept in the recorded audio."
 msgid "准备录制"
 msgstr "Ready to record"
 
-#: src/pages/settings/AdvancedSection.tsx:220
+#: src/pages/settings/AdvancedSection.tsx:216
 msgid "准备采集组件"
 msgstr "Prepare capture component"
 
@@ -1993,13 +1989,13 @@ msgstr "Elimination"
 msgid "分析"
 msgstr "Analysis"
 
-#: src/pages/library/libraryColumns.tsx:253
+#: src/pages/library/libraryColumns.tsx:250
 msgctxt "row-action"
 msgid "分析"
 msgstr "Analyze"
 
-#: src/ActivityDrawer.tsx:65
-#: src/pages/delivery/TaskRecordRail.tsx:55
+#: src/ActivityDrawer.tsx:63
+#: src/pages/delivery/TaskRecordRail.tsx:53
 msgid "分析 · 下载 · 录制 · 导出"
 msgstr "Analysis · download · recording · export"
 
@@ -2007,19 +2003,19 @@ msgstr "Analysis · download · recording · export"
 msgid "分析 Demo"
 msgstr "Analyze Demo"
 
-#: src/pages/delivery/TaskRecordView.tsx:123
+#: src/pages/delivery/TaskRecordView.tsx:121
 msgid "分析、下载、录制与导出都会在这里留下一条记录，包含阶段与失败原因。"
 msgstr "Analysis, download, recording and export each leave a record here, with their stages and their failure reason."
 
-#: src/pages/delivery/TaskRecordRail.tsx:66
+#: src/pages/delivery/TaskRecordRail.tsx:64
 msgid "分析、下载、录制与导出都会在这里留下一条记录。"
 msgstr "Analysis, download, recording and export each leave a record here."
 
-#: src/ActivityDrawer.tsx:108
+#: src/ActivityDrawer.tsx:106
 msgid "分析、下载、录制或导出开始后会出现在这里。"
 msgstr "Analysis, download, recording, and export tasks appear here when they start."
 
-#: src/pages/home/HomeTasksPanel.tsx:79
+#: src/pages/home/HomeTasksPanel.tsx:77
 msgid "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
 msgstr "Analysis, recording and export show up here once they start, and can be stopped from here."
 
@@ -2037,7 +2033,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "Rounds, evidence, and highlights only exist after analysis. A 40-minute match takes about 3 minutes."
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:338
+#: src/shared/desktop/client.ts:337
 msgid "分析响应包含未知阵营：{0}"
 msgstr "The analysis response contains an unknown team: {0}"
 
@@ -2063,7 +2059,7 @@ msgstr "Analysis cancelled"
 msgid "分析模式"
 msgstr "Analysis mode"
 
-#: src/pages/match/views/viewChrome.tsx:264
+#: src/pages/match/views/viewChrome.tsx:260
 msgid "分析结果没有被改动，重试是安全的。"
 msgstr "The analysis result was not changed, so a retry is safe."
 
@@ -2125,7 +2121,7 @@ msgstr "Toggle time display mode"
 msgid "切换时间轴吸附"
 msgstr "Toggle timeline snapping"
 
-#: src/pages/LibraryPage.tsx:393
+#: src/pages/LibraryPage.tsx:377
 msgid "切换视图"
 msgstr "Switch view"
 
@@ -2187,9 +2183,9 @@ msgstr "Create Nested Sequence"
 msgid "创建并打开"
 msgstr "Create and Open"
 
-#: src/pages/delivery/OutputCard.tsx:171
-#: src/pages/delivery/OutputCard.tsx:251
-#: src/pages/library/DeleteDemosDialog.tsx:61
+#: src/pages/delivery/OutputCard.tsx:166
+#: src/pages/delivery/OutputCard.tsx:244
+#: src/pages/library/DeleteDemosDialog.tsx:58
 #: src/pages/match/views/ReviewView.tsx:766
 msgid "删除"
 msgstr "Delete"
@@ -2199,7 +2195,7 @@ msgstr "Delete"
 msgid "删除区间 {0} 前的速度关键帧"
 msgstr "Delete speed keyframes before {0}"
 
-#: src/pages/delivery/OutputsView.tsx:214
+#: src/pages/delivery/OutputsView.tsx:211
 msgid "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
 msgstr "Deleting a managed file moves it to a rollback staging area first, cleared after 24 hours. Removing a record never deletes an external file."
 
@@ -2233,7 +2229,7 @@ msgstr "Delete Marker"
 msgid "删除片段标记"
 msgstr "Delete Clip Markers"
 
-#: src/pages/LibraryPage.tsx:325
+#: src/pages/LibraryPage.tsx:312
 msgid "删除记录"
 msgstr "Delete records"
 
@@ -2273,7 +2269,7 @@ msgstr "Razor Tool (C)"
 msgid "前 Out"
 msgstr "Previous Out"
 
-#: src/pages/settings/GameSection.tsx:188
+#: src/pages/settings/GameSection.tsx:186
 msgid "前留白"
 msgstr "Lead-in"
 
@@ -2309,7 +2305,7 @@ msgid "剪辑模式"
 msgstr "Editing mode"
 
 #. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/settings/GameSection.tsx:164
+#: src/pages/settings/GameSection.tsx:162
 msgid "剩余 {0}"
 msgstr "{0} free"
 
@@ -2319,7 +2315,7 @@ msgstr "Add"
 
 #: src/pages/evidence/EvidenceDetail.tsx:103
 #: src/pages/evidence/EvidenceResults.tsx:184
-#: src/pages/EvidencePage.tsx:244
+#: src/pages/EvidencePage.tsx:235
 #: src/pages/match/MatchInspectorPanel.tsx:73
 #: src/pages/match/views/HighlightsView.tsx:263
 #: src/pages/match/views/HighlightsView.tsx:304
@@ -2362,7 +2358,7 @@ msgstr "Check {0}, then check one more player to compare them side by side. Up t
 msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
 msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are placed side by side here."
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:109
+#: src/pages/library/AddWatchDirectoryDialog.tsx:106
 msgid "包含子目录"
 msgstr "Include subfolders"
 
@@ -2394,7 +2390,7 @@ msgid "区间速度"
 msgstr "Range speed"
 
 #: src/pages/ProjectWorkspacePage.tsx:2155
-#: src/pages/settings/AiAgentSection.tsx:101
+#: src/pages/settings/AiAgentSection.tsx:100
 msgid "升降"
 msgstr "Crane"
 
@@ -2421,11 +2417,11 @@ msgstr "A single frame exceeds the player limit"
 msgid "单帧道具效果数量超过上限"
 msgstr "A single frame exceeds the grenade-effect limit"
 
-#: src/pages/settings/FilesSection.tsx:160
+#: src/pages/settings/FilesSection.tsx:158
 msgid "占用"
 msgstr "Usage"
 
-#: src/pages/LibraryPage.tsx:401
+#: src/pages/LibraryPage.tsx:385
 msgid "卡片"
 msgstr "Cards"
 
@@ -2446,15 +2442,15 @@ msgstr "Original position {0}"
 msgid "原出点"
 msgstr "Original Out point"
 
-#: src/pages/HistoryPage.tsx:287
+#: src/pages/HistoryPage.tsx:278
 msgid "去 Demo 资料库"
 msgstr "Go to the demo library"
 
-#: src/pages/home/EnvironmentNotice.tsx:68
+#: src/pages/home/EnvironmentNotice.tsx:63
 msgid "去设置"
 msgstr "Open settings"
 
-#: src/pages/HistoryPage.tsx:250
+#: src/pages/HistoryPage.tsx:242
 msgid "去设置检查 Steam 连接"
 msgstr "Check the Steam connection in Settings"
 
@@ -2476,9 +2472,9 @@ msgstr "Analyse in the library"
 msgid "去资料库分析一场"
 msgstr "Analyze a match in the library"
 
-#: src/pages/delivery/TaskRecordRail.tsx:69
-#: src/pages/delivery/TaskRecordView.tsx:127
-#: src/pages/home/HomeTasksPanel.tsx:82
+#: src/pages/delivery/TaskRecordRail.tsx:67
+#: src/pages/delivery/TaskRecordView.tsx:125
+#: src/pages/home/HomeTasksPanel.tsx:80
 msgid "去资料库开始一次分析"
 msgstr "Start an analysis in the library"
 
@@ -2499,7 +2495,7 @@ msgstr "Counter-Terrorists"
 msgid "发布"
 msgstr "Publish"
 
-#: src/shared/desktop/client.ts:1253
+#: src/shared/desktop/client.ts:1251
 msgid "发生未知错误，请重试。"
 msgstr "Something went wrong. Please try again."
 
@@ -2560,12 +2556,12 @@ msgstr "Unlink selected clips"
 msgid "受害者被闪"
 msgstr "Victim flashed"
 
-#: src/pages/settings/AdvancedSection.tsx:168
+#: src/pages/settings/AdvancedSection.tsx:166
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "The managed HLAE installation and its safety boundary."
 
-#: src/pages/delivery/OutputCard.tsx:148
-#: src/pages/delivery/OutputCard.tsx:215
+#: src/pages/delivery/OutputCard.tsx:144
+#: src/pages/delivery/OutputCard.tsx:209
 msgid "受管文件"
 msgstr "Managed file"
 
@@ -2579,11 +2575,11 @@ msgid "变换与关键帧"
 msgstr "Transform and keyframes"
 
 #. placeholder {0}: failed - 1
-#: src/pages/home/HomeFailureNotice.tsx:73
+#: src/pages/home/HomeFailureNotice.tsx:71
 msgid "另有 {0} 条失败记录"
 msgstr "{0} more failed records"
 
-#: src/pages/settings/GameSection.tsx:298
+#: src/pages/settings/GameSection.tsx:296
 msgid "只保留目标选手"
 msgstr "Recorded player only"
 
@@ -2592,12 +2588,12 @@ msgstr "Recorded player only"
 msgid "只列击杀与目标事件，共 {0} 条。"
 msgstr "Kill and objective events only, {0} in total."
 
-#: src/pages/settings/AppSection.tsx:168
+#: src/pages/settings/AppSection.tsx:166
 msgid "只接受 https:// 开头的地址。"
 msgstr "Only https:// addresses are accepted."
 
-#: src/pages/delivery/OutputsView.tsx:92
-#: src/pages/home/RecentOutputsPanel.tsx:47
+#: src/pages/delivery/OutputsView.tsx:90
+#: src/pages/home/RecentOutputsPanel.tsx:45
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "Only the desktop build can locate a file in the file manager."
 
@@ -2613,7 +2609,7 @@ msgstr "Only removes the media record from the project; the source file on disk 
 msgid "可以画进 2D 回放的事件"
 msgstr "Events that can be drawn in the 2D replay"
 
-#: src/pages/settings/FilesSection.tsx:342
+#: src/pages/settings/FilesSection.tsx:340
 msgid "可填写 1 到 100 场。"
 msgstr "Enter a value from 1 to 100 matches."
 
@@ -2621,7 +2617,7 @@ msgstr "Enter a value from 1 to 100 matches."
 msgid "可用"
 msgstr "Available"
 
-#: src/pages/settings/AdvancedSection.tsx:179
+#: src/pages/settings/AdvancedSection.tsx:177
 msgid "可用性"
 msgstr "Availability"
 
@@ -2629,7 +2625,7 @@ msgstr "Availability"
 msgid "可能是一次很快结束的回合，也可能是解析结果不完整。"
 msgstr "It may have been a very short round, or the parse result may be incomplete."
 
-#: src/pages/delivery/useTaskActions.tsx:153
+#: src/pages/delivery/useTaskActions.tsx:145
 msgid "可重新发起"
 msgstr "Can be started again"
 
@@ -2646,15 +2642,15 @@ msgstr "Total"
 msgid "同名片段标记"
 msgstr "Duplicate Clip Markers"
 
-#: src/pages/HistoryPage.tsx:256
+#: src/pages/HistoryPage.tsx:248
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
 msgstr "Both the sync and the download go through the Steam credentials, so when those expire the two fail together."
 
-#: src/pages/HistoryPage.tsx:162
+#: src/pages/HistoryPage.tsx:157
 msgid "同步最近比赛"
 msgstr "Sync recent matches"
 
-#: src/pages/HistoryPage.tsx:280
+#: src/pages/HistoryPage.tsx:271
 msgid "同步后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放； 过期对局仍会显示，但不能再下载。"
 msgstr "After syncing, your recent competitive matches will appear here. Valve only keeps replays for about {DEMO_RETENTION_DAYS} days; expired matches still show up, but can no longer be downloaded."
 
@@ -2680,25 +2676,25 @@ msgstr "Name"
 msgid "后 In"
 msgstr "Next In"
 
-#: src/ActivityDrawer.tsx:64
-#: src/app/shell/WindowTitleBar.tsx:331
-#: src/pages/delivery/TaskRecordRail.tsx:54
-#: src/pages/delivery/TaskRecordView.tsx:89
+#: src/ActivityDrawer.tsx:62
+#: src/app/shell/WindowTitleBar.tsx:309
+#: src/pages/delivery/TaskRecordRail.tsx:52
+#: src/pages/delivery/TaskRecordView.tsx:87
 #: src/terminology.ts:34
 msgid "后台任务"
 msgstr "Background tasks"
 
-#: src/app/shell/WindowTitleBar.tsx:330
+#: src/app/shell/WindowTitleBar.tsx:308
 msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "Background tasks, {activityUnreadCount} unread"
 
-#: src/ActivityDrawer.tsx:64
+#: src/ActivityDrawer.tsx:62
 #: src/app/routeCrumb.ts:71
-#: src/pages/TaskDetailPage.tsx:61
+#: src/pages/TaskDetailPage.tsx:58
 msgid "后台任务详情"
 msgstr "Background task details"
 
-#: src/pages/settings/GameSection.tsx:195
+#: src/pages/settings/GameSection.tsx:193
 msgid "后留白"
 msgstr "Lead-out"
 
@@ -2741,7 +2737,7 @@ msgstr "Apply Default Transition to Selected Cut"
 msgid "启动"
 msgstr "Launch"
 
-#: src/pages/settings/AdvancedSection.tsx:188
+#: src/pages/settings/AdvancedSection.tsx:186
 msgid "启动方式"
 msgstr "Launch"
 
@@ -2780,7 +2776,7 @@ msgid "告诉我你想怎么剪。我会直接修改左侧时间线，所有改�
 msgstr "Tell me how you want to edit this. I'll update the timeline on the left; every change can be undone."
 
 #. placeholder {0}: search.data.total
-#: src/pages/EvidencePage.tsx:230
+#: src/pages/EvidencePage.tsx:221
 msgid "命中 {0} 条 · 排序：时间倒序"
 msgstr "{0} hits · sorted newest first"
 
@@ -2800,7 +2796,7 @@ msgstr "Commands"
 msgid "命令面板"
 msgstr "Command palette"
 
-#: src/pages/TaskDetailPage.tsx:74
+#: src/pages/TaskDetailPage.tsx:71
 msgid "回到成品文件"
 msgstr "Back to finished files"
 
@@ -2811,16 +2807,16 @@ msgstr "Back to finished files"
 msgid "回到概览"
 msgstr "Back to the overview"
 
-#: src/pages/EvidencePage.tsx:327
+#: src/pages/EvidencePage.tsx:318
 msgid "回到证据视图"
 msgstr "Back to the evidence view"
 
-#: src/pages/match/views/viewChrome.tsx:207
+#: src/pages/match/views/viewChrome.tsx:203
 msgid "回到资料库"
 msgstr "Back to the library"
 
-#: src/pages/library/libraryColumns.tsx:117
-#: src/pages/library/libraryColumns.tsx:118
+#: src/pages/library/libraryColumns.tsx:114
+#: src/pages/library/libraryColumns.tsx:115
 #: src/pages/match/views/DuelsView.tsx:251
 #: src/pages/match/views/DuelsView.tsx:252
 #: src/pages/match/views/OverviewView.tsx:351
@@ -2873,19 +2869,19 @@ msgstr "Rounds won"
 msgid "回放 tick 超出浏览器安全整数范围"
 msgstr "A replay tick falls outside the browser's safe integer range"
 
-#: src/pages/settings/GameSection.tsx:124
+#: src/pages/settings/GameSection.tsx:122
 msgid "回放与录制都从这个目录启动游戏。"
 msgstr "Replay and recording both launch the game from this directory."
 
-#: src/pages/GuidePage.tsx:180
+#: src/pages/GuidePage.tsx:178
 msgid "回放与录制都用它。"
 msgstr "Playback and recording both use it."
 
-#: src/pages/home/EnvironmentNotice.tsx:117
+#: src/pages/home/EnvironmentNotice.tsx:112
 msgid "回放与录制都起不来"
 msgstr "neither playback nor recording can start"
 
-#: src/pages/GuidePage.tsx:179
+#: src/pages/GuidePage.tsx:177
 msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 msgstr "Playback and recording both need it. Importing and analysing are unaffected — those two steps can be done first."
 
@@ -2902,7 +2898,7 @@ msgstr "Replay layers and players"
 msgid "回放帧数量超过上限"
 msgstr "The replay exceeds the frame limit"
 
-#: src/pages/settings/AiAgentSection.tsx:100
+#: src/pages/settings/AiAgentSection.tsx:99
 msgid "固定"
 msgstr "Fixed"
 
@@ -2934,11 +2930,11 @@ msgstr "Click a cell in the round timeline above and the alive curve, the object
 msgid "在回合时间线里点一格，这一回合的证据与注释会出现在这里。"
 msgstr "Click a cell in the round timeline and the evidence and the notes of that round show up here."
 
-#: src/pages/settings/AiAgentSection.tsx:302
+#: src/pages/settings/AiAgentSection.tsx:293
 msgid "在工作进度里展开 Agent 每次读取的回合与事件。"
 msgstr "Expands the rounds and events behind each of the Agent's reads, in the work log."
 
-#: src/pages/library/LibraryInspector.tsx:112
+#: src/pages/library/LibraryInspector.tsx:107
 msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 msgstr "Pick a match on the left and its file, its status and its next step show up here."
 
@@ -3019,7 +3015,7 @@ msgstr "Add or edit a clip marker at the source playhead"
 msgid "在节目画布中移动 {0}"
 msgstr "Move {0} in the Program canvas"
 
-#: src/pages/EvidencePage.tsx:321
+#: src/pages/EvidencePage.tsx:312
 msgid "在证据视图里选一条结果、写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。"
 msgstr "Pick a result in the evidence view and write down why it is worth cutting; the note shows up here and stays searchable across matches."
 
@@ -3027,8 +3023,8 @@ msgstr "Pick a result in the evidence view and write down why it is worth cuttin
 #: src/pages/evidence/EvidenceConditions.tsx:84
 #: src/pages/history/MatchHistoryTable.tsx:125
 #: src/pages/history/MatchHistoryTable.tsx:126
-#: src/pages/library/libraryColumns.tsx:87
-#: src/pages/library/libraryColumns.tsx:88
+#: src/pages/library/libraryColumns.tsx:84
+#: src/pages/library/libraryColumns.tsx:85
 #: src/pages/library/LibraryFilters.tsx:170
 #: src/pages/players/PlayerMapTable.tsx:34
 #: src/pages/players/PlayerMapTable.tsx:35
@@ -3071,11 +3067,11 @@ msgstr "Coordinates come from the local overview radar calibration; this stretch
 msgid "垂直缩放"
 msgstr "Vertical zoom"
 
-#: src/pages/HistoryPage.tsx:236
+#: src/pages/HistoryPage.tsx:228
 msgid "填写 Steam ID、API 密钥、验证码和最近分享代码后再同步。"
 msgstr "Enter the Steam ID, API key, authentication code, and latest share code before syncing."
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:135
+#: src/pages/library/AddWatchDirectoryDialog.tsx:128
 msgid "填写一个目录的完整路径"
 msgstr "Enter the full path of a folder"
 
@@ -3083,12 +3079,12 @@ msgstr "Enter the full path of a folder"
 msgid "声像"
 msgstr "Pan"
 
-#: src/pages/HomePage.tsx:58
+#: src/pages/HomePage.tsx:56
 msgid "处理待办，继续作品，或者开始新的作品"
 msgstr "Handle what needs attention, continue a project, or start a new one"
 
-#: src/pages/library/LibraryInspector.tsx:249
-#: src/pages/library/LibraryInspector.tsx:253
+#: src/pages/library/LibraryInspector.tsx:241
+#: src/pages/library/LibraryInspector.tsx:245
 msgid "备注"
 msgstr "Note"
 
@@ -3104,7 +3100,7 @@ msgstr "Duplicate selected transition"
 msgid "复核解析结果"
 msgstr "Reviewing the parse result"
 
-#: src/pages/settings/AppSection.tsx:84
+#: src/pages/settings/AppSection.tsx:82
 msgid "外观与语言"
 msgstr "Appearance and language"
 
@@ -3112,8 +3108,8 @@ msgstr "Appearance and language"
 msgid "外部执行"
 msgstr "Run externally"
 
-#: src/pages/delivery/OutputCard.tsx:148
-#: src/pages/delivery/OutputCard.tsx:215
+#: src/pages/delivery/OutputCard.tsx:144
+#: src/pages/delivery/OutputCard.tsx:209
 msgid "外部文件"
 msgstr "External file"
 
@@ -3126,18 +3122,18 @@ msgstr "Multicam view"
 msgid "多杀"
 msgstr "Multi-kill"
 
-#: src/ActivityDrawer.tsx:30
+#: src/ActivityDrawer.tsx:29
 #: src/design/feedback/StageBar.tsx:73
 #: src/domain/task/taskVocabulary.tsx:48
-#: src/pages/delivery/TaskRecordView.tsx:54
+#: src/pages/delivery/TaskRecordView.tsx:53
 msgid "失败"
 msgstr "Failed"
 
-#: src/pages/home/HomeFailureNotice.tsx:68
+#: src/pages/home/HomeFailureNotice.tsx:66
 msgid "失败可恢复"
 msgstr "Failed, recoverable"
 
-#: src/shared/desktop/client.ts:172
+#: src/shared/desktop/client.ts:171
 msgid "媒体地址不是本地服务路径。"
 msgstr "The media address is not a local service path."
 
@@ -3163,7 +3159,7 @@ msgstr "Captions appear on their own track. Navigate between them, edit their st
 msgid "字幕内容"
 msgstr "Caption text"
 
-#: src/domain/task/taskVocabulary.tsx:75
+#: src/domain/task/taskVocabulary.tsx:74
 msgctxt "task-progress"
 msgid "字节"
 msgstr "Bytes"
@@ -3172,7 +3168,7 @@ msgstr "Bytes"
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "Once a recording or export finishes, the video shows up here, linked back to the task that made it."
 
-#: src/pages/settings/AiAgentSection.tsx:764
+#: src/pages/settings/AiAgentSection.tsx:755
 msgid "完整参数 JSON"
 msgstr "Full parameter JSON"
 
@@ -3197,10 +3193,10 @@ msgstr "Locate"
 msgid "定位到第 {0} 回合的首杀"
 msgstr "Locate the opening kill of round {0}"
 
-#: src/pages/delivery/OutputCard.tsx:132
-#: src/pages/delivery/OutputCard.tsx:235
-#: src/pages/library/LibraryInspector.tsx:177
-#: src/pages/settings/AdvancedSection.tsx:269
+#: src/pages/delivery/OutputCard.tsx:128
+#: src/pages/delivery/OutputCard.tsx:229
+#: src/pages/library/LibraryInspector.tsx:169
+#: src/pages/settings/AdvancedSection.tsx:261
 msgid "定位文件"
 msgstr "Locate file"
 
@@ -3216,7 +3212,7 @@ msgstr "Density"
 msgid "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 msgstr "Density scale, from {minWeight} hits to {maxWeight} hits"
 
-#: src/pages/settings/FilesSection.tsx:360
+#: src/pages/settings/FilesSection.tsx:358
 msgid "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
 msgstr "Secrets are stored only in local configuration and are never echoed in the UI or diagnostic bundles."
 
@@ -3258,12 +3254,12 @@ msgstr "Matchup statistics unavailable"
 msgid "对比度"
 msgstr "Contrast"
 
-#: src/pages/settings/AiAgentSection.tsx:224
+#: src/pages/settings/AiAgentSection.tsx:221
 #: src/terminology.ts:30
 msgid "对话"
 msgstr "Conversation"
 
-#: src/pages/settings/AiAgentSection.tsx:846
+#: src/pages/settings/AiAgentSection.tsx:833
 msgid "对话保留多久"
 msgstr "How long to keep conversations"
 
@@ -3278,9 +3274,9 @@ msgstr "Import"
 
 #: src/pages/home/firstRunSteps.ts:37
 #: src/pages/home/FirstRunStrip.tsx:67
-#: src/pages/HomePage.tsx:86
-#: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:251
+#: src/pages/HomePage.tsx:84
+#: src/pages/library/ImportDemoDialog.tsx:88
+#: src/pages/LibraryPage.tsx:242
 msgid "导入 Demo"
 msgstr "Import Demo"
 
@@ -3311,8 +3307,8 @@ msgid "导入项目素材"
 msgstr "Import Project Media"
 
 #: src/domain/task/taskVocabulary.tsx:30
-#: src/pages/settings/AdvancedSection.tsx:261
-#: src/pages/settings/AiAgentSection.tsx:1077
+#: src/pages/settings/AdvancedSection.tsx:253
+#: src/pages/settings/AiAgentSection.tsx:1059
 msgid "导出"
 msgstr "Export"
 
@@ -3337,12 +3333,12 @@ msgstr "Export OpenTimelineIO…"
 msgid "导出 SRT 字幕"
 msgstr "Export SRT subtitles"
 
-#: src/pages/LibraryPage.tsx:320
+#: src/pages/LibraryPage.tsx:307
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "Export returns a file, and the desktop build has no command to save it to disk yet"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:322
+#: src/pages/LibraryPage.tsx:309
 msgid "导出元数据"
 msgstr "Export metadata"
 
@@ -3351,20 +3347,20 @@ msgid "导出字幕"
 msgstr "Export Subtitles"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:199
-#: src/pages/delivery/OutputsView.tsx:51
+#: src/pages/delivery/OutputsView.tsx:50
 #: src/pages/ProjectWorkspacePage.tsx:1504
 msgid "导出成片"
 msgstr "Export"
 
-#: src/pages/GuidePage.tsx:188
+#: src/pages/GuidePage.tsx:186
 msgid "导出成片与波形分析用它。"
 msgstr "Exporting a finished cut and analysing waveforms use it."
 
-#: src/pages/home/EnvironmentNotice.tsx:121
+#: src/pages/home/EnvironmentNotice.tsx:116
 msgid "导出成片会失败"
 msgstr "exporting a finished cut will fail"
 
-#: src/pages/GuidePage.tsx:187
+#: src/pages/GuidePage.tsx:185
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
@@ -3372,7 +3368,7 @@ msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected
 msgid "导出时间轴互换文件"
 msgstr "Export Timeline Interchange File"
 
-#: src/pages/settings/AiAgentSection.tsx:1037
+#: src/pages/settings/AiAgentSection.tsx:1019
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
@@ -3380,8 +3376,8 @@ msgstr "The export did not finish: {exportError}"
 msgid "导出源范围"
 msgstr "Export Source Range"
 
-#: src/pages/EvidencePage.tsx:194
-#: src/pages/EvidencePage.tsx:197
+#: src/pages/EvidencePage.tsx:185
+#: src/pages/EvidencePage.tsx:188
 msgid "导出结果"
 msgstr "Export results"
 
@@ -3393,7 +3389,7 @@ msgstr "Export Settings"
 msgid "导出诊断"
 msgstr "Export diagnostics"
 
-#: src/pages/settings/AdvancedSection.tsx:246
+#: src/pages/settings/AdvancedSection.tsx:242
 msgid "导出诊断包"
 msgstr "Export a diagnostics bundle"
 
@@ -3401,11 +3397,11 @@ msgstr "Export a diagnostics bundle"
 msgid "导出质量"
 msgstr "Export Quality"
 
-#: src/pages/RecoveryPage.tsx:178
+#: src/pages/RecoveryPage.tsx:176
 msgid "将删除暂存目录里未完成的成片文件。"
 msgstr "This will delete unfinished finished files in the staging folder."
 
-#: src/pages/RecoveryPage.tsx:220
+#: src/pages/RecoveryPage.tsx:218
 msgid "将删除这些失效记录。"
 msgstr "This will delete these invalid records."
 
@@ -3420,7 +3416,7 @@ msgstr "This will launch CS2 and the capture component to record {0} clips that 
 msgid "将挂在第 {0} 回合 tick {1} 的证据上。"
 msgstr "It will hang on the evidence at round {0}, tick {1}."
 
-#: src/pages/RecoveryPage.tsx:131
+#: src/pages/RecoveryPage.tsx:129
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 msgstr "This will overwrite the current config file with the last automatic backup, then reload it."
 
@@ -3428,7 +3424,7 @@ msgstr "This will overwrite the current config file with the last automatic back
 msgid "尚未加入比较"
 msgstr "Not added to comparison"
 
-#: src/pages/settings/AdvancedSection.tsx:184
+#: src/pages/settings/AdvancedSection.tsx:182
 msgid "就绪"
 msgstr "Ready"
 
@@ -3464,13 +3460,13 @@ msgstr "Nested Sequence"
 msgid "嵌套序列 {0}"
 msgstr "Nested Sequence {0}"
 
-#: src/pages/library/libraryColumns.tsx:238
+#: src/pages/library/libraryColumns.tsx:235
 msgid "工作区"
 msgstr "Workspace"
 
 #: src/app/command/commandRegistry.ts:165
 #: src/app/shell/navigation.tsx:80
-#: src/pages/HomePage.tsx:57
+#: src/pages/HomePage.tsx:55
 msgid "工作台"
 msgstr "Dashboard"
 
@@ -3492,7 +3488,7 @@ msgstr "The tool failed. No changes were made to the project."
 msgid "左对齐"
 msgstr "Align Left"
 
-#: src/pages/RecoveryPage.tsx:163
+#: src/pages/RecoveryPage.tsx:161
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
@@ -3509,14 +3505,14 @@ msgid "已分析 {totalAnalyses} 场，但证据索引还没准备好，所以�
 msgstr "Analyzed {totalAnalyses} matches, but the evidence index isn't ready yet, so there are no results."
 
 #. placeholder {0}: addedProject.name
-#: src/pages/EvidencePage.tsx:262
+#: src/pages/EvidencePage.tsx:253
 #: src/pages/MatchWorkspacePage.tsx:252
 msgid "已加入「{0}」"
 msgstr "Added to “{0}”"
 
-#: src/ActivityDrawer.tsx:32
+#: src/ActivityDrawer.tsx:31
 #: src/domain/task/taskVocabulary.tsx:49
-#: src/pages/delivery/TaskRecordView.tsx:56
+#: src/pages/delivery/TaskRecordView.tsx:55
 msgid "已取消"
 msgstr "Cancelled"
 
@@ -3530,11 +3526,11 @@ msgstr "{enabledEffectCount} effects enabled"
 msgid "已处理"
 msgstr "Handled"
 
-#: src/ActivityDrawer.tsx:31
+#: src/ActivityDrawer.tsx:30
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/editing/ProjectAgentPanel.tsx:529
 #: src/domain/task/taskVocabulary.tsx:47
-#: src/pages/delivery/TaskRecordView.tsx:55
+#: src/pages/delivery/TaskRecordView.tsx:54
 msgid "已完成"
 msgstr "Done"
 
@@ -3549,10 +3545,6 @@ msgstr "Imported"
 #: src/pages/library/LibraryTable.tsx:103
 msgid "已导入的比赛仍在本地，重试通常就能恢复列表。"
 msgstr "Imported matches are still on disk; a retry usually brings the list back."
-
-#: src/app/boundary/ServiceGate.tsx:248
-msgid "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
-msgstr "Imported matches and finished videos stay browsable. Running tasks pick their state back up once the service returns."
 
 #: src/pages/library/LibraryFilters.tsx:48
 #: src/pages/library/libraryFormat.ts:125
@@ -3601,7 +3593,7 @@ msgstr "Generated"
 
 #. placeholder {0}: formatBytes(storage.data.directory_bytes)
 #. placeholder {1}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/settings/FilesSection.tsx:171
+#: src/pages/settings/FilesSection.tsx:169
 msgid "已用 {0} · 可用 {1}"
 msgstr "{0} used · {1} free"
 
@@ -3663,12 +3655,12 @@ msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "{0} selected · up to {PLAYER_COMPARE_LIMIT} can be compared"
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:196
+#: src/pages/HistoryPage.tsx:190
 msgid "已选 {0} 场"
 msgstr "{0} matches selected"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:272
+#: src/pages/LibraryPage.tsx:261
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "{0} matches selected · up to {DEMO_SELECTION_LIMIT}"
 
@@ -3682,7 +3674,7 @@ msgstr "{0} selected"
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
-#: src/pages/EvidencePage.tsx:241
+#: src/pages/EvidencePage.tsx:232
 msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
 
@@ -3744,7 +3736,7 @@ msgstr "Apply default audio transition"
 msgid "延伸所选剪辑点到播放头"
 msgstr "Extend selected edit point to playhead"
 
-#: src/pages/delivery/TaskDetailBody.tsx:105
+#: src/pages/delivery/TaskDetailBody.tsx:103
 msgid "开始"
 msgstr "Started"
 
@@ -3756,9 +3748,9 @@ msgstr "Start tick"
 msgid "开始位置采样"
 msgstr "Position sampling started"
 
-#: src/pages/library/LibraryInspector.tsx:144
-#: src/pages/library/LibraryInspector.tsx:163
-#: src/pages/match/views/viewChrome.tsx:203
+#: src/pages/library/LibraryInspector.tsx:139
+#: src/pages/library/LibraryInspector.tsx:157
+#: src/pages/match/views/viewChrome.tsx:200
 msgid "开始分析"
 msgstr "Start analysis"
 
@@ -3774,7 +3766,7 @@ msgstr "Start recording"
 msgid "开始校验输入文件"
 msgstr "Input file validation started"
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:81
+#: src/pages/library/AddWatchDirectoryDialog.tsx:78
 msgid "开始监听"
 msgstr "Start watching"
 
@@ -3791,7 +3783,7 @@ msgstr "It cites {0} evidence rows, all of them from the set sent to the model:"
 msgid "当前 {round}"
 msgstr "Current {round}"
 
-#: src/pages/match/views/viewChrome.tsx:117
+#: src/pages/match/views/viewChrome.tsx:115
 msgid "当前 R{round}"
 msgstr "Current R{round}"
 
@@ -3799,7 +3791,7 @@ msgstr "Current R{round}"
 msgid "当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。"
 msgstr "Relative coordinates currently preserve route and engagement comparisons; a local radar image maps them to exact locations."
 
-#: src/pages/settings/AiAgentSection.tsx:1058
+#: src/pages/settings/AiAgentSection.tsx:1040
 msgid "当前占用 {conversation}"
 msgstr "Currently using {conversation}"
 
@@ -3812,7 +3804,7 @@ msgstr "The current replay cache field is invalid"
 msgid "当前时间"
 msgstr "Current time"
 
-#: src/pages/settings/AiAgentSection.tsx:981
+#: src/pages/settings/AiAgentSection.tsx:967
 msgid "当前是 {value} 秒，不在上面这几档里。"
 msgstr "Currently {value} sec, which is not one of the choices above."
 
@@ -3829,7 +3821,7 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前查看 {0} · 尚未加入比较"
 msgstr "Viewing {0} · not added to comparison"
 
-#: src/pages/RecoveryPage.tsx:269
+#: src/pages/RecoveryPage.tsx:267
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
 
@@ -3851,11 +3843,11 @@ msgstr "Current count: every position event of this match."
 msgid "当前轨道自动化值 {label}"
 msgstr "Current track automation value {label}"
 
-#: src/pages/settings/AdvancedSection.tsx:85
+#: src/pages/settings/AdvancedSection.tsx:83
 msgid "当前运行编号"
 msgstr "Current run number"
 
-#: src/pages/RecoveryPage.tsx:153
+#: src/pages/RecoveryPage.tsx:151
 msgid "当前配置完整，备份恢复保持关闭"
 msgstr "The current configuration is complete, so backup restore stays off"
 
@@ -3867,16 +3859,16 @@ msgstr "The current anchor is an evidence row, so a note for it can be written u
 msgid "录制"
 msgstr "Recording"
 
-#: src/pages/settings/AdvancedSection.tsx:87
+#: src/pages/settings/AdvancedSection.tsx:85
 msgid "录制与回放是互斥的，这个编号说明为什么某个动作现在不可用。"
 msgstr "Recording and playback are mutually exclusive; this id says why an action is unavailable right now."
 
-#: src/pages/settings/AdvancedSection.tsx:311
+#: src/pages/settings/AdvancedSection.tsx:303
 msgid "录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；导出剪辑单不会启动游戏进程。"
 msgstr "A recording job launches new managed HLAE and CS2 processes to play back the Demo offline in -insecure mode; exporting a shot list does not launch the game."
 
-#: src/pages/settings/AiAgentSection.tsx:283
-#: src/pages/settings/AiAgentSection.tsx:293
+#: src/pages/settings/AiAgentSection.tsx:274
+#: src/pages/settings/AiAgentSection.tsx:284
 msgid "录制前始终由你确认"
 msgstr "Recording always waits for your confirmation"
 
@@ -3884,15 +3876,15 @@ msgstr "Recording always waits for your confirmation"
 msgid "录制完成后会自动抽帧；也可以先在时间轴上按时间预览。"
 msgstr "Frames are pulled automatically once recording finishes; until then you can preview by time on the timeline."
 
-#: src/pages/RecoveryPage.tsx:175
+#: src/pages/RecoveryPage.tsx:173
 msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。"
 msgstr "An interrupted recording or export leaves staged files behind, and they do not clear themselves."
 
-#: src/pages/settings/GameSection.tsx:153
+#: src/pages/settings/GameSection.tsx:151
 msgid "录制文件目录"
 msgstr "Recording file directory"
 
-#: src/pages/settings/AdvancedSection.tsx:189
+#: src/pages/settings/AdvancedSection.tsx:187
 msgid "录制时是否由本应用拉起游戏。"
 msgstr "Whether this app starts the game for a recording."
 
@@ -3913,11 +3905,11 @@ msgstr "Recorded clip {0}"
 msgid "录制环境未就绪"
 msgstr "Recording environment not ready"
 
-#: src/pages/home/EnvironmentNotice.tsx:83
+#: src/pages/home/EnvironmentNotice.tsx:78
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "The recording environment is not ready, so the jobs that need it cannot start."
 
-#: src/pages/GuidePage.tsx:184
+#: src/pages/GuidePage.tsx:182
 msgid "录制用它接管画面。"
 msgstr "Recording uses it to take over the picture."
 
@@ -3926,11 +3918,11 @@ msgstr "Recording uses it to take over the picture."
 msgid "录制视角"
 msgstr "Recording perspective"
 
-#: src/pages/delivery/OutputsView.tsx:50
+#: src/pages/delivery/OutputsView.tsx:49
 msgid "录制结果"
 msgstr "Recordings"
 
-#: src/pages/settings/FilesSection.tsx:112
+#: src/pages/settings/FilesSection.tsx:110
 msgid "录制结果、导出成片和应用自己的数据都放在这里。"
 msgstr "Recordings, finished cuts and the app's own data all live here."
 
@@ -3944,19 +3936,19 @@ msgstr "Record missing clips"
 msgid "录制范围"
 msgstr "Recording range"
 
-#: src/pages/settings/GameSection.tsx:232
+#: src/pages/settings/GameSection.tsx:230
 msgid "录制语音"
 msgstr "Recording voice"
 
-#: src/pages/home/EnvironmentNotice.tsx:119
+#: src/pages/home/EnvironmentNotice.tsx:114
 msgid "录制起不来，分析与编辑不受影响"
 msgstr "recording cannot start; analysis and editing are unaffected"
 
-#: src/pages/GuidePage.tsx:183
+#: src/pages/GuidePage.tsx:181
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "Recording needs it. Importing, analysis and editing are unaffected."
 
-#: src/pages/settings/GameSection.tsx:182
+#: src/pages/settings/GameSection.tsx:180
 msgid "录制默认值"
 msgstr "Recording defaults"
 
@@ -4015,8 +4007,8 @@ msgstr "Constant power"
 
 #: src/app/command/commandRegistry.ts:215
 #: src/app/routeCrumb.ts:74
-#: src/pages/delivery/TaskRecordRail.tsx:84
-#: src/pages/RecoveryPage.tsx:78
+#: src/pages/delivery/TaskRecordRail.tsx:82
+#: src/pages/RecoveryPage.tsx:76
 msgid "恢复中心"
 msgstr "Recovery center"
 
@@ -4030,7 +4022,7 @@ msgstr "Resync {0} {1}{outOfSyncFrames} frames"
 msgid "恢复恒定速度"
 msgstr "Restore constant speed"
 
-#: src/pages/settings/AiAgentSection.tsx:725
+#: src/pages/settings/AiAgentSection.tsx:716
 msgid "恢复提供方默认值"
 msgstr "Restore provider defaults"
 
@@ -4046,7 +4038,7 @@ msgstr "Reset to default"
 msgid "成功"
 msgstr "Success"
 
-#: src/pages/DeliveryPage.tsx:65
+#: src/pages/DeliveryPage.tsx:62
 msgid "成品"
 msgstr "Finished"
 
@@ -4054,7 +4046,7 @@ msgstr "Finished"
 msgid "成品文件"
 msgstr "Finished files"
 
-#: src/pages/settings/GameSection.tsx:247
+#: src/pages/settings/GameSection.tsx:245
 msgid "成品生成能力"
 msgstr "Finished-file generation"
 
@@ -4062,7 +4054,7 @@ msgstr "Finished-file generation"
 msgid "成片会以 MP4 写入「成品文件」。任务开始后，可在 Agent 对话中取消或查看成片。"
 msgstr "The finished file will be written as MP4 to \"Finished Files\". Once the task starts, you can cancel it or view the finished file in the Agent conversation."
 
-#: src/pages/delivery/TaskDetailBody.tsx:65
+#: src/pages/delivery/TaskDetailBody.tsx:63
 msgid "成片导出"
 msgstr "Final export"
 
@@ -4070,11 +4062,11 @@ msgstr "Final export"
 msgid "成片已准备好导出。确认后才会写出 MP4 文件。"
 msgstr "The finished file is ready to export. The MP4 will only be written after you confirm."
 
-#: src/pages/settings/GameSection.tsx:214
+#: src/pages/settings/GameSection.tsx:212
 msgid "成片画面里保留左上角的小地图。"
 msgstr "Keeps the radar in the finished picture."
 
-#: src/pages/settings/GameSection.tsx:204
+#: src/pages/settings/GameSection.tsx:202
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "Keeps the game's HUD in the finished picture."
 
@@ -4128,11 +4120,11 @@ msgstr "Selected changes"
 msgid "所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。"
 msgstr "The selected consecutive Story clips move to a new source sequence; the parent timeline replaces them with a nested clip you can double-click to open."
 
-#: src/pages/settings/AdvancedSection.tsx:192
+#: src/pages/settings/AdvancedSection.tsx:190
 msgid "手动启动"
 msgstr "Manual"
 
-#: src/pages/settings/AppSection.tsx:136
+#: src/pages/settings/AppSection.tsx:134
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "The manifest a manual update check reads. Empty means no update check, which is the default."
 
@@ -4156,13 +4148,13 @@ msgstr "Open the profile of {0}"
 msgid "打开 {0} 的详情"
 msgstr "Open the details of {0}"
 
-#: src/pages/HistoryPage.tsx:229
+#: src/pages/HistoryPage.tsx:221
 msgid "打开 Steam 设置"
 msgstr "Open Steam settings"
 
-#: src/pages/delivery/useTaskActions.tsx:206
-#: src/pages/delivery/useTaskActions.tsx:238
-#: src/pages/EvidencePage.tsx:260
+#: src/pages/delivery/useTaskActions.tsx:193
+#: src/pages/delivery/useTaskActions.tsx:225
+#: src/pages/EvidencePage.tsx:251
 #: src/pages/MatchWorkspacePage.tsx:248
 msgid "打开作品"
 msgstr "Open project"
@@ -4184,8 +4176,8 @@ msgstr "Open profile"
 msgid "打开模型设置"
 msgstr "Open model settings"
 
-#: src/pages/library/LibraryInspector.tsx:140
-#: src/pages/library/LibraryInspector.tsx:153
+#: src/pages/library/LibraryInspector.tsx:135
+#: src/pages/library/LibraryInspector.tsx:147
 msgid "打开比赛工作区"
 msgstr "Open the match workspace"
 
@@ -4193,8 +4185,8 @@ msgstr "Open the match workspace"
 msgid "打开的序列"
 msgstr "Open sequences"
 
-#: src/pages/settings/FilesSection.tsx:134
-#: src/pages/settings/GameSection.tsx:173
+#: src/pages/settings/FilesSection.tsx:132
+#: src/pages/settings/GameSection.tsx:171
 msgid "打开目录"
 msgstr "Open folder"
 
@@ -4215,7 +4207,7 @@ msgstr "Execution failed"
 msgid "执行这个操作"
 msgstr "Run this action"
 
-#: src/pages/EvidencePage.tsx:249
+#: src/pages/EvidencePage.tsx:240
 msgid "批量注释"
 msgstr "Annotate in bulk"
 
@@ -4236,7 +4228,7 @@ msgstr "Page not found"
 msgid "找不到这份作品"
 msgstr "Project not found"
 
-#: src/pages/TaskDetailPage.tsx:70
+#: src/pages/TaskDetailPage.tsx:67
 msgid "找不到这条任务"
 msgstr "Task not found"
 
@@ -4244,7 +4236,7 @@ msgstr "Task not found"
 msgid "技术细节"
 msgstr "Technical details"
 
-#: src/pages/library/ImportDemoDialog.tsx:126
+#: src/pages/library/ImportDemoDialog.tsx:121
 msgid "把 .dem 或 .zip 拖到这里"
 msgstr "Drop a .dem or a .zip here"
 
@@ -4252,7 +4244,7 @@ msgstr "Drop a .dem or a .zip here"
 msgid "把 .dem 文件加进资料库，或者设一个监听目录让它们自己进来。"
 msgstr "Add .dem files to the library, or set a watched folder and let them arrive on their own."
 
-#: src/pages/settings/FilesSection.tsx:388
+#: src/pages/settings/FilesSection.tsx:386
 msgid "把数据目录改到这里？"
 msgstr "Move the data directory here?"
 
@@ -4295,20 +4287,20 @@ msgid "折叠轨道 {label}"
 msgstr "Collapse track {label}"
 
 #. placeholder {0}: exportDiagnostics.data.path
-#: src/pages/settings/AdvancedSection.tsx:284
+#: src/pages/settings/AdvancedSection.tsx:276
 msgid "报告已写入 {0}，不含任何密钥或媒体内容。"
 msgstr "The report was written to {0}. It contains no credentials and no media."
 
 #. placeholder {0}: exportDiagnostics.data.path
-#: src/pages/settings/AdvancedSection.tsx:282
+#: src/pages/settings/AdvancedSection.tsx:274
 msgid "报告已写入 {0}。"
 msgstr "The report was written to {0}."
 
-#: src/pages/settings/AdvancedSection.tsx:247
+#: src/pages/settings/AdvancedSection.tsx:243
 msgid "报告问题时可以附上的一份运行记录。"
 msgstr "A run log you can attach to a bug report."
 
-#: src/pages/settings/AdvancedSection.tsx:79
+#: src/pages/settings/AdvancedSection.tsx:77
 msgid "报告问题时附上这个号码。"
 msgstr "Quote this number in a bug report."
 
@@ -4362,11 +4354,11 @@ msgstr "Duration"
 msgid "持续时间（秒）"
 msgstr "Duration (seconds)"
 
-#: src/pages/RecoveryPage.tsx:214
+#: src/pages/RecoveryPage.tsx:212
 msgid "指向不存在文件的记录"
 msgstr "Records pointing at files that are gone"
 
-#: src/pages/RecoveryPage.tsx:306
+#: src/pages/RecoveryPage.tsx:304
 msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 msgstr "Records pointing at a file that is gone will be removed. If a file was only moved, put it back before cleaning, or its record goes with it."
 
@@ -4394,11 +4386,11 @@ msgstr "Sorted by detection confidence"
 msgid "按源时间码、音频或同名片段标记同步多个机位"
 msgstr "Sync multiple camera angles by source timecode, audio, or matching clip markers"
 
-#: src/pages/delivery/TaskRecordView.tsx:101
+#: src/pages/delivery/TaskRecordView.tsx:99
 msgid "按状态筛选任务"
 msgstr "Filter tasks by status"
 
-#: src/pages/delivery/OutputsView.tsx:132
+#: src/pages/delivery/OutputsView.tsx:130
 msgid "按类型筛选成品文件"
 msgstr "Filter finished files by type"
 
@@ -4438,20 +4430,20 @@ msgstr "Skip"
 msgid "接受交付"
 msgstr "Accept delivery"
 
-#: src/pages/settings/AiAgentSection.tsx:707
+#: src/pages/settings/AiAgentSection.tsx:698
 msgid "接口格式"
 msgstr "API format"
 
 #: src/pages/ProjectWorkspacePage.tsx:2153
-#: src/pages/settings/AiAgentSection.tsx:99
+#: src/pages/settings/AiAgentSection.tsx:98
 msgid "推轨"
 msgstr "Push in"
 
-#: src/pages/settings/AiAgentSection.tsx:521
+#: src/pages/settings/AiAgentSection.tsx:512
 msgid "提供方"
 msgstr "Provider"
 
-#: src/pages/settings/AiAgentSection.tsx:804
+#: src/pages/settings/AiAgentSection.tsx:795
 msgid "提供方默认值"
 msgstr "Provider default"
 
@@ -4548,7 +4540,7 @@ msgstr "Play source"
 msgid "播放速率"
 msgstr "Playback rate"
 
-#: src/pages/delivery/OutputsView.tsx:188
+#: src/pages/delivery/OutputsView.tsx:186
 #: src/pages/history/MatchHistoryTable.tsx:151
 msgid "操作"
 msgstr "Actions"
@@ -4574,7 +4566,7 @@ msgstr "Collapse AI workbench"
 msgid "收起侧栏"
 msgstr "Collapse sidebar"
 
-#: src/pages/settings/FilesSection.tsx:389
+#: src/pages/settings/FilesSection.tsx:387
 msgid "改为这个目录"
 msgstr "Use this folder"
 
@@ -4624,11 +4616,11 @@ msgstr "Effects"
 msgid "数据不可用"
 msgstr "No data"
 
-#: src/pages/RecoveryPage.tsx:79
+#: src/pages/RecoveryPage.tsx:77
 msgid "数据库、缓存与中断任务的修复"
 msgstr "Repairs for the database, caches and interrupted tasks"
 
-#: src/pages/settings/FilesSection.tsx:111
+#: src/pages/settings/FilesSection.tsx:109
 msgid "数据目录"
 msgstr "Data directory"
 
@@ -4636,7 +4628,7 @@ msgstr "Data directory"
 msgid "整场 · 事件"
 msgstr "Whole match · events"
 
-#: src/pages/LibraryPage.tsx:618
+#: src/pages/LibraryPage.tsx:597
 msgid "整场比赛"
 msgstr "Full match"
 
@@ -4644,11 +4636,11 @@ msgstr "Full match"
 msgid "整条 Story 轨道已替换。"
 msgstr "The entire Story track was replaced."
 
-#: src/pages/library/LibraryInspector.tsx:225
+#: src/pages/library/LibraryInspector.tsx:217
 msgid "文件"
 msgstr "File"
 
-#: src/pages/delivery/OutputCard.tsx:100
+#: src/pages/delivery/OutputCard.tsx:96
 msgid "文件不在原位"
 msgstr "File moved"
 
@@ -4656,27 +4648,27 @@ msgstr "File moved"
 msgid "文件与资料库"
 msgstr "Files and library"
 
-#: src/pages/delivery/OutputsView.tsx:184
+#: src/pages/delivery/OutputsView.tsx:182
 msgid "文件名"
 msgstr "File name"
 
-#: src/pages/delivery/OutputsView.tsx:185
+#: src/pages/delivery/OutputsView.tsx:183
 msgid "文件大小"
 msgstr "File size"
 
-#: src/pages/delivery/OutputCard.tsx:145
-#: src/pages/delivery/OutputsView.tsx:52
+#: src/pages/delivery/OutputCard.tsx:141
+#: src/pages/delivery/OutputsView.tsx:51
 #: src/pages/library/LibraryFilters.tsx:51
 #: src/pages/library/libraryFormat.ts:128
 msgid "文件缺失"
 msgstr "File missing"
 
-#: src/pages/RecoveryPage.tsx:217
+#: src/pages/RecoveryPage.tsx:215
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists."
 
-#: src/pages/delivery/OutputsView.tsx:187
-#: src/pages/delivery/TaskDetailBody.tsx:143
+#: src/pages/delivery/OutputsView.tsx:185
+#: src/pages/delivery/TaskDetailBody.tsx:141
 msgid "文件路径"
 msgstr "File path"
 
@@ -4701,14 +4693,14 @@ msgstr "Text style"
 msgid "文字颜色"
 msgstr "Text color"
 
-#: src/pages/HomePage.tsx:81
+#: src/pages/HomePage.tsx:79
 msgid "新建"
 msgstr "New"
 
-#: src/pages/delivery/OutputsView.tsx:173
-#: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:61
-#: src/pages/HomePage.tsx:84
+#: src/pages/delivery/OutputsView.tsx:171
+#: src/pages/home/RecentOutputsPanel.tsx:90
+#: src/pages/HomePage.tsx:59
+#: src/pages/HomePage.tsx:82
 #: src/pages/MatchWorkspacePage.tsx:220
 #: src/pages/ProjectsPage.tsx:27
 msgid "新建作品"
@@ -4730,15 +4722,15 @@ msgstr "Create and add"
 msgid "新建音频轨道"
 msgstr "New audio track"
 
-#: src/pages/settings/GameSection.tsx:156
+#: src/pages/settings/GameSection.tsx:154
 msgid "新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。"
 msgstr "New recordings are written here. The location follows the data directory — change it under Files and library."
 
-#: src/pages/settings/FilesSection.tsx:398
+#: src/pages/settings/FilesSection.tsx:396
 msgid "新文件会写到 {movingTo}。旧目录里的录制结果、成片和索引不会移动， 资料库记录仍指向原位置。"
 msgstr "New files will be written to {movingTo}. Recordings, finished files, and indexes in the old directory won't be moved, and library records will still point to the original location."
 
-#: src/pages/settings/AiAgentSection.tsx:873
+#: src/pages/settings/AiAgentSection.tsx:860
 msgid "新策略不会立即清理旧对话。要现在清理，点「立即应用」。"
 msgstr "The new policy won't clean up old conversations right away. To clean them up now, click \"Apply now\"."
 
@@ -4764,8 +4756,8 @@ msgstr "None"
 msgid "无法安全打开这个链接"
 msgstr "This link cannot be opened safely"
 
-#: src/pages/delivery/OutputsView.tsx:94
-#: src/pages/home/RecentOutputsPanel.tsx:48
+#: src/pages/delivery/OutputsView.tsx:92
+#: src/pages/home/RecentOutputsPanel.tsx:46
 msgid "无法定位这个文件。"
 msgstr "Could not locate this file."
 
@@ -4773,10 +4765,10 @@ msgstr "Could not locate this file."
 msgid "无法打开这个链接"
 msgstr "Could not open this link"
 
-#: src/shared/desktop/client.ts:186
-#: src/shared/desktop/client.ts:215
-#: src/shared/desktop/client.ts:276
-#: src/shared/desktop/client.ts:467
+#: src/shared/desktop/client.ts:185
+#: src/shared/desktop/client.ts:214
+#: src/shared/desktop/client.ts:275
+#: src/shared/desktop/client.ts:466
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "Cannot reach the local service. Check that it is running."
 
@@ -4788,22 +4780,22 @@ msgstr "No video target"
 msgid "无音频目标"
 msgstr "No audio target"
 
-#: src/pages/settings/AdvancedSection.tsx:242
+#: src/pages/settings/AdvancedSection.tsx:238
 msgid "日志与诊断包"
 msgstr "Logs and diagnostics"
 
-#: src/pages/library/libraryColumns.tsx:100
-#: src/pages/library/libraryColumns.tsx:101
+#: src/pages/library/libraryColumns.tsx:97
+#: src/pages/library/libraryColumns.tsx:98
 msgid "日期"
 msgstr "Date"
 
-#: src/pages/library/libraryColumns.tsx:108
-#: src/pages/library/libraryColumns.tsx:109
+#: src/pages/library/libraryColumns.tsx:105
+#: src/pages/library/libraryColumns.tsx:106
 #: src/pages/match/views/HighlightsView.tsx:379
 msgid "时长"
 msgstr "Duration"
 
-#: src/pages/delivery/OutputsView.tsx:186
+#: src/pages/delivery/OutputsView.tsx:184
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "Duration · resolution · frame rate · codec"
 
@@ -4913,8 +4905,8 @@ msgstr "Time remapping {0} segments"
 msgid "显示"
 msgstr "Display"
 
-#: src/pages/settings/AiAgentSection.tsx:301
-#: src/pages/settings/AiAgentSection.tsx:304
+#: src/pages/settings/AiAgentSection.tsx:292
+#: src/pages/settings/AiAgentSection.tsx:295
 msgid "显示 Agent 读取了哪些证据"
 msgstr "Show which evidence the Agent read"
 
@@ -4930,11 +4922,11 @@ msgstr "Show Volume track automation"
 msgid "显示全部"
 msgstr "Show all"
 
-#: src/pages/HistoryPage.tsx:214
+#: src/pages/HistoryPage.tsx:206
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
 
-#: src/pages/library/LibraryInspector.tsx:175
+#: src/pages/library/LibraryInspector.tsx:167
 msgid "暂不支持在文件管理器中显示"
 msgstr "Showing the file in the file manager is not supported yet"
 
@@ -4946,7 +4938,7 @@ msgstr "Exporting the review as a web page is not supported yet"
 msgid "暂不支持把导出的文件保存到磁盘"
 msgstr "Saving the exported file to disk is not supported yet"
 
-#: src/pages/library/libraryColumns.tsx:222
+#: src/pages/library/libraryColumns.tsx:219
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "Relocating a demo file is not supported yet"
 
@@ -4958,7 +4950,7 @@ msgstr "Pause"
 msgid "暂停源素材"
 msgstr "Pause source media"
 
-#: src/pages/RecoveryPage.tsx:286
+#: src/pages/RecoveryPage.tsx:284
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 msgstr "Unfinished files in the staging directory will be deleted. If a recording or export is still worth salvaging, copy it out first."
 
@@ -4990,8 +4982,8 @@ msgstr "More views"
 msgid "更换片段的源入点和源出点，不改变时间轴位置与时长"
 msgstr "Change the clip's source In and Out points without moving it or changing its duration on the timeline"
 
-#: src/pages/settings/FilesSection.tsx:153
-#: src/pages/settings/GameSection.tsx:146
+#: src/pages/settings/FilesSection.tsx:151
+#: src/pages/settings/GameSection.tsx:144
 msgid "更改"
 msgstr "Change"
 
@@ -4999,15 +4991,15 @@ msgstr "Change"
 msgid "更改片段速度（Fit to Fill）"
 msgstr "Change clip speed (Fit to Fill)"
 
-#: src/pages/settings/AppSection.tsx:129
+#: src/pages/settings/AppSection.tsx:127
 msgid "更新"
 msgstr "Updates"
 
-#: src/pages/settings/AppSection.tsx:134
+#: src/pages/settings/AppSection.tsx:132
 msgid "更新源"
 msgstr "Update source"
 
-#: src/pages/settings/AppSection.tsx:147
+#: src/pages/settings/AppSection.tsx:145
 msgid "更新源地址"
 msgstr "Update source address"
 
@@ -5023,7 +5015,7 @@ msgstr "Some rounds carry no prices, so the spend total shows “—” instead 
 msgid "有购买事件没有带价格，因此不列花费，只列购买条数。"
 msgstr "Some purchase events carry no price, so spend is not listed — only the purchase count."
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:112
+#: src/pages/library/AddWatchDirectoryDialog.tsx:109
 msgid "服务当前按目录递归监听，子目录会一同纳入"
 msgstr "The service watches this directory recursively, including subfolders"
 
@@ -5035,7 +5027,7 @@ msgstr "The service gave no reason"
 msgid "服务没有说明原因；这一项不用推算值填空。"
 msgstr "The service gave no reason, and this entry is not filled in with an estimate."
 
-#: src/pages/TaskDetailPage.tsx:85
+#: src/pages/TaskDetailPage.tsx:82
 msgid "服务没有返回这条后台任务。"
 msgstr "The service did not return this background task."
 
@@ -5047,7 +5039,7 @@ msgstr "Not downloaded"
 msgid "未启用源声道"
 msgstr "Source audio channel not enabled"
 
-#: src/pages/RecoveryPage.tsx:169
+#: src/pages/RecoveryPage.tsx:167
 msgid "未完成的暂存成品文件"
 msgstr "Unfinished staged files"
 
@@ -5087,7 +5079,7 @@ msgstr "Unrecorded {plannedCount}"
 msgid "未知"
 msgstr "Unknown"
 
-#: src/domain/task/taskVocabulary.tsx:65
+#: src/domain/task/taskVocabulary.tsx:64
 msgid "未知原因"
 msgstr "Unknown reason"
 
@@ -5095,7 +5087,7 @@ msgstr "Unknown reason"
 msgid "未知地图"
 msgstr "Unknown map"
 
-#: src/shared/desktop/client.ts:409
+#: src/shared/desktop/client.ts:408
 msgid "未知玩家"
 msgstr "Unknown player"
 
@@ -5120,7 +5112,7 @@ msgstr "No player selected"
 msgid "未选中任何选手或回合"
 msgstr "No player or round selected"
 
-#: src/pages/library/LibraryInspector.tsx:103
+#: src/pages/library/LibraryInspector.tsx:98
 msgid "未选中比赛"
 msgstr "No match selected"
 
@@ -5132,46 +5124,26 @@ msgstr "No highlight selected"
 msgid "本地文件"
 msgstr "Local file"
 
-#: src/app/boundary/ServiceGate.tsx:205
-msgid "本地服务在线"
-msgstr "Local service online"
-
-#: src/pages/settings/AdvancedSection.tsx:69
+#: src/pages/settings/AdvancedSection.tsx:67
 msgid "本地服务当前的状态。"
 msgstr "What the local service is doing right now."
-
-#: src/app/boundary/ServiceGate.tsx:206
-msgid "本地服务未连接"
-msgstr "Local service offline"
-
-#: src/app/boundary/ServiceGate.tsx:258
-msgid "本地服务未连接，分析、录制和导出暂时无法开始"
-msgstr "Local service offline — analysis, recording and export cannot start right now"
-
-#: src/data/serviceAction.tsx:76
-msgid "本地服务未连接，恢复后无需刷新页面即可继续"
-msgstr "Local service offline — it resumes on its own, no page reload needed"
-
-#: src/domain/task/taskVocabulary.tsx:63
-msgid "本地服务离线"
-msgstr "Local service offline"
 
 #: src/pages/match/views/OverviewView.tsx:167
 msgid "本场结果"
 msgstr "Match result"
 
 #. placeholder {0}: counts.downloaded
-#: src/pages/HistoryPage.tsx:177
+#: src/pages/HistoryPage.tsx:171
 msgid "本页已入库 {0}"
 msgstr "{0} in library on this page"
 
 #. placeholder {0}: counts.expired
-#: src/pages/HistoryPage.tsx:180
+#: src/pages/HistoryPage.tsx:174
 msgid "本页已过期 {0}"
 msgstr "{0} expired on this page"
 
 #. placeholder {0}: counts.available
-#: src/pages/HistoryPage.tsx:174
+#: src/pages/HistoryPage.tsx:168
 msgid "本页未下载 {0}"
 msgstr "{0} not downloaded on this page"
 
@@ -5180,23 +5152,23 @@ msgid "条件"
 msgstr "Conditions"
 
 #: src/pages/evidence/EvidenceDetail.tsx:140
-#: src/pages/library/libraryColumns.tsx:132
-#: src/pages/library/libraryColumns.tsx:133
+#: src/pages/library/libraryColumns.tsx:129
+#: src/pages/library/libraryColumns.tsx:130
 #: src/pages/library/LibraryFilters.tsx:172
-#: src/pages/library/LibraryInspector.tsx:227
+#: src/pages/library/LibraryInspector.tsx:219
 msgid "来源"
 msgstr "Source"
 
-#: src/pages/delivery/OutputCard.tsx:136
-#: src/pages/delivery/OutputCard.tsx:240
+#: src/pages/delivery/OutputCard.tsx:132
+#: src/pages/delivery/OutputCard.tsx:234
 msgid "来源任务"
 msgstr "Source task"
 
-#: src/pages/delivery/TaskDetailBody.tsx:140
+#: src/pages/delivery/TaskDetailBody.tsx:138
 msgid "来源对象"
 msgstr "Source object"
 
-#: src/pages/library/libraryColumns.tsx:232
+#: src/pages/library/libraryColumns.tsx:229
 #: src/pages/match/views/OverviewView.tsx:226
 msgid "查看"
 msgstr "View"
@@ -5230,15 +5202,15 @@ msgstr "View finished file"
 msgid "查看比赛、回合、玩家、证据、热力图与 2D 回放。"
 msgstr "Review matches, rounds, players, evidence, heatmaps, and 2D replays."
 
-#: src/ActivityDrawer.tsx:142
+#: src/ActivityDrawer.tsx:140
 msgid "查看详情"
 msgstr "View details"
 
-#: src/pages/delivery/useTaskActions.tsx:233
+#: src/pages/delivery/useTaskActions.tsx:220
 msgid "查看阶段"
 msgstr "View stages"
 
-#: src/pages/delivery/useTaskActions.tsx:210
+#: src/pages/delivery/useTaskActions.tsx:197
 msgid "查看阶段日志"
 msgstr "View the stage log"
 
@@ -5247,7 +5219,7 @@ msgid "查看高光"
 msgstr "View highlight"
 
 #: src/pages/library/LibraryFilters.tsx:173
-#: src/pages/library/LibraryInspector.tsx:235
+#: src/pages/library/LibraryInspector.tsx:227
 msgid "标签"
 msgstr "Tags"
 
@@ -5290,7 +5262,7 @@ msgstr "Mark source In point"
 msgid "标记源出点"
 msgstr "Mark source Out point"
 
-#: src/pages/library/ImportDemoDialog.tsx:135
+#: src/pages/library/ImportDemoDialog.tsx:130
 msgid "校验文件头与大小；同一份内容不会重复入库"
 msgstr "Checks the file header and size; identical content is never cataloged twice"
 
@@ -5366,16 +5338,16 @@ msgctxt "match-view"
 msgid "概览"
 msgstr "Overview"
 
-#: src/pages/settings/AiAgentSection.tsx:495
-#: src/pages/settings/AiAgentSection.tsx:528
+#: src/pages/settings/AiAgentSection.tsx:486
+#: src/pages/settings/AiAgentSection.tsx:519
 msgid "模型"
 msgstr "Model"
 
-#: src/pages/settings/AiAgentSection.tsx:213
+#: src/pages/settings/AiAgentSection.tsx:210
 msgid "模型设置没有保存成功"
 msgstr "Model settings could not be saved"
 
-#: src/pages/settings/AiAgentSection.tsx:595
+#: src/pages/settings/AiAgentSection.tsx:586
 msgid "模型连接失败：{testError}"
 msgstr "Model connection failed: {testError}"
 
@@ -5385,20 +5357,23 @@ msgstr "Model connection failed: {testError}"
 msgid "模糊"
 msgstr "Blur"
 
-#: src/pages/settings/AdvancedSection.tsx:214
+#: src/pages/settings/AdvancedSection.tsx:212
 msgid "正在下载并校验采集组件"
 msgstr "Downloading and verifying the capture component"
 
-#: src/pages/settings/AiAgentSection.tsx:499
-#: src/pages/settings/FilesSection.tsx:212
+#: src/pages/settings/AiAgentSection.tsx:194
+#: src/pages/settings/AiAgentSection.tsx:240
+#: src/pages/settings/AiAgentSection.tsx:490
+#: src/pages/settings/AppSection.tsx:60
+#: src/pages/settings/FilesSection.tsx:210
 msgid "正在保存"
 msgstr "Saving"
 
-#: src/pages/settings/AdvancedSection.tsx:256
+#: src/pages/settings/AdvancedSection.tsx:250
 msgid "正在写入报告"
 msgstr "Writing the report"
 
-#: src/pages/settings/AdvancedSection.tsx:220
+#: src/pages/settings/AdvancedSection.tsx:216
 msgid "正在准备"
 msgstr "Preparing"
 
@@ -5407,7 +5382,7 @@ msgstr "Preparing"
 msgid "正在准备 {0}"
 msgstr "Preparing {0}"
 
-#: src/pages/library/LibraryInspector.tsx:219
+#: src/pages/library/LibraryInspector.tsx:211
 msgid "正在分析"
 msgstr "Analyzing"
 
@@ -5415,20 +5390,22 @@ msgstr "Analyzing"
 msgid "正在刷新嵌套序列…"
 msgstr "Refreshing nested sequence…"
 
-#: src/pages/delivery/OutputCard.tsx:282
+#: src/pages/delivery/OutputCard.tsx:274
 msgid "正在加载成片"
 msgstr "Loading finished file"
 
-#: src/pages/HistoryPage.tsx:162
+#: src/pages/HistoryPage.tsx:157
 msgid "正在同步…"
 msgstr "Syncing…"
 
-#: src/pages/RecoveryPage.tsx:72
+#: src/pages/RecoveryPage.tsx:70
+#: src/pages/settings/FilesSection.tsx:68
+#: src/pages/settings/GameSection.tsx:87
 msgid "正在处理"
 msgstr "Working"
 
-#: src/pages/settings/AiAgentSection.tsx:1075
-#: src/pages/settings/AiAgentSection.tsx:1084
+#: src/pages/settings/AiAgentSection.tsx:1057
+#: src/pages/settings/AiAgentSection.tsx:1065
 msgid "正在处理上一次操作"
 msgstr "The previous action is still running"
 
@@ -5436,7 +5413,7 @@ msgstr "The previous action is still running"
 msgid "正在定位帧"
 msgstr "Locating frame"
 
-#: src/pages/settings/AdvancedSection.tsx:98
+#: src/pages/settings/AdvancedSection.tsx:96
 msgid "正在录制"
 msgstr "Recording"
 
@@ -5460,9 +5437,9 @@ msgstr "Updating tactical map"
 msgid "正在校验并提交增量修改…"
 msgstr "Validating and submitting incremental changes…"
 
-#: src/pages/GuidePage.tsx:99
-#: src/pages/settings/AdvancedSection.tsx:154
-#: src/pages/settings/GameSection.tsx:280
+#: src/pages/GuidePage.tsx:97
+#: src/pages/settings/AdvancedSection.tsx:152
+#: src/pages/settings/GameSection.tsx:278
 msgid "正在检查"
 msgstr "Checking"
 
@@ -5478,7 +5455,8 @@ msgstr "Checking the entire Story track…"
 msgid "正在检索证据"
 msgstr "Searching evidence"
 
-#: src/pages/settings/AiAgentSection.tsx:502
+#: src/pages/settings/AiAgentSection.tsx:194
+#: src/pages/settings/AiAgentSection.tsx:493
 msgid "正在测试"
 msgstr "Testing"
 
@@ -5498,11 +5476,11 @@ msgstr "Generating a low-resolution proxy for the draggable preview"
 msgid "正在生成缩略图"
 msgstr "Generating thumbnails"
 
-#: src/pages/library/LibraryInspector.tsx:108
+#: src/pages/library/LibraryInspector.tsx:103
 msgid "正在读取"
 msgstr "Reading"
 
-#: src/pages/TaskDetailPage.tsx:98
+#: src/pages/TaskDetailPage.tsx:95
 msgid "正在读取任务详情"
 msgstr "Reading the task detail"
 
@@ -5514,11 +5492,11 @@ msgstr "Reading project version and media summary…"
 msgid "正在读取战术图"
 msgstr "Loading tactical view"
 
-#: src/pages/match/views/viewChrome.tsx:170
+#: src/pages/match/views/viewChrome.tsx:168
 msgid "正在读取比赛分析"
 msgstr "Reading the match analysis"
 
-#: src/pages/HistoryPage.tsx:274
+#: src/pages/HistoryPage.tsx:265
 msgid "正在读取比赛历史"
 msgstr "Reading the match history"
 
@@ -5534,7 +5512,7 @@ msgstr "Reading clips"
 msgid "正在读取玩家目录"
 msgstr "Reading the player directory"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:99
+#: src/pages/library/WatchDirectoriesDrawer.tsx:90
 msgid "正在读取监听状态"
 msgstr "Reading the watch status"
 
@@ -5555,19 +5533,7 @@ msgstr "Reading the library"
 msgid "正在读取镜头路径与战术上下文…"
 msgstr "Reading camera path and tactical context…"
 
-#: src/app/boundary/ServiceGate.tsx:207
-msgid "正在连接本地服务"
-msgstr "Connecting to the local service"
-
-#: src/data/serviceAction.tsx:75
-msgid "正在连接本地服务，稍后即可使用"
-msgstr "Connecting to the local service — ready in a moment"
-
-#: src/app/boundary/ServiceGate.tsx:253
-msgid "正在重连"
-msgstr "Reconnecting"
-
-#: src/pages/settings/AiAgentSection.tsx:286
+#: src/pages/settings/AiAgentSection.tsx:277
 msgid "此确认始终开启：录制会启动游戏并写出文件，每次都由你确认。"
 msgstr "This confirmation is always on: recording launches the game and writes files, so you confirm every run."
 
@@ -5640,7 +5606,7 @@ msgstr "The purchases of every round"
 msgid "每个回合的首杀对决"
 msgstr "The opening duel of every round"
 
-#: src/pages/settings/GameSection.tsx:364
+#: src/pages/settings/GameSection.tsx:362
 msgid "每个片段在正式内容之外多录的时长。"
 msgstr "How much each clip records beyond the content itself."
 
@@ -5652,11 +5618,11 @@ msgstr "The utility use of every player"
 msgid "每回合按阵营统计的购买事件"
 msgstr "Purchase events per round, counted by side"
 
-#: src/pages/settings/FilesSection.tsx:342
+#: src/pages/settings/FilesSection.tsx:340
 msgid "每次最多同步"
 msgstr "Maximum matches per sync"
 
-#: src/pages/settings/AiAgentSection.tsx:753
+#: src/pages/settings/AiAgentSection.tsx:744
 msgid "每行一项，填写后会随请求发送。"
 msgstr "One per line. Entries are sent with the request."
 
@@ -5682,8 +5648,8 @@ msgstr "Rate Stretch Tool (R)"
 
 #: src/pages/history/MatchHistoryTable.tsx:117
 #: src/pages/history/MatchHistoryTable.tsx:118
-#: src/pages/library/libraryColumns.tsx:75
-#: src/pages/library/libraryColumns.tsx:76
+#: src/pages/library/libraryColumns.tsx:72
+#: src/pages/library/libraryColumns.tsx:73
 #: src/pages/players/PlayerComparePanel.tsx:135
 #: src/pages/PlayersPage.tsx:99
 #: src/pages/PlayersPage.tsx:100
@@ -5704,16 +5670,16 @@ msgid "比赛信息"
 msgstr "Match info"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/pages/HistoryPage.tsx:135
+#: src/pages/HistoryPage.tsx:131
 msgid "比赛历史"
 msgstr "Match history"
 
 #. placeholder {0}: readFailure.message
-#: src/pages/HistoryPage.tsx:242
+#: src/pages/HistoryPage.tsx:234
 msgid "比赛历史没能读出来：{0}"
 msgstr "The match history could not be read: {0}"
 
-#: src/pages/HistoryPage.tsx:123
+#: src/pages/HistoryPage.tsx:119
 msgid "比赛历史读取失败"
 msgstr "Could not read match history"
 
@@ -5734,14 +5700,14 @@ msgstr "Matches"
 msgid "比赛日期"
 msgstr "Match date"
 
-#: src/pages/library/LibraryInspector.tsx:228
+#: src/pages/library/LibraryInspector.tsx:220
 msgid "比赛时间"
 msgstr "Match time"
 
-#: src/pages/library/LibraryInspector.tsx:101
-#: src/pages/library/LibraryInspector.tsx:102
-#: src/pages/library/LibraryInspector.tsx:129
-#: src/pages/library/LibraryInspector.tsx:130
+#: src/pages/library/LibraryInspector.tsx:96
+#: src/pages/library/LibraryInspector.tsx:97
+#: src/pages/library/LibraryInspector.tsx:124
+#: src/pages/library/LibraryInspector.tsx:125
 msgid "比赛详情"
 msgstr "Match detail"
 
@@ -5844,7 +5810,7 @@ msgstr "No radar calibration found for {mapName}, so positions can't be shown. I
 msgid "没有把素材加入作品：{failure}"
 msgstr "The media was not added to the project: {failure}"
 
-#: src/pages/settings/AdvancedSection.tsx:106
+#: src/pages/settings/AdvancedSection.tsx:104
 msgid "没有数据目录"
 msgstr "No data directory"
 
@@ -5856,13 +5822,13 @@ msgstr "No purchase record"
 msgid "没有道具记录"
 msgstr "No utility record"
 
-#: src/data/nativeShell.ts:328
-#: src/data/nativeShell.ts:331
+#: src/data/nativeShell.ts:321
+#: src/data/nativeShell.ts:324
 msgid "没能定位这个文件"
 msgstr "Could not reveal this file"
 
-#: src/data/nativeShell.ts:310
-#: src/data/nativeShell.ts:313
+#: src/data/nativeShell.ts:303
+#: src/data/nativeShell.ts:306
 msgid "没能打开这个目录"
 msgstr "Could not open this folder"
 
@@ -5893,7 +5859,7 @@ msgstr "Ripple Trim Clip Start to Playhead"
 
 #: src/domain/editing/MarkerEditorFields.tsx:51
 #: src/pages/evidence/EvidenceDetail.tsx:156
-#: src/pages/EvidencePage.tsx:209
+#: src/pages/EvidencePage.tsx:200
 #: src/pages/match/views/RoundsView.tsx:621
 msgid "注释"
 msgstr "Notes"
@@ -5932,11 +5898,11 @@ msgstr "The notes could not be read: {0}"
 msgid "注释要挂在具体的 tick 上：先在回放或回合里选中一条证据"
 msgstr "A note hangs on a specific tick: select an evidence row in the replay or in a round first"
 
-#: src/pages/settings/AppSection.tsx:119
+#: src/pages/settings/AppSection.tsx:117
 msgid "浅色"
 msgstr "Light"
 
-#: src/pages/settings/AiAgentSection.tsx:502
+#: src/pages/settings/AiAgentSection.tsx:493
 msgid "测试连接"
 msgstr "Test connection"
 
@@ -5944,7 +5910,7 @@ msgstr "Test connection"
 msgid "淡化"
 msgstr "Fade"
 
-#: src/pages/settings/AppSection.tsx:120
+#: src/pages/settings/AppSection.tsx:118
 msgid "深色"
 msgstr "Dark"
 
@@ -5983,8 +5949,8 @@ msgstr "Add Text"
 msgid "添加文字轨道"
 msgstr "Add Text Track"
 
-#: src/pages/LibraryPage.tsx:299
-#: src/pages/LibraryPage.tsx:300
+#: src/pages/LibraryPage.tsx:286
+#: src/pages/LibraryPage.tsx:287
 msgid "添加标签"
 msgstr "Add tag"
 
@@ -5998,13 +5964,13 @@ msgstr "Add a note"
 msgid "添加片段"
 msgstr "Add clip"
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:79
+#: src/pages/library/AddWatchDirectoryDialog.tsx:76
 msgid "添加监听目录"
 msgstr "Add a watched folder"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:260
-#: src/pages/settings/FilesSection.tsx:258
+#: src/pages/library/WatchDirectoriesDrawer.tsx:76
+#: src/pages/LibraryPage.tsx:250
+#: src/pages/settings/FilesSection.tsx:256
 msgid "添加目录"
 msgstr "Add folder"
 
@@ -6020,8 +5986,8 @@ msgstr "Add Track Keyframe"
 msgid "添加音频轨道"
 msgstr "Add Audio Track"
 
-#: src/pages/RecoveryPage.tsx:278
-#: src/pages/RecoveryPage.tsx:295
+#: src/pages/RecoveryPage.tsx:276
+#: src/pages/RecoveryPage.tsx:293
 msgid "清理"
 msgstr "Clean up"
 
@@ -6029,37 +5995,37 @@ msgstr "Clean up"
 msgid "清理代理媒体"
 msgstr "Clean up proxy media"
 
-#: src/pages/RecoveryPage.tsx:236
+#: src/pages/RecoveryPage.tsx:234
 msgid "清理失效记录"
 msgstr "Clean stale records"
 
-#: src/pages/RecoveryPage.tsx:294
+#: src/pages/RecoveryPage.tsx:292
 msgid "清理失效记录？"
 msgstr "Clean stale records?"
 
-#: src/pages/DeliveryPage.tsx:77
-#: src/pages/DeliveryPage.tsx:87
+#: src/pages/DeliveryPage.tsx:74
+#: src/pages/DeliveryPage.tsx:83
 msgid "清理无效记录"
 msgstr "Clean up dead records"
 
-#: src/pages/RecoveryPage.tsx:189
+#: src/pages/RecoveryPage.tsx:187
 msgid "清理暂存成片"
 msgstr "Clean Up Temporary Finished Files"
 
-#: src/pages/RecoveryPage.tsx:277
+#: src/pages/RecoveryPage.tsx:275
 msgid "清理未完成的暂存成品文件？"
 msgstr "Clean unfinished staged files?"
 
-#: src/pages/settings/AiAgentSection.tsx:397
+#: src/pages/settings/AiAgentSection.tsx:388
 msgid "清空会删除全部对话记录。剪辑单、录制任务和成片继续保留。"
 msgstr "Clearing deletes all conversation history. Shot lists, recording tasks, and finished files are kept."
 
-#: src/pages/settings/AiAgentSection.tsx:389
+#: src/pages/settings/AiAgentSection.tsx:380
 msgid "清空全部对话？"
 msgstr "Clear all conversations?"
 
-#: src/pages/settings/AiAgentSection.tsx:390
-#: src/pages/settings/AiAgentSection.tsx:1086
+#: src/pages/settings/AiAgentSection.tsx:381
+#: src/pages/settings/AiAgentSection.tsx:1067
 msgid "清空对话"
 msgstr "Clear conversations"
 
@@ -6073,7 +6039,7 @@ msgstr "Clear the search"
 msgid "清空条件"
 msgstr "Clear the conditions"
 
-#: src/pages/settings/AiAgentSection.tsx:157
+#: src/pages/settings/AiAgentSection.tsx:154
 msgid "清空没有成功"
 msgstr "The clear did not succeed"
 
@@ -6108,7 +6074,7 @@ msgstr "Clear Source In/Out"
 msgid "渲染入点到出点"
 msgstr "Render In to Out"
 
-#: src/pages/settings/GameSection.tsx:115
+#: src/pages/settings/GameSection.tsx:113
 msgid "游戏"
 msgstr "Game"
 
@@ -6116,7 +6082,7 @@ msgstr "Game"
 msgid "游戏与录制"
 msgstr "Game & recording"
 
-#: src/pages/library/LibraryInspector.tsx:169
+#: src/pages/library/LibraryInspector.tsx:162
 msgid "游戏内回放"
 msgstr "In-game replay"
 
@@ -6242,8 +6208,8 @@ msgstr "Click a row of the scoreboard on the left and their K/D/A, weapon mix an
 msgid "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 msgstr "Click a cell or a row in the matrix and the matchup ledger of that player shows up here."
 
-#: src/pages/settings/AiAgentSection.tsx:341
-#: src/pages/settings/AiAgentSection.tsx:347
+#: src/pages/settings/AiAgentSection.tsx:332
+#: src/pages/settings/AiAgentSection.tsx:338
 msgid "点评语气"
 msgstr "Commentary tone"
 
@@ -6335,7 +6301,7 @@ msgstr "HS%"
 msgid "片段"
 msgstr "Clips"
 
-#: src/domain/task/taskVocabulary.tsx:74
+#: src/domain/task/taskVocabulary.tsx:73
 msgctxt "task-progress"
 msgid "片段"
 msgstr "Clips"
@@ -6371,7 +6337,7 @@ msgid "片段顺序，共 {count} 段，合计 {total}"
 msgstr "Clip order, {count} clips, {total} total"
 
 #: src/pages/ProjectsPage.tsx:80
-#: src/pages/settings/AdvancedSection.tsx:79
+#: src/pages/settings/AdvancedSection.tsx:77
 msgid "版本"
 msgstr "Version"
 
@@ -6382,8 +6348,8 @@ msgstr "Version #{0}"
 
 #: src/pages/history/MatchHistoryTable.tsx:145
 #: src/pages/history/MatchHistoryTable.tsx:146
-#: src/pages/library/libraryColumns.tsx:140
-#: src/pages/library/libraryColumns.tsx:141
+#: src/pages/library/libraryColumns.tsx:137
+#: src/pages/library/libraryColumns.tsx:138
 #: src/pages/library/LibraryFilters.tsx:171
 msgid "状态"
 msgstr "Status"
@@ -6418,19 +6384,19 @@ msgid "玩家视图"
 msgstr "Players view"
 
 #: src/pages/ProjectWorkspacePage.tsx:2154
-#: src/pages/settings/AiAgentSection.tsx:98
+#: src/pages/settings/AiAgentSection.tsx:97
 msgid "环绕"
 msgstr "Orbit"
 
-#: src/pages/settings/AiAgentSection.tsx:373
+#: src/pages/settings/AiAgentSection.tsx:364
 msgid "现在按保留策略清理对话？"
 msgstr "Apply the retention policy to conversations now?"
 
-#: src/pages/home/HomeTasksPanel.tsx:78
+#: src/pages/home/HomeTasksPanel.tsx:76
 msgid "现在没有任务在跑"
 msgstr "No task is running right now"
 
-#: src/pages/EvidencePage.tsx:94
+#: src/pages/EvidencePage.tsx:85
 msgid "现在还不能保存注释"
 msgstr "Comments can't be saved yet"
 
@@ -6471,19 +6437,19 @@ msgstr "Detonated"
 msgid "用 {0} 替换所选片段"
 msgstr "Replace selected clip with {0}"
 
-#: src/pages/LibraryPage.tsx:295
+#: src/pages/LibraryPage.tsx:283
 msgid "用 Agent 创作"
 msgstr "Create with Agent"
 
-#: src/pages/library/libraryColumns.tsx:212
+#: src/pages/library/libraryColumns.tsx:209
 msgid "用 Agent 制作"
 msgstr "Create with Agent"
 
-#: src/pages/RecoveryPage.tsx:158
+#: src/pages/RecoveryPage.tsx:156
 msgid "用备份恢复"
 msgstr "Restore from backup"
 
-#: src/pages/RecoveryPage.tsx:260
+#: src/pages/RecoveryPage.tsx:258
 msgid "用备份覆盖当前配置？"
 msgstr "Overwrite the configuration with the backup?"
 
@@ -6501,49 +6467,49 @@ msgstr "Took {duration}"
 msgid "由 {0} 的 {1} 生成。"
 msgstr "Generated by {1} from {0}."
 
-#: src/pages/settings/AppSection.tsx:110
+#: src/pages/settings/AppSection.tsx:108
 msgid "界面使用的配色。改动会保存，下次启动应用时生效。"
 msgstr "The colours the interface uses. The change is saved and applies the next time the app starts."
 
-#: src/pages/settings/AppSection.tsx:91
+#: src/pages/settings/AppSection.tsx:89
 msgid "界面文案使用的语言。改动会保存，下次启动应用时生效。"
 msgstr "The language of the interface wording. The change is saved and applies the next time the app starts."
 
-#: src/pages/settings/AppSection.tsx:98
+#: src/pages/settings/AppSection.tsx:96
 msgid "界面语言"
 msgstr "Interface language"
 
-#: src/pages/settings/GameSection.tsx:375
+#: src/pages/settings/GameSection.tsx:373
 msgid "留白"
 msgstr "Lead-in"
 
-#: src/pages/settings/AiAgentSection.tsx:543
-#: src/pages/settings/FilesSection.tsx:297
+#: src/pages/settings/AiAgentSection.tsx:534
+#: src/pages/settings/FilesSection.tsx:295
 msgid "留空会保留已经安全保存的密钥。"
 msgstr "Leave blank to keep the securely stored key."
 
-#: src/domain/task/taskVocabulary.tsx:72
+#: src/domain/task/taskVocabulary.tsx:71
 msgctxt "task-progress"
 msgid "百分比"
 msgstr "Percent"
 
 #: src/pages/library/libraryFormat.ts:156
-#: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:411
-#: src/pages/LibraryPage.tsx:417
-#: src/pages/settings/FilesSection.tsx:192
+#: src/pages/library/WatchDirectoriesDrawer.tsx:68
+#: src/pages/LibraryPage.tsx:395
+#: src/pages/LibraryPage.tsx:401
+#: src/pages/settings/FilesSection.tsx:190
 msgid "监听目录"
 msgstr "Watched folders"
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:87
+#: src/pages/library/AddWatchDirectoryDialog.tsx:84
 msgid "目录"
 msgstr "Folder"
 
-#: src/pages/settings/FilesSection.tsx:183
+#: src/pages/settings/FilesSection.tsx:181
 msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
 msgstr "The directory was too large to walk fully, so this counted part of it — actual usage is higher."
 
-#: src/pages/delivery/OutputsView.tsx:128
+#: src/pages/delivery/OutputsView.tsx:126
 msgid "目录很大，只扫描了一部分"
 msgstr "The folder is large, so only part of it was scanned"
 
@@ -6610,16 +6576,16 @@ msgstr "See the whole match"
 msgid "看道具与经济"
 msgstr "See utility & economy"
 
-#: src/pages/delivery/OutputsView.tsx:147
-#: src/pages/home/RecentOutputsPanel.tsx:73
+#: src/pages/delivery/OutputsView.tsx:145
+#: src/pages/home/RecentOutputsPanel.tsx:71
 #: src/pages/match/views/ReviewView.tsx:691
-#: src/pages/RecoveryPage.tsx:93
-#: src/pages/settings/AiAgentSection.tsx:167
-#: src/pages/settings/AiAgentSection.tsx:181
-#: src/pages/settings/AiAgentSection.tsx:599
-#: src/pages/settings/AppSection.tsx:79
-#: src/pages/settings/FilesSection.tsx:98
-#: src/pages/settings/GameSection.tsx:108
+#: src/pages/RecoveryPage.tsx:91
+#: src/pages/settings/AiAgentSection.tsx:164
+#: src/pages/settings/AiAgentSection.tsx:178
+#: src/pages/settings/AiAgentSection.tsx:590
+#: src/pages/settings/AppSection.tsx:77
+#: src/pages/settings/FilesSection.tsx:96
+#: src/pages/settings/GameSection.tsx:106
 msgid "知道了"
 msgstr "Got it"
 
@@ -6627,7 +6593,7 @@ msgstr "Got it"
 msgid "磁盘空间不足"
 msgstr "Not enough disk space"
 
-#: src/pages/LibraryPage.tsx:397
+#: src/pages/LibraryPage.tsx:381
 msgid "视图"
 msgstr "View"
 
@@ -6716,7 +6682,7 @@ msgstr "The movement paths take one sample every {stride} frames."
 msgid "移动面板组"
 msgstr "Move panel group"
 
-#: src/pages/settings/FilesSection.tsx:223
+#: src/pages/settings/FilesSection.tsx:221
 msgid "移除"
 msgstr "Remove"
 
@@ -6728,13 +6694,13 @@ msgstr "Remove condition"
 msgid "移除素材"
 msgstr "Remove media"
 
-#: src/pages/delivery/OutputCard.tsx:171
-#: src/pages/delivery/OutputCard.tsx:251
+#: src/pages/delivery/OutputCard.tsx:166
+#: src/pages/delivery/OutputCard.tsx:244
 msgid "移除记录"
 msgstr "Remove record"
 
-#: src/pages/delivery/OutputsView.tsx:116
-#: src/pages/home/RecentOutputsPanel.tsx:55
+#: src/pages/delivery/OutputsView.tsx:114
+#: src/pages/home/RecentOutputsPanel.tsx:53
 msgid "移除记录失败。"
 msgstr "Removing the record failed."
 
@@ -6762,12 +6728,12 @@ msgstr "Wallbang"
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
 
-#: src/app/shell/WindowTitleBar.tsx:363
+#: src/app/shell/WindowTitleBar.tsx:338
 msgid "窗口操作失败"
 msgstr "Window action failed"
 
-#: src/pages/settings/AiAgentSection.tsx:374
-#: src/pages/settings/AiAgentSection.tsx:876
+#: src/pages/settings/AiAgentSection.tsx:365
+#: src/pages/settings/AiAgentSection.tsx:863
 msgid "立即应用"
 msgstr "Apply now"
 
@@ -6835,7 +6801,7 @@ msgid "第 {slot} 页"
 msgstr "Page {slot}"
 
 #: src/pages/ProjectWorkspacePage.tsx:2150
-#: src/pages/settings/AiAgentSection.tsx:96
+#: src/pages/settings/AiAgentSection.tsx:95
 msgid "第一人称"
 msgstr "First person"
 
@@ -6848,7 +6814,7 @@ msgstr "Waiting for your confirmation"
 msgid "等待确认"
 msgstr "Awaiting confirmation"
 
-#: src/domain/task/taskVocabulary.tsx:64
+#: src/domain/task/taskVocabulary.tsx:63
 msgid "等待超时"
 msgstr "Timed out"
 
@@ -6857,7 +6823,7 @@ msgid "筛选素材状态"
 msgstr "Filter media by status"
 
 #: src/domain/editing/MarkerEditorFields.tsx:27
-#: src/pages/delivery/TaskDetailBody.tsx:132
+#: src/pages/delivery/TaskDetailBody.tsx:130
 #: src/pages/match/views/HighlightsView.tsx:365
 msgid "类型"
 msgstr "Type"
@@ -6955,7 +6921,7 @@ msgstr "Conclusions"
 msgid "结论与注释"
 msgstr "Conclusions & notes"
 
-#: src/pages/HomePage.tsx:75
+#: src/pages/HomePage.tsx:73
 msgid "继续"
 msgstr "Continue"
 
@@ -7039,7 +7005,7 @@ msgstr "Auto (hardware first, software fallback)"
 msgid "自动化模式 {0}"
 msgstr "Automation mode {0}"
 
-#: src/pages/settings/AdvancedSection.tsx:192
+#: src/pages/settings/AdvancedSection.tsx:190
 msgid "自动启动"
 msgstr "Automatic"
 
@@ -7052,7 +7018,7 @@ msgstr "Automatic insights"
 msgid "自动洞察 · 由规则从证据推出"
 msgstr "Automatic insights · derived from the evidence by rules"
 
-#: src/pages/settings/AiAgentSection.tsx:585
+#: src/pages/settings/AiAgentSection.tsx:576
 msgid "自定义指令"
 msgstr "Custom instructions"
 
@@ -7073,7 +7039,7 @@ msgstr "Flash events"
 msgid "致盲时长"
 msgstr "Blind time"
 
-#: src/pages/settings/AiAgentSection.tsx:356
+#: src/pages/settings/AiAgentSection.tsx:347
 msgid "节目化"
 msgstr "Broadcast"
 
@@ -7085,12 +7051,12 @@ msgstr "Program canvas"
 msgid "花费"
 msgstr "Spend"
 
-#: src/pages/settings/AiAgentSection.tsx:279
+#: src/pages/settings/AiAgentSection.tsx:270
 msgid "行为边界"
 msgstr "Safety boundaries"
 
-#: src/pages/library/libraryColumns.tsx:148
-#: src/pages/library/libraryColumns.tsx:149
+#: src/pages/library/libraryColumns.tsx:145
+#: src/pages/library/libraryColumns.tsx:146
 msgid "行操作"
 msgstr "Row actions"
 
@@ -7102,7 +7068,7 @@ msgstr "Row ＼ Column"
 msgid "行方与列方"
 msgstr "Row side and column side"
 
-#: src/pages/LibraryPage.tsx:400
+#: src/pages/LibraryPage.tsx:384
 msgid "表格"
 msgstr "Table"
 
@@ -7136,7 +7102,7 @@ msgstr "Trim clip start"
 msgid "覆盖"
 msgstr "Overwrite"
 
-#: src/pages/RecoveryPage.tsx:261
+#: src/pages/RecoveryPage.tsx:259
 msgid "覆盖并恢复"
 msgstr "Overwrite and restore"
 
@@ -7169,16 +7135,16 @@ msgstr "Parsing match data"
 msgid "让 Agent 做一条视频"
 msgstr "Ask the Agent for a video"
 
-#: src/pages/delivery/OutputCard.tsx:154
-#: src/pages/delivery/OutputCard.tsx:218
+#: src/pages/delivery/OutputCard.tsx:150
+#: src/pages/delivery/OutputCard.tsx:212
 msgid "记录仍在，文件已被移动或删除"
 msgstr "The record is still here; the file was moved or deleted"
 
-#: src/pages/delivery/OutputsView.tsx:113
+#: src/pages/delivery/OutputsView.tsx:111
 msgid "记录已移除，外部文件未被删除。"
 msgstr "The record was removed; the external file was not deleted."
 
-#: src/pages/delivery/OutputsView.tsx:112
+#: src/pages/delivery/OutputsView.tsx:110
 msgid "记录已移除，文件仍在原处。"
 msgstr "The record was removed; the file is still in place."
 
@@ -7196,11 +7162,11 @@ msgstr "Settings & diagnostics"
 msgid "设置分节"
 msgstr "Settings sections"
 
-#: src/pages/settings/AiAgentSection.tsx:135
+#: src/pages/settings/AiAgentSection.tsx:132
 msgid "设置没有保存成功"
 msgstr "The setting was not saved"
 
-#: src/pages/EvidencePage.tsx:209
+#: src/pages/EvidencePage.tsx:200
 msgid "证据"
 msgstr "Evidence"
 
@@ -7211,11 +7177,11 @@ msgstr "Evidence"
 
 #: src/app/command/commandRegistry.ts:181
 #: src/app/shell/navigation.tsx:117
-#: src/pages/EvidencePage.tsx:168
+#: src/pages/EvidencePage.tsx:159
 msgid "证据检索"
 msgstr "Evidence search"
 
-#: src/pages/EvidencePage.tsx:212
+#: src/pages/EvidencePage.tsx:203
 msgid "证据检索视图"
 msgstr "Evidence search view"
 
@@ -7260,11 +7226,11 @@ msgstr "Details"
 msgid "语气：专业"
 msgstr "Tone: analytical"
 
-#: src/pages/settings/AppSection.tsx:90
+#: src/pages/settings/AppSection.tsx:88
 msgid "语言"
 msgstr "Language"
 
-#: src/pages/settings/GameSection.tsx:224
+#: src/pages/settings/GameSection.tsx:222
 msgid "语音"
 msgstr "Voice"
 
@@ -7293,19 +7259,19 @@ msgstr "Describe what you want the Agent to change"
 msgid "说清你想要什么，Agent 会准备剪辑单和片段；开始录制前还会等你确认。"
 msgstr "Tell the Agent what you want. It will prepare a shot list and clips, then wait for your confirmation before recording."
 
-#: src/pages/settings/FilesSection.tsx:368
+#: src/pages/settings/FilesSection.tsx:366
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
 msgstr "Enter a valid Steam ID, API key, authentication code, and latest share code"
 
-#: src/pages/settings/AiAgentSection.tsx:691
+#: src/pages/settings/AiAgentSection.tsx:682
 msgid "请求参数"
 msgstr "Request parameters"
 
-#: src/pages/settings/AiAgentSection.tsx:487
+#: src/pages/settings/AiAgentSection.tsx:478
 msgid "请求参数必须是 JSON 对象"
 msgstr "Request parameters must be a JSON object"
 
-#: src/pages/settings/AiAgentSection.tsx:712
+#: src/pages/settings/AiAgentSection.tsx:703
 msgid "请求参数格式"
 msgstr "Request parameter format"
 
@@ -7317,29 +7283,29 @@ msgstr "Request export"
 msgid "请求录制片段"
 msgstr "Request clip recording"
 
-#: src/shared/desktop/client.ts:183
-#: src/shared/desktop/client.ts:206
-#: src/shared/desktop/client.ts:231
+#: src/shared/desktop/client.ts:182
+#: src/shared/desktop/client.ts:205
+#: src/shared/desktop/client.ts:230
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "The request timed out or was cancelled. Please try again shortly."
 
-#: src/pages/settings/AiAgentSection.tsx:488
+#: src/pages/settings/AiAgentSection.tsx:479
 msgid "请补齐提供方、模型、API 地址和密钥"
 msgstr "Complete the provider, model, API endpoint, and key"
 
-#: src/pages/settings/AiAgentSection.tsx:634
+#: src/pages/settings/AiAgentSection.tsx:625
 msgid "请输入 JSON 对象（键值对象）"
 msgstr "Enter a JSON object (key-value pairs)"
 
-#: src/pages/settings/AiAgentSection.tsx:580
+#: src/pages/settings/AiAgentSection.tsx:571
 msgid "请输入有效的 JSON 对象"
 msgstr "Enter a valid JSON object"
 
-#: src/pages/settings/AiAgentSection.tsx:230
+#: src/pages/settings/AiAgentSection.tsx:227
 msgid "读不到 Agent 的对话设置：{settingsError}"
 msgstr "Couldn't read the Agent's conversation settings: {settingsError}"
 
-#: src/pages/settings/AdvancedSection.tsx:119
+#: src/pages/settings/AdvancedSection.tsx:117
 msgid "读不到依赖检查：{checksError}"
 msgstr "Could not read the dependency checks: {checksError}"
 
@@ -7347,19 +7313,19 @@ msgstr "Could not read the dependency checks: {checksError}"
 msgid "读不到最近的比赛：{error}"
 msgstr "Could not read the recent matches: {error}"
 
-#: src/pages/settings/FilesSection.tsx:167
+#: src/pages/settings/FilesSection.tsx:165
 msgid "读不到占用统计"
 msgstr "Could not read the usage figures"
 
-#: src/pages/settings/AiAgentSection.tsx:1031
+#: src/pages/settings/AiAgentSection.tsx:1013
 msgid "读不到对话占用：{error}"
 msgstr "Couldn't read conversation usage: {error}"
 
-#: src/pages/RecoveryPage.tsx:86
+#: src/pages/RecoveryPage.tsx:84
 msgid "读不到恢复状态：{statusError}"
 msgstr "Could not read the recovery state: {statusError}"
 
-#: src/pages/settings/AiAgentSection.tsx:509
+#: src/pages/settings/AiAgentSection.tsx:500
 msgid "读不到模型配置：{error}"
 msgstr "The model configuration could not be read: {error}"
 
@@ -7367,21 +7333,21 @@ msgstr "The model configuration could not be read: {error}"
 msgid "读不到注释：{error}"
 msgstr "The notes could not be read: {error}"
 
-#: src/pages/RecoveryPage.tsx:113
+#: src/pages/RecoveryPage.tsx:111
 msgid "读不到状态"
 msgstr "Could not read the state"
 
-#: src/pages/GuidePage.tsx:108
+#: src/pages/GuidePage.tsx:106
 msgid "读不到环境自检：{error}"
 msgstr "Could not read the environment self-check: {error}"
 
-#: src/pages/settings/AppSection.tsx:75
-#: src/pages/settings/FilesSection.tsx:91
-#: src/pages/settings/GameSection.tsx:104
+#: src/pages/settings/AppSection.tsx:73
+#: src/pages/settings/FilesSection.tsx:89
+#: src/pages/settings/GameSection.tsx:102
 msgid "读不到设置：{configError}"
 msgstr "Could not read the settings: {configError}"
 
-#: src/pages/settings/AdvancedSection.tsx:73
+#: src/pages/settings/AdvancedSection.tsx:71
 msgid "读不到运行时状态：{runtimeError}"
 msgstr "Could not read the runtime state: {runtimeError}"
 
@@ -7397,7 +7363,7 @@ msgstr "The replay of this match could not be read: {replayError}"
 msgid "读不到这场比赛的高光：{failure}"
 msgstr "The highlights of this match could not be read: {failure}"
 
-#: src/pages/settings/AdvancedSection.tsx:172
+#: src/pages/settings/AdvancedSection.tsx:170
 msgid "读不到采集组件状态：{hlaeError}"
 msgstr "Could not read the capture component state: {hlaeError}"
 
@@ -7405,17 +7371,17 @@ msgstr "Could not read the capture component state: {hlaeError}"
 msgid "读取作品摘要"
 msgstr "Read project summary"
 
-#: src/ActivityDrawer.tsx:73
-#: src/pages/delivery/TaskRecordRail.tsx:47
-#: src/pages/delivery/TaskRecordView.tsx:81
+#: src/ActivityDrawer.tsx:71
+#: src/pages/delivery/TaskRecordRail.tsx:45
+#: src/pages/delivery/TaskRecordView.tsx:79
 msgid "读取后台任务失败。"
 msgstr "Could not read background tasks."
 
-#: src/pages/home/RecentOutputsPanel.tsx:83
+#: src/pages/home/RecentOutputsPanel.tsx:81
 msgid "读取成品文件列表失败。"
 msgstr "Could not read the finished-file list."
 
-#: src/pages/delivery/OutputsView.tsx:86
+#: src/pages/delivery/OutputsView.tsx:84
 msgid "读取成片列表失败。"
 msgstr "Couldn't load the finished files list."
 
@@ -7423,11 +7389,11 @@ msgstr "Couldn't load the finished files list."
 msgid "读取时间线详情"
 msgstr "Read timeline details"
 
-#: src/pages/HistoryPage.tsx:237
+#: src/pages/HistoryPage.tsx:229
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "The read is read-only, so a retry changes no record and re-downloads no Demo."
 
-#: src/pages/home/HomeTasksPanel.tsx:56
+#: src/pages/home/HomeTasksPanel.tsx:54
 msgid "读取进行中的任务失败。"
 msgstr "Reading the running tasks failed."
 
@@ -7435,7 +7401,7 @@ msgstr "Reading the running tasks failed."
 msgid "读取镜头上下文"
 msgstr "Read cinematic context"
 
-#: src/pages/delivery/TaskDetailBody.tsx:80
+#: src/pages/delivery/TaskDetailBody.tsx:78
 msgid "读取阶段日志失败。"
 msgstr "Reading the stage log failed."
 
@@ -7505,7 +7471,7 @@ msgstr "No matches in the library yet. Import a Demo and they appear here."
 msgid "赛点"
 msgstr "Match point"
 
-#: src/pages/settings/AiAgentSection.tsx:381
+#: src/pages/settings/AiAgentSection.tsx:372
 msgid "超出保留范围的对话会被删除。剪辑单、录制任务和成片不受影响。"
 msgstr "Conversations outside the retention period will be deleted. Shot lists, recording tasks, and finished files are not affected."
 
@@ -7518,11 +7484,11 @@ msgid "距离 {metres}m"
 msgstr "Distance {metres}m"
 
 #: src/pages/ProjectWorkspacePage.tsx:2152
-#: src/pages/settings/AiAgentSection.tsx:97
+#: src/pages/settings/AiAgentSection.tsx:96
 msgid "跟随"
 msgstr "Follow"
 
-#: src/pages/settings/AdvancedSection.tsx:115
+#: src/pages/settings/AdvancedSection.tsx:113
 msgid "路径、进程与编码器的逐项检查。"
 msgstr "Per-item checks of paths, processes and encoders."
 
@@ -7550,7 +7516,7 @@ msgid "跳转"
 msgstr "Seek"
 
 #: src/app/command/CommandPalette.tsx:229
-#: src/app/shell/WindowTitleBar.tsx:316
+#: src/app/shell/WindowTitleBar.tsx:294
 msgid "跳转、搜索比赛或证据"
 msgstr "Jump to a page, search matches or evidence"
 
@@ -7605,7 +7571,7 @@ msgstr "Input file validated"
 msgid "运行中"
 msgstr "Running"
 
-#: src/pages/settings/AdvancedSection.tsx:68
+#: src/pages/settings/AdvancedSection.tsx:66
 msgid "运行时"
 msgstr "Runtime"
 
@@ -7618,8 +7584,8 @@ msgstr "Back to projects"
 msgid "返回工作台"
 msgstr "Back to dashboard"
 
-#: src/app/shell/WindowTitleBar.tsx:380
-#: src/app/shell/WindowTitleBar.tsx:381
+#: src/app/shell/WindowTitleBar.tsx:355
+#: src/app/shell/WindowTitleBar.tsx:356
 msgid "还原窗口"
 msgstr "Restore window"
 
@@ -7640,7 +7606,7 @@ msgstr "No projects yet."
 msgid "还没有可播放的素材"
 msgstr "No footage to play yet"
 
-#: src/pages/HistoryPage.tsx:278
+#: src/pages/HistoryPage.tsx:269
 msgid "还没有可显示的对局"
 msgstr "No match to show yet"
 
@@ -7652,9 +7618,9 @@ msgstr "No evidence to search yet"
 msgid "还没有可画的趋势"
 msgstr "No trend to draw yet"
 
-#: src/ActivityDrawer.tsx:108
-#: src/pages/delivery/TaskRecordRail.tsx:65
-#: src/pages/delivery/TaskRecordView.tsx:121
+#: src/ActivityDrawer.tsx:106
+#: src/pages/delivery/TaskRecordRail.tsx:63
+#: src/pages/delivery/TaskRecordView.tsx:119
 msgid "还没有后台任务"
 msgstr "No background tasks yet"
 
@@ -7687,7 +7653,7 @@ msgstr "No matches yet"
 msgid "还没有波形"
 msgstr "No waveform yet"
 
-#: src/pages/EvidencePage.tsx:319
+#: src/pages/EvidencePage.tsx:310
 msgid "还没有注释"
 msgstr "No notes yet"
 
@@ -7707,11 +7673,11 @@ msgstr "No players yet"
 msgid "还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。"
 msgstr "No commentary generated yet. With no model configured this column stays empty, and the automatic insights are unaffected."
 
-#: src/pages/settings/FilesSection.tsx:201
+#: src/pages/settings/FilesSection.tsx:199
 msgid "还没有监听目录。加一个之后，新的 Demo 会自己进来。"
 msgstr "No watched folders yet. Add one and new Demos arrive on their own."
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:105
+#: src/pages/library/WatchDirectoriesDrawer.tsx:96
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically."
 
@@ -7719,9 +7685,9 @@ msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically
 msgid "还没有缩略图"
 msgstr "No thumbnails yet"
 
-#: src/pages/settings/FilesSection.tsx:157
-#: src/pages/settings/GameSection.tsx:150
-#: src/pages/settings/GameSection.tsx:177
+#: src/pages/settings/FilesSection.tsx:155
+#: src/pages/settings/GameSection.tsx:148
+#: src/pages/settings/GameSection.tsx:175
 msgid "还没有设置"
 msgstr "Not set yet"
 
@@ -7733,7 +7699,7 @@ msgstr "No evidence selected yet"
 msgid "还没有选中选手"
 msgstr "No player selected yet"
 
-#: src/pages/HistoryPage.tsx:241
+#: src/pages/HistoryPage.tsx:233
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "Steam match history has not been configured yet."
 
@@ -7785,7 +7751,7 @@ msgstr "No player record for this team"
 msgid "这一项统计不可用"
 msgstr "This statistic is unavailable"
 
-#: src/data/nativeShell.ts:275
+#: src/data/nativeShell.ts:268
 msgid "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgstr "This action needs the desktop app; a browser cannot reach local files"
 
@@ -7793,15 +7759,15 @@ msgstr "This action needs the desktop app; a browser cannot reach local files"
 msgid "这个地址不存在。其余功能不受影响。"
 msgstr "This address does not exist. Everything else still works."
 
-#: src/pages/TaskDetailPage.tsx:71
+#: src/pages/TaskDetailPage.tsx:68
 msgid "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
 msgstr "This address is not a background task id. Open a background task from the list."
 
-#: src/pages/settings/FilesSection.tsx:161
+#: src/pages/settings/FilesSection.tsx:159
 msgid "这个目录占用的磁盘空间。需要清理时，前往「成品文件」。"
 msgstr "Disk space used by this folder. To free up space, go to Finished Files."
 
-#: src/pages/library/AddWatchDirectoryDialog.tsx:137
+#: src/pages/library/AddWatchDirectoryDialog.tsx:130
 msgid "这个目录已经在监听中"
 msgstr "This folder is already being watched"
 
@@ -7814,15 +7780,15 @@ msgstr "No highlight of this kind"
 msgid "这个页面没能打开"
 msgstr "This page failed to open"
 
-#: src/pages/settings/AiAgentSection.tsx:586
+#: src/pages/settings/AiAgentSection.tsx:577
 msgid "这些指令会随每轮请求发送给模型。留空时使用 Agent 的系统指令。"
 msgstr "These instructions are sent with every request. An empty field uses the Agent system instructions."
 
-#: src/pages/settings/FilesSection.tsx:193
+#: src/pages/settings/FilesSection.tsx:191
 msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 msgstr "New Demos appearing in these folders are added to the library automatically."
 
-#: src/pages/settings/GameSection.tsx:116
+#: src/pages/settings/GameSection.tsx:114
 msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 msgstr "These settings decide how video is recorded. Changes apply only to recording tasks created afterwards."
 
@@ -7862,7 +7828,7 @@ msgstr "This analysis does not hold this player. The selection stays in the addr
 msgid "这份分析里没有选手"
 msgstr "No player in this analysis"
 
-#: src/pages/GuidePage.tsx:93
+#: src/pages/GuidePage.tsx:91
 msgid "这台机器现在能做什么"
 msgstr "What this machine can do right now"
 
@@ -7905,7 +7871,7 @@ msgid "这场比赛没有解析出物品购买记录，所以每回合的经济�
 msgstr "This match parsed no purchases, so the per-round economy is empty."
 
 #. placeholder {0}: dataErrorMessage(query.error) ?? ''
-#: src/pages/match/views/viewChrome.tsx:266
+#: src/pages/match/views/viewChrome.tsx:262
 msgid "这场比赛的分析没能打开：{0}"
 msgstr "The analysis of this match could not be opened: {0}"
 
@@ -7942,11 +7908,11 @@ msgstr "No spatial evidence on this map yet"
 msgid "这批 Demo 没有可用的购买事件{0}"
 msgstr "These Demo files carry no usable purchase event{0}"
 
-#: src/pages/EvidencePage.tsx:226
+#: src/pages/EvidencePage.tsx:217
 msgid "这批证据没有比赛日期，无法按时间筛选"
 msgstr "This evidence carries no match dates, so it cannot be filtered by time"
 
-#: src/pages/TaskDetailPage.tsx:84
+#: src/pages/TaskDetailPage.tsx:81
 msgid "这条任务没能打开"
 msgstr "This task could not be opened"
 
@@ -7958,25 +7924,25 @@ msgstr "This evidence has no note yet. Notes are reused across matches, so one w
 msgid "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
 msgstr "This analysis detected no highlight candidate. The round timeline still supports a round-by-round review."
 
-#: src/pages/RecoveryPage.tsx:101
+#: src/pages/RecoveryPage.tsx:99
 msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
-#: src/pages/HistoryPage.tsx:258
+#: src/pages/HistoryPage.tsx:250
 msgid "这次操作没有成功：{writeError}"
 msgstr "That action did not succeed: {writeError}"
 
-#: src/pages/settings/AppSection.tsx:80
-#: src/pages/settings/FilesSection.tsx:105
-#: src/pages/settings/GameSection.tsx:109
+#: src/pages/settings/AppSection.tsx:78
+#: src/pages/settings/FilesSection.tsx:103
+#: src/pages/settings/GameSection.tsx:107
 msgid "这次改动没有保存：{writeError}"
 msgstr "This change was not saved: {writeError}"
 
-#: src/pages/settings/AdvancedSection.tsx:141
+#: src/pages/settings/AdvancedSection.tsx:139
 msgid "这次检查没有返回任何项。"
 msgstr "This check returned nothing."
 
-#: src/pages/settings/GameSection.tsx:267
+#: src/pages/settings/GameSection.tsx:265
 msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 msgstr "No encoder checks in this run. The full list is under Advanced and diagnostics."
 
@@ -7996,15 +7962,15 @@ msgstr "This clip has no available map context"
 msgid "这段素材还没有分析出峰值，或者它本来就没有声音。"
 msgstr "This footage has no peaks analyzed yet, or it simply carries no audio."
 
-#: src/pages/settings/GameSection.tsx:248
+#: src/pages/settings/GameSection.tsx:246
 msgid "这里显示本机的成片生成能力，结果来自编码器检查。"
 msgstr "This shows the machine’s finished-video capability, based on encoder checks."
 
-#: src/pages/settings/AdvancedSection.tsx:243
+#: src/pages/settings/AdvancedSection.tsx:239
 msgid "这里用于排查运行问题。"
 msgstr "Use this section to diagnose runtime issues."
 
-#: src/pages/settings/AdvancedSection.tsx:99
+#: src/pages/settings/AdvancedSection.tsx:97
 msgid "这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "Until this task finishes, other recordings and playbacks are refused."
 
@@ -8016,7 +7982,7 @@ msgstr "Enter analysis mode"
 msgid "进入剪辑模式"
 msgstr "Enter editing mode"
 
-#: src/pages/delivery/TaskDetailBody.tsx:112
+#: src/pages/delivery/TaskDetailBody.tsx:110
 msgid "进度"
 msgstr "Progress"
 
@@ -8024,33 +7990,33 @@ msgstr "Progress"
 msgid "进程、tick、编码参数"
 msgstr "Process, ticks, encoder settings"
 
-#: src/ActivityDrawer.tsx:29
+#: src/ActivityDrawer.tsx:28
 #: src/design/feedback/StageBar.tsx:69
-#: src/pages/delivery/TaskRecordView.tsx:53
-#: src/pages/home/HomeTasksPanel.tsx:63
+#: src/pages/delivery/TaskRecordView.tsx:52
+#: src/pages/home/HomeTasksPanel.tsx:61
 msgid "进行中"
 msgstr "Running"
 
 #. placeholder {0}: feed.data.summary.active
 #. placeholder {1}: feed.data.summary.failed
 #. placeholder {2}: feed.data.summary.completed
-#: src/pages/delivery/TaskRecordView.tsx:92
+#: src/pages/delivery/TaskRecordView.tsx:90
 msgid "进行中 {0} · 失败 {1} · 已完成 {2}"
 msgstr "{0} running · {1} failed · {2} done"
 
-#: src/pages/home/HomeTasksPanel.tsx:60
+#: src/pages/home/HomeTasksPanel.tsx:58
 msgid "进行中的任务"
 msgstr "Running tasks"
 
-#: src/pages/settings/FilesSection.tsx:275
+#: src/pages/settings/FilesSection.tsx:273
 msgid "连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。"
 msgstr "Connect Valve match history to sync recent matches and download replays that are still available."
 
-#: src/pages/settings/AiAgentSection.tsx:518
+#: src/pages/settings/AiAgentSection.tsx:509
 msgid "连接信息"
 msgstr "Connection"
 
-#: src/pages/settings/AiAgentSection.tsx:600
+#: src/pages/settings/AiAgentSection.tsx:591
 msgid "连接正常：{testResult}，支持 Agent 工具调用。"
 msgstr "Connection succeeded: {testResult}. Agent tool calling is supported."
 
@@ -8080,7 +8046,7 @@ msgstr "Fit"
 
 #. placeholder {0}: demo.display_name
 #. placeholder {1}: demo.map_name
-#: src/pages/library/LibraryInspector.tsx:132
+#: src/pages/library/LibraryInspector.tsx:127
 msgid "选中 {0} · {1}"
 msgstr "Selected {0} · {1}"
 
@@ -8176,7 +8142,7 @@ msgstr "Player positions"
 msgid "选择 {0}"
 msgstr "Select {0}"
 
-#: src/pages/settings/GameSection.tsx:138
+#: src/pages/settings/GameSection.tsx:136
 msgid "选择 CS2 安装目录"
 msgstr "Choose the CS2 install folder"
 
@@ -8205,11 +8171,11 @@ msgstr "Selection Tool (V)"
 msgid "选择性粘贴属性"
 msgstr "Paste Attributes"
 
-#: src/pages/settings/FilesSection.tsx:145
+#: src/pages/settings/FilesSection.tsx:143
 msgid "选择数据目录"
 msgstr "Choose the data directory"
 
-#: src/pages/library/ImportDemoDialog.tsx:98
+#: src/pages/library/ImportDemoDialog.tsx:93
 msgid "选择文件"
 msgstr "Choose files"
 
@@ -8238,11 +8204,11 @@ msgstr "Select media {0}"
 msgid "选择素材以预览源画面"
 msgstr "Select media to preview the source"
 
-#: src/pages/library/ImportDemoDialog.tsx:170
+#: src/pages/library/ImportDemoDialog.tsx:161
 msgid "选择要导入的 Demo 文件"
 msgstr "Choose the Demo files to import"
 
-#: src/pages/settings/FilesSection.tsx:239
+#: src/pages/settings/FilesSection.tsx:237
 msgid "选择要监听的目录"
 msgstr "Choose folders to watch"
 
@@ -8285,7 +8251,7 @@ msgstr "Look round by round"
 msgid "逐回合详情"
 msgstr "Round-by-round detail"
 
-#: src/pages/GuidePage.tsx:142
+#: src/pages/GuidePage.tsx:140
 msgid "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
 msgstr "The raw per-item states and path checks are under <0>Settings · Advanced and diagnostics</0>."
 
@@ -8330,7 +8296,7 @@ msgstr "Utility throw statistics unavailable"
 msgid "都由这次分析的回合与事件推出"
 msgstr "All derived from the rounds and the events of this analysis"
 
-#: src/pages/RecoveryPage.tsx:107
+#: src/pages/RecoveryPage.tsx:105
 msgid "配置恢复"
 msgstr "Configuration recovery"
 
@@ -8338,15 +8304,15 @@ msgstr "Configuration recovery"
 msgid "配置提供方、模型、API 地址和密钥后即可在这里继续。"
 msgstr "Set up a provider, model, API endpoint, and key to continue here."
 
-#: src/pages/RecoveryPage.tsx:126
+#: src/pages/RecoveryPage.tsx:124
 msgid "配置文件状态正常"
 msgstr "Configuration status is healthy"
 
-#: src/pages/RecoveryPage.tsx:118
+#: src/pages/RecoveryPage.tsx:116
 msgid "配置文件读不出来"
 msgstr "The configuration file cannot be read"
 
-#: src/pages/LibraryPage.tsx:229
+#: src/pages/LibraryPage.tsx:221
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
 
@@ -8355,16 +8321,16 @@ msgstr "The configuration has not been read yet — try again shortly"
 msgid "采集"
 msgstr "Capture"
 
-#: src/pages/settings/AdvancedSection.tsx:167
+#: src/pages/settings/AdvancedSection.tsx:165
 msgid "采集组件"
 msgstr "Capture component"
 
 #. placeholder {0}: dataErrorMessage(prepareHlae.error)
-#: src/pages/settings/AdvancedSection.tsx:232
+#: src/pages/settings/AdvancedSection.tsx:228
 msgid "采集组件没有准备完成：{0}"
 msgstr "The capture component could not be prepared: {0}"
 
-#: src/pages/home/HomeFailureNotice.tsx:60
+#: src/pages/home/HomeFailureNotice.tsx:58
 msgid "采集组件没能启动。打开任务详情查看原因。"
 msgstr "The capture component failed to start. Open the task details to see why."
 
@@ -8390,13 +8356,13 @@ msgstr "Duplicate frame marker"
 msgid "重排时间线"
 msgstr "Replan timeline"
 
-#: src/ActivityDrawer.tsx:102
+#: src/ActivityDrawer.tsx:100
 #: src/domain/task/TaskDetail.tsx:264
-#: src/pages/delivery/OutputsView.tsx:156
+#: src/pages/delivery/OutputsView.tsx:154
 #: src/pages/delivery/TaskFeedList.tsx:70
-#: src/pages/home/RecentOutputsPanel.tsx:81
+#: src/pages/home/RecentOutputsPanel.tsx:79
 #: src/pages/ProjectsPage.tsx:43
-#: src/pages/TaskDetailPage.tsx:88
+#: src/pages/TaskDetailPage.tsx:85
 msgid "重新加载"
 msgstr "Reload"
 
@@ -8406,7 +8372,7 @@ msgid "重新发起"
 msgstr "Start again"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:461
-#: src/pages/library/libraryColumns.tsx:224
+#: src/pages/library/libraryColumns.tsx:221
 msgid "重新定位"
 msgstr "Relink"
 
@@ -8434,13 +8400,13 @@ msgstr "Re-record (keep old file)"
 msgid "重新打开"
 msgstr "Reopen"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:80
+#: src/pages/library/WatchDirectoriesDrawer.tsx:73
 msgid "重新扫描"
 msgstr "Rescan"
 
-#: src/pages/GuidePage.tsx:102
-#: src/pages/settings/AdvancedSection.tsx:157
-#: src/pages/settings/GameSection.tsx:283
+#: src/pages/GuidePage.tsx:100
+#: src/pages/settings/AdvancedSection.tsx:155
+#: src/pages/settings/GameSection.tsx:281
 msgid "重新检查"
 msgstr "Check again"
 
@@ -8458,11 +8424,7 @@ msgstr "Regenerate proxy {0}"
 msgid "重新读取回放"
 msgstr "Read the replay again"
 
-#: src/app/boundary/ServiceGate.tsx:253
-msgid "重新连接"
-msgstr "Reconnect"
-
-#: src/pages/library/ImportDemoDialog.tsx:151
+#: src/pages/library/ImportDemoDialog.tsx:142
 msgid "重新选择"
 msgstr "Choose again"
 
@@ -8476,48 +8438,48 @@ msgstr "Reset workspace layout"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/task/TaskDetail.tsx:158
-#: src/pages/delivery/useTaskActions.tsx:198
+#: src/pages/delivery/useTaskActions.tsx:186
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
-#: src/pages/GuidePage.tsx:107
-#: src/pages/HistoryPage.tsx:232
+#: src/pages/GuidePage.tsx:105
+#: src/pages/HistoryPage.tsx:224
 #: src/pages/home/ActiveProjectsPanel.tsx:23
 #: src/pages/home/RecentMatchesPanel.tsx:57
-#: src/pages/library/AddWatchDirectoryDialog.tsx:123
-#: src/pages/library/DeleteDemosDialog.tsx:95
-#: src/pages/library/ImportDemoDialog.tsx:159
+#: src/pages/library/AddWatchDirectoryDialog.tsx:116
+#: src/pages/library/DeleteDemosDialog.tsx:88
+#: src/pages/library/ImportDemoDialog.tsx:150
 #: src/pages/library/LibraryCards.tsx:84
-#: src/pages/library/LibraryInspector.tsx:116
-#: src/pages/library/LibraryInspector.tsx:184
+#: src/pages/library/LibraryInspector.tsx:111
+#: src/pages/library/LibraryInspector.tsx:176
 #: src/pages/library/LibraryTable.tsx:102
-#: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:452
+#: src/pages/library/WatchDirectoriesDrawer.tsx:83
+#: src/pages/LibraryPage.tsx:436
 #: src/pages/match/views/HighlightsView.tsx:141
 #: src/pages/match/views/ReplayView.tsx:256
 #: src/pages/match/views/ReviewView.tsx:116
 #: src/pages/match/views/ReviewView.tsx:211
 #: src/pages/match/views/ReviewView.tsx:706
-#: src/pages/match/views/viewChrome.tsx:263
+#: src/pages/match/views/viewChrome.tsx:259
 #: src/pages/PlayerProfilePage.tsx:148
 #: src/pages/PlayerProfilePage.tsx:212
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
 #: src/pages/PlayersPage.tsx:293
 #: src/pages/project/AddToProjectDialog.tsx:86
 #: src/pages/ProjectsPage.tsx:48
-#: src/pages/RecoveryPage.tsx:85
-#: src/pages/settings/AdvancedSection.tsx:72
-#: src/pages/settings/AdvancedSection.tsx:118
-#: src/pages/settings/AdvancedSection.tsx:171
-#: src/pages/settings/AdvancedSection.tsx:230
-#: src/pages/settings/AdvancedSection.tsx:292
-#: src/pages/settings/AiAgentSection.tsx:228
-#: src/pages/settings/AiAgentSection.tsx:508
-#: src/pages/settings/AiAgentSection.tsx:594
-#: src/pages/settings/AiAgentSection.tsx:1030
-#: src/pages/settings/AiAgentSection.tsx:1036
-#: src/pages/settings/AppSection.tsx:74
-#: src/pages/settings/FilesSection.tsx:90
-#: src/pages/settings/GameSection.tsx:103
+#: src/pages/RecoveryPage.tsx:83
+#: src/pages/settings/AdvancedSection.tsx:70
+#: src/pages/settings/AdvancedSection.tsx:116
+#: src/pages/settings/AdvancedSection.tsx:169
+#: src/pages/settings/AdvancedSection.tsx:226
+#: src/pages/settings/AdvancedSection.tsx:284
+#: src/pages/settings/AiAgentSection.tsx:225
+#: src/pages/settings/AiAgentSection.tsx:499
+#: src/pages/settings/AiAgentSection.tsx:585
+#: src/pages/settings/AiAgentSection.tsx:1012
+#: src/pages/settings/AiAgentSection.tsx:1018
+#: src/pages/settings/AppSection.tsx:72
+#: src/pages/settings/FilesSection.tsx:88
+#: src/pages/settings/GameSection.tsx:101
 msgid "重试"
 msgstr "Retry"
 
@@ -8598,7 +8560,7 @@ msgstr "Team B"
 msgid "队伍名单与本场数据"
 msgstr "Team roster and match numbers"
 
-#: src/domain/task/taskVocabulary.tsx:73
+#: src/domain/task/taskVocabulary.tsx:72
 msgctxt "task-progress"
 msgid "阶段"
 msgstr "Stages"
@@ -8627,8 +8589,8 @@ msgstr "Hide project media"
 msgid "集锦制作要从比赛工作区或 Agent 发起"
 msgstr "A highlight reel is started from the match workspace or from the Agent"
 
-#: src/pages/settings/GameSection.tsx:213
-#: src/pages/settings/GameSection.tsx:216
+#: src/pages/settings/GameSection.tsx:211
+#: src/pages/settings/GameSection.tsx:214
 msgid "雷达"
 msgstr "Radar"
 
@@ -8640,13 +8602,9 @@ msgstr "Your confirmation is required"
 msgid "需要先选择兼容片段，并确保源入点之后有足够素材"
 msgstr "Select a compatible clip first and make sure there is enough media after the source In point"
 
-#: src/pages/HomePage.tsx:69
+#: src/pages/HomePage.tsx:67
 msgid "需要我处理"
 msgstr "Needs my attention"
-
-#: src/app/boundary/ServiceGate.tsx:294
-msgid "需要服务"
-msgstr "Service required"
 
 #: src/domain/editing/ProjectTimeline.tsx:2267
 msgid "需要桌面应用才能导出 SRT"
@@ -8780,7 +8738,7 @@ msgstr "Project Media Order"
 msgid "项目还没有素材"
 msgstr "No media in this project yet"
 
-#: src/pages/delivery/OutputsView.tsx:183
+#: src/pages/delivery/OutputsView.tsx:181
 msgid "预览"
 msgstr "Preview"
 
@@ -8793,7 +8751,7 @@ msgstr "Color"
 msgid "颜色调整"
 msgstr "Color Adjustment"
 
-#: src/pages/settings/AiAgentSection.tsx:102
+#: src/pages/settings/AiAgentSection.tsx:101
 msgid "飞越"
 msgstr "Flyover"
 
@@ -8840,7 +8798,7 @@ msgstr "Opening duels"
 msgid "首杀差"
 msgstr "Opening kill diff"
 
-#: src/pages/settings/AiAgentSection.tsx:543
+#: src/pages/settings/AiAgentSection.tsx:534
 msgid "首次配置需要填写密钥。"
 msgstr "A key is required for the first setup."
 
@@ -8895,12 +8853,12 @@ msgstr "Fade to Black"
 msgid "黑白"
 msgstr "Black and White"
 
-#: src/pages/settings/AiAgentSection.tsx:960
-#: src/pages/settings/AiAgentSection.tsx:966
+#: src/pages/settings/AiAgentSection.tsx:946
+#: src/pages/settings/AiAgentSection.tsx:952
 msgid "默认成片时长"
 msgstr "Default cut length"
 
-#: src/pages/settings/AiAgentSection.tsx:318
-#: src/pages/settings/AiAgentSection.tsx:329
+#: src/pages/settings/AiAgentSection.tsx:309
+#: src/pages/settings/AiAgentSection.tsx:320
 msgid "默认视角"
 msgstr "Default view"

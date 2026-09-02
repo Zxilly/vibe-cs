@@ -116,6 +116,7 @@ import {
   closeSequenceTab,
   openSequenceTab,
   readSequenceTabs,
+  retainAvailableSequenceTabs,
   writeSequenceTabs,
   moveEditorEffect,
   planRippleSequenceMarkers,
@@ -320,6 +321,20 @@ export function ProjectWorkspacePage() {
       return next;
     });
   }, [canonicalId]);
+
+  useEffect(() => {
+    if (projects.data === undefined) return;
+    const availableProjectIds = new Set(projects.data.map((item) => item.id));
+    if (canonicalId !== null) availableProjectIds.add(canonicalId);
+    setSequenceTabIds((current) => {
+      const next = retainAvailableSequenceTabs(current, availableProjectIds);
+      if (next.length === current.length && next.every((item, index) => item === current[index])) {
+        return current;
+      }
+      writeSequenceTabs(globalThis.localStorage, next);
+      return next;
+    });
+  }, [canonicalId, projects.data]);
 
   useEffect(() => {
     if (nestedSequenceMedia.data === undefined) return;

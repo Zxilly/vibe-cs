@@ -18,6 +18,13 @@ export function openSequenceTab(current: readonly string[], projectId: string): 
   return [...current.slice(-(MAXIMUM_SEQUENCE_TABS - 1)), projectId];
 }
 
+export function retainAvailableSequenceTabs(
+  current: readonly string[],
+  availableProjectIds: ReadonlySet<string>,
+): string[] {
+  return current.filter((projectId) => availableProjectIds.has(projectId));
+}
+
 export function closeSequenceTab(
   current: readonly string[],
   projectId: string,

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { closeSequenceTab, openSequenceTab, readSequenceTabs, writeSequenceTabs } from './sequenceTabs';
+import {
+  closeSequenceTab,
+  openSequenceTab,
+  readSequenceTabs,
+  retainAvailableSequenceTabs,
+  writeSequenceTabs,
+} from './sequenceTabs';
 
 describe('sequence tabs', () => {
   it('opens once, closes to the adjacent tab and caps restored state', () => {
@@ -8,6 +14,7 @@ describe('sequence tabs', () => {
     expect(openSequenceTab(['a', 'b'], 'a')).toEqual(['a', 'b']);
     expect(closeSequenceTab(['a', 'b', 'c'], 'b')).toEqual({ tabs: ['a', 'c'], nextActiveId: 'c' });
     expect(closeSequenceTab(['a', 'b'], 'b')).toEqual({ tabs: ['a'], nextActiveId: 'a' });
+    expect(retainAvailableSequenceTabs(['gone', 'a', 'b'], new Set(['a', 'b']))).toEqual(['a', 'b']);
   });
 
   it('persists only the current exact array shape', () => {

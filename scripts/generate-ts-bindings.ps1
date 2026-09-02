@@ -7,6 +7,8 @@ $generatedDirectory = Join-Path $workspaceRoot 'apps\web\src\shared\desktop\gene
 $stagingDirectory = Join-Path $workspaceRoot "target\ts-rs-binding-stage-$PID"
 $hadExportDirectory = Test-Path Env:TS_RS_EXPORT_DIR
 $previousExportDirectory = if ($hadExportDirectory) { $env:TS_RS_EXPORT_DIR } else { $null }
+$hadTauriConfig = Test-Path Env:TAURI_CONFIG
+$previousTauriConfig = if ($hadTauriConfig) { $env:TAURI_CONFIG } else { $null }
 
 Push-Location $workspaceRoot
 try {
@@ -17,6 +19,10 @@ try {
     # test has succeeded.
     New-Item -ItemType Directory -Force -Path $stagingDirectory | Out-Null
     $env:TS_RS_EXPORT_DIR = $stagingDirectory
+    # Binding exports compile the Desktop DTOs but do not bundle an app. Removing
+    # the external binary from Tauri's build-only view keeps this generator
+    # independent of the release Demo Worker artifact.
+    $env:TAURI_CONFIG = '{"bundle":{"externalBin":[]}}'
     cargo test --quiet --workspace export_bindings_ -- --test-threads=1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
@@ -54,6 +60,12 @@ finally {
     }
     else {
         Remove-Item Env:TS_RS_EXPORT_DIR -ErrorAction SilentlyContinue
+    }
+    if ($hadTauriConfig) {
+        $env:TAURI_CONFIG = $previousTauriConfig
+    }
+    else {
+        Remove-Item Env:TAURI_CONFIG -ErrorAction SilentlyContinue
     }
     if (Test-Path -LiteralPath $stagingDirectory) {
         Remove-Item -LiteralPath $stagingDirectory -Recurse -Force

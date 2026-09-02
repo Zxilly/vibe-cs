@@ -15,14 +15,14 @@ jobs:
   rust:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.33.4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -38,8 +38,6 @@ jobs:
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-rust-format.ps1
       - name: ts-rs binding configuration is accurate and quiet
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-ts-binding-config.ps1
-      - name: build the desktop sidecar required by Tauri binding tests
-        run: pnpm demo-worker:sidecar
       - name: generate TypeScript bindings with one Windows writer
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-ts-bindings.ps1
       - name: wire types are in step with the Rust
@@ -62,11 +60,11 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.33.4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -78,12 +76,12 @@ jobs:
   desktop-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.33.4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm

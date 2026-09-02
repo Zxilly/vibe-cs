@@ -13,6 +13,7 @@ import {
   List,
   ListPlus,
   Pause,
+  PanelsTopLeft,
   Play,
   BookmarkPlus,
   Search,
@@ -26,7 +27,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Drawer, Tooltip } from '../../design/feedback';
 import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
-import type { EditorMarker, MediaAsset, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
+import type { EditorMarker, MediaAsset, MulticamSyncMethod, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
 import {
   clearProjectMediaDrag,
@@ -73,6 +74,7 @@ export interface ProjectMediaPanelProps {
   readonly onToggleProxies: () => void;
   readonly onCleanupProxies: () => void;
   readonly onAutomateToSequence: (request: AutomateToSequenceRequest) => void;
+  readonly onCreateMulticam: (request: CreateMulticamRequest) => void;
   readonly onClose?: (() => void) | undefined;
 }
 
@@ -81,6 +83,13 @@ export interface AutomateToSequenceRequest {
   readonly placement: 'sequential' | 'markers';
   readonly method: 'insert' | 'overwrite';
   readonly applyDefaultTransitions: boolean;
+}
+
+export interface CreateMulticamRequest {
+  readonly assets: readonly MediaAsset[];
+  readonly syncMethod: MulticamSyncMethod;
+  readonly markerLabel: string | null;
+  readonly switchAudio: boolean;
 }
 
 export interface ProjectSourceRange {
@@ -146,6 +155,7 @@ export function ProjectMediaPanel({
   onToggleProxies,
   onCleanupProxies,
   onAutomateToSequence,
+  onCreateMulticam,
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
@@ -162,6 +172,11 @@ export function ProjectMediaPanel({
   const [automatePlacement, setAutomatePlacement] = useState<'sequential' | 'markers'>('sequential');
   const [automateMethod, setAutomateMethod] = useState<'insert' | 'overwrite'>('insert');
   const [automateTransitions, setAutomateTransitions] = useState(false);
+  const [multicamOpen, setMulticamOpen] = useState(false);
+  const [multicamSelection, setMulticamSelection] = useState<readonly string[]>([]);
+  const [multicamSyncMethod, setMulticamSyncMethod] = useState<MulticamSyncMethod>('audio');
+  const [multicamMarkerLabel, setMulticamMarkerLabel] = useState('');
+  const [multicamSwitchAudio, setMulticamSwitchAudio] = useState(false);
   const items = useMemo(
     () => projectMediaItems(timelineTracks, assets, deliveryStateByClipId),
     [assets, deliveryStateByClipId, timelineTracks],
@@ -331,6 +346,21 @@ export function ProjectMediaPanel({
             }}
           >
             <ListPlus className="size-3.5" aria-hidden="true" />
+          </Button>
+        </Tooltip>
+        <Tooltip content={t`按源时间码、音频或同名片段标记同步多个机位`} side="bottom">
+          <Button
+            size="sm"
+            icon
+            variant="ghost"
+            aria-label={t`创建多机位序列`}
+            disabled={readOnly || busy || automateAssets.length < 2}
+            onClick={() => {
+              setMulticamSelection(automateAssets.map((asset) => asset.id));
+              setMulticamOpen(true);
+            }}
+          >
+            <PanelsTopLeft className="size-3.5" aria-hidden="true" />
           </Button>
         </Tooltip>
         <Button
@@ -664,6 +694,66 @@ export function ProjectMediaPanel({
           {automatePlacement !== 'markers' || sequenceMarkerCount >= automateSelection.length ? null : (
             <p className="text-fail-text"><Trans>需要至少 {automateSelection.length} 个序列标记；当前只有 {sequenceMarkerCount} 个。</Trans></p>
           )}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={multicamOpen}
+        title={<Trans>创建多机位源序列</Trans>}
+        confirmLabel={<Trans>同步并创建</Trans>}
+        confirmDisabled={multicamSelection.length < 2
+          || (multicamSyncMethod === 'marker' && multicamMarkerLabel.trim() === '')
+          || (multicamSyncMethod === 'audio' && multicamSelection.some((id) => automateAssets.find((asset) => asset.id === id)?.has_audio !== true))}
+        onConfirm={() => {
+          const selected = multicamSelection.flatMap((id) => automateAssets.find((asset) => asset.id === id) ?? []);
+          onCreateMulticam({
+            assets: selected,
+            syncMethod: multicamSyncMethod,
+            markerLabel: multicamSyncMethod === 'marker' ? multicamMarkerLabel.trim() : null,
+            switchAudio: multicamSwitchAudio,
+          });
+          setMulticamOpen(false);
+        }}
+        onClose={() => setMulticamOpen(false)}
+      >
+        <div className="space-y-3 text-xs">
+          <fieldset className="space-y-1.5">
+            <legend className="font-semibold"><Trans>摄像机角度（2–9）</Trans></legend>
+            {automateAssets.map((asset) => {
+              const index = multicamSelection.indexOf(asset.id);
+              return <label key={asset.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={index >= 0}
+                  disabled={index < 0 && multicamSelection.length >= 9}
+                  onChange={(event) => setMulticamSelection((current) => event.currentTarget.checked
+                    ? [...current, asset.id]
+                    : current.filter((id) => id !== asset.id))}
+                />
+                <span className="min-w-0 flex-1 truncate">{asset.name}</span>
+                {index < 0 ? null : <span className="font-mono text-2xs text-neutral-500"><Trans>角度 {index + 1}</Trans></span>}
+              </label>;
+            })}
+          </fieldset>
+          <label className="flex flex-col gap-1">
+            <Trans>同步点</Trans>
+            <select className="border border-divider bg-bg px-2 py-1.5" value={multicamSyncMethod} onChange={(event) => setMulticamSyncMethod(event.currentTarget.value as MulticamSyncMethod)}>
+              <option value="timecode"><Trans>嵌入源时间码</Trans></option>
+              <option value="audio"><Trans>音频波形</Trans></option>
+              <option value="marker"><Trans>同名片段标记</Trans></option>
+            </select>
+          </label>
+          {multicamSyncMethod !== 'marker' ? null : (
+            <label className="flex flex-col gap-1">
+              <Trans>标记名称</Trans>
+              <input className="border border-divider bg-bg px-2 py-1.5" value={multicamMarkerLabel} onChange={(event) => setMulticamMarkerLabel(event.currentTarget.value)} />
+            </label>
+          )}
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={multicamSwitchAudio} onChange={(event) => setMulticamSwitchAudio(event.currentTarget.checked)} />
+            <Trans>音频随摄像机切换；关闭时固定使用角度 1 音频</Trans>
+          </label>
+          <p className="text-warn-text"><Trans>创建会用同步后的 Camera Angle 轨替换当前时间轴；整个操作可作为一个 Change Group 撤销。</Trans></p>
         </div>
       </Dialog>
 

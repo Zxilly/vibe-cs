@@ -33,6 +33,8 @@ import {
   useNestedSequenceMedia,
   useCreateNestedSequence,
   useRefreshNestedSequence,
+  useCreateMulticam,
+  useSwitchMulticamAngle,
   useExportProject,
   useProjectRenderPreviews,
   useRenderProjectPreview,
@@ -256,6 +258,8 @@ export function ProjectWorkspacePage() {
   const nestedSequenceMedia = useNestedSequenceMedia(canonicalId);
   const createNestedSequence = useCreateNestedSequence(canonicalId ?? '');
   const refreshNestedSequence = useRefreshNestedSequence(canonicalId ?? '');
+  const createMulticam = useCreateMulticam(canonicalId ?? '');
+  const switchMulticamAngle = useSwitchMulticamAngle(canonicalId ?? '');
   const nestedSequenceMediaByClipId = useMemo(
     () => new Map((nestedSequenceMedia.data ?? []).map((item) => [item.clip_id, item] as const)),
     [nestedSequenceMedia.data],
@@ -994,6 +998,8 @@ export function ProjectWorkspacePage() {
     nestedSequenceMedia.error,
     createNestedSequence.error,
     refreshNestedSequence.error,
+    createMulticam.error,
+    switchMulticamAngle.error,
     cancelTask.error,
     importMedia.error,
     relinkMedia.error,
@@ -1015,7 +1021,7 @@ export function ProjectWorkspacePage() {
       matchedSourceFrame={matchedSourceFrame}
       pending={mediaAssets.isPending}
       readOnly={readOnly}
-      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending || replaceAssetMarkers.isPending || generateMediaProxy.isPending}
+      busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending || replaceAssetMarkers.isPending || generateMediaProxy.isPending || createMulticam.isPending}
       proxiesEnabled={current.document.settings.use_media_proxies}
       generatingProxyAssetId={generateMediaProxy.variables ?? null}
       proxyCleanupBusy={cleanupMediaProxies.isPending}
@@ -1068,6 +1074,13 @@ export function ProjectWorkspacePage() {
         mutateTrackClipUpdates([{ trackId: operation.track_id, clips: operation.clips }]);
         setSelectedClipIds(plan.insertedClipIds);
       }}
+      onCreateMulticam={(request) => createMulticam.mutate({
+        base_revision: current.revision,
+        asset_ids: request.assets.map((asset) => asset.id),
+        sync_method: request.syncMethod,
+        marker_label: request.markerLabel,
+        switch_audio: request.switchAudio,
+      })}
     />
   );
   const programPanel = (
@@ -1093,6 +1106,13 @@ export function ProjectWorkspacePage() {
       onTimelineTimeChange={seekTimeline}
       onPlaybackEnd={() => setPlaying(false)}
       onReplaceClip={replaceTimelineClip}
+      multicamSwitchPending={switchMulticamAngle.isPending}
+      onSwitchMulticamAngle={(groupId, angle, time) => switchMulticamAngle.mutate({
+        baseRevision: current.revision,
+        groupId,
+        angle,
+        timelineTime: time,
+      })}
     />
   );
   const tacticalPanel = (
@@ -1652,7 +1672,7 @@ export function ProjectWorkspacePage() {
           className="m-4"
           variant="danger"
           detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
-          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); createNestedSequence.reset(); refreshNestedSequence.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
+          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); createNestedSequence.reset(); refreshNestedSequence.reset(); createMulticam.reset(); switchMulticamAngle.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
         >
           <Trans>操作没有完成</Trans>
         </Alert>

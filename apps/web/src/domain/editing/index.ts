@@ -17,6 +17,7 @@ export {
   type TimelineInterchangeImport,
 } from './timelineInterchange';
 export { closeSequenceTab, openSequenceTab, readSequenceTabs, writeSequenceTabs } from './sequenceTabs';
+export { multicamAnglesAtTime, multicamClipMetadata, type MulticamAngleView } from './multicamEditing';
 export {
   ProjectMediaPanel,
   type ProjectMediaPanelProps,

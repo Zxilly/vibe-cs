@@ -25,6 +25,7 @@ import { TimelineAudioMonitor } from './TimelineAudioMonitor';
 import { resumeMediaAudioOutput, useMediaAudioOutput } from './mediaAudioOutput';
 import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioMix';
 import { activeProjectRenderPreview, projectRenderPreviewStreamPath } from './renderPreview';
+import { multicamAnglesAtTime } from './multicamEditing';
 
 interface PreviewMedia {
   readonly clip: TimelineClip;
@@ -87,6 +88,8 @@ export interface TimelineProgramMonitorProps {
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
+  readonly multicamSwitchPending?: boolean;
+  readonly onSwitchMulticamAngle?: ((groupId: string, angle: number, time: number) => void) | undefined;
 }
 
 /**
@@ -119,6 +122,8 @@ export function TimelineProgramMonitor({
   onTimelineTimeChange,
   onPlaybackEnd,
   onReplaceClip,
+  multicamSwitchPending = false,
+  onSwitchMulticamAngle,
 }: TimelineProgramMonitorProps) {
   const shell = useNativeShell();
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id) ?? null;
@@ -151,6 +156,7 @@ export function TimelineProgramMonitor({
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const selectedNestedMedia = selected === null ? null : nestedSequenceMediaByClipId.get(selected.id) ?? null;
   const targetId = !storyOutputEnabled
+    || selected?.placement.enabled !== true
     || (selectedMaterial?.streamAssetId === null && selectedNestedMedia?.status !== 'ready')
     || (selected !== null && isStillImageTimelineClip(selected))
     ? null
@@ -299,6 +305,12 @@ export function TimelineProgramMonitor({
     return result;
   }, [mediaAssetsById, project.document.story_track_id, project.document.tracks, shell, useMediaProxies]);
   const textOverlays = programTextOverlays(project, targetTimelineTime);
+  const multicamAngles = multicamAnglesAtTime(project, targetTimelineTime);
+  const multicamMedia = useMemo(() => multicamAngles.flatMap((angle) => {
+    if (angle.clip.material.kind !== 'asset' && angle.clip.material.kind !== 'take') return [];
+    const src = shell.mediaSrc(programPreviewStreamPath(angle.clip.material.asset_id, mediaAssetsById, useMediaProxies));
+    return src === null ? [] : [{ ...angle, src }];
+  }), [mediaAssetsById, multicamAngles, shell, useMediaProxies]);
   const hasProgramStage = activeRenderPreviewSrc !== null
     || media.length > 0
     || overlayMedia.length > 0
@@ -600,6 +612,23 @@ export function TimelineProgramMonitor({
                   onReady={() => setPresentedRenderPreviewId(activeRenderPreview.job.id)}
                   onTimelineTimeChange={onTimelineTimeChange}
                 />
+              )}
+              {multicamMedia.length < 2 ? null : (
+                <aside className="absolute inset-y-2 right-2 z-[80] grid w-[38%] auto-rows-fr grid-cols-2 gap-1 rounded-sm bg-neutral-950/85 p-1 shadow-lg" aria-label={t`多机位视图`}>
+                  {multicamMedia.map((angle) => (
+                    <MulticamAnglePreviewVideo
+                      key={`${angle.groupId}:${angle.angle}`}
+                      src={angle.src}
+                      sourceTime={clipSourceTimeAtLocalTime(angle.clip, targetTimelineTime - angle.clip.placement.start)}
+                      fps={project.document.fps}
+                      angle={angle.angle}
+                      name={angle.name}
+                      active={angle.active}
+                      disabled={readOnly || multicamSwitchPending}
+                      onSelect={() => onSwitchMulticamAngle?.(angle.groupId, angle.angle, targetTimelineTime)}
+                    />
+                  ))}
+                </aside>
               )}
               {selectedDeliveryState !== 'stale' ? null : (
                 <span className="pointer-events-none absolute left-3 top-3 z-[60] rounded-sm border border-warn-border bg-warn-surface/95 px-2 py-1 text-2xs font-medium text-warn-text shadow-sm">
@@ -920,6 +949,56 @@ function previewVideoLabel(clip: TimelineClip, slot: PreviewSlot | null): string
     default: return t`${clip.name} 视频预览`;
   }
 }
+
+const MulticamAnglePreviewVideo = memo(function MulticamAnglePreviewVideo({
+  src,
+  sourceTime,
+  fps,
+  angle,
+  name,
+  active,
+  disabled,
+  onSelect,
+}: {
+  readonly src: string;
+  readonly sourceTime: number;
+  readonly fps: number;
+  readonly angle: number;
+  readonly name: string;
+  readonly active: boolean;
+  readonly disabled: boolean;
+  readonly onSelect: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video === null || video.seeking || Math.abs(video.currentTime - sourceTime) <= 0.5 / Math.max(1, fps)) return;
+    try { video.currentTime = sourceTime; } catch { /* loadedmetadata retries */ }
+  }, [fps, sourceTime]);
+  return (
+    <button
+      type="button"
+      className={active ? 'relative min-h-0 overflow-hidden border-2 border-ok' : 'relative min-h-0 overflow-hidden border border-neutral-600 opacity-80 hover:opacity-100'}
+      aria-label={t`切换到摄像机 ${angle} ${name}`}
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onSelect}
+    >
+      <video
+        ref={videoRef}
+        className="size-full bg-neutral-900 object-contain"
+        src={src}
+        preload="auto"
+        muted
+        playsInline
+        onLoadedMetadata={(event) => { event.currentTarget.currentTime = sourceTime; }}
+      />
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1 bg-neutral-950/80 px-1 py-0.5 text-left text-2xs text-neutral-100">
+        <strong className="font-mono">{angle}</strong><span className="truncate">{name}</span>
+      </span>
+    </button>
+  );
+});
 
 const RenderPreviewVideo = memo(function RenderPreviewVideo({
   src,

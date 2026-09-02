@@ -462,6 +462,8 @@ function renderWorkspace({
   listNestedSequenceMedia,
   createNestedSequence,
   refreshNestedSequence,
+  createMulticam,
+  switchMulticamAngle,
   streamAgentChat,
   appendAgentSessionEntry,
   updateAgentTurn,
@@ -496,6 +498,8 @@ function renderWorkspace({
   readonly listNestedSequenceMedia?: ReturnType<typeof vi.fn> | undefined;
   readonly createNestedSequence?: ReturnType<typeof vi.fn> | undefined;
   readonly refreshNestedSequence?: ReturnType<typeof vi.fn> | undefined;
+  readonly createMulticam?: ReturnType<typeof vi.fn> | undefined;
+  readonly switchMulticamAngle?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
@@ -526,6 +530,8 @@ function renderWorkspace({
       listNestedSequenceMedia: listNestedSequenceMedia ?? (() => Promise.resolve([])),
       ...(createNestedSequence === undefined ? {} : { createNestedSequence }),
       ...(refreshNestedSequence === undefined ? {} : { refreshNestedSequence }),
+      ...(createMulticam === undefined ? {} : { createMulticam }),
+      ...(switchMulticamAngle === undefined ? {} : { switchMulticamAngle }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
       ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
@@ -5174,6 +5180,81 @@ describe('unified project workspace', () => {
       })],
     })));
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a marker-synchronized multicam source from selected Project media', async () => {
+    const source = (id: string, name: string, markerTime: number): MediaAsset => ({
+      id, project_id: PROJECT.id, path: `D:\\media\\${id}.mp4`, name, kind: 'video', duration_seconds: 10,
+      width: 1920, height: 1080, file_size: 1_024, has_audio: true, proxy_path: null,
+      proxy_status: { status: 'not_requested' }, waveform: null, metadata_status: { status: 'ready' },
+      markers: [{ id: `${id}-marker`, time: markerTime, duration: 0, label: 'Clap', color: '#00AAFF', kind: 'comment', comment: '' }],
+      created_at: PROJECT.updated_at,
+    });
+    const first = source('angle-1', 'Camera One', 2);
+    const second = source('angle-2', 'Camera Two', 3);
+    const createMulticam = vi.fn(() => new Promise(() => undefined));
+    renderWorkspace({ assets: [first, second], createMulticam });
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('button', { name: '创建多机位序列' }));
+    const dialog = screen.getByRole('dialog', { name: '创建多机位源序列' });
+    fireEvent.change(within(dialog).getByRole('combobox', { name: '同步点' }), { target: { value: 'marker' } });
+    fireEvent.change(within(dialog).getByLabelText('标记名称'), { target: { value: 'Clap' } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: '音频随摄像机切换；关闭时固定使用角度 1 音频' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '同步并创建' }));
+
+    await waitFor(() => expect(createMulticam).toHaveBeenCalledWith(PROJECT.id, {
+      base_revision: PROJECT.revision,
+      asset_ids: ['angle-1', 'angle-2'],
+      sync_method: 'marker',
+      marker_label: 'Clap',
+      switch_audio: true,
+    }));
+  });
+
+  it('shows all multicam angles in Program and switches at the Timeline playhead', async () => {
+    const groupId = '00000000-0000-4000-8000-000000000700';
+    const source = (id: string, name: string): MediaAsset => ({
+      id, project_id: PROJECT.id, path: `D:\\media\\${id}.mp4`, name, kind: 'video', duration_seconds: 10,
+      width: 1920, height: 1080, file_size: 1_024, has_audio: true, proxy_path: null,
+      proxy_status: { status: 'not_requested' }, waveform: null, metadata_status: { status: 'ready' }, markers: [],
+      created_at: PROJECT.updated_at,
+    });
+    const angleClip = (id: string, assetId: string, angle: number, enabled: boolean): TimelineClip => ({
+      ...clip(id, `Angle ${angle}`),
+      material: { kind: 'asset', asset_id: assetId, media_duration_seconds: 10 },
+      placement: { ...clip(id, `Angle ${angle}`).placement, duration: 10, source_out: 10, enabled },
+      metadata: { multicam: { group_id: groupId, angle, angle_name: `Camera ${angle}`, sync_method: 'audio', switch_audio: true } },
+    });
+    const firstTrack = { ...PROJECT.document.tracks[0]!, clips: [angleClip(CLIP_A, 'angle-1', 1, true)] };
+    const secondTrack: TimelineTrack = {
+      ...firstTrack,
+      id: '00000000-0000-4000-8000-000000000701',
+      name: 'Angle 2',
+      order: 1,
+      clips: [angleClip(CLIP_B, 'angle-2', 2, false)],
+    };
+    const project: Project = {
+      ...PROJECT,
+      document: { ...PROJECT.document, duration_seconds: 10, tracks: [firstTrack, secondTrack] },
+    };
+    const switchMulticamAngle = vi.fn(() => new Promise(() => undefined));
+    renderWorkspace({
+      project,
+      assets: [source('angle-1', 'Camera One'), source('angle-2', 'Camera Two')],
+      switchMulticamAngle,
+      shell: { ...unavailableNativeShell, available: true, mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}` },
+    });
+
+    const view = await screen.findByRole('complementary', { name: '多机位视图' });
+    expect(within(view).getAllByRole('button')).toHaveLength(2);
+    expect(within(view).getByRole('button', { name: '切换到摄像机 1 Camera 1' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(within(view).getByRole('button', { name: '切换到摄像机 2 Camera 2' }));
+    await waitFor(() => expect(switchMulticamAngle).toHaveBeenCalledWith(PROJECT.id, {
+      base_revision: PROJECT.revision,
+      group_id: groupId,
+      angle: 2,
+      timeline_time: 0,
+    }));
   });
 
   it('switches the docked Project panel between Adobe-style List and Icon views', async () => {

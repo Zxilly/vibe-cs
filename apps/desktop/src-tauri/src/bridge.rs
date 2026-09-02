@@ -708,10 +708,10 @@ mod tests {
     fn command_paths_are_local_and_private() {
         let valid = DesktopCall {
             method: DesktopMethod::Get,
-            path: "/health".to_owned(),
+            path: "/config".to_owned(),
             body: None,
         };
-        assert_eq!(valid.internal_uri().expect("valid path"), "/api/health");
+        assert_eq!(valid.internal_uri().expect("valid path"), "/api/config");
 
         for path in [
             "/api/health",

@@ -30,7 +30,6 @@ use ts_rs::TS;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/health", get(health))
         .route("/api/app/runtime-state", get(runtime_state))
         .route("/api/config", get(get_config).put(put_config))
         .route("/api/config/detect-paths", post(detect_paths))
@@ -446,21 +445,6 @@ fn hlae_api_error(error: &HlaeError) -> ApiError {
 
 fn lossy_path(path: Option<&Path>) -> Option<String> {
     path.map(|path| path.to_string_lossy().into_owned())
-}
-
-#[derive(Debug, Serialize)]
-struct HealthResponse {
-    status: &'static str,
-    version: &'static str,
-    started_at: chrono::DateTime<Utc>,
-}
-
-async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        version: env!("CARGO_PKG_VERSION"),
-        started_at: state.started_at,
-    })
 }
 
 #[derive(Debug, Serialize, TS)]

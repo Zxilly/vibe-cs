@@ -6,8 +6,10 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 
 import { missingRootError } from './app/boot';
+import { activateConfiguredLocale } from './app/locale';
 import { queryClient } from './data/queryClient';
 import { createAppRouter } from './routes';
+import { commands } from './shared/desktop/client';
 // The design layer's entry point. `theme.css` opens with
 // `@import 'tailwindcss'; @import './fonts.css'; @import './base.css';`, so the
 // four sheets land in the one order that works — @font-face and the tokens
@@ -17,10 +19,9 @@ import { createAppRouter } from './routes';
 // utility able to override the element reset underneath it.
 import './design/theme.css';
 
-// Activate the source locale synchronously so the first paint already has an
-// active i18n instance. Macros carry their zh-CN source string, so an empty
-// catalog renders the authored copy. Loading a compiled catalog (and therefore
-// switching to en-US) is async and lands with the language switcher.
+// Activate the source locale as the boot fallback. Once the desktop bridge is
+// ready, the persisted locale is loaded below before React produces its first
+// paint, so the window never flashes the wrong language.
 i18n.loadAndActivate({ locale: 'zh-CN', messages: {} });
 
 // Running in a plain browser, `invoke()` has no host and every screen renders
@@ -32,6 +33,8 @@ if (import.meta.env.DEV) {
   const { installMockBridge } = await import('./dev/mockBridge');
   await installMockBridge();
 }
+
+await activateConfiguredLocale(() => commands.getConfig(AbortSignal.timeout(2_000)));
 
 const root = document.getElementById('root');
 

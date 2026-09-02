@@ -1248,13 +1248,34 @@ mod tests {
         assert_eq!(status, 200);
         assert_eq!(nested["parent_project"]["revision"], 3);
         assert_eq!(nested["nested_project"]["revision"], 1);
-        assert_eq!(nested["nested_project"]["document"]["duration_seconds"], 10.0);
-        assert_eq!(nested["nested_project"]["document"]["tracks"][0]["clips"].as_array().expect("child clips").len(), 2);
-        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"].as_array().expect("parent clips").len(), 1);
-        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["kind"], "sequence");
+        assert_eq!(
+            nested["nested_project"]["document"]["duration_seconds"],
+            10.0
+        );
+        assert_eq!(
+            nested["nested_project"]["document"]["tracks"][0]["clips"]
+                .as_array()
+                .expect("child clips")
+                .len(),
+            2
+        );
+        assert_eq!(
+            nested["parent_project"]["document"]["tracks"][0]["clips"]
+                .as_array()
+                .expect("parent clips")
+                .len(),
+            1
+        );
+        assert_eq!(
+            nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["kind"],
+            "sequence"
+        );
         assert_eq!(nested["preview_job_id"], Value::Null);
         let nested_id = nested["nested_project"]["id"].as_str().expect("nested id");
-        assert_eq!(nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["project_id"], nested_id);
+        assert_eq!(
+            nested["parent_project"]["document"]["tracks"][0]["clips"][0]["material"]["project_id"],
+            nested_id
+        );
 
         let (_, media) = call(
             &router,

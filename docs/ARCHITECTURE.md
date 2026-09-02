@@ -5,6 +5,11 @@ IPC commands to managed Rust state, receives large binary results as raw IPC byt
 through a private application protocol. The only local HTTP listener is a single authenticated
 CS2 GSI ingestion route required by the game protocol; it exposes no product commands.
 
+The React webview and Rust host are one desktop process. Product UI assumes the Tauri IPC seam is
+available for the lifetime of the window: it does not poll a health route, display connected or
+disconnected chrome, or disable commands behind a connection gate. A rejected IPC command is
+reported by the operation that issued it. Browser development uses the in-process mock bridge.
+
 ## Dependency direction
 
 ```text
@@ -100,7 +105,7 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
   process lifecycle.
-- `web` keeps DTOs at the desktop command boundary and uses feature-local state for analysis, queue,
+- `web` keeps DTOs at the desktop command seam and uses feature-local state for analysis, queue,
   editor and settings workflows. Library query and current column-visibility state are URL-owned;
   the canonical Timeline Inspector edits Capture Intent alongside clip timing and can explicitly
   return an attachment to Planned for re-recording; terminal recording activity refetches the same

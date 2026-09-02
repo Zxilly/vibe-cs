@@ -118,7 +118,6 @@ apps/web/
    │   ├─ SideNav.tsx         216px / 56px 两态
    │   ├─ AgentRail.tsx       46px / 380px 两态
    │   ├─ CommandPalette.tsx  Ctrl K
-   │   ├─ ServiceGate.tsx     本地服务离线全局降级
    │   ├─ RouteBoundary.tsx   错误 / 加载 / 未找到
    │   └─ routes.tsx
    │
@@ -282,7 +281,7 @@ export const qk = {
 }
 ```
 
-**离线降级**与 Query 的关系：`ServiceGate` 订阅 `health` query，服务离线时把状态下发给 `Toolbar` / `Button`，禁用需要服务的动作并写明原因（设计稿规定「不隐藏、不静默失败」）。重连成功后 `invalidateQueries` 全量刷新，无需刷新页面。
+桌面 WebView 与 Rust host 共用一个 Tauri 进程。界面不轮询连接状态，也不显示“已连接”或用连接状态门禁具体动作；IPC 失败由发起操作的页面就地显示。
 
 ### 4.2 全局 UI 状态（zustand，持久化）
 
@@ -603,7 +602,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | --- | --- | --- |
 | 0 | Token 归纳表 → `theme.css` + 暗色；自托管字体；Lingui + Query + vitest 三项目接线；`design/` 全部原语与布局组件；分层与裸值 lint | `pnpm lint` 绿，design 层测试齐，构建时间已测量 |
 | 0.5 | **多轨时间轴技术原型**（只验证交互可行性，不接数据） | 剃刀 / 吸附 / 拖拽 / 缩放跑通 |
-| 1 | 壳层：TitleBar / SideNav 两态 / AgentRail 两态 / CommandPalette / ServiceGate / RouteBoundary / 1100×700 折叠 | 空壳可跑，interaction 测试绿 |
+| 1 | 壳层：TitleBar / SideNav 两态 / AgentRail 两态 / CommandPalette / RouteBoundary / 1100×700 折叠 | 空壳可跑，interaction 测试绿 |
 | 2 | 领域组件：MatchContextBar / DataTable+Inspector / TaskCard+StageTimeline / MapCanvas / Transport / Waveform | 各自有 markup + interaction 测试；1100×700 密度复核通过 |
 | 3a | 交付（输出 + 任务记录 + 任务详情） | 验证 TaskCard / StageTimeline / taskMachine |
 | 3b | 资料库（表格 + 卡片 + Inspector + 饰品改写）+ 5 个对话框 | 验证 DataTable / Dialog / Query 失效链路 |
@@ -670,7 +669,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 ### 本轮收口掉的重复与孤儿
 
 - `app/RouteError.tsx` 已删（新 router 用 `boundary/RouteErrorElement`）。
-- `ServiceStatusIndicator` 已删；`WindowTitleBar` 改渲染 `ServiceStatusMarker`，`ShellServiceStatus` 变成 `ServiceStatus` 的别名。全应用只剩一处「● 本地服务在线」的实现。
+- `ServiceGate`、`ServiceStatusMarker` 和顶栏连接文案已删除；Tauri IPC 是同进程桌面 seam，具体调用自己呈现错误。
 - 172px 状态盒回到设计层：`EmptyState` 自己带上 `EMPTY_STATE_MIN_HEIGHT_CLASS` 并导出，`RouteLoading` 的骨架复用同一个类。
 - 「跳转」一个 msgid 两个词义（面板的 Go to、录制流水线的 Seek）已用 `context` 拆开。
 
@@ -725,9 +724,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 
 ### 本轮收口掉的
 
-- `app/boundary/serviceHealth.ts` 的 `SERVICE_HEALTH_KEY` 改成 `qk.service.health()`。原先它自己声明一份、`keys.test.ts` 反向 import `app/**` 来盯住两者不漂移——**键工厂存在的意义就是不要有第二份声明**，现在 data 不再反向依赖 app。
 - 「回合」一个 msgid 两个词义（工作区子视图标签的复数 Rounds、证据种类的单数 Round）用 `context` 拆开，与上一轮的「跳转」同一处方。
-- `ServiceGate.tsx` 文件头里对已删除的 `…Indicator` 的描述改正。
 
 ### 留给后续阶段的已知缺口
 
@@ -755,7 +752,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 
 | 决定 | 值 | 依据 |
 | --- | --- | --- |
-| 轮询节奏（§10.3 缺口 1） | 任务详情 2s / 任务记录 5s / 首页 digest 10s | 录制阶段以秒计（画板：片段 1 采集完成 · 3.0 秒），慢于 2s 会整段跳过阶段；50 行列表读的是完成/失败这种整体事件，5s 还与断线重连探测同频不打拍；首页是一瞥不是盯 |
+| 轮询节奏（§10.3 缺口 1） | 任务详情 2s / 任务记录 5s / 首页 digest 10s | 录制阶段以秒计（画板：片段 1 采集完成 · 3.0 秒），慢于 2s 会整段跳过阶段；首页是一瞥不是盯 |
 | 停轮 | 真的实现了 | 不是页面算出 `pollMs` 回传（那会与屏幕上的数据错位），而是 `refetchInterval` 做成读 query 自身缓存答案的函数（`feedHasActiveTask` / `activityIsActive` / `analysisRunIsActive`），第一次拿到「全部终态」后 interval 变 false。两条 interaction 测试分别证明「有在跑就继续问」「全空闲就彻底停」。不丢事件的理由：任务只可能由本 app 的 mutation 启动，而每个 mutation 都失效 `qk.tasks.all` |
 | `Toolbar.inlineActionsWhenCollapsed`（§10.3 缺口 2） | 交付页显式传 2 | 折叠下 940px 减去标题/meta/更多/主动作/间距后剩 414px，够放两个三字 ghost 按钮。`deliveryCollapse.interaction.test.tsx` 在 1100px 上验证 Seg 与「清理无效记录」都没进「更多」 |
 
@@ -765,7 +762,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 
 | # | 偏离 | 处置 |
 | --- | --- | --- |
-| 1 | **本轮任务书自相矛盾**：要求页面用 `app/boundary` 的 `useServiceAction()`，而 §2.1 规则 3 禁止 `pages/**` import `app/**` | 三个 agent 各自按 lint 执行——两个写了自己的替身（`pages/{delivery,library}/serviceAction.tsx`），第三个干脆没有离线降级。**这是任务书的错，不是 agent 的错。** 已收口：`serviceHealth.ts` 从 `app/boundary/` 移到 `data/`（它全是对健康查询的纯派生，本来就是数据层的东西），新增 `data/serviceAction.tsx` 作为唯一实现，`app/boundary` 保留同名再导出。两个替身删除，调用点改一行 import |
+| 1 | 早期规格把同进程 Tauri IPC 当成可断线远程服务，并引入健康轮询和页面门禁 | 该假设已撤销：删除 `ServiceGate`、健康 Query、连接状态 UI 和 `useServiceAction`；调用失败在具体操作处呈现 |
 | 2 | `data/desktopClient.tsx` 的 `DesktopClient` 只列了阶段 2 的读，三个 agent 各自声明了局部 `Pick` 切片绕开它 | 已把三份写方法并进中心 `Pick`，删掉两个 `requireCommand` 运行时守卫和 `demos.ts` 的 `as unknown as`，`DesktopClientStub = Partial<DesktopClient>` 声明一次。**这次收口抓到一个真 bug**：`LibraryPage.interaction.test.tsx` 给 `startAnalysisRun` 的桩返回 `{id:'run-1'}` 而不是一个完整的 `AnalysisRun`，被那个强转掩盖着 |
 | 3 | 五组 msgid 一词两义 | 全部用 `context` 拆开：`应用`（设置分节 App / 对话框确认 Apply——确认按钮当时写着 "App"）、`分析`（任务种类名词 Analysis / 行内动作动词 Analyze）、`击杀`·`死亡`（证据种类单数 Kill·Death / 计数列头 Kills·Deaths）、`比赛`·`选手`（命令面板分组复数 / 表格列头单数）。**整套词表一起打标签**而不是只标撞上的那个词，否则下一个新增成员会静默继承别的屏幕的译法。注意 `msg` 是编译期宏，不能包进 helper 函数——包了 extract 什么都读不到 |
 | 4 | 「饰品与 Demo 改写」（§10 排在 3b）一行未做 | 设计稿只在两处写了「已建议移入资料库 Inspector，需要独立编辑器再画」，**全稿没有任何一块画了它长什么样**。后端能力是齐的（8 个 cosmetic 命令）。需要一块正稿才能接 |

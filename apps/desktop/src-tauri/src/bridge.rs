@@ -7,19 +7,14 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{State, WebviewWindow};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
-use tokio::sync::{OnceCell, oneshot};
+use tauri::State;
+use tokio::sync::OnceCell;
 use tower::ServiceExt;
 
 const MAXIMUM_COMMAND_RESPONSE_BYTES: usize = 128 * 1024 * 1024;
 const MAXIMUM_MEDIA_RESPONSE_BYTES: usize = 256 * 1024 * 1024;
 const COMMAND_NAMESPACE: &str = "/api/";
 const UPLOAD_BOUNDARY: &str = "vibe-cs-tauri-upload";
-const HLAE_CONSENT_TITLE: &str = "HLAE 离线录制确认 / Offline capture confirmation";
-const HLAE_CONSENT_MESSAGE: &str = "Vibe CS 将通过 HLAE 使用 -insecure 启动 CS2 并录制 Demo。\n\
-    \n仅限离线 Demo 回放；不得加入或连接任何受 VAC 保护的服务器。\n\
-    \nVibe CS will launch CS2 through HLAE with -insecure to record a demo. Use this only for offline demo playback. Do not join or connect to any VAC-secured server.";
 
 #[derive(Clone)]
 pub(crate) struct DesktopBridge {
@@ -40,14 +35,15 @@ impl DesktopBridge {
         Self { router }
     }
 
-    pub(crate) async fn dispatch(&self, call: DesktopCall) -> Result<Value, DesktopCommandError> {
-        let router = self
-            .router
+    fn router(&self) -> Router {
+        self.router
             .get()
-            .ok_or_else(|| {
-                DesktopCommandError::service_unavailable("desktop services are starting")
-            })?
-            .clone();
+            .expect("desktop router is initialized before the main window")
+            .clone()
+    }
+
+    pub(crate) async fn dispatch(&self, call: DesktopCall) -> Result<Value, DesktopCommandError> {
+        let router = self.router();
         let method = call.method.as_http_method();
         let uri = call.internal_uri()?;
         let body = call
@@ -94,13 +90,7 @@ impl DesktopBridge {
 
     pub(crate) async fn dispatch_binary(&self, path: &str) -> Result<Vec<u8>, DesktopCommandError> {
         let uri = internal_uri(path)?;
-        let router = self
-            .router
-            .get()
-            .ok_or_else(|| {
-                DesktopCommandError::service_unavailable("desktop services are starting")
-            })?
-            .clone();
+        let router = self.router();
         let response = router
             .oneshot(
                 Request::builder()
@@ -134,13 +124,7 @@ impl DesktopBridge {
     ) -> Result<Value, DesktopCommandError> {
         validate_upload_path(path)?;
         let uri = internal_uri(path)?;
-        let router = self
-            .router
-            .get()
-            .ok_or_else(|| {
-                DesktopCommandError::service_unavailable("desktop services are starting")
-            })?
-            .clone();
+        let router = self.router();
         let body = multipart_body(file_name, project_id, &bytes);
         let response = router
             .oneshot(
@@ -175,13 +159,7 @@ impl DesktopBridge {
         request: Request<Vec<u8>>,
     ) -> Result<Response<Vec<u8>>, DesktopCommandError> {
         validate_media_method(request.method())?;
-        let router = self
-            .router
-            .get()
-            .ok_or_else(|| {
-                DesktopCommandError::service_unavailable("desktop services are starting")
-            })?
-            .clone();
+        let router = self.router();
         let uri = media_uri(request.uri())?;
         let (parts, body) = request.into_parts();
         let mut builder = Request::builder()
@@ -407,64 +385,6 @@ impl DesktopCall {
     }
 }
 
-fn hlae_execute_requires_native_consent(call: &DesktopCall) -> bool {
-    if call.method != DesktopMethod::Post {
-        return false;
-    }
-    call.path
-        .strip_prefix("/recording/plans/")
-        .and_then(|tail| tail.strip_suffix("/execute"))
-        .filter(|plan_id| !plan_id.is_empty() && !plan_id.contains('/'))
-        .is_some_and(|plan_id| uuid::Uuid::parse_str(plan_id).is_ok())
-}
-
-fn hlae_execute_has_reviewed_inline_consent(call: &DesktopCall) -> bool {
-    hlae_execute_requires_native_consent(call)
-        && call
-            .body
-            .as_ref()
-            .and_then(Value::as_object)
-            .and_then(|body| body.get("offline_insecure_acknowledged"))
-            .and_then(Value::as_bool)
-            == Some(true)
-}
-
-fn apply_hlae_native_consent(
-    call: &mut DesktopCall,
-    confirmed: bool,
-) -> Result<(), DesktopCommandError> {
-    if !hlae_execute_requires_native_consent(call) {
-        return Ok(());
-    }
-    if !confirmed {
-        return Err(DesktopCommandError::hlae_consent_cancelled());
-    }
-    call.body = Some(serde_json::json!({
-        "offline_insecure_acknowledged": true
-    }));
-    Ok(())
-}
-
-async fn request_hlae_native_consent(window: &WebviewWindow) -> Result<bool, DesktopCommandError> {
-    let (sender, receiver) = oneshot::channel();
-    window
-        .dialog()
-        .message(HLAE_CONSENT_MESSAGE)
-        .title(HLAE_CONSENT_TITLE)
-        .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "仅离线启动 / Launch offline only".to_owned(),
-            "取消 / Cancel".to_owned(),
-        ))
-        .parent(window)
-        .show(move |confirmed| {
-            let _ = sender.send(confirmed);
-        });
-    receiver.await.map_err(|_| {
-        DesktopCommandError::internal("native HLAE consent dialog closed unexpectedly")
-    })
-}
-
 #[derive(Debug, Serialize)]
 pub(crate) struct DesktopCommandError {
     status: u16,
@@ -478,22 +398,6 @@ impl DesktopCommandError {
             status: 400,
             code: "invalid_desktop_command".to_owned(),
             message: message.into(),
-        }
-    }
-
-    fn service_unavailable(message: impl Into<String>) -> Self {
-        Self {
-            status: 503,
-            code: "desktop_services_starting".to_owned(),
-            message: message.into(),
-        }
-    }
-
-    fn hlae_consent_cancelled() -> Self {
-        Self {
-            status: 409,
-            code: "hlae_offline_insecure_consent_cancelled".to_owned(),
-            message: "HLAE offline capture was cancelled before CS2 started".to_owned(),
         }
     }
 
@@ -540,16 +444,9 @@ impl DesktopCommandError {
 
 #[tauri::command]
 pub(crate) async fn desktop_call(
-    window: WebviewWindow,
     state: State<'_, DesktopBridge>,
-    mut call: DesktopCall,
+    call: DesktopCall,
 ) -> Result<Value, DesktopCommandError> {
-    if hlae_execute_requires_native_consent(&call)
-        && !hlae_execute_has_reviewed_inline_consent(&call)
-    {
-        let confirmed = request_hlae_native_consent(&window).await?;
-        apply_hlae_native_consent(&mut call, confirmed)?;
-    }
     state.dispatch(call).await
 }
 
@@ -601,108 +498,9 @@ mod tests {
     use axum::http::{Method, Uri};
 
     use super::{
-        DesktopCall, DesktopCommandError, DesktopMethod, apply_hlae_native_consent, decode_hex,
-        hlae_execute_has_reviewed_inline_consent, hlae_execute_requires_native_consent, media_uri,
+        DesktopCall, DesktopCommandError, DesktopMethod, decode_hex, media_uri,
         validate_media_method,
     };
-
-    #[test]
-    fn only_hlae_plan_execution_requires_native_consent() {
-        let execute = DesktopCall {
-            method: DesktopMethod::Post,
-            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
-            body: None,
-        };
-        assert!(hlae_execute_requires_native_consent(&execute));
-
-        for (method, path) in [
-            (DesktopMethod::Get, execute.path.as_str()),
-            (DesktopMethod::Post, "/recording/plans"),
-            (DesktopMethod::Post, "/recording/plans/not-a-uuid/execute"),
-            (
-                DesktopMethod::Post,
-                "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute/again",
-            ),
-        ] {
-            let ordinary = DesktopCall {
-                method,
-                path: path.to_owned(),
-                body: None,
-            };
-            assert!(!hlae_execute_requires_native_consent(&ordinary));
-        }
-    }
-
-    #[test]
-    fn native_confirmation_grants_the_backend_acknowledgement() {
-        let mut execute = DesktopCall {
-            method: DesktopMethod::Post,
-            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
-            body: Some(serde_json::json!({
-                "offline_insecure_acknowledged": false
-            })),
-        };
-
-        apply_hlae_native_consent(&mut execute, true).expect("native confirmation");
-
-        assert_eq!(
-            execute.body,
-            Some(serde_json::json!({
-                "offline_insecure_acknowledged": true
-            }))
-        );
-    }
-
-    #[test]
-    fn reviewed_inline_confirmation_can_continue_without_an_os_dialog() {
-        let execute = DesktopCall {
-            method: DesktopMethod::Post,
-            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
-            body: Some(serde_json::json!({
-                "offline_insecure_acknowledged": true
-            })),
-        };
-
-        assert!(hlae_execute_requires_native_consent(&execute));
-        assert!(hlae_execute_has_reviewed_inline_consent(&execute));
-    }
-
-    #[test]
-    fn cancelling_native_consent_stops_execution_with_a_stable_error() {
-        let mut execute = DesktopCall {
-            method: DesktopMethod::Post,
-            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
-            body: Some(serde_json::json!({
-                "offline_insecure_acknowledged": true
-            })),
-        };
-
-        let error = apply_hlae_native_consent(&mut execute, false)
-            .expect_err("cancellation must stop dispatch");
-
-        assert_eq!(error.status, 409);
-        assert_eq!(error.code, "hlae_offline_insecure_consent_cancelled");
-        assert_eq!(
-            execute.body,
-            Some(serde_json::json!({
-                "offline_insecure_acknowledged": true
-            }))
-        );
-    }
-
-    #[test]
-    fn native_consent_policy_does_not_modify_other_desktop_calls() {
-        let body = serde_json::json!({ "offline_insecure_acknowledged": false });
-        let mut ordinary = DesktopCall {
-            method: DesktopMethod::Post,
-            path: "/recording/plans".to_owned(),
-            body: Some(body.clone()),
-        };
-
-        apply_hlae_native_consent(&mut ordinary, false).expect("ordinary request");
-
-        assert_eq!(ordinary.body, Some(body));
-    }
 
     #[test]
     fn command_paths_are_local_and_private() {

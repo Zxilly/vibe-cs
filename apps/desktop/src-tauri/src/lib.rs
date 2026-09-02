@@ -1,8 +1,6 @@
 mod agent;
 mod agent_context;
 mod bridge;
-mod hlae_output;
-mod overlay_prototype;
 
 #[cfg(any(debug_assertions, test))]
 use std::ffi::OsStr;
@@ -61,10 +59,7 @@ pub fn run() {
             bridge::desktop_upload,
             agent::agent_status,
             agent::agent_chat,
-            agent::agent_cancel,
-            hlae_output::list_hlae_bundles,
-            hlae_output::reveal_hlae_bundle,
-            overlay_prototype::toggle_ace_overlay_prototype
+            agent::agent_cancel
         ])
         .register_asynchronous_uri_scheme_protocol(
             "vibe-cs-media",
@@ -114,7 +109,6 @@ pub fn run() {
                 .compact()
                 .init();
             app.manage(LogGuard { _guard: guard });
-            app.manage(hlae_output::ManagedHlaeRoot::new(&data_dir));
             let application =
                 tauri::async_runtime::block_on(build_application(data_dir, agent_dispatcher))?;
             app.manage(application.agent_bridge.clone());

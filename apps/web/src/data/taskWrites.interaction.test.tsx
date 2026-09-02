@@ -29,7 +29,6 @@ import {
   activityIsActive,
   feedHasActiveTask,
   useCancelTask,
-  useRetryRecordingPlan,
   useRetryTask,
   useTaskFeed,
 } from './tasks';
@@ -278,44 +277,6 @@ describe('useRetryTask', () => {
         result.current.mutateAsync({ kind: 'export', jobId: 'job-1', contextId: 'project-1' }),
       ).rejects.toThrow();
     });
-  });
-});
-
-describe('useRetryRecordingPlan', () => {
-  it('asks for a plan and invalidates nothing — no task has changed yet', async () => {
-    const feed = countingStub(feedOf([], 0));
-    const plan = countingStub({
-      plan_id: 'plan-7',
-      expires_at: '2026-08-15T10:00:00.000Z',
-      active_items: 2,
-      disabled_items: 0,
-      estimated_seconds: 42,
-      warnings: [],
-      items: [],
-      director: { shots: [] },
-    });
-    const client = {
-      listActivities: feed.call,
-      planRecordingRetry: plan.call,
-    } as unknown as DesktopClientStub;
-
-    const { result } = renderDataHook(
-      () => ({ feed: useTaskFeed({ page: 1 }), retry: useRetryRecordingPlan() }),
-      { client },
-    );
-
-    await waitFor(() => {
-      expect(result.current.feed.isSuccess).toBe(true);
-    });
-    const before = feed.calls();
-
-    await act(async () => {
-      const response = await result.current.retry.mutateAsync({ kind: 'recording', jobId: 'job-1' });
-      expect(response.plan_id).toBe('plan-7');
-    });
-
-    // A refetch here would be a request that cannot return anything different.
-    expect(feed.calls()).toBe(before);
   });
 });
 

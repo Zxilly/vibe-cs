@@ -109,7 +109,7 @@ export function useStartProjectRecording() {
       readonly clipIds?: string[];
     }) => {
       const plan = await client.createProjectRecordingPlan(projectId, expectedRevision, clipIds);
-      return client.executeRecordingPlan(projectId, plan.plan_id, true);
+      return client.executeRecordingPlan(projectId, plan.plan_id);
     },
     onSuccess: (_job, input) => Promise.all([
       queryClient.invalidateQueries({ queryKey: qk.projects.detail(input.projectId) }),

@@ -90,7 +90,6 @@ export type DesktopClient = Pick<
   | 'cancelExportJob'
   | 'cancelAnalysisRun'
   | 'cancelMatchDownload'
-  | 'planRecordingRetry'
   | 'startAnalysisRun'
   | 'downloadMatchDemo'
   // outputs (data/outputs.ts)
@@ -182,11 +181,7 @@ export type DesktopClient = Pick<
      `POST /api/recording/plans/{id}/preflight`, the closed check list behind
      the eight status rows at the bottom of the board. A write in the HTTP sense
      only: it measures, never mutates the plan lease. */
-  /* ── the recording plan lifecycle (phase 3f, 「08 录制计划与镜头预览」) ──
-     `planRecording` mints the 5-minute lease from a hand-built queue; the two
-     other doors onto the same document (`planRecordingFromAgentPlan`,
-     `planRecordingRetry`) are already listed above.
-
+  /* ── the Project recording plan lifecycle ──
      `executeRecordingPlan` is the **only** command in this whole `Pick` that
      launches CS2. §4.5.3 rule ① — 「录制只由一次显式确认启动」 — is enforced
      three deep: it is reachable through exactly one hook

@@ -1,11 +1,9 @@
 /**
  * data layer — the unified task surface (spec §2 `data/tasks.ts`, §4.3).
  *
- * §4.3 makes one `taskMachine` out of recording / analysis / export / download,
- * and says its input comes from here: 「机器的输入来自 data/tasks.ts 的
- * query，输出只是呈现状态——推进由后端事件驱动，前端不模拟进度」. So this file
- * returns the server's own records unchanged; deriving a stage sequence or a
- * progress bar from them is `domain/task`'s job, not a `select` here.
+ * This file returns the host's own status, progress and available actions.
+ * Stage presentation is derived in `domain/task`; lifecycle authority remains
+ * in Rust and SQLite.
  *
  * ## Polling
  *
@@ -45,7 +43,6 @@ import type {
   ActivityStatus,
   AnalysisRunDetail,
   AnalysisRunStatus,
-  RecordingPlanResponse,
 } from '../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
 import { invalidateDemos } from './demos';
@@ -316,8 +313,8 @@ export function useCancelTask() {
  * `ActivityItem.available_actions` offers, and both are addressed by context
  * rather than by job id because the service creates a *new* job.
  *
- * Recording is not here — see `useRetryRecordingPlan`. Export is not here at
- * all — see the module note.
+ * Recording retry returns to the Project, where current Materialization decides
+ * what still needs capture. Export is not here — see the module note.
  *
  * Invalidates `qk.tasks.all` (a new task exists) plus `qk.demos.all`: an
  * analysis moves the library's 状态 column, and a download ends by importing a
@@ -346,28 +343,6 @@ export function useRetryTask() {
       await invalidateTasks(queryClient);
       await invalidateDemos(queryClient);
     },
-  });
-}
-
-/**
- * 「重试录制」, first half.
- *
- * `planRecordingRetry` produces a *plan*, not a job: §4.5.3 ① and
- * `taskMachine`'s `awaiting-confirmation` both say 「录制只由一次显式确认启动」,
- * and `executeRecordingPlan(planId, acknowledged)` is that confirmation. So the
- * delivery page's 重试 takes the user to `/recording/<planId>`, where the plan
- * is reviewed and confirmed, instead of starting a recording behind their back.
- *
- * **Invalidates nothing on purpose.** No task has changed yet — the failed
- * record is still failed and no new one exists — so refreshing the feed here
- * would be a refetch that cannot return anything different.
- */
-export function useRetryRecordingPlan() {
-  const client = useDesktopClient();
-
-  return useMutation({
-    mutationFn: ({ jobId }: TaskLocator): Promise<RecordingPlanResponse> =>
-      client.planRecordingRetry(jobId),
   });
 }
 

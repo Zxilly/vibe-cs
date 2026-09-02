@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use tokio::sync::{Mutex, mpsc};
 use ts_rs::TS;
 
-use crate::{AgentContext, AgentMode, AgentToolHost};
+use crate::AgentToolHost;
 
 const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 64 * 1024;
 
@@ -51,8 +51,7 @@ struct Captures {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ToolState {
-    context: Arc<AgentContext>,
-    tool_host: Option<Arc<dyn AgentToolHost>>,
+    tool_host: Arc<dyn AgentToolHost>,
     captures: Arc<Mutex<Captures>>,
     request_id: Arc<str>,
     sequence: Arc<AtomicU64>,
@@ -61,14 +60,12 @@ pub(crate) struct ToolState {
 
 impl ToolState {
     pub(crate) fn new(
-        context: AgentContext,
-        tool_host: Option<Arc<dyn AgentToolHost>>,
+        tool_host: Arc<dyn AgentToolHost>,
         request_id: &str,
     ) -> (Self, mpsc::UnboundedReceiver<ToolLifecycleEvent>) {
         let (lifecycle, receiver) = mpsc::unbounded_channel();
         (
             Self {
-                context: Arc::new(context),
                 tool_host,
                 captures: Arc::new(Mutex::new(Captures::default())),
                 request_id: Arc::from(request_id),
@@ -98,52 +95,35 @@ impl ToolState {
         });
         let result = async {
             let output = match kind {
-                ToolKind::ReadWorkspace => {
-                    if let Some(host) = self.tool_host.as_ref() {
-                        host.read_workspace(&input)
-                            .await
-                            .map_err(ToolExecutionError::other)?
-                    } else {
-                        json!({
-                            "workspace": self.context.workspace,
-                            "project": self.context.project,
-                        })
-                    }
-                }
-                ToolKind::ReadDemoEvidence => {
-                    let analysis = if let Some(host) = self.tool_host.as_ref() {
-                        host.read_demo_evidence(&input)
-                            .await
-                            .map_err(ToolExecutionError::other)?
-                    } else {
-                        query_demo_evidence(&self.context.analysis, &input)
-                            .map_err(ToolExecutionError::invalid_args)?
-                    };
-                    json!({
-                        "demo": self.context.demo,
-                        "analysis": analysis,
-                        "mapContext": self.context.map_context,
-                    })
-                }
+                ToolKind::ReadWorkspace => self
+                    .tool_host
+                    .read_workspace(&input)
+                    .await
+                    .map_err(ToolExecutionError::other)?,
+                ToolKind::ReadDemoEvidence => self
+                    .tool_host
+                    .read_demo_evidence(&input)
+                    .await
+                    .map_err(ToolExecutionError::other)?,
                 ToolKind::ReadCinematicContext => {
-                    let host = self.host()?;
                     let ids = string_array(&input, "highlightIds", 64)?;
-                    host.read_cinematic_context(&ids)
+                    self.tool_host
+                        .read_cinematic_context(&ids)
                         .await
                         .map_err(ToolExecutionError::other)?
                 }
                 ToolKind::ReadProjectDelivery => self
-                    .host()?
+                    .tool_host
                     .read_project_delivery(&input)
                     .await
                     .map_err(ToolExecutionError::other)?,
                 ToolKind::ApplyProjectPatch => self
-                    .host()?
+                    .tool_host
                     .apply_project_patch(input.clone())
                     .await
                     .map_err(ToolExecutionError::other)?,
                 ToolKind::ReplaceStoryTimeline => self
-                    .host()?
+                    .tool_host
                     .replace_story_timeline(input.clone())
                     .await
                     .map_err(ToolExecutionError::other)?,
@@ -188,12 +168,6 @@ impl ToolState {
         let _ = self.lifecycle.send(ToolLifecycleEvent::Finished(call));
         Ok(output)
     }
-
-    fn host(&self) -> Result<&Arc<dyn AgentToolHost>, ToolExecutionError> {
-        self.tool_host
-            .as_ref()
-            .ok_or_else(|| ToolExecutionError::other("project tool host is unavailable"))
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -212,18 +186,13 @@ enum ToolKind {
 struct ToolDefinition {
     kind: ToolKind,
     name: &'static str,
-    modes: &'static [AgentMode],
     description: &'static str,
     parameters: Value,
 }
 
-const ALL_MODES: &[AgentMode] = &[AgentMode::Guide, AgentMode::Edit, AgentMode::Hlae];
-const EDIT_MODES: &[AgentMode] = &[AgentMode::Edit, AgentMode::Hlae];
-
-pub(crate) fn create_tools(state: &ToolState, mode: AgentMode) -> Vec<DynamicTool> {
+pub(crate) fn create_tools(state: &ToolState) -> Vec<DynamicTool> {
     tool_catalog()
         .into_iter()
-        .filter(|tool| tool.modes.contains(&mode))
         .map(|tool| {
             let state = state.clone();
             DynamicTool::new(
@@ -249,7 +218,6 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadWorkspace,
             "read_workspace",
-            ALL_MODES,
             "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Use detail='timeline' only for placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the exact current revision in both formats.",
             object_schema(
                 json!({
@@ -263,7 +231,6 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadDemoEvidence,
             "read_demo_evidence",
-            ALL_MODES,
             "Query bounded verified Demo evidence supplied by the current workspace. For player-focused work, pass playerName or playerId; optionally narrow demoIds and kinds. The result returns stable highlight/demo IDs and at most maximumHighlights rows instead of dumping the whole series.",
             object_schema(
                 json!({
@@ -279,7 +246,6 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadCinematicContext,
             "read_cinematic_context",
-            EDIT_MODES,
             "Read bounded selected-round replay evidence and camera feasibility for explicit highlight IDs. Non-POV camera styles require at least four target-player spatial samples inside the requested round-bounded capture handles.",
             object_schema(
                 json!({"highlightIds": string_array_schema(64)}),
@@ -289,35 +255,30 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadProjectDelivery,
             "read_project_delivery",
-            ALL_MODES,
             "Read the authoritative Project Delivery Gate and latest export artifact, including its source Project revision, job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. matchesCurrentRevision is true only when that artifact was rendered from the current Project Head. Call this after recording or export completion before claiming the Project is deliverable.",
             object_schema(json!({"projectId":uuid_schema()}), &["projectId"]),
         ),
         definition(
             ToolKind::ApplyProjectPatch,
             "apply_project_patch",
-            EDIT_MODES,
             "Apply a small revision-bound edit directly to the canonical Project. The host validates the Project Patch, holds the Agent edit lease, writes one undoable Change Group, and returns the new revision.",
             project_patch_schema(),
         ),
         definition(
             ToolKind::ReplaceStoryTimeline,
             "replace_story_timeline",
-            EDIT_MODES,
             "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, rejects non-POV cameras without four in-range spatial samples, validates the staged timeline, and commits one undoable Change Group.",
             replace_story_schema(),
         ),
         definition(
             ToolKind::RequestRecording,
             "request_project_recording",
-            EDIT_MODES,
             "Prepare a recording request for unrecorded or stale clips. This never starts recording; the human must explicitly confirm it in the UI.",
             execution_request_schema("clipIds"),
         ),
         definition(
             ToolKind::RequestExport,
             "request_project_export",
-            EDIT_MODES,
             "Prepare a final export request. This never starts export; the human must explicitly confirm it in the UI and the Delivery Gate must pass.",
             execution_request_schema("clipIds"),
         ),
@@ -327,14 +288,12 @@ fn tool_catalog() -> Vec<ToolDefinition> {
 fn definition(
     kind: ToolKind,
     name: &'static str,
-    modes: &'static [AgentMode],
     description: &'static str,
     parameters: Value,
 ) -> ToolDefinition {
     ToolDefinition {
         kind,
         name,
-        modes,
         description,
         parameters,
     }
@@ -807,12 +766,24 @@ mod tests {
             Ok(json!({"scenes":[]}))
         }
 
+        async fn read_demo_evidence(&self, _input: &Value) -> Result<Value, String> {
+            Ok(json!({"players":[],"rounds":[],"highlights":[]}))
+        }
+
         async fn read_project_delivery(&self, input: &Value) -> Result<Value, String> {
             Ok(json!({
                 "projectId":input["projectId"],
                 "deliveryGate":{"ready":true},
                 "latestExport":{"status":"completed","availability":"present"},
             }))
+        }
+
+        async fn apply_project_patch(&self, _input: Value) -> Result<Value, String> {
+            Err("not used by this test host".to_owned())
+        }
+
+        async fn replace_story_timeline(&self, _input: Value) -> Result<Value, String> {
+            Err("not used by this test host".to_owned())
         }
     }
 
@@ -906,11 +877,7 @@ mod tests {
     #[tokio::test]
     async fn project_delivery_is_captured_from_the_single_host_runtime() {
         let project_id = "00000000-0000-4000-8000-000000000001";
-        let (state, mut lifecycle) = ToolState::new(
-            AgentContext::default(),
-            Some(Arc::new(DeliveryHost)),
-            "turn-delivery",
-        );
+        let (state, mut lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-delivery");
         let output = state
             .execute(
                 ToolKind::ReadProjectDelivery,
@@ -939,14 +906,7 @@ mod tests {
 
     #[tokio::test]
     async fn workspace_reads_the_live_host_after_a_same_turn_edit() {
-        let (state, _lifecycle) = ToolState::new(
-            AgentContext {
-                project: json!({"revision":8}),
-                ..AgentContext::default()
-            },
-            Some(Arc::new(DeliveryHost)),
-            "turn-workspace",
-        );
+        let (state, _lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-workspace");
         let output = state
             .execute(
                 ToolKind::ReadWorkspace,
@@ -1031,7 +991,7 @@ mod tests {
 
     #[tokio::test]
     async fn confirmation_tool_has_one_stable_started_and_finished_identity() {
-        let (state, mut lifecycle) = ToolState::new(AgentContext::default(), None, "turn-hitl");
+        let (state, mut lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-hitl");
         state
             .execute(
                 ToolKind::RequestExport,

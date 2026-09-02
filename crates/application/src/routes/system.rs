@@ -450,9 +450,7 @@ fn lossy_path(path: Option<&Path>) -> Option<String> {
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 struct RuntimeStateResponse {
-    status: &'static str,
     version: &'static str,
-    started_at: chrono::DateTime<Utc>,
     data_dir: String,
     active_recording_job: Option<uuid::Uuid>,
     runtime_session: &'static str,
@@ -461,9 +459,7 @@ struct RuntimeStateResponse {
 async fn runtime_state(State(state): State<AppState>) -> Json<RuntimeStateResponse> {
     let (runtime_session, active_recording_job) = state.runtime_session_snapshot().await;
     Json(RuntimeStateResponse {
-        status: "ready",
         version: env!("CARGO_PKG_VERSION"),
-        started_at: state.started_at,
         data_dir: state.data_dir().to_string_lossy().into_owned(),
         active_recording_job,
         runtime_session,

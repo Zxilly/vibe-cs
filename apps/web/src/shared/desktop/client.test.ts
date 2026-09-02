@@ -296,27 +296,13 @@ describe('desktop command client', () => {
   it('executes the opaque server-side recording plan instead of resending queue items', async () => {
     invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
 
-    await commands.executeRecordingPlan('project/unsafe id', 'plan/unsafe id', false);
+    await commands.executeRecordingPlan('project/unsafe id', 'plan/unsafe id');
 
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
         method: 'post',
         path: '/projects/project%2Funsafe%20id/recording-plans/plan%2Funsafe%20id/execute',
-        body: { offline_insecure_acknowledged: false },
-      },
-    });
-  });
-
-  it('creates a retry plan from one encoded durable recording job identity', async () => {
-    invokeMock.mockResolvedValue({ plan_id: 'retry-plan' });
-
-    await commands.planRecordingRetry('failed/job unsafe');
-
-    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
-      call: {
-        method: 'post',
-        path: '/recording/jobs/failed%2Fjob%20unsafe/retry-plan',
-        body: {},
+        body: { offline_insecure_acknowledged: true },
       },
     });
   });
@@ -695,7 +681,7 @@ describe('desktop command client', () => {
     let analysisCancelSettled = false;
 
     void commands.createProjectRecordingPlan('project-1', 1).finally(() => { planSettled = true; });
-    void commands.executeRecordingPlan('project-1', 'plan-1', false).finally(() => { executeSettled = true; });
+    void commands.executeRecordingPlan('project-1', 'plan-1').finally(() => { executeSettled = true; });
     void commands.prepareManagedHlae().finally(() => { preparationSettled = true; });
     void commands.cancelAnalysisRun('run-1').finally(() => { analysisCancelSettled = true; });
 
@@ -987,19 +973,13 @@ describe('desktop command client', () => {
     }]);
   });
 
-  it('keeps managed HLAE preparation and bundle reveal behind typed desktop boundaries', async () => {
+  it('keeps managed HLAE preparation behind the desktop command seam', async () => {
     invokeMock.mockResolvedValue([]);
 
     await commands.prepareManagedHlae();
-    await commands.listHlaeBundles();
-    await commands.revealHlaeBundle('C:/Vibe CS/hlae-plans/proposal_0123456789abcdef0123456789abcdef');
 
     expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
       call: { method: 'post', path: '/hlae/managed/prepare', body: {} },
-    }]);
-    expect(invokeMock.mock.calls[1]).toEqual(['list_hlae_bundles']);
-    expect(invokeMock.mock.calls[2]).toEqual(['reveal_hlae_bundle', {
-      bundleDirectory: 'C:/Vibe CS/hlae-plans/proposal_0123456789abcdef0123456789abcdef',
     }]);
   });
 });

@@ -78,7 +78,6 @@ import type {
   EvidenceSearchResponse,
   ExportJobRecord,
   HeatPointRecord,
-  HlaeBundleHandoff,
   HlaeStatus,
   LineupDirectoryPage,
   LineupMapPage,
@@ -989,17 +988,12 @@ export const commands = {
       `/maps/${encodeURIComponent(mapName)}/radar/metadata`,
       { signal },
     ),
-  planRecordingRetry: (jobId: string) =>
-    request<RecordingPlanResponse>(
-      `/recording/jobs/${encodeURIComponent(jobId)}/retry-plan`,
-      { method: 'POST', body: {}, timeoutMs: null },
-    ),
-  executeRecordingPlan: (projectId: string, planId: string, offlineInsecureAcknowledged: boolean) =>
+  executeRecordingPlan: (projectId: string, planId: string) =>
     request<RecordingExecutionResponse>(
       `/projects/${encodeURIComponent(projectId)}/recording-plans/${encodeURIComponent(planId)}/execute`,
       {
         method: 'POST',
-        body: { offline_insecure_acknowledged: offlineInsecureAcknowledged },
+        body: { offline_insecure_acknowledged: true },
         timeoutMs: null,
       },
     ),
@@ -1198,9 +1192,6 @@ export const commands = {
   prepareManagedHlae: () => request<HlaeStatus>('/hlae/managed/prepare', {
     method: 'POST', body: {}, timeoutMs: null,
   }),
-  listHlaeBundles: () => invoke<HlaeBundleHandoff[]>('list_hlae_bundles'),
-  revealHlaeBundle: (bundleDirectory: string) =>
-    invoke<HlaeBundleHandoff>('reveal_hlae_bundle', { bundleDirectory }),
   storageStatus: (signal?: AbortSignal) => request<StorageStatus>('/storage/status', { signal }),
   updateConfig: (config: AppConfig) =>
     request<AppConfig>('/config', { method: 'PUT', body: configUpdatePayload(config) }),

@@ -370,7 +370,6 @@ export function ProjectWorkspacePage() {
     void agentChat.send({
       sessionId: agentSessionId,
       projectId,
-      mode: 'hlae',
       message: outcome,
       workspaceContext: { projectId, lens: 'multitrack', selectedClipId },
     }).catch(() => reportedExecutionIds.current.delete(next.id));
@@ -973,7 +972,6 @@ export function ProjectWorkspacePage() {
     await agentChat.send({
       sessionId,
       projectId: current.id,
-      mode: 'hlae',
       message,
       workspaceContext: { projectId: current.id, lens, selectedClipId: agentSelectedClipId },
     });

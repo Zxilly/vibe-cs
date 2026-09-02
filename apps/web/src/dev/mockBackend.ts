@@ -945,11 +945,9 @@ type Handler = (context: {
  * accordingly.
  */
 const ROUTES: Array<[string, string, Handler]> = [
-  /* health, setup, runtime */
+  /* setup and runtime */
   ['GET', '/app/runtime-state', () => ({
-    status: 'ok',
     version: '0.1.0-dev',
-    started_at: '2026-08-15T08:55:00Z',
     data_dir: DATA_DIR,
     active_recording_job: 'job-771',
     runtime_session: 'session-dev-1',
@@ -1159,8 +1157,6 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
       return AGENT_STATUS;
     case 'agent_cancel':
       return true;
-    case 'list_hlae_bundles':
-      return [];
     case 'desktop_binary':
       return new ArrayBuffer(0);
     default:

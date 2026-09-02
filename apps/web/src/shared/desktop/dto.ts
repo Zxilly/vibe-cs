@@ -22,13 +22,7 @@
  *
  * ## What is still hand-written, and why
  *
- * Two groups, each marked where it appears:
- *
- *   1. **Tauri-side types.** The streaming Agent chat contract
- *      (`AgentStatus`, `AgentChatInput`, `AgentEvent`, `AgentChatResult`) and
- *      `HlaeBundleHandoff` live in
- *      `apps/desktop/src-tauri/src/`, which is not part of the ts-rs wiring.
- *   2. **Frontend aliases.** `EntityId`.
+ * The only hand-written type is the frontend alias `EntityId`.
  *
  * View models — shapes this application derives from the wire rather than
  * receives — moved to `./viewModels`. `dto.ts` is the wire, not a type
@@ -473,21 +467,6 @@ export type { ManagedHlaeReleaseStatus } from './generated/ManagedHlaeReleaseSta
 /** Domain's flat installation status, as embedded in an HLAE proposal preview. */
 export type { HlaeStatus as HlaeInstallationStatus } from './generated/HlaeStatus';
 
-/**
- * The bundle the desktop shell hands to HLAE.
- *
- * Hand-written because its only definition is
- * `apps/desktop/src-tauri/src/hlae_output.rs`, which is outside the ts-rs
- * wiring. It is also the one type here with camelCase keys, for the same
- * reason.
- */
-export type HlaeBundleHandoff = {
-  directory: string;
-  files: string[];
-  completionMarker: string;
-  createdAtEpochMs: number;
-};
-
 /* ── Steam match history ──────────────────────────────────────────────────── */
 
 export type { MatchHistoryResult } from './generated/MatchHistoryResult';
@@ -528,12 +507,8 @@ export type { ErrorBody as ApiProblem } from './generated/ErrorBody';
  * the same name and a different shape. The prefix is the honest distinction:
  * the domain pair is the persisted session, this pair is the streaming chat.
  *
- * `src-tauri` also had its own copy of `AgentMode` with the same three
- * variants, which is the drift this file's previous note warned about. It is
- * gone; the command takes `vibe_cs_agent::AgentMode` directly.
  */
 
-export type { AgentMode } from './generated/AgentMode';
 
 export type { DesktopAgentStatus as AgentStatus } from './generated/DesktopAgentStatus';
 export type { AgentToolCall } from './generated/AgentToolCall';

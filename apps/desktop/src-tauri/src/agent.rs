@@ -13,9 +13,8 @@ use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
-    AgentMode as EmbeddedAgentMode, AgentProviderProtocol as EmbeddedAgentProviderProtocol,
-    AgentRequest as EmbeddedAgentRequest, AgentStreamEvent as EmbeddedAgentStreamEvent,
-    AgentToolHost, Cancellation,
+    AgentProviderProtocol as EmbeddedAgentProviderProtocol, AgentRequest as EmbeddedAgentRequest,
+    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation,
 };
 use vibe_cs_domain::{
     AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
@@ -217,8 +216,7 @@ impl CinematicReplayHost {
     }
 }
 
-#[async_trait]
-impl AgentToolHost for CinematicReplayHost {
+impl CinematicReplayHost {
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String> {
         let mut scenes = Vec::new();
         for id in highlight_ids {
@@ -935,7 +933,6 @@ pub(crate) struct AgentChatInput {
     session_id: Uuid,
     project_id: Uuid,
     workspace_context: AgentWorkspaceContext,
-    mode: EmbeddedAgentMode,
     message: String,
 }
 
@@ -1222,49 +1219,11 @@ async fn run_agent_chat(
             .map_err(|error| AgentCommandError::internal(error.to_string()))?;
         series.push((id, demo, analysis));
     }
-    let demo = series.first().map_or(Value::Null, |entry| entry.1.clone());
     let raw_analysis = series.first().map_or(Value::Null, |entry| entry.2.clone());
-    let analysis = if series.len() > 1 {
-        summarize_series_analysis(&series)
-    } else {
-        raw_analysis.clone()
-    };
     let evidence = if series.len() > 1 {
-        series_evidence_analysis(&series, None)
+        series_evidence_analysis(&series)
     } else {
         raw_analysis.clone()
-    };
-    let map_context = match analysis
-        .get("map_name")
-        .and_then(Value::as_str)
-        .filter(|name| {
-            !name.is_empty()
-                && name.len() <= 128
-                && name
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-        }) {
-        Some(map_name) => state
-            .dispatcher
-            .dispatch(DesktopCall {
-                method: DesktopMethod::Get,
-                path: format!("/maps/{map_name}/radar/metadata"),
-                body: None,
-            })
-            .await
-            .unwrap_or_else(|_| {
-                json!({
-                    "map_name": map_name,
-                    "transform": null,
-                    "browser_displayable": false,
-                })
-            }),
-        None => Value::Null,
-    };
-    let summarized_analysis = if series.len() > 1 {
-        summarize_series_inventory(&series)
-    } else {
-        summarize_analysis(&analysis)
     };
     let cinematic = series
         .iter()
@@ -1290,7 +1249,7 @@ async fn run_agent_chat(
             }),
         );
     }
-    let tool_host = Some(Arc::new(DesktopAgentToolHost {
+    let tool_host = Arc::new(DesktopAgentToolHost {
         cinematic,
         evidence,
         workspace: workspace.clone(),
@@ -1298,16 +1257,13 @@ async fn run_agent_chat(
         project_id: project.id,
         session_id,
         turn_id: input.request_id,
-    }) as Arc<dyn AgentToolHost>);
+    }) as Arc<dyn AgentToolHost>;
     let provider = config.llm.provider.clone();
     let model = config.llm.model.clone();
     let project_context = serde_json::to_value(&project)
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
     let context_bytes = serde_json::to_vec(&json!({
         "workspace": workspace,
-        "demo": summarize_demo(&demo),
-        "analysis": summarized_analysis,
-        "mapContext": map_context,
         "project": project_context,
     }))
     .map_err(|error| AgentCommandError::internal(error.to_string()))?
@@ -1363,7 +1319,6 @@ async fn run_agent_chat(
     });
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
-        mode: input.mode,
         message: message.to_owned(),
         history,
         config: EmbeddedAgentConfig {
@@ -1380,9 +1335,6 @@ async fn run_agent_chat(
         },
         context: EmbeddedAgentContext {
             workspace,
-            demo: summarize_demo(&demo),
-            analysis: summarized_analysis,
-            map_context,
             project: project_context,
         },
         tool_host,
@@ -1493,189 +1445,7 @@ fn project_demo_ids(project: &vibe_cs_domain::Project) -> Vec<Uuid> {
     requested
 }
 
-fn summarize_demo(demo: &Value) -> Value {
-    let Some(source) = demo.as_object() else {
-        return Value::Null;
-    };
-    json!({
-        "id": source.get("id"), "display_name": source.get("display_name"),
-        "file_name": source.get("file_name"), "map_name": source.get("map_name"),
-        "match_date": source.get("match_date"), "duration_seconds": source.get("duration_seconds"),
-        "total_rounds": source.get("total_rounds"), "team_a_name": source.get("team_a_name"),
-        "team_b_name": source.get("team_b_name"), "team_a_score": source.get("team_a_score"),
-        "team_b_score": source.get("team_b_score"),
-    })
-}
-
-fn capped_array(value: Option<&Value>, maximum: usize) -> Vec<Value> {
-    value
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .take(maximum)
-        .cloned()
-        .collect()
-}
-
-fn highlight_kind_rank(highlight: &Value) -> u8 {
-    match highlight.get("kind").and_then(Value::as_str) {
-        Some("multi_kill") => 0,
-        Some("clutch") => 1,
-        Some("one_tap") => 2,
-        Some("wallbang" | "no_scope" | "knife" | "taser" | "defuse") => 3,
-        Some("fail") => 4,
-        Some("timeline") => 5,
-        _ => 6,
-    }
-}
-
-fn summarize_highlights(value: Option<&Value>, maximum: usize) -> Vec<Value> {
-    let highlights = value
-        .and_then(Value::as_array)
-        .map_or(&[][..], Vec::as_slice);
-    if highlights.len() <= maximum {
-        return highlights.to_vec();
-    }
-
-    let mut by_round = BTreeMap::<u64, Vec<(usize, &Value)>>::new();
-    for (index, highlight) in highlights.iter().enumerate() {
-        let round = highlight
-            .get("round")
-            .and_then(Value::as_u64)
-            .unwrap_or(u64::MAX);
-        by_round.entry(round).or_default().push((index, highlight));
-    }
-    for candidates in by_round.values_mut() {
-        candidates.sort_by(|(_, left), (_, right)| {
-            highlight_kind_rank(left)
-                .cmp(&highlight_kind_rank(right))
-                .then_with(|| {
-                    right
-                        .get("score")
-                        .and_then(Value::as_f64)
-                        .unwrap_or_default()
-                        .total_cmp(
-                            &left
-                                .get("score")
-                                .and_then(Value::as_f64)
-                                .unwrap_or_default(),
-                        )
-                })
-                .then_with(|| {
-                    left.get("start_tick")
-                        .and_then(Value::as_u64)
-                        .cmp(&right.get("start_tick").and_then(Value::as_u64))
-                })
-                .then_with(|| {
-                    left.get("id")
-                        .and_then(Value::as_str)
-                        .cmp(&right.get("id").and_then(Value::as_str))
-                })
-        });
-    }
-
-    let mut selected = Vec::with_capacity(maximum);
-    let mut rank = 0;
-    while selected.len() < maximum {
-        let before = selected.len();
-        for candidates in by_round.values() {
-            if let Some((index, _)) = candidates.get(rank) {
-                selected.push(*index);
-                if selected.len() == maximum {
-                    break;
-                }
-            }
-        }
-        if selected.len() == before {
-            break;
-        }
-        rank += 1;
-    }
-    selected.sort_unstable();
-    selected
-        .into_iter()
-        .map(|index| highlights[index].clone())
-        .collect()
-}
-
-fn summarize_round_event(event: &Value) -> Option<Value> {
-    let source = event.as_object()?;
-    Some(json!({
-        "id": source.get("id"),
-        "tick": source.get("tick"),
-        "seconds": source.get("seconds"),
-        "kind": source.get("kind"),
-        "actor": source.get("actor"),
-        "target": source.get("target"),
-        "weapon": source.get("weapon"),
-        "headshot": source.get("headshot"),
-        "penetrated": source.get("penetrated"),
-        "position": source.get("position"),
-    }))
-}
-
-fn summarize_rounds(value: Option<&Value>, maximum: usize) -> Vec<Value> {
-    value
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .take(maximum)
-        .filter_map(|round| {
-            let source = round.as_object()?;
-            let events = source
-                .get("events")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-                .take(128)
-                .filter_map(summarize_round_event)
-                .collect::<Vec<_>>();
-            Some(json!({
-                "number": source.get("number"),
-                "start_tick": source.get("start_tick"),
-                "end_tick": source.get("end_tick"),
-                "winner": source.get("winner"),
-                "reason": source.get("reason"),
-                "team_a_score": source.get("team_a_score"),
-                "team_b_score": source.get("team_b_score"),
-                "events": events,
-            }))
-        })
-        .collect()
-}
-
-fn summarize_analysis(analysis: &Value) -> Value {
-    let Some(source) = analysis.as_object() else {
-        return Value::Null;
-    };
-    let insights =
-        source
-            .get("insights")
-            .and_then(Value::as_object)
-            .map_or(Value::Null, |insights| {
-                json!({
-                    "round_economy": capped_array(insights.get("round_economy"), 64),
-                    "matchups": capped_array(insights.get("matchups"), 512),
-                    "availability": insights.get("availability"),
-                })
-            });
-    json!({
-        "demo_id": source.get("demo_id"), "map_name": source.get("map_name"),
-        "tick_rate": source.get("tick_rate"), "duration_seconds": source.get("duration_seconds"),
-        "teams": capped_array(source.get("teams"), 2), "players": capped_array(source.get("players"), 32),
-        "rounds": summarize_rounds(source.get("rounds"), 64), "highlights": summarize_highlights(source.get("highlights"), 128),
-        "insights": insights,
-    })
-}
-
-fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
-    series_evidence_analysis(series, Some(128))
-}
-
-fn series_evidence_analysis(
-    series: &[(Uuid, Value, Value)],
-    maximum_highlights_per_demo: Option<usize>,
-) -> Value {
+fn series_evidence_analysis(series: &[(Uuid, Value, Value)]) -> Value {
     let mut highlights = Vec::new();
     let mut players = BTreeMap::<String, Value>::new();
     for (demo_id, _demo, analysis) in series {
@@ -1694,16 +1464,11 @@ fn series_evidence_analysis(
                     .or_insert_with(|| player.clone());
             }
         }
-        let selected_highlights = maximum_highlights_per_demo.map_or_else(
-            || {
-                analysis
-                    .get("highlights")
-                    .and_then(Value::as_array)
-                    .cloned()
-                    .unwrap_or_default()
-            },
-            |maximum| summarize_highlights(analysis.get("highlights"), maximum),
-        );
+        let selected_highlights = analysis
+            .get("highlights")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         for highlight in &selected_highlights {
             let Some(source_id) = highlight.get("id").and_then(Value::as_str) else {
                 continue;
@@ -1728,47 +1493,6 @@ fn series_evidence_analysis(
         "highlights": highlights,
         "insights": {"round_economy":[],"matchups":[],"availability":null},
         "series_demo_count": series.len(),
-    })
-}
-
-fn summarize_series_inventory(series: &[(Uuid, Value, Value)]) -> Value {
-    let mut players = BTreeMap::<String, Value>::new();
-    let demos = series
-        .iter()
-        .map(|(demo_id, _demo, analysis)| {
-            for player in analysis
-                .get("players")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-                .take(32)
-            {
-                if let Some(id) = player.get("steam_id").and_then(Value::as_str) {
-                    players.entry(id.to_owned()).or_insert_with(|| player.clone());
-                }
-            }
-            json!({
-                "demo_id": demo_id,
-                "map_name": analysis.get("map_name"),
-                "tick_rate": analysis.get("tick_rate"),
-                "duration_seconds": analysis.get("duration_seconds"),
-                "highlight_count": analysis.get("highlights").and_then(Value::as_array).map_or(0, Vec::len),
-            })
-        })
-        .collect::<Vec<_>>();
-    json!({
-        "demo_id": null,
-        "map_name": null,
-        "tick_rate": null,
-        "duration_seconds": null,
-        "teams": [],
-        "players": players.into_values().collect::<Vec<_>>(),
-        "rounds": [],
-        "highlights": [],
-        "insights": null,
-        "series_demo_count": series.len(),
-        "demos": demos,
-        "evidence_query_required": true,
     })
 }
 
@@ -1966,7 +1690,7 @@ mod tests {
             }),
         )];
 
-        let evidence = series_evidence_analysis(&series, None);
+        let evidence = series_evidence_analysis(&series);
         let result = vibe_cs_agent::query_demo_evidence(
             &evidence,
             &json!({"playerName":"NiKo","kinds":["one_tap"],"maximumHighlights":64}),
@@ -1982,27 +1706,5 @@ mod tests {
                     .as_str()
                     .is_some_and(|id| id.starts_with(&demo_id.to_string()))))
         );
-    }
-
-    #[test]
-    fn series_prompt_context_is_inventory_not_an_evidence_dump() {
-        let demo_id = Uuid::from_u128(7);
-        let series = vec![(
-            demo_id,
-            Value::Null,
-            json!({
-                "map_name":"de_anubis",
-                "tick_rate":64.0,
-                "duration_seconds":3000.0,
-                "players":[{"steam_id":"niko","name":"NiKo"}],
-                "highlights":[{"id":"h-1"},{"id":"h-2"}],
-            }),
-        )];
-
-        let inventory = summarize_series_inventory(&series);
-        assert_eq!(inventory["highlights"], json!([]));
-        assert_eq!(inventory["demos"][0]["demo_id"], json!(demo_id));
-        assert_eq!(inventory["demos"][0]["highlight_count"], 2);
-        assert_eq!(inventory["evidence_query_required"], true);
     }
 }

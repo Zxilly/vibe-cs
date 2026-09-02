@@ -256,8 +256,7 @@ export function useUpdateAgentWorkspaceSettings() {
 /**
  * 导出. A read-shaped action that is a mutation because it is expensive and
  * user-initiated (60s timeout on the route). It changes nothing, so it
- * invalidates nothing — see `tasks.ts`'s `planRecordingRetry` for the same
- * decision and the test that pins it.
+ * invalidates nothing.
  */
 export function useExportAgentSessions() {
   const client = useDesktopClient();
@@ -300,7 +299,6 @@ export interface AgentChatSend {
   readonly sessionId?: string | undefined;
   /** Failed/cancelled assistant entry this new turn retries. */
   readonly retryOf?: string | null | undefined;
-  readonly mode?: AgentChatInput['mode'];
   readonly projectId: string;
   readonly workspaceContext?: Partial<AgentChatInput['workspaceContext']>;
 }
@@ -649,7 +647,6 @@ function buildChatInput(
       lens: context.lens ?? 'quick',
       selectedClipId: context.selectedClipId ?? null,
     },
-    mode: input.mode ?? 'edit',
     message: input.message,
   };
 }

@@ -81,9 +81,8 @@ plan, montage, editor, or conversion pipeline.
 The Rig multi-turn tool loop has no fixed turn or wall-clock ceiling. Explicit
 cancellation and a 90-second no-progress watchdog bound liveness. Text,
 provider stream items, and tool lifecycle events all reset the watchdog;
-useful long tool sequences are therefore not capped. When it trips, completed
-tool checkpoints are preserved for retry. Provider keys never cross into the
-webview or tool output.
+useful long tool sequences are therefore not capped. Provider keys never cross
+into the webview or tool output.
 
 ## Context assembly
 
@@ -91,15 +90,13 @@ webview or tool output.
   persists the current user entry and streaming Assistant placeholder, then
   sends only `sessionId`, the current instruction and Workspace View State to
   the Desktop host. It never uploads a client-built model history.
-- Every completed tool call advances that Assistant entry from
-  `streaming -> streaming` before the model continues. Writes are serialized,
-  and a terminal completed/failed/cancelled update waits for the checkpoint
-  queue, so a late checkpoint cannot overwrite terminal state.
+- Tool lifecycle events remain in memory for the live Tool UI. The Assistant
+  entry is written once when the turn completes, fails or is cancelled; the
+  local Tauri stream is not treated as a reconnectable remote transport.
 - The Desktop host builds model history from completed durable entries before
   the active turn. Assistant prose is bounded conversational context; completed
-  tool calls and HITL decisions are compact host-owned evidence. Failed turns
-  retain completed tool checkpoints, while pending, streaming and cancelled
-  placeholders are excluded.
+  tool calls and HITL decisions are compact host-owned evidence. Pending and
+  streaming placeholders are excluded.
 - Every turn begins with a bounded Current Turn Checkpoint containing the exact
   Project revision and a lightweight clip inventory. Full placement, effects,
   keyframes and other editable fields are loaded just in time through targeted

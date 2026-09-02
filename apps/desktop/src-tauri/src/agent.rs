@@ -1389,37 +1389,33 @@ async fn run_agent_chat(
     };
     let mut pending_text = String::new();
     let response = vibe_cs_agent::run_agent(request, cancellation, |event| match event {
-            EmbeddedAgentStreamEvent::TextDelta(delta) => {
-                pending_text.push_str(&delta);
-                if pending_text.len() >= TEXT_DELTA_BATCH_BYTES {
-                    let _ = on_event.send(AgentEvent::TextDelta {
-                        delta: std::mem::take(&mut pending_text),
-                    });
-                }
-            }
-            EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
-                let _ = on_event.send(AgentEvent::ToolCallStarted {
-                    tool_call: AgentToolCallStarted { id, name, input },
+        EmbeddedAgentStreamEvent::TextDelta(delta) => {
+            pending_text.push_str(&delta);
+            if pending_text.len() >= TEXT_DELTA_BATCH_BYTES {
+                let _ = on_event.send(AgentEvent::TextDelta {
+                    delta: std::mem::take(&mut pending_text),
                 });
             }
-            EmbeddedAgentStreamEvent::ToolCallFinished(tool_call) => {
-                let _ = on_event.send(AgentEvent::ToolCallFinished {
-                    tool_call: domain_tool_call(tool_call),
-                });
-            }
-        })
+        }
+        EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
+            let _ = on_event.send(AgentEvent::ToolCallStarted {
+                tool_call: AgentToolCallStarted { id, name, input },
+            });
+        }
+        EmbeddedAgentStreamEvent::ToolCallFinished(tool_call) => {
+            let _ = on_event.send(AgentEvent::ToolCallFinished {
+                tool_call: domain_tool_call(tool_call),
+            });
+        }
+    })
     .await
     .map_err(|error| match error {
-            vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
-            vibe_cs_agent::AgentError::Cancelled => {
-                AgentCommandError::unavailable(error.to_string())
-            }
-            vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
-            vibe_cs_agent::AgentError::Stalled { timeout_seconds } => {
-                AgentCommandError::unavailable(format!(
-                    "Agent 在 {timeout_seconds} 秒内没有产生新进展；已保留完成的工具 checkpoint。重试将从第一个未完成步骤继续。"
-                ))
-            }
+        vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
+        vibe_cs_agent::AgentError::Cancelled => AgentCommandError::unavailable(error.to_string()),
+        vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
+        vibe_cs_agent::AgentError::Stalled { timeout_seconds } => AgentCommandError::unavailable(
+            format!("Agent 在 {timeout_seconds} 秒内没有产生新进展。"),
+        ),
     });
     let response = match response {
         Ok(response) => response,

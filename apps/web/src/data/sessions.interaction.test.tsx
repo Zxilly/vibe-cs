@@ -207,7 +207,7 @@ describe('useAgentChatStream', () => {
     await act(async () => send);
   });
 
-  it('persists a completed tool checkpoint while the model is still running', async () => {
+  it('keeps tool progress local until the Agent turn finishes', async () => {
     const finishStream = deferred<void>();
     const updates: AgentTurnUpdate[] = [];
     const toolCall: AgentToolCall = {
@@ -258,12 +258,9 @@ describe('useAgentChatStream', () => {
       send = result.current.send({ message: '读取作品', projectId: PROJECT_ID });
     });
 
-    await waitFor(() => expect(updates).toContainEqual(expect.objectContaining({
-      expected_status: 'streaming',
-      status: 'streaming',
-      tool_calls: [toolCall],
-    })));
+    await waitFor(() => expect(result.current.activity).toContainEqual(toolCall));
     expect(result.current.streaming).toBe(true);
+    expect(updates).toEqual([]);
 
     finishStream.resolve();
     await act(async () => send);

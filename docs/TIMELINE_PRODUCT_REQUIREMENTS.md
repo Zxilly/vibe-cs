@@ -300,7 +300,7 @@ Adobe Marker 基准参考 [Markers overview](https://helpx.adobe.com/premiere/de
 | TL-HIST-05 | Change Review | Agent 新增/删除/替换和波纹在真实时间位置呈现；可选中和撤销 Change Group | ✅ | P0 |
 | TL-HIST-06 | Edit Lease | Agent 操作期间人类只读；播放和检查继续；结束后恢复 | ✅ | P0 |
 | TL-HIST-07 | Revision delivery | Recording/Export/HITL 绑定 base revision；过期输出明确标识 | ✅ | P0 |
-| TL-HIST-08 | Crash recovery | 已完成的工具 checkpoint、Project Patch 和工作区布局可恢复 | ✅ | P1 |
+| TL-HIST-08 | Crash recovery | 已提交的 Project Patch 和工作区布局可恢复；进行中的本地 Agent 流不跨进程恢复 | ✅ | P1 |
 
 ## 8. Premiere 快捷键基线
 

@@ -187,9 +187,7 @@ pub enum AgentError {
     Cancelled,
     #[error("model provider request failed: {0}")]
     Provider(String),
-    #[error(
-        "agent made no progress for {timeout_seconds} seconds; completed tool checkpoints were preserved"
-    )]
+    #[error("agent made no progress for {timeout_seconds} seconds")]
     Stalled { timeout_seconds: u64 },
 }
 
@@ -322,7 +320,6 @@ where
         .collect::<Vec<_>>();
     let mut content = String::new();
     let mut usage = None;
-    let mut emitted_tool_cursor = 0_usize;
     for attempt in 0..2 {
         let stream = agent
             .stream_prompt(prompt)
@@ -333,7 +330,6 @@ where
             .max_turns(usize::MAX);
         let mut stream = tokio::select! {
             () = cancellation.cancelled() => {
-                emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                 return Err(AgentError::Cancelled);
             },
             result = tokio::time::timeout(inactivity_timeout, stream) => result.map_err(|_| {
@@ -343,44 +339,30 @@ where
         loop {
             let item = tokio::select! {
                 () = cancellation.cancelled() => {
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Cancelled);
                 },
                 () = tokio::time::sleep(inactivity_timeout) => {
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Stalled {
                         timeout_seconds: inactivity_timeout.as_secs(),
                     });
                 },
                 tool_event = tool_events.recv() => {
                     if let Some(tool_event) = tool_event {
-                        match tool_event {
-                            tools::ToolLifecycleEvent::Started { id, name, input } => {
-                                emit(AgentStreamEvent::ToolCallStarted { id, name, input });
-                            }
-                            tools::ToolLifecycleEvent::Finished => {
-                                emit_new_tool_checkpoints(
-                                    &state,
-                                    &mut emitted_tool_cursor,
-                                    &mut emit,
-                                )
-                                .await;
-                            }
-                        }
+                        emit_tool_lifecycle(tool_event, &mut emit);
                     }
                     continue;
                 },
                 item = stream.next() => item,
             };
-            let Some(item) = item else { break };
+            let Some(item) = item else {
+                while let Ok(tool_event) = tool_events.try_recv() {
+                    emit_tool_lifecycle(tool_event, &mut emit);
+                }
+                break;
+            };
             let item = match item {
                 Ok(item) => item,
                 Err(error) => {
-                    // A multi-turn run can fail after several successful
-                    // evidence reads. Emit those completed calls before returning
-                    // the terminal error so the durable turn retains what really
-                    // happened and a retry is reviewable rather than opaque.
-                    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
                     return Err(AgentError::Provider(safe_error(
                         &error.to_string(),
                         &provider_secret,
@@ -400,13 +382,8 @@ where
                 }
                 _ => {}
             }
-            // Rig can spend a long time reasoning between tool turns. Checkpoint
-            // every completed structured call as soon as the stream yields again,
-            // so a later provider failure or host deadline does not erase it.
-            emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
         }
         let tool_calls = state.snapshot().await;
-        emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
 
         if content.trim().is_empty() && attempt == 0 && !tool_calls.is_empty() {
             prompt = continuation_prompt(&original_message, &tool_calls);
@@ -417,7 +394,6 @@ where
         break;
     }
     let tool_calls = state.snapshot().await;
-    emit_new_tool_checkpoints(&state, &mut emitted_tool_cursor, &mut emit).await;
     let content = content.trim().to_owned();
     if content.is_empty() {
         return Err(AgentError::Provider(
@@ -431,15 +407,17 @@ where
     })
 }
 
-async fn emit_new_tool_checkpoints<F>(
-    state: &tools::ToolState,
-    emitted_tool_cursor: &mut usize,
-    emit: &mut F,
-) where
+fn emit_tool_lifecycle<F>(event: tools::ToolLifecycleEvent, emit: &mut F)
+where
     F: FnMut(AgentStreamEvent),
 {
-    for tool_call in state.snapshot_since(emitted_tool_cursor).await {
-        emit(AgentStreamEvent::ToolCallFinished(tool_call));
+    match event {
+        tools::ToolLifecycleEvent::Started { id, name, input } => {
+            emit(AgentStreamEvent::ToolCallStarted { id, name, input });
+        }
+        tools::ToolLifecycleEvent::Finished(tool_call) => {
+            emit(AgentStreamEvent::ToolCallFinished(tool_call));
+        }
     }
 }
 
@@ -1052,7 +1030,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn inactivity_watchdog_preserves_completed_tool_checkpoints() {
+    async fn inactivity_watchdog_reports_completed_tool_results() {
         let listener = TcpListener::bind(("127.0.0.1", 0))
             .await
             .expect("bind provider");
@@ -1090,7 +1068,7 @@ mod tests {
         let mut events = Vec::new();
         let result = run_agent_with_model_and_inactivity_timeout(
             AgentRequest {
-                request_id: "watchdog-checkpoint".into(),
+                request_id: "watchdog-tool-result".into(),
                 mode: AgentMode::Guide,
                 message: "Read the workspace, then finish.".into(),
                 history: Vec::new(),
@@ -1131,7 +1109,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn empty_provider_subturn_continues_once_from_tool_checkpoints() {
+    async fn empty_provider_subturn_continues_once_from_tool_results() {
         let listener = TcpListener::bind(("127.0.0.1", 0))
             .await
             .expect("bind provider");

@@ -103,6 +103,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   high-level atomic `replace_story_timeline` operation and produce one Change Group. Recording and
   export remain External Execution: their tools only create inline HITL requests, and the human
   confirmation path—not the model—starts the durable job.
+- Demo Library opens an analysed Demo directly in Replay selection. A human marks source In and
+  Out around the chosen player, then creates one Planned Timeline Clip through the same
+  `ProjectPatch` path used by every other manual edit. The selected tick rate determines the real
+  Timeline duration; no second clip library or pre-timeline plan is persisted.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and

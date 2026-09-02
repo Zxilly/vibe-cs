@@ -70,6 +70,11 @@ plan, montage, editor, or conversion pipeline.
   canonicalizes series-scoped highlight IDs before persistence and rejects a
   non-POV camera unless the effective in-round capture range contains at least
   four target-player samples from the same replay contract used by recording.
+  Every canonical Timeline Clip keeps its semantic camera intent and map-space
+  rationale in metadata, while its Capture Intent keeps one of the seven
+  executable HLAE camera styles plus optional per-shot HUD, radar, flash, voice
+  and POV field-of-view treatment.
+  Intent/style pairs are closed and validated at the Agent tool boundary.
   Compatible recorded Takes are consumed once by Capture Intent fingerprint;
   their clip identity and editor-only properties survive reordering, and any
   real-media duration shrink ripples through the replanned Story.

@@ -184,7 +184,7 @@ export function AiAgentSection() {
             },
           }}
         >
-          <Plural value={removed} other="已删除 # 条会话，方案、任务和视频都还在" />
+          <Plural value={removed} other="已删除 # 条对话，剪辑单、后台任务和成片都还在" />
         </Alert>
       )}
 
@@ -227,7 +227,7 @@ export function AiAgentSection() {
             variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void settings.refetch() }}
           >
-            <Trans>读不到 Agent 的会话设置：{settingsError}</Trans>
+            <Trans>读不到 Agent 的对话设置：{settingsError}</Trans>
           </Alert>
         ) : current === undefined ? (
           <div aria-busy="true" className="flex flex-col gap-2.5">
@@ -319,7 +319,7 @@ export function AiAgentSection() {
               </p>
               <p className="text-xs text-neutral-600">
                 <Trans>
-                  Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。
+                  Agent 创建片段时默认使用这个视角。每个片段仍可单独调整。
                 </Trans>
               </p>
               <Seg
@@ -360,7 +360,7 @@ export function AiAgentSection() {
                 onChange={(tone) => void write({ ...current, commentary_tone: tone })}
               />
               <p className="text-xs leading-normal text-neutral-600">
-                <Trans>Agent 写点评与镜头意图时的措辞。</Trans>
+                <Trans>Agent 撰写点评和片段说明时使用的语气。</Trans>
               </p>
             </div>
           </>
@@ -379,7 +379,7 @@ export function AiAgentSection() {
         onConfirm={() => void runRetention()}
       >
         <Trans>
-          超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。
+          超出保留范围的对话会被删除。剪辑单、录制任务和成片不受影响。
         </Trans>
       </Dialog>
 
@@ -395,7 +395,7 @@ export function AiAgentSection() {
         onConfirm={() => void runClear()}
       >
         <Trans>
-          清空会删除全部对话记录。方案、录制任务与视频继续保留，存储占用保持不变。
+          清空会删除全部对话记录。剪辑单、录制任务和成片继续保留。
         </Trans>
       </Dialog>
     </div>
@@ -484,7 +484,7 @@ function ModelBlock({
     || parameterJsonError !== null;
   const actionDisabled = disabled || invalid;
   const actionDisabledReason = parameterJsonError
-    ?? (!parametersAreObject ? t`Provider 参数必须是 JSON object` : null)
+    ?? (!parametersAreObject ? t`请求参数必须是 JSON 对象` : null)
     ?? (invalid ? t`请补齐提供方、模型、API 地址和密钥` : disabledReason);
   const actionProps = actionDisabled
     ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
@@ -577,7 +577,7 @@ function ModelBlock({
                 setParameterJsonError(null);
                 onChange({ ...draft, parameters: object ?? {} });
               } catch {
-                setParameterJsonError(t`必须是有效的 JSON object`);
+                setParameterJsonError(t`请输入有效的 JSON 对象`);
               }
             }}
           />
@@ -631,7 +631,7 @@ function providerParameterObject(value: JsonValue | undefined): ProviderParamete
 }
 
 function validateProviderParameterObject(parameters: ProviderParameterObject | null): string | null {
-  if (parameters === null) return t`请输入 JSON object（键值对象）`;
+  if (parameters === null) return t`请输入 JSON 对象（键值对象）`;
   const reserved = Object.keys(parameters).find((key) =>
     RUNTIME_PROVIDER_PARAMETER_KEYS.has(key.toLowerCase()));
   if (reserved !== undefined) return t`${reserved} 由 Agent 运行时统一生成`;
@@ -689,7 +689,7 @@ function ProviderParametersEditor({
     <details className="group border border-divider" data-provider-parameters="">
       <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none items-center gap-3 px-4 py-2.5">
         <span className="font-heading text-sm"><Trans>请求参数</Trans></span>
-        <span className="text-xs text-neutral-600"><Trans>使用 Provider 默认值</Trans></span>
+        <span className="text-xs text-neutral-600"><Trans>使用提供方默认值</Trans></span>
         <span className="text-xs text-neutral-600" data-custom-parameter-count={customCount}>
           <Trans>{customCount} 项自定义</Trans>
         </span>
@@ -709,7 +709,7 @@ function ProviderParametersEditor({
               name="llm-parameter-style"
               size="sm"
               value={style}
-              aria-label={t`Provider 参数风格`}
+              aria-label={t`请求参数格式`}
               options={[
                 { value: 'openai' as const, label: 'OpenAI', disabled },
                 { value: 'anthropic' as const, label: 'Anthropic', disabled },
@@ -722,7 +722,7 @@ function ProviderParametersEditor({
             disabled={disabled || customCount === 0}
             onClick={() => onParametersChange({})}
           >
-            <Trans>恢复 Provider 默认值</Trans>
+            <Trans>恢复提供方默认值</Trans>
           </Button>
         </div>
 
@@ -747,10 +747,10 @@ function ProviderParametersEditor({
           />
         </div>
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>Temperature 与 Top P 都是可选采样项，通常选择其中一项调整。</Trans>
+          <Trans>Temperature 和 Top P 通常只需设置一个。</Trans>
         </p>
 
-        <Field label={<Trans>Stop sequences</Trans>} hint={<Trans>每行一项；填写后随请求发送。</Trans>}>
+        <Field label={<Trans>停止序列</Trans>} hint={<Trans>每行一项，填写后会随请求发送。</Trans>}>
           {(control) => (
             <Textarea {...control} rows={2} value={stopValue} disabled={disabled}
               onChange={(event) => {
@@ -762,7 +762,7 @@ function ProviderParametersEditor({
 
         <Field
           label={<Trans>完整参数 JSON</Trans>}
-          hint={<Trans>API key 与私密 header 由上方连接配置统一保管。</Trans>}
+          hint={<Trans>API 密钥和私密请求头由上方的连接配置保管。</Trans>}
         >
           {(control) => (
             <Textarea {...control} rows={7} className="font-mono text-xs"
@@ -801,7 +801,7 @@ function OptionalNumberParameter({
     <Field label={label}>
       {(control) => (
         <Input {...control} type="number" value={value ?? ''} min={min} max={max} step={step}
-          disabled={disabled} placeholder={t`Provider 默认`}
+          disabled={disabled} placeholder={t`提供方默认值`}
           onChange={(event) => {
             const raw = event.target.value;
             if (raw === '') onChange(undefined);
@@ -843,7 +843,7 @@ function RetentionRow({
       </p>
       <Seg
         name="agent-session-retention"
-        aria-label={t`会话保留多久`}
+        aria-label={t`对话保留多久`}
         value={retentionOptionId(current.session_retention)}
         options={choices.map((choice) => ({
           value: retentionOptionId(choice),
@@ -863,14 +863,14 @@ function RetentionRow({
         </p>
       )}
       <p className="text-xs leading-normal text-neutral-600">
-        <Trans>决定会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。</Trans>
+        <Trans>决定对话列表保留多久。成片和后台任务不会删除。</Trans>
       </p>
       <div className="flex items-center gap-2.5">
         {/* The sweep has no scheduler on the wire — see this file's header for
             why the frontend does not invent one. This button is its one
             trigger, and it is a confirmation away from deleting. */}
         <p className="min-w-0 flex-1 text-xs leading-normal text-neutral-600">
-          <Trans>改了策略不会立刻清理。要现在生效，用右边这个按钮。</Trans>
+          <Trans>新策略不会立即清理旧对话。要现在清理，点「立即应用」。</Trans>
         </p>
         <Button size="sm" data-setting-action="apply-retention" onClick={onApplyNow} {...applyProps}>
           <Trans>立即应用</Trans>
@@ -973,7 +973,7 @@ function VideoLengthRow({ value, disabled, onCommit }: VideoLengthRowProps) {
       />
       <p className="text-xs leading-normal text-neutral-600">
         <Trans>
-          Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。
+          Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。
         </Trans>
       </p>
       {known ? null : (
@@ -1028,7 +1028,7 @@ function StorageRow({
     <div className="flex flex-col gap-2.5 border-t border-divider pt-3">
       {error !== null ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
-          <Trans>读不到会话占用：{error}</Trans>
+          <Trans>读不到对话占用：{error}</Trans>
         </Alert>
       ) : null}
 
@@ -1040,7 +1040,7 @@ function StorageRow({
 
       {exportResult === null ? null : (
         <p data-export-result="" className="text-xs leading-normal text-neutral-700">
-          <Plural value={exportResult.count} other="已导出 # 条会话" />
+          <Plural value={exportResult.count} other="已导出 # 条对话" />
           {' · '}
           <time dateTime={exportResult.at}>{exportResult.at}</time>
         </p>
@@ -1058,7 +1058,7 @@ function StorageRow({
                 {conversation === null ? null : <Trans>当前占用 {conversation}</Trans>}
                 {conversation !== null && sessionCount !== null ? ' · ' : null}
                 {sessionCount === null ? null : (
-                  <Plural value={sessionCount} other="# 条会话" />
+                  <Plural value={sessionCount} other="# 条对话" />
                 )}
               </p>
               <p className="mt-1 text-xs text-neutral-600">

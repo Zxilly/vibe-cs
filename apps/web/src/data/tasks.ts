@@ -330,7 +330,7 @@ export function useRetryTask() {
   return useMutation({
     mutationFn: async ({ kind, contextId }: TaskLocator): Promise<void> => {
       if (contextId === undefined || contextId === '') {
-        throw new Error('这条任务记录没有可重试的来源对象。');
+        throw new Error('这条后台任务没有可重试的来源。');
       }
       if (kind === 'analysis') {
         await client.startAnalysisRun(contextId);

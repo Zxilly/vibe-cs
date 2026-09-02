@@ -150,7 +150,7 @@ export function GameSection() {
             <PathReadout path={current.cs2_path} empty={<Trans>还没有设置</Trans>} />
 
             <SettingsRow
-              label={<Trans>录制输出目录</Trans>}
+              label={<Trans>录制文件目录</Trans>}
               /* Not a field of its own — see the module comment. */
               hint={
                 <Trans>

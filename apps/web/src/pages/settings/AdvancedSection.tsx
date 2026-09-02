@@ -82,7 +82,7 @@ export function AdvancedSection() {
               </span>
             </SettingsRow>
             <SettingsRow
-              label={<Trans>当前会话</Trans>}
+              label={<Trans>当前运行编号</Trans>}
               hint={
                 <Trans>
                   录制与回放是互斥的，这个编号说明为什么某个动作现在不可用。
@@ -309,7 +309,7 @@ function HlaeMessage({ message }: { readonly message: string }) {
   if (message !== MANAGED_HLAE_BOUNDARY_MESSAGE) return <>{message}</>;
   return (
     <Trans>
-      录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；方案导出不会启动游戏进程。
+      录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；导出剪辑单不会启动游戏进程。
     </Trans>
   );
 }

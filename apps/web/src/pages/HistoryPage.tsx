@@ -278,8 +278,8 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               title={<Trans>还没有可显示的对局</Trans>}
               description={
                 <Trans>
-                  同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放，
-                  过期的对局会留在列表里但不再可下载。
+                  同步后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放；
+                  过期对局仍会显示，但不能再下载。
                 </Trans>
               }
               actions={

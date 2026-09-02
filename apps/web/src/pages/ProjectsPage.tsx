@@ -57,7 +57,7 @@ export function ProjectsPage() {
         ) : rows.length === 0 ? (
           <Empty
             title={<Trans>还没有作品</Trans>}
-            description={<Trans>新建后，人类与 Agent 会在同一条多轨时间线上编辑。</Trans>}
+            description={<Trans>新建后，你和 Agent 会在同一条多轨时间线上编辑。</Trans>}
             actions={newProject}
           />
         ) : (
@@ -74,10 +74,10 @@ function ProjectTable({ rows }: { readonly rows: readonly Project[] }) {
       <table className="w-full min-w-[var(--w-overlay)] border-collapse text-left">
         <thead className="bg-surface-chrome">
           <tr className="h-[var(--h-thead)] border-b border-divider text-2xs tracking-wide text-neutral-600">
-            <th scope="col" className="px-4 font-normal"><Trans>作品</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>作品名称</Trans></th>
             <th scope="col" className="px-4 font-normal"><Trans>轨道</Trans></th>
             <th scope="col" className="px-4 font-normal"><Trans>片段</Trans></th>
-            <th scope="col" className="px-4 font-normal"><Trans>修订</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>版本</Trans></th>
             <th scope="col" className="px-4 font-normal"><Trans>最近修改</Trans></th>
           </tr>
         </thead>

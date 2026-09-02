@@ -68,7 +68,7 @@ export function EvidenceEmpty({
         title={<Trans>还没有可检索的证据</Trans>}
         description={
           <Trans>
-            证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。
+            已分析 {totalAnalyses} 场，但证据索引还没准备好，所以暂时没有结果。
           </Trans>
         }
         actions={
@@ -87,7 +87,7 @@ export function EvidenceEmpty({
         title={<Trans>证据还在整理中</Trans>}
         description={
           <Trans>
-            已索引 {indexedDemos} / {totalAnalyses} 场，共 {indexedItems} 条证据。你要找的这条可能还没进来，等一会儿再试一次。
+            已索引 {indexedDemos} / {totalAnalyses} 场，共 {indexedItems} 条证据。这条证据可能还没入库，请稍后重试。
           </Trans>
         }
         actions={

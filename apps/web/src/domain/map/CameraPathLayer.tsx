@@ -109,7 +109,7 @@ export function CameraPathLayer({
 
   const drawable = paths.filter((path) => path.keyframes.length > 0);
   if (drawable.length === 0) {
-    return <LayerEmpty layer="camera" label={t`镜头路径：这条计划还没有关键点`} />;
+    return <LayerEmpty layer="camera" label={t`镜头路径：还没有关键点`} />;
   }
 
   /*

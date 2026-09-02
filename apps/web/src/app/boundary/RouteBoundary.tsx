@@ -122,7 +122,7 @@ export function RouteErrorState({
           <Trans>这个页面没能打开</Trans>
         </h3>
         <p className="max-w-[46ch] text-sm leading-normal text-neutral-800">
-          <Trans>其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。</Trans>
+          <Trans>其他页面仍可使用。返回工作台，或导出这次错误的诊断信息。</Trans>
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-2.5 border-t border-divider pt-3">
           {onRetry === undefined ? null : (

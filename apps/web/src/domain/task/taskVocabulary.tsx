@@ -26,7 +26,7 @@ export function taskKindLabels(): Readonly<Record<TaskKind, ReactNode>> {
   return {
     analysis: <Trans>分析</Trans>,
     recording: <Trans>录制</Trans>,
-    montage: <Trans>合辑</Trans>,
+    montage: <Trans>剪辑</Trans>,
     export: <Trans>导出</Trans>,
     download: <Trans>下载</Trans>,
   };

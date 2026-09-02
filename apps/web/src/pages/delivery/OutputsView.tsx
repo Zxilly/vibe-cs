@@ -83,7 +83,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
 
   const items = outputs.data?.items ?? [];
   const errorMessage = outputs.isError
-    ? dataErrorMessage(outputs.error) ?? t`读取输出列表失败。`
+    ? dataErrorMessage(outputs.error) ?? t`读取成片列表失败。`
     : undefined;
 
   const onReveal = (output: OutputItem): void => {

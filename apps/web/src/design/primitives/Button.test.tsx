@@ -88,7 +88,7 @@ describe('Button markup', () => {
     expect(html).toMatch(/<span tabindex="0"[^>]*class="inline-flex"/u);
     expect(html).toMatch(/aria-describedby="([^"]+)"/u);
     expect(html).toContain('sr-only');
-    expect(html).toContain('此动作当前不可用：本地服务离线');
+    expect(html).toContain('暂时不能执行：本地服务离线');
 
     const describedBy = /aria-describedby="([^"]+)"/u.exec(html)?.[1];
     expect(describedBy).toBeDefined();

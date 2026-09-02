@@ -145,7 +145,7 @@ const PRESET_CONTENT: Record<EmptyPreset, PresetContent> = {
     description: <Trans>放宽时间范围通常最有效。</Trans>,
   },
   'no-outputs': {
-    title: <Trans>还没有输出</Trans>,
+    title: <Trans>还没有成片</Trans>,
     description: <Trans>完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。</Trans>,
   },
   error: {

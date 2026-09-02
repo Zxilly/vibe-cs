@@ -360,7 +360,7 @@ export function ProjectWorkspacePage() {
     if (next === undefined) return;
     reportedExecutionIds.current.add(next.id);
     const outcome = next.status === 'completed'
-      ? t`${next.kind === 'recording' ? '录制' : '导出'}任务已完成。请读取最新 Project Head，并调用 read_project_delivery 检查权威交付状态后继续当前交付。`
+      ? t`${next.kind === 'recording' ? '录制' : '导出'}任务已完成。请重新读取作品和交付状态，然后继续。`
       : t`${next.kind === 'recording' ? '录制' : '导出'}任务${next.status === 'cancelled' ? '已取消' : '失败'}：${next.error ?? '未提供错误详情'}。请说明影响和下一步。`;
     void agentChat.send({
       sessionId: agentSessionId,
@@ -556,7 +556,7 @@ export function ProjectWorkspacePage() {
         <div className="p-7">
           <Empty
             title={<Trans>找不到这份作品</Trans>}
-            description={<Trans>统一 Project Head 不存在。</Trans>}
+            description={<Trans>找不到作品的当前版本。</Trans>}
             actions={<RouteLink to="/projects"><Trans>返回作品列表</Trans></RouteLink>}
           />
         </div>
@@ -1345,13 +1345,13 @@ export function ProjectWorkspacePage() {
       onAcceptDelivery={(groupId) => appendToolDecision(
         deliveryDecisionToolCallId(groupId),
         'approved',
-        t`已接受这组 Agent 变更。`,
+        t`已接受这组 Agent 修改。`,
       )}
       onReturnDelivery={async (groupId, feedback) => {
         await appendToolDecision(
           deliveryDecisionToolCallId(groupId),
           'rejected',
-          t`已退回这组 Agent 变更。修改意见：${feedback}`,
+          t`已退回这组 Agent 修改。修改意见：${feedback}`,
         );
         await sendToAgent(t`退回修改意见：${feedback}`);
       }}
@@ -1359,7 +1359,7 @@ export function ProjectWorkspacePage() {
         void appendToolDecision(
           deliveryDecisionToolCallId(groupId),
           'rejected',
-          t`人类已接管并直接修改这组 Agent 变更。`,
+          t`我已接管这组 Agent 修改，改为手动编辑。`,
         );
         const clipId = selectedClipId ?? allClips[0]?.id ?? null;
         setSelectedClipIds(clipId === null ? [] : [clipId]);
@@ -1405,13 +1405,13 @@ export function ProjectWorkspacePage() {
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
           <h1 className="min-w-0 truncate text-sm font-semibold">{current.name}</h1>
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
-          <span className="whitespace-nowrap text-sm font-semibold"><Trans>变更 #{current.revision}</Trans></span>
+          <span className="whitespace-nowrap text-sm font-semibold"><Trans>版本 #{current.revision}</Trans></span>
           {pendingAgentReviewGroup === null ? null : (
             <>
               <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
                 <Trans>Agent 修改待审阅</Trans>
               </span>
-              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {pendingAgentReviewGroup.operations.length} 处变更</Trans></span>
+              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {pendingAgentReviewGroup.operations.length} 处修改</Trans></span>
             </>
           )}
           {deliveryGatePending ? (
@@ -1489,7 +1489,7 @@ export function ProjectWorkspacePage() {
           project: t`项目素材`,
           program: t`视频预览`,
           tactical: t`战术示意`,
-          timeline: t`时间轴（变更审阅）`,
+          timeline: t`时间轴（修改审阅）`,
           agent: t`Agent`,
           mixer: t`音轨混音器`,
         }}
@@ -1548,7 +1548,7 @@ export function ProjectWorkspacePage() {
         }}
         onClose={() => setExternalConfirm(null)}
       >
-        <p><Trans>将启动 CS2/HLAE，录制 {externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0} 个尚未物化的时间线片段。</Trans></p>
+        <p><Trans>将启动 CS2 和采集组件，录制 {externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0} 个还没有素材的片段。</Trans></p>
       </Dialog>
       <Dialog
         open={externalConfirm?.kind === 'export'}
@@ -1633,7 +1633,7 @@ export function ProjectWorkspacePage() {
                 </option>
               </select>
             </label>
-            <p className="text-2xs leading-4 text-neutral-500"><Trans>输出将作为受管 MP4 成品写入交付区；任务开始后可在 Agent 流中取消或打开输出。</Trans></p>
+            <p className="text-2xs leading-4 text-neutral-500"><Trans>成片会以 MP4 写入「成品文件」。任务开始后，可在 Agent 对话中取消或查看成片。</Trans></p>
           </div>
         )}
       </Dialog>
@@ -1671,7 +1671,7 @@ export function ProjectWorkspacePage() {
         <Alert
           className="m-4"
           variant="danger"
-          detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
+          detail={mutationErrorDetail ?? <Trans>检查作品版本、录制环境和交付状态后重试。</Trans>}
           action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); createNestedSequence.reset(); refreshNestedSequence.reset(); createMulticam.reset(); switchMulticamAngle.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
         >
           <Trans>操作没有完成</Trans>
@@ -2811,14 +2811,14 @@ const AgentPanel = memo(function AgentPanel({
             {session === null || entries.length === 0 ? (
               <ConversationShell actor="Agent" tone="agent">
                 <Sparkles className="mb-2 size-5 text-accent-text" aria-hidden="true" />
-                <p className="text-xs leading-5 text-neutral-600"><Trans>让我分析当前 Demo，并直接在左侧时间轴上准备一份可审阅的修改。</Trans></p>
+                <p className="text-xs leading-5 text-neutral-600"><Trans>告诉我你想怎么剪。我会直接修改左侧时间线，所有改动都能撤销。</Trans></p>
               </ConversationShell>
             ) : null}
             {!agentStatusPending && !agentReady ? (
               <ConversationShell actor={t`系统`} tone="error">
                 <div className="flex items-center gap-2 text-xs font-medium text-fail-text">
                   <CircleAlert className="size-4" aria-hidden="true" />
-                  <Trans>Agent 尚未配置模型</Trans>
+                  <Trans>还没配置 Agent 模型</Trans>
                 </div>
                 <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>配置提供方、模型、API 地址和密钥后即可在这里继续。</Trans></p>
                 <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
@@ -2864,7 +2864,7 @@ const AgentPanel = memo(function AgentPanel({
                     ? <Trans>已完成，Agent 将自动读取结果并继续。</Trans>
                     : execution.status === 'failed'
                       ? execution.error
-                      : <Trans>任务由本地执行器处理，完成后会回到同一对话流。</Trans>}
+                      : <Trans>任务正在本机执行，完成后会回到这段对话。</Trans>}
                 </p>
                 <div className="mt-2 flex gap-2">
                   {execution.job_id === null || !execution.available_actions.includes('cancel') ? null : (
@@ -2888,14 +2888,14 @@ const AgentPanel = memo(function AgentPanel({
               <ConversationShell actor="Agent" tone="status">
                 <div className="flex items-center gap-2 text-xs font-medium text-accent-text">
                   <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  <Trans>Agent 操作中 · 人类只读</Trans>
+                  <Trans>Agent 正在编辑 · 你暂时只能查看</Trans>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>你可以检查预览和时间轴；Agent 释放编辑权后才能直接修改。</Trans></p>
+                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>你仍可查看预览和时间轴。Agent 完成后即可继续编辑。</Trans></p>
               </ConversationShell>
             ) : null}
             {hasDelivery ? (
               <ConversationShell actor="Agent" tone="delivery">
-                <p className="text-xs font-medium"><Trans>所有变更已完成，输出已准备好交付。</Trans></p>
+                <p className="text-xs font-medium"><Trans>所有修改都已完成，成片可以交付了。</Trans></p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <Button size="sm" variant="primary" disabled={confirming} onClick={() => {
                     setReturningChangeGroupId(null);
@@ -2924,7 +2924,7 @@ const AgentPanel = memo(function AgentPanel({
             <Button className="ml-auto" size="sm" variant="ghost" onClick={() => {
               setReturningChangeGroupId(null);
               setMessage('');
-            }}><Trans>取消退回</Trans></Button>
+            }}><Trans>取消</Trans></Button>
           </div>
         )}
         <div className="flex gap-2">
@@ -2944,7 +2944,7 @@ const AgentPanel = memo(function AgentPanel({
           {chat.streaming ? (
             <Button variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
           ) : (
-            <Button aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送退回意见`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
+            <Button aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送修改意见`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
           )}
         </div>
       </footer>
@@ -3009,7 +3009,7 @@ function ConversationEntry({
     return (
       <ConversationShell actor={t`你 · 交付审阅`} at={entry.at} tone="human">
         <p className="text-xs font-medium">
-          {entry.decision === 'approved' ? <Trans>已接受 Agent 变更</Trans> : <Trans>已要求 Agent 继续修改</Trans>}
+          {entry.decision === 'approved' ? <Trans>已接受 Agent 修改</Trans> : <Trans>已要求 Agent 继续修改</Trans>}
         </p>
         <p className="mt-1 text-2xs leading-4 text-neutral-600">{entry.content}</p>
         <span className="mt-1 block font-mono text-2xs text-neutral-400">{changeGroupId}</span>
@@ -3149,7 +3149,7 @@ function ToolCallCard({
       </div>
       <p className="mt-1 text-2xs leading-4 text-neutral-600">{decision?.content ?? toolSummary(call)}</p>
       <details className="mt-2">
-        <summary className="cursor-pointer select-none text-2xs text-neutral-500"><Trans>查看工具输入与输出</Trans></summary>
+        <summary className="cursor-pointer select-none text-2xs text-neutral-500"><Trans>查看工具详情</Trans></summary>
         <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap border border-divider bg-bg p-2 font-mono text-2xs">{JSON.stringify({ input: call.input, output: call.output, decision }, null, 2)}</pre>
       </details>
       {!awaitingDecision || !confirmationActive ? null : (
@@ -3157,13 +3157,13 @@ function ToolCallCard({
           <p className="font-medium"><Trans>需要你的确认</Trans></p>
           <p className="mt-1 text-neutral-600">
             {confirmation.action === 'recording'
-              ? <Trans>Agent 已准备好缺失片段的录制请求；确认后才会启动 CS2/HLAE。</Trans>
-              : <Trans>Agent 已准备好最终导出请求；确认后才会写出 MP4。</Trans>}
+              ? <Trans>缺失片段已排好录制任务。确认后才会启动 CS2 和采集组件。</Trans>
+              : <Trans>成片已准备好导出。确认后才会写出 MP4 文件。</Trans>}
           </p>
           {!exportBlocked ? null : (
             <p className="mt-2 border border-warn-border bg-bg px-2 py-1.5 text-2xs text-warn-text">
               {deliveryGatePending
-                ? <Trans>正在检查当前 Project revision 的交付状态。</Trans>
+                ? <Trans>正在检查当前作品能否交付。</Trans>
                 : <Trans>时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。</Trans>}
             </p>
           )}
@@ -3252,35 +3252,35 @@ function toolLabel(call: AgentToolCall | AgentToolActivity): string {
 
 function toolSummary(call: AgentToolCall | AgentToolActivity): string {
   const confirmation = confirmationOf(call);
-  if (confirmation?.action === 'recording') return t`录制不会自动开始，正在等待人类决定。`;
-  if (confirmation?.action === 'export') return t`导出不会自动开始，正在等待人类决定。`;
+  if (confirmation?.action === 'recording') return t`还没有开始录制，等你确认。`;
+  if (confirmation?.action === 'export') return t`还没有开始导出，等你确认。`;
   if (call.status === 'failed') {
     const error = jsonObject(call.output)?.error;
     return typeof error === 'string' && error.trim() !== ''
       ? error.trim().slice(0, 500)
-      : t`工具调用失败，没有修改 Project。`;
+      : t`工具执行失败，作品没有改动。`;
   }
   if (call.status === 'running') {
     switch (call.name) {
       case 'read_workspace': return jsonObject(call.input)?.detail === 'timeline'
         ? t`正在按目标身份读取可编辑时间线字段…`
-        : t`正在读取当前 Project revision 与素材概况…`;
+        : t`正在读取作品版本和素材概况…`;
       case 'read_demo_evidence': return t`正在读取经过验证的 Demo 事件…`;
       case 'read_cinematic_context': return t`正在读取镜头路径与战术上下文…`;
       case 'apply_project_patch': return t`正在校验并提交增量修改…`;
-      case 'replace_story_timeline': return t`正在校验整条 Story Track…`;
-      default: return t`正在执行结构化工具调用…`;
+      case 'replace_story_timeline': return t`正在检查整条 Story 轨道…`;
+      default: return t`正在执行工具…`;
     }
   }
   switch (call.name) {
     case 'read_workspace': return jsonObject(call.input)?.detail === 'timeline'
       ? t`已读取目标轨道或片段的可编辑时间线字段。`
-      : t`已读取当前 Project revision、轨道和素材概况。`;
+      : t`已读取作品版本、轨道和素材概况。`;
     case 'read_demo_evidence': return t`已读取经过验证的 Demo 事件。`;
     case 'read_cinematic_context': return t`已读取镜头路径与战术上下文。`;
-    case 'apply_project_patch': return t`增量修改已提交到统一时间线。`;
-    case 'replace_story_timeline': return t`整条 Story Track 已原子替换。`;
-    default: return t`工具返回了结构化结果。`;
+    case 'apply_project_patch': return t`修改已写入时间线。`;
+    case 'replace_story_timeline': return t`整条 Story 轨道已替换。`;
+    default: return t`工具已返回结果。`;
   }
 }
 

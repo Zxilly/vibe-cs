@@ -91,7 +91,7 @@ export function EvidencePage() {
    * finished when it is not. Declared inside the component so the macro is
    * evaluated against the active locale rather than at import time.
    */
-  const writeSeamReason = t`注释写入尚未接通`;
+  const writeSeamReason = t`现在还不能保存注释`;
 
   const state = readEvidenceSearch(params);
   /* No `useMemo`: TanStack hashes a query key by value, so a fresh object per

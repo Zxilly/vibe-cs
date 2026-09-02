@@ -205,7 +205,7 @@ export function PlayerComparePanel({
           <PlayerCard player={left} emphasis />
         </div>
         <p className="text-xs leading-normal text-neutral-700">
-          <Trans>再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。</Trans>
+          <Trans>再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。</Trans>
         </p>
       </Inspector>
     );

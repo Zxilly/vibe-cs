@@ -176,8 +176,8 @@ export function MatchWorkspacePage() {
       >
         <p className="text-sm text-neutral-700">
           <Trans>
-            在左侧选择一个回合、一名选手或一条证据，详情会出现在这里，
-            并且随地址一起可分享、可后退。
+            在左侧选择回合、选手或证据，详情会显示在这里。
+            选择也会写入地址，方便分享和后退。
           </Trans>
         </p>
       </MatchInspectorPanel>

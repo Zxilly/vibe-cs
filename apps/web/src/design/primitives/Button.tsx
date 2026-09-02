@@ -215,7 +215,7 @@ export function Button({
         {button}
       </Tooltip>
       <span id={reasonId} className="sr-only">
-        {t`此动作当前不可用：${disabledReason}`}
+        {t`暂时不能执行：${disabledReason}`}
       </span>
     </>
   );

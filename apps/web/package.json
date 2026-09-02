@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "i18n:extract": "lingui extract --clean",
     "i18n:compile": "lingui compile --typescript --strict",
-    "lint": "pnpm i18n:compile && node ../../scripts/check-web-layers.mjs && tsc -b --pretty false"
+    "lint": "pnpm i18n:extract && pnpm i18n:compile && node ../../scripts/check-web-layers.mjs && tsc -b --pretty false"
   },
   "dependencies": {
     "@lingui/core": "^6.6.0",

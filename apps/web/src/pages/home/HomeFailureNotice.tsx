@@ -57,7 +57,7 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
       // The workbench is a digest. The classified reason stays here; the raw
       // service sentence and impact belong on 查看阶段 / 后台任务详情.
       detail: internalCaptureFailure
-        ? <Trans>受管 HLAE 采集未能开始，打开任务详情查看原因。</Trans>
+        ? <Trans>采集组件没能启动。打开任务详情查看原因。</Trans>
         : bound.summary.failure.detail,
       impact: internalCaptureFailure ? undefined : bound.summary.failure.impact,
     },

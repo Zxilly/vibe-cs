@@ -62,7 +62,7 @@ export function TaskDetailBody({ item, service, now, compact = false }: TaskDeta
     <TaskDetail
       className="m-6 min-h-0 flex-1"
       task={bound.summary}
-      {...(item.kind === 'export' ? { title: <Trans>合辑导出</Trans> } : {})}
+      {...(item.kind === 'export' ? { title: <Trans>成片导出</Trans> } : {})}
       showId={compact}
       stages={stages}
       /* 查看阶段 points at this page; a link to where you already are is noise. */
@@ -140,7 +140,7 @@ function technicalDetails(item: ActivityItem): readonly TaskFact[] {
     facts.push({ id: 'context', label: <Trans>来源对象</Trans>, value: item.context_id });
   }
   if (item.kind === 'export' && typeof item.subject === 'string' && item.subject.trim() !== '') {
-    facts.push({ id: 'output-path', label: <Trans>输出路径</Trans>, value: item.subject });
+    facts.push({ id: 'output-path', label: <Trans>文件路径</Trans>, value: item.subject });
   }
   return facts;
 }

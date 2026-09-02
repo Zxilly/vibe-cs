@@ -87,7 +87,7 @@ export function Textarea({
         {textarea}
       </Tooltip>
       <span id={reasonId} className="sr-only">
-        {t`此输入当前不可用：${disabledReason}`}
+        {t`暂时不能输入：${disabledReason}`}
       </span>
     </>
   );

@@ -274,7 +274,7 @@ export function TaskCardSkeleton({ className }: { readonly className?: string | 
     <div
       role="status"
       aria-busy="true"
-      aria-label={t`加载任务记录`}
+      aria-label={t`加载后台任务`}
       className={cn('flex gap-3', className)}
     >
       <span aria-hidden="true" className="mt-1.5 block size-[9px] flex-none animate-pulse bg-neutral-200" />

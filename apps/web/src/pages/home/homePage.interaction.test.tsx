@@ -107,8 +107,8 @@ describe('工作台首页', () => {
 
     const block = await screen.findByRole('region', { name: '失败可恢复' });
     expect(within(block).getByText(/磁盘空间不足/u)).toBeTruthy();
-    // 「合辑导出」 rather than 「导出」: the subtype is where 合辑 lives.
-    expect(within(block).getByText(/合辑/u)).toBeTruthy();
+    // 「剪辑」 rather than generic 「导出」: the subtype names the failed work.
+    expect(within(block).getByText(/剪辑/u)).toBeTruthy();
   });
 
   it('keeps internal HLAE diagnostics on the task detail surface', async () => {
@@ -129,7 +129,7 @@ describe('工作台首页', () => {
     });
 
     const block = await screen.findByRole('region', { name: '失败可恢复' });
-    expect(within(block).getByText(/受管 HLAE 采集未能开始/u)).toBeTruthy();
+    expect(within(block).getByText(/采集组件没能启动/u)).toBeTruthy();
     expect(block.textContent).not.toContain('observer identity');
   });
 

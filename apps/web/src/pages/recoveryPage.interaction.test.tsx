@@ -65,11 +65,11 @@ describe('what the page says before anything is pressed', () => {
   it('states what each action will not touch', async () => {
     render();
     await waitFor(() => {
-      expect(document.body.textContent).toContain('保留范围');
+      expect(document.body.textContent).toContain('不会删除');
     });
     // The one that matters most: cleaning stale records cannot delete a file.
-    expect(document.body.textContent).toContain('保留范围：磁盘上的现有文件');
-    expect(document.body.textContent).toContain('保留范围：Demo、录制结果');
+    expect(document.body.textContent).toContain('不会删除磁盘上的现有文件');
+    expect(document.body.textContent).toContain('不会删除 Demo、录制结果');
   });
 
   it('groups all three narrowly scoped operations into comparable rows', async () => {

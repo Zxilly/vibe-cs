@@ -2159,13 +2159,13 @@ export function ProjectTimeline({
       }}
     >
       <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
-        {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>}
+        {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（修改审阅）</Trans></h2>}
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
             <span className="flex h-7 flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-2xs text-accent-text" role="status">
-              <strong><Trans>Trim Mode</Trans> · {activeTrimModeEdits.length}</strong>
+              <strong><Trans>修剪模式</Trans> · {activeTrimModeEdits.length}</strong>
               <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
-              <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出 Trim Mode`} onClick={exitTrimMode}>×</button>
+              <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出修剪模式`} onClick={exitTrimMode}>×</button>
             </span>
           </Tooltip>
         )}
@@ -2449,19 +2449,19 @@ export function ProjectTimeline({
         </Tooltip>
         {reviewChangeCount === 0 ? null : (
           <>
-            <span className="text-xs text-neutral-500"><Trans>{reviewChangeCount} 处变更</Trans></span>
+            <span className="text-xs text-neutral-500"><Trans>{reviewChangeCount} 处修改</Trans></span>
             <span className="flex items-center overflow-hidden rounded-sm border border-divider">
-              <button type="button" className="grid size-7 place-items-center hover:bg-neutral-100" aria-label={t`上一个变更`} onClick={() => selectAdjacentChange(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
-              <button type="button" className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个变更`} onClick={() => selectAdjacentChange(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+              <button type="button" className="grid size-7 place-items-center hover:bg-neutral-100" aria-label={t`上一个修改`} onClick={() => selectAdjacentChange(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+              <button type="button" className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个修改`} onClick={() => selectAdjacentChange(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
             </span>
             <select
-              aria-label={t`变更筛选`}
+              aria-label={t`修改筛选`}
               className="h-7 rounded-sm border border-divider bg-bg px-2 text-2xs"
               value={changeFilter}
               onChange={(event) => setChangeFilter(event.currentTarget.value as 'all' | 'selected')}
             >
-              <option value="all"><Trans>全部变更</Trans></option>
-              <option value="selected" disabled={selectedChange === null}><Trans>所选变更</Trans></option>
+              <option value="all"><Trans>全部修改</Trans></option>
+              <option value="selected" disabled={selectedChange === null}><Trans>所选修改</Trans></option>
             </select>
           </>
         )}
@@ -2875,7 +2875,7 @@ export function ProjectTimeline({
       </Dialog>
 
       <footer className="flex h-10 flex-none items-center gap-4 border-t border-divider px-2 text-2xs text-neutral-600">
-        <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>
+        <span><Trans>序列时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>
         {changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
           <span className="text-neutral-500"><Trans>原</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
         ) : null}
@@ -5613,7 +5613,7 @@ function TimelineReviewLane({
     <div className="grid h-16 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider bg-neutral-100/60">
       <div className="flex items-center gap-2 border-r border-divider py-2 pl-12 pr-3 text-2xs font-medium text-neutral-600">
         <span className="rounded-sm border border-accent-200 bg-accent-100 px-1 font-mono text-accent-text">Δ</span>
-        <Trans>变更注释</Trans>
+        <Trans>修改注释</Trans>
       </div>
       <div className="relative min-w-0 overflow-hidden">
         <div
@@ -5636,7 +5636,7 @@ function TimelineReviewLane({
                       : 'border-accent-300 bg-accent-100 text-accent-text',
                 )}
                 style={{ left: timeToPx(scale, start) }}
-                aria-label={t`查看变更 ${change.number}`}
+                aria-label={t`查看修改 ${change.number}`}
                 onClick={() => onSelectChange(change)}
               >
                 {change.kind === 'added' ? '+' : change.kind === 'removed' ? '−' : 'Δ'}{change.number}
@@ -5771,7 +5771,7 @@ function TimelineChangePopover({
     <aside
       className="absolute inset-y-1 z-40 flex w-64 flex-col justify-center rounded-sm border border-divider bg-bg px-2 text-xs shadow-sm"
       style={{ left }}
-      aria-label={t`时间轴变更 ${change.number}`}
+      aria-label={t`时间轴修改 ${change.number}`}
     >
       <div className="flex items-center gap-2 font-semibold leading-4">
         <span className="rounded-sm bg-accent-100 px-1.5 py-0.5 font-mono text-2xs text-accent-text">Δ{change.number}</span>
@@ -5788,8 +5788,8 @@ function TimelineChangePopover({
         </p>
       )}
       <div className="mt-1 flex items-center gap-2 border-t border-divider pt-1">
-        <span className="text-2xs text-ok"><Trans>已应用到提案</Trans></span>
-        <button type="button" className="ml-auto h-6 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300" disabled={!canUndo} onClick={onUndo}><Trans>撤销变更组</Trans></button>
+        <span className="text-2xs text-ok"><Trans>已应用到时间线</Trans></span>
+        <button type="button" className="ml-auto h-6 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300" disabled={!canUndo} onClick={onUndo}><Trans>撤销这组修改</Trans></button>
       </div>
     </aside>
   );
@@ -6121,7 +6121,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
                 'grid size-5 place-items-center rounded-sm hover:bg-neutral-100',
                 (controls === 'audio' ? track.muted : track.hidden) && 'text-fail-text',
               )}
-              aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道输出`}
+              aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道显示`}
               aria-pressed={controls === 'audio' ? track.muted : !track.hidden}
               disabled={readOnly}
               onClick={() => onReplaceTrack?.(controls === 'audio'

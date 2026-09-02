@@ -230,7 +230,7 @@ export function MapCanvas({
         title={<Trans>缺少这张地图的雷达标定</Trans>}
         description={
           <Trans>
-            没有找到 {mapName} 的 overview 变换，世界坐标无法落到画面上。安装 CS2 后可从本地雷达读取。
+            没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。
           </Trans>
         }
         actions={emptyActions}

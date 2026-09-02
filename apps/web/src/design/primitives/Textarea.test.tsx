@@ -41,7 +41,7 @@ describe('Textarea markup', () => {
     );
 
     expect(html).toContain('aria-describedby');
-    expect(html).toContain('此输入当前不可用：本地服务离线');
+    expect(html).toContain('暂时不能输入：本地服务离线');
     // The wrapper the tooltip hangs on, focusable so the keyboard reaches it.
     expect(html).toContain('tabindex="0"');
     // And never the attribute that showed nothing.

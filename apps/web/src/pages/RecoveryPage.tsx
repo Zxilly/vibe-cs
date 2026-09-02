@@ -128,9 +128,9 @@ export function RecoveryPage() {
             )
           }
           effect={
-            <Trans>会做什么：用上一次自动备份覆盖当前配置文件，然后重新读取。</Trans>
+            <Trans>将用上一次自动备份覆盖当前配置文件，然后重新读取。</Trans>
           }
-          untouched={<Trans>保留范围：Demo、录制结果、成片、编辑工程和会话记录。</Trans>}
+          untouched={<Trans>不会删除 Demo、录制结果、成片、作品或对话记录。</Trans>}
           detail={
             status.data === undefined || status.data.affected_files.length === 0 ? null : (
               <ul className="flex flex-col gap-1">
@@ -175,8 +175,8 @@ export function RecoveryPage() {
               <Trans>录制或导出中断时会留下暂存文件，它们不会自己消失。</Trans>
             </span>
           }
-          effect={<Trans>会做什么：删除暂存目录里未完成的输出文件。</Trans>}
-          untouched={<Trans>保留范围：已完成的录制结果、成片及其资料库记录。</Trans>}
+          effect={<Trans>将删除暂存目录里未完成的成片文件。</Trans>}
+          untouched={<Trans>不会删除已完成的录制结果、成片或资料库记录。</Trans>}
           action={
             <Button
               variant="secondary"
@@ -186,7 +186,7 @@ export function RecoveryPage() {
               disabledReason={blockedReason ?? ''}
               onClick={() => setConfirming('staged')}
             >
-              <Trans>清理暂存输出</Trans>
+              <Trans>清理暂存成片</Trans>
             </Button>
           }
           result={
@@ -217,12 +217,12 @@ export function RecoveryPage() {
               <Trans>文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。</Trans>
             </span>
           }
-          effect={<Trans>会做什么：删除这些记录本身。</Trans>}
+          effect={<Trans>将删除这些失效记录。</Trans>}
           untouched={
             /* The distinction that matters: this removes *records*, and the
                files it removes records for are already gone. It cannot delete
                a file, which is what makes it safe to offer here. */
-            <Trans>保留范围：磁盘上的现有文件。清理仅移除已经失效的记录。</Trans>
+            <Trans>不会删除磁盘上的现有文件，只移除失效记录。</Trans>
           }
           action={
             <Button

@@ -158,7 +158,7 @@ export function FilesSection() {
 
             <SettingsRow
               label={<Trans>占用</Trans>}
-              hint={<Trans>这个目录占掉的磁盘空间。清理入口在「输出与任务记录」。</Trans>}
+              hint={<Trans>这个目录占用的磁盘空间。需要清理时，前往「成品文件」。</Trans>}
             >
               {storage.isPending ? (
                 <Skeleton width="10rem" />
@@ -396,8 +396,8 @@ export function FilesSection() {
         onClose={() => setMovingTo(null)}
       >
         <Trans>
-          之后的新文件会写到 {movingTo}。已经在旧目录里的录制结果、成片和索引不会被搬过去，
-          资料库里它们的记录也还指向旧位置。
+          新文件会写到 {movingTo}。旧目录里的录制结果、成片和索引不会移动，
+          资料库记录仍指向原位置。
         </Trans>
       </Dialog>
     </div>

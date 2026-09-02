@@ -321,7 +321,7 @@ export function ProjectMediaPanel({
             <Gauge className="size-3.5" aria-hidden="true" />
           </Button>
         </Tooltip>
-        <Tooltip content={t`删除不再生成中的受管代理；原始素材不会删除`} side="bottom">
+        <Tooltip content={t`删除闲置的代理文件；原始素材不会删除`} side="bottom">
           <Button
             size="sm"
             icon
@@ -333,7 +333,7 @@ export function ProjectMediaPanel({
             <Trash2 className="size-3.5" aria-hidden="true" />
           </Button>
         </Tooltip>
-        <Tooltip content={t`按 Project 顺序或序列标记批量组接所选视频`} side="bottom">
+        <Tooltip content={t`按项目素材顺序或序列标记批量放置所选视频`} side="bottom">
           <Button
             size="sm"
             icon
@@ -669,7 +669,7 @@ export function ProjectMediaPanel({
           <label className="flex flex-col gap-1">
             <Trans>排序</Trans>
             <select className="border border-divider bg-bg px-2 py-1.5" value={automateOrdering} onChange={(event) => setAutomateOrdering(event.currentTarget.value as typeof automateOrdering)}>
-              <option value="project"><Trans>Project 顺序</Trans></option>
+              <option value="project"><Trans>项目素材顺序</Trans></option>
               <option value="selection"><Trans>选择顺序</Trans></option>
             </select>
           </label>
@@ -689,7 +689,7 @@ export function ProjectMediaPanel({
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={automateTransitions} disabled={automatePlacement !== 'sequential'} onChange={(event) => setAutomateTransitions(event.currentTarget.checked)} />
-            <Trans>应用默认视频转场（0.5 秒 overlap）</Trans>
+            <Trans>应用默认视频转场（重叠 0.5 秒）</Trans>
           </label>
           {automatePlacement !== 'markers' || sequenceMarkerCount >= automateSelection.length ? null : (
             <p className="text-fail-text"><Trans>需要至少 {automateSelection.length} 个序列标记；当前只有 {sequenceMarkerCount} 个。</Trans></p>
@@ -753,7 +753,7 @@ export function ProjectMediaPanel({
             <input type="checkbox" checked={multicamSwitchAudio} onChange={(event) => setMulticamSwitchAudio(event.currentTarget.checked)} />
             <Trans>音频随摄像机切换；关闭时固定使用角度 1 音频</Trans>
           </label>
-          <p className="text-warn-text"><Trans>创建会用同步后的 Camera Angle 轨替换当前时间轴；整个操作可作为一个 Change Group 撤销。</Trans></p>
+          <p className="text-warn-text"><Trans>创建后，同步好的多机位轨道会替换当前时间轴。整个操作可以一次撤销。</Trans></p>
         </div>
       </Dialog>
 
@@ -897,7 +897,7 @@ function AssetProxyButton({ asset, generating, busy, compact = false, onGenerate
   const supported = projectMediaAssetKind(asset) === 'video' && !isStillImageMediaAsset(asset);
   const label = asset.proxy_status.status === 'ready' ? t`重新生成代理 ${asset.name}` : t`生成代理 ${asset.name}`;
   const detail = asset.proxy_status.status === 'ready'
-    ? t`代理已就绪；重新生成会原子替换受管代理文件`
+    ? t`代理已就绪；重新生成会替换现有代理文件`
     : asset.proxy_status.status === 'failed'
       ? t`上次代理生成失败；点击重试`
       : asset.proxy_status.status === 'generating' || generating

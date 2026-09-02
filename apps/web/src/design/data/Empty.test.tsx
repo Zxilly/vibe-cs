@@ -15,7 +15,7 @@ describe('Empty presets', () => {
     ['no-matches', '还没有比赛'],
     ['not-analysed', '这场还没分析'],
     ['no-hits', '没有命中的证据'],
-    ['no-outputs', '还没有输出'],
+    ['no-outputs', '还没有成片'],
     ['error', '这个页面没能打开'],
   ];
 

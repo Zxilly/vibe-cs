@@ -339,7 +339,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         collapsed={collapsed}
       >
         <p className="text-sm text-neutral-700">
-          <Trans>点一行的「定位」，这里会显示那条高光的回合、选手与 tick 区间，并且随地址一起可分享。</Trans>
+          <Trans>点一行的「定位」，这里会显示高光对应的回合、选手和 tick 区间。选择也会写入地址，方便分享。</Trans>
         </p>
       </MatchInspectorPanel>
     );

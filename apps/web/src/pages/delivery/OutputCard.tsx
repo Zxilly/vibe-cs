@@ -279,7 +279,7 @@ export function OutputCardSkeleton() {
         <span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-200" />
       </div>
       <span className="sr-only">
-        <Trans>正在加载输出</Trans>
+        <Trans>正在加载成片</Trans>
       </span>
     </div>
   );

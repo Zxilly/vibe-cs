@@ -43,7 +43,7 @@ describe('Button interaction', () => {
 
     expect(describedBy).not.toBeNull();
     const description = document.getElementById(describedBy ?? '');
-    expect(description?.textContent).toBe('此动作当前不可用：本地服务离线');
+    expect(description?.textContent).toBe('暂时不能执行：本地服务离线');
 
     // Description, not name: the reason must not leak into the label.
     expect(button.textContent).toBe('开始录制');

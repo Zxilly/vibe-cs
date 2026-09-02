@@ -50,7 +50,7 @@ describe('the three blocks the fifth round split the section into', () => {
   it('disables the service-backed actions and writes the reason', () => {
     const html = section();
     expect(html).toContain('· 需要服务');
-    expect(html).toContain('此动作当前不可用');
+    expect(html).toContain('暂时不能执行');
   });
 });
 

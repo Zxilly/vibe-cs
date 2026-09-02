@@ -64,7 +64,7 @@ describe('with one selected', () => {
 
   it('states the cap in words, as the selection bar does', () => {
     expect(html).toContain('再勾一名选手才能比较');
-    expect(html).toContain('上限 2 名');
+    expect(html).toContain('最多 2 名');
   });
 
   it('still offers the one thing that works with one player', () => {

@@ -18,12 +18,14 @@ function stubAdapter(overrides: Partial<DesktopWindowAdapter> = {}): DesktopWind
     toggleMaximize: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
     startDragging: vi.fn(async () => undefined),
+    isMaximized: vi.fn(async () => false),
+    onResized: vi.fn(async () => () => undefined),
     ...overrides,
   };
 }
 
 describe('WindowTitleBar', () => {
-  it('is one 44px bar, with the mode switch exactly as wide as the rail below it', () => {
+  it('uses the Windows tall title-bar height, with the mode switch exactly as wide as the rail below it', () => {
     const html = renderMarkup(<WindowTitleBar adapter={null} />);
 
     expect(html).toContain('h-[var(--h-titlebar)]');
@@ -42,6 +44,12 @@ describe('WindowTitleBar', () => {
     expect(html).toContain('w-[var(--w-nav-collapsed)]');
     // The wordmark is retired; the compact switch keeps only its mode icon.
     expect(html).not.toContain('VIBE CS');
+  });
+
+  it('uses the Windows tall title-bar height in the project workbench', () => {
+    const html = renderMarkup(<WindowTitleBar adapter={null} compact />);
+    expect(html).toContain('h-[48px]');
+    expect(html).not.toContain('h-[56px]');
   });
 
   it('can render analysis as the current work lens', () => {
@@ -92,10 +100,12 @@ describe('WindowTitleBar', () => {
       expect(html).toContain(`data-window-control="${control}"`);
     }
     expect(html).toContain('aria-label="最小化窗口"');
-    expect(html).toContain('aria-label="最大化或还原窗口"');
+    expect(html).toContain('aria-label="最大化窗口"');
     expect(html).toContain('aria-label="关闭窗口"');
     // The control cluster is excluded from the drag region.
     expect(html).toContain('data-window-no-drag');
+    expect(html).toContain('w-[46px]');
+    expect(html).not.toContain('w-9');
   });
 
   it('names the activity bell and renders its unread count', () => {

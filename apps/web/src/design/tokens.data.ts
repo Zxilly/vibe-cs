@@ -387,7 +387,7 @@ export type BarHeightToken =
   | '--h-actionbar';
 
 export const BAR_HEIGHT_PX: Record<BarHeightToken, number> = {
-  '--h-titlebar': 44,
+  '--h-titlebar': 48,
   '--h-topbar': 56,
   '--h-bar': 46,
   '--h-panel-head': 40,
@@ -406,10 +406,10 @@ export const BAR_HEIGHT_PX: Record<BarHeightToken, number> = {
  * inverse and is therefore multi-valued for 34 / 38 / 40 / 44.
  */
 export const BAR_HEIGHT_CLAIMS: Record<BarHeightToken, readonly number[]> = {
-  '--h-titlebar': [44],
+  '--h-titlebar': [48],
   '--h-topbar': [56],
   '--h-bar': [46],
-  '--h-panel-head': [40, 38, 44],
+  '--h-panel-head': [40, 38, 44, 48],
   '--h-thead': [34, 32],
   '--h-row': [42],
   '--h-row-compact': [38, 34, 36, 40],
@@ -462,10 +462,10 @@ export const BAR_HEIGHT_MERGE: readonly (MergeEntry<BarHeightToken> | AmbiguousM
   },
   {
     raw: 44,
-    tokens: ['--h-titlebar', '--h-panel-head'],
+    token: '--h-panel-head',
     count: 9,
     from: ['Agent 形态 · 第二轮', '补齐 · 壳层规格', '补齐 · Agent 会话历史与设置', '补齐 · 比赛工作区子视图'],
-    note: '自绘标题栏是 44；Agent 面板头也画成 44，后者按 §3.4 归到 40',
+    note: '旧自绘标题栏和 Agent 面板头画成 44；标题栏现按 Windows tall title bar 归到 48，面板头仍归到 40',
   },
   {
     raw: 46,
@@ -476,11 +476,10 @@ export const BAR_HEIGHT_MERGE: readonly (MergeEntry<BarHeightToken> | AmbiguousM
   },
   {
     raw: 48,
-    token: '--h-panel-head',
+    tokens: ['--h-titlebar', '--h-panel-head'],
     count: 3,
     from: ['补齐 · Agent 会话历史与设置', '补齐 · 暗色与其余页面', '10 多轨编辑器'],
-    specSilent: true,
-    note: '会话抽屉头、多轨编辑器轨道头画成 48；规格只写了吸收 38/44，48 按同一角色一并归入',
+    note: 'Windows tall title bar 与会话抽屉头、多轨编辑器轨道头都使用 48；按角色分别归入标题栏和面板头',
   },
   {
     raw: 50,

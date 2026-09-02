@@ -12,6 +12,8 @@ function stubAdapter(overrides: Partial<DesktopWindowAdapter> = {}) {
     toggleMaximize: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
     startDragging: vi.fn(async () => {}),
+    isMaximized: vi.fn(async () => false),
+    onResized: vi.fn(async () => () => undefined),
     ...overrides,
   } satisfies DesktopWindowAdapter;
 }
@@ -21,6 +23,14 @@ beforeEach(() => {
 });
 
 describe('window controls', () => {
+  it('switches the maximize button to the Windows restore state', async () => {
+    const adapter = stubAdapter({ isMaximized: vi.fn(async () => true) });
+    const { findByRole, container } = renderInteractive(<WindowTitleBar adapter={adapter} />);
+
+    await findByRole('button', { name: '还原窗口' });
+    expect(container.querySelector('[data-window-control="maximize"]')?.getAttribute('data-window-state')).toBe('restore');
+  });
+
   it('drives the window through the adapter it was given', () => {
     const adapter = stubAdapter();
     const { getByRole } = renderInteractive(<WindowTitleBar adapter={adapter} />);
@@ -28,7 +38,7 @@ describe('window controls', () => {
     fireEvent.click(getByRole('button', { name: '最小化窗口' }));
     expect(adapter.minimize).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(getByRole('button', { name: '最大化或还原窗口' }));
+    fireEvent.click(getByRole('button', { name: '最大化窗口' }));
     expect(adapter.toggleMaximize).toHaveBeenCalledTimes(1);
 
     fireEvent.click(getByRole('button', { name: '关闭窗口' }));

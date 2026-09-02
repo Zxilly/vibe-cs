@@ -37,7 +37,6 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
-import { mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review';
 import { OverflowMenu } from '../../design/layout';
@@ -81,6 +80,8 @@ import {
   type TimelineClipChange,
 } from './timelineChangeProjection';
 import { timelineTrackLayout } from './timelineTrackLayout';
+import { TimelineFilmstrip } from './TimelineFilmstrip';
+import type { TimelineThumbnailMode } from './timelineFilmstripGeometry';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
@@ -191,7 +192,7 @@ interface SelectedTimelineGap extends TimelineGap {
 
 interface TimelineDisplaySettings {
   readonly names: boolean;
-  readonly thumbnails: boolean;
+  readonly thumbnailMode: TimelineThumbnailMode;
   readonly waveforms: boolean;
   readonly keyframes: boolean;
   readonly repeatedFrames: boolean;
@@ -375,7 +376,7 @@ export function ProjectTimeline({
   const [timeDisplayMode, setTimeDisplayMode] = useState<TimelineTimeDisplayMode>('timecode');
   const [displaySettings, setDisplaySettings] = useState<TimelineDisplaySettings>({
     names: true,
-    thumbnails: true,
+    thumbnailMode: 'head',
     waveforms: true,
     keyframes: true,
     repeatedFrames: true,
@@ -638,6 +639,8 @@ export function ProjectTimeline({
   const scale = createFittedTimeScale(viewportWidth, document.duration_seconds, effectiveZoomMultiplier);
   const displayedDuration = ratePreviewDuration ?? document.duration_seconds;
   const contentWidth = Math.max(viewportWidth, timeToPx(scale, displayedDuration));
+  const thumbnailWindowStartPx = Math.max(0, Math.floor(scrollLeft / 160) * 160 - 160);
+  const thumbnailWindowEndPx = thumbnailWindowStartPx + viewportWidth + 320;
   const ticks = rulerTicks(scale, {
     toSeconds: displayedDuration,
     minMajorGapPx: 110,
@@ -2319,8 +2322,17 @@ export function ProjectTimeline({
           triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
           items={[
             ...([
+              ['head', t`视频缩略图：仅片头`],
+              ['head_tail', t`视频缩略图：片头和片尾`],
+              ['frames', t`视频缩略图：连续帧`],
+              ['none', t`视频缩略图：不显示`],
+            ] as const).map(([mode, label]) => ({
+              id: `thumbnail-${mode}`,
+              label: `${displaySettings.thumbnailMode === mode ? '✓ ' : ''}${label}`,
+              onSelect: () => setDisplaySettings((current) => ({ ...current, thumbnailMode: mode })),
+            })),
+            ...([
             ['names', t`片段名称`],
-            ['thumbnails', t`视频缩略图`],
             ['waveforms', t`音频波形`],
             ['keyframes', t`关键帧`],
             ['repeatedFrames', t`重复帧标记`],
@@ -2644,6 +2656,8 @@ export function ProjectTimeline({
               track={track}
               scale={scale}
               contentWidth={contentWidth}
+              thumbnailWindowStartPx={thumbnailWindowStartPx}
+              thumbnailWindowEndPx={thumbnailWindowEndPx}
               selectedClipId={selectedClipId}
               selectedClipIds={selectedClipIdSet}
               selectedTransition={selectedTransition}
@@ -3382,10 +3396,12 @@ function timelineClipboardFromSelection(
   };
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, sourceMarkersByAssetId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, thumbnailWindowStartPx, thumbnailWindowEndPx, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, sourceMarkersByAssetId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
+  readonly thumbnailWindowStartPx: number;
+  readonly thumbnailWindowEndPx: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
   readonly selectedTransition: SelectedTimelineTransition | null;
@@ -3698,6 +3714,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             readOnly={readOnly || track.track.locked || track.derivedAudio}
             gainReadOnly={readOnly || track.track.locked}
             trackHeight={height}
+            thumbnailWindowStartPx={thumbnailWindowStartPx}
+            thumbnailWindowEndPx={thumbnailWindowEndPx}
             localTime={clipLocalTimeAtTimeline(clip, timelineTimeSeconds, fps)}
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => {
@@ -4163,7 +4181,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -4185,6 +4203,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly razorEnabled: boolean;
   readonly gainReadOnly: boolean;
   readonly trackHeight: number;
+  readonly thumbnailWindowStartPx: number;
+  readonly thumbnailWindowEndPx: number;
   readonly localTime: number;
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
@@ -4498,6 +4518,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       type="button"
       className={cn(
         'absolute inset-y-0.5 touch-none select-none overflow-hidden border border-divider bg-neutral-100 text-left outline-none',
+        kind === 'video' && material.streamAssetId !== null && 'border-accent-300 bg-accent-100',
+        !clip.placement.enabled && 'opacity-55',
         change?.kind === 'added' && 'border-ok-border bg-ok-surface',
         change?.kind === 'modified' && 'border-accent-400 bg-accent-100',
         selected && 'ring-1 ring-inset ring-accent-600',
@@ -4672,15 +4694,18 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (
         <>
-          {displaySettings.thumbnails ? <img
-            className="pointer-events-none size-full bg-neutral-900 object-cover"
-            src={shell.mediaSrc(mediaAssetThumbnailPath(material.streamAssetId, clip.placement.source_in)) ?? undefined}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            draggable={false}
-            aria-hidden="true"
-          /> : <span className="absolute inset-0 bg-neutral-200" aria-hidden="true" />}
+          {displaySettings.thumbnailMode === 'none' ? null : <TimelineFilmstrip
+            clip={visualClip}
+            assetId={material.streamAssetId}
+            clipLeftPx={visualLeft}
+            clipWidthPx={visualWidth}
+            trackHeightPx={trackHeight}
+            viewportStartPx={thumbnailWindowStartPx}
+            viewportEndPx={thumbnailWindowEndPx}
+            fps={fps}
+            mediaSrc={shell.mediaSrc}
+            mode={displaySettings.thumbnailMode}
+          />}
           <Clapperboard className="absolute left-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
           {clip.link_group_id === null ? null : <Link2 className="absolute right-1 top-1 size-3 rounded-sm border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />}
         </>
@@ -4819,7 +4844,12 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         />
       ))}
       {repeatedFrames ? <span className="pointer-events-none absolute inset-x-0 top-0 z-40 h-1 bg-[repeating-linear-gradient(90deg,var(--color-warn)_0_4px,transparent_4px_8px)]" role="img" aria-label={t`重复帧 ${clip.name}`} /> : null}
-      {displaySettings.names ? <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span> : null}
+      {displaySettings.names ? <span className={cn(
+        'absolute inset-x-0 bottom-0 h-[18px] truncate border-t px-1 py-px text-2xs',
+        kind === 'video'
+          ? 'border-accent-300 bg-accent-200/95 text-accent-text'
+          : 'border-divider bg-neutral-100/90 text-neutral-700',
+      )}>{clip.name}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
         <>
           <span
@@ -4912,6 +4942,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.readOnly === next.readOnly
   && previous.gainReadOnly === next.gainReadOnly
   && previous.trackHeight === next.trackHeight
+  && previous.thumbnailWindowStartPx === next.thumbnailWindowStartPx
+  && previous.thumbnailWindowEndPx === next.thumbnailWindowEndPx
   && previous.localTime === next.localTime
   && previous.change === next.change
   && previous.snapPoints === next.snapPoints

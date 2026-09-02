@@ -5339,7 +5339,7 @@ describe('unified project workspace', () => {
       fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(name, 'u') }));
     };
     toggle('片段名称');
-    toggle('视频缩略图');
+    toggle('视频缩略图：不显示');
     toggle('关键帧');
     toggle('重复帧标记');
     toggle('Through Edit 标记');

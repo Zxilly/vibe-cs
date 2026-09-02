@@ -1,9 +1,9 @@
 /*
- * App shell — the self-drawn title bar (spec §3.4 `--h-titlebar`, 44px).
+ * App shell — the self-drawn Windows tall title bar (`--h-titlebar`, 48px).
  *
- * Frame.dc.html draws it as three stretches across one 44px bar:
+ * The shell draws it as three stretches across one 48px bar:
  *
- *   ┌ 216px ────────┬ flex:1 ─────────────────────────────┬ 3 × 44px ┐
+ *   ┌ 216px ────────┬ flex:1 ─────────────────────────────┬ 3 × 46px ┐
  *   │ V  VIBE CS    │ crumb   ⌕ 跳转、搜索…  CTRL K   ● 本地服务在线 │ ─ ▢ ✕ │
  *   └───────────────┴─────────────────────────────────────┴──────────┘
  *
@@ -27,10 +27,15 @@
  * when `adapter` is given the component never touches `@tauri-apps/api`.
  */
 
+import { CopyRegular } from '@fluentui/react-icons/svg/copy';
+import { DismissRegular } from '@fluentui/react-icons/svg/dismiss';
+import { SquareRegular } from '@fluentui/react-icons/svg/square';
+import { SubtractRegular } from '@fluentui/react-icons/svg/subtract';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Bell, Maximize, Minus, Search, X } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -59,6 +64,8 @@ export interface DesktopWindowAdapter {
   toggleMaximize(): Promise<void>;
   close(): Promise<void>;
   startDragging(): Promise<void>;
+  isMaximized(): Promise<boolean>;
+  onResized(handler: () => void): Promise<() => void>;
 }
 
 interface PointerDownDetails {
@@ -152,14 +159,12 @@ const SERVICE_TEXT_CLASS: Record<ShellServiceStatus, string> = {
   offline: 'text-fail-text',
 };
 
-/* Frame gives each control a 44px square; the token is the bar height because
-   the reference sizes them off it (`--h-titlebar` = 44 = the drawn width).
-   The hover wash is `--color-neutral-200` rather than the ink mix the design
-   layer uses: §2.1 rule 5 forbids a bare colour inside an arbitrary value in
-   `app/**`, and the ramp step reverses on its own in dark. */
+/* Windows caption controls use a system-width backplate rather than the
+   product spacing scale. 46px is the logical caption width; the title bar
+   height remains responsive to the standard/tall Windows title-bar mode. */
 const CONTROL_CLASS =
-  'grid w-[var(--h-titlebar)] flex-none place-items-center text-neutral-700 ' +
-  'hover:bg-neutral-200 hover:text-text';
+  'pointer-events-auto grid h-full w-[46px] flex-none place-items-center text-neutral-700 ' +
+  'hover:bg-neutral-200 hover:text-text active:bg-neutral-300';
 
 /** A press that started on a control is that control's, not the drag region's. */
 const NO_DRAG_SELECTOR = 'button, a, input, textarea, select, [data-window-no-drag]';
@@ -188,6 +193,7 @@ export function WindowTitleBar({
 
   const [desktopWindow, setDesktopWindow] = useState<DesktopWindowAdapter | null>(adapter ?? null);
   const [actionFailed, setActionFailed] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     if (adapter !== undefined) {
@@ -211,9 +217,40 @@ export function WindowTitleBar({
     () => createWindowTitleBarController(desktopWindow, () => setActionFailed(true)),
     [desktopWindow],
   );
-  const controlClass = compact
-    ? 'pointer-events-auto grid w-9 flex-none place-items-center text-neutral-500 hover:bg-neutral-200 hover:text-text'
-    : CONTROL_CLASS;
+  const controlClass = cn(CONTROL_CLASS, compact && 'text-neutral-500');
+  const syncMaximizedState = useCallback(async () => {
+    if (desktopWindow === null) return;
+    try {
+      setMaximized(await desktopWindow.isMaximized());
+    } catch {
+      setActionFailed(true);
+    }
+  }, [desktopWindow]);
+
+  useEffect(() => {
+    if (desktopWindow === null) {
+      setMaximized(false);
+      return undefined;
+    }
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void syncMaximizedState();
+    void desktopWindow.onResized(() => void syncMaximizedState())
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch(() => setActionFailed(true));
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [desktopWindow, syncMaximizedState]);
+
+  const toggleWindowMaximize = async () => {
+    await controller.toggleMaximize();
+    await syncMaximizedState();
+  };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (!startsOnDragRegion(event.target)) return;
@@ -223,7 +260,7 @@ export function WindowTitleBar({
   const onDoubleClick = (event: ReactPointerEvent<HTMLElement>) => {
     if (!startsOnDragRegion(event.target)) return;
     event.preventDefault();
-    void controller.toggleMaximize();
+    void toggleWindowMaximize();
   };
 
   return (
@@ -235,7 +272,7 @@ export function WindowTitleBar({
       className={cn(
         'flex flex-none items-stretch border-b border-divider bg-surface-chrome',
         compact
-          ? 'pointer-events-none absolute inset-x-0 top-0 z-50 h-[56px] border-b-0 bg-transparent'
+          ? 'pointer-events-none absolute inset-x-0 top-0 z-50 h-[48px] border-b-0 bg-transparent'
           : 'h-[var(--h-titlebar)]',
         className,
       )}
@@ -316,7 +353,7 @@ export function WindowTitleBar({
         )}
       </div>
 
-      <div data-window-no-drag className="flex flex-none items-stretch border-l border-divider">
+      <div data-window-no-drag className="flex flex-none items-stretch">
         {actionFailed ? (
           <span
             role="status"
@@ -334,17 +371,20 @@ export function WindowTitleBar({
           onClick={() => void controller.minimize()}
           className={controlClass}
         >
-          <Minus size={14} strokeWidth={1.5} aria-hidden="true" />
+          <SubtractRegular className="size-4" aria-hidden="true" />
         </button>
         <button
           type="button"
           data-window-control="maximize"
-          aria-label={t`最大化或还原窗口`}
-          title={t`最大化或还原窗口`}
-          onClick={() => void controller.toggleMaximize()}
+          data-window-state={maximized ? 'restore' : 'maximize'}
+          aria-label={maximized ? t`还原窗口` : t`最大化窗口`}
+          title={maximized ? t`还原窗口` : t`最大化窗口`}
+          onClick={() => void toggleWindowMaximize()}
           className={controlClass}
         >
-          <Maximize size={12} strokeWidth={1.5} aria-hidden="true" />
+          {maximized
+            ? <CopyRegular className="size-3.5" aria-hidden="true" />
+            : <SquareRegular className="size-3.5" aria-hidden="true" />}
         </button>
         <button
           type="button"
@@ -354,7 +394,7 @@ export function WindowTitleBar({
           onClick={() => void controller.close()}
           className={cn(controlClass, 'hover:bg-fail hover:text-bg')}
         >
-          <X size={14} strokeWidth={1.5} aria-hidden="true" />
+          <DismissRegular className="size-4" aria-hidden="true" />
         </button>
       </div>
     </header>

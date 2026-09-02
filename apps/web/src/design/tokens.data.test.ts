@@ -343,7 +343,7 @@ describe('§3.3 control heights', () => {
 describe('§3.4 bar and row heights', () => {
   it('holds the eleven role-named tokens the spec fixes', () => {
     expect(BAR_HEIGHT_PX).toEqual({
-      '--h-titlebar': 44,
+      '--h-titlebar': 48,
       '--h-topbar': 56,
       '--h-bar': 46,
       '--h-panel-head': 40,
@@ -401,7 +401,7 @@ describe('§3.4 bar and row heights', () => {
 
   it('records both candidates wherever two role tokens claim the same pixel value', () => {
     const ambiguous = BAR_HEIGHT_MERGE.filter((entry) => 'tokens' in entry);
-    expect(ambiguous.map((entry) => entry.raw).sort((a, b) => a - b)).toEqual([34, 38, 40, 44]);
+    expect(ambiguous.map((entry) => entry.raw).sort((a, b) => a - b)).toEqual([34, 38, 40, 48]);
     for (const entry of ambiguous) {
       expect(entry.note.length).toBeGreaterThan(0);
     }

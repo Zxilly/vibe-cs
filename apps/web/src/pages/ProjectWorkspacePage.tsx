@@ -1397,7 +1397,7 @@ export function ProjectWorkspacePage() {
       className="review-workbench"
       scroll={false}
       toolbar={(
-        <header data-tauri-drag-region className="flex h-[56px] flex-none items-center gap-2 border-b border-divider bg-bg px-5 pr-32">
+        <header data-tauri-drag-region className="flex h-[48px] flex-none items-center gap-2 border-b border-divider bg-bg px-5 pr-[138px]">
           <button type="button" data-window-no-drag className="mr-3 flex items-center gap-4 text-sm font-medium text-neutral-700 hover:text-text" onClick={() => void navigate('/projects')}>
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
             <Trans>作品</Trans>

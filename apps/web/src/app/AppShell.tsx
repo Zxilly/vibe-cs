@@ -4,7 +4,7 @@
  * ── The composition ──────────────────────────────────────────────────────
  *
  *   ┌──────────────────────────────────────────────────────────┐
- *   │ WindowTitleBar                       44px  `--h-titlebar` │  flex-none
+ *   │ WindowTitleBar                       48px  `--h-titlebar` │  flex-none
  *   ├──────────────────────────────────────────────────────────┤
  *   │ ServiceOfflineNotice        only while status === offline │  flex-none
  *   ├──────────┬──────────────────────────────────┬────────────┤

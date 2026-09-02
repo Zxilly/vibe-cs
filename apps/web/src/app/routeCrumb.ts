@@ -19,7 +19,7 @@
  *
  * `Frame.dc.html` passes the crumb into the shell as a string
  * (`crumb="资料库 › Aurora vs Meridian › 概览"`) and every artboard draws it in
- * the 44px bar, never inside the page. So the crumb is shell state derived from
+ * the title bar, never inside the page. So the crumb is shell state derived from
  * the location, not something a page renders — which matters, because §2.1
  * rule 3 forbids `pages/**` from importing `app/**`, so a page could not hand
  * one up even if it wanted to.

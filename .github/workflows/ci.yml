@@ -14,6 +14,8 @@ concurrency:
 jobs:
   rust:
     runs-on: windows-latest
+    env:
+      TAURI_CONFIG: '{"bundle":{"externalBin":[]}}'
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.97.1

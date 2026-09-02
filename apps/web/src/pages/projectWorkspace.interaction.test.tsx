@@ -723,6 +723,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
     expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });
+    expect(within(panel).getByRole('button', { name: '从 Demo 创建剪辑' })).toBeTruthy();
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
     expect(panel.textContent).toContain('待录 2 · 已录 0');
   });

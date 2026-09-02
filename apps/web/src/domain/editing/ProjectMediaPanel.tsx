@@ -56,6 +56,7 @@ export interface ProjectMediaPanelProps {
   readonly relinkAvailable: boolean;
   readonly importing: boolean;
   readonly docked?: boolean;
+  readonly onCreateFromDemo: () => void;
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
   readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
@@ -137,6 +138,7 @@ export function ProjectMediaPanel({
   relinkAvailable,
   importing,
   docked = false,
+  onCreateFromDemo,
   onSelectTimelineClip,
   onRequestRecording,
   onImport,
@@ -363,6 +365,16 @@ export function ProjectMediaPanel({
             <PanelsTopLeft className="size-3.5" aria-hidden="true" />
           </Button>
         </Tooltip>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={readOnly}
+          {...(readOnly ? { disabledReason: t`Agent 操作期间项目素材为只读` } : {})}
+          onClick={onCreateFromDemo}
+        >
+          <FileVideo2 className="size-3.5" aria-hidden="true" />
+          <Trans>从 Demo 创建剪辑</Trans>
+        </Button>
         <Button
           size="sm"
           variant="ghost"

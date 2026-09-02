@@ -106,6 +106,7 @@ export function MatchWorkspacePage() {
   const navigate = useNavigate();
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
+  const [preferredProjectId] = useState(() => params.get('project'));
   const [pendingClips, setPendingClips] = useState<readonly ProjectCollectedClip[]>([]);
   const [addedProject, setAddedProject] = useState<AddedProjectTarget | null>(null);
 
@@ -276,6 +277,7 @@ export function MatchWorkspacePage() {
       <AddToProjectDialog
         open={pendingClips.length > 0}
         clips={pendingClips}
+        preferredProjectId={preferredProjectId}
         onClose={() => setPendingClips([])}
         onAdded={setAddedProject}
       />

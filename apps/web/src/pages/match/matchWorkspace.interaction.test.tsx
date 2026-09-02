@@ -227,7 +227,7 @@ describe('加入作品', () => {
   it('chooses an existing project and returns a feedback link to it', async () => {
     media = stubMatchMedia(1400);
     renderWorkspace({
-      url: `/match/${DEMO_ID}?view=rounds&round=2`,
+      url: `/match/${DEMO_ID}?view=rounds&round=2&project=00000000-0000-4000-8000-000000000001`,
       client: {
         ...loaded(),
         listProjects: () => Promise.resolve([{
@@ -253,6 +253,9 @@ describe('加入作品', () => {
     fireEvent.click(add);
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('option', { name: '现有作品' })).toBeTruthy();
+    expect((screen.getByLabelText('目标作品') as HTMLSelectElement).value).toBe(
+      '00000000-0000-4000-8000-000000000001',
+    );
     expect(screen.getByRole('button', { name: '加入' })).toBeTruthy();
   });
 

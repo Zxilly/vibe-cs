@@ -112,6 +112,7 @@ export function LibraryPage() {
 
 function DemoLibraryPage() {
   const [params, setParams] = useSearchParams();
+  const [preferredProjectId] = useState(() => params.get('project'));
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
   const create = useCreateProject();
@@ -325,7 +326,10 @@ function DemoLibraryPage() {
       }}
       analysing={activeDemo?.lifecycle_status === 'analyzing'}
       onCreateClip={() => {
-        if (activeDemo !== undefined) void navigate(`/match/${encodeURIComponent(activeDemo.id)}?view=replay`);
+        if (activeDemo === undefined) return;
+        const target = new URLSearchParams({ view: 'replay' });
+        if (preferredProjectId !== null) target.set('project', preferredProjectId);
+        void navigate(`/match/${encodeURIComponent(activeDemo.id)}?${target.toString()}`);
       }}
       onAnalyse={() => {
         if (activeDemo !== undefined) analyse([activeDemo.id]);

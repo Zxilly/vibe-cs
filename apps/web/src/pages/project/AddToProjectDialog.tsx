@@ -17,11 +17,13 @@ export interface AddedProjectTarget {
 export function AddToProjectDialog({
   open,
   clips,
+  preferredProjectId,
   onClose,
   onAdded,
 }: {
   readonly open: boolean;
   readonly clips: readonly ProjectCollectedClip[];
+  readonly preferredProjectId?: string | null | undefined;
   readonly onClose: () => void;
   readonly onAdded: (project: AddedProjectTarget) => void;
 }) {
@@ -34,10 +36,14 @@ export function AddToProjectDialog({
 
   useEffect(() => {
     if (!open) return;
-    setSelected(rows[0]?.id ?? NEW_PROJECT);
+    setSelected(
+      rows.some((project) => project.id === preferredProjectId)
+        ? preferredProjectId ?? NEW_PROJECT
+        : rows[0]?.id ?? NEW_PROJECT,
+    );
     create.reset();
     apply.reset();
-  }, [open, rows]);
+  }, [open, preferredProjectId, rows]);
 
   const confirm = () => {
     if (clip === null) return;

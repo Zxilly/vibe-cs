@@ -1032,6 +1032,7 @@ export function ProjectWorkspacePage() {
       importAvailable={nativeShell.available}
       relinkAvailable={nativeShell.available}
       importing={importMedia.isPending}
+      onCreateFromDemo={() => void navigate(`/library?project=${encodeURIComponent(current.id)}`)}
       onSelectTimelineClip={(clipId, startSeconds) => {
         setPlaying(false);
         setSelectedClipIds([clipId]);

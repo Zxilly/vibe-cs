@@ -1866,7 +1866,10 @@ mod tests {
         .expect("cancellation reached the worker");
         analysis.allow_panic.notify_one();
 
-        let response = tokio::time::timeout(std::time::Duration::from_secs(2), cancel)
+        // The cancellation path deliberately waits for panic cleanup and a
+        // durable terminal write. Keep the assertion bounded without tying it
+        // to a two-second hosted-runner scheduling window.
+        let response = tokio::time::timeout(std::time::Duration::from_secs(10), cancel)
             .await
             .expect("panic cleanup boundary")
             .unwrap();

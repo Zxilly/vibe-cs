@@ -13,6 +13,7 @@ import {
   Clapperboard,
   Diamond,
   Download,
+  Ellipsis,
   Eye,
   Gauge,
   Hand,
@@ -28,7 +29,6 @@ import {
   Star,
   Type,
   Scissors,
-  Trash2,
   Volume2,
   ZoomIn,
   ZoomOut,
@@ -80,6 +80,7 @@ import {
   projectStoryTimelineChanges,
   type TimelineClipChange,
 } from './timelineChangeProjection';
+import { timelineTrackLayout } from './timelineTrackLayout';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
 import { timelineTrackSelection } from './timelineTrackSelection';
@@ -274,6 +275,7 @@ export interface ProjectTimelineProps {
 interface RenderedTrack {
   readonly id: string;
   readonly kind: 'video' | 'audio' | 'text' | 'caption';
+  readonly targetLabel: string;
   readonly label: string;
   readonly ariaLabel: string;
   readonly clips: readonly TimelineClip[];
@@ -2158,7 +2160,7 @@ export function ProjectTimeline({
         }
       }}
     >
-      <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
+      <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider px-2">
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（修改审阅）</Trans></h2>}
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
@@ -2191,38 +2193,20 @@ export function ProjectTimeline({
           </span>
         )}
         <OverflowMenu
-          label={t`添加轨道`}
-          triggerLabel={<><SquarePlus className="size-3.5" aria-hidden="true" /><Trans>添加轨道</Trans></>}
+          label={t`添加到时间轴`}
+          triggerLabel={<SquarePlus className="size-3.5" aria-hidden="true" />}
           align="start"
-          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs disabled:text-neutral-300"
+          triggerClassName="h-7 gap-1 rounded-sm border border-divider px-1.5 text-xs disabled:text-neutral-300"
           items={[
             { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
             { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
             { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
             { id: 'caption', label: t`添加字幕轨道`, disabled: readOnly, onSelect: () => addTrack('caption') },
+            { id: 'text-clip', label: t`在播放头添加文字`, disabled: readOnly, onSelect: () => openTextClipDraft('text') },
+            { id: 'caption-clip', label: t`在播放头添加字幕`, disabled: readOnly, onSelect: () => openTextClipDraft('caption') },
           ]}
         />
-        <button
-          type="button"
-          className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={t`在播放头添加文字`}
-          title={t`在播放头添加文字`}
-          disabled={readOnly}
-          onClick={() => openTextClipDraft('text')}
-        >
-          <Type className="size-3.5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={t`在播放头添加字幕`}
-          title={t`在播放头添加字幕`}
-          disabled={readOnly}
-          onClick={() => openTextClipDraft('caption')}
-        >
-          <Captions className="size-3.5" aria-hidden="true" />
-        </button>
-        <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider">
+        {captions.length === 0 ? null : <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider">
           <Tooltip content={t`上一个字幕`} side="bottom">
             <button
               type="button"
@@ -2250,7 +2234,7 @@ export function ProjectTimeline({
               onClick={exportCaptions}
             ><Download className="size-3.5" aria-hidden="true" /></button>
           </Tooltip>
-        </span>
+        </span>}
         <OverflowMenu
           label={t`剪辑操作`}
           triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
@@ -2347,6 +2331,11 @@ export function ProjectTimeline({
             onSelect: () => toggleDisplaySetting(key),
             })),
             {
+              id: 'smooth-scroll',
+              label: `${smoothScrollEnabled ? '✓ ' : ''}${t`播放头居中连续滚动`}`,
+              onSelect: () => setSmoothScrollEnabled((enabled) => !enabled),
+            },
+            {
               id: 'render-preview',
               label: renderPreviewPending ? t`正在渲染预览…` : t`渲染入点到出点`,
               disabled: readOnly
@@ -2366,7 +2355,7 @@ export function ProjectTimeline({
             },
           ]}
         />
-        <span className="max-w-48 truncate text-2xs text-neutral-500">
+        <span className="sr-only">
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
         </span>
         <span className="flex items-center overflow-hidden rounded-sm border border-divider">
@@ -2400,21 +2389,7 @@ export function ProjectTimeline({
         >
           <Magnet className="size-3.5" aria-hidden="true" />
         </button>
-        <Tooltip content={smoothScrollEnabled ? t`关闭播放头居中连续滚动` : t`播放时固定播放头在视口中央并连续滚动内容`} side="bottom">
-          <button
-            type="button"
-            className={cn(
-              'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
-              smoothScrollEnabled && 'border-accent-300 bg-accent-100 text-accent-text',
-            )}
-            aria-label={t`切换平滑滚动`}
-            aria-pressed={smoothScrollEnabled}
-            onClick={() => setSmoothScrollEnabled((enabled) => !enabled)}
-          >
-            <MoveHorizontal className="size-3.5" aria-hidden="true" />
-          </button>
-        </Tooltip>
-        <button
+        {!canChangeLinks && sharedLinkGroupId === null ? null : <button
           type="button"
           className="h-7 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300"
           aria-label={sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`}
@@ -2422,7 +2397,7 @@ export function ProjectTimeline({
           onClick={toggleSelectedClipLinks}
         >
           {sharedLinkGroupId === null ? <Trans>链接片段</Trans> : <Trans>取消链接</Trans>}
-        </button>
+        </button>}
         <span className="flex items-center overflow-hidden rounded-sm border border-divider text-2xs">
           <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => onRangeChange(editPlayheadSeconds, rangeOutSeconds)}>I</button>
           <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => onRangeChange(rangeInSeconds, editPlayheadSeconds)}>O</button>
@@ -2527,21 +2502,23 @@ export function ProjectTimeline({
         </div>
       </div>
 
-      <TimelineReviewLane
-        changes={displayedChanges}
-        selectedChange={selectedChange}
-        rippleChange={rippleChange}
-        scale={scale}
-        contentWidth={contentWidth}
-        scrollLeft={scrollLeft}
-        onSelectChange={(change) => {
-          if (change.current === null) return;
-          onSelectClip(change.current.id);
-          onSeek(change.current.placement.start);
-        }}
-        onUndo={onUndo}
-        canUndo={canUndo && !readOnly}
-      />
+      {reviewChangeCount === 0 ? null : (
+        <TimelineReviewLane
+          changes={displayedChanges}
+          selectedChange={selectedChange}
+          rippleChange={rippleChange}
+          scale={scale}
+          contentWidth={contentWidth}
+          scrollLeft={scrollLeft}
+          onSelectChange={(change) => {
+            if (change.current === null) return;
+            onSelectClip(change.current.id);
+            onSeek(change.current.placement.start);
+          }}
+          onUndo={onUndo}
+          canUndo={canUndo && !readOnly}
+        />
+      )}
 
       <div
         ref={viewportRef}
@@ -3354,45 +3331,20 @@ function TimelineZoomNavigator({
 }
 
 function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
-  const visible = [...document.tracks].sort((left, right) => left.order - right.order);
-  const rows: RenderedTrack[] = [];
-  for (const track of visible) {
-    if (track.id === document.story_track_id) {
-      rows.push({ id: `${track.id}:video`, kind: 'video', label: t`视频轨道 1`, ariaLabel: track.name, clips: track.clips, controls: 'video', icon: <Camera className="size-4" />, track, derivedAudio: false });
-      rows.push({ id: `${track.id}:audio`, kind: 'audio', label: t`音频轨道 1`, ariaLabel: t`${track.name} 音频`, clips: track.clips, controls: 'audio', icon: <SquarePlus className="size-4" />, track, derivedAudio: true });
-      continue;
-    }
-    rows.push({
-      id: track.id,
-      kind: track.kind === 'audio'
-        ? 'audio'
-        : track.kind === 'caption'
-          ? 'caption'
-          : track.kind === 'text'
-            ? 'text'
-            : 'video',
-      label: track.name,
-      ariaLabel: track.name,
-      clips: track.clips,
-      controls: track.kind === 'audio'
-        ? 'audio'
-        : track.kind === 'caption'
-          ? 'caption'
-          : track.kind === 'text'
-            ? 'text'
-            : 'video',
-      icon: track.kind === 'audio'
-        ? <Volume2 className="size-4" />
-        : track.kind === 'caption'
-          ? <Captions className="size-4" />
-          : track.kind === 'text'
-            ? <Type className="size-4" />
-            : <Camera className="size-4" />,
-      track,
-      derivedAudio: false,
-    });
-  }
-  return rows;
+  return timelineTrackLayout(document).map((row) => ({
+    ...row,
+    label: row.derivedAudio ? t`${row.track.name} 音频` : row.track.name,
+    ariaLabel: row.derivedAudio ? t`${row.track.name} 音频` : row.track.name,
+    clips: row.track.clips,
+    controls: row.kind,
+    icon: row.kind === 'audio'
+      ? <Volume2 className="size-4" />
+      : row.kind === 'caption'
+        ? <Captions className="size-4" />
+        : row.kind === 'text'
+          ? <Type className="size-4" />
+          : <Camera className="size-4" />,
+  }));
 }
 
 function timelineDurationWithTrack(
@@ -3640,6 +3592,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     >
       <TimelineTrackHead
         icon={track.icon}
+        targetLabel={track.targetLabel}
         label={track.label}
         controls={track.controls}
         track={track.track}
@@ -3661,6 +3614,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         timelineTimeSeconds={timelineTimeSeconds}
         fps={fps}
         automationProperty={automationProperty}
+        showAutomationControls={height >= 80}
         onAutomationPropertyChange={setAutomationProperty}
       />
       <div className={cn('relative min-h-0 overflow-hidden', track.track.hidden && 'opacity-45')} style={{ width: contentWidth }}>
@@ -5846,16 +5800,6 @@ function TimelineTrackAudioControls({ track, timelineTimeSeconds, fps, property,
   ));
   return (
     <span className="absolute bottom-1 left-10 right-2 flex h-5 items-center gap-1 font-normal text-neutral-500">
-      <Tooltip content={track.solo ? t`关闭 Solo` : t`Solo：只监听所有已 Solo 的音频轨`} side="top">
-        <button
-          type="button"
-          className={cn('grid size-5 place-items-center rounded-sm border border-divider font-mono text-2xs hover:bg-neutral-100', track.solo && 'border-accent-500 bg-accent-100 text-accent-text')}
-          aria-label={t`切换 Solo ${track.name}`}
-          aria-pressed={track.solo}
-          disabled={readOnly}
-          onClick={() => onReplaceTrack({ ...track, solo: !track.solo })}
-        >S</button>
-      </Tooltip>
       <Tooltip content={property === 'volume' ? t`显示 Pan 轨道自动化` : t`显示 Volume 轨道自动化`} side="top">
         <button
           type="button"
@@ -5982,8 +5926,9 @@ function formatPan(value: number): string {
   return `${value < 0 ? 'L' : 'R'}${Math.round(Math.abs(value) * 100)}`;
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, renamable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, timelineTimeSeconds = 0, fps = 60, automationProperty = 'volume', onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse, onAutomationPropertyChange }: {
+function TimelineTrackHead({ icon, targetLabel = '', label, controls, track, readOnly = true, removable = false, renamable = false, canMoveUp = false, canMoveDown = false, targeted = false, syncLocked = false, syncLockVisible = true, collapsed = false, showAutomationControls = false, timelineTimeSeconds = 0, fps = 60, automationProperty = 'volume', onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleSyncLock, onToggleCollapse, onAutomationPropertyChange }: {
   readonly icon: React.ReactNode;
+  readonly targetLabel?: string | undefined;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
   readonly track?: TimelineTrack | undefined;
@@ -5996,6 +5941,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly syncLocked?: boolean | undefined;
   readonly syncLockVisible?: boolean | undefined;
   readonly collapsed?: boolean | undefined;
+  readonly showAutomationControls?: boolean | undefined;
   readonly timelineTimeSeconds?: number | undefined;
   readonly fps?: number | undefined;
   readonly automationProperty?: TrackAudioProperty | undefined;
@@ -6022,7 +5968,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   return (
     <div className={cn(
       'sticky left-0 z-30 flex min-w-0 gap-1 border-r border-divider bg-bg pl-10 pr-2 text-xs font-medium',
-      controls === 'audio' && !collapsed ? 'items-start pb-7 pt-1' : 'items-center py-1',
+      controls === 'audio' && !collapsed && showAutomationControls ? 'items-start pb-7 pt-1' : 'items-center py-1',
     )}>
       {track === undefined ? null : (
         <button
@@ -6058,7 +6004,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
                   : 'text',
           )}
         >
-          {controls === 'video' ? 'V1' : controls === 'audio' ? 'A1' : controls === 'caption' ? 'C1' : 'T1'}
+          {targetLabel}
         </button>
       )}
       {nameDraft !== null ? (
@@ -6131,6 +6077,18 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
               {controls === 'audio' ? <Volume2 className="size-3" aria-hidden="true" /> : <Eye className="size-3" aria-hidden="true" />}
             </button>
           )}
+          {controls !== 'audio' ? null : (
+            <Tooltip content={track.solo ? t`关闭 Solo` : t`Solo：只监听所有已 Solo 的音频轨`} side="top">
+              <button
+                type="button"
+                className={cn('grid size-5 place-items-center rounded-sm font-mono text-2xs hover:bg-neutral-100', track.solo && 'bg-accent-100 text-accent-text')}
+                aria-label={t`切换 Solo ${track.name}`}
+                aria-pressed={track.solo}
+                disabled={readOnly}
+                onClick={() => onReplaceTrack?.({ ...track, solo: !track.solo })}
+              >S</button>
+            </Tooltip>
+          )}
           <button
             type="button"
             className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300', track.locked && 'text-accent-text')}
@@ -6142,23 +6100,21 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
             <LockKeyhole className="size-3" aria-hidden="true" />
           </button>
           {removable ? (
-            <>
-              <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300" aria-label={t`上移轨道 ${track.name}`} disabled={readOnly || track.locked || !canMoveUp} onClick={() => onMoveTrack?.(track.id, -1)}><ChevronUp className="size-3" aria-hidden="true" /></button>
-              <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300" aria-label={t`下移轨道 ${track.name}`} disabled={readOnly || track.locked || !canMoveDown} onClick={() => onMoveTrack?.(track.id, 1)}><ChevronDown className="size-3" aria-hidden="true" /></button>
-              <button
-                type="button"
-                className="grid size-5 place-items-center rounded-sm hover:bg-fail-surface hover:text-fail-text"
-                aria-label={t`删除轨道 ${track.name}`}
-                disabled={readOnly || track.locked}
-                onClick={() => onRemoveTrack?.(track.id)}
-              >
-                <Trash2 className="size-3" aria-hidden="true" />
-              </button>
-            </>
+            <OverflowMenu
+              label={t`轨道操作 ${track.name}`}
+              triggerLabel={<Ellipsis className="size-3" aria-hidden="true" />}
+              align="start"
+              triggerClassName="h-5 gap-0.5 rounded-sm px-1 text-neutral-500 hover:bg-neutral-100"
+              items={[
+                { id: 'move-up', label: t`上移轨道`, disabled: readOnly || track.locked || !canMoveUp, onSelect: () => onMoveTrack?.(track.id, -1) },
+                { id: 'move-down', label: t`下移轨道`, disabled: readOnly || track.locked || !canMoveDown, onSelect: () => onMoveTrack?.(track.id, 1) },
+                { id: 'delete', label: t`删除轨道`, disabled: readOnly || track.locked, onSelect: () => onRemoveTrack?.(track.id) },
+              ]}
+            />
           ) : null}
         </span>
       )}
-      {track === undefined || controls !== 'audio' || collapsed ? null : (
+      {track === undefined || controls !== 'audio' || collapsed || !showAutomationControls ? null : (
         <TimelineTrackAudioControls
           track={track}
           timelineTimeSeconds={timelineTimeSeconds}

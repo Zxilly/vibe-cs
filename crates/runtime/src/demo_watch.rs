@@ -140,6 +140,7 @@ async fn run_watch_loop(
     };
     let mut requested_paths = Vec::new();
     let mut active_roots = Vec::new();
+    let mut known_roots = HashMap::new();
     let mut dirty = false;
     let mut changed_paths = HashSet::new();
     let mut last_change = tokio::time::Instant::now();
@@ -160,6 +161,7 @@ async fn run_watch_loop(
                             watcher.as_mut(),
                             &active_roots,
                             &requested_paths,
+                            &mut known_roots,
                             &status,
                         ).await;
                         // Configuration is the command's acknowledgement boundary. A full
@@ -191,6 +193,7 @@ async fn run_watch_loop(
                             watcher.as_mut(),
                             &active_roots,
                             &requested_paths,
+                            &mut known_roots,
                             &status,
                         ).await;
                         scan_and_update(
@@ -252,6 +255,7 @@ async fn run_watch_loop(
                         watcher.as_mut(),
                         &active_roots,
                         &requested_paths,
+                        &mut known_roots,
                         &status,
                     ).await;
                     let full = now.duration_since(last_full_reconciliation) >= FULL_RECONCILIATION;
@@ -284,6 +288,7 @@ async fn configure_roots(
     mut watcher: Option<&mut RecommendedWatcher>,
     previous_roots: &[PathBuf],
     requested_paths: &[String],
+    known_roots: &mut HashMap<String, PathBuf>,
     status: &RwLock<DemoWatchStatus>,
 ) -> Vec<PathBuf> {
     if let Some(watcher) = watcher.as_deref_mut() {
@@ -295,24 +300,24 @@ async fn configure_roots(
     let mut roots = Vec::new();
     let mut root_statuses = Vec::with_capacity(requested_paths.len());
     let mut identities = HashSet::new();
+    let requested_keys = requested_paths
+        .iter()
+        .map(|path| watch_path_key(path))
+        .collect::<HashSet<_>>();
+    known_roots.retain(|key, _| requested_keys.contains(key));
     for requested in requested_paths {
         let path = PathBuf::from(requested);
+        let previous_root = known_roots.get(&watch_path_key(requested)).cloned();
         let (state, message, active) = match std::fs::symlink_metadata(&path) {
             Ok(metadata) if metadata.file_type().is_symlink() => (
                 "rejected",
                 Some("symbolic-link watch roots are not allowed".to_owned()),
-                previous_roots
-                    .iter()
-                    .find(|root| paths_match_lexically(root, &path))
-                    .cloned(),
+                previous_root,
             ),
             Ok(metadata) if !metadata.is_dir() => (
                 "rejected",
                 Some("watch root is not a directory".to_owned()),
-                previous_roots
-                    .iter()
-                    .find(|root| paths_match_lexically(root, &path))
-                    .cloned(),
+                previous_root,
             ),
             Ok(_) => match std::fs::canonicalize(&path) {
                 Ok(canonical) => {
@@ -324,6 +329,7 @@ async fn configure_roots(
                             None,
                         )
                     } else if let Some(watcher) = watcher.as_deref_mut() {
+                        known_roots.insert(watch_path_key(requested), canonical.clone());
                         match watcher.watch(&canonical, RecursiveMode::Recursive) {
                             Ok(()) => ("watching", None, Some(canonical)),
                             Err(error) => (
@@ -333,6 +339,7 @@ async fn configure_roots(
                             ),
                         }
                     } else {
+                        known_roots.insert(watch_path_key(requested), canonical.clone());
                         (
                             "error",
                             Some("filesystem watcher is unavailable".to_owned()),
@@ -349,10 +356,7 @@ async fn configure_roots(
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (
                 "missing",
                 Some("watch directory does not exist".to_owned()),
-                previous_roots
-                    .iter()
-                    .find(|root| paths_match_lexically(root, &path))
-                    .cloned(),
+                previous_root,
             ),
             Err(error) => (
                 "error",
@@ -379,15 +383,15 @@ async fn configure_roots(
     roots
 }
 
-fn paths_match_lexically(left: &Path, right: &Path) -> bool {
-    let left = left.to_string_lossy();
-    let right = right.to_string_lossy();
+fn watch_path_key(path: &str) -> String {
     if cfg!(windows) {
-        left.strip_prefix(r"\\?\")
-            .unwrap_or(&left)
-            .eq_ignore_ascii_case(right.strip_prefix(r"\\?\").unwrap_or(&right))
+        path.strip_prefix(r"\\?\")
+            .unwrap_or(path)
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase()
     } else {
-        left == right
+        path.trim_end_matches('/').to_owned()
     }
 }
 

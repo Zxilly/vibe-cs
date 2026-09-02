@@ -822,7 +822,11 @@ describe('unified project workspace', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '导出成片' }));
     fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
-    await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, { encoder: 'auto', quality: 80 }));
+    await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, {
+      expected_revision: RECORDED_PROJECT.revision,
+      encoder: 'auto',
+      quality: 80,
+    }));
 
     expect(await screen.findByRole('button', { name: '取消导出任务' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '查看成品' })).toBeTruthy();
@@ -855,6 +859,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
 
     await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, {
+      expected_revision: RECORDED_PROJECT.revision,
       encoder: 'libopenh264',
       quality: 65,
       range_start_seconds: 2,

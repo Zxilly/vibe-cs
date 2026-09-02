@@ -230,3 +230,54 @@ No actionable P0, P1, or P2 mismatch remains.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.
+
+## 2026-09-02 — Premiere filmstrip and Windows caption controls
+
+final result: passed
+
+### Comparison target
+
+- Source visual truth: `C:\Users\12009\AppData\Local\Temp\codex-clipboard-de94fa37-f56a-4c67-afe4-ea1a74e37d2f.png`.
+- Adobe structural reference: `target/adobe-premiere-timeline-official.jpg`.
+- Browser-rendered implementation, default Head Only mode: `target/timeline-head-mode-final-20260902.png`.
+- Browser-rendered implementation, Continuous Frames comparison state: `target/timeline-continuous-mode-20260902.png`.
+- Same-input focused comparison: `target/design-qa-timeline-comparison.png`.
+- Route: `http://localhost:5173/#/projects/789404ba-5ae4-47fa-aefe-d6b8e74a6720` in the active Tauri WebView2 CDP session.
+- State: Multicam Audit revision 9, two eight-second recorded video angles, derived A1 waveform, transport at 00:06.150.
+
+### Viewport and normalization
+
+- Source pixels: 1635 × 962.
+- Implementation pixels: 2160 × 1350.
+- Implementation CSS viewport: 1440 × 900 at device pixel ratio 1.5.
+- Focused source crop: x 8, y 674, width 1198, height 270.
+- Focused implementation crop: x 482, y 738, width 1238, height 600.
+- The comparison montage fits both crops to a common 1200px-wide review column. The source contains real CS footage while the implementation project intentionally contains solid-colour timecode fixtures; image subject and palette are therefore excluded from fidelity scoring.
+
+### Findings
+
+No actionable P0, P1, or P2 mismatch remains in this iteration's scope.
+
+- Typography: existing product typography and timecode hierarchy remain unchanged; the new controls introduce no wrapping or truncation regression.
+- Spacing and layout: the workbench and global title bar now use a 48px Windows tall-title-bar token. Each caption control is an explicit 46 × 48 CSS px instead of inheriting the product's 3.4px spacing scale.
+- Colors and tokens: video clip bodies use the existing light accent ramp. Source pixels are contained in bounded thumbnail cells rather than used as the clip background.
+- Image quality: static thumbnail requests use 192 × 108 frames, preserve the 16:9 crop, use stable frame-keyed URLs, and never mount additional video decoders.
+- Icons: Minimize, Maximize, Restore, and Close use Microsoft Fluent System Icons through per-icon package imports. Maximize and Restore reflect the actual Tauri window state.
+- Copy: the Display menu names all four Premiere-style modes directly: Head Only, Head and Tail, Continuous Frames, and Off. English and Chinese catalogs compile with zero missing translations.
+
+The remaining visible red/blue imagery belongs to the `TC One` / `TC Two` synthetic media itself. In the default Head Only mode it occupies one bounded thumbnail at the clip head; the rest of the clip is the product label surface. Continuous Frames intentionally shows the source at successive times and is user-selectable.
+
+### Comparison history
+
+1. Earlier implementation: one `source_in` poster frame used `size-full object-cover`, producing one giant red/blue block for the whole clip. Caption buttons measured 30.6 × 56 CSS px and always displayed Maximize.
+2. First fix: distinct source frames rendered across the clip, long filmstrips were bounded to a quantized visible window, caption buttons became 46 × 48 and tracked Maximize/Restore.
+3. Final fix: added Head Only, Head and Tail, Continuous Frames, and Off modes; Head Only became the restrained default for light UI. The focused comparison and final cold-reload screenshot show the post-fix state.
+
+### Interactions and verification
+
+- Tauri Maximize changed the WebView to 2560 × 1392 and the control to `data-window-state=restore`; Restore returned to 1440 × 900 and `data-window-state=maximize`.
+- All four video-thumbnail modes were changed through the visible Display menu: image counts were 1/clip, 2/clip, 6/clip, and 0/clip respectively.
+- At 4× zoom the timeline viewport was 824px over a 1738px scroll width. Scrolling changed the requested source-frame window while keeping each long filmstrip bounded to 11–12 image nodes.
+- A full reload retained 46 × 48 caption geometry, loaded two filmstrips in the selected mode, and produced no new console or page errors.
+- Full web suite before the final display-mode refinement: 289 files and 3222 tests passed.
+- Post-refinement focused tests, strict TypeScript, strict i18n/layer lint, and production Vite build passed.

@@ -108,6 +108,12 @@ impl MediaPort for RuntimeMediaPort {
             width: video.and_then(|stream| stream.width),
             height: video.and_then(|stream| stream.height),
             has_audio: audio.is_some(),
+            timecode_start_seconds: probe.timecode.as_deref().and_then(|timecode| {
+                parse_media_timecode(
+                    timecode,
+                    video.and_then(|stream| stream.frame_rate.as_deref()),
+                )
+            }),
             frame_rate: video.and_then(|stream| stream.frame_rate.clone()),
             video_codec: video.map(|stream| stream.codec.clone()),
             audio_codec: audio.map(|stream| stream.codec.clone()),
@@ -294,6 +300,34 @@ impl MediaPort for RuntimeMediaPort {
     }
 }
 
+fn parse_media_timecode(value: &str, frame_rate: Option<&str>) -> Option<f64> {
+    let fps = frame_rate.and_then(|value| {
+        let (numerator, denominator) = value.split_once('/').unwrap_or((value, "1"));
+        let numerator = numerator.parse::<f64>().ok()?;
+        let denominator = denominator.parse::<f64>().ok()?;
+        (numerator.is_finite() && denominator.is_finite() && numerator > 0.0 && denominator > 0.0)
+            .then_some(numerator / denominator)
+    })?;
+    let parts = value
+        .replace(';', ":")
+        .split(':')
+        .map(str::parse::<u32>)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    let [hours, minutes, seconds, frames] = parts.as_slice() else {
+        return None;
+    };
+    if *minutes >= 60 || *seconds >= 60 || f64::from(*frames) >= fps.ceil() {
+        return None;
+    }
+    Some(
+        f64::from(*hours) * 3_600.0
+            + f64::from(*minutes) * 60.0
+            + f64::from(*seconds)
+            + f64::from(*frames) / fps,
+    )
+}
+
 fn map_media_error(error: MediaError) -> DomainError {
     match error {
         MediaError::ExecutableNotFound(message) => DomainError::DependencyUnavailable(message),
@@ -306,6 +340,21 @@ fn map_media_error(error: MediaError) -> DomainError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn embedded_timecode_uses_the_exact_stream_rate() {
+        assert_eq!(
+            parse_media_timecode("01:02:03:15", Some("30")),
+            Some(3_723.5)
+        );
+        assert!(
+            (parse_media_timecode("00:00:10;15", Some("30000/1001")).expect("ntsc") - 10.5005)
+                .abs()
+                < 0.0001
+        );
+        assert_eq!(parse_media_timecode("00:00:10:30", Some("30")), None);
+        assert_eq!(parse_media_timecode("bad", Some("30")), None);
+    }
 
     #[test]
     fn pending_filter_outputs_remove_only_files_created_by_the_operation() {

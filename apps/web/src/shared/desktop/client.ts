@@ -51,6 +51,7 @@ import type {
   CleanupStagedOutputsResult,
   CreateNestedSequenceRequest,
   CreateNestedSequenceResponse,
+  CreateMulticamRequest,
   CreateProjectRequest,
   CosmeticCatalog,
   CosmeticInspectionReport,
@@ -93,6 +94,7 @@ import type {
   MediaAsset,
   MediaProxyCleanup,
   NestedSequenceMedia,
+  MulticamEditResponse,
   OutputItem,
   OutputKind,
   OutputPage,
@@ -546,6 +548,18 @@ export const commands = {
       `/projects/${encodeURIComponent(projectId)}/nested-sequences/${encodeURIComponent(clipId)}/refresh`,
       { method: 'POST', body: { base_revision: baseRevision }, timeoutMs: null },
     ),
+  createMulticam: (projectId: string, body: CreateMulticamRequest) =>
+    request<MulticamEditResponse>(
+      `/projects/${encodeURIComponent(projectId)}/multicam`,
+      { method: 'POST', body, timeoutMs: null },
+    ),
+  switchMulticamAngle: (
+    projectId: string,
+    body: { base_revision: number; group_id: string; angle: number; timeline_time: number },
+  ) => request<MulticamEditResponse>(
+    `/projects/${encodeURIComponent(projectId)}/multicam/switch`,
+    { method: 'POST', body, timeoutMs: null },
+  ),
   applyProjectPatch: (patch: ProjectPatch) =>
     request<ProjectPatchResult>(`/projects/${encodeURIComponent(patch.project_id)}`, {
       method: 'PATCH', body: patch,

@@ -32,6 +32,7 @@ pub struct MediaProbe {
     pub path: PathBuf,
     pub duration_seconds: Option<f64>,
     pub size_bytes: Option<u64>,
+    pub timecode: Option<String>,
     pub streams: Vec<MediaStream>,
 }
 
@@ -130,6 +131,15 @@ pub fn native_probe_media(
     let duration_seconds = (context.duration() > 0)
         .then(|| context.duration() as f64 / f64::from(ffmpeg::ffi::AV_TIME_BASE));
     let size_bytes = std::fs::metadata(media).ok().map(|metadata| metadata.len());
+    let timecode = context
+        .metadata()
+        .get("timecode")
+        .map(str::to_owned)
+        .or_else(|| {
+            context
+                .streams()
+                .find_map(|stream| stream.metadata().get("timecode").map(str::to_owned))
+        });
     let streams = context
         .streams()
         .map(|stream| native_stream(&stream))
@@ -138,6 +148,7 @@ pub fn native_probe_media(
         path: media.to_path_buf(),
         duration_seconds,
         size_bytes,
+        timecode,
         streams,
     })
 }

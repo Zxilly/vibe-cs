@@ -244,6 +244,48 @@ export function useRefreshNestedSequence(projectId: string) {
   });
 }
 
+export function useCreateMulticam(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: import('../shared/desktop/dto').CreateMulticamRequest) =>
+      client.createMulticam(projectId, request),
+    onSuccess: ({ project, change_group: changeGroup }) => {
+      queryClient.setQueryData(qk.projects.detail(project.id), project);
+      queryClient.setQueryData(
+        qk.projects.changeGroups(project.id),
+        (current: readonly ProjectChangeGroup[] | undefined) => [changeGroup, ...(current ?? [])],
+      );
+      return Promise.all([
+        invalidateProjects(queryClient),
+        queryClient.invalidateQueries({ queryKey: qk.projects.deliveryGate(project.id) }),
+      ]).then(() => undefined);
+    },
+  });
+}
+
+export function useSwitchMulticamAngle(projectId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: { readonly baseRevision: number; readonly groupId: string; readonly angle: number; readonly timelineTime: number }) =>
+      client.switchMulticamAngle(projectId, {
+        base_revision: request.baseRevision,
+        group_id: request.groupId,
+        angle: request.angle,
+        timeline_time: request.timelineTime,
+      }),
+    onSuccess: ({ project, change_group: changeGroup }) => {
+      queryClient.setQueryData(qk.projects.detail(project.id), project);
+      queryClient.setQueryData(
+        qk.projects.changeGroups(project.id),
+        (current: readonly ProjectChangeGroup[] | undefined) => [changeGroup, ...(current ?? [])],
+      );
+      return invalidateProjects(queryClient);
+    },
+  });
+}
+
 export function useRevertProjectChangeGroup(projectId: string) {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

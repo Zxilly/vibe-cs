@@ -8,6 +8,7 @@ mod evidence;
 mod integrations;
 mod lineups;
 mod media;
+mod multicam;
 pub(crate) mod outputs;
 mod players;
 mod product;
@@ -39,6 +40,7 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(review::router())
         .merge(source_assets::router())
         .merge(media::router())
+        .merge(multicam::router())
         .merge(outputs::router())
         .merge(players::router())
         .merge(projects::router())

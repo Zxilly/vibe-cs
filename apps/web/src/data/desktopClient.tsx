@@ -171,6 +171,8 @@ export type DesktopClient = Pick<
   | 'listNestedSequenceMedia'
   | 'createNestedSequence'
   | 'refreshNestedSequence'
+  | 'createMulticam'
+  | 'switchMulticamAngle'
   | 'applyProjectPatch'
   | 'listProjectChangeGroups'
   | 'revertProjectChangeGroup'

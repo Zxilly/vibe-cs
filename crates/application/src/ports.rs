@@ -469,6 +469,7 @@ pub struct ProbedMediaMetadata {
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub has_audio: bool,
+    pub timecode_start_seconds: Option<f64>,
     /// Exact frame rate as a reduced rational string — `"60"`, `"30000/1001"`.
     /// A float would make 29.97 and 30 the same number at the precision the UI
     /// prints, and those are different formats.

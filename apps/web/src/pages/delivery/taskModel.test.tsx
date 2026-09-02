@@ -14,8 +14,14 @@ import {
   taskProgressOfActivity,
   taskStagePositionOf,
   taskStatusOfActivity,
-  toTaskSummary,
+  toTaskSummary as buildTaskSummary,
+  type TaskSummaryOptions,
 } from './taskModel';
+
+function toTaskSummary(item: ActivityItem, options: Partial<TaskSummaryOptions> = {}) {
+  const { recovery = { label: '测试恢复', onAction: () => {} }, ...rest } = options;
+  return buildTaskSummary(item, { ...rest, recovery });
+}
 
 const ITEM: ActivityItem = {
   id: 'recording:job-1',
@@ -142,10 +148,8 @@ describe('toTaskSummary', () => {
       .failure?.detail).toBe('写入失败');
   });
 
-  it('always hands a failure some recovery action, and marks a missing one useless', () => {
+  it('uses the recovery action supplied by the caller', () => {
     const failed = { ...ITEM, status: 'failed' as const };
-    expect(toTaskSummary(failed).failure?.recovery.disabled).toBe(true);
-
     const withRecovery = toTaskSummary(failed, {
       recovery: { label: '重试', onAction: () => {} },
     });

@@ -4,7 +4,7 @@
  * The three things this page owes the rest of the app:
  *   · a bad address is answered here, not sent to the service;
  *   · the stage log is the analysis run's real events, in the user's language;
- *   · 重试 / 取消 appear only where `taskMachine` allows the transition, and
+ *   · 重试 / 取消 appear only where `available_actions` allows them, and
  *     firing one calls the command the service actually offers.
  */
 

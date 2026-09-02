@@ -13,11 +13,8 @@
  * is `delivery/taskDetailModel.ts`, and an address that names no real kind is
  * answered here rather than sent to the service.
  *
- * ── 重试 / 取消 go through `taskMachine` ───────────────────────────────────
- *
- * §4.3 makes one machine the task lifecycle, so both buttons are drawn from
- * `snapshot.can(event)` (`delivery/taskTransitions.ts`) and never from a status
- * comparison written on this page. A recording's 重试 starts nothing: it asks
+ * 重试 / 取消 are drawn from the host-owned `available_actions`. A recording's
+ * 重试 starts nothing: it asks
  * for a plan and hands the user to `/recording`, because §4.5.3 ① says a
  * recording starts from one explicit confirmation.
  *

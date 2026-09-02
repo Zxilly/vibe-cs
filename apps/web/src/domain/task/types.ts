@@ -60,20 +60,14 @@ export function asJobStatus(value: string): JobStatus | null {
 export type TaskKind = 'analysis' | 'recording' | 'montage' | 'export' | 'download';
 
 /**
- * The lifecycle states of `taskMachine`. Named identically to the machine's
- * states so `snapshot.value` *is* a `TaskStatus` and no mapping table can drift.
- *
- * Against `dto.ts`'s `JobStatus` (`queued preparing running cancelling
+ * Display states derived from the host's `JobStatus` (`queued preparing running cancelling
  * completed failed cancelled`):
  *   · `preparing` folds into `queued` — the artboard has one 「排队中」 marker
  *     and no separate 「准备中」 word anywhere.
  *   · `completed` is spelled `succeeded` so it cannot be confused with the
  *     `done` of a *stage*, which is a different scale.
- *   · `awaiting-confirmation` is added, and it is the important one: §4.5.3 ①
- *     「录制只由一次显式确认启动」 has to be a state, not a button placement.
  */
 export type TaskStatus =
-  | 'awaiting-confirmation'
   | 'queued'
   | 'running'
   | 'cancelling'

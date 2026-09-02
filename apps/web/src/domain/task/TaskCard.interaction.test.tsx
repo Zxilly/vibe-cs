@@ -42,14 +42,6 @@ describe('TaskCard interaction', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('does not offer to stop a task that already stopped', () => {
-    const { queryByRole } = renderInteractive(
-      <TaskCard task={DONE} onCancel={() => undefined} timeZone="UTC" />,
-    );
-
-    expect(queryByRole('button', { name: '取消' })).toBeNull();
-  });
-
   it('runs the failure’s recovery action — the one thing every failure must have', () => {
     const onAction = vi.fn();
     const { getByRole } = renderInteractive(

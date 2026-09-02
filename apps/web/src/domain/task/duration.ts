@@ -60,7 +60,6 @@ const MINUTES_PER_HOUR = 60;
  * `cancelling` likewise — the task has not stopped yet.
  */
 export const TASK_DURATION_KIND: Readonly<Record<TaskStatus, TaskDurationKind>> = {
-  'awaiting-confirmation': 'elapsed',
   queued: 'elapsed',
   running: 'elapsed',
   cancelling: 'elapsed',

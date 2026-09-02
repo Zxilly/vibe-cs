@@ -41,14 +41,6 @@ describe('TaskDetail interaction · actions', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('does not offer to stop a task that already stopped', () => {
-    const { queryByRole } = renderInteractive(
-      <TaskDetail task={FAILED} onCancel={() => undefined} timeZone="UTC" />,
-    );
-
-    expect(queryByRole('button', { name: '取消' })).toBeNull();
-  });
-
   it('offers 重试 on a failed task', () => {
     const onRetry = vi.fn();
     const { getByRole } = renderInteractive(<TaskDetail task={FAILED} onRetry={onRetry} timeZone="UTC" />);
@@ -58,23 +50,13 @@ describe('TaskDetail interaction · actions', () => {
   });
 
   it('calls a cancelled task’s re-run 重新发起, not 重试', () => {
-    // 「已取消 · 可重新发起」 — a restart is a start, not a retry, and
-    // `taskMachine` spends no retry budget on it.
+    // 「已取消 · 可重新发起」 — a restart is a start, not a retry.
     const { getByRole, queryByRole } = renderInteractive(
       <TaskDetail task={CANCELLED} onRetry={() => undefined} timeZone="UTC" />,
     );
 
     expect(getByRole('button', { name: '重新发起' })).toBeDefined();
     expect(queryByRole('button', { name: '重试' })).toBeNull();
-  });
-
-  it('offers neither on a task that is still running fine', () => {
-    const { queryByRole } = renderInteractive(
-      <TaskDetail task={RUNNING} stages={STAGES} onRetry={() => undefined} timeZone="UTC" />,
-    );
-
-    expect(queryByRole('button', { name: '重试' })).toBeNull();
-    expect(queryByRole('button', { name: '重新发起' })).toBeNull();
   });
 
   it('runs the failure’s own recovery from the Notice', () => {

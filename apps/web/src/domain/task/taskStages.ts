@@ -1,10 +1,8 @@
 /*
  * Domain layer, layer 2 of 3 — the stage sequence of a task, as pure data.
  *
- * Spec §4.3: 「统一成 domain/task/taskMachine.ts 一台机器，阶段序列由任务类型参数
- * 化」. This module is that parameter table, kept out of the machine so both the
- * machine and the presentation components read the same list and neither owns
- * it.
+ * The host owns lifecycle state. This module only maps each task kind to its
+ * displayed stage sequence.
  *
  * The six recording stages are **imported**, not retyped: `RECORDING_STAGE_IDS`
  * is `design/feedback/StageBar`'s own list, the one `recordingStages()` labels
@@ -107,7 +105,7 @@ export function taskStageStates(
     if (index > stageIndex) return 'pending';
     if (status === 'failed') return 'failed';
     if (status === 'cancelled') return 'pending';
-    if (status === 'awaiting-confirmation' || status === 'queued') return 'pending';
+    if (status === 'queued') return 'pending';
     return 'active';
   });
 }

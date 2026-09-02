@@ -41,12 +41,10 @@ describe('taskStageIndex', () => {
 describe('taskStageStates', () => {
   const stages = RECORDING_STAGE_IDS;
 
-  it('leaves everything not started while the task is still waiting or queued', () => {
-    for (const status of ['awaiting-confirmation', 'queued'] as const) {
-      expect(taskStageStates(stages, -1, status), status).toEqual(
-        ['pending', 'pending', 'pending', 'pending', 'pending', 'pending'],
-      );
-    }
+  it('leaves everything not started while the task is queued', () => {
+    expect(taskStageStates(stages, -1, 'queued')).toEqual(
+      ['pending', 'pending', 'pending', 'pending', 'pending', 'pending'],
+    );
   });
 
   it('paints the pointer active and everything before it done', () => {
@@ -85,7 +83,7 @@ describe('taskStageStates', () => {
 
   it('produces nothing at all for a kind with no drawn sequence', () => {
     const statuses: readonly TaskStatus[] = [
-      'awaiting-confirmation', 'queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled',
+      'queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled',
     ];
     for (const status of statuses) {
       expect(taskStageStates([], -1, status), status).toEqual([]);

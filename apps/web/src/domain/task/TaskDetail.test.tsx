@@ -166,18 +166,6 @@ describe('TaskDetail · failure', () => {
     expect(markup).toContain('data-tone="danger"');
   });
 
-  it('shows the retry state when the page hands one over', () => {
-    const markup = renderMarkup(
-      <TaskDetail
-        task={FAILED}
-        retry={{ retries: 2, maxRetries: 2, action: { label: '重试导出', onAction: () => undefined } }}
-        {...UTC}
-      />,
-    );
-
-    expect(markup).toContain('已重试 2 次');
-    expect(markup).toContain('已达上限，不再自动重试');
-  });
 });
 
 describe('TaskDetail · technical details', () => {

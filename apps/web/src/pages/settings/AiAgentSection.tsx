@@ -15,10 +15,8 @@
  * §4.5.3 rule ① — 「录制只由一次显式确认启动」 — is a rule of the system, so the
  * artboard draws the switch **on and unreachable** and says why in its own line:
  * 「不可关闭：录制会启动游戏并写出文件，必须有一次人工确认」. It is rendered from
- * `RECORDING_CONFIRMATION_LOCKED_ON`, which reads `domain/task`'s
- * `TASK_REQUIRES_CONFIRMATION.recording` — the place the product *actually*
- * enforces it — rather than from a `true` typed into this file.
- * `AgentWorkspaceSettings` has no field for it, and that is correct.
+ * `RECORDING_CONFIRMATION_LOCKED_ON`. The recording route enforces the same
+ * acknowledgement; `AgentWorkspaceSettings` has no field for it.
  *
  * ── When the retention policy is applied (§10.1 gap 2, decided here) ──────
  *

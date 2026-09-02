@@ -12,7 +12,6 @@
  *   3. 「录制前始终由你确认」 — which is not a setting at all
  */
 
-import { TASK_REQUIRES_CONFIRMATION } from '../../domain/task';
 import { retentionOptionId } from '../../data/sessions';
 import type { AgentSessionRetention } from '../../shared/desktop/dto';
 
@@ -75,12 +74,10 @@ export function retentionFromOptionId(
 /* ── 3. 录制前始终由你确认 ───────────────────────────────────────────────── */
 
 /**
- * §4.5.3 rule ①, read from where the product already encodes it rather than
- * re-asserted here: `domain/task`'s task machine is what actually refuses to
- * start a recording without a confirmation, and the settings switch is a
- * *readout* of that. It is drawn on and locked — the artboard paints it at 70 %
+ * The settings switch is a readout of the recording route's mandatory
+ * acknowledgement. It is drawn on and locked — the artboard paints it at 70 %
  * with the line 「不可关闭：录制会启动游戏并写出文件，必须有一次人工确认」 — and
  * `AgentWorkspaceSettings` has no field for it, which is correct: a rule of the
  * system is not a preference (contract gap 4).
  */
-export const RECORDING_CONFIRMATION_LOCKED_ON: boolean = TASK_REQUIRES_CONFIRMATION.recording;
+export const RECORDING_CONFIRMATION_LOCKED_ON = true;

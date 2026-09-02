@@ -9,8 +9,7 @@
  * and asking for it before knowing the kind would mean a disabled query on
  * every visit.
  *
- * See `taskDetailModel.tsx` for the stage and log translation, and
- * `taskTransitions.ts` for why the two buttons are drawn from the machine.
+ * See `taskDetailModel.tsx` for the stage and log translation.
  */
 
 import { t } from '@lingui/core/macro';
@@ -90,7 +89,7 @@ export function TaskDetailBody({ item, now, compact = false }: TaskDetailBodyPro
        * draw the same action twice, once in the header and once in the notice
        * three lines below it.
        */
-      {...(bound.restart?.label === 'restart' && !bound.restart.disabled
+      {...(bound.restart?.label === 'restart'
         ? { onRetry: bound.restart.run }
         : {})}
     />

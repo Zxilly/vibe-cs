@@ -3,22 +3,8 @@
  * card takes: a summary, a cancel handler, a recovery action, and the links
  * back to whatever produced it.
  *
- * ── Two gates, both required ──────────────────────────────────────────────
- *
- * An action is offered only when **the lifecycle allows it and the service
- * offers it**:
- *
- *   `taskTransitions`      `taskMachine` accepts the event from where this
- *                          record stands (§4.3 — the page does not decide on
- *                          its own that something is cancellable)
- *   `available_actions`    the service's own list on `ActivityItem`, which
- *                          knows things the machine cannot: a download is only
- *                          retryable while the Steam account that owns it is
- *                          still configured, an analysis only while its demo is
- *                          still in the library.
- *
- * Either gate closing hides the button. They are not redundant — the machine
- * knows the shape of a life, the service knows this one's circumstances.
+ * `ActivityItem.available_actions` is authoritative for cancel and retry. The
+ * UI does not reconstruct a second lifecycle from the returned status.
  *
  * ── Every failure gets a real recovery action ─────────────────────────────
  *
@@ -43,8 +29,7 @@ import { useHref, useNavigate } from 'react-router-dom';
 import { useCancelTask, useRetryTask } from '../../data/tasks';
 import type { TaskLink, TaskSummary } from '../../domain/task';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
-import { taskKindOfActivity, taskStagePositionOf, taskStatusOfActivity, toTaskSummary } from './taskModel';
-import { canCancelTask, taskRestartEvent } from './taskTransitions';
+import { taskStatusOfActivity, toTaskSummary } from './taskModel';
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {
@@ -54,26 +39,13 @@ export function taskDetailPath(item: ActivityItem): string {
 export interface TaskCardBindings {
   readonly summary: TaskSummary;
   readonly links: readonly TaskLink[];
-  /**
-   * 「取消」. **Absent while the local service is unreachable**, which is the one
-   * place this page hides an action instead of disabling it: `domain/task`'s
-   * `TaskCard` takes a bare `onCancel` callback and has no slot for a disabled
-   * reason, so the choice is between hiding it and offering a button that
-   * silently fails. Reported as a gap — `TaskCard` wants the same
-   * `{ disabled, disabledReason }` pair `Button` already understands.
-   */
+  /** 「取消」, present only when the returned record offers it. */
   readonly onCancel: (() => void) | undefined;
-  /**
-   * Present whenever the lifecycle and the service both allow a re-run, service
-   * connectivity aside — a blocked one is `disabled` with a reason rather than
-   * missing, per 「需要服务的动作变为禁用并写明原因，不隐藏、不静默失败」.
-   */
+  /** Present only when the returned record offers a supported retry action. */
   readonly restart:
     | {
       readonly label: 'retry' | 'restart';
       readonly run: () => void;
-      readonly disabled: boolean;
-      readonly disabledReason?: string | undefined;
     }
     | undefined;
 }
@@ -104,32 +76,16 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
   const routeHref = (path: string): string => `${root.replace(/\/$/u, '')}${path}`;
 
   return function bind(item: ActivityItem): TaskCardBindings {
-    const kind = taskKindOfActivity(item);
     const status = taskStatusOfActivity(item.status);
-    const stage = taskStagePositionOf(item);
-    const lifecycle = {
-      kind,
-      status,
-      ...(stage === undefined ? {} : { stageId: stage.id }),
-    };
-
     const jobId = item.job_id;
-
-    const cancellable =
-      jobId !== null
-      && canCancelTask(lifecycle)
-      && item.available_actions.includes('cancel');
-
-    const restartEvent = taskRestartEvent(lifecycle);
+    const cancellable = jobId !== null && item.available_actions.includes('cancel');
     const retryAction = retryActionOf(item);
-    const restartable = jobId !== null && restartEvent !== null && retryAction !== null;
+    const restartable = jobId !== null && retryAction !== null;
 
     const run = (): void => {
       if (jobId === null || retryAction === null) return;
       if (retryAction === 'retry_recording') {
-        if (item.context_id !== null) {
-          void navigate(`/projects/${encodeURIComponent(item.context_id)}`);
-        }
+        void navigate('/projects');
         return;
       }
       retry.mutate({
@@ -141,7 +97,7 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
 
     const summary = toTaskSummary(item, {
       ...(now === undefined ? {} : { now }),
-      recovery: recoveryFor({ item, restartable, restartEvent, run, navigate }),
+      recovery: recoveryFor({ item, restartable, run, navigate }),
       ...(status === 'cancelled' ? { note: <Trans>可重新发起</Trans> } : {}),
     });
 
@@ -153,11 +109,10 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
           ? () => cancel.mutate({ kind: item.kind, jobId })
           : undefined,
       restart:
-        restartable && restartEvent !== null
+        restartable
           ? {
-            label: restartEvent.type === 'RESTART' ? 'restart' : 'retry',
+            label: status === 'cancelled' ? 'restart' : 'retry',
             run,
-            disabled: false,
           }
           : undefined,
     };
@@ -175,15 +130,14 @@ function retryActionOf(item: ActivityItem): 'retry_analysis' | 'retry_download' 
 interface RecoveryInput {
   readonly item: ActivityItem;
   readonly restartable: boolean;
-  readonly restartEvent: { readonly type: string } | null;
   readonly run: () => void;
   readonly navigate: (to: string) => void;
 }
 
-function recoveryFor({ item, restartable, restartEvent, run, navigate }: RecoveryInput) {
-  if (restartable && restartEvent !== null) {
+function recoveryFor({ item, restartable, run, navigate }: RecoveryInput) {
+  if (restartable) {
     return {
-      label: <Trans>重试</Trans>,
+      label: item.kind === 'recording' ? <Trans>打开作品</Trans> : <Trans>重试</Trans>,
       onAction: run,
     };
   }

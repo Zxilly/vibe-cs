@@ -89,10 +89,6 @@ import type { ActivityItem } from '../../shared/desktop/viewModels';
  * reports `running` like any other job, and the stage it is in travels in
  * `stage`. The key was accepted because `ActivityStatus` was a hand-written
  * union; the enum does not have it.
- *
- * There is no `awaiting-confirmation` on the wire. It is a state the front end
- * owns (§4.5.3 ①), reached by `taskMachine` before a recording is confirmed and
- * never reported by the service, so nothing maps onto it.
  */
 export const ACTIVITY_STATUS_TO_TASK_STATUS: Readonly<Record<ActivityStatus, TaskStatus>> = {
   queued: 'queued',
@@ -236,7 +232,7 @@ export interface TaskSummaryOptions {
    * compile without a recovery action on a failure, which is 「每条都带一个主要
    * 恢复动作」 held by the type system rather than by review.
    */
-  readonly recovery?: TaskRecoveryAction | undefined;
+  readonly recovery: TaskRecoveryAction;
   /** 影响范围, when the page can state it. */
   readonly impact?: ReactNode | undefined;
   readonly artifacts?: readonly TaskArtifact[] | undefined;
@@ -249,13 +245,9 @@ export interface TaskSummaryOptions {
 
 /**
  * `ActivityItem` → `TaskSummary`.
- *
- * A failed record with no `recovery` supplied falls back to a recovery that
- * does nothing but say so. That branch exists because the type demands an
- * action and a page that forgot one must still render; it is deliberately
- * useless rather than plausible, so the omission shows up.
+ * The caller must supply the recovery action used for a failed record.
  */
-export function toTaskSummary(item: ActivityItem, options: TaskSummaryOptions = {}): TaskSummary {
+export function toTaskSummary(item: ActivityItem, options: TaskSummaryOptions): TaskSummary {
   const status = taskStatusOfActivity(item.status);
   const stage = taskStagePositionOf(item);
   const progress = taskProgressOfActivity(item);
@@ -281,7 +273,7 @@ export function toTaskSummary(item: ActivityItem, options: TaskSummaryOptions = 
       reason: item.failure === null ? 'unknown' : FAILURE_REASON[item.failure.code],
       ...(item.error === null ? {} : { detail: item.error }),
       ...(options.impact === undefined ? {} : { impact: options.impact }),
-      recovery: options.recovery ?? MISSING_RECOVERY,
+      recovery: options.recovery,
     },
   };
 }
@@ -316,12 +308,6 @@ const FAILURE_REASON: Readonly<Record<JobFailureCode, TaskFailureReason>> = {
   invalid_input: 'unknown',
   timeout: 'timeout',
   unknown: 'unknown',
-};
-
-const MISSING_RECOVERY: TaskRecoveryAction = {
-  label: <Trans>暂无可用的恢复动作</Trans>,
-  onAction: () => {},
-  disabled: true,
 };
 
 /**

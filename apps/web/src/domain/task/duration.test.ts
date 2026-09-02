@@ -82,7 +82,7 @@ describe('taskDuration', () => {
 });
 
 describe('TASK_DURATION_KIND', () => {
-  const UNFINISHED: readonly TaskStatus[] = ['awaiting-confirmation', 'queued', 'running', 'cancelling'];
+  const UNFINISHED: readonly TaskStatus[] = ['queued', 'running', 'cancelling'];
   const FINISHED: readonly TaskStatus[] = ['succeeded', 'failed', 'cancelled'];
 
   it('says 已用 for every task that has not stopped', () => {

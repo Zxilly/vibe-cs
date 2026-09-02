@@ -44,7 +44,6 @@ import { Empty, TableSkeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Link, Badge, cn } from '../../design/primitives';
 
-import { RetryNotice, type RetryNoticeProps } from './RetryNotice';
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
 import { TaskDuration } from './TaskDuration';
 import { taskDurationFor } from './duration';
@@ -77,16 +76,12 @@ export interface TaskDetailProps {
   readonly technicalDetails?: readonly TaskFact[] | undefined;
   /** Export details expose their output path immediately; other kinds stay compact. */
   readonly technicalDetailsExpanded?: boolean | undefined;
-  readonly retry?: Omit<RetryNoticeProps, 'className'> | undefined;
   readonly onRetry?: (() => void) | undefined;
   readonly onCancel?: (() => void) | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
   readonly compact?: boolean | undefined;
 }
-
-const CANCELLABLE = new Set(['queued', 'running', 'awaiting-confirmation']);
-const RETRYABLE = new Set(['failed', 'cancelled']);
 
 export function TaskDetail({
   task,
@@ -99,7 +94,6 @@ export function TaskDetail({
   links,
   technicalDetails,
   technicalDetailsExpanded = false,
-  retry,
   onRetry,
   onCancel,
   timeZone,
@@ -148,12 +142,12 @@ export function TaskDetail({
               {artifact.label}
             </Link>
           ))}
-          {onCancel !== undefined && CANCELLABLE.has(task.status) ? (
+          {onCancel !== undefined ? (
             <Button variant="secondary" size="sm" onClick={onCancel}>
               <Trans>取消</Trans>
             </Button>
           ) : null}
-          {onRetry !== undefined && RETRYABLE.has(task.status) ? (
+          {onRetry !== undefined ? (
             <Button variant="primary" size="sm" onClick={onRetry}>
               {task.status === 'cancelled' ? <Trans>重新发起</Trans> : <Trans>重试</Trans>}
             </Button>
@@ -218,7 +212,6 @@ export function TaskDetail({
             </p>
           )}
 
-          {retry === undefined ? null : <RetryNotice {...retry} />}
 
           {technicalDetails === undefined || technicalDetails.length === 0 ? null : (
             <details

@@ -40,7 +40,6 @@ export function taskKindLabels(): Readonly<Record<TaskKind, ReactNode>> {
  */
 export function taskStatusLabels(): Readonly<Record<TaskStatus, ReactNode>> {
   return {
-    'awaiting-confirmation': <Trans>等待确认</Trans>,
     queued: <Trans>排队中</Trans>,
     running: <Trans>运行中</Trans>,
     cancelling: <Trans>取消中</Trans>,
@@ -84,7 +83,6 @@ export function taskProgressUnitLabels(): Readonly<Record<TaskProgressUnit, Reac
  * front-end simulating an outcome (§4.3).
  */
 export const TASK_STATUS_DOT: Readonly<Record<TaskStatus, StatusDotStatus>> = {
-  'awaiting-confirmation': 'warn',
   queued: 'idle',
   running: 'running',
   cancelling: 'running',
@@ -103,7 +101,6 @@ export const TASK_STATUS_DOT: Readonly<Record<TaskStatus, StatusDotStatus>> = {
  * it — which is also the component that holds the required recovery action.
  */
 export const TASK_STATUS_TAG_TONE: Readonly<Record<TaskStatus, BadgeVariant>> = {
-  'awaiting-confirmation': 'outline',
   queued: 'neutral',
   running: 'accent',
   cancelling: 'neutral',

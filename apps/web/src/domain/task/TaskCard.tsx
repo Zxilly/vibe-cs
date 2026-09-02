@@ -93,8 +93,6 @@ export interface TaskCardProps {
   readonly className?: string | undefined;
 }
 
-const CANCELLABLE = new Set(['queued', 'running', 'awaiting-confirmation']);
-
 export function TaskCard({
   task,
   stages,
@@ -182,7 +180,7 @@ export function TaskCard({
 
         {(task.artifacts !== undefined && task.artifacts.length > 0)
           || (links !== undefined && links.length > 0)
-          || (onCancel !== undefined && CANCELLABLE.has(task.status)) ? (
+          || onCancel !== undefined ? (
             <div className="flex flex-wrap items-center gap-3">
               {task.artifacts?.map((artifact) => (
                 // A missing artifact keeps its link — 「文件不在原位」 is a record
@@ -202,7 +200,7 @@ export function TaskCard({
                   {link.label}
                 </Link>
               ))}
-              {onCancel !== undefined && CANCELLABLE.has(task.status) ? (
+              {onCancel !== undefined ? (
                 <Button variant="ghost" size="sm" onClick={onCancel} className="ml-auto">
                   <Trans>取消</Trans>
                 </Button>

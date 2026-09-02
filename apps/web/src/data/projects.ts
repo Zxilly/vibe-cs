@@ -105,11 +105,12 @@ export function useStartProjectRecording() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ projectId, clipIds = [] }: {
+    mutationFn: async ({ projectId, expectedRevision, clipIds = [] }: {
       readonly projectId: string;
+      readonly expectedRevision: number;
       readonly clipIds?: string[];
     }) => {
-      const plan = await client.createProjectRecordingPlan(projectId, clipIds);
+      const plan = await client.createProjectRecordingPlan(projectId, expectedRevision, clipIds);
       return client.executeRecordingPlan(projectId, plan.plan_id, true);
     },
     onSuccess: (_job, input) => Promise.all([
@@ -123,13 +124,15 @@ export function useExportProject() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ projectId, encoder = 'auto', quality = 80, rangeStartSeconds, rangeEndSeconds }: {
+    mutationFn: ({ projectId, expectedRevision, encoder = 'auto', quality = 80, rangeStartSeconds, rangeEndSeconds }: {
       readonly projectId: string;
+      readonly expectedRevision: number;
       readonly encoder?: string;
       readonly quality?: number;
       readonly rangeStartSeconds?: number;
       readonly rangeEndSeconds?: number;
     }) => client.exportProject(projectId, {
+      expected_revision: expectedRevision,
       encoder,
       quality,
       ...(rangeStartSeconds === undefined ? {} : { range_start_seconds: rangeStartSeconds }),

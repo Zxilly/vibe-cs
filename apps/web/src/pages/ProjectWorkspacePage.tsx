@@ -1330,14 +1330,27 @@ export function ProjectWorkspacePage() {
       onOpenOutputs={() => void navigate('/delivery?view=outputs')}
       onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
       confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
-      onConfirmRecording={async (toolCallId, clipIds) => {
+      projectId={current.id}
+      projectRevision={current.revision}
+      onConfirmRecording={async (toolCallId, confirmation) => {
+        if (confirmation.projectId !== current.id || confirmation.baseRevision !== current.revision) return;
         await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的录制操作。`);
-        await startRecording.mutateAsync({ projectId: current.id, clipIds });
+        await startRecording.mutateAsync({
+          projectId: confirmation.projectId,
+          expectedRevision: confirmation.baseRevision,
+          clipIds: confirmation.clipIds,
+        });
       }}
-      onConfirmExport={async (toolCallId) => {
-        if (deliveryGatePending || currentDeliveryGate?.ready !== true) return;
+      onConfirmExport={async (toolCallId, confirmation) => {
+        if (confirmation.projectId !== current.id
+          || confirmation.baseRevision !== current.revision
+          || deliveryGatePending
+          || currentDeliveryGate?.ready !== true) return;
         await appendToolDecision(toolCallId, 'approved', t`允许 Agent 请求的导出操作。`);
-        await exportProject.mutateAsync({ projectId: current.id });
+        await exportProject.mutateAsync({
+          projectId: confirmation.projectId,
+          expectedRevision: confirmation.baseRevision,
+        });
       }}
       onRejectConfirmation={async (toolCallId) => {
         await appendToolDecision(toolCallId, 'rejected', t`拒绝这次外部执行请求。`);
@@ -1544,7 +1557,7 @@ export function ProjectWorkspacePage() {
           if (deliveryGatePending || externalConfirm.clipIds.some((clipId) => !recordableClipIds.includes(clipId))) return;
           const clipIds = [...externalConfirm.clipIds];
           setExternalConfirm(null);
-          startRecording.mutate({ projectId: current.id, clipIds });
+          startRecording.mutate({ projectId: current.id, expectedRevision: current.revision, clipIds });
         }}
         onClose={() => setExternalConfirm(null)}
       >
@@ -1566,6 +1579,7 @@ export function ProjectWorkspacePage() {
           setExternalConfirm(null);
           exportProject.mutate({
             projectId: current.id,
+            expectedRevision: current.revision,
             encoder: draft.encoder,
             quality: draft.quality,
             ...(draft.sourceRange === 'in_out' && exportRangeStart !== null && exportRangeEnd !== null
@@ -2735,8 +2749,10 @@ interface AgentPanelProps {
   readonly onOpenOutputs: () => void;
   readonly onOpenAgentSettings: () => void;
   readonly confirming: boolean;
-  readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
-  readonly onConfirmExport: (toolCallId: string) => Promise<void>;
+  readonly projectId: string;
+  readonly projectRevision: number;
+  readonly onConfirmRecording: (toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>;
+  readonly onConfirmExport: (toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
   readonly onAcceptDelivery: (changeGroupId: string) => Promise<void>;
   readonly onReturnDelivery: (changeGroupId: string, feedback: string) => Promise<void>;
@@ -2761,6 +2777,8 @@ const AgentPanel = memo(function AgentPanel({
   onOpenOutputs,
   onOpenAgentSettings,
   confirming,
+  projectId,
+  projectRevision,
   onConfirmRecording,
   onConfirmExport,
   onRejectConfirmation,
@@ -2836,6 +2854,8 @@ const AgentPanel = memo(function AgentPanel({
                 onConfirmExport={onConfirmExport}
                 onRejectConfirmation={onRejectConfirmation}
                 toolDecisions={toolDecisions}
+                projectId={projectId}
+                projectRevision={projectRevision}
               />
             ))}
             {chat.draft === '' ? null : (
@@ -2845,7 +2865,7 @@ const AgentPanel = memo(function AgentPanel({
             )}
             {chat.activity?.map((call) => (
               <ConversationShell key={`live-tool:${call.id}`} actor={t`Agent · 工具`} tone="tool">
-                <ToolCallCard call={call} />
+                <ToolCallCard call={call} projectId={projectId} projectRevision={projectRevision} />
               </ConversationShell>
             ))}
             {externalExecutions.map((execution) => (
@@ -2971,6 +2991,8 @@ function areAgentPanelPropsEqual(previous: AgentPanelProps, next: AgentPanelProp
     && previous.deliveryReady === next.deliveryReady
     && previous.deliveryGatePending === next.deliveryGatePending
     && previous.confirming === next.confirming
+    && previous.projectId === next.projectId
+    && previous.projectRevision === next.projectRevision
     && previous.executionActionPending === next.executionActionPending
     && sameExecutions;
 }
@@ -2985,16 +3007,20 @@ function ConversationEntry({
   onConfirmExport,
   onRejectConfirmation,
   toolDecisions,
+  projectId,
+  projectRevision,
 }: {
   readonly entry: AgentSessionEntry;
   readonly pendingConfirmationToolCallId: string | null;
   readonly confirming: boolean;
   readonly deliveryReady: boolean;
   readonly deliveryGatePending: boolean;
-  readonly onConfirmRecording: (toolCallId: string, clipIds: string[]) => Promise<void>;
-  readonly onConfirmExport: (toolCallId: string) => Promise<void>;
+  readonly onConfirmRecording: (toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>;
+  readonly onConfirmExport: (toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>;
   readonly onRejectConfirmation: (toolCallId: string) => Promise<void>;
   readonly toolDecisions: ReadonlyMap<string, ToolDecisionEntry>;
+  readonly projectId: string;
+  readonly projectRevision: number;
 }) {
   if (entry.kind === 'user') {
     return (
@@ -3031,6 +3057,8 @@ function ConversationEntry({
           onConfirmExport={onConfirmExport}
           onRejectConfirmation={onRejectConfirmation}
           decision={toolDecisions.get(call.id) ?? null}
+          projectId={projectId}
+          projectRevision={projectRevision}
         />
       ))}
       {entry.status === 'failed' && entry.error !== null ? <p className="mt-2 text-xs text-fail-text">{entry.error}</p> : null}
@@ -3103,6 +3131,8 @@ function ToolCallCard({
   onConfirmRecording,
   onConfirmExport,
   onRejectConfirmation,
+  projectId,
+  projectRevision,
 }: {
   readonly call: AgentToolCall | AgentToolActivity;
   readonly decision?: ToolDecisionEntry | null | undefined;
@@ -3110,11 +3140,15 @@ function ToolCallCard({
   readonly confirming?: boolean | undefined;
   readonly deliveryReady?: boolean | undefined;
   readonly deliveryGatePending?: boolean | undefined;
-  readonly onConfirmRecording?: ((toolCallId: string, clipIds: string[]) => Promise<void>) | undefined;
-  readonly onConfirmExport?: ((toolCallId: string) => Promise<void>) | undefined;
+  readonly onConfirmRecording?: ((toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>) | undefined;
+  readonly onConfirmExport?: ((toolCallId: string, confirmation: ExternalExecutionConfirmation) => Promise<void>) | undefined;
   readonly onRejectConfirmation?: ((toolCallId: string) => Promise<void>) | undefined;
+  readonly projectId: string;
+  readonly projectRevision: number;
 }) {
   const confirmation = confirmationOf(call);
+  const confirmationStale = confirmation !== null
+    && (confirmation.projectId !== projectId || confirmation.baseRevision !== projectRevision);
   const running = call.status === 'running';
   const failed = call.status === 'failed';
   const awaitingDecision = confirmation !== null && decision === null;
@@ -3160,6 +3194,11 @@ function ToolCallCard({
               ? <Trans>缺失片段已排好录制任务。确认后才会启动 CS2 和采集组件。</Trans>
               : <Trans>成片已准备好导出。确认后才会写出 MP4 文件。</Trans>}
           </p>
+          {!confirmationStale ? null : (
+            <p className="mt-2 border border-warn-border bg-bg px-2 py-1.5 text-2xs text-warn-text">
+              <Trans>作品版本已变化，这次请求已经过期。请拒绝后让 Agent 重新请求。</Trans>
+            </p>
+          )}
           {!exportBlocked ? null : (
             <p className="mt-2 border border-warn-border bg-bg px-2 py-1.5 text-2xs text-warn-text">
               {deliveryGatePending
@@ -3171,10 +3210,10 @@ function ToolCallCard({
             <Button
               size="sm"
               variant="primary"
-              disabled={confirming || exportBlocked}
+              disabled={confirming || exportBlocked || confirmationStale}
               onClick={() => void (confirmation.action === 'recording'
-                ? onConfirmRecording?.(call.id, confirmation.clipIds)
-                : onConfirmExport?.(call.id))}
+                ? onConfirmRecording?.(call.id, confirmation)
+                : onConfirmExport?.(call.id, confirmation))}
             >
               {confirmation.action === 'recording' ? <Trans>允许录制</Trans> : <Trans>允许导出</Trans>}
             </Button>
@@ -3219,16 +3258,26 @@ function pendingConfirmationToolCall(entries: readonly AgentSessionEntry[]): str
   return null;
 }
 
-function confirmationOf(call: AgentToolCall | AgentToolActivity): { readonly action: 'recording' | 'export'; readonly clipIds: string[] } | null {
+interface ExternalExecutionConfirmation {
+  readonly action: 'recording' | 'export';
+  readonly projectId: string;
+  readonly baseRevision: number;
+  readonly clipIds: string[];
+}
+
+function confirmationOf(call: AgentToolCall | AgentToolActivity): ExternalExecutionConfirmation | null {
   if (call.status !== 'awaiting_confirmation' || call.output === null) return null;
   const output = jsonObject(call.output);
   if (output?.status !== 'requires_human_confirmation') return null;
   const action = output.action;
   if (action !== 'recording' && action !== 'export') return null;
+  const projectId = output.projectId;
+  const baseRevision = output.baseRevision;
+  if (typeof projectId !== 'string' || !Number.isSafeInteger(baseRevision) || Number(baseRevision) < 1) return null;
   const input = jsonObject(call.input);
   const rawIds = input?.clipIds;
   const clipIds = Array.isArray(rawIds) ? rawIds.filter((value): value is string => typeof value === 'string') : [];
-  return { action, clipIds };
+  return { action, projectId, baseRevision: Number(baseRevision), clipIds };
 }
 
 function jsonObject(value: JsonValue): Record<string, JsonValue> | null {

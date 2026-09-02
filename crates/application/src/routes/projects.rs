@@ -134,6 +134,7 @@ struct ProjectEditLeaseResponse {
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 struct ProjectRecordingPlanRequest {
+    expected_revision: u64,
     #[serde(default)]
     clip_ids: Vec<Uuid>,
 }
@@ -142,6 +143,7 @@ struct ProjectRecordingPlanRequest {
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 struct ProjectExportRequest {
+    expected_revision: u64,
     confirm: bool,
     encoder: String,
     quality: u8,
@@ -397,6 +399,7 @@ async fn create_project_recording_plan(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
+    require_project_revision(&project, request.expected_revision, "recording confirmation")?;
     let selected = request
         .clip_ids
         .into_iter()
@@ -450,6 +453,7 @@ async fn export_project(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
+    require_project_revision(&project, request.expected_revision, "export confirmation")?;
     validate_project_export_request(&request, project.document.duration_seconds)?;
     let unresolved = project.unresolved_delivery_clips()?;
     if !unresolved.is_empty() {
@@ -507,6 +511,7 @@ async fn render_project_preview(
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
     let export_request = ProjectExportRequest {
+        expected_revision: project.revision,
         confirm: true,
         encoder: request.encoder,
         quality: request.quality,
@@ -543,6 +548,17 @@ async fn render_project_preview(
         job_id: job.id,
         status: format!("{:?}", job.status).to_lowercase(),
     }))
+}
+
+fn require_project_revision(project: &Project, expected: u64, operation: &str) -> ApiResult<()> {
+    if project.revision == expected {
+        return Ok(());
+    }
+    Err(vibe_cs_domain::DomainError::Conflict(format!(
+        "Project is at revision {}, {operation} expects {expected}",
+        project.revision
+    ))
+    .into())
 }
 
 async fn clear_render_previews(
@@ -1204,6 +1220,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn recording_and_export_confirmation_reject_a_stale_project_revision() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({"name":"Consent","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+        )
+        .await;
+        let project_id = created["id"].as_str().expect("project id");
+
+        let (recording_status, _) = call(
+            &router,
+            Method::POST,
+            &format!("/api/projects/{project_id}/recording-plan"),
+            Some(json!({"expected_revision":2,"clip_ids":[]})),
+        )
+        .await;
+        assert_eq!(recording_status, 409);
+
+        let (export_status, _) = call(
+            &router,
+            Method::POST,
+            &format!("/api/projects/{project_id}/export"),
+            Some(json!({"expected_revision":2,"confirm":true,"encoder":"auto","quality":80})),
+        )
+        .await;
+        assert_eq!(export_status, 409);
+    }
+
+    #[tokio::test]
     async fn consecutive_story_clips_become_one_atomic_nested_project_and_parent_clip() {
         let storage = Storage::open_in_memory().await.expect("storage");
         let (router, _directory) = dispatcher(storage);
@@ -1301,6 +1349,7 @@ mod tests {
     #[test]
     fn export_settings_are_validated_before_a_job_is_created() {
         let valid = ProjectExportRequest {
+            expected_revision: 1,
             confirm: true,
             encoder: "auto".to_owned(),
             quality: 80,

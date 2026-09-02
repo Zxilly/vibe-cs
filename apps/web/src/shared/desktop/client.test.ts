@@ -694,7 +694,7 @@ describe('desktop command client', () => {
     let preparationSettled = false;
     let analysisCancelSettled = false;
 
-    void commands.createProjectRecordingPlan('project-1').finally(() => { planSettled = true; });
+    void commands.createProjectRecordingPlan('project-1', 1).finally(() => { planSettled = true; });
     void commands.executeRecordingPlan('project-1', 'plan-1', false).finally(() => { executeSettled = true; });
     void commands.prepareManagedHlae().finally(() => { preparationSettled = true; });
     void commands.cancelAnalysisRun('run-1').finally(() => { analysisCancelSettled = true; });

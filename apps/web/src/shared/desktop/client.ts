@@ -504,14 +504,14 @@ export const commands = {
     request<ProjectDeliveryGate>(`/projects/${encodeURIComponent(projectId)}/delivery-gate`, { signal }),
   createProject: (requestBody: CreateProjectRequest) =>
     request<Project>('/projects', { method: 'POST', body: requestBody }),
-  createProjectRecordingPlan: (projectId: string, clipIds: string[] = []) =>
+  createProjectRecordingPlan: (projectId: string, expectedRevision: number, clipIds: string[] = []) =>
     request<RecordingPlanResponse>(
       `/projects/${encodeURIComponent(projectId)}/recording-plan`,
-      { method: 'POST', body: { clip_ids: clipIds }, timeoutMs: null },
+      { method: 'POST', body: { expected_revision: expectedRevision, clip_ids: clipIds }, timeoutMs: null },
     ),
   exportProject: (
     projectId: string,
-    options: { encoder: string; quality: number; range_start_seconds?: number | null; range_end_seconds?: number | null },
+    options: { expected_revision: number; encoder: string; quality: number; range_start_seconds?: number | null; range_end_seconds?: number | null },
   ) => request<{ job_id: string; status: string }>(
     `/projects/${encodeURIComponent(projectId)}/export`,
     { method: 'POST', body: { confirm: true, ...options }, timeoutMs: null },

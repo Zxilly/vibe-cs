@@ -6775,8 +6775,8 @@ describe('unified project workspace', () => {
         tool_calls: [{
           id: 'request-blocked:tool:1',
           name: 'request_project_export',
-          input: { projectId: PROJECT.id },
-          output: { status: 'requires_human_confirmation', action: 'export' },
+          input: { projectId: PROJECT.id, baseRevision: PROJECT.revision },
+          output: { status: 'requires_human_confirmation', action: 'export', projectId: PROJECT.id, baseRevision: PROJECT.revision },
           status: 'awaiting_confirmation',
         }],
         status: 'completed', request_id: 'request-blocked', retry_of: null, error: null, metadata: null,
@@ -6788,6 +6788,33 @@ describe('unified project workspace', () => {
     expect(allow.disabled).toBe(true);
     expect(screen.getByText('时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。')).toBeTruthy();
     expect(screen.queryByText('你 · 确认')).toBeNull();
+  });
+
+  it('expires Agent external execution confirmation when the Project revision changes', async () => {
+    const session: AgentSession = {
+      id: '00000000-0000-4000-8000-000000000035',
+      title: 'Agent · stale export',
+      created_at: '2026-08-28T10:00:00Z',
+      updated_at: '2026-08-28T10:01:00Z',
+      entries: [{
+        kind: 'assistant', id: 'a-stale-export', at: '2026-08-28T10:01:00Z', content: '',
+        tool_calls: [{
+          id: 'request-stale:tool:1',
+          name: 'request_project_export',
+          input: { projectId: RECORDED_PROJECT.id, baseRevision: RECORDED_PROJECT.revision + 1 },
+          output: {
+            status: 'requires_human_confirmation', action: 'export',
+            projectId: RECORDED_PROJECT.id, baseRevision: RECORDED_PROJECT.revision + 1,
+          },
+          status: 'awaiting_confirmation',
+        }],
+        status: 'completed', request_id: 'request-stale', retry_of: null, error: null, metadata: null,
+      }],
+    };
+    renderWorkspace({ project: RECORDED_PROJECT, session });
+
+    expect(await screen.findByText('作品版本已变化，这次请求已经过期。请拒绝后让 Agent 重新请求。')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '允许导出' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('shows an Agent tool error instead of claiming that the edit was committed', async () => {
@@ -6855,8 +6882,8 @@ describe('unified project workspace', () => {
           tool_calls: [{
             id: 'request-hitl:tool:1',
             name: 'request_project_export',
-            input: { projectId: PROJECT.id },
-            output: { status: 'requires_human_confirmation', action: 'export' },
+            input: { projectId: PROJECT.id, baseRevision: PROJECT.revision },
+            output: { status: 'requires_human_confirmation', action: 'export', projectId: PROJECT.id, baseRevision: PROJECT.revision },
             status: 'awaiting_confirmation',
           }],
           status: 'completed', request_id: 'request-hitl', retry_of: null, error: null, metadata: null,
@@ -6890,8 +6917,8 @@ describe('unified project workspace', () => {
         kind: 'assistant', id: 'a-reject', at: '2026-08-28T10:01:00Z', content: '',
         tool_calls: [{
           id: 'request-reject:tool:1', name: 'request_project_export',
-          input: { projectId: PROJECT.id },
-          output: { status: 'requires_human_confirmation', action: 'export' },
+          input: { projectId: PROJECT.id, baseRevision: PROJECT.revision },
+          output: { status: 'requires_human_confirmation', action: 'export', projectId: PROJECT.id, baseRevision: PROJECT.revision },
           status: 'awaiting_confirmation',
         }],
         status: 'completed', request_id: 'request-reject', retry_of: null, error: null, metadata: null,

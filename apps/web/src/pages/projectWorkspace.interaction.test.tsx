@@ -7252,10 +7252,17 @@ describe('unified project workspace', () => {
       cancelAgentChat: vi.fn(async () => true),
     });
 
+    fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s/u }));
     const input = await screen.findByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦');
     fireEvent.change(input, { target: { value: '只添加一个标记' } });
     fireEvent.click(screen.getByRole('button', { name: '发送给 Agent' }));
     await waitFor(() => expect(streamAgentChat).toHaveBeenCalledTimes(1));
+    expect(streamAgentChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceContext: expect.objectContaining({ selectedClipId: CLIP_B }),
+      }),
+      expect.any(Function),
+    );
 
     expect(screen.getByText('Agent 正在编辑 · 你暂时只能查看')).toBeTruthy();
     openAddCommands();

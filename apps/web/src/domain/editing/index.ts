@@ -1,4 +1,15 @@
-export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
+export {
+  ProjectTimeline,
+  type ProjectTimelineEditing,
+  type ProjectTimelineEvidence,
+  type ProjectTimelineHistory,
+  type ProjectTimelineProject,
+  type ProjectTimelineProps,
+  type ProjectTimelineSelection,
+  type ProjectTimelineServices,
+  type ProjectTimelineTransport,
+} from './ProjectTimeline';
+export { TimelineToolStrip, type TimelineEditTool } from './TimelineToolStrip';
 export { AudioTrackMixer, applyMixerAutomation, type MixerAutomationMode } from './AudioTrackMixer';
 export { adjacentCaptionClip, serializeCaptionSrt, timelineCaptionClips } from './captionEditing';
 export {
@@ -58,6 +69,14 @@ export { projectHistoryCommands, type ProjectHistoryCommands } from './projectHi
 export { adjacentMarker, adjacentTimelineTime, timelineEditPoints } from './timelineNavigation';
 export { planDefaultTimelineTransitions, type TimelineTransitionUpdate } from './timelineTransitions';
 export { ProjectWorkspaceDock, type ProjectWorkspaceDockProps } from './ProjectWorkspaceDock';
+export {
+  AgentPanel,
+  pendingDeliveryGroup,
+  type AgentPanelProps,
+  type ExternalExecutionConfirmation,
+  type ProjectAgentConversation,
+  type ProjectAgentToolActivity,
+} from './ProjectAgentPanel';
 export {
   createProjectWorkspaceLayout,
   loadProjectWorkspaceLayout,

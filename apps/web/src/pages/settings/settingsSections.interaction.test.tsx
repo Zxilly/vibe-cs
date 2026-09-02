@@ -97,7 +97,7 @@ function render(
     storageStatus: () => Promise.resolve(STORAGE),
     quickCheck: () => Promise.resolve(CHECKS),
     getHlaeStatus: () => Promise.resolve({ available: true, messages: [] }),
-    runtimeState: () => Promise.resolve({ status: 'ok', version: '0.0.0' }),
+    runtimeState: () => Promise.resolve({ version: '0.0.0' }),
     ...overrides,
   };
   renderPage({
@@ -295,9 +295,7 @@ describe('高级与诊断', () => {
   const DIAGNOSTIC_STUBS = {
     runtimeState: () =>
       Promise.resolve({
-        status: 'ok',
         version: '0.4.2',
-        started_at: '2026-08-17T01:00:00.000Z',
         runtime_session: 'session-1',
         active_recording_job: null,
         data_dir: 'D:\CS2',

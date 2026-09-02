@@ -38,7 +38,11 @@ import {
   isDemoFileMissing,
   type DemoStatusTone,
 } from './libraryFormat';
-import { unavailableAction, type ActionAvailability } from './actionAvailability';
+
+interface ActionAvailability {
+  readonly disabled: boolean;
+  readonly disabledReason?: string;
+}
 
 /**
  * The two hooks the row actions need. Both come from the page, because both
@@ -216,7 +220,8 @@ function RowAction({
       <Button
         size="sm"
         variant="ghost"
-        {...unavailableAction(t`暂不支持重新定位 Demo 文件`)}
+        disabled
+        disabledReason={t`暂不支持重新定位 Demo 文件`}
       >
         <Trans>重新定位</Trans>
       </Button>

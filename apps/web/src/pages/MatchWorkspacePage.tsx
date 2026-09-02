@@ -3,8 +3,7 @@
  *
  * §7 promotes the demo id from a query to a path segment, which is what makes
  * the crumb 「资料库 › Aurora vs Meridian › 概览」 expressible at all — the match
- * is a first-class identity, not a filter on the analysis page. The old
- * `/analysis?demo=…` redirects here (`app/router.tsx`).
+ * is a first-class identity, not a filter on the analysis page.
  *
  * ── What this file owns ────────────────────────────────────────────────────
  *

@@ -69,6 +69,10 @@ export default defineConfig({
           name: 'interaction',
           environment: 'jsdom',
           css: false,
+          // Complex timeline gestures render real media pools and can exceed
+          // Vitest's generic 5 s cap under parallel CI load. Their own
+          // waitFor assertions still fail fast when expected UI never appears.
+          testTimeout: 15_000,
           include: [INTERACTION_GLOB],
           exclude: [...configDefaults.exclude],
           setupFiles: [I18N_SETUP, DOM_SETUP],

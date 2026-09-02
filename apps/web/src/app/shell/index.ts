@@ -1,18 +1,15 @@
 /*
  * App shell — barrel.
  *
- * `AppShell` composes these three into the frame every route renders inside:
+ * `AppShell` composes these into the frame every route renders inside:
  *
  *   WindowTitleBar   44px, full width, window controls right
  *   SideNav          216 / 56, left, in the row below the bar
  *   <Outlet/>        flex:1
- *   AgentRail        46 / 380, right, in the same row — it squeezes the
- *                    outlet rather than floating over it (see AgentRail.tsx)
  *
  * The shell's own state lives in `shellStore`; nothing here reads `uiStore`.
  */
 
-export { AgentRail, type AgentRailProps } from './AgentRail';
 export { FirstRunGuide, type FirstRunGuideProps } from './FirstRunGuide';
 export {
   activeNavItemId,

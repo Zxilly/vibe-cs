@@ -1,8 +1,5 @@
 /*
- * pages/ — 比赛历史与 Steam 下载 (spec §7 `/history`, phase 3d).
- *
- * Replaces the pre-redesign `/match-history`; the old address redirects here
- * (`app/router.tsx`).
+ * pages/ — 比赛历史与 Steam 下载, embedded at `/library?view=steam`.
  *
  * ── The artboard ───────────────────────────────────────────────────────────
  *

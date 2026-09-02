@@ -26,7 +26,7 @@
  *
  * 输出 keeps the 520px 任务记录 rail beside it (`--w-split`, the width §3.5
  * reserves for this one layout) — until the shell folds at 1100px, where the
- * artboard has no room for it and `SplitPane` would leave the card grid 476px.
+ * artboard has no room for a second column.
  * Below the fold the rail is dropped and the Seg is the way to the records,
  * which is the same affordance the artboard uses at full width.
  */

@@ -1,22 +1,17 @@
 /*
- * The composition root's other half: which page each §7 route renders.
- *
- * It lives beside `main.tsx`, above both layers, for the reason spelled out in
- * `app/router.tsx`: §2.1 rule 3 forbids `app/**` and `pages/**` from importing
- * each other, so the binding between the shell's route table and the pages it
- * shows cannot live in either of them. This file is the seam — the only module
- * in the app that knows both names.
+ * The application route table and its lazy page bindings.
  *
  * Pages stay `lazy()` + `element:` rather than react-router's own `lazy:`, so a
  * slow or failed chunk surfaces through the Suspense and error boundary that
- * `AppShell` already mounts (`RouteBoundary`) instead of through the router's
+ * `AppShell` mounts (`RouteBoundary`) instead of through the router's
  * data layer: one loading state and one failure card for the whole shell.
  */
 
 import { lazy } from 'react';
 import { createHashRouter, type RouteObject } from 'react-router-dom';
 
-import { createAppRoutes, type RoutePages } from './app/router';
+import { AppShell } from './app/AppShell';
+import { NotFound, RouteErrorElement } from './app/boundary';
 
 const HomePage = lazy(async () => ({ default: (await import('./pages/HomePage')).HomePage }));
 const LibraryPage = lazy(async () => ({ default: (await import('./pages/LibraryPage')).LibraryPage }));
@@ -40,8 +35,7 @@ const SettingsPage = lazy(async () => ({ default: (await import('./pages/Setting
 const RecoveryPage = lazy(async () => ({ default: (await import('./pages/RecoveryPage')).RecoveryPage }));
 const GuidePage = lazy(async () => ({ default: (await import('./pages/GuidePage')).GuidePage }));
 
-/** Exhaustive by construction — `RoutePages` has one field per §7 destination. */
-export const APP_PAGES: RoutePages = {
+export const APP_PAGES = {
   home: <HomePage />,
   library: <LibraryPage />,
   players: <PlayersPage />,
@@ -57,6 +51,46 @@ export const APP_PAGES: RoutePages = {
   guide: <GuidePage />,
 };
 
-export const appRoutes: RouteObject[] = createAppRoutes(APP_PAGES);
+export const ROUTE_PATHS = [
+  '/',
+  '/library',
+  '/players',
+  '/players/:playerId',
+  '/evidence',
+  '/match/:demoId',
+  '/projects',
+  '/projects/:projectId',
+  '/delivery',
+  '/delivery/task/:taskId',
+  '/settings',
+  '/recovery',
+  '/guide',
+] as const;
 
+export const appRoutes: RouteObject[] = [
+  {
+    id: 'app-shell',
+    path: '/',
+    element: <AppShell />,
+    errorElement: <RouteErrorElement />,
+    children: [
+      { id: 'home', index: true, element: APP_PAGES.home },
+      { id: 'library', path: 'library', element: APP_PAGES.library },
+      { id: 'players', path: 'players', element: APP_PAGES.players },
+      { id: 'player-profile', path: 'players/:playerId', element: APP_PAGES.playerProfile },
+      { id: 'evidence', path: 'evidence', element: APP_PAGES.evidence },
+      { id: 'match', path: 'match/:demoId', element: APP_PAGES.match },
+      { id: 'projects', path: 'projects', element: APP_PAGES.projects },
+      { id: 'project-workspace', path: 'projects/:projectId', element: APP_PAGES.projectWorkspace },
+      { id: 'delivery', path: 'delivery', element: APP_PAGES.delivery },
+      { id: 'delivery-task', path: 'delivery/task/:taskId', element: APP_PAGES.deliveryTask },
+      { id: 'settings', path: 'settings', element: APP_PAGES.settings },
+      { id: 'recovery', path: 'recovery', element: APP_PAGES.recovery },
+      { id: 'guide', path: 'guide', element: APP_PAGES.guide },
+      { id: 'not-found', path: '*', element: <NotFound /> },
+    ],
+  },
+];
+
+export const routerMode = 'hash' as const;
 export const createAppRouter = () => createHashRouter(appRoutes);

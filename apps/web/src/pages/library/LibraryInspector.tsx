@@ -45,7 +45,6 @@ import {
   formatScore,
   isDemoAnalysable,
 } from './libraryFormat';
-import { unavailableAction } from './actionAvailability';
 
 export interface LibraryInspectorProps {
   readonly demo: DemoSummary | undefined;
@@ -164,7 +163,8 @@ export function LibraryInspector({
             <Button
               size="sm"
               grow
-              {...unavailableAction(t`暂不支持在文件管理器中显示`)}
+              disabled
+              disabledReason={t`暂不支持在文件管理器中显示`}
             >
               <Trans>定位文件</Trans>
             </Button>

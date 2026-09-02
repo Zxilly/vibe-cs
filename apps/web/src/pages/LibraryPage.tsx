@@ -87,7 +87,6 @@ import {
   type LibraryAddress,
   type LibraryView,
 } from './library/libraryQuery';
-import { unavailableAction } from './library/actionAvailability';
 import { HistoryWorkspace } from './HistoryPage';
 
 /** One overlay at a time — five dialogs and one drawer. */
@@ -304,7 +303,8 @@ function DemoLibraryPage() {
       />
       <Button
         size="sm"
-        {...unavailableAction(t`导出会返回一份文件，桌面端还没有保存到磁盘的命令`)}
+        disabled
+        disabledReason={t`导出会返回一份文件，桌面端还没有保存到磁盘的命令`}
       >
         <Trans>导出元数据</Trans>
       </Button>

@@ -84,19 +84,6 @@ export interface AppShellProps {
 }
 
 export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
-  return <ShellFrame collapsed={collapsed} adapter={adapter} badges={badges} />;
-}
-
-interface ShellFrameProps {
-  collapsed?: boolean | undefined;
-  adapter?: DesktopWindowAdapter | null | undefined;
-  badges?: Readonly<Partial<Record<ShellNavItemId, number>>> | undefined;
-}
-
-/**
- * The frame proper.
- */
-function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const palette = useCommandPalette();

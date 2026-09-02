@@ -328,15 +328,14 @@ export const qk = {
    *
    * ── the recording plan itself is not cached, on purpose ───────────────────
    *
-   * `planRecording` / `planRecordingFromAgentPlan` / `planRecordingRetry` are
-   * POSTs that mint a **5-minute lease** (`RECORDING_PLAN_TTL`,
+   * Project recording-plan creation is a POST that mints a **5-minute lease** (`RECORDING_PLAN_TTL`,
    * `crates/application/src/routes/recording.rs`) and run the director
    * orchestration that merges adjacent shots. Give that a query key and
    * TanStack is free to refetch it — on a remount, on an invalidation, on a
    * `staleTime` expiry — and every refetch would mint a *different* plan with a
    * *different* director result under the preview the user is watching. 「修改
    * 任何片段都会让当前预览计划失效，需要重新生成预览」 is a decision the user
-   * makes, never a cache eviction. So a plan lives in `data/recording.ts` as a
+   * makes, never a cache eviction. The plan stays in the mutation result until
    * mutation result held by the page, and expiry is surfaced as a boolean
    * rather than papered over by a silent re-plan.
    *

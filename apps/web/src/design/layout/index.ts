@@ -26,7 +26,6 @@ export { Inspector, type InspectorProps, type InspectorWidth } from './Inspector
 export { OverflowMenu, type OverflowMenuItem, type OverflowMenuProps } from './OverflowMenu';
 export { Page, type PageProps } from './Page';
 export { SelectionBar, type SelectionBarProps } from './SelectionBar';
-export { SplitPane, type SplitPaneProps, type SplitPaneWidth } from './SplitPane';
 export {
   SubNav,
   SUBNAV_DEFAULT_VISIBLE_TABS,

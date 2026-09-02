@@ -3,8 +3,7 @@
  *
  * 「11 输出与任务记录」 lays it out as: a 46px filter strip (全部 · 录制结果 ·
  * 导出成片 · 文件缺失, sort on the right), a two-column grid of cards, and a
- * 52px footer strip. This is that column; the 520px 任务记录 rail beside it is
- * `TaskRecordRail`, placed by `DeliveryPage`.
+ * 52px footer strip. Background tasks live in the shell drawer.
  *
  * ── Density (§10.3) ───────────────────────────────────────────────────────
  *

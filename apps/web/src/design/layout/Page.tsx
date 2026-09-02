@@ -6,8 +6,8 @@
  *
  *   02 Demo 资料库    Toolbar(56) · filter strip(52→`--h-bar`) · table ·
  *                     SelectionBar
- *   11 输出与任务记录  Toolbar(56) · SplitPane · footer strip
- *   03 比赛工作区     Toolbar(56, chrome) · SplitPane(subnav + Inspector)
+ *   11 输出与任务记录  Toolbar(56) · content · footer strip
+ *   03 比赛工作区     Toolbar(56, chrome) · subnav + Inspector
  *
  * Only the four slots and the scroll boundary live here. The page owns what
  * goes in them; this file owns the fact that the body is the only thing that

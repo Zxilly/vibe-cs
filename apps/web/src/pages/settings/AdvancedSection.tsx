@@ -64,7 +64,7 @@ export function AdvancedSection() {
         id="runtime"
         layout="split"
         title={<Trans>运行时</Trans>}
-        description={<Trans>本地服务当前的状态。</Trans>}
+        description={<Trans>版本、数据目录和当前录制占用。</Trans>}
       >
         {runtimeError !== null ? (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void runtime.refetch() }}>

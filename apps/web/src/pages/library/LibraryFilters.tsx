@@ -38,7 +38,6 @@ import { Search } from 'lucide-react';
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
 import { Badge, Button, InputGroup, InputGroupAddon, InputGroupInput } from '../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../shared/desktop/dto';
-import { unavailableAction } from './actionAvailability';
 import type { LibraryAddress } from './libraryQuery';
 
 /** The wire's six record states, in the order `DemoRecord.status` declares. */
@@ -202,7 +201,8 @@ export function LibraryFilters({
         size="sm"
         variant="ghost"
         className="flex-none"
-        {...unavailableAction(t`暂不支持把导出的文件保存到磁盘`)}
+        disabled
+        disabledReason={t`暂不支持把导出的文件保存到磁盘`}
       >
         <Trans>导出元数据</Trans>
       </Button>

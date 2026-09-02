@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PAGE_COMMANDS } from './app/command/commandRegistry';
-import { ROUTE_PATHS } from './app/router';
+import { ROUTE_PATHS } from './routes';
 import { shellNavGroups } from './app/shell/navigation';
 import { MATCH_VIEW_IDS } from './pages/match/viewContract';
 

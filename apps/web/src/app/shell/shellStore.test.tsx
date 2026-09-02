@@ -7,17 +7,15 @@ beforeEach(() => {
 });
 
 describe('shellStore', () => {
-  it('starts in editing mode with the rail open and the Agent rail collapsed', () => {
+  it('starts in editing mode with the navigation rail open', () => {
     expect(SHELL_INITIAL_STATE).toEqual({
       mode: 'edit',
       onboardingComplete: false,
       navCollapsed: false,
-      agentRailExpanded: false,
     });
     const state = useShellStore.getState();
     expect(state.mode).toBe('edit');
     expect(state.navCollapsed).toBe(false);
-    expect(state.agentRailExpanded).toBe(false);
   });
 
   it('switches work modes independently of the rail state', () => {
@@ -46,30 +44,19 @@ describe('shellStore', () => {
     expect(useShellStore.getState().navCollapsed).toBe(true);
   });
 
-  it('toggles and sets the Agent rail independently of the nav rail', () => {
-    useShellStore.getState().toggleAgentRail();
-    expect(useShellStore.getState().agentRailExpanded).toBe(true);
-    expect(useShellStore.getState().navCollapsed).toBe(false);
-
-    useShellStore.getState().setAgentRailExpanded(false);
-    expect(useShellStore.getState().agentRailExpanded).toBe(false);
-  });
-
   it('holds only shell preferences and no server data', () => {
     const values = Object.entries(useShellStore.getState())
       .filter(([, value]) => typeof value !== 'function')
       .map(([key]) => key)
       .sort();
-    expect(values).toEqual(['agentRailExpanded', 'mode', 'navCollapsed', 'onboardingComplete']);
+    expect(values).toEqual(['mode', 'navCollapsed', 'onboardingComplete']);
   });
 
   it('resets back to the initial state', () => {
     useShellStore.getState().setNavCollapsed(true);
-    useShellStore.getState().setAgentRailExpanded(true);
     resetShellStore();
     expect(useShellStore.getState().mode).toBe('edit');
     expect(useShellStore.getState().onboardingComplete).toBe(false);
     expect(useShellStore.getState().navCollapsed).toBe(false);
-    expect(useShellStore.getState().agentRailExpanded).toBe(false);
   });
 });

@@ -68,6 +68,10 @@ pub struct EditingDocumentSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "mute, solo, lock, and visibility are independent editor track controls"
+)]
 #[ts(export)]
 pub struct TimelineTrack {
     pub id: Uuid,
@@ -415,14 +419,8 @@ impl TimelineClip {
             TimelineClipMaterial::Sequence {
                 media_duration_seconds,
                 ..
-            } => Ok(
-                if placement_fits_media(&self.placement, *media_duration_seconds) {
-                    TimelineClipMaterializationState::Recorded
-                } else {
-                    TimelineClipMaterializationState::Stale
-                },
-            ),
-            TimelineClipMaterial::Asset {
+            }
+            | TimelineClipMaterial::Asset {
                 media_duration_seconds,
                 ..
             } => Ok(

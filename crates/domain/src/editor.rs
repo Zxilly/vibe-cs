@@ -155,6 +155,11 @@ pub struct EditorMarker {
 }
 
 /// Validates one complete marker collection at its owning sequence or source boundary.
+///
+/// # Errors
+///
+/// Returns `DomainError::InvalidInput` when the time boundary or any marker
+/// identity, range, label, color, kind-specific duration, or comment is invalid.
 pub fn validate_editor_markers(
     markers: &[EditorMarker],
     maximum_time: f64,

@@ -174,6 +174,12 @@ async fn create_multicam(
     }))
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    reason = "finite positive media duration is converted only to a 100..=10,000 waveform bucket count"
+)]
 async fn align_assets(
     state: &AppState,
     assets: Vec<MediaAsset>,
@@ -267,9 +273,14 @@ fn audio_alignment_offset(
     candidate: &[f32],
     sample_rate: usize,
 ) -> ApiResult<f64> {
-    let maximum_lag = MAXIMUM_AUDIO_SYNC_SECONDS * sample_rate;
+    let maximum_lag = MAXIMUM_AUDIO_SYNC_SECONDS
+        .checked_mul(sample_rate)
+        .and_then(|value| isize::try_from(value).ok())
+        .ok_or_else(|| ApiError::invalid("audio synchronization window is too large"))?;
+    let candidate_len = isize::try_from(candidate.len())
+        .map_err(|_| ApiError::invalid("audio synchronization input is too large"))?;
     let mut best: Option<(isize, f64)> = None;
-    for lag in -(maximum_lag as isize)..=(maximum_lag as isize) {
+    for lag in -maximum_lag..=maximum_lag {
         let mut count = 0_usize;
         let mut sum_reference = 0.0_f64;
         let mut sum_candidate = 0.0_f64;
@@ -277,11 +288,15 @@ fn audio_alignment_offset(
         let mut sum_candidate_sq = 0.0_f64;
         let mut dot = 0.0_f64;
         for (index, left) in reference.iter().copied().enumerate() {
-            let candidate_index = index as isize - lag;
-            if candidate_index < 0 || candidate_index >= candidate.len() as isize {
+            let candidate_index = isize::try_from(index)
+                .map_err(|_| ApiError::invalid("audio synchronization input is too large"))?
+                - lag;
+            if candidate_index < 0 || candidate_index >= candidate_len {
                 continue;
             }
-            let right = candidate[candidate_index as usize];
+            let candidate_index = usize::try_from(candidate_index)
+                .map_err(|_| ApiError::invalid("audio synchronization offset is invalid"))?;
+            let right = candidate[candidate_index];
             let left = f64::from(left);
             let right = f64::from(right);
             count += 1;
@@ -294,7 +309,10 @@ fn audio_alignment_offset(
         if count < sample_rate {
             continue;
         }
-        let count = count as f64;
+        let count = f64::from(
+            u32::try_from(count)
+                .map_err(|_| ApiError::invalid("audio synchronization input is too large"))?,
+        );
         let covariance = dot - sum_reference * sum_candidate / count;
         let left_energy = sum_reference_sq - sum_reference * sum_reference / count;
         let right_energy = sum_candidate_sq - sum_candidate * sum_candidate / count;
@@ -313,9 +331,21 @@ fn audio_alignment_offset(
             "audio synchronization confidence is too low",
         ));
     }
-    Ok(lag as f64 / sample_rate as f64)
+    let lag = f64::from(
+        i32::try_from(lag)
+            .map_err(|_| ApiError::invalid("audio synchronization offset is too large"))?,
+    );
+    let sample_rate = f64::from(
+        u32::try_from(sample_rate)
+            .map_err(|_| ApiError::invalid("audio synchronization sample rate is too large"))?,
+    );
+    Ok(lag / sample_rate)
 }
 
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "multicam creation rejects more than nine source angles before this constructor"
+)]
 fn multicam_tracks(
     project: &Project,
     alignments: &[AngleAlignment],
@@ -746,11 +776,13 @@ mod tests {
         .0;
         assert_eq!(created.project.revision, 2);
         assert_eq!(created.project.document.tracks.len(), 3);
-        assert_eq!(
-            created.project.document.tracks[1].clips[0]
+        assert!(
+            (created.project.document.tracks[1].clips[0]
                 .placement
-                .source_in,
-            1.0
+                .source_in
+                - 1.0)
+                .abs()
+                < f64::EPSILON
         );
         assert!(
             !created.project.document.tracks[1].clips[0]

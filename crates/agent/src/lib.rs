@@ -395,7 +395,7 @@ where
                 }
                 MultiTurnStreamItem::FinalResponse(response) => {
                     usage = AgentUsage::from_reported(response.usage());
-                    content = response.output().trim().to_owned();
+                    response.output().trim().clone_into(&mut content);
                     break;
                 }
                 _ => {}

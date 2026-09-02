@@ -122,7 +122,7 @@ const DEFAULT_LAYERS: ReplayLayerVisibility = {
 
 /* ── the body ────────────────────────────────────────────────────────────── */
 
-function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
+function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
   const replay = useMatchReplay(id, { enabled: true });
@@ -135,6 +135,8 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [playhead, setPlayhead] = useState<number | null>(null);
+  const [clipInTick, setClipInTick] = useState<number | null>(null);
+  const [clipOutTick, setClipOutTick] = useState<number | null>(null);
 
   /* What this view last wrote into `?tick=`. Anything else arriving there came
      from somewhere the local playhead has to yield to. */
@@ -201,6 +203,8 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
   useEffect(() => {
     setPlayhead(null);
     setPlaying(false);
+    setClipInTick(null);
+    setClipOutTick(null);
     written.current = null;
   }, [context.round, demoId]);
 
@@ -268,6 +272,26 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
   const durationSeconds = slice === null ? 0 : (slice.endTick - slice.startTick) / slice.tickRate;
   const currentSeconds =
     slice === null || effectiveTick === null ? 0 : (effectiveTick - slice.startTick) / slice.tickRate;
+  const clipRange = clipInTick === null || clipOutTick === null || clipInTick === clipOutTick
+    ? null
+    : {
+        startTick: Math.min(clipInTick, clipOutTick),
+        endTick: Math.max(clipInTick, clipOutTick),
+      };
+  const clipInSeconds = slice === null || clipInTick === null
+    ? undefined
+    : (clipInTick - slice.startTick) / slice.tickRate;
+  const clipOutSeconds = slice === null || clipOutTick === null
+    ? undefined
+    : (clipOutTick - slice.startTick) / slice.tickRate;
+  const effectivePlayer = analysis.data?.players.find((player) => player.id === effectivePlayerId) ?? null;
+  const createClipDisabledReason = addToVideo.disabled
+    ? addToVideo.disabledReason
+    : effectivePlayerId === null
+      ? t`先选择这个镜头跟随的选手`
+      : clipRange === null
+        ? t`先在回放中设置不同的入点和出点`
+        : undefined;
   const selectedDuel = duels.engagements.find((duel) => duel.id === context.evidence) ?? null;
 
   const label =
@@ -508,6 +532,8 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
               currentTime={currentSeconds}
               durationSeconds={durationSeconds}
               playing={playing}
+              {...(clipInSeconds === undefined ? {} : { inPoint: clipInSeconds })}
+              {...(clipOutSeconds === undefined ? {} : { outPoint: clipOutSeconds })}
               timecode="clock"
               fps={slice?.tickRate ?? 64}
               rate={rate}
@@ -527,6 +553,55 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
                 )}
               </p>
             </Transport>
+            <div
+              className="flex min-w-0 items-center gap-2 border-t border-divider pt-2"
+              data-replay-clip-range=""
+            >
+              <p className="min-w-0 flex-1 truncate font-mono text-2xs text-neutral-600">
+                <Trans>
+                  入点 {clipInTick === null ? '—' : formatTickCount(clipInTick)}
+                  {' · '}
+                  出点 {clipOutTick === null ? '—' : formatTickCount(clipOutTick)}
+                  {' · '}
+                  镜头跟随 {effectivePlayer?.name ?? t`未选择选手`}
+                </Trans>
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={effectiveTick === null}
+                onClick={() => setClipInTick(effectiveTick)}
+              >
+                <Trans>设入点</Trans>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={effectiveTick === null}
+                onClick={() => setClipOutTick(effectiveTick)}
+              >
+                <Trans>设出点</Trans>
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={createClipDisabledReason !== undefined}
+                {...(createClipDisabledReason === undefined ? {} : { disabledReason: createClipDisabledReason })}
+                onClick={() => {
+                  if (clipRange === null || effectivePlayerId === null || slice === null) return;
+                  addToVideo.onAdd?.({
+                    ...(context.round === null ? {} : { round: context.round }),
+                    playerId: effectivePlayerId,
+                    label: `${effectivePlayer?.name ?? effectivePlayerId} · ${formatTickCount(clipRange.startTick)}–${formatTickCount(clipRange.endTick)}`,
+                    startTick: clipRange.startTick,
+                    endTick: clipRange.endTick,
+                    tickRate: slice.tickRate,
+                  });
+                }}
+              >
+                <Trans>创建剪辑</Trans>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

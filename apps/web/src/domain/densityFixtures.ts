@@ -312,6 +312,7 @@ export function makeHighlights(count: number): readonly HighlightCandidate[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `hl-${String(index)}`,
     kind: HIGHLIGHT_KIND_CYCLE[index % HIGHLIGHT_KIND_CYCLE.length] ?? 'clutch',
+    playerId: `player-${String(index % 10)}`,
     label: '1v3 残局',
     round: (index % REGULATION_ROUNDS) + 1,
     subject: `Kael-${String(index % 10)}`,

@@ -236,8 +236,10 @@ export function OverviewPanels({
                           addToVideo.onAdd?.({
                             round: highlight.round,
                             highlightId: highlight.id,
+                            playerId: highlight.player_id,
                             startTick: highlight.start_tick,
                             endTick: highlight.end_tick,
+                            ...(tickRate === undefined ? {} : { tickRate }),
                           })
                         }
                       >

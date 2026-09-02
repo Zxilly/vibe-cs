@@ -159,6 +159,8 @@ export interface EvidenceItem {
 export interface HighlightCandidate {
   readonly id: string;
   readonly kind: HighlightKind;
+  /** Stable player identity used when this candidate becomes a Capture Intent. */
+  readonly playerId?: string | undefined;
   /**
    * The type as the analysis phrased it: 「1v3 残局」 rather than the bare 「残局」
    * the `kind` table yields. Optional — without it the row prints the kind.

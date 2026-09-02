@@ -33,6 +33,7 @@ export interface ViewPropsOverrides {
     | undefined;
   readonly collapsed?: boolean | undefined;
   readonly onAdd?: ((selection: unknown) => void) | undefined;
+  readonly addDisabled?: boolean | undefined;
 }
 
 /** The five props the shell hands a view, with the workspace's real defaults. */
@@ -49,9 +50,8 @@ export function viewProps(overrides: ViewPropsOverrides = {}): MatchViewProps {
     },
     updateContext: overrides.updateContext ?? vi.fn(),
     addToVideo: {
-      /* The shell's own state this round: disabled, with a reason. */
-      disabled: true,
-      disabledReason: ADD_TO_VIDEO_REASON,
+      disabled: overrides.addDisabled ?? true,
+      ...((overrides.addDisabled ?? true) ? { disabledReason: ADD_TO_VIDEO_REASON } : {}),
       ...(overrides.onAdd === undefined ? {} : { onAdd: overrides.onAdd }),
     },
     collapsed: overrides.collapsed ?? false,

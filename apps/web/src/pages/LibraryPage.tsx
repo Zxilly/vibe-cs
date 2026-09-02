@@ -324,8 +324,8 @@ function DemoLibraryPage() {
         void activeDetail.refetch();
       }}
       analysing={activeDemo?.lifecycle_status === 'analyzing'}
-      onOpenWorkspace={() => {
-        if (activeDemo !== undefined) void navigate(`/match/${encodeURIComponent(activeDemo.id)}`);
+      onCreateClip={() => {
+        if (activeDemo !== undefined) void navigate(`/match/${encodeURIComponent(activeDemo.id)}?view=replay`);
       }}
       onAnalyse={() => {
         if (activeDemo !== undefined) analyse([activeDemo.id]);
@@ -601,6 +601,7 @@ function wholeMatchClip(demo: DemoSummary): ProjectCollectedClip {
     evidenceId: null,
     startTick: null,
     endTick: null,
+    durationSeconds: demo.duration_seconds > 0 ? demo.duration_seconds : null,
     addedAt: new Date().toISOString(),
   };
 }

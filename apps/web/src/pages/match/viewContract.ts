@@ -279,6 +279,8 @@ export interface MatchVideoSelection {
   readonly label?: string | undefined;
   readonly startTick?: number | undefined;
   readonly endTick?: number | undefined;
+  /** Tick rate of the Demo that owns the selected range. */
+  readonly tickRate?: number | undefined;
 }
 
 export interface MatchContextUpdateOptions {

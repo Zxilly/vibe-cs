@@ -114,6 +114,7 @@ export function toHighlightCandidate(
   return {
     id: highlight.id,
     kind: HIGHLIGHT_WIRE_KIND[highlight.kind],
+    playerId: highlight.player_id,
     round: highlight.round,
     startTick: highlight.start_tick,
     endTick: highlight.end_tick,

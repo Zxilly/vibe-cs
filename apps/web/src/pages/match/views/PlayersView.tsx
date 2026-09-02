@@ -387,6 +387,7 @@ function toCandidate(highlight: Highlight, subject: string): HighlightCandidate 
   return {
     id: highlight.id,
     kind: highlightKindOf(highlight.kind),
+    playerId: highlight.player_id,
     /* The detector's own phrasing wins over the kind table's generic word —
        「1v3 残局」 says more than 「残局」 — and falls back to it when absent. */
     ...(highlight.label.trim() === '' ? {} : { label: highlight.label }),

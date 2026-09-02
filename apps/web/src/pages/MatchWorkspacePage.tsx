@@ -306,6 +306,12 @@ function collectedClip(
       : kind === 'evidence' ? `证据 ${identity}`
         : kind === 'round' ? `第 ${String(selection.round)} 回合`
           : kind === 'player' ? `选手 ${String(selection.playerId)}` : '比赛片段');
+  const durationSeconds = selection.startTick === undefined
+    || selection.endTick === undefined
+    || selection.tickRate === undefined
+    || selection.tickRate <= 0
+    ? null
+    : Math.max(0, (selection.endTick - selection.startTick) / selection.tickRate + 2.5);
   return {
     id: `${demoId}:${kind}:${identity}`,
     demoId,
@@ -318,6 +324,7 @@ function collectedClip(
     evidenceId: selection.evidenceId ?? null,
     startTick: selection.startTick ?? null,
     endTick: selection.endTick ?? null,
+    durationSeconds,
     addedAt: new Date().toISOString(),
   };
 }

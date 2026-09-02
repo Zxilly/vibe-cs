@@ -349,6 +349,7 @@ function evidenceCollectedClip(row: EvidenceSearchItem): ProjectCollectedClip {
     evidenceId: row.evidence_id,
     startTick: row.tick,
     endTick: row.end_tick,
+    durationSeconds: null,
     addedAt: new Date().toISOString(),
   };
 }

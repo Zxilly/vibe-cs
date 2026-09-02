@@ -72,6 +72,7 @@ export const EVIDENCE: EvidenceItem = {
 export const HIGHLIGHT: HighlightCandidate = {
   id: 'hl-r21-clutch',
   kind: 'clutch',
+  playerId: 'kael',
   label: '1v3 残局',
   round: 21,
   subject: 'Kael',

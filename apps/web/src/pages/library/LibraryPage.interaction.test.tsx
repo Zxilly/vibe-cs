@@ -194,7 +194,7 @@ describe('the Inspector', () => {
     expect(strip?.textContent).toContain('选中 Aurora vs Meridian');
     // The main action stays on the strip — 主动作不进溢出菜单, at any width.
     expect(document.querySelector('[data-inspector-summary-actions]')?.textContent).toContain(
-      '打开比赛工作区',
+      '从 Demo 创建剪辑',
     );
 
     fireEvent.click(screen.getByRole('button', { name: '详情' }));

@@ -37,10 +37,10 @@
  * selected highlights become N **bound** shots of a real plan.
  *
  * `useAgentVideoHandoff` owns both steps. What this view owns is the mapping
- * from its rows to `HighlightHandoffSource` — which is why it reads
- * `analysis.data.highlights` rather than the `HighlightCandidate` rows on
- * screen: `player_id` is dropped on the way to a row (the row shows a *name*)
- * and `demo_id` never was on one.
+ * from its rows to `HighlightHandoffSource`. `HighlightCandidate` retains the
+ * stable player id as well as the display name so the ordinary 「加入作品」
+ * path can produce the same recordable Capture Intent; `demo_id` remains owned
+ * by the enclosing match workspace.
  *
  * A selection that cannot be bound — no Demo, a player the analysis identifies
  * some way other than a SteamID64, a zero-length window — **disables the action
@@ -255,8 +255,10 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                         addToVideo.onAdd?.({
                           round: highlight.round,
                           highlightId: highlight.id,
+                          ...(highlight.playerId === undefined ? {} : { playerId: highlight.playerId }),
                           startTick: highlight.startTick,
                           endTick: highlight.endTick,
+                          ...(highlight.tickRate === undefined ? {} : { tickRate: highlight.tickRate }),
                         })
                       }
                     >
@@ -296,8 +298,10 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                   addToVideo.onAddMany?.(batch.map((highlight) => ({
                     round: highlight.round,
                     highlightId: highlight.id,
+                    ...(highlight.playerId === undefined ? {} : { playerId: highlight.playerId }),
                     startTick: highlight.startTick,
                     endTick: highlight.endTick,
+                    ...(highlight.tickRate === undefined ? {} : { tickRate: highlight.tickRate }),
                   })));
                 }}
               >

@@ -216,6 +216,23 @@ describe('the layer switches', () => {
 });
 
 describe('selection', () => {
+  it('creates a recordable Project clip from manually marked Demo in and out points', () => {
+    const onAdd = vi.fn();
+    renderView(<ReplayView.Body {...viewProps({ onAdd, addDisabled: false })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '设入点' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一帧' }));
+    fireEvent.click(screen.getByRole('button', { name: '设出点' }));
+    fireEvent.click(screen.getByRole('button', { name: '创建剪辑' }));
+
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
+      playerId: 'kael',
+      startTick: 149_000,
+      endTick: 149_001,
+      tickRate: 64,
+    }));
+  });
+
   it('focuses a player through the address, not through local state', () => {
     const updateContext = vi.fn<(patch: MatchContextPatch, options?: MatchContextUpdateOptions) => void>();
     renderView(<ReplayView.Body {...viewProps({ updateContext })} />);

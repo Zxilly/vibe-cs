@@ -4,7 +4,7 @@
  * `design/layout/Inspector` is the shell, and it already carries the §8 rule 2
  * behaviour: docked at `--w-inspector` above the 1100px breakpoint, and below it
  * a 46px summary strip plus a召-out drawer. **No media query is written here** —
- * the component observes the breakpoint itself, and 「打开比赛工作区」 is passed
+ * the component observes the breakpoint itself, and 「从 Demo 创建剪辑」 is passed
  * as `summaryActions` so that the main action stays on the strip when the panel
  * folds (§8: 主动作在任何宽度下保持可见).
  *
@@ -55,7 +55,7 @@ export interface LibraryInspectorProps {
   /** 「正在分析」 — `data/tasks.ts`'s per-demo run query answered true. */
   readonly analysing: boolean;
 
-  readonly onOpenWorkspace: () => void;
+  readonly onCreateClip: () => void;
   readonly onAnalyse: () => void;
   readonly onPlay: () => void;
   readonly onSaveRemark: (remark: string) => Promise<unknown>;
@@ -72,7 +72,7 @@ export function LibraryInspector({
   error,
   onRetry,
   analysing,
-  onOpenWorkspace,
+  onCreateClip,
   onAnalyse,
   onPlay,
   onSaveRemark,
@@ -130,8 +130,8 @@ export function LibraryInspector({
       {...(collapsed === undefined ? {} : { collapsed })}
       summaryActions={
         canOpenWorkspace ? (
-          <Button size="sm" variant="primary" onClick={onOpenWorkspace}>
-            <Trans>打开比赛工作区</Trans>
+          <Button size="sm" variant="primary" onClick={onCreateClip}>
+            <Trans>从 Demo 创建剪辑</Trans>
           </Button>
         ) : (
           <Button size="sm" variant="primary" disabled={analysing} onClick={onAnalyse}>
@@ -142,8 +142,8 @@ export function LibraryInspector({
       footer={
         <>
           {canOpenWorkspace ? (
-            <Button size="lg" variant="primary" block onClick={onOpenWorkspace}>
-              <Trans>打开比赛工作区</Trans>
+            <Button size="lg" variant="primary" block onClick={onCreateClip}>
+              <Trans>从 Demo 创建剪辑</Trans>
             </Button>
           ) : (
             <Button

@@ -68,6 +68,7 @@ describe('toHighlightCandidate', () => {
     const row = toHighlightCandidate(wire as Highlight, names, TICK_RATE);
     expect(row.id).toBe('h-21-clutch');
     expect(row.kind).toBe('clutch');
+    expect(row.playerId).toBe('kael');
     expect(row.round).toBe(21);
     expect(row.subject).toBe('Kael');
     expect(row.startTick).toBe(148_920);

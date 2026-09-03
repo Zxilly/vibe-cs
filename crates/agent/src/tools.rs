@@ -8,15 +8,13 @@ use rig_core::tool::{ToolExecutionError, ToolOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, mpsc};
-use ts_rs::TS;
 
 use crate::AgentToolHost;
 
 const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 64 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CapturedToolCall {
     pub id: String,
     pub name: String,
@@ -25,9 +23,8 @@ pub struct CapturedToolCall {
     pub status: CapturedToolCallStatus,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[ts(export)]
 pub enum CapturedToolCallStatus {
     Completed,
     Failed,

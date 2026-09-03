@@ -99,18 +99,16 @@ struct RevertProjectChangeGroupRequest {
     expected_revision: u64,
 }
 
-#[derive(Debug, Deserialize, TS)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
 struct ProjectRecordingPlanRequest {
     expected_revision: u64,
     #[serde(default)]
     clip_ids: Vec<Uuid>,
 }
 
-#[derive(Debug, Clone, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
 struct ProjectExportRequest {
     expected_revision: u64,
     confirm: bool,
@@ -122,17 +120,15 @@ struct ProjectExportRequest {
     range_end_seconds: Option<f64>,
 }
 
-#[derive(Debug, Serialize, TS)]
+#[derive(Debug, Serialize)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
 struct ProjectExportResponse {
     job_id: Uuid,
     status: String,
 }
 
-#[derive(Debug, Clone, Deserialize, TS)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
 struct ProjectRenderPreviewRequest {
     encoder: String,
     quality: u8,

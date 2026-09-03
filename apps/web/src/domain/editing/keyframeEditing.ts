@@ -54,10 +54,6 @@ export function removeClipKeyframe(
 
 type ClipTransformProperty = Exclude<EditorKeyframeProperty, 'volume' | 'pan'>;
 
-export function transformPropertyValue(clip: TimelineClip, property: ClipTransformProperty): number {
-  return clip.transform[property];
-}
-
 export function setClipTransformAtTime(
   clip: TimelineClip,
   localTime: number,

@@ -32,7 +32,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
-import { ReviewPanel } from '../../design/review';
+import { ReviewPanel } from '../../design/review/ReviewPanel';
 import { OverflowMenu } from '../../design/layout';
 import { Dialog, Drawer, Tooltip } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';

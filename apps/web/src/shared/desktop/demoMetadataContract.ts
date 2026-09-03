@@ -26,10 +26,6 @@ export function parseDemoTagCatalog(value: unknown): ReviewTag[] {
   return parseReviewTagCatalog(value);
 }
 
-export function parseDemoTag(value: unknown): ReviewTag {
-  return parseReviewTag(value);
-}
-
 export function parseDemoMetadata(value: unknown, expectedDemoId: string): DemoMetadata {
   if (!exact(value, ['demo_id', 'match_source', 'comment', 'tags', 'updated_at'])
     || value.demo_id !== expectedDemoId

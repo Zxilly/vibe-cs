@@ -3,7 +3,7 @@ import { evaluateClipKeyframeProperty } from './keyframeEditing';
 import { clipAudioFadeFactor } from './timelineInteraction';
 import { evaluateTrackAudioProperty } from './trackAudioEditing';
 
-export function timelineHasSoloTrack(project: Project): boolean {
+function timelineHasSoloTrack(project: Project): boolean {
   return project.document.tracks.some((track) => !track.hidden && !track.muted && track.solo);
 }
 

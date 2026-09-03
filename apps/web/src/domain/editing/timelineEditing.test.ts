@@ -18,6 +18,7 @@ import {
   timelineClipFromMediaAsset,
   trimRippleClip,
   rippleTrimTrackClip,
+  sameTimelineClip,
   trimRippleClipGroup,
   trimFreeClipGroup,
 } from './timelineEditing';
@@ -54,6 +55,16 @@ function clip(id: string, start: number, duration = 10): TimelineClip {
 }
 
 const CLIPS = [clip('a', 0), clip('b', 10), clip('c', 20)];
+
+describe('timeline clip drafts', () => {
+  it('compares the complete clip document before committing an inspector draft', () => {
+    expect(sameTimelineClip(CLIPS[0]!, { ...CLIPS[0]! })).toBe(true);
+    expect(sameTimelineClip(CLIPS[0]!, {
+      ...CLIPS[0]!,
+      placement: { ...CLIPS[0]!.placement, duration: 9 },
+    })).toBe(false);
+  });
+});
 
 describe('ripple Story Track edits', () => {
   it('reorders by the movement-facing edge and closes every gap', () => {

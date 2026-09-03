@@ -4,7 +4,7 @@ import { evaluateEditorKeyframes } from './keyframeEditing';
 
 export type TrackAudioProperty = 'volume' | 'pan';
 
-export function trackAudioPropertyValue(track: TimelineTrack, property: TrackAudioProperty): number {
+function trackAudioPropertyValue(track: TimelineTrack, property: TrackAudioProperty): number {
   return track[property];
 }
 
@@ -105,7 +105,7 @@ export function moveTrackAudioKeyframe(
   };
 }
 
-export function constrainTrackAudioValue(property: TrackAudioProperty, value: number): number {
+function constrainTrackAudioValue(property: TrackAudioProperty, value: number): number {
   return property === 'volume'
     ? Math.min(4, Math.max(0, value))
     : Math.min(1, Math.max(-1, value));

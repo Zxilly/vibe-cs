@@ -28,7 +28,7 @@ export function multicamAnglesAtTime(project: Project, timelineTime: number): Mu
     .sort((left, right) => left.angle - right.angle);
 }
 
-export function multicamClipMetadata(clip: TimelineClip): Omit<MulticamAngleView, 'active' | 'clip' | 'track'> | null {
+function multicamClipMetadata(clip: TimelineClip): Omit<MulticamAngleView, 'active' | 'clip' | 'track'> | null {
   if (typeof clip.metadata !== 'object' || clip.metadata === null || Array.isArray(clip.metadata)) return null;
   const value = clip.metadata.multicam;
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;

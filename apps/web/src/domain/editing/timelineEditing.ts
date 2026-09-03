@@ -10,6 +10,11 @@ import {
 
 const TIME_EPSILON = 1e-6;
 
+/** Compares the complete generated clip document before committing a draft. */
+export function sameTimelineClip(left: TimelineClip, right: TimelineClip): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function reflow(clips: readonly TimelineClip[], origin = clips[0]?.placement.start ?? 0): TimelineClip[] {
   let cursor = origin;
   return clips.map((clip) => {

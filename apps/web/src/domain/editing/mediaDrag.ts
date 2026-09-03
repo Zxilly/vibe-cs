@@ -1,7 +1,7 @@
 import type { MediaAsset } from '../../shared/desktop/dto';
 
 export const PROJECT_MEDIA_DRAG_TYPE = 'application/x-vibe-cs-media-asset';
-export const DEFAULT_STILL_IMAGE_DURATION_SECONDS = 5;
+const DEFAULT_STILL_IMAGE_DURATION_SECONDS = 5;
 
 export interface ProjectMediaDragPayload {
   readonly assetId: string;

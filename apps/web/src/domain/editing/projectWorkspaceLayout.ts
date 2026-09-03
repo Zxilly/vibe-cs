@@ -2,7 +2,7 @@ import { Model, type IJsonModel } from 'flexlayout-react';
 
 export type ProjectWorkspacePanel = 'project' | 'program' | 'tactical' | 'timeline' | 'agent' | 'mixer';
 
-export const PROJECT_WORKSPACE_PANELS: readonly ProjectWorkspacePanel[] = [
+const PROJECT_WORKSPACE_PANELS: readonly ProjectWorkspacePanel[] = [
   'project',
   'program',
   'tactical',

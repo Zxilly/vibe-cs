@@ -34,6 +34,46 @@ apps/demo-worker ──> demo + domain
 apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 ```
 
+## Editor module ownership
+
+The Project workspace follows the same durable separation visible in mature non-linear editors,
+without copying their framework-specific command hierarchies:
+
+- `domain/editing/ProjectTimeline.tsx` renders the Timeline and owns the lifecycle of an active
+  direct-manipulation gesture. It does not own another Editing Document or revision history.
+- `domain/editing/timelineSelection.ts` derives Human Selection facts from the current Editing
+  Document, selected clip identities and Edit Lease read-only state. Track-select tools, locked-track
+  filtering, link/group eligibility and contiguous Story selection use this one Interface.
+- `domain/editing/timelineEditing.ts` and `timelineInteraction.ts` own frame-snapped edit semantics.
+  They return candidate Timeline Clips and Tracks; they do not persist pointer-move intermediates.
+- `design/timeline` is the only time geometry. Ruler, playhead, zoom, scroll and gesture calculations
+  consume it rather than introducing percentages or page-private coordinate systems.
+- `TimelineProgramMonitor.tsx` consumes Timeline Transport and materialization. It does not own
+  playback position, selection or media source switching policy.
+- `ProjectWorkspacePage.tsx` composes the panels and translates one completed Human Edit into one
+  revision-bound Project Patch. It does not reimplement edit geometry.
+
+The reference comparison is source-based rather than visual analogy:
+
+- [Kdenlive TimelineModel](https://github.com/KDE/kdenlive/blob/0afbdde30921cc1e01ae6a55e83cdb7a55e78d74/src/timeline2/model/timelinemodel.hpp)
+  is the single modification entry point, while
+  [TimelineController](https://github.com/KDE/kdenlive/blob/0afbdde30921cc1e01ae6a55e83cdb7a55e78d74/src/timeline2/view/timelinecontroller.h)
+  owns selection and view state and `monitor/` remains separate.
+- [Olive](https://github.com/olive-editor/olive/tree/7e0e94abf6610026aebb9ddce8564c39522fac6e/app)
+  separates project nodes, Timeline panels, coordinate logic and undo operations.
+- [Shotcut](https://github.com/mltframework/shotcut/tree/3cfd48ba16967d524e75d1197d103a246377a1a8/src)
+  separates multitrack models, Timeline commands and the dock/view host.
+- [LosslessCut useTimelineScroll](https://github.com/mifi/lossless-cut/blob/5af02818fbf0738782e5ac13a4407218b80cc504/src/renderer/src/hooks/useTimelineScroll.ts)
+  confirms that wheel policy can leave the visual Timeline, but its wide callback Interface is not a
+  template to copy. Vibe CS extracts a viewport Module only when scroll, zoom and ruler policy can sit
+  behind one smaller Interface while retaining `design/timeline` as the sole geometry.
+- [OpenCut's current native Timeline](https://github.com/OpenCut-app/OpenCut/blob/400f097becba5db0fbc305d5a65348cb81c20356/apps/desktop/src/panels/timeline.rs)
+  is still a placeholder and is not used as an architecture authority.
+
+Kdenlive, Olive and Shotcut use local undo command structures because their mutable editor models
+need them. Vibe CS does not add a parallel command-class or undo hierarchy: Project Patch, Project
+Head and Change Group already form the one edit and undo authority.
+
 - `domain` contains serializable records, validation and errors and performs no I/O. The current
   evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
   one immutable `demo_id/evidence_id/round/tick` locator. The separate review-metadata contract

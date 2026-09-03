@@ -10,7 +10,6 @@ vibe-cs-cosmetics = { path = "../cosmetics" }
 vibe-cs-demo = { path = "../demo" }
 vibe-cs-domain = { path = "../domain" }
 vibe-cs-hlae = { path = "../hlae" }
-vibe-cs-platform-windows = { path = "../platform-windows" }
 vibe-cs-recording = { path = "../recording" }
 vibe-cs-integrations = { path = "../integrations" }
 vibe-cs-storage = { path = "../storage" }
@@ -26,7 +25,6 @@ mime_guess.workspace = true
 reqwest.workspace = true
 rust_xlsxwriter.workspace = true
 semver.workspace = true
-same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

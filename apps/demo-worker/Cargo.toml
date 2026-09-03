@@ -6,7 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow.workspace = true
 vibe-cs-demo = { path = "../../crates/demo" }
 vibe-cs-domain = { path = "../../crates/domain" }
 serde.workspace = true
@@ -16,4 +15,3 @@ uuid.workspace = true
 
 [lints]
 workspace = true
-

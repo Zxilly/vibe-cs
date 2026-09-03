@@ -15,11 +15,9 @@ serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tracing.workspace = true
 ts-rs.workspace = true
 uuid.workspace = true
 url.workspace = true
-walkdir.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 vibe-cs-platform-windows = { path = "../platform-windows" }

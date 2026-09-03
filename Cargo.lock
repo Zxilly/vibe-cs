@@ -7053,9 +7053,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tokio",
- "ts-rs",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -7074,7 +7072,6 @@ dependencies = [
  "reqwest",
  "rusqlite",
  "rust_xlsxwriter",
- "same-file",
  "semver",
  "serde",
  "serde_json",
@@ -7092,7 +7089,6 @@ dependencies = [
  "vibe-cs-domain",
  "vibe-cs-hlae",
  "vibe-cs-integrations",
- "vibe-cs-platform-windows",
  "vibe-cs-recording",
  "vibe-cs-storage",
  "walkdir",
@@ -7125,7 +7121,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "ts-rs",
  "uuid",
  "vibe-cs-domain",
  "walkdir",
@@ -7136,7 +7131,6 @@ dependencies = [
 name = "vibe-cs-demo-worker"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
  "tokio",
@@ -7152,17 +7146,14 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
- "hex",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
- "tempfile",
  "tokio",
  "tower",
  "tracing",
@@ -7173,8 +7164,6 @@ dependencies = [
  "vibe-cs-agent",
  "vibe-cs-application",
  "vibe-cs-domain",
- "vibe-cs-hlae",
- "vibe-cs-platform-windows",
  "vibe-cs-runtime",
  "vibe-cs-storage",
 ]
@@ -7227,7 +7216,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "ts-rs",
  "url",
  "uuid",
  "vibe-cs-domain",
@@ -7238,7 +7226,6 @@ dependencies = [
 name = "vibe-cs-media"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "chrono",
  "ez-ffmpeg",
  "ffmpeg-next",
@@ -7249,7 +7236,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "ts-rs",
  "uuid",
  "vibe-cs-domain",
 ]
@@ -7269,7 +7255,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "ts-rs",
  "url",
  "uuid",
  "windows 0.62.2",
@@ -7302,7 +7287,6 @@ dependencies = [
  "cap-std",
  "chrono",
  "futures-util",
- "getrandom 0.4.3",
  "hex",
  "notify",
  "rusqlite",
@@ -7357,13 +7341,11 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "tracing",
  "ts-rs",
  "url",
  "uuid",
  "vibe-cs-domain",
  "vibe-cs-platform-windows",
- "walkdir",
 ]
 
 [[package]]

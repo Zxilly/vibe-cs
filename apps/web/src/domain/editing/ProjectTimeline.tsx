@@ -79,7 +79,7 @@ import { TimelineToolStrip, type TimelineEditTool } from './TimelineToolStrip';
 import type { TimelineThumbnailMode } from './timelineFilmstripGeometry';
 import { resolveTimelineMaterial } from './timelineMaterial';
 import { planTimelineAddEdit } from './timelineAddEdit';
-import { timelineTrackSelection } from './timelineTrackSelection';
+import { timelineSelectionState, timelineTrackSelection } from './timelineSelection';
 import {
   clearTimelineClipSyncReference,
   restoreTimelineClipSync,
@@ -556,46 +556,27 @@ export function ProjectTimeline({
     () => document.tracks.filter((track) => targetTrackIdSet.has(track.id)),
     [document.tracks, targetTrackIdSet],
   );
-  const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
-  const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
-    const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
-    return selected.length === 0 ? [] : [{ track, clips: selected }];
-  }), [document.tracks, selectedClipIdSet]);
-  const selectedClips = useMemo(
-    () => selectedTrackGroups.flatMap((group) => group.clips),
-    [selectedTrackGroups],
+  const {
+    selectedClipIdSet,
+    selectedTrackGroups,
+    selectedClips,
+    editableSelectedTrackGroups,
+    sharedLinkGroupId,
+    canChangeLinks,
+    canGroup,
+    canUngroup,
+    canNestSelection,
+    selectedNestedClip,
+  } = useMemo(
+    () => timelineSelectionState(document, selectedClipIds, readOnly),
+    [document, readOnly, selectedClipIds],
   );
   const allTimelineClips = useMemo(() => document.tracks.flatMap((track) => track.clips), [document.tracks]);
   const outOfSyncFramesByClipId = useMemo(() => new Map(allTimelineClips.map((clip) => [
     clip.id,
     timelineClipOutOfSyncFrames(clip, allTimelineClips, document.fps),
   ])), [allTimelineClips, document.fps]);
-  const editableSelectedTrackGroups = useMemo(
-    () => selectedTrackGroups.filter((group) => !group.track.locked),
-    [selectedTrackGroups],
-  );
-  const everySelectedTrackEditable = selectedTrackGroups.every((group) => !group.track.locked);
-  const sharedLinkGroupId = selectedClips.length < 2
-    ? null
-    : selectedClips[0]?.link_group_id !== null
-      && selectedClips.every((clip) => clip.link_group_id === selectedClips[0]?.link_group_id)
-      ? selectedClips[0]!.link_group_id
-      : null;
-  const canChangeLinks = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
-  const canGroup = !readOnly && selectedClips.length >= 2 && everySelectedTrackEditable;
-  const canUngroup = !readOnly && selectedClips.some((clip) => clip.group_id !== null) && everySelectedTrackEditable;
-  const selectedStoryIndices = story === null ? [] : story.clips.flatMap((clip, index) => (
-    selectedClipIdSet.has(clip.id) ? [index] : []
-  ));
-  const canCreateNestedSequence = !readOnly
-    && !nestedSequencePending
-    && selectedTrackGroups.length === 1
-    && selectedTrackGroups[0]?.track.id === document.story_track_id
-    && selectedStoryIndices.length > 0
-    && selectedStoryIndices.at(-1)! - selectedStoryIndices[0]! + 1 === selectedStoryIndices.length;
-  const selectedNestedClip = selectedClips.length === 1 && selectedClips[0]?.material.kind === 'sequence'
-    ? selectedClips[0]
-    : null;
+  const canCreateNestedSequence = !nestedSequencePending && canNestSelection;
   const selectedNestedMedia = selectedNestedClip === null
     ? null
     : nestedSequenceMediaByClipId.get(selectedNestedClip.id) ?? null;

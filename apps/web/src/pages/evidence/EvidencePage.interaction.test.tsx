@@ -192,7 +192,7 @@ describe('selecting a row', () => {
     fireEvent.click(within(row).getByRole('button', { name: '加入作品' }));
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('option', { name: '证据集锦' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '加入' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '加入 Story 末尾' })).toBeTruthy();
   });
 });
 

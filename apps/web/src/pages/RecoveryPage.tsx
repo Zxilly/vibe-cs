@@ -78,7 +78,7 @@ export function RecoveryPage() {
         />
       }
     >
-      <div className="flex flex-col gap-5 p-7">
+      <div className="flex flex-col gap-5 p-6">
         {statusError === null ? null : (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
             <Trans>读不到恢复状态：{statusError}</Trans>
@@ -133,7 +133,7 @@ export function RecoveryPage() {
             status.data === undefined || status.data.affected_files.length === 0 ? null : (
               <ul className="flex flex-col gap-1">
                 {status.data.affected_files.map((file) => (
-                  <li key={file} className="break-all font-mono text-2xs text-neutral-600">
+                  <li key={file} className="break-all font-mono text-xs text-neutral-600">
                     {file}
                   </li>
                 ))}

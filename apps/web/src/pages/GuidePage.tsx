@@ -55,7 +55,7 @@ export function GuidePage() {
         />
       }
     >
-      <div className="grid min-h-0 grid-cols-1 gap-4 p-7 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
+      <div className="grid min-h-0 grid-cols-1 gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
         <section className="flex min-h-[40rem] flex-col gap-4 border border-divider p-5">
           <h2 className="text-base font-medium">
             <Trans>三步</Trans>
@@ -129,7 +129,7 @@ export function GuidePage() {
                     {enablesSentence(check)}
                   </p>
                   {check.detail === '' ? null : (
-                    <p className="ms-5 break-all text-2xs leading-normal text-neutral-600">{check.detail}</p>
+                    <p className="ms-5 break-all text-xs leading-normal text-neutral-600">{check.detail}</p>
                   )}
                 </li>
               ))}

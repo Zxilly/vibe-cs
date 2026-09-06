@@ -72,7 +72,7 @@ const ALIGN_CLASS: Record<TableCellAlign, string> = {
  * tracking, upper case, muted ink, one hairline under the row.
  */
 export const TABLE_HEADER_CELL_CLASS =
-  'h-[var(--h-thead)] whitespace-nowrap border-b border-divider text-2xs uppercase tracking-wide text-neutral-600';
+  'h-[var(--h-thead)] whitespace-nowrap border-b border-divider text-xs uppercase tracking-wide text-neutral-600';
 
 /** The body treatment: Industry's `.table td` hairline, at the §3.4 row height. */
 export const TABLE_BODY_CELL_CLASS = 'whitespace-nowrap border-b border-divider/60 align-middle';

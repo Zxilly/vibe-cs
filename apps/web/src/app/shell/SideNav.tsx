@@ -56,16 +56,16 @@ export interface SideNavProps {
 }
 
 /* Frame: 40px rows — `--h-panel-head` — 10px inline padding, 14px text. */
-const ITEM_CLASS = 'flex h-[var(--h-panel-head)] items-center gap-2.5 px-2.5 text-base';
+const ITEM_CLASS = 'flex h-[var(--h-nav-item)] items-center gap-3 px-3 text-base font-medium';
 const ITEM_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
 const ITEM_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 /* The 1100×700 artboard: a 34px square — `--h-ctl-md` — per entry. */
 const CELL_CLASS = 'relative grid size-[var(--h-ctl-md)] place-items-center';
 const CELL_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
-const CELL_ACTIVE_CLASS = 'bg-accent text-bg';
+const CELL_ACTIVE_CLASS = 'bg-accent text-on-accent';
 
-const GROUP_HEADING_CLASS = 'px-2 pt-3.5 pb-1.5 font-heading text-2xs tracking-caps text-neutral-600';
+const GROUP_HEADING_CLASS = 'px-3 pb-2 pt-4 text-xs font-medium text-neutral-600';
 
 export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className }: SideNavProps) {
   const { i18n } = useLingui();
@@ -157,10 +157,10 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             }
           >
             {groupLabel === null ? null : (
-              <span className="font-heading text-2xs tracking-caps text-neutral-600">{groupLabel}</span>
+              <span className="font-heading text-xs tracking-caps text-neutral-600">{groupLabel}</span>
             )}
             <span className="text-base text-text">{label}</span>
-            {hasBadge ? <span className="text-2xs text-accent-700">{badge}</span> : null}
+            {hasBadge ? <span className="text-xs text-accent-700">{badge}</span> : null}
           </span>
         ) : null}
       </li>

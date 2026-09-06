@@ -3,7 +3,6 @@ import { Trans } from '@lingui/react/macro';
 import {
   CheckCircle2,
   ChevronLeft,
-  ChevronRight,
   CircleAlert,
   Download,
   FileOutput,
@@ -38,7 +37,8 @@ import {
 import { useDemo } from '../data/demos';
 import { useAgentStatus } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
-import { useCancelTask, useTask } from '../data/tasks';
+import { activityIsActive, useCancelTask, useTask, useTaskFeed } from '../data/tasks';
+import { ProjectExecutionCard, executionStatusLabel } from '../domain/editing/ProjectExecutionCard';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { useNativeShell } from '../data/nativeShell';
 import {
@@ -59,7 +59,7 @@ import {
 import { Empty, Skeleton } from '../design/data';
 import { Alert, Dialog, Drawer, toast } from '../design/feedback';
 import { OverflowMenu, Page, Toolbar } from '../design/layout';
-import { cn } from '../design/primitives';
+import { Button, cn } from '../design/primitives';
 import { formatMillisecondTimecode } from '../design/timeline/timeScale';
 import { ClipInspector } from '../domain/editing/ClipInspector';
 import { AgentPanel, pendingDeliveryGroup } from '../domain/editing/ProjectAgentPanel';
@@ -181,6 +181,7 @@ function preloadRadarImage(src: string): Promise<void> {
 }
 
 export function ProjectWorkspacePage() {
+  const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
   const { projectId = '' } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -278,7 +279,13 @@ export function ProjectWorkspacePage() {
     readonly sourcePatch: ProjectSourcePatch;
   } | null>(null);
   const [sourceFitMode, setSourceFitMode] = useState<SourceMediaFitMode>('fit_to_fill');
-  const agentSessionId = searchParams.get('session');
+  const explicitAgentSessionId = searchParams.get('session');
+  const restoredAgentSessionId = useMemo(() => canonicalId === null
+    ? null
+    : readTimelineWorkspaceSession(canonicalId, globalThis.localStorage)?.agentSessionId ?? null,
+  [canonicalId, explicitAgentSessionId]);
+  const agentSessionId = explicitAgentSessionId ?? restoredAgentSessionId;
+  const persistedAgentSessionRef = useRef<{ readonly projectId: string; readonly sessionId: string } | null>(null);
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
   const appendAgentEntry = useAppendAgentSessionEntry();
@@ -286,8 +293,32 @@ export function ProjectWorkspacePage() {
     sessionId: agentSessionId,
   });
   const agentStatus = useAgentStatus();
-  const recordingTask = useTask('recording', startRecording.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
-  const exportTask = useTask('export', exportProject.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
+  const agentWorkspaceContext = useMemo(() => ({
+    projectId: project.data?.id ?? projectId,
+    lens,
+    selectedClipId,
+    selectedClipIds: [...selectedClipIds],
+    targetTrackId,
+    targetTrackIds: targetTrackIdList,
+    playheadSeconds: project.data === undefined
+      ? null
+      : Math.min(project.data.document.duration_seconds, Math.max(0, timelineTimeSeconds)),
+    rangeInSeconds,
+    rangeOutSeconds,
+  }), [project.data?.id, project.data?.document.duration_seconds, projectId, lens,
+    selectedClipId, selectedClipIds, targetTrackId, targetTrackIdList,
+    timelineTimeSeconds, rangeInSeconds, rangeOutSeconds]);
+  const projectTasks = useTaskFeed(
+    { ...(canonicalId === null ? {} : { project_id: canonicalId }), page: 1, page_size: 20 },
+    { enabled: canonicalId !== null, pollWhileActiveMs: 1_000 },
+  );
+  const startedRecordingId = startRecording.variables?.projectId === canonicalId ? startRecording.data?.job_id : undefined;
+  const startedExportId = exportProject.variables?.projectId === canonicalId ? exportProject.data?.job_id : undefined;
+  const recordingTask = useTask('recording', startedRecordingId ?? projectTasks.data?.items.find((item) => item.kind === 'recording')?.job_id ?? null, { pollWhileActiveMs: 1_000 });
+  const exportTask = useTask('export', startedExportId ?? projectTasks.data?.items.find((item) => item.kind === 'export')?.job_id ?? null, { pollWhileActiveMs: 1_000 });
+  const externalExecutions = [recordingTask.data, exportTask.data]
+    .filter((item): item is ActivityItem => item !== undefined)
+    .sort((a, b) => Number(activityIsActive(b)) - Number(activityIsActive(a)) || b.updated_at.localeCompare(a.updated_at));
   const reportedExecutionIds = useRef(new Set<string>());
   const refreshedRecordingJobs = useRef(new Set<string>());
   const nestedSequenceStatusKey = (nestedSequenceMedia.data ?? [])
@@ -331,14 +362,20 @@ export function ProjectWorkspacePage() {
       return;
     }
     refreshedRecordingJobs.current.add(task.job_id);
-    void Promise.all([project.refetch(), mediaAssets.refetch()]);
-  }, [mediaAssets.refetch, project.refetch, recordingTask.data]);
+    // Recording attaches Takes in a new revision. Refresh the gate after that
+    // Head read, replacing any in-flight gate query from the previous revision.
+    void Promise.all([
+      project.refetch().then(() => deliveryGate.refetch({ cancelRefetch: true })),
+      mediaAssets.refetch(),
+    ]);
+  }, [deliveryGate.refetch, mediaAssets.refetch, project.refetch, recordingTask.data]);
 
   useEffect(() => {
     const projectId = project.data?.id;
     if (projectId === undefined || agentSessionId === null || agentChat.streaming) return;
     const terminal = [recordingTask.data, exportTask.data].filter(
       (item): item is ActivityItem => item !== undefined
+        && (item.job_id === startedRecordingId || item.job_id === startedExportId)
         && (item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled')
         && !reportedExecutionIds.current.has(item.id),
     );
@@ -352,9 +389,9 @@ export function ProjectWorkspacePage() {
       sessionId: agentSessionId,
       projectId,
       message: outcome,
-      workspaceContext: { projectId, lens: 'multitrack', selectedClipId },
+      workspaceContext: agentWorkspaceContext,
     }).catch(() => reportedExecutionIds.current.delete(next.id));
-  }, [agentChat, agentSessionId, exportTask.data, project.data?.id, recordingTask.data, selectedClipId]);
+  }, [agentChat, agentSessionId, agentWorkspaceContext, exportTask.data, project.data?.id, recordingTask.data, startedRecordingId, startedExportId]);
 
   useEffect(() => {
     if (projectId !== 'new' || create.isPending || create.data !== undefined) return;
@@ -399,10 +436,11 @@ export function ProjectWorkspacePage() {
   useEffect(() => {
     const loaded = project.data;
     if (loaded === undefined || timelineSessionReadyProjectId !== loaded.id) return undefined;
-    const timer = globalThis.setTimeout(() => writeTimelineWorkspaceSession(
+    const persist = () => writeTimelineWorkspaceSession(
       loaded.id,
       globalThis.localStorage,
       {
+        agentSessionId,
         selectedClipIds,
         targetTrackIds: [...targetTrackIds],
         syncLockedTrackIds: [...syncLockedTrackIds],
@@ -412,9 +450,18 @@ export function ProjectWorkspacePage() {
         rangeOutSeconds,
         loopPlaybackEnabled,
       },
-    ), 250);
+    );
+    // A conversation reference must survive leaving immediately after opening
+    // or creating it; playhead and other frequent view changes remain debounced.
+    if (agentSessionId !== null && (persistedAgentSessionRef.current?.projectId !== loaded.id
+      || persistedAgentSessionRef.current.sessionId !== agentSessionId)) {
+      persist();
+      persistedAgentSessionRef.current = { projectId: loaded.id, sessionId: agentSessionId };
+    }
+    const timer = globalThis.setTimeout(persist, 250);
     return () => globalThis.clearTimeout(timer);
   }, [
+    agentSessionId,
     linkedSelectionEnabled,
     loopPlaybackEnabled,
     project.data,
@@ -527,7 +574,7 @@ export function ProjectWorkspacePage() {
   if (projectId === 'new' || project.isPending) {
     return (
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
-        <div className="flex flex-col gap-4 p-7" role="status" aria-busy="true">
+        <div className="flex flex-col gap-4 p-6" role="status" aria-busy="true">
           <Skeleton className="h-12" />
           <Skeleton className="h-80" />
         </div>
@@ -537,7 +584,7 @@ export function ProjectWorkspacePage() {
   if (project.error !== null || project.data === undefined) {
     return (
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} meta={projectId} />}>
-        <div className="p-7">
+        <div className="p-6">
           <Empty
             title={<Trans>找不到这份作品</Trans>}
             description={<Trans>找不到作品的当前版本。</Trans>}
@@ -954,7 +1001,7 @@ export function ProjectWorkspacePage() {
       sessionId,
       projectId: current.id,
       message,
-      workspaceContext: { projectId: current.id, lens, selectedClipId: agentSelectedClipId },
+      workspaceContext: { ...agentWorkspaceContext, selectedClipId: agentSelectedClipId },
     });
   };
   const appendToolDecision = async (
@@ -993,7 +1040,7 @@ export function ProjectWorkspacePage() {
   const mutationErrorDetail = dataErrorMessage(mutationError);
   const projectPanel = (
     <ProjectMediaPanel
-      key={mediaPanelEpoch}
+      previewEpoch={mediaPanelEpoch}
       docked
       assets={mediaAssets.data?.items ?? []}
       timelineTracks={current.document.tracks}
@@ -1286,6 +1333,14 @@ export function ProjectWorkspacePage() {
         }),
       }}
       history={{
+        canRevertReview: latestAgentChangeGroup !== null && latestAgentChangeGroup.operations.length > 0,
+        onRevertReview: () => {
+          if (latestAgentChangeGroup === null || readOnly) return;
+          revertChange.mutate({
+            changeGroupId: latestAgentChangeGroup.id,
+            expectedRevision: current.revision,
+          });
+        },
         canUndo: historyCommands.undo !== null,
         onUndo: () => {
           if (historyCommands.undo === null || readOnly) return;
@@ -1319,7 +1374,7 @@ export function ProjectWorkspacePage() {
       agentStatusPending={agentStatus.isPending}
       deliveryReady={currentDeliveryGate?.ready === true}
       deliveryGatePending={deliveryGatePending}
-      externalExecutions={[recordingTask.data, exportTask.data].filter((item): item is ActivityItem => item !== undefined)}
+      externalExecutions={externalExecutions}
       executionActionPending={cancelTask.isPending}
       onCancelExecution={(execution) => {
         if (execution.job_id === null || !execution.available_actions.includes('cancel')) return;
@@ -1409,18 +1464,16 @@ export function ProjectWorkspacePage() {
       className="review-workbench"
       scroll={false}
       toolbar={(
-        <header data-tauri-drag-region className="flex h-[48px] flex-none items-center gap-2 border-b border-divider bg-bg px-5 pr-[138px]">
-          <button type="button" data-window-no-drag className="mr-3 flex items-center gap-4 text-sm font-medium text-neutral-700 hover:text-text" onClick={() => void navigate('/projects')}>
+        <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-bg px-3 py-2">
+          <Button size="sm" variant="ghost" type="button" data-window-no-drag className="gap-2" onClick={() => void navigate('/projects')}>
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
             <Trans>作品</Trans>
-          </button>
-          <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
-          <h1 className="min-w-0 truncate text-sm font-semibold">{current.name}</h1>
-          <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
-          <span className="whitespace-nowrap text-sm font-semibold"><Trans>版本 #{current.revision}</Trans></span>
+          </Button>
+          <h1 className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
+          <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>版本 #{current.revision}</Trans></span>
           {pendingAgentReviewGroup === null ? null : (
             <>
-              <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
+              <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-700">
                 <Trans>Agent 修改待审阅</Trans>
               </span>
               <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {pendingAgentReviewGroup.operations.length} 处修改</Trans></span>
@@ -1429,14 +1482,18 @@ export function ProjectWorkspacePage() {
           {deliveryGatePending ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查交付状态</Trans></span>
           ) : currentDeliveryGate?.ready === true ? (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>检查通过</Trans></span>
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
           ) : (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
           )}
-          <button
+          {readOnly ? <span className="text-xs text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
+          <Button size="sm" variant="secondary" aria-label={t`作品任务`} onClick={() => setTaskDetailsOpen(true)}>
+            {externalExecutions[0] === undefined ? <Trans>作品任务</Trans> : executionStatusLabel(externalExecutions[0])}
+          </Button>
+          <Button size="sm" variant="ghost" icon
             type="button"
             data-window-no-drag
-            className="ml-3 grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider text-neutral-600 hover:bg-neutral-100 hover:text-text"
+            className="gap-2"
             aria-label={t`重置工作区布局`}
             title={t`重置工作区布局`}
             onClick={() => {
@@ -1444,14 +1501,14 @@ export function ProjectWorkspacePage() {
               setWorkspaceLayoutEpoch((epoch) => epoch + 1);
             }}
           >
-            <PanelsTopLeft className="size-3.5" aria-hidden="true" />
-          </button>
+            <PanelsTopLeft className="size-4" aria-hidden="true" />
+          </Button>
           <span data-window-no-drag>
             <OverflowMenu
               label={t`项目互换`}
               triggerLabel={<><FileOutput className="size-3.5" aria-hidden="true" /><Trans>互换</Trans></>}
               align="end"
-              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs disabled:text-neutral-300"
+              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-3 text-sm font-medium disabled:text-neutral-300"
               items={[
                 { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? String(error) })) },
                 { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
@@ -1460,29 +1517,29 @@ export function ProjectWorkspacePage() {
               ]}
             />
           </span>
-          <button
+          <Button size="sm" variant="secondary"
             type="button"
             data-window-no-drag
-            className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
+            className="gap-2"
             disabled={readOnly || deliveryGatePending || recordableClipIds.length === 0 || startRecording.isPending}
             onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
           >
-            <Video className="size-3.5" aria-hidden="true" />
+            <Video className="size-4" aria-hidden="true" />
             <Trans>录制缺失片段</Trans>
-          </button>
-          <button
+          </Button>
+          <Button size="sm" variant="primary"
             type="button"
             data-window-no-drag
-            className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-accent bg-accent px-2 text-xs text-bg hover:bg-accent-700 disabled:border-divider disabled:bg-neutral-200 disabled:text-neutral-400"
+            className="gap-2"
             disabled={readOnly || deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
             onClick={() => setExternalConfirm({
               kind: 'export',
               draft: { encoder: 'auto', quality: 80, sourceRange: hasExportRange ? 'in_out' : 'sequence' },
             })}
           >
-            <Download className="size-3.5" aria-hidden="true" />
+            <Download className="size-4" aria-hidden="true" />
             <Trans>导出成片</Trans>
-          </button>
+          </Button>
         </header>
       )}
     >
@@ -1646,10 +1703,25 @@ export function ProjectWorkspacePage() {
                 </option>
               </select>
             </label>
-            <p className="text-2xs leading-4 text-neutral-500"><Trans>成片会以 MP4 写入「成品文件」。任务开始后，可在 Agent 对话中取消或查看成片。</Trans></p>
+            <p className="text-xs text-neutral-600"><Trans>质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。</Trans></p>
+            <p className="text-xs text-neutral-600"><Trans>文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。</Trans></p>
           </div>
         )}
       </Dialog>
+      <Drawer open={taskDetailsOpen} title={<Trans>作品任务</Trans>} description={current.name} width="standard" onClose={() => setTaskDetailsOpen(false)}>
+        <div className="space-y-4">
+          {externalExecutions.map((execution) => <ProjectExecutionCard key={execution.id} execution={execution} pending={cancelTask.isPending}
+            onCancel={(item) => { if (item.job_id !== null) cancelTask.mutate({ kind: item.kind, jobId: item.job_id }); }}
+            onOpenOutputs={() => void navigate('/delivery')}
+            retryDisabled={readOnly || deliveryGatePending || (execution.kind === 'recording' ? recordableClipIds.length === 0 : currentDeliveryGate?.ready !== true)}
+            onRetry={(item) => {
+              setTaskDetailsOpen(false);
+              setExternalConfirm(item.kind === 'recording' ? { kind: 'recording', clipIds: recordableClipIds } : { kind: 'export', draft: { encoder: 'auto', quality: 80, sourceRange: 'sequence' } });
+            }} />)}
+          {projectTasks.isError ? <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: () => void projectTasks.refetch() }}><Trans>无法读取作品任务。</Trans></Alert>
+            : externalExecutions.length === 0 ? <p className="text-sm text-neutral-600">{projectTasks.isPending ? <Trans>正在读取任务…</Trans> : <Trans>此作品尚无录制或导出任务。</Trans>}</p> : null}
+        </div>
+      </Drawer>
       <Drawer
         open={inspectorOpen && selected !== null}
         title={<Trans>片段属性</Trans>}
@@ -1850,7 +1922,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
           {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : <Trans>这段素材没有可用的地图上下文</Trans>}
         </div>
       ) : (
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-accent-900">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-media">
           {mountedRadarSources.map((src) => (
             <img
               key={src}
@@ -1866,7 +1938,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
             />
           ))}
           {displayed === null ? (
-            <div className="absolute inset-0 z-10 animate-pulse bg-neutral-800" role="status" aria-label={t`正在读取战术图`} />
+            <div className="absolute inset-0 z-10 animate-pulse bg-media-divider" role="status" aria-label={t`正在读取战术图`} />
           ) : (
             <>
               <StableMapCanvas
@@ -1880,12 +1952,12 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
                 {renderTacticalLayers}
               </StableMapCanvas>
               {displayed.sceneKey === candidate?.sceneKey ? null : (
-                <span className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-sm bg-accent-900/85 px-2 py-1 text-2xs text-neutral-100">
+                <span className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-sm bg-media/85 px-2 py-1 text-xs text-on-media">
                   <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                   <Trans>正在更新战术图</Trans>
                 </span>
               )}
-              <ul className="absolute right-4 top-1/2 z-20 -translate-y-1/2 space-y-2 border border-neutral-500 bg-accent-900/95 px-3 py-2 text-2xs text-neutral-100 shadow-md">
+              <ul className="absolute inset-x-3 top-3 z-20 flex flex-wrap gap-2 rounded-sm border border-media-divider bg-media/95 p-2 text-xs text-on-media">
                 <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-accent-500" /><span>CT</span></li>
                 <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-warn" /><span>T</span></li>
                 <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>

@@ -1,9 +1,11 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
+  Ellipsis,
   FileAudio2,
   FileVideo2,
   FolderInput,
@@ -11,20 +13,19 @@ import {
   Gauge,
   Link2,
   List,
-  ListPlus,
   Pause,
-  PanelsTopLeft,
   Play,
   BookmarkPlus,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { mediaAssetStreamPath, mediaAssetThumbnailPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
+import { OverflowMenu } from '../../design/layout';
 import { Dialog, Drawer, Tooltip } from '../../design/feedback';
 import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
 import type { EditorMarker, MediaAsset, MulticamSyncMethod, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
@@ -41,6 +42,8 @@ import type { SourceMediaPatch } from './sourceMediaEditing';
 import { MarkerEditorFields, normalizeEditorMarker } from './MarkerEditorFields';
 
 export interface ProjectMediaPanelProps {
+  /** Relinking replaces decoded source media without discarding panel view state. */
+  readonly previewEpoch?: number;
   readonly assets: readonly MediaAsset[];
   readonly timelineTracks: readonly TimelineTrack[];
   readonly deliveryStateByClipId?: ReadonlyMap<string, TimelineClipMaterializationState>;
@@ -119,7 +122,6 @@ type ProjectMediaItem = {
   readonly isStillImage: boolean;
   readonly timelineClip: TimelineClip | null;
   readonly sourceAsset: MediaAsset | null;
-  readonly importedAsset: MediaAsset | null;
 };
 
 export function ProjectMediaPanel({
@@ -129,6 +131,7 @@ export function ProjectMediaPanel({
   projectFps,
   selectedTimelineClipId,
   matchedSourceFrame,
+  previewEpoch = 0,
   pending,
   readOnly,
   busy,
@@ -161,6 +164,8 @@ export function ProjectMediaPanel({
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const sourcePanelId = useId();
   const [stateFilter, setStateFilter] = useState<MediaStateFilter>('all');
   const [view, setView] = useState<ProjectMediaView>('list');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -189,6 +194,7 @@ export function ProjectMediaPanel({
   }, [selectedTimelineClipId]);
   useEffect(() => {
     if (matchedSourceFrame === null) return;
+    setSourceOpen(true);
     const key = `clip:${matchedSourceFrame.clipId}`;
     setSelectedKey(key);
     setSourceTimes((current) => ({ ...current, [key]: matchedSourceFrame.sourceTime }));
@@ -205,12 +211,11 @@ export function ProjectMediaPanel({
   )), [items, normalizedQuery, stateFilter]);
   const plannedItems = filtered.filter((item) => item.state === 'planned' || item.state === 'stale');
   const recordedItems = filtered.filter((item) => item.state === 'recorded');
-  const importedItems = filtered.filter((item) => item.importedAsset !== null);
+  const importedItems = filtered.filter((item) => item.timelineClip === null);
   const selectedSourceAsset = selected?.sourceAsset ?? null;
   const automateAssets = assets.filter((asset) => projectMediaAssetKind(asset) === 'video'
     && asset.metadata_status.status === 'ready'
     && mediaAssetEditDuration(asset) !== null);
-  const selectedImportedAsset = selected?.importedAsset ?? null;
   const selectedDuration = selected?.durationSeconds ?? 0;
   const defaultSourceRange = useMemo<ProjectSourceRange>(
     () => selected?.timelineClip === null || selected?.timelineClip === undefined
@@ -243,159 +248,159 @@ export function ProjectMediaPanel({
   const selectedSourcePatch = selected === null
     ? defaultSourcePatch
     : sourcePatches[selected.key] ?? defaultSourcePatch;
-  const selectedSourcePatchTargets = selectedImportedAsset === null
+  const selectedSourcePatchTargets = selectedSourceAsset === null
     ? { video: null, audio: null }
-    : sourcePatchTargets(selectedImportedAsset, selectedSourcePatch);
+    : sourcePatchTargets(selectedSourceAsset, selectedSourcePatch);
   const setSelectedSourcePatch = (sourcePatch: ProjectSourcePatch) => {
     if (selected === null) return;
     setSourcePatches((current) => ({ ...current, [selected.key]: sourcePatch }));
   };
-  const canEditSource = selectedImportedAsset !== null
-    && selectedImportedAsset.metadata_status.status === 'ready'
-    && selectedImportedAsset.duration_seconds !== null
-    && selectedImportedAsset.duration_seconds > 0
+  const canEditSource = selectedSourceAsset !== null
+    && selectedSourceAsset.metadata_status.status === 'ready'
+    && mediaAssetEditDuration(selectedSourceAsset) !== null
     && !readOnly
     && !busy
     && (selectedSourcePatch.video || selectedSourcePatch.audio)
-    && canEditAsset(selectedImportedAsset, selectedSourcePatch);
-  const canReplaceSource = selectedImportedAsset !== null
-    && selectedImportedAsset.metadata_status.status === 'ready'
+    && canEditAsset(selectedSourceAsset, selectedSourcePatch);
+  const canReplaceSource = selectedSourceAsset !== null
+    && selectedSourceAsset.metadata_status.status === 'ready'
     && !readOnly
     && !busy
-    && canReplace(selectedImportedAsset, selectedSourceRange);
+    && canReplace(selectedSourceAsset, selectedSourceRange);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!canEditSource || selectedImportedAsset === null || isTextEditingTarget(event.target)) return;
+      if (!canEditSource || selectedSourceAsset === null || isTextEditingTarget(event.target)) return;
       if (event.key === ',') {
         event.preventDefault();
-        onInsert(selectedImportedAsset, selectedSourceRange, selectedSourcePatch);
+        onInsert(selectedSourceAsset, selectedSourceRange, selectedSourcePatch);
       } else if (event.key === '.') {
         event.preventDefault();
-        onOverwrite(selectedImportedAsset, selectedSourceRange, selectedSourcePatch);
+        onOverwrite(selectedSourceAsset, selectedSourceRange, selectedSourcePatch);
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset, selectedSourcePatch, selectedSourceRange]);
+  }, [canEditSource, onInsert, onOverwrite, selectedSourceAsset, selectedSourcePatch, selectedSourceRange]);
 
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_272px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
+      className="@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg"
       aria-label={t`项目素材`}
     >
-      <header className="flex items-center gap-2 border-b border-divider px-2.5">
-        {docked ? null : <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>}
-        <span className="text-2xs tabular-nums text-neutral-500">
-          <Trans>
-            待录 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
-            {' · '}
-            已录 {items.filter((item) => item.state === 'recorded').length}
-          </Trans>
-        </span>
-        <Seg<ProjectMediaView>
-          className="ml-auto"
-          name="project-media-view"
-          aria-label={t`项目素材视图`}
-          value={view}
-          options={[
-            {
-              value: 'list',
-              label: <><List className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>列表视图</Trans></span></>,
-            },
-            {
-              value: 'icon',
-              label: <><Grid2X2 className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>图标视图</Trans></span></>,
-            },
-          ]}
-          onChange={setView}
-        />
-        <Tooltip content={proxiesEnabled ? t`Program 优先使用已就绪代理；不可用时自动回退原片` : t`Program 始终使用原始素材`} side="bottom">
+      <header className="min-w-0 border-b border-divider px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           <Button
             size="sm"
-            icon
-            variant={proxiesEnabled ? 'primary' : 'ghost'}
-            aria-label={t`切换代理预览`}
-            aria-pressed={proxiesEnabled}
-            disabled={readOnly || busy}
-            onClick={onToggleProxies}
+            variant="secondary"
+            aria-label={t`从 Demo 创建剪辑`}
+            disabled={readOnly}
+            {...(readOnly ? { disabledReason: t`Agent 操作期间项目素材为只读` } : {})}
+            onClick={onCreateFromDemo}
           >
-            <Gauge className="size-3.5" aria-hidden="true" />
+            <FileVideo2 className="size-3.5" aria-hidden="true" />
+            <span className="@max-[280px]:hidden"><Trans>从 Demo 创建剪辑</Trans></span>
+            <span className="hidden @max-[280px]:inline"><Trans>Demo 选材</Trans></span>
           </Button>
-        </Tooltip>
-        <Tooltip content={t`删除闲置的代理文件；原始素材不会删除`} side="bottom">
           <Button
+            size="sm"
+            variant="secondary"
+            disabled={!importAvailable || importing}
+            aria-label={t`导入项目素材`}
+            onClick={onImport}
+          >
+            <FolderInput className="size-3.5" aria-hidden="true" />
+            <Trans>导入</Trans>
+          </Button>
+          {docked ? null : <Button
             size="sm"
             icon
             variant="ghost"
-            aria-label={t`清理代理媒体`}
-            disabled={proxyCleanupBusy || busy}
-            onClick={onCleanupProxies}
+            className="ml-auto"
+            aria-label={t`隐藏项目素材`}
+            onClick={onClose}
           >
-            <Trash2 className="size-3.5" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-        <Tooltip content={t`按项目素材顺序或序列标记批量放置所选视频`} side="bottom">
-          <Button
-            size="sm"
-            icon
-            variant="ghost"
-            aria-label={t`批量组接到序列`}
-            disabled={readOnly || busy || automateAssets.length === 0}
-            onClick={() => {
-              setAutomateSelection(automateAssets.map((asset) => asset.id));
-              setAutomateOpen(true);
-            }}
-          >
-            <ListPlus className="size-3.5" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-        <Tooltip content={t`按源时间码、音频或同名片段标记同步多个机位`} side="bottom">
-          <Button
-            size="sm"
-            icon
-            variant="ghost"
-            aria-label={t`创建多机位序列`}
-            disabled={readOnly || busy || automateAssets.length < 2}
-            onClick={() => {
-              setMulticamSelection(automateAssets.map((asset) => asset.id));
-              setMulticamOpen(true);
-            }}
-          >
-            <PanelsTopLeft className="size-3.5" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={readOnly}
-          {...(readOnly ? { disabledReason: t`Agent 操作期间项目素材为只读` } : {})}
-          onClick={onCreateFromDemo}
-        >
-          <FileVideo2 className="size-3.5" aria-hidden="true" />
-          <Trans>从 Demo 创建剪辑</Trans>
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={!importAvailable || importing}
-          aria-label={t`导入项目素材`}
-          onClick={onImport}
-        >
-          <FolderInput className="size-3.5" aria-hidden="true" />
-          <Trans>导入</Trans>
-        </Button>
-        {docked ? null : <button
-          type="button"
-          className="grid size-7 place-items-center text-neutral-500 hover:bg-neutral-100 hover:text-text"
-          aria-label={t`隐藏项目素材`}
-          onClick={onClose}
-        >
-          <X className="size-3.5" aria-hidden="true" />
-        </button>}
+            <X className="size-3.5" aria-hidden="true" />
+          </Button>}
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+          {docked ? null : <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>}
+          <span className="whitespace-nowrap text-xs tabular-nums text-neutral-600 @max-[280px]:hidden">
+            <Trans>
+              待录 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
+              {' · '}
+              已录 {items.filter((item) => item.state === 'recorded').length}
+            </Trans>
+          </span>
+          <span className="hidden whitespace-nowrap text-xs text-neutral-600 @max-[280px]:inline">
+            {plannedItems.length > 0 ? <Trans>待录 {plannedItems.length}</Trans> : <Trans>已录 {recordedItems.length}</Trans>}
+          </span>
+          <Seg<ProjectMediaView>
+            className="ml-auto flex-none"
+            name="project-media-view"
+            aria-label={t`项目素材视图`}
+            value={view}
+            options={[
+              {
+                value: 'list',
+                label: <><List className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>列表视图</Trans></span></>,
+              },
+              {
+                value: 'icon',
+                label: <><Grid2X2 className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>图标视图</Trans></span></>,
+              },
+            ]}
+            onChange={setView}
+          />
+          <Tooltip content={proxiesEnabled ? t`Program 优先使用已就绪代理；不可用时自动回退原片` : t`Program 始终使用原始素材`} side="bottom">
+            <Button
+              size="sm"
+              icon
+              variant={proxiesEnabled ? 'primary' : 'ghost'}
+              aria-label={t`切换代理预览`}
+              aria-pressed={proxiesEnabled}
+              disabled={readOnly || busy}
+              onClick={onToggleProxies}
+            >
+              <Gauge className="size-3.5" aria-hidden="true" />
+            </Button>
+          </Tooltip>
+          <OverflowMenu
+            label={t`更多素材操作`}
+            triggerLabel={<Ellipsis className="size-4" aria-hidden="true" />}
+            iconOnly
+            align="end"
+            items={[
+              {
+                id: 'cleanup-proxies',
+                label: t`清理代理媒体`,
+                disabled: proxyCleanupBusy || busy,
+                onSelect: onCleanupProxies,
+              },
+              {
+                id: 'automate-sequence',
+                label: t`批量组接到序列`,
+                disabled: readOnly || busy || automateAssets.length === 0,
+                onSelect: () => {
+                  setAutomateSelection(automateAssets.map((asset) => asset.id));
+                  setAutomateOpen(true);
+                },
+              },
+              {
+                id: 'multicam-sequence',
+                label: t`创建多机位序列`,
+                disabled: readOnly || busy || automateAssets.length < 2,
+                onSelect: () => {
+                  setMulticamSelection(automateAssets.map((asset) => asset.id));
+                  setMulticamOpen(true);
+                },
+              },
+            ]}
+          />
+        </div>
       </header>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_104px] gap-1.5 border-b border-divider p-2">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_104px] gap-2 border-b border-divider p-3">
         <label className="relative min-w-0">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
           <Input
@@ -422,171 +427,7 @@ export function ProjectMediaPanel({
         </NativeSelect>
       </div>
 
-      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_72px]">
-        <SourceMonitor
-          item={selected}
-          fps={projectFps}
-          sourceTime={selectedSourceTime}
-          sourceRange={selectedSourceRange}
-          onSourceTimeChange={setSelectedSourceTime}
-          onSourceRangeChange={setSelectedSourceRange}
-          readOnly={readOnly}
-          busy={busy}
-          onReplaceAssetMarkers={onReplaceAssetMarkers}
-        />
-        <div className="border-t border-divider bg-bg p-1">
-          {(selected?.state === 'planned' || selected?.state === 'stale') && selected.timelineClip !== null ? (
-            <Button
-              className="w-full"
-              size="sm"
-              variant="secondary"
-              disabled={readOnly || busy}
-              aria-label={t`录制片段 ${selected.name}`}
-              onClick={() => {
-                if (selected.timelineClip !== null) onRequestRecording(selected.timelineClip.id);
-              }}
-            >
-              <Trans>录制此片段</Trans>
-            </Button>
-          ) : selectedSourceAsset === null ? (
-            <p className="truncate px-0.5 py-2 text-2xs text-neutral-500">
-              {selected?.state === 'recorded' ? t`该片段缺少可解析的素材记录。` : t`选择导入素材可插入或覆盖。`}
-            </p>
-          ) : selectedImportedAsset === null ? (
-            <div className="flex h-full items-center gap-1">
-              <p className={cn(
-                'min-w-0 flex-1 truncate text-2xs',
-                selectedSourceAsset.metadata_status.status === 'unavailable' ? 'text-fail-text' : 'text-neutral-500',
-              )}>
-                {selectedSourceAsset.metadata_status.status === 'unavailable'
-                  ? t`源文件不可用，请重新定位。`
-                  : t`该片段已录制并位于时间线中。`}
-              </p>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!relinkAvailable || busy}
-                aria-label={t`重新定位素材 ${selectedSourceAsset.name}`}
-                onClick={() => onRelink(selectedSourceAsset)}
-              >
-                <Link2 className="size-3.5" aria-hidden="true" />
-                <Trans>重新定位</Trans>
-              </Button>
-              <AssetProxyButton
-                asset={selectedSourceAsset}
-                generating={generatingProxyAssetId === selectedSourceAsset.id}
-                busy={busy}
-                onGenerate={onGenerateProxy}
-              />
-            </div>
-          ) : (
-            <div>
-              <div className="mb-0.5 flex min-w-0 items-center gap-0.5">
-                {selected?.kind === 'video' ? (
-                  <button
-                    type="button"
-                    className={cn(
-                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-2xs font-semibold',
-                      selectedSourcePatch.video ? 'border-accent-500 bg-accent-100 text-accent-text' : 'border-divider text-neutral-400',
-                    )}
-                    aria-label={t`包含源视频`}
-                    aria-pressed={selectedSourcePatch.video}
-                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, video: !selectedSourcePatch.video })}
-                  >V</button>
-                ) : null}
-                {selectedSourceAsset?.has_audio === true ? (
-                  <button
-                    type="button"
-                    className={cn(
-                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-2xs font-semibold',
-                      selectedSourcePatch.audio ? 'border-accent-500 bg-accent-100 text-accent-text' : 'border-divider text-neutral-400',
-                    )}
-                    aria-label={t`包含源音频`}
-                    aria-pressed={selectedSourcePatch.audio}
-                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, audio: !selectedSourcePatch.audio })}
-                  >A</button>
-                ) : null}
-                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500">
-                  {selectedSourcePatch.video ? `V → ${selectedSourcePatchTargets.video ?? t`无视频目标`}` : null}
-                  {selectedSourcePatch.video && selectedSourcePatch.audio ? ' · ' : null}
-                  {selectedSourcePatch.audio ? `A → ${selectedSourcePatchTargets.audio ?? t`无音频目标`}` : null}
-                  {!selectedSourcePatch.video && !selectedSourcePatch.audio ? t`未启用源声道` : null}
-                </p>
-                <Button
-                  size="sm"
-                  icon
-                  variant="ghost"
-                  disabled={!relinkAvailable || busy}
-                  aria-label={t`重新定位素材 ${selectedImportedAsset.name}`}
-                  onClick={() => onRelink(selectedImportedAsset)}
-                >
-                  <Link2 className="size-3.5" aria-hidden="true" />
-                </Button>
-                <Button
-                  className="text-fail-text"
-                  size="sm"
-                  icon
-                  variant="ghost"
-                  disabled={busy}
-                  aria-label={t`从项目移除素材 ${selectedImportedAsset.name}`}
-                  onClick={() => setDeleteCandidate(selectedImportedAsset)}
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                </Button>
-                <AssetProxyButton
-                  asset={selectedImportedAsset}
-                  generating={generatingProxyAssetId === selectedImportedAsset.id}
-                  busy={busy}
-                  compact
-                  onGenerate={onGenerateProxy}
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  className="flex-1"
-                  size="sm"
-                  variant="secondary"
-                  disabled={!canEditSource}
-                  aria-label={t`在播放头插入 ${selectedImportedAsset.name}`}
-                  onClick={() => onInsert(selectedImportedAsset, selectedSourceRange, selectedSourcePatch)}
-                >
-                  <Trans>插入</Trans>
-                  <span className="text-2xs text-neutral-500">,</span>
-                </Button>
-                <Button
-                  className="flex-1"
-                  size="sm"
-                  variant="ghost"
-                  disabled={!canEditSource}
-                  aria-label={t`在播放头覆盖 ${selectedImportedAsset.name}`}
-                  onClick={() => onOverwrite(selectedImportedAsset, selectedSourceRange, selectedSourcePatch)}
-                >
-                  <Trans>覆盖</Trans>
-                  <span className="text-2xs text-neutral-500">.</span>
-                </Button>
-                <Tooltip content={canReplaceSource
-                  ? t`保留所选片段的时间位置、时长、效果和关键帧，只替换源素材`
-                  : t`需要先选择兼容片段，并确保源入点之后有足够素材`} side="top">
-                  <span className="flex-1">
-                    <Button
-                      className="w-full"
-                      size="sm"
-                      variant="ghost"
-                      disabled={!canReplaceSource}
-                      aria-label={t`用 ${selectedImportedAsset.name} 替换所选片段`}
-                      onClick={() => onReplace(selectedImportedAsset, selectedSourceRange)}
-                    >
-                      <Trans>替换</Trans>
-                    </Button>
-                  </span>
-                </Tooltip>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="min-h-0 overflow-y-auto border-t border-divider" aria-live="polite">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto border-t border-divider" aria-live="polite">
         {pending ? <Skeleton className="m-2 h-24" /> : filtered.length > 0 ? (
           <div role="listbox" aria-label={t`项目素材列表`}>
             <MediaItemSection
@@ -623,7 +464,7 @@ export function ProjectMediaPanel({
           </div>
         ) : (
           <Empty
-            className="m-3 min-h-40"
+            className="m-3 min-h-40 min-w-0 p-3"
             title={normalizedQuery === '' && stateFilter === 'all' ? <Trans>项目还没有素材</Trans> : <Trans>没有匹配的素材</Trans>}
             description={normalizedQuery === '' && stateFilter === 'all'
               ? <Trans>时间线待录制片段、已录制片段和导入素材都会显示在这里。</Trans>
@@ -635,6 +476,175 @@ export function ProjectMediaPanel({
             )}
           />
         )}
+      </div>
+
+      <button type="button" className="flex min-h-10 min-w-0 flex-none items-center gap-2 border-t border-divider bg-surface-chrome px-3 py-2 text-left text-sm" aria-label={t`源预览与片段信息`} aria-expanded={sourceOpen} aria-controls={sourcePanelId} onClick={() => setSourceOpen((value) => !value)}>
+        <ChevronDown className={cn("size-3 flex-none text-neutral-600", sourceOpen && "rotate-180")} aria-hidden="true" />
+        <span className="flex-none font-medium"><Trans>源预览</Trans></span>
+        <span className="min-w-0 flex-1 truncate text-right text-xs text-neutral-600">{selected?.name ?? t`未选中素材`}</span>
+      </button>
+
+      <div id={sourcePanelId} hidden={!sourceOpen} className={cn("grid h-68 min-h-0 min-w-0 flex-none grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto]", !sourceOpen && "hidden")}>
+        <SourceMonitor
+          key={previewEpoch}
+          active={sourceOpen}
+          item={selected}
+          fps={projectFps}
+          sourceTime={selectedSourceTime}
+          sourceRange={selectedSourceRange}
+          onSourceTimeChange={setSelectedSourceTime}
+          onSourceRangeChange={setSelectedSourceRange}
+          readOnly={readOnly}
+          busy={busy}
+          onReplaceAssetMarkers={onReplaceAssetMarkers}
+        />
+        <div className="border-t border-divider bg-bg p-1">
+          {(selected?.state === 'planned' || selected?.state === 'stale') && selected.timelineClip !== null ? (
+            <Button
+              className="w-full"
+              size="sm"
+              variant="secondary"
+              disabled={readOnly || busy}
+              aria-label={t`录制片段 ${selected.name}`}
+              onClick={() => {
+                if (selected.timelineClip !== null) onRequestRecording(selected.timelineClip.id);
+              }}
+            >
+              <Trans>录制此片段</Trans>
+            </Button>
+          ) : selectedSourceAsset === null ? (
+            <p className="truncate px-0.5 py-2 text-xs text-neutral-500">
+              {selected?.state === 'recorded' ? t`该片段缺少可解析的素材记录。` : t`选择导入素材可插入或覆盖。`}
+            </p>
+          ) : selected?.timelineClip != null && selectedSourceAsset.metadata_status.status === 'unavailable' ? (
+            <div className="flex h-full items-center gap-1">
+              <p className="min-w-0 flex-1 truncate text-xs text-fail-text">
+                <Trans>源文件不可用，请重新定位。</Trans>
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!relinkAvailable || busy}
+                aria-label={t`重新定位素材 ${selectedSourceAsset.name}`}
+                onClick={() => onRelink(selectedSourceAsset)}
+              >
+                <Link2 className="size-3.5" aria-hidden="true" />
+                <Trans>重新定位</Trans>
+              </Button>
+              <AssetProxyButton
+                asset={selectedSourceAsset}
+                generating={generatingProxyAssetId === selectedSourceAsset.id}
+                busy={busy}
+                onGenerate={onGenerateProxy}
+              />
+            </div>
+          ) : (
+            <div>
+              <div className="mb-0.5 flex min-w-0 items-center gap-0.5">
+                {selected?.kind === 'video' ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-xs font-semibold',
+                      selectedSourcePatch.video ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-400',
+                    )}
+                    aria-label={t`包含源视频`}
+                    aria-pressed={selectedSourcePatch.video}
+                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, video: !selectedSourcePatch.video })}
+                  >V</button>
+                ) : null}
+                {selectedSourceAsset?.has_audio === true ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      'h-6 min-w-6 rounded-sm border px-1 font-mono text-xs font-semibold',
+                      selectedSourcePatch.audio ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-400',
+                    )}
+                    aria-label={t`包含源音频`}
+                    aria-pressed={selectedSourcePatch.audio}
+                    onClick={() => setSelectedSourcePatch({ ...selectedSourcePatch, audio: !selectedSourcePatch.audio })}
+                  >A</button>
+                ) : null}
+                <p className="min-w-0 flex-1 truncate text-xs text-neutral-500">
+                  {selectedSourcePatch.video ? `V → ${selectedSourcePatchTargets.video ?? t`无视频目标`}` : null}
+                  {selectedSourcePatch.video && selectedSourcePatch.audio ? ' · ' : null}
+                  {selectedSourcePatch.audio ? `A → ${selectedSourcePatchTargets.audio ?? t`无音频目标`}` : null}
+                  {!selectedSourcePatch.video && !selectedSourcePatch.audio ? t`未启用源声道` : null}
+                </p>
+                <Button
+                  size="sm"
+                  icon
+                  variant="ghost"
+                  disabled={!relinkAvailable || busy}
+                  aria-label={t`重新定位素材 ${selectedSourceAsset.name}`}
+                  onClick={() => onRelink(selectedSourceAsset)}
+                >
+                  <Link2 className="size-3.5" aria-hidden="true" />
+                </Button>
+                {selected?.timelineClip !== null ? null : (
+                  <Button
+                    className="text-fail-text"
+                    size="sm"
+                    icon
+                    variant="ghost"
+                    disabled={busy}
+                    aria-label={t`从项目移除素材 ${selectedSourceAsset.name}`}
+                    onClick={() => setDeleteCandidate(selectedSourceAsset)}
+                  >
+                    <Trash2 className="size-3.5" aria-hidden="true" />
+                  </Button>
+                )}
+                <AssetProxyButton
+                  asset={selectedSourceAsset}
+                  generating={generatingProxyAssetId === selectedSourceAsset.id}
+                  busy={busy}
+                  compact
+                  onGenerate={onGenerateProxy}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="secondary"
+                  disabled={!canEditSource}
+                  aria-label={t`在播放头插入 ${selectedSourceAsset.name}`}
+                  onClick={() => onInsert(selectedSourceAsset, selectedSourceRange, selectedSourcePatch)}
+                >
+                  <Trans>插入</Trans>
+                  <span className="text-xs text-neutral-500">,</span>
+                </Button>
+                <Button
+                  className="flex-1"
+                  size="sm"
+                  variant="ghost"
+                  disabled={!canEditSource}
+                  aria-label={t`在播放头覆盖 ${selectedSourceAsset.name}`}
+                  onClick={() => onOverwrite(selectedSourceAsset, selectedSourceRange, selectedSourcePatch)}
+                >
+                  <Trans>覆盖</Trans>
+                  <span className="text-xs text-neutral-500">.</span>
+                </Button>
+                <Tooltip content={canReplaceSource
+                  ? t`保留所选片段的时间位置、时长、效果和关键帧，只替换源素材`
+                  : t`需要先选择兼容片段，并确保源入点之后有足够素材`} side="top">
+                  <span className="flex-1">
+                    <Button
+                      className="w-full"
+                      size="sm"
+                      variant="ghost"
+                      disabled={!canReplaceSource}
+                      aria-label={t`用 ${selectedSourceAsset.name} 替换所选片段`}
+                      onClick={() => onReplace(selectedSourceAsset, selectedSourceRange)}
+                    >
+                      <Trans>替换</Trans>
+                    </Button>
+                  </span>
+                </Tooltip>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <Dialog
@@ -674,7 +684,7 @@ export function ProjectMediaPanel({
                   }}
                 />
                 <span className="min-w-0 flex-1 truncate">{asset.name}</span>
-                {index < 0 ? null : <span className="font-mono text-2xs text-neutral-500">#{index + 1}</span>}
+                {index < 0 ? null : <span className="font-mono text-xs text-neutral-500">#{index + 1}</span>}
               </label>;
             })}
           </fieldset>
@@ -743,7 +753,7 @@ export function ProjectMediaPanel({
                     : current.filter((id) => id !== asset.id))}
                 />
                 <span className="min-w-0 flex-1 truncate">{asset.name}</span>
-                {index < 0 ? null : <span className="font-mono text-2xs text-neutral-500"><Trans>角度 {index + 1}</Trans></span>}
+                {index < 0 ? null : <span className="font-mono text-xs text-neutral-500"><Trans>角度 {index + 1}</Trans></span>}
               </label>;
             })}
           </fieldset>
@@ -806,7 +816,7 @@ function MediaItemSection({
   if (items.length === 0) return null;
   return (
     <section aria-label={label}>
-      <header className="sticky top-0 z-10 flex h-6 items-center gap-1.5 border-b border-divider bg-neutral-50 px-2.5 text-2xs font-semibold uppercase tracking-wide text-neutral-500">
+      <header className="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-divider bg-surface-chrome px-3 text-xs font-medium text-neutral-600">
         <span>{label}</span>
         <span className="tabular-nums">{items.length}</span>
       </header>
@@ -816,11 +826,11 @@ function MediaItemSection({
       >
         {items.map((item) => {
           const selected = item.key === selectedKey;
-          const Icon = item.state === 'planned' || item.state === 'stale'
+          const Icon = view === 'icon' && (item.state === 'planned' || item.state === 'stale')
             ? CircleDashed
             : item.kind === 'audio' ? FileAudio2 : FileVideo2;
-          const draggableAsset = item.importedAsset?.metadata_status.status === 'ready'
-            ? item.importedAsset
+          const draggableAsset = item.sourceAsset?.metadata_status.status === 'ready'
+            ? item.sourceAsset
             : null;
           const sourceTime = item.timelineClip?.placement.source_in ?? 0;
           const thumbnail = item.kind === 'video' && item.previewAssetId !== null
@@ -833,15 +843,18 @@ function MediaItemSection({
               role="option"
               aria-selected={selected}
               aria-label={t`选择素材 ${item.name}`}
+              aria-description={stateLabel(item.state)}
               className={cn(
-                'min-w-0 text-left hover:bg-neutral-100',
+                'min-w-0 text-left transition-colors hover:bg-neutral-100',
                 view === 'icon'
                   ? 'overflow-hidden border border-divider bg-bg p-1.5'
-                  : 'grid w-full grid-cols-[30px_minmax(0,1fr)] gap-2 px-2.5 py-2',
+                  : 'grid h-[var(--h-row-compact)] w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 rounded-none border-l border-l-transparent px-3 py-0',
                 draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0
                   ? 'cursor-grab active:cursor-grabbing'
                   : 'cursor-default',
-                selected && 'bg-accent-100 ring-1 ring-inset ring-accent-300',
+                selected && (view === 'icon'
+                  ? 'bg-accent-100 ring-1 ring-inset ring-accent-300'
+                  : 'border-l-accent-500 bg-accent-100 hover:bg-accent-100'),
               )}
               draggable={draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0}
               onClick={() => onSelect(item)}
@@ -855,7 +868,7 @@ function MediaItemSection({
               onDragEnd={clearProjectMediaDrag}
             >
               {view === 'icon' ? (
-                <span className="relative mb-1.5 grid aspect-video w-full place-items-center overflow-hidden bg-neutral-900 text-neutral-300">
+                <span className="relative mb-1.5 grid aspect-video w-full place-items-center overflow-hidden bg-media text-on-media-muted">
                   {thumbnail === null ? (
                     <Icon className="size-6" aria-hidden="true" />
                   ) : (
@@ -869,27 +882,35 @@ function MediaItemSection({
                       aria-hidden="true"
                     />
                   )}
-                  <span className="absolute bottom-1 right-1 bg-neutral-950/80 px-1 font-mono text-2xs text-bg">
+                  <span className="absolute bottom-1 right-1 bg-media/80 px-1 font-mono text-xs text-on-media">
                     {formatDuration(item.durationSeconds)}
                   </span>
                 </span>
               ) : (
-                <span className="grid size-[30px] place-items-center border border-divider bg-neutral-50 text-neutral-500">
-                  <Icon className="size-4" aria-hidden="true" />
+                <span className="grid size-4 place-items-center text-neutral-500">
+                  <Icon className="size-3.5" aria-hidden="true" />
                 </span>
               )}
               <span className="min-w-0">
-                <span className="block truncate text-xs font-medium text-text">{item.name}</span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-2xs text-neutral-500">
-                  {view === 'icon' ? null : <span className="tabular-nums">{formatDuration(item.durationSeconds)}</span>}
-                  <span className={stateTone(item.state)}>{stateLabel(item.state)}</span>
-                  {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
-                    <span className="text-fail-text"><Trans>不可用</Trans></span>
-                  ) : null}
-                  {item.sourceAsset?.proxy_status.status === 'ready' ? <span className="text-ok"><Trans>代理就绪</Trans></span> : null}
-                  {item.sourceAsset?.proxy_status.status === 'generating' ? <span className="text-warn"><Trans>代理生成中</Trans></span> : null}
-                  {item.sourceAsset?.proxy_status.status === 'failed' ? <span className="text-fail-text"><Trans>代理失败</Trans></span> : null}
-                </span>
+                <span className="block truncate text-sm font-medium text-text" title={item.name}>{item.name}</span>
+              </span>
+              <span className={cn(
+                'flex min-w-0 items-center gap-1.5 text-xs text-neutral-500',
+                view === 'icon' ? 'mt-0.5 flex-wrap' : 'justify-end whitespace-nowrap',
+              )}>
+                {view === 'icon' ? null : <span className="font-mono tabular-nums" title={formatDuration(item.durationSeconds)}>
+                  {item.durationSeconds === null ? '—' : `${Number(item.durationSeconds.toFixed(1))}s`}
+                </span>}
+                {item.state === 'recorded' && view === 'list' ? null : <span className="inline-flex items-center gap-1">
+                  <span className={cn('size-1.5 flex-none rounded-full bg-current', stateTone(item.state))} aria-hidden="true" />
+                  <span>{stateLabel(item.state)}</span>
+                </span>}
+                {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
+                  <span className="text-fail-text"><Trans>不可用</Trans></span>
+                ) : null}
+                {item.sourceAsset?.proxy_status.status === 'ready' ? <span className="text-ok"><Trans>代理就绪</Trans></span> : null}
+                {item.sourceAsset?.proxy_status.status === 'generating' ? <span className="text-warn"><Trans>代理生成中</Trans></span> : null}
+                {item.sourceAsset?.proxy_status.status === 'failed' ? <span className="text-fail-text"><Trans>代理失败</Trans></span> : null}
               </span>
             </button>
           );
@@ -934,7 +955,8 @@ function AssetProxyButton({ asset, generating, busy, compact = false, onGenerate
   );
 }
 
-function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onSourceTimeChange, onSourceRangeChange, onReplaceAssetMarkers }: {
+function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, busy, onSourceTimeChange, onSourceRangeChange, onReplaceAssetMarkers }: {
+  readonly active: boolean;
   readonly item: ProjectMediaItem | null;
   readonly fps: number;
   readonly sourceTime: number;
@@ -954,6 +976,11 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onS
   const [playing, setPlaying] = useState(false);
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const mediaRefs = useRef(new Map<string, HTMLMediaElement>());
+  useEffect(() => {
+    if (active) return;
+    for (const media of mediaRefs.current.values()) if (!media.paused) media.pause();
+    setPlaying(false);
+  }, [active]);
   const previewAssetId = item?.previewAssetId ?? null;
   const duration = Math.max(0, item?.durationSeconds ?? 0);
   const frame = 1 / Math.max(1, fps);
@@ -1055,7 +1082,7 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onS
   return (
     <>
     <div
-      className="grid min-h-0 grid-rows-[minmax(0,1fr)_52px] bg-neutral-900"
+      className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-media"
       aria-label={t`源素材预览`}
       onKeyDown={(event) => {
         if (event.key.toLowerCase() === 'i') {
@@ -1074,7 +1101,7 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onS
         {mountedAssets.map(({ id: assetId, kind }) => {
           const source = shell.mediaSrc(mediaAssetStreamPath(assetId));
           const className = cn(
-            'pointer-events-none absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity',
+            'pointer-events-none absolute inset-0 size-full bg-media object-contain transition-opacity',
             displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
           );
           if (kind === 'image') {
@@ -1136,55 +1163,55 @@ function SourceMonitor({ item, fps, sourceTime, sourceRange, readOnly, busy, onS
           );
         })}
         {item === null ? (
-          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-400">
+          <div className="absolute inset-0 grid place-items-center bg-media px-4 text-center text-xs text-on-media-muted">
             <Trans>选择素材以预览源画面</Trans>
           </div>
         ) : item.sourceAsset?.metadata_status.status === 'unavailable' ? (
-          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-fail-text">
+          <div className="absolute inset-0 grid place-items-center bg-fail-surface px-4 text-center text-xs text-fail-text">
             <span>
               <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
               <span className="block"><Trans>源文件不可用</Trans></span>
-              <span className="mt-1 block text-2xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
+              <span className="mt-1 block text-xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
             </span>
           </div>
         ) : item.state === 'planned' ? (
-          <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-300">
+          <div className="absolute inset-0 grid place-items-center bg-media px-4 text-center text-xs text-on-media-muted">
             <span>
               <CircleDashed className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
               <span className="block"><Trans>准备录制</Trans></span>
               {item.timelineClip?.capture_intent === null || item.timelineClip?.capture_intent === undefined ? null : (
-                <span className="mt-1 block text-2xs text-neutral-400">
+                <span className="mt-1 block text-xs text-neutral-400">
                   {item.timelineClip.capture_intent.player_id} · tick {item.timelineClip.capture_intent.start_tick}–{item.timelineClip.capture_intent.end_tick}
                 </span>
               )}
             </span>
           </div>
         ) : item.kind === 'audio' ? (
-          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-neutral-900 text-neutral-300">
+          <div className="pointer-events-none absolute inset-0 grid place-items-center bg-media text-on-media-muted">
             <FileAudio2 className="size-10" strokeWidth={1.2} aria-hidden="true" />
           </div>
         ) : selectedPreviewReady ? null : (
-          <div className="absolute inset-0 grid place-items-center bg-neutral-900/45 px-4 text-center text-xs text-neutral-300">
+          <div className="absolute inset-0 grid place-items-center bg-media/45 px-4 text-center text-xs text-on-media-muted">
             <Trans>正在准备 {item.name}</Trans>
           </div>
         )}
         {item === null ? null : (
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-neutral-950/70 px-2 py-1 text-2xs text-neutral-100">
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-media/70 px-2 py-1 text-xs text-on-media">
             <span className="truncate">{item.name}</span>
             <span className="flex-none tabular-nums">{formatDuration(item.durationSeconds)}</span>
           </div>
         )}
       </div>
-      <div className="border-t border-neutral-700 bg-neutral-950 text-neutral-100">
-        <div className="flex h-7 items-center justify-center gap-1">
+      <div className="border-t border-media-divider bg-media text-on-media">
+        <div className="flex min-h-7 flex-wrap items-center justify-center gap-1">
           <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材上一帧`} disabled={item === null} onClick={() => stepFrame(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
           <button type="button" className="grid size-6 place-items-center" aria-label={playing ? t`暂停源素材` : t`播放源素材`} disabled={previewAssetId === null || item?.isStillImage === true} onClick={togglePlayback}>{playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}</button>
           <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材下一帧`} disabled={item === null} onClick={() => stepFrame(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
-          <span className="ml-1 font-mono text-2xs">{formatSourceTime(sourceTime)}</span>
+          <span className="ml-1 whitespace-nowrap font-mono text-xs">{formatSourceTime(sourceTime)}</span>
           <button type="button" className="ml-auto grid size-6 place-items-center" aria-label={t`在源播放头添加或编辑片段标记`} disabled={sourceAsset === null || readOnly || busy || duration <= 0} onClick={editSourceMarker}><BookmarkPlus className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
-          <button type="button" className="h-6 px-1.5 font-mono text-2xs" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
-          <button type="button" className="mr-1 h-6 px-1.5 text-2xs" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
+          <button type="button" className="h-6 px-1.5 font-mono text-xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
+          <button type="button" className="h-6 px-1.5 font-mono text-xs" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
+          <button type="button" className="mr-1 h-6 px-1.5 text-xs" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
         </div>
         <div className="relative h-6">
           <div className="pointer-events-none absolute inset-x-2 top-2 h-2 overflow-visible bg-neutral-700">
@@ -1316,7 +1343,6 @@ function projectMediaItems(
           : isStillImageMediaAsset(sourceAsset),
         timelineClip: clip,
         sourceAsset,
-        importedAsset: null,
       };
     }));
   const importedItems = assets
@@ -1331,7 +1357,6 @@ function projectMediaItems(
       isStillImage: isStillImageMediaAsset(asset),
       timelineClip: null,
       sourceAsset: asset,
-      importedAsset: asset,
     }));
   return [...timelineItems, ...importedItems];
 }
@@ -1360,7 +1385,7 @@ function stateTone(state: ProjectMediaItem['state']): string {
   if (state === 'planned') return 'text-warn';
   if (state === 'stale') return 'text-fail-text';
   if (state === 'recorded') return 'text-ok';
-  return 'text-accent-text';
+  return 'text-accent-700';
 }
 
 function isTextEditingTarget(target: EventTarget | null): boolean {

@@ -23,6 +23,7 @@ function storage(): TimelineSessionStorage & { readonly values: Map<string, stri
 }
 
 const SESSION: TimelineWorkspaceSession = {
+  agentSessionId: 'read-only-session',
   selectedClipIds: ['clip'],
   targetTrackIds: ['story'],
   syncLockedTrackIds: ['story', 'audio'],

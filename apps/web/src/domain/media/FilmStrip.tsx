@@ -141,7 +141,7 @@ export function FilmStrip({
                 className="block size-full object-cover"
               />
             )}
-            <span className="absolute bottom-0 left-0 bg-bg px-1 font-mono text-2xs" aria-hidden="true">
+            <span className="absolute bottom-0 left-0 bg-bg px-1 font-mono text-xs" aria-hidden="true">
               {stamp}
             </span>
           </>

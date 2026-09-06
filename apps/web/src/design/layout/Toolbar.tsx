@@ -79,26 +79,22 @@ export interface ToolbarProps {
 }
 
 const HEIGHT_CLASS: Record<ToolbarHeight, string> = {
-  topbar: 'h-[var(--h-topbar)] gap-4 px-7',
-  bar: 'h-[var(--h-bar)] gap-3 px-7',
-  panel: 'h-[var(--h-panel-head)] gap-3 px-5',
+  topbar: 'h-[var(--h-topbar)] gap-4 px-6',
+  bar: 'h-[var(--h-bar)] gap-3 px-6',
+  panel: 'h-[var(--h-panel-head)] gap-3 px-3',
 };
 
-/*
- * `base.css` is unlayered on purpose, so its `h1`–`h6` rules outrank any
- * Tailwind utility no matter the specificity. The title's size is therefore
- * declared inline — still a token, never a literal.
- */
+/** Visual title role is independent from its semantic heading level. */
 const TITLE_FONT_SIZE: Record<ToolbarHeight, string> = {
   topbar: 'var(--text-2xl)',
   bar: 'var(--text-base)',
-  panel: 'var(--text-base)',
+  panel: 'var(--text-sm)',
 };
 
 const TITLE_CLASS: Record<ToolbarHeight, string> = {
   topbar: 'min-w-0 truncate',
-  bar: 'min-w-0 truncate font-heading tracking-wide',
-  panel: 'min-w-0 truncate font-heading tracking-wide',
+  bar: 'min-w-0 truncate font-medium',
+  panel: 'min-w-0 truncate font-medium',
 };
 
 export function Toolbar({

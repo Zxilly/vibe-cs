@@ -172,7 +172,7 @@ function DemoStatusCell({ demo }: { demo: DemoSummary }) {
   const label = i18n._(meta.label);
 
   if (meta.tone === 'accent') {
-    return <Badge variant="accent">{label}</Badge>;
+    return <span className="text-xs text-neutral-600">{label}</span>;
   }
   if (meta.tone === 'neutral') {
     return <Badge variant="neutral">{label}</Badge>;
@@ -206,7 +206,7 @@ function RowAction({
   const create = (
     <Button
       size="sm"
-      variant="secondary"
+      variant="ghost"
       {...handlers.createButtonProps}
       onClick={() => handlers.onCreateProject(demo)}
     >

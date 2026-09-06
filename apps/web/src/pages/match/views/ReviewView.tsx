@@ -231,7 +231,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
                   analysis={analysis.data}
                   updateContext={updateContext}
                 />
-                <p className="text-2xs leading-normal text-neutral-600">
+                <p className="text-xs leading-normal text-neutral-600">
                   <Trans>
                     由 {review.data.provider} 的 {review.data.model} 生成。
                   </Trans>
@@ -671,11 +671,11 @@ function AnnotationsPanel({
           </Button>
         </div>
         {anchor === null ? (
-          <p className="text-2xs leading-normal text-neutral-600">
+          <p className="text-xs leading-normal text-neutral-600">
             <Trans>注释挂在一条证据的 tick 上，所以要先选中一条证据。</Trans>
           </p>
         ) : (
-          <p className="text-2xs leading-normal text-neutral-600">
+          <p className="text-xs leading-normal text-neutral-600">
             <Trans>
               将挂在第 {anchor.round} 回合 tick {formatTickCount(anchor.tick)} 的证据上。
             </Trans>
@@ -732,7 +732,7 @@ function AnnotationsPanel({
                 <p className="min-w-0 flex-1 break-words text-sm">{row.body}</p>
                 <StateTag state={row.review_state} />
               </div>
-              <p className="mt-1 font-mono text-2xs text-neutral-600">
+              <p className="mt-1 font-mono text-xs text-neutral-600">
                 <Trans>
                   R{row.round} · tick {formatTickCount(row.tick)}
                 </Trans>
@@ -883,7 +883,7 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
 }
 
 function Heading({ children }: { readonly children: ReactNode }) {
-  return <h3 className="font-heading text-2xs tracking-caps text-neutral-600">{children}</h3>;
+  return <h3 className="font-heading text-xs tracking-caps text-neutral-600">{children}</h3>;
 }
 
 export const ReviewView: MatchViewModule = {

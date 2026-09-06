@@ -391,8 +391,8 @@ export function TimelineProgramMonitor({
         {slideActive ? <Trans>滑动编辑预览</Trans> : rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
       </header> : null}
       {!hasProgramStage ? (
-        <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-neutral-100">
+        <div className="flex min-h-0 flex-1 flex-col bg-media">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-on-media">
             <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
             <p className="mt-2 text-sm text-neutral-400">
               {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected, selectedDeliveryState)}
@@ -409,10 +409,10 @@ export function TimelineProgramMonitor({
           />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
+        <div className="flex min-h-0 flex-1 flex-col bg-media">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{ containerType: 'size' }}>
             <div
-              className="relative max-h-full max-w-full overflow-hidden bg-neutral-900"
+              className="relative max-h-full max-w-full overflow-hidden bg-media"
               style={{
                 containerType: 'size',
                 aspectRatio: `${project.document.width} / ${project.document.height}`,
@@ -614,7 +614,7 @@ export function TimelineProgramMonitor({
                 />
               )}
               {multicamMedia.length < 2 ? null : (
-                <aside className="absolute inset-y-2 right-2 z-[80] grid w-[38%] auto-rows-fr grid-cols-2 gap-1 rounded-sm bg-neutral-950/85 p-1 shadow-lg" aria-label={t`多机位视图`}>
+                <aside className="absolute inset-y-2 right-2 z-[80] grid w-[38%] auto-rows-fr grid-cols-2 gap-1 rounded-sm bg-media/85 p-1 shadow-lg" aria-label={t`多机位视图`}>
                   {multicamMedia.map((angle) => (
                     <MulticamAnglePreviewVideo
                       key={`${angle.groupId}:${angle.angle}`}
@@ -631,29 +631,29 @@ export function TimelineProgramMonitor({
                 </aside>
               )}
               {selectedDeliveryState !== 'stale' ? null : (
-                <span className="pointer-events-none absolute left-3 top-3 z-[60] rounded-sm border border-warn-border bg-warn-surface/95 px-2 py-1 text-2xs font-medium text-warn-text shadow-sm">
+                <span className="pointer-events-none absolute left-3 top-3 z-[60] rounded-sm border border-warn-border bg-warn-surface/95 px-2 py-1 text-xs font-medium text-warn-text shadow-sm">
                   <Trans>素材未就绪 · 当前显示可用帧</Trans>
                 </span>
               )}
               {!slideReady ? null : (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-4 border-b border-media-divider bg-media/85 text-xs text-on-media">
                   <span className="truncate px-1.5 py-1"><Trans>前 Out</Trans> · {slidePrevious.name}</span>
-                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 In</Trans> · {slideClip.name}</span>
-                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 Out</Trans> · {slideClip.name}</span>
-                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>后 In</Trans> · {slideNext.name}</span>
+                  <span className="truncate border-l border-media-divider px-1.5 py-1"><Trans>所选 In</Trans> · {slideClip.name}</span>
+                  <span className="truncate border-l border-media-divider px-1.5 py-1"><Trans>所选 Out</Trans> · {slideClip.name}</span>
+                  <span className="truncate border-l border-media-divider px-1.5 py-1"><Trans>后 In</Trans> · {slideNext.name}</span>
                 </div>
               )}
               {slideActive || !rollingReady ? null : (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-2 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 grid grid-cols-2 border-b border-media-divider bg-media/85 text-xs text-on-media">
                   <span className="truncate px-2 py-1"><Trans>出点</Trans> · {rollingLeft.name}</span>
-                  <span className="truncate border-l border-neutral-700 px-2 py-1"><Trans>入点</Trans> · {rollingRight.name}</span>
+                  <span className="truncate border-l border-media-divider px-2 py-1"><Trans>入点</Trans> · {rollingRight.name}</span>
                 </div>
               )}
             </div>
             {(activeRenderPreview !== null
               ? renderPreviewPresented
               : slideActive ? slideReady : rollingActive ? rollingReady : presentedMediaKey === targetMediaKey) ? null : (
-              <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
+              <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-media/75 px-2 py-1 text-xs text-on-media">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
               </span>
@@ -749,7 +749,7 @@ const PooledPreviewImage = memo(function PooledPreviewImage({
       data-preview-image-track-id={trackId}
     >
       <img
-        className="absolute inset-0 size-full bg-neutral-900 object-contain"
+        className="absolute inset-0 size-full bg-media object-contain"
         src={src}
         alt=""
         draggable={false}
@@ -885,26 +885,26 @@ function ProgramTransportBar({
     <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-t border-divider bg-bg px-3 text-xs text-text">
       <button
         type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
         aria-label={t`上一帧`}
         onClick={() => onStepFrame(-1)}
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
       </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
       <button
         type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
         aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
         onClick={playing ? () => onShuttle(0) : onTogglePlayback}
       >
         {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
       </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
-      <span className="min-w-0 truncate font-medium">{title}</span>
-      <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
-      <span className="ml-auto font-mono">{formatMillisecondTimecode(timeSeconds)}</span>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
+      <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
+      <span className="flex-none whitespace-nowrap text-neutral-600">{playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}</span>
+      <span className="flex-none whitespace-nowrap font-mono">{formatMillisecondTimecode(timeSeconds)}</span>
     </div>
   );
 }
@@ -986,14 +986,14 @@ const MulticamAnglePreviewVideo = memo(function MulticamAnglePreviewVideo({
     >
       <video
         ref={videoRef}
-        className="size-full bg-neutral-900 object-contain"
+        className="size-full bg-media object-contain"
         src={src}
         preload="auto"
         muted
         playsInline
         onLoadedMetadata={(event) => { event.currentTarget.currentTime = sourceTime; }}
       />
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1 bg-neutral-950/80 px-1 py-0.5 text-left text-2xs text-neutral-100">
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1 bg-media/80 px-1 py-0.5 text-left text-xs text-on-media">
         <strong className="font-mono">{angle}</strong><span className="truncate">{name}</span>
       </span>
     </button>
@@ -1088,7 +1088,7 @@ const RenderPreviewVideo = memo(function RenderPreviewVideo({
   return (
     <video
       ref={videoRef}
-      className="pointer-events-none absolute inset-0 z-[70] size-full bg-neutral-900 object-contain"
+      className="pointer-events-none absolute inset-0 z-[70] size-full bg-media object-contain"
       style={{ opacity: presented ? 1 : 0 }}
       src={src}
       preload="auto"
@@ -1358,7 +1358,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     >
     <video
       ref={videoRef}
-      className="absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity duration-75"
+      className="absolute inset-0 size-full bg-media object-contain transition-opacity duration-75"
       src={src}
       preload={target || presented ? 'auto' : 'metadata'}
       playsInline

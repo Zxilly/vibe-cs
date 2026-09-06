@@ -53,6 +53,7 @@ export function timelineSelectionState(
     && selectedTrackGroups.length === 1
     && selectedTrackGroups[0]?.track.id === document.story_track_id
     && selectedStoryIndices.length > 0
+    && selectedClips.every((clip) => clip.placement.enabled)
     && selectedStoryIndices.at(-1)! - selectedStoryIndices[0]! + 1 === selectedStoryIndices.length;
   const selectedNestedClip = selectedClips.length === 1 && selectedClips[0]?.material.kind === 'sequence'
     ? selectedClips[0]

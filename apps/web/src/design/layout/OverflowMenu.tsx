@@ -32,6 +32,7 @@
 
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { Trans } from '@lingui/react/macro';
+import { ChevronDown } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '../cn';
@@ -52,6 +53,8 @@ export interface OverflowMenuProps {
   label: string;
   /** Trigger copy. Defaults to 「更多」. */
   triggerLabel?: ReactNode;
+  /** Square trigger with an explicit icon label and no duplicate caret. */
+  iconOnly?: boolean | undefined;
   /** Which edge of the trigger the menu hangs from. */
   align?: 'start' | 'end' | undefined;
   className?: string | undefined;
@@ -78,6 +81,7 @@ export function OverflowMenu({
   items,
   label,
   triggerLabel,
+  iconOnly = false,
   align = 'end',
   className,
   triggerClassName,
@@ -90,10 +94,10 @@ export function OverflowMenu({
         aria-label={label}
         data-overflow-trigger
         data-overflow-menu
-        className={cn(TRIGGER_CLASS, 'flex-none', className, triggerClassName)}
+        className={cn(TRIGGER_CLASS, 'flex-none', iconOnly && 'size-[var(--h-ctl-sm)] justify-center gap-0 p-0', className, triggerClassName)}
       >
         {triggerLabel ?? <Trans>更多</Trans>}
-        <span aria-hidden="true">▾</span>
+        {iconOnly ? null : <ChevronDown className="size-3 flex-none" aria-hidden="true" />}
       </DropdownMenuPrimitive.Trigger>
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content

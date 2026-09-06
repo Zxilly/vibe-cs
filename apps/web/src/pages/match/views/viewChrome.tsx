@@ -60,7 +60,7 @@ export function ViewFrame({ view, state = 'ready', children }: ViewFrameProps) {
     <section
       data-match-view={view}
       data-match-view-state={state}
-      className="flex min-h-0 min-w-0 flex-col gap-5 p-7"
+      className="flex min-h-0 min-w-0 flex-col gap-4 p-6"
     >
       {children}
     </section>
@@ -81,10 +81,8 @@ export interface ViewPanelProps {
 export function ViewPanel({ id, title, hint, actions, children, className }: ViewPanelProps) {
   return (
     <section data-match-panel={id} className={cn('flex min-w-0 flex-col border border-divider', className)}>
-      <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider px-3.5 py-1">
-        {/* `base.css` is unlayered, so its heading rule outranks a utility; the
-            head's size is declared inline — still a token. */}
-        <h3 className="min-w-0 truncate font-heading tracking-wide" style={{ fontSize: 'var(--text-base)' }}>
+      <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3 py-1">
+        <h3 className="min-w-0 truncate text-sm font-medium">
           {title}
         </h3>
         {hint === undefined ? null : <p className="min-w-0 truncate text-xs text-neutral-600">{hint}</p>}
@@ -139,13 +137,13 @@ export interface ViewMetric {
 export function MetricStrip({ metrics }: { readonly metrics: readonly ViewMetric[] }) {
   if (metrics.length === 0) return null;
   return (
-    <dl data-match-metrics="" className="flex flex-wrap gap-x-7 gap-y-3 px-3.5 py-3">
+    <dl data-match-metrics="" className="flex flex-wrap gap-x-6 gap-y-3 p-3">
       {metrics.map((metric) => (
         <div key={metric.id} data-match-metric={metric.id} className="flex min-w-0 flex-col gap-0.5">
           <dt className="text-xs text-neutral-600">{metric.label}</dt>
           <dd className="font-mono text-lg text-accent-800">{metric.value}</dd>
           {metric.detail === undefined ? null : (
-            <dd className="text-2xs text-neutral-600">{metric.detail}</dd>
+            <dd className="text-xs text-neutral-600">{metric.detail}</dd>
           )}
         </div>
       ))}

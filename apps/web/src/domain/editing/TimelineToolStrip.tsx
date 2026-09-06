@@ -147,7 +147,7 @@ export function TimelineToolStrip({
     },
   ] as const;
   return (
-    <aside className="absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
+    <aside className="timeline-tool-strip absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex min-h-0 w-10 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
       {tools.map((tool) => {
         const explanation = tool.enabled ? tool.description : tool.unavailable;
         return (
@@ -163,7 +163,7 @@ export function TimelineToolStrip({
               type="button"
               className={cn(
                 'grid size-8 place-items-center rounded-sm text-neutral-600 hover:bg-neutral-100 hover:text-text disabled:text-neutral-300',
-                tool.pressed && 'bg-accent-100 text-accent-text',
+                tool.pressed && 'bg-accent-100 text-accent-700',
               )}
               aria-label={tool.label}
               aria-pressed={tool.pressed}
@@ -178,5 +178,3 @@ export function TimelineToolStrip({
     </aside>
   );
 }
-
-

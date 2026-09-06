@@ -125,7 +125,7 @@ export function PlayerHeatmapPanel({
   return (
     <section className="flex min-h-0 flex-col gap-3" data-player-heatmap={mapName}>
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className="font-heading text-2xs tracking-caps text-neutral-600">
+        <span className="font-heading text-xs tracking-caps text-neutral-600">
           <Trans>{mapName === '' ? '—' : mapName} 热图</Trans>
         </span>
         <div className="flex-1" aria-hidden="true" />

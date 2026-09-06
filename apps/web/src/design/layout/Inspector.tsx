@@ -79,13 +79,10 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
 
 function InspectorHead({ title, action }: { title: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-5">
-      {/* `base.css` is unlayered, so its h2 size wins over any utility; the
-          panel head's 14px is therefore declared inline — still a token. */}
+    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider bg-surface-chrome px-3">
       <h2
         data-inspector-title
-        className="min-w-0 flex-1 truncate font-heading tracking-wide"
-        style={{ fontSize: 'var(--text-base)' }}
+        className="min-w-0 flex-1 truncate text-sm font-medium"
       >
         {title}
       </h2>
@@ -174,7 +171,7 @@ export function Inspector({
   const body = (
     <div
       data-inspector-body
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-5"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-3"
     >
       {children}
     </div>
@@ -184,7 +181,7 @@ export function Inspector({
     footer !== undefined && footer !== null ? (
       <div
         data-inspector-footer
-        className="flex min-w-0 flex-none flex-col gap-2.5 border-t border-divider p-5"
+        className="flex min-w-0 flex-none flex-col gap-2 border-t border-divider p-3"
       >
         {footer}
       </div>
@@ -213,7 +210,7 @@ export function Inspector({
       <div
         data-inspector="summary"
         className={cn(
-          'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-7',
+          'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-6',
           className,
         )}
       >
@@ -245,7 +242,7 @@ export function Inspector({
           <div
             data-inspector-scrim
             aria-hidden="true"
-            className="absolute inset-0 bg-[color-mix(in_srgb,var(--color-neutral-900)_50%,transparent)]"
+            className="absolute inset-0 bg-media/50"
             onClick={() => setOpen(false)}
           />
           <div

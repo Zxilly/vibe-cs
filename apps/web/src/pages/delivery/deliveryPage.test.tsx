@@ -15,7 +15,6 @@ import { renderMarkup } from '../../test/render';
 import { DeliveryPage } from '../DeliveryPage';
 import { HomePage } from '../HomePage';
 import { TaskDetailPage } from '../TaskDetailPage';
-import { PANEL_WIDTH_PX } from '../../design/tokens.data';
 
 function at(pattern: string, url: string, element: React.ReactElement): string {
   return renderMarkup(
@@ -46,7 +45,6 @@ describe('/delivery', () => {
   });
 
   it('gives finished files the whole page at both the current and legacy query', () => {
-    expect(outputs).not.toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-split'])}px`);
     expect(outputs).not.toContain('data-split-aside');
     expect(tasks).not.toContain('data-split-aside');
     expect(tasks).toContain('成品文件');
@@ -97,14 +95,14 @@ describe('/', () => {
     /* All five landed by phase 3g. With no service these render their own
        empty or loading state, which is why the headings are what is asserted
        rather than any row. */
-    for (const heading of ['需要我处理', '继续', '新建']) {
+    for (const heading of ['继续']) {
       expect(html).toContain(heading);
     }
     expect(html).not.toContain('这一块在阶段');
   });
 
   it('removes the recent-output rail in favour of the three-section flow', () => {
-    expect(html).not.toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
+    expect(html).not.toContain('data-split-aside');
     expect(html).toContain('data-home-layout="three-sections"');
   });
 

@@ -15,6 +15,8 @@ export interface ProjectCollectedClip {
   readonly label: string;
   readonly round: number | null;
   readonly playerId: string | null;
+  readonly playerName: string | null;
+  readonly tickRate: number | null;
   readonly highlightId: string | null;
   readonly evidenceId: string | null;
   readonly startTick: number | null;
@@ -23,16 +25,30 @@ export interface ProjectCollectedClip {
   readonly addedAt: string;
 }
 
+export const CAPTURE_PRE_ROLL_SECONDS = 1.5;
+export const CAPTURE_POST_ROLL_SECONDS = 1;
+
+/** The same Story endpoint used by both confirmation and the actual patch. */
+export function collectedClipsStart(project: Project): number {
+  return project.document.tracks.find((track) => track.id === project.document.story_track_id)
+    ?.clips.reduce((end, clip) => Math.max(end, clip.placement.start + clip.placement.duration), 0) ?? 0;
+}
+
+export function collectedClipRange(source: Pick<ProjectCollectedClip, 'startTick' | 'endTick' | 'tickRate'>) {
+  if (source.startTick === null || source.endTick === null || source.tickRate === null
+    || source.tickRate <= 0 || source.endTick <= source.startTick) return null;
+  const start = source.startTick / source.tickRate;
+  const end = source.endTick / source.tickRate;
+  return { start, end, recordingStart: Math.max(0, start - CAPTURE_PRE_ROLL_SECONDS), recordingEnd: end + CAPTURE_POST_ROLL_SECONDS };
+}
+
 export function collectedClipsPatch(
   project: Project,
   clips: readonly ProjectCollectedClip[],
 ): ProjectPatch {
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id);
   const startIndex = story?.clips.length ?? 0;
-  let timelineStart = story?.clips.reduce(
-    (end, clip) => Math.max(end, clip.placement.start + clip.placement.duration),
-    0,
-  ) ?? 0;
+  let timelineStart = collectedClipsStart(project);
   const sourceDemoIds = [...new Set([
     ...project.document.settings.source_demo_ids,
     ...clips.map((clip) => clip.demoId),
@@ -47,7 +63,7 @@ export function collectedClipsPatch(
     operations: [
       {
         op: 'replace_settings',
-        settings: { source_demo_ids: sourceDemoIds, ripple_sequence_markers: false, use_media_proxies: false },
+        settings: { ...project.document.settings, source_demo_ids: sourceDemoIds },
       },
       ...clips.map((clip, offset) => {
         const timelineClip = timelineClipFromCollected(clip);
@@ -115,8 +131,8 @@ function captureIntentFor(source: ProjectCollectedClip): CaptureIntent | null {
     player_id: source.playerId,
     start_tick: source.startTick,
     end_tick: source.endTick,
-    pre_roll_seconds: 1.5,
-    post_roll_seconds: 1,
+    pre_roll_seconds: CAPTURE_PRE_ROLL_SECONDS,
+    post_roll_seconds: CAPTURE_POST_ROLL_SECONDS,
     victim_pov: false,
     camera_style: 'pov',
     presentation: null,

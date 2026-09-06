@@ -1,35 +1,15 @@
 /*
- * Design system, layer 1 of 3 — the single source of every token.
- *
- * Authority chain:
- *   spec  docs/superpowers/specs/2026-08-15-frontend-redesign-design.md §3
- *   data  ./tokens.data.ts               (merge tables; ./theme.test.ts ties the two together)
- *   kit   Claude Design project f5cf6827-461a-4508-837f-4d18ba7d192f,
- *         _ds/industry-b4e06d61-0931-4793-87cc-159aa55ad936/styles.css
- *
- * Nothing outside this file may declare a colour, a font size, a control
- * height or a panel width (spec §2.1 rules 4 and 5). Pages read tokens; they
- * never re-derive them.
- *
- * This file is the entry point of the design layer and pulls in `base.css` so
- * a consumer only has to import `design/theme.css`. Typography uses the native
- * system stack selected by the Project review design.
+ * Unified Vibe CS visual interface — Figma N05FPVtPTwWV3ONlE48Fwv.
+ * Shared by editing and analysis. Foundations approved 2026-09-06.
+ * Semantic bindings and type roles are recorded in tokens.data.ts.
+ * Media surfaces stay dark; UI surfaces follow the user's theme.
  */
-
 @import 'tailwindcss';
+@import '@fontsource-variable/noto-sans-sc';
+@import '@fontsource-variable/roboto-mono';
 @import './base.css';
 
-/* ══════════════════════════════════════════════════════════════════════════
-   Light theme — the base palette. `static` because the dark guards below
-   reference tokens by name; Tailwind's unused-variable pruning would drop
-   the ones no utility happens to mention and leave the guards overriding
-   nothing.
-   ══════════════════════════════════════════════════════════════════════ */
-
 @theme static {
-  /* Tailwind's stock scales are removed wholesale. Keeping them would let a
-     page write `bg-red-500` or `text-9xl` — values that are not in the design
-     reference and that the §2.1 bare-hex lint cannot see. */
   --color-*: initial;
   --font-*: initial;
   --text-*: initial;
@@ -38,176 +18,121 @@
   --radius-*: initial;
   --shadow-*: initial;
 
-  /* Keywords, not palette entries. */
   --color-transparent: transparent;
   --color-current: currentColor;
-
-  /* — Industry ground (styles.css :root, verbatim) — */
-  --color-bg: #f2f2f3;
-  --color-surface: #e9e9ea;
+  --color-bg: #ffffff;
+  --color-surface: #f1f3f6;
+  --color-surface-chrome: #f6f7f9;
   --color-text: #1d1f20;
-  --color-accent: #5980a6;
-  --color-accent-2: #728fab;
-  --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
-
-  /* — Industry tonal ramps (verbatim) —
-     One shared OKLCH lightness scale, so the same step of any role matches
-     the others in visual value. */
-  --color-neutral-100: #f5f5f8;
-  --color-neutral-200: #e7e7ea;
-  --color-neutral-300: #d4d4d7;
-  --color-neutral-400: #b7b7ba;
-  --color-neutral-500: #98989b;
-  --color-neutral-600: #7a7a7d;
-  --color-neutral-700: #5d5d60;
-  --color-neutral-800: #424244;
-  --color-neutral-900: #2b2b2d;
-
-  --color-accent-100: #eef6ff;
-  --color-accent-200: #d6ebff;
-  --color-accent-300: #b5d9fd;
-  --color-accent-400: #94bce3;
-  --color-accent-500: #749dc4;
-  --color-accent-600: #597ea3;
-  --color-accent-700: #416180;
-  --color-accent-800: #2c455d;
-  --color-accent-900: #1d2d3d;
-
-  --color-accent-2-100: #eef6ff;
-  --color-accent-2-200: #d6ebff;
-  --color-accent-2-300: #bdd8f2;
-  --color-accent-2-400: #9ebbd8;
-  --color-accent-2-500: #7e9cb8;
-  --color-accent-2-600: #627d98;
-  --color-accent-2-700: #486077;
-  --color-accent-2-800: #314457;
-  --color-accent-2-900: #1f2d3a;
-
-  /* — Surfaces the design reference uses that Industry has no name for —
-     `#ededee` is the fifth most frequent bare colour in the reference (19
-     occurrences) and the dark reversal table gives it a role of its own,
-     "侧栏 / 次级面": SideNav, AgentRail, the bottom selection bar, page
-     footers. See UNMAPPED_VALUES `color #ededee / #1d1f21`. */
-  --color-surface-chrome: #ededee;
-
-  /* Radar and timeline grid. The reference draws it as an ink mix at 4%
-     (12 declarations) / 5% (4 declarations); the 暗色 artboard states the
-     dark rule in prose — "网格线在深色下降到背景之上 6% 亮度". Same formula
-     in both themes, only the percentage moves. */
-  --color-grid: color-mix(in oklab, var(--color-text) 4%, var(--color-bg));
-
-  /* — §3.1 status colours — */
+  --color-neutral-600: #606c7e;
+  --color-neutral-700: #465265;
+  --color-neutral-500: #606c7e;
+  --color-accent: #3268d6;
+  --color-accent-600: #285abd;
+  --color-accent-700: #214b98;
+  --color-accent-100: #eef4ff;
+  --color-divider: #dfe3e9;
+  --color-neutral-300: #d8dee8;
+  --color-neutral-200: #edf0f4;
   --color-ok: #4d7a5a;
   --color-warn: #a8792f;
   --color-fail: #a3453c;
   --color-ok-surface: #eef4ee;
   --color-warn-surface: #f7efdd;
   --color-fail-surface: #f7ecea;
+  --color-action-hover: #1d1f2012;
+  --color-action-pressed: #1d1f2024;
+  --color-danger-hover: #893f37;
+  --color-danger-pressed: #763a34;
+  --color-on-accent: #ffffff;
+  --color-neutral-100: #f8fafc;
+  --color-accent-500: #4f84f7;
+  --color-fail-text: #723933;
+  --color-warn-text: #74582f;
   --color-warn-border: #d8bb86;
+  --color-neutral-400: #aab3c1;
+  --color-accent-300: #b9d1ff;
+  --color-neutral-800: #303b4d;
+  --color-media-badge: #1b2637;
+  --color-media-badge-border: #465265;
+  --color-media: #111827;
+  --color-on-media: #f8fafc;
+  --color-on-media-muted: #a5b4c7;
+  --color-media-divider: #3b4d66;
+  --color-neutral-50: #ffffff;
+  --color-neutral-950: #111827;
+  --color-neutral-900: #1b2637;
+  --color-accent-2: #5b8ff9;
+  --color-accent-200: #d9e7ff;
+  --color-accent-400: #79a4f0;
+  --color-accent-800: #214b98;
+  --color-accent-900: #1d2d3d;
+  --color-accent-2-100: #eef4ff;
+  --color-accent-2-200: #d9e7ff;
+  --color-accent-2-300: #b9d1ff;
+  --color-accent-2-400: #79a4f0;
+  --color-accent-2-500: #5b8ff9;
+  --color-accent-2-600: #285abd;
+  --color-accent-2-700: #214b98;
+  --color-accent-2-800: #214b98;
+  --color-accent-2-900: #1d2d3d;
+  --color-ok-text: #3c5a44;
+  --color-ok-border: #a8c3a9;
   --color-fail-border: #c9a8a3;
   --color-team-b: #c9a55a;
+  --color-grid: color-mix(in oklab, var(--color-text) 5%, var(--color-bg));
+  --shadow-sm: 0 1px 2px #2b2b2d24;
+  --shadow-md: 0 3px 10px #2b2b2d29;
+  --shadow-lg: 0 12px 32px #2b2b2d38;
 
-  /* §3.1 gives warn and fail a border but not ok; the reference draws the
-     missing one as #a8c3a9 (UNMAPPED_VALUES `color #a8c3a9`). The three
-     semantics have to be symmetric or component code grows a special case. */
-  --color-ok-border: #a8c3a9;
-
-  /* On-surface text. The semantic colour itself does not reach 4.5:1 on its
-     own surface, so the reference hand-picked darker inks (#7d332c ×17 for
-     fail, #7a5a16 ×11 and #8a6f2c ×3 for warn — the same role tuned twice,
-     and nothing at all for ok). UNMAPPED_VALUES `color #7d332c / #7a5a16 /
-     #8a6f2c` allows either literals or "由主色按固定算法压暗"; the algorithm
-     is taken, because it is the only option that also produces the missing
-     ok value and that flips on its own in dark.
-     Fitted to the reference: 65% lands within ΔL 0.03 of #7d332c and
-     #7a5a16 in light, and within ΔL 0.02 of the 暗色 artboard's #e5a49d in
-     dark. */
-  --color-ok-text: color-mix(in oklab, var(--color-ok) 65%, var(--color-text));
-  --color-warn-text: color-mix(in oklab, var(--color-warn) 65%, var(--color-text));
-  --color-fail-text: color-mix(in oklab, var(--color-fail) 65%, var(--color-text));
-
-  /* — Type families — native system stack, with explicit CJK fallbacks. */
-  --font-body: system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --font-heading: system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --font-heading-weight: 600;
-  --font-mono: ui-monospace, Menlo, Consolas, monospace;
-
-  /* — §3.2 type scale, 10 steps — */
-  --text-2xs: 11px;
+  --font-body: 'Noto Sans SC Variable', 'Noto Sans SC', sans-serif;
+  --font-heading: 'Noto Sans SC Variable', 'Noto Sans SC', sans-serif;
+  --font-heading-weight: 700;
+  --font-mono: 'Roboto Mono Variable', 'Roboto Mono', monospace;
   --text-xs: 12px;
+  --text-xs--line-height: 18px;
   --text-sm: 13px;
+  --text-sm--line-height: 20px;
   --text-base: 14px;
-  --text-md: 15px;
-  --text-lg: 17px;
-  --text-xl: 19px;
-  --text-2xl: 22px;
-  --text-3xl: 26px;
-  --text-4xl: 40px;
+  --text-base--line-height: 22px;
+  --text-md: 16px;
+  --text-md--line-height: 26px;
+  --text-lg: 18px;
+  --text-lg--line-height: 26px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
+  --text-4xl: 32px;
+  --text-4xl--line-height: 40px;
+  --leading-tight: 1.3;
+  --leading-normal: 1.5714285714;
+  --leading-relaxed: 1.75;
+  --tracking-caps: 0.08em;
+  --tracking-wide: 0.04em;
 
-  /* Line height. §3 defines no family; the reference uses seven values over
-     111 declarations, 1.6 (59) and 1.7 (33) carrying the body text. Three
-     steps per UNMAPPED_VALUES `line-height`; tight matches Industry's own
-     h1–h6 at 1.12. */
-  --leading-tight: 1.2;
-  --leading-normal: 1.6;
-  --leading-relaxed: 1.8;
-
-  /* Letter spacing. Also no family in §3, and the bare-value lint cannot see
-     it. Two steps per UNMAPPED_VALUES `letter-spacing`: .16em for group
-     headings (33 declarations) and .08em for the wide caps used on panel and
-     table headers (32). */
-  --tracking-caps: 0.16em;
-  --tracking-wide: 0.08em;
-
-  /* — §3.6 spacing and radius —
-     Industry's 0.85× density base. Tailwind derives its numeric scale from
-     it, so p-2 = 6.8px and p-4 = 13.6px land exactly on Industry's
-     --space-2 / --space-4. */
-  --spacing: 3.4px;
-
-  /* Industry squares off .card / .btn / .input / .tag / .seg / .dialog, and
-     the design reference contains zero border-radius declarations. Only
-     `.radio .dot` is round, and it hard-codes 50% rather than taking a step. */
-  --radius-sm: 3px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
+  --spacing: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
   --radius-full: 999px;
-
-  /* — §3.3 control heights, floor 32px, no exceptions — */
   --h-ctl-sm: 32px;
-  --h-ctl-md: 34px;
-  --h-ctl-lg: 38px;
-  --h-ctl-hero: 42px;
-
-  /* — §3.4 bar and row heights — */
+  --h-ctl-md: 36px;
+  --h-ctl-lg: 40px;
+  --h-ctl-hero: 44px;
   --h-titlebar: 48px;
   --h-topbar: 56px;
-  --h-bar: 46px;
-  --h-panel-head: 40px;
-  --h-thead: 34px;
-  --h-row: 42px;
-  --h-row-compact: 38px;
-  --h-row-evidence: 52px;
-
-  /* The four values UNMAPPED_VALUES left open, resolved against the reference
-     rather than against the counts in that note (which conflated several
-     roles — see the `note` on each entry).
-
-     64: the two-line task row of 01 工作台首页 (8 declarations, not 4). 12px
-     above --h-row-evidence, past every fold §3.4 signed off on, so it is a
-     token of its own rather than a merge.
-     80: the Agent composer of 07. The other 80px boxes are the `3px double`
-     comparison cards of Agent 形态 · 第二轮; the 66px one is that board's
-     exploratory small copy, and loses to the production artboard.
-     92: the terminal action bar. 92 and 96 each appear twice and differ only
-     in vertical padding (0 vs 12–14px), which is a 4px fold — exactly what
-     --h-panel-head and --h-row-compact already do. One token, padding does
-     the rest. */
+  --h-bar: 44px;
+  --h-panel-head: 36px;
+  --h-thead: 36px;
+  --h-row: 44px;
+  --h-row-compact: 36px;
+  --h-row-evidence: 56px;
   --h-row-task: 64px;
   --h-composer: 80px;
   --h-actionbar: 92px;
-
-  /* — §3.5 panel widths — */
   --w-nav: 216px;
   --w-nav-collapsed: 56px;
   --w-agent-rail: 46px;
@@ -216,278 +141,167 @@
   --w-inspector: 380px;
   --w-inspector-wide: 440px;
   --w-split: 520px;
-
-  /* Structural constant of the multi-track editor, required by spec §1.2's
-     in-house timeline. Only one of the three 132px boxes in the reference is
-     the track head (`flex:none;border-right`); the other two are the 132×74
-     clip thumbnails of the same board. Same width, one token — otherwise the
-     thumbnail has to reach for a bare value the layer lint would reject. */
   --w-track-head: 190px;
-
-  /* The centred overlay. The command-palette artboard draws it as
-     `left:172px;top:84px;width:600px` — an absolutely positioned card, not a
-     layout column, so `EXTRACTION_RULES.panelWidth` (which requires
-     `flex:none` / `border-left` / `border-right`) never saw it and §3.5 has no
-     entry for it. It is a genuinely new role rather than a missed one, so it
-     gets its own token instead of folding onto --w-split: the 80px gap would be
-     the widest fold in the table, and folding a centred overlay onto a split
-     pane makes the two move together for no reason. */
   --w-overlay: 600px;
-
-  /* — Elevation (Industry, verbatim) —
-     Soft ink-tinted shadows on a light ground.
-
-     Read these through `box-shadow: var(--shadow-md)` or the arbitrary-value
-     utility `shadow-[var(--shadow-md)]`. Tailwind's own `shadow-md` resolves
-     the token at build time so that `shadow-<colour>` modifiers can work,
-     which bakes the light value into the rule and makes the dark guard below
-     a no-op for it. */
-  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
-  --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
-  --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
+  --w-output-preview: 144px;
+  --panel-inset: 12px;
+  --panel-gap: 8px;
+  --scrollbar-size: 10px;
+  --h-nav-item: 40px;
 }
 
-/* PR review workbench — the supplied production reference is a brighter,
-   white-canvas review surface than the general Industry shell. Components
-   continue to consume the same semantic tokens; the page only selects this
-   contextual palette instead of carrying local colour utilities. */
-.review-workbench {
-  --color-bg: #ffffff;
-  --color-surface: #f8fafc;
-  --color-surface-chrome: #f8fafc;
-  --color-divider: #e1e5ec;
-  --color-grid: color-mix(in oklab, var(--color-text) 5%, var(--color-bg));
-
-  --color-neutral-100: #f8fafc;
-  --color-neutral-200: #edf0f4;
-  --color-neutral-300: #d8dee8;
-  --color-neutral-400: #aab3c1;
-  --color-neutral-500: #7a8597;
-  --color-neutral-600: #606c7e;
-  --color-neutral-700: #465265;
-  --color-neutral-800: #303b4d;
-  --color-neutral-900: #1b2637;
-
-  --color-accent: #3678f6;
-  --color-accent-2: #5b8ff9;
-  --color-accent-100: #eef4ff;
-  --color-accent-200: #d9e7ff;
-  --color-accent-300: #b9d1ff;
-  --color-accent-400: #79a4f0;
-  --color-accent-500: #4f84f7;
-  --color-accent-600: #276ffa;
-  --color-accent-700: #205dce;
-  --color-accent-800: #214b98;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   Dark theme
-
-   Source: the "Token 反转规则" table on the 「补齐 · 暗色与其余页面」artboard
-   (mirrored as DARK_REVERSAL_TABLE in ./tokens.data.ts), plus the 19 dark
-   hexes the same artboard draws but does not name (DARK_DERIVATION_EVIDENCE).
-
-   Two guards, deliberately duplicated:
-     1. `@media (prefers-color-scheme: dark)` narrowed by
-        `:root:not([data-theme="light"])` — follow the OS unless the user has
-        pinned light.
-     2. `:root[data-theme="dark"]` — the user pinned dark, whatever the OS says.
-   Both are unlayered, so they outrank Tailwind's `@layer theme` output
-   regardless of source order.
-
-   Rules for anything added here:
-     · Only token redeclarations. No selectors, no properties, no structure —
-       a page must look identical in both themes apart from its colours.
-     · Every colour and shadow token is restated, including the ones whose
-       light value is already token-relative and would flip on its own. The
-       set is then checkable rather than a judgement call, and
-       ./theme.test.ts checks it.
-     · Sizes never appear. A 42px row is 42px in the dark.
-   ══════════════════════════════════════════════════════════════════════ */
-
+/* Both guards contain only visual tokens. Sizes and layout never change. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-transparent: transparent;
-    --color-current: currentColor;
-
-    /* Reversal table rows 1, 2, 3, 4, 6. The canvas drops to #16181a and the
-       divider becomes *lighter* than its ground rather than darker. */
-    --color-bg: #16181a;
-    --color-surface: #1d1f21;
-    --color-text: #eceded;
-    --color-accent: #5980a6;
-    --color-accent-2: #728fab;
-    --color-divider: #33363a;
-
-    /* Light keeps two near-identical planes (#e9e9ea / #ededee); the dark
-       artboard draws one. Both map onto it rather than inventing a split the
-       reference does not show. */
-    --color-surface-chrome: #1d1f21;
-
-    /* "网格线在深色下降到背景之上 6% 亮度，否则雷达和时间轴会显得脏." */
+    --color-bg: #111827;
+    --color-surface: #182234;
+    --color-surface-chrome: #141e30;
+    --color-text: #e6edf7;
+    --color-neutral-600: #b3c1d1;
+    --color-neutral-700: #c6d2e2;
+    --color-neutral-500: #a5b4c7;
+    --color-accent: #8db3f4;
+    --color-accent-600: #a3c3fa;
+    --color-accent-700: #b8d0fa;
+    --color-accent-100: #243953;
+    --color-divider: #2f4058;
+    --color-neutral-300: #3b4d66;
+    --color-neutral-200: #243449;
+    --color-ok: #82be92;
+    --color-warn: #e3b878;
+    --color-fail: #ec9990;
+    --color-ok-surface: #20382d;
+    --color-warn-surface: #352c1e;
+    --color-fail-surface: #3a2528;
+    --color-action-hover: #e6edf712;
+    --color-action-pressed: #e6edf724;
+    --color-danger-hover: #f0ada5;
+    --color-danger-pressed: #f4c0b8;
+    --color-on-accent: #111827;
+    --color-neutral-100: #1c293d;
+    --color-accent-500: #8db3f4;
+    --color-fail-text: #ec9990;
+    --color-warn-text: #e3b878;
+    --color-warn-border: #6c5537;
+    --color-neutral-400: #8191a6;
+    --color-accent-300: #3c608a;
+    --color-neutral-800: #d8e2ef;
+    --color-media-badge: #111827;
+    --color-media-badge-border: #3b4d66;
+    --color-media: #111827;
+    --color-on-media: #f8fafc;
+    --color-on-media-muted: #a5b4c7;
+    --color-media-divider: #3b4d66;
+    --color-neutral-50: #141e30;
+    --color-neutral-950: #e6edf7;
+    --color-neutral-900: #e6edf7;
+    --color-accent-2: #a3c3fa;
+    --color-accent-200: #304b6c;
+    --color-accent-400: #628ec4;
+    --color-accent-800: #c4d9fc;
+    --color-accent-900: #e0ebff;
+    --color-accent-2-100: #243953;
+    --color-accent-2-200: #304b6c;
+    --color-accent-2-300: #3c608a;
+    --color-accent-2-400: #628ec4;
+    --color-accent-2-500: #8db3f4;
+    --color-accent-2-600: #a3c3fa;
+    --color-accent-2-700: #b8d0fa;
+    --color-accent-2-800: #c4d9fc;
+    --color-accent-2-900: #e0ebff;
+    --color-ok-text: #82be92;
+    --color-ok-border: #42684f;
+    --color-fail-border: #744b50;
+    --color-team-b: #e3bd78;
     --color-grid: color-mix(in oklab, var(--color-text) 6%, var(--color-bg));
-
-    /* Neutral ramp, read off the dark artboard. The nine greys it draws sort
-       into a monotone lightness ladder and land on the ramp steps the light
-       theme already uses: #a8abae is the reversal table's 次文字, and light
-       次文字 (text at 70% over the canvas, ≈#5d5f60) is likewise
-       --color-neutral-700. The divider #33363a sits between steps 300 and
-       400 in both themes. */
-    --color-neutral-100: #26292c;
-    --color-neutral-200: #2a2d31;
-    --color-neutral-300: #303438;
-    --color-neutral-400: #3a3d41;
-    --color-neutral-500: #4a4e53;
-    --color-neutral-600: #7d8083;
-    --color-neutral-700: #a8abae;
-    --color-neutral-800: #d6d8da;
-    --color-neutral-900: #eceded;
-
-    /* Accent ramp, likewise read off the dark artboard, which pins both ends
-       the reversal table names: step 100 is the selected background
-       (#1d2d3d, the table's "accent-900") and step 700 is the clickable
-       steel blue (#94bce3, the table's "accent-400"). Eight of the nine
-       steps are drawn; 600 is the OKLab midpoint of its neighbours, which is
-       also where the ladder's even lightness spacing puts it. Because the
-       ramp inverts, `.tag-accent` (bg 100 / text 800) and every other
-       Industry component class keeps working untouched. */
-    --color-accent-100: #1d2d3d;
-    --color-accent-200: #22303d;
-    --color-accent-300: #2a3d4e;
-    --color-accent-400: #3f5f7d;
-    --color-accent-500: #4a7396;
-    --color-accent-600: #6e97bc;
-    --color-accent-700: #94bce3;
-    --color-accent-800: #a8c6e0;
-    --color-accent-900: #cfe2f4;
-
-    /* No dark artboard draws accent-2, so it takes the plain reversal
-       (step N ← light step 1000−N) rather than a hand-picked ladder. */
-    --color-accent-2-100: #1f2d3a;
-    --color-accent-2-200: #314457;
-    --color-accent-2-300: #486077;
-    --color-accent-2-400: #627d98;
-    --color-accent-2-500: #7e9cb8;
-    --color-accent-2-600: #9ebbd8;
-    --color-accent-2-700: #bdd8f2;
-    --color-accent-2-800: #d6ebff;
-    --color-accent-2-900: #eef6ff;
-
-    /* Reversal table row 8, verbatim. */
-    --color-ok: #6ea87f;
-    --color-warn: #d3a85f;
-    --color-fail: #cf7a72;
-
-    /* §3.1: "surface / border 由对应语义色按同一算法派生，不逐个手挑."
-       The percentages are fitted to the only dark pair the artboard draws —
-       fail-surface #241a19 and fail-border #6b3b36 — and then applied
-       unchanged to all three semantics. 8% reproduces #241a19 to ΔL 0.014,
-       44% reproduces #6b3b36 to ΔL 0.001. */
-    --color-ok-surface: color-mix(in oklab, var(--color-ok) 8%, var(--color-bg));
-    --color-warn-surface: color-mix(in oklab, var(--color-warn) 8%, var(--color-bg));
-    --color-fail-surface: color-mix(in oklab, var(--color-fail) 8%, var(--color-bg));
-    --color-ok-border: color-mix(in oklab, var(--color-ok) 44%, var(--color-bg));
-    --color-warn-border: color-mix(in oklab, var(--color-warn) 44%, var(--color-bg));
-    --color-fail-border: color-mix(in oklab, var(--color-fail) 44%, var(--color-bg));
-
-    /* Token-relative in both themes; --color-text has already flipped by the
-       time these resolve. Restated so the dark set stays complete. */
-    --color-ok-text: color-mix(in oklab, var(--color-ok) 65%, var(--color-text));
-    --color-warn-text: color-mix(in oklab, var(--color-warn) 65%, var(--color-text));
-    --color-fail-text: color-mix(in oklab, var(--color-fail) 65%, var(--color-text));
-
-    /* The reversal table stops at the three semantics, so team B takes the
-       transform the three of them share: hue and chroma held, lightness
-       +0.148 in OKLab (the mean of ok +0.143, warn +0.146, fail +0.157). */
-    --color-team-b: #fad489;
-
-    /* Reversal table row 9: "发丝亮边 ＋ 环境暗". An ink-tinted drop shadow
-       is invisible on a dark ground, so elevation is carried by a hairline
-       lit edge and a deeper ambient. */
-    --shadow-sm:
-      0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent),
-      0 1px 2px color-mix(in srgb, #000000 55%, transparent);
-    --shadow-md:
-      0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent),
-      0 3px 10px color-mix(in srgb, #000000 60%, transparent);
-    --shadow-lg:
-      0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent),
-      0 12px 32px color-mix(in srgb, #000000 68%, transparent);
+    --shadow-sm: 0 0 0 1px #e6edf714, 0 1px 2px #0000008c;
+    --shadow-md: 0 0 0 1px #e6edf717, 0 3px 10px #00000099;
+    --shadow-lg: 0 0 0 1px #e6edf71a, 0 12px 32px #000000ad;
   }
 }
 
 :root[data-theme='dark'] {
-  --color-transparent: transparent;
-  --color-current: currentColor;
-
-  --color-bg: #16181a;
-  --color-surface: #1d1f21;
-  --color-text: #eceded;
-  --color-accent: #5980a6;
-  --color-accent-2: #728fab;
-  --color-divider: #33363a;
-
-  --color-surface-chrome: #1d1f21;
-
+  --color-bg: #111827;
+  --color-surface: #182234;
+  --color-surface-chrome: #141e30;
+  --color-text: #e6edf7;
+  --color-neutral-600: #b3c1d1;
+  --color-neutral-700: #c6d2e2;
+  --color-neutral-500: #a5b4c7;
+  --color-accent: #8db3f4;
+  --color-accent-600: #a3c3fa;
+  --color-accent-700: #b8d0fa;
+  --color-accent-100: #243953;
+  --color-divider: #2f4058;
+  --color-neutral-300: #3b4d66;
+  --color-neutral-200: #243449;
+  --color-ok: #82be92;
+  --color-warn: #e3b878;
+  --color-fail: #ec9990;
+  --color-ok-surface: #20382d;
+  --color-warn-surface: #352c1e;
+  --color-fail-surface: #3a2528;
+  --color-action-hover: #e6edf712;
+  --color-action-pressed: #e6edf724;
+  --color-danger-hover: #f0ada5;
+  --color-danger-pressed: #f4c0b8;
+  --color-on-accent: #111827;
+  --color-neutral-100: #1c293d;
+  --color-accent-500: #8db3f4;
+  --color-fail-text: #ec9990;
+  --color-warn-text: #e3b878;
+  --color-warn-border: #6c5537;
+  --color-neutral-400: #8191a6;
+  --color-accent-300: #3c608a;
+  --color-neutral-800: #d8e2ef;
+  --color-media-badge: #111827;
+  --color-media-badge-border: #3b4d66;
+  --color-media: #111827;
+  --color-on-media: #f8fafc;
+  --color-on-media-muted: #a5b4c7;
+  --color-media-divider: #3b4d66;
+  --color-neutral-50: #141e30;
+  --color-neutral-950: #e6edf7;
+  --color-neutral-900: #e6edf7;
+  --color-accent-2: #a3c3fa;
+  --color-accent-200: #304b6c;
+  --color-accent-400: #628ec4;
+  --color-accent-800: #c4d9fc;
+  --color-accent-900: #e0ebff;
+  --color-accent-2-100: #243953;
+  --color-accent-2-200: #304b6c;
+  --color-accent-2-300: #3c608a;
+  --color-accent-2-400: #628ec4;
+  --color-accent-2-500: #8db3f4;
+  --color-accent-2-600: #a3c3fa;
+  --color-accent-2-700: #b8d0fa;
+  --color-accent-2-800: #c4d9fc;
+  --color-accent-2-900: #e0ebff;
+  --color-ok-text: #82be92;
+  --color-ok-border: #42684f;
+  --color-fail-border: #744b50;
+  --color-team-b: #e3bd78;
   --color-grid: color-mix(in oklab, var(--color-text) 6%, var(--color-bg));
-
-  --color-neutral-100: #26292c;
-  --color-neutral-200: #2a2d31;
-  --color-neutral-300: #303438;
-  --color-neutral-400: #3a3d41;
-  --color-neutral-500: #4a4e53;
-  --color-neutral-600: #7d8083;
-  --color-neutral-700: #a8abae;
-  --color-neutral-800: #d6d8da;
-  --color-neutral-900: #eceded;
-
-  --color-accent-100: #1d2d3d;
-  --color-accent-200: #22303d;
-  --color-accent-300: #2a3d4e;
-  --color-accent-400: #3f5f7d;
-  --color-accent-500: #4a7396;
-  --color-accent-600: #6e97bc;
-  --color-accent-700: #94bce3;
-  --color-accent-800: #a8c6e0;
-  --color-accent-900: #cfe2f4;
-
-  --color-accent-2-100: #1f2d3a;
-  --color-accent-2-200: #314457;
-  --color-accent-2-300: #486077;
-  --color-accent-2-400: #627d98;
-  --color-accent-2-500: #7e9cb8;
-  --color-accent-2-600: #9ebbd8;
-  --color-accent-2-700: #bdd8f2;
-  --color-accent-2-800: #d6ebff;
-  --color-accent-2-900: #eef6ff;
-
-  --color-ok: #6ea87f;
-  --color-warn: #d3a85f;
-  --color-fail: #cf7a72;
-
-  --color-ok-surface: color-mix(in oklab, var(--color-ok) 8%, var(--color-bg));
-  --color-warn-surface: color-mix(in oklab, var(--color-warn) 8%, var(--color-bg));
-  --color-fail-surface: color-mix(in oklab, var(--color-fail) 8%, var(--color-bg));
-  --color-ok-border: color-mix(in oklab, var(--color-ok) 44%, var(--color-bg));
-  --color-warn-border: color-mix(in oklab, var(--color-warn) 44%, var(--color-bg));
-  --color-fail-border: color-mix(in oklab, var(--color-fail) 44%, var(--color-bg));
-
-  --color-ok-text: color-mix(in oklab, var(--color-ok) 65%, var(--color-text));
-  --color-warn-text: color-mix(in oklab, var(--color-warn) 65%, var(--color-text));
-  --color-fail-text: color-mix(in oklab, var(--color-fail) 65%, var(--color-text));
-
-  --color-team-b: #fad489;
-
-  --shadow-sm:
-    0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent),
-    0 1px 2px color-mix(in srgb, #000000 55%, transparent);
-  --shadow-md:
-    0 0 0 1px color-mix(in srgb, var(--color-text) 9%, transparent),
-    0 3px 10px color-mix(in srgb, #000000 60%, transparent);
-  --shadow-lg:
-    0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent),
-    0 12px 32px color-mix(in srgb, #000000 68%, transparent);
+  --shadow-sm: 0 0 0 1px #e6edf714, 0 1px 2px #0000008c;
+  --shadow-md: 0 0 0 1px #e6edf717, 0 3px 10px #00000099;
+  --shadow-lg: 0 0 0 1px #e6edf71a, 0 12px 32px #000000ad;
 }
+
+/* A single compact command strip for the production timeline. */
+.project-timeline [data-timeline-toolbar] { scrollbar-width: thin; }
+.project-timeline [data-timeline-toolbar] > * { flex-shrink: 0; }
+.project-timeline [data-timeline-toolbar] button,
+.project-timeline [data-timeline-toolbar] select {
+  border-color: transparent;
+  font-size: var(--text-xs);
+}
+.project-timeline [data-timeline-toolbar] button:hover,
+.project-timeline [data-timeline-toolbar] select:hover { background-color: var(--color-neutral-200); }
+.project-timeline [data-timeline-toolbar] button[aria-pressed='true'] {
+  background-color: var(--color-accent-100);
+  color: var(--color-accent-700);
+}
+.project-timeline [data-review-pin] button { max-width: 30px; }
 
 /* Compact NLE zoom scrubber shared by timeline surfaces. */
 .timeline-zoom {
@@ -552,9 +366,9 @@
   --flexlayout-color-splitter-hover: var(--color-accent-200);
   --flexlayout-color-splitter-drag: var(--color-accent-300);
   --flexlayout-font-family: var(--font-body);
-  --flexlayout-font-size: 12px;
-  --flexlayout-font-weight: 600;
-  --flexlayout-splitter-size: 7px;
+  --flexlayout-font-size: var(--text-sm);
+  --flexlayout-font-weight: 500;
+  --flexlayout-splitter-size: var(--panel-gap);
   --flexlayout-splitter-active-size: 10px;
 }
 
@@ -568,19 +382,27 @@
 }
 
 .project-workspace-dock .flexlayout__tabset_tabbar_outer {
-  min-height: 30px;
-  background: var(--color-neutral-50);
+  height: var(--h-panel-head);
+  min-height: var(--h-panel-head);
+  padding-inline: 0;
+  background: var(--color-surface-chrome);
+}
+
+.project-workspace-dock .flexlayout__tabset_tabbar_inner_tab_container {
+  padding: 0;
+  border-block: 0;
 }
 
 .project-workspace-dock .flexlayout__tab_button {
-  min-height: 29px;
+  height: calc(var(--h-panel-head) - 1px);
+  min-height: calc(var(--h-panel-head) - 1px);
   border-bottom: 2px solid transparent;
-  padding: 5px 10px 4px;
+  padding: 6px var(--panel-inset);
 }
 
 .project-workspace-dock .flexlayout__tab_button--selected {
-  border-bottom-color: var(--color-accent-600);
-  background: var(--color-bg);
+  border-bottom-color: var(--color-accent);
+  background: var(--color-surface-chrome);
   color: var(--color-text);
 }
 
@@ -603,3 +425,19 @@
   min-height: 0;
   border: 0;
 }
+
+/* Shared scroll gutter aligns headings, rows, and footer controls. */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-300);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--color-neutral-400); }
+.timeline-tool-strip::-webkit-scrollbar { width: 6px; }
+.timeline-tool-strip::-webkit-scrollbar-thumb { border-width: 2px; }

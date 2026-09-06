@@ -18,12 +18,12 @@
  * `theme.css` wipes Tailwind's stock scales (`--text-*: initial`) and declares
  * its own, so two of our steps are names stock Tailwind has never had:
  *
- *   text-2xs   11px, §3.2 step 1 — 138 uses
+ *   text-xs   11px, §3.2 step 1 — 138 uses
  *   text-md    15px, §3.2 step 5 — 6 uses
  *
  * `twMerge` classifies `text-*` by looking the value up in its font-size list
- * and falling through to *colour* when it misses. Unconfigured, `text-2xs` is
- * therefore a colour, and `cn('text-2xs', 'text-neutral-600')` drops the size —
+ * and falling through to *colour* when it misses. Unconfigured, `text-xs` is
+ * therefore a colour, and `cn('text-xs', 'text-neutral-600')` drops the size —
  * a silent, theme-wide regression of exactly the kind this helper exists to
  * prevent. `tracking-caps` (§3, 32 uses) is likewise not a stock step.
  *
@@ -43,7 +43,7 @@ const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       /* §3.2 type scale — the two steps whose names stock Tailwind lacks. */
-      'font-size': [{ text: ['2xs', 'md'] }],
+      'font-size': [{ text: ['md'] }],
       /* §3 letter spacing — `wide` is stock, `caps` (0.16em) is ours. */
       tracking: [{ tracking: ['caps'] }],
     },

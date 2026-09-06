@@ -35,6 +35,7 @@
 
 import { HIGHLIGHT_KINDS, type HighlightCandidate, type HighlightKind } from '../../../domain/match';
 import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
+import type { MatchVideoSelection } from '../viewContract';
 
 /** See the module note for every line of this table. */
 export const HIGHLIGHT_WIRE_KIND: Readonly<Record<Highlight['kind'], HighlightKind>> = {
@@ -218,12 +219,27 @@ export function currentHighlightId(
   highlights: readonly HighlightCandidate[],
   round: number | null,
   tick: number | null,
+  playerId: string | null,
 ): string | null {
   if (round === null || tick === null) return null;
   const match = highlights.find(
-    (highlight) => highlight.round === round && highlight.startTick === tick,
+    (highlight) => highlight.round === round && highlight.startTick === tick
+      && (playerId === null || highlight.playerId === playerId),
   );
   return match?.id ?? null;
+}
+
+/** List, batch and Inspector all collect the same recordable source. */
+export function highlightSelection(highlight: HighlightCandidate): MatchVideoSelection {
+  return {
+    round: highlight.round,
+    highlightId: highlight.id,
+    ...(highlight.playerId === undefined ? {} : { playerId: highlight.playerId }),
+    startTick: highlight.startTick,
+    endTick: highlight.endTick,
+    ...(highlight.tickRate === undefined ? {} : { tickRate: highlight.tickRate }),
+    label: [highlight.subject, highlight.label].filter(Boolean).join(' · '),
+  };
 }
 
 /** Toggling one row of the batch selection. Returns a new set. */

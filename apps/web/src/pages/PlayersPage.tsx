@@ -89,7 +89,7 @@ function directoryColumns(): readonly DataTableColumn<PlayerDirectoryItem>[] {
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="truncate text-base">{row.name}</span>
           {row.last_team === null ? null : (
-            <span className="flex-none text-2xs text-neutral-600">· {row.last_team}</span>
+            <span className="flex-none text-xs text-neutral-600">· {row.last_team}</span>
           )}
         </span>
       ),
@@ -287,7 +287,7 @@ export function PlayersPage() {
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {error === null ? null : (
-            <div className="p-7">
+            <div className="p-6">
               <Alert
                 variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void directory.refetch() }}

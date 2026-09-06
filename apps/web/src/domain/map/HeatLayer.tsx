@@ -170,7 +170,7 @@ export function HeatLegend({ distribution, caption, className }: HeatLegendProps
           <span key={index} className={cn('flex-1', rungClass(index + 1, HEAT_STEP_BACKGROUND))} />
         ))}
       </div>
-      <div className="flex justify-between text-2xs text-neutral-600">
+      <div className="flex justify-between text-xs text-neutral-600">
         <span>
           <Trans>{minWeight} 次</Trans>
         </span>

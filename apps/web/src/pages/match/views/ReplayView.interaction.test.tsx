@@ -94,6 +94,22 @@ beforeEach(() => {
   frames = stubAnimationFrame();
 });
 
+it('keeps every returned floor available in one compact control and applies its heat filter', () => {
+  vi.mocked(useMatchHeatPoints).mockReturnValue(queryResult(
+    HEAT_POINTS.map((point, index) => ({ ...point, floor: index - 2 })),
+  ) as never);
+  renderView(<ReplayView.Body {...viewProps()} />);
+  const floor = screen.getByRole('combobox', { name: '楼层' }) as HTMLSelectElement;
+  expect([...floor.options].map((option) => option.value)).toEqual(['all', '-2', '-1', '0', '1', '2', '3']);
+  fireEvent.click(screen.getByRole('checkbox', { name: '热力叠加' }));
+  fireEvent.change(floor, { target: { value: '3' } });
+  expect(floor.value).toBe('3');
+  expect(floor.selectedOptions[0]?.textContent).toContain('3');
+  expect(document.querySelector('[data-layer="heat"]')?.getAttribute('aria-label')).toContain('共 1 个采样点');
+  fireEvent.change(floor, { target: { value: 'all' } });
+  expect(document.querySelector('[data-layer="heat"]')?.getAttribute('aria-label')).toContain(`共 ${HEAT_POINTS.length} 个采样点`);
+});
+
 afterEach(() => {
   frames?.restore();
   frames = null;

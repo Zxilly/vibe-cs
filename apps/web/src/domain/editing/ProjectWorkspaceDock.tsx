@@ -9,9 +9,11 @@ import {
 } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
 import { useCallback, useState, type ReactNode } from 'react';
+import { useCollapsed } from '../../design/layout';
 
 import {
   loadProjectWorkspaceLayout,
+  createProjectWorkspaceLayout,
   saveProjectWorkspaceLayout,
   type ProjectWorkspacePanel,
 } from './projectWorkspaceLayout';
@@ -24,7 +26,10 @@ export interface ProjectWorkspaceDockProps {
 
 export function ProjectWorkspaceDock({ projectId, panels, labels }: ProjectWorkspaceDockProps) {
   const storage = browserStorage();
-  const [model] = useState(() => Model.fromJson(loadProjectWorkspaceLayout(projectId, storage)));
+  const compact = useCollapsed(undefined);
+  const [wideModel] = useState(() => Model.fromJson(loadProjectWorkspaceLayout(projectId, storage)));
+  const [compactModel] = useState(() => Model.fromJson(createProjectWorkspaceLayout('compact')));
+  const model = compact ? compactModel : wideModel;
   const factory = useCallback((node: TabNode) => {
     const component = node.getComponent();
     if (!isProjectWorkspacePanel(component)) return null;
@@ -52,7 +57,9 @@ export function ProjectWorkspaceDock({ projectId, panels, labels }: ProjectWorks
           // FlexLayout emits transient adjusting actions during realtime splitter
           // motion. Persist only the final gesture so pointer movement stays free
           // of synchronous localStorage writes.
-          if (!action.isAdjusting()) saveProjectWorkspaceLayout(projectId, storage, next.toJson());
+          // Responsive geometry is a view, not a replacement for the user's
+          // saved desktop layout. Both modes render the same panel instances.
+          if (!compact && !action.isAdjusting()) saveProjectWorkspaceLayout(projectId, storage, next.toJson());
         }}
         realtimeResize
         supportsPopout={false}

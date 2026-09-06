@@ -52,13 +52,13 @@ describe('AppShell — the assembled frame', () => {
     expect(html).toContain('data-test-page');
   });
 
-  it('gives a Project workbench a focused shell without global navigation chrome', () => {
+  it('keeps mode switching and global commands reachable in the focused Project workbench', () => {
     const html = renderShell('/projects/00000000-0000-4000-8000-000000000001');
 
-    expect(html).toContain('data-titlebar-compact="true"');
+    expect(html).toContain('data-titlebar-mode="edit"');
     expect(html).not.toContain('data-shell-nav');
-    expect(html).not.toContain('data-titlebar-command');
-    expect(html).not.toContain('data-titlebar-activity');
+    expect(html).toContain('data-titlebar-command');
+    expect(html).toContain('data-titlebar-activity');
     expect(html).toContain('data-shell-main');
   });
 

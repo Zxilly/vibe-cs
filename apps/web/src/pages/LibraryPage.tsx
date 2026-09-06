@@ -48,7 +48,7 @@ import {
   useDemoList,
   useDemoMetadata,
   useDemoWatchStatus,
-  useImportDemoFiles,
+  useImportDemoPaths,
   useLaunchDemoPlayback,
   useRescanDemoWatch,
   useReviewTags,
@@ -161,7 +161,7 @@ function DemoLibraryPage() {
 
   /* ── writes ────────────────────────────────────────────────────────────── */
 
-  const importDemos = useImportDemoFiles();
+  const importDemos = useImportDemoPaths();
   const deleteDemos = useDeleteDemos();
   const startAnalysis = useStartDemoAnalysis();
   const launchPlayback = useLaunchDemoPlayback();
@@ -601,6 +601,8 @@ function wholeMatchClip(demo: DemoSummary): ProjectCollectedClip {
     label: t`整场比赛`,
     round: null,
     playerId: null,
+    playerName: null,
+    tickRate: null,
     highlightId: null,
     evidenceId: null,
     startTick: null,

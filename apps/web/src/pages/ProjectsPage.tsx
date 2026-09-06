@@ -38,7 +38,7 @@ export function ProjectsPage() {
         />
       }
     >
-      <div className="flex flex-col gap-5 p-7" data-projects-list>
+      <div className="flex flex-col gap-5 p-6" data-projects-list>
         {projects.error === null ? null : (
           <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: () => void projects.refetch() }}>
             <Trans>作品列表暂时读不到。</Trans>
@@ -73,7 +73,7 @@ function ProjectTable({ rows }: { readonly rows: readonly Project[] }) {
     <div className="min-w-0 overflow-x-auto border border-divider">
       <table className="w-full min-w-[var(--w-overlay)] border-collapse text-left">
         <thead className="bg-surface-chrome">
-          <tr className="h-[var(--h-thead)] border-b border-divider text-2xs tracking-wide text-neutral-600">
+          <tr className="h-[var(--h-thead)] border-b border-divider text-xs tracking-wide text-neutral-600">
             <th scope="col" className="px-4 font-normal"><Trans>作品名称</Trans></th>
             <th scope="col" className="px-4 font-normal"><Trans>轨道</Trans></th>
             <th scope="col" className="px-4 font-normal"><Trans>片段</Trans></th>

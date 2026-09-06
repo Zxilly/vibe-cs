@@ -78,7 +78,7 @@ describe('TableHeaderCell', () => {
     expect(html).toContain('scope="col"');
     expect(html).toContain('h-[var(--h-thead)]');
     // Industry's own .table th: smallest step, wide tracking, upper case.
-    expect(html).toContain('text-2xs');
+    expect(html).toContain('text-xs');
     expect(html).toContain('tracking-wide');
     expect(html).toContain('uppercase');
   });

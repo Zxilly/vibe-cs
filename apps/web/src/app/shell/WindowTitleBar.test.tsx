@@ -46,12 +46,6 @@ describe('WindowTitleBar', () => {
     expect(html).not.toContain('VIBE CS');
   });
 
-  it('uses the Windows tall title-bar height in the project workbench', () => {
-    const html = renderMarkup(<WindowTitleBar adapter={null} compact />);
-    expect(html).toContain('h-[48px]');
-    expect(html).not.toContain('h-[56px]');
-  });
-
   it('can render analysis as the current work lens', () => {
     const html = renderMarkup(<WindowTitleBar adapter={null} mode="analysis" />);
     expect(html).toContain('data-titlebar-mode="analysis"');

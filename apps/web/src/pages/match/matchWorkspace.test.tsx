@@ -120,9 +120,9 @@ describe('the constant chrome', () => {
     expect(html).toContain('data-match-actions=');
   });
 
-  it('draws the rail as a 190px column and the Inspector as a docked panel', () => {
-    expect(html).toContain('data-subnav="rail"');
-    expect(html).toContain('w-[var(--w-subnav)]');
+  it('puts view navigation above the data while retaining the docked Inspector', () => {
+    expect(html).toContain('data-subnav="tabs"');
+    expect(html).not.toContain('w-[var(--w-subnav)]');
     expect(html).toContain('data-inspector="docked"');
     expect(html).toContain('w-[var(--w-inspector)]');
   });

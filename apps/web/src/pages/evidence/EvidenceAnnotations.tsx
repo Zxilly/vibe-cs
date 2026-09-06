@@ -50,7 +50,7 @@ export function EvidenceAnnotations({
 }: EvidenceAnnotationsProps) {
   if (error !== undefined) {
     return (
-      <div data-evidence-annotations="error" className="p-7">
+      <div data-evidence-annotations="error" className="p-6">
         <Alert
           variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}
@@ -86,7 +86,7 @@ export function EvidenceAnnotations({
         {rows.map((annotation) => (
           <li
             key={annotation.id}
-            className="flex flex-col gap-2 border-b border-divider px-7 py-3"
+            className="flex flex-col gap-2 border-b border-divider px-6 py-3"
             data-annotation={annotation.id}
           >
             <div className="flex items-baseline gap-2.5">

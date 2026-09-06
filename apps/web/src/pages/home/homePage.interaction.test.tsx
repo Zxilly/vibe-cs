@@ -97,7 +97,7 @@ describe('工作台首页', () => {
   it('removes the task progress wall and raw task ids from the first screen', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
-    expect(await screen.findByText('需要我处理')).toBeTruthy();
+    expect(await screen.findByText('继续')).toBeTruthy();
     expect(screen.queryByText('analysis:run-1')).toBeNull();
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
@@ -135,18 +135,17 @@ describe('工作台首页', () => {
   it('leaves finished files out of the workbench now that they have their own destination', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
-    await screen.findByText('需要我处理');
+    await screen.findByText('继续');
     expect(screen.queryByText('Kael_Mirage_1v3.mp4')).toBeNull();
     expect(screen.queryByRole('link', { name: '全部成品文件' })).toBeNull();
   });
 
-  it('draws exactly the three IA blocks in their required order', async () => {
+  it('keeps continuation and acquisition without an empty attention heading', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
 
-    await screen.findByText('需要我处理');
+    await screen.findByText('继续');
     const blocks = [...document.querySelectorAll('[data-home-layout="three-sections"] > [data-home-block]')];
     expect(blocks.map((block) => block.getAttribute('data-home-block'))).toEqual([
-      'needs-attention',
       'continue',
       'new',
     ]);
@@ -156,7 +155,7 @@ describe('工作台首页', () => {
     // 「环境问题只在阻塞相应任务时出现在这里」 — a banner on a healthy
     // workbench is the thing that sentence rules out.
     renderPage({ element: <HomePage />, client: CLIENT, route: '/' });
-    await screen.findByText('需要我处理');
+    await screen.findByText('继续');
     expect(document.querySelector('[data-home-block="environment"]')).toBeNull();
   });
 

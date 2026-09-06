@@ -158,9 +158,9 @@ describe('成品 › 成品文件', () => {
       },
     });
 
-    expect(await screen.findByText('Kael_Mirage_1v3.mp4')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Kael 1v3' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Kael 1v3' })).toBeTruthy();
-    expect(screen.getByLabelText('Kael 1v3 preview')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '预览 Kael 1v3' })).toBeTruthy();
     expect(screen.getByText('8.75 s · 1920×1080 · 60 fps · H264 / AAC')).toBeTruthy();
     expect(screen.getByRole('button', { name: '定位文件' })).toBeTruthy();
   });

@@ -179,14 +179,14 @@ describe('currentHighlightId', () => {
   const rows = matchHighlights(ANALYSIS);
 
   it('addresses a highlight by its round and its first tick', () => {
-    expect(currentHighlightId(rows, 21, 148_920)).toBe('h-21-clutch');
-    expect(currentHighlightId(rows, 21, 149_340)).toBe('h-21-wallbang');
+    expect(currentHighlightId(rows, 21, 148_920, null)).toBe('h-21-clutch');
+    expect(currentHighlightId(rows, 21, 149_340, null)).toBe('h-21-wallbang');
   });
 
   it('is null when the address points at no highlight', () => {
-    expect(currentHighlightId(rows, 21, 1)).toBeNull();
-    expect(currentHighlightId(rows, null, 148_920)).toBeNull();
-    expect(currentHighlightId(rows, 21, null)).toBeNull();
+    expect(currentHighlightId(rows, 21, 1, null)).toBeNull();
+    expect(currentHighlightId(rows, null, 148_920, null)).toBeNull();
+    expect(currentHighlightId(rows, 21, null, null)).toBeNull();
   });
 });
 

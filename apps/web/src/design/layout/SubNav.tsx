@@ -67,9 +67,9 @@ const RAIL_ITEM_CLASS =
 const RAIL_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 const TAB_ITEM_CLASS =
-  'flex h-[var(--h-bar)] items-center gap-2 whitespace-nowrap px-3 text-sm text-text disabled:opacity-45';
+  'flex h-[var(--h-nav-item)] items-center gap-2 whitespace-nowrap rounded-none px-3 text-sm font-medium text-neutral-700 hover:bg-action-hover disabled:opacity-45';
 
-const TAB_ACTIVE_CLASS = 'text-accent-800 shadow-[inset_0_-2px_0_var(--color-accent)]';
+const TAB_ACTIVE_CLASS = 'bg-accent-100 text-accent-700 shadow-[inset_0_-2px_0_var(--color-accent)]';
 
 /**
  * The visible tabs. The current view is never allowed to hide inside 「更多」 —
@@ -161,7 +161,7 @@ export function SubNav({
       aria-label={label}
       data-subnav="tabs"
       className={cn(
-        'flex h-[var(--h-bar)] flex-none items-center overflow-hidden border-b border-divider px-2',
+        'flex h-[var(--h-nav-item)] flex-none items-center overflow-x-auto overflow-y-hidden border-b border-divider bg-surface-chrome px-3',
         className,
       )}
     >

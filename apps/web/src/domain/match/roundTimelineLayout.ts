@@ -38,7 +38,7 @@ export const ROUND_CELL_MIN_PX = 18;
 
 /**
  * Below this the round number is dropped and the cell speaks only through its
- * accessible name and its title. Two digits of `--text-2xs` (11px) mono are
+ * accessible name and its title. Two digits of `--text-xs` (11px) mono are
  * about 13px, plus a pixel of air on each side.
  */
 export const ROUND_CELL_LABEL_MIN_PX = 20;

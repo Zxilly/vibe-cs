@@ -44,7 +44,7 @@ export type BadgeVariant = 'accent' | 'accent-2' | 'neutral' | 'outline' | 'coun
 export type BadgeSize = 'md' | 'sm';
 
 /**
- * Industry's `.tag`: 11px (--text-2xs), 0.02em tracking, 3px / 10px padding.
+ * Industry's `.tag`: 11px (--text-xs), 0.02em tracking, 3px / 10px padding.
  * 3px and 10px are 0.9× and 3× the `--spacing` base (3.4px) — 3.06px and
  * 10.2px — so both come off the scale rather than being written down.
  * Corners are square: `--radius-*` is 0 system-wide (§3.6).
@@ -52,7 +52,7 @@ export type BadgeSize = 'md' | 'sm';
  * Every variant declares a border so switching one never changes the box size.
  */
 export const badgeVariants = cva(
-  'inline-flex items-center whitespace-nowrap text-2xs leading-tight tracking-[0.02em]',
+  'inline-flex items-center whitespace-nowrap text-xs leading-tight tracking-[0.02em]',
   {
     variants: {
       variant: {

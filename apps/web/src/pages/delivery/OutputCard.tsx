@@ -1,278 +1,120 @@
-/*
- * pages/delivery — one produced file, as 「11 输出与任务记录」 draws it.
- *
- * The artboard's card is a thumbnail beside four lines: the file name, two
- * lines of facts, and a row of links (播放 · 定位文件 · 来源任务 #A-2481). The
- * missing-file variant swaps the border and the copy (「记录仍在，文件已被移动或
- * 删除」) and offers 重新定位 · 移除记录 instead.
- *
- * The service now supplies probed media facts and a range-serving output route.
- * The card turns that route into the desktop's allow-listed media protocol and
- * renders native controls; a browser build or unprobeable file keeps the honest
- * placeholder instead.
- *
- * ── What this card still does not draw, and why ───────────────────────────
- *
- * 重新定位   `commands` has `relinkMediaAsset` for an editor asset and nothing
- *           for an output record. The missing-file card therefore recovers by
- *           removing the record — which the artboard itself annotates as safe
- *           (「外部文件，移除记录不会删除文件」).
- * 来源任务   Only an export carries it: the service builds an export output with
- *           `id: record.job.id` (`crates/application/src/routes/outputs.rs`), so
- *           the record *is* addressable as a task, while a recording output is
- *           keyed by clip id and has no job to point at.
- */
-
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Film } from 'lucide-react';
+import { Film, Play } from 'lucide-react';
+import { useState } from 'react';
 
-import { formatTaskClock } from '../../domain/task';
-import { EMPTY_MIN_HEIGHT_CLASS } from '../../design/data';
-import { Button, cn } from '../../design/primitives';
-import type { OutputItem } from '../../shared/desktop/dto';
-import { RouteLink } from '../RouteLink';
-import { formatBytes, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
-import { Blueprint } from '../../design/layout';
-import { formatOutputMedia } from './outputModel';
 import { useNativeShell } from '../../data/nativeShell';
+import { Drawer } from '../../design/feedback';
+import { Blueprint } from '../../design/layout';
+import { Button, cn } from '../../design/primitives';
+import { formatTaskClock } from '../../domain/task';
+import type { OutputItem, Project } from '../../shared/desktop/dto';
+import { RouteLink } from '../RouteLink';
+import { formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
+
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(15rem,1.35fr)_8rem_14rem_minmax(12rem,1fr)_6rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
-  /** 定位文件. A shell action, not a service call — never gated. */
+  readonly project?: Pick<Project, 'name' | 'revision'> | undefined;
   readonly onReveal: (output: OutputItem) => void;
-  /** 移除记录 / 删除. */
   readonly onDelete: (output: OutputItem) => void;
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
-  /** Full-width delivery table row. The compact card remains the home variant. */
-  readonly layout?: 'card' | 'row' | undefined;
-  /** Gives the newest output a stable visual anchor without inventing selection. */
   readonly emphasized?: boolean | undefined;
 }
 
-export function OutputCard({
-  output,
-  onReveal,
-  onDelete,
-  now,
-  timeZone,
-  className,
-  layout = 'card',
-  emphasized = false,
-}: OutputCardProps) {
+export function OutputCard({ output, project, onReveal, onDelete, now, timeZone, className, emphasized = false }: OutputCardProps) {
   const shell = useNativeShell();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const usable = outputFileIsUsable(output.availability);
+  const title = output.output_kind === 'export' ? project?.name ?? output.title : output.title;
   const size = formatBytes(output.size_bytes);
-  const stamp = formatTaskClock(output.created_at, {
+  const stamp = formatTaskClock(output.status === 'completed' ? output.updated_at : output.created_at, {
     ...(now === undefined ? {} : { now }),
     ...(timeZone === undefined ? {} : { timeZone }),
   });
   const sourceTaskId = output.output_kind === 'export' ? `export:${output.id}` : null;
-  const mediaFacts = formatOutputMedia(output.media);
-  const streamUrl = usable
-    ? shell.mediaSrc(`/api/outputs/${output.output_kind}/${output.id}/stream`)
-    : null;
-
-  const preview = (
-    <div
-      className={cn(
-        'grid aspect-video w-[var(--w-track-head)] flex-none place-items-center border',
-        usable ? 'border-divider bg-neutral-100 text-neutral-600' : 'border-fail-border text-fail-text',
-      )}
-    >
-      {streamUrl !== null && output.media?.width != null ? (
-        <video
-          className="h-full w-full object-contain"
-          src={streamUrl}
-          controls
-          preload="metadata"
-          aria-label={`${output.title} preview`}
-        />
-      ) : usable ? (
-        <Film size={18} strokeWidth={1.5} aria-hidden="true" />
-      ) : (
-        <span className="text-2xs">
-          <Trans>文件不在原位</Trans>
-        </span>
-      )}
-    </div>
-  );
-
-  if (layout === 'row') {
-    return (
-      <Blueprint
-        as="article"
-        data-output={output.id}
-        data-output-kind={output.output_kind}
-        data-output-availability={output.availability}
-        data-output-emphasized={emphasized ? 'true' : undefined}
-        className={cn(
-          'grid min-h-[7rem] grid-cols-[var(--w-track-head)_minmax(15rem,1.35fr)_9rem_15rem_minmax(15rem,1fr)_6rem] border-x border-b',
-          usable ? 'border-divider' : 'border-fail-border',
-          emphasized && usable ? 'bg-accent-100 shadow-[inset_3px_0_0_var(--color-accent-600)]' : 'bg-neutral-0',
-          className,
-        )}
-      >
-        <div className="flex items-center justify-center p-3">{preview}</div>
-
-        <div className="flex min-w-0 flex-col justify-center border-l border-divider px-4 py-3">
-          <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.title}</h3>
-          {output.title === output.file_name ? null : (
-            <p className="mt-1 min-w-0 truncate font-mono text-2xs text-neutral-600" title={output.file_name}>
-              {output.file_name}
-            </p>
-          )}
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}>
-              <Trans>定位文件</Trans>
-            </Button>
-            {sourceTaskId === null ? null : (
-              <RouteLink to={`/delivery/task/${encodeURIComponent(sourceTaskId)}`} size="sm">
-                <Trans>来源任务</Trans>
-              </RouteLink>
-            )}
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col justify-center border-l border-divider px-4 py-3 text-xs text-neutral-700">
-          <span>{size ?? '—'}</span>
-          <span className={cn('mt-1', usable ? 'text-neutral-600' : 'text-fail-text')}>
-            {usable ? stamp : <Trans>文件缺失</Trans>}
-          </span>
-          <span className="mt-1 text-neutral-600">
-            {output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}
-          </span>
-        </div>
-
-        <div className="flex min-w-0 items-center border-l border-divider px-4 py-3 text-xs text-neutral-700">
-          {usable ? (mediaFacts.length === 0 ? '—' : mediaFacts.join(' · ')) : (
-            <Trans>记录仍在，文件已被移动或删除</Trans>
-          )}
-        </div>
-
-        <div className="flex min-w-0 items-center border-l border-divider px-4 py-3">
-          <p className="line-clamp-3 min-w-0 break-all font-mono text-2xs leading-normal text-neutral-600" title={output.path}>
-            {output.path}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-center border-l border-divider px-2 py-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(output)}
-          >
-            {outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}
-          </Button>
-        </div>
-      </Blueprint>
-    );
-  }
+  const facts = formatOutputMedia(output.media);
+  const streamUrl = usable ? shell.mediaSrc(`/api/outputs/${output.output_kind}/${output.id}/stream`) : null;
+  const version = output.project_revision;
+  const currentVersion = project !== undefined && version === project.revision;
+  const openDetails = () => { setPreviewOpen(false); setCopyNotice(null); setDetailsOpen(true); };
 
   return (
-    <Blueprint
-      as="article"
-      data-output={output.id}
-      data-output-kind={output.output_kind}
-      data-output-availability={output.availability}
-      className={cn(
-        'flex gap-4 border p-4',
-        usable ? 'border-divider' : 'border-fail-border',
-        className,
-      )}
-    >
-      {/*
-       * The artboard's thumbnail is 168×95 and §3.5 has no 168. The same
-       * thumbnail on 「01 工作台首页」 is drawn at 132×74, which *is* a token
-       * (`--w-track-head`, added in phase 0 and already used this way by
-       * `media/FilmStrip` — §10.3 deviation 4). Adopting the home artboard's
-       * size costs 36px of thumbnail and avoids an eighteenth panel width.
-       */}
-      {preview}
-
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.title}</h3>
-
-        {output.title === output.file_name ? null : (
-          <p className="min-w-0 truncate font-mono text-2xs text-neutral-600" title={output.file_name}>
-            {output.file_name}
-          </p>
-        )}
-
-        <p className={cn('text-xs leading-normal', usable ? 'text-neutral-700' : 'text-fail-text')}>
-          {usable ? (
-            <>
-              {size === null ? null : <>{size}{' · '}</>}
-              {stamp}
-              {' · '}
-              {output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}
-            </>
-          ) : (
-            <Trans>记录仍在，文件已被移动或删除</Trans>
-          )}
-        </p>
-
-        {mediaFacts.length === 0 ? null : (
-          <p className="text-xs text-neutral-700">{mediaFacts.join(' · ')}</p>
-        )}
-
-        {/* The full path is the only handle on a file the app cannot show, so
-            it is printed rather than hidden behind a tooltip. `break-all` keeps
-            a long Windows path inside the card instead of widening the grid. */}
-        <p className="min-w-0 truncate font-mono text-2xs text-neutral-600" title={output.path}>
-          {output.path}
-        </p>
-
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-3 pr-2">
-          <Button variant="ghost" size="sm" onClick={() => onReveal(output)}>
-            <Trans>定位文件</Trans>
-          </Button>
-
-          {sourceTaskId === null ? null : (
-            <RouteLink to={`/delivery/task/${encodeURIComponent(sourceTaskId)}`} size="sm">
-              <Trans>来源任务</Trans>
-            </RouteLink>
-          )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(output)}
-            className="ml-auto"
-          >
-            {outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}
-          </Button>
+    <>
+      <Blueprint as="article" data-output={output.id} data-output-kind={output.output_kind}
+        data-output-availability={output.availability} data-output-emphasized={emphasized ? 'true' : undefined}
+        className={cn('grid min-h-26 border-x border-b', OUTPUT_ROW_COLUMNS,
+          usable ? 'border-divider' : 'border-fail-border', emphasized && usable ? 'bg-accent-100' : 'bg-bg', className)}>
+        <div className="flex items-center justify-center px-4 py-2">
+          <button type="button" className="relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-sm border border-divider bg-media text-on-media"
+            aria-label={t`预览 ${title}`} disabled={!usable}
+            onClick={() => { setPreviewOpen(true); setDetailsOpen(true); }}>
+            {streamUrl !== null && output.media?.width != null ? <video className="size-full object-contain" src={streamUrl} muted preload="metadata" aria-hidden="true" />
+              : <Film className="size-5" aria-hidden="true" />}
+            {usable ? <span className="absolute grid size-8 place-items-center rounded-sm bg-media/90"><Play className="size-4" aria-hidden="true" /></span>
+              : <span className="absolute inset-0 grid place-items-center bg-media text-xs"><Trans>文件不在原位</Trans></span>}
+          </button>
         </div>
-      </div>
-    </Blueprint>
+        <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
+          <h3 className="min-w-0 truncate text-base font-normal"><button type="button" className="block max-w-full truncate text-left hover:underline" onClick={openDetails}>{title}</button></h3>
+          {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
+            r{version}{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
+          </p>}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
+            {sourceTaskId === null ? null : <RouteLink to={`/delivery/task/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>来源任务</Trans></RouteLink>}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2 text-xs text-neutral-600">
+          <span>{size ?? '—'}</span><span>{usable ? stamp : <Trans>文件缺失</Trans>}</span>
+          <span>{output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}</span>
+        </div>
+        <div className="flex min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700">
+          {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
+        </div>
+        <div className="flex min-w-0 items-center border-l border-divider px-4 py-2">
+          <button type="button" className="min-w-0 truncate text-left font-mono text-xs text-neutral-600 hover:underline" title={output.path} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>{output.path}</button>
+        </div>
+        <div className="flex items-center justify-center border-l border-divider px-2 py-2">
+          <Button variant="ghost" size="sm" onClick={() => onDelete(output)}>{outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}</Button>
+        </div>
+      </Blueprint>
+      <Drawer open={detailsOpen} title={title} description={version === null ? undefined : `r${version}`} width="wide" onClose={() => setDetailsOpen(false)}>
+        <div className="space-y-4">
+          {previewOpen && streamUrl !== null ? <video className="aspect-video w-full bg-media object-contain" src={streamUrl} controls autoPlay aria-label={t`成品播放 ${title}`} /> : null}
+          <dl className="space-y-2 text-sm">
+            <dt className="text-neutral-600">{output.status === 'completed' ? <Trans>完成时间</Trans> : <Trans>更新时间</Trans>}</dt><dd>{stamp}</dd>
+            <dt className="text-neutral-600"><Trans>文件名</Trans></dt><dd className="break-all font-mono text-xs">{output.file_name}</dd>
+            <dt className="text-neutral-600"><Trans>文件参数</Trans></dt><dd>{facts.join(' · ') || t`参数不可读取`}</dd>
+            <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{output.path}</dd>
+          </dl>
+          <p className="text-sm text-neutral-700">{usable ? <Trans>文件可读取；仍需人工观看检查黑帧、音画同步与剪辑内容。</Trans> : <Trans>文件已不在原位，记录仍然保留。</Trans>}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
+            <Button size="sm" variant="secondary" onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(output.path);
+                setCopyNotice(t`已复制完整路径`);
+              } catch {
+                setCopyNotice(t`无法访问剪贴板，请选择上方完整路径手动复制。`);
+              }
+            }}><Trans>复制完整路径</Trans></Button>
+          </div>
+          {copyNotice === null ? null : <p role="status" className="text-sm text-neutral-700">{copyNotice}</p>}
+        </div>
+      </Drawer>
+    </>
   );
 }
 
-/**
- * The loading placeholder for one card. Bars only — 「加载中 · 表格骨架（不显示
- * 虚构百分比）」 — and the same box height as the card it stands in for, so the
- * grid does not reflow when the answer arrives.
- */
 export function OutputCardSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      className={cn('flex gap-4 border border-divider p-4', EMPTY_MIN_HEIGHT_CLASS)}
-    >
-      <span
-        aria-hidden="true"
-        className="aspect-video w-[var(--w-track-head)] flex-none animate-pulse bg-neutral-200"
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span aria-hidden="true" className="h-3.5 w-2/5 animate-pulse bg-neutral-200" />
-        <span aria-hidden="true" className="h-3 w-4/5 animate-pulse bg-neutral-200" />
-        <span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-200" />
-      </div>
-      <span className="sr-only">
-        <Trans>正在加载成片</Trans>
-      </span>
-    </div>
-  );
+  return <div role="status" aria-busy="true" className="flex min-h-26 gap-4 border border-divider p-4">
+    <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse bg-neutral-200" />
+    <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-100" /></div>
+  </div>;
 }

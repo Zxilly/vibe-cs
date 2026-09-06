@@ -42,6 +42,7 @@ export const MATCH_PARAM = {
   player: 'player',
   tick: 'tick',
   evidence: 'evidence',
+  highlight: 'highlight',
 } as const;
 
 /** §7's default face of the workspace. */
@@ -63,6 +64,8 @@ export interface MatchWorkspaceContext {
   readonly tick: number | null;
   /** `EvidenceSearchItem.evidence_id` of the selected fact. */
   readonly evidence: string | null;
+  /** Stable highlight identity; scrubbing its replay does not change selection. */
+  readonly highlight: string | null;
 }
 
 /**
@@ -76,6 +79,7 @@ export interface MatchContextPatch {
   readonly player?: string | null | undefined;
   readonly tick?: number | null | undefined;
   readonly evidence?: string | null | undefined;
+  readonly highlight?: string | null | undefined;
 }
 
 /* ── reading ─────────────────────────────────────────────────────────────── */
@@ -87,6 +91,7 @@ export function readWorkspaceContext(params: URLSearchParams): MatchWorkspaceCon
     player: readIdentifier(params.get(MATCH_PARAM.player)),
     tick: readTick(params.get(MATCH_PARAM.tick)),
     evidence: readIdentifier(params.get(MATCH_PARAM.evidence)),
+    highlight: readIdentifier(params.get(MATCH_PARAM.highlight)),
   };
 }
 
@@ -136,6 +141,7 @@ export function writeWorkspaceContext(context: MatchWorkspaceContext): URLSearch
   if (context.player !== null) params.set(MATCH_PARAM.player, context.player);
   if (context.tick !== null) params.set(MATCH_PARAM.tick, String(context.tick));
   if (context.evidence !== null) params.set(MATCH_PARAM.evidence, context.evidence);
+  if (context.highlight !== null) params.set(MATCH_PARAM.highlight, context.highlight);
   return params;
 }
 
@@ -160,6 +166,9 @@ export function patchWorkspaceContext(
     tick: patch.tick === undefined ? (roundChanged ? null : context.tick) : patch.tick,
     evidence:
       patch.evidence === undefined ? (roundChanged ? null : context.evidence) : patch.evidence,
+    highlight: patch.highlight === undefined
+      ? (roundChanged || (patch.player !== undefined && patch.player !== context.player) ? null : context.highlight)
+      : patch.highlight,
   };
 }
 

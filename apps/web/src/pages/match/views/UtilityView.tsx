@@ -72,7 +72,7 @@ import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './view
  */
 function PanelHead({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex h-[var(--h-thead)] flex-none items-center border-b border-divider px-2.5 font-heading text-2xs tracking-widest text-neutral-700">
+    <div className="flex h-[var(--h-thead)] flex-none items-center border-b border-divider px-2.5 font-heading text-xs tracking-widest text-neutral-700">
       {children}
     </div>
   );
@@ -134,7 +134,7 @@ function Tile({
           : 'min-w-0 flex-1 border border-divider px-3 py-2.5'
       }
     >
-      <div className="text-2xs text-neutral-600">{label}</div>
+      <div className="text-xs text-neutral-600">{label}</div>
       <div className={degraded ? 'font-mono text-lg text-neutral-600' : 'font-mono text-lg'}>
         {value}
       </div>
@@ -500,7 +500,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           ))}
 
         {gate.fallback !== null || degraded === null ? null : (
-          <p className="border-t border-divider px-3.5 py-2.5 text-2xs text-neutral-600">
+          <p className="border-t border-divider px-3.5 py-2.5 text-xs text-neutral-600">
             {/* The service's own English sentence, verbatim, so a bug report can
                 quote the reason the block above is degraded. */}
             <Trans>说明：{degraded}</Trans>
@@ -620,7 +620,7 @@ export function RoundEconomyDetail({ row, spendAvailable }: RoundEconomyDetailPr
 function DetailCell({ label, value }: { readonly label: ReactNode; readonly value: string }) {
   return (
     <div className="bg-bg px-3 py-2.5">
-      <dt className="text-2xs text-neutral-600">{label}</dt>
+      <dt className="text-xs text-neutral-600">{label}</dt>
       <dd className="font-mono text-lg">{value}</dd>
     </div>
   );

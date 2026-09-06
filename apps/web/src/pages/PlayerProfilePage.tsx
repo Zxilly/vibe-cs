@@ -142,7 +142,7 @@ export function PlayerProfilePage() {
       }
     >
       {profileError === null ? null : (
-        <div className="p-7">
+        <div className="p-6">
           <Alert
             variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void profile.refetch() }}
@@ -154,7 +154,7 @@ export function PlayerProfilePage() {
       )}
 
       <div className="flex min-h-0 min-w-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto border-r border-divider p-7">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto border-r border-divider p-6">
           <PlayerTrend
             matches={recentMatches}
             metric={metric}
@@ -184,7 +184,7 @@ export function PlayerProfilePage() {
               be a segmented control. */}
           {maps.data === undefined || maps.data.items.length === 0 ? null : (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-2xs text-neutral-600">
+              <span className="text-xs text-neutral-600">
                 <Trans>换一张图</Trans>
               </span>
               {maps.data.items.map((item) =>
@@ -203,7 +203,7 @@ export function PlayerProfilePage() {
           )}
 
           <section className="flex flex-col gap-2" data-player-recent="">
-            <div className="font-heading text-2xs tracking-caps text-neutral-600">
+            <div className="font-heading text-xs tracking-caps text-neutral-600">
               <Trans>最近比赛</Trans>
             </div>
             {matchesError !== null ? (
@@ -241,7 +241,7 @@ export function PlayerProfilePage() {
 
           {/* Verbatim from the artboard: a dashed note for a statistic the demo
               files do not contain, rather than an empty chart. */}
-          <p className="border border-dashed border-neutral-400 p-3 text-2xs leading-normal text-neutral-700">
+          <p className="border border-dashed border-neutral-400 p-3 text-xs leading-normal text-neutral-700">
             <Trans>段位历史不可用：这批 Demo 里没有段位信息。</Trans>
           </p>
         </aside>

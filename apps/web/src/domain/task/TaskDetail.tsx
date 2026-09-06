@@ -221,7 +221,7 @@ export function TaskDetail({
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
                 <ChevronRight size={14} strokeWidth={1.5} aria-hidden className="flex-none" />
                 <Trans>技术细节</Trans>
-                <span className="text-2xs text-neutral-600">
+                <span className="text-xs text-neutral-600">
                   <Trans>进程、tick、编码参数</Trans>
                 </span>
               </summary>
@@ -270,7 +270,7 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
         {/* The heading carries `--tracking-caps`; the hint beside it is prose
             and returns to normal spacing. There is no `tracking-normal` in this
             theme (§3 resets `--tracking-*`), so it is spelled out. */}
-        <span className="text-2xs [letter-spacing:normal] text-neutral-600">
+        <span className="text-xs [letter-spacing:normal] text-neutral-600">
           <Trans>用户语言；实现细节收在「技术细节」里</Trans>
         </span>
       </div>

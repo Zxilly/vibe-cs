@@ -27,13 +27,15 @@ import { useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
+import { useProjects } from '../../data/projects';
 import { Empty, Pagination } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import { Seg } from '../../design/primitives';
 import type { OutputItem, OutputQuery } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
-import { OutputCard, OutputCardSkeleton } from './OutputCard';
+import { OUTPUT_ROW_COLUMNS, OutputCard, OutputCardSkeleton } from './OutputCard';
+import { cn } from '../../design/cn';
 import { outputDeletionRemovesFile } from './outputModel';
 
 /** Two rows of two on a 1100px window; the artboard draws four cards. */
@@ -70,6 +72,7 @@ export interface OutputsViewProps {
 }
 
 export function OutputsView({ now }: OutputsViewProps) {
+  const projects = useProjects();
   const [filter, setFilter] = useState<OutputFilter>('all');
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
@@ -137,7 +140,7 @@ export function OutputsView({ now }: OutputsViewProps) {
         />
       </Toolbar>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-7">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
         {notice === null ? null : (
           <Alert
             variant="info"
@@ -174,7 +177,7 @@ export function OutputsView({ now }: OutputsViewProps) {
         ) : (
           <div className="min-w-[68rem] border-t border-divider">
             <div
-              className="grid h-10 grid-cols-[var(--w-track-head)_minmax(15rem,1.35fr)_9rem_15rem_minmax(15rem,1fr)_6rem] border-x border-b border-divider bg-neutral-50 text-2xs font-medium tracking-wide text-neutral-700"
+              className={cn('grid h-10 border-x border-b border-divider bg-neutral-50 text-xs font-medium text-neutral-700', OUTPUT_ROW_COLUMNS)}
               aria-hidden="true"
             >
               <span className="flex items-center px-4"><Trans>预览</Trans></span>
@@ -188,7 +191,7 @@ export function OutputsView({ now }: OutputsViewProps) {
               <OutputCard
                 key={`${output.output_kind}:${output.id}`}
                 output={output}
-                layout="row"
+                project={projects.data?.find((project) => project.id === output.project_id)}
                 emphasized={page === 1 && filter === 'all' && index === 0}
                 onReveal={onReveal}
                 onDelete={onDelete}

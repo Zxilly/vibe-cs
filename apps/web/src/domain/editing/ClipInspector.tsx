@@ -186,7 +186,7 @@ export function ClipInspector({
             )}
           </div>
           {draft.speed_segments.length === 0 ? (
-            <p className="mt-2 text-2xs leading-4 text-neutral-500"><Trans>启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。</Trans></p>
+            <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。</Trans></p>
           ) : (
             <>
               <Button
@@ -214,10 +214,10 @@ export function ClipInspector({
                     className="grid grid-cols-[minmax(0,1fr)_90px_28px] items-center gap-2 border border-divider bg-neutral-50 px-2 py-1.5"
                     data-speed-segment-id={segment.id}
                   >
-                    <span className="min-w-0 truncate font-mono text-2xs text-neutral-600">
+                    <span className="min-w-0 truncate font-mono text-xs text-neutral-600">
                       {segment.start.toFixed(3)}–{segment.end.toFixed(3)}s
                     </span>
-                    <label className="flex min-w-0 items-center gap-1 text-2xs">
+                    <label className="flex min-w-0 items-center gap-1 text-xs">
                       <span className="sr-only"><Trans>区间速度</Trans></span>
                       <input
                         type="number"
@@ -249,7 +249,7 @@ export function ClipInspector({
                   </li>
                 ))}
               </ol>
-              <p className="mt-2 text-2xs leading-4 text-neutral-500"><Trans>调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段将在保存时波纹移动。</Trans></p>
+              <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段将在保存时波纹移动。</Trans></p>
             </>
           )}
         </section>
@@ -283,7 +283,7 @@ export function ClipInspector({
             <CaptureIntentNumberField label={t`前留白（秒）`} value={draft.capture_intent.pre_roll_seconds} step={0.1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { pre_roll_seconds: Math.max(0, value) }))} />
             <CaptureIntentNumberField label={t`后留白（秒）`} value={draft.capture_intent.post_roll_seconds} step={0.1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { post_roll_seconds: Math.max(0, value) }))} />
           </div>
-          <span className="mt-1 block text-2xs text-neutral-500"><Trans>非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。</Trans></span>
+          <span className="mt-1 block text-xs text-neutral-500"><Trans>非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。</Trans></span>
           {draft.material.kind === 'planned' ? null : (
             <Button
               className="mt-2 w-full"
@@ -396,7 +396,7 @@ export function ClipInspector({
               const current = clipKeyframeAtTime(draft, property, localTime, fps);
               const value = evaluateClipKeyframeProperty(draft, property, localTime, fallback);
               return <div key={property} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
-                <span>{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
+                <span>{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
                 <input
                   type="number"
                   min={min}
@@ -414,7 +414,7 @@ export function ClipInspector({
                   type="button"
                   className={cn(
                     'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
-                    current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
+                    current !== null && 'border-accent-300 bg-accent-100 text-accent-700',
                   )}
                   disabled={readOnly}
                   aria-label={current === null ? t`在播放头添加 ${label} 关键帧` : t`删除播放头的 ${label} 关键帧`}
@@ -434,7 +434,7 @@ export function ClipInspector({
           <h3 className="mb-2 text-xs font-semibold"><Trans>关键帧插值</Trans></h3>
           {currentFrameKeyframes.map((keyframe) => (
             <div key={keyframe.id} className="mt-2 grid grid-cols-[minmax(0,1fr)_110px] gap-2 text-xs">
-              <span className="truncate font-mono text-2xs">{keyframe.property}</span>
+              <span className="truncate font-mono text-xs">{keyframe.property}</span>
               <select
                 className="border border-divider bg-bg px-2 py-1"
                 aria-label={t`${keyframe.property} 插值`}
@@ -504,7 +504,7 @@ export function ClipInspector({
                 onClick={() => nextKeyframeTime === undefined ? undefined : onSeek(draft.placement.start + nextKeyframeTime)}
               ><ChevronRight className="size-3" aria-hidden="true" /></button>
             </span>
-            <span className="ml-auto font-mono text-2xs text-neutral-500"><Trans>片段内</Trans> {localTime.toFixed(3)}s</span>
+            <span className="ml-auto font-mono text-xs text-neutral-500"><Trans>片段内</Trans> {localTime.toFixed(3)}s</span>
           </div>
           {visualProperties.map(({ property, label, step, min, max }) => {
             const propertyKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === property);
@@ -514,7 +514,7 @@ export function ClipInspector({
             const value = evaluateClipKeyframeProperty(draft, property, localTime, fallback);
             return (
               <div key={property} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
-                <span className="truncate">{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
+                <span className="truncate">{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
                 <input
                   type="number"
                   step={step}
@@ -537,7 +537,7 @@ export function ClipInspector({
                   type="button"
                   className={cn(
                     'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
-                    current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
+                    current !== null && 'border-accent-300 bg-accent-100 text-accent-700',
                   )}
                   disabled={readOnly || (current === null && !animationAllowed)}
                   aria-label={current === null ? t`在播放头添加 ${label} 关键帧` : t`删除播放头的 ${label} 关键帧`}
@@ -551,16 +551,16 @@ export function ClipInspector({
             );
           })}
           {draft.keyframes.some((keyframe) => ['scale_x', 'scale_y', 'rotation'].includes(keyframe.property))
-            ? <p className="mt-2 text-2xs text-neutral-500"><Trans>动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。</Trans></p>
+            ? <p className="mt-2 text-xs text-neutral-500"><Trans>动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。</Trans></p>
             : null}
         </section>
       )}
       {draft.text === null && (selected?.track.kind === 'video' || selected?.track.kind === 'overlay') ? (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`效果`}>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-2xs text-neutral-500">{draft.effects.length}</span></h3>
+            <h3 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-xs text-neutral-500">{draft.effects.length}</span></h3>
             <select
-              className="ml-auto h-7 min-w-0 border border-divider bg-bg px-2 text-2xs"
+              className="ml-auto h-7 min-w-0 border border-divider bg-bg px-2 text-xs"
               aria-label={t`添加效果类型`}
               disabled={readOnly}
               value={effectKind}
@@ -602,9 +602,9 @@ export function ClipInspector({
                     <button type="button" className="grid size-6 place-items-center hover:bg-neutral-200 disabled:text-neutral-300" aria-label={t`下移效果 ${effectLabel(effect.kind)}`} disabled={readOnly || index === draft.effects.length - 1} onClick={() => setDraft({ ...draft, effects: moveEditorEffect(draft.effects, effect.id, 1) })}><ChevronDown className="size-3" aria-hidden="true" /></button>
                     <button type="button" className="grid size-6 place-items-center text-fail-text hover:bg-fail-surface disabled:text-neutral-300" aria-label={t`删除效果 ${effectLabel(effect.kind)}`} disabled={readOnly} onClick={() => setDraft({ ...draft, effects: draft.effects.filter((candidate) => candidate.id !== effect.id) })}><Trash2 className="size-3" aria-hidden="true" /></button>
                   </div>
-                  {supportedKind === null ? <p className="mt-1 text-2xs text-fail-text"><Trans>该效果不受当前渲染器支持，请禁用或删除。</Trans></p> : null}
+                  {supportedKind === null ? <p className="mt-1 text-xs text-fail-text"><Trans>该效果不受当前渲染器支持，请禁用或删除。</Trans></p> : null}
                   {schema.map((parameter) => (
-                    <label key={parameter.key} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px] items-center gap-2 text-2xs">
+                    <label key={parameter.key} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px] items-center gap-2 text-xs">
                       <span>{effectParameterLabel(parameter.key)}</span>
                       <input
                         type="number"
@@ -749,7 +749,7 @@ function CaptureIntentNumberField({
   readonly onChange: (value: number) => void;
 }) {
   return (
-    <label className="flex min-w-0 flex-col gap-1 text-2xs">
+    <label className="flex min-w-0 flex-col gap-1 text-xs">
       {label}
       <input
         type="number"

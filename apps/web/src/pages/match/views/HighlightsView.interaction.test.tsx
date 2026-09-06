@@ -101,6 +101,17 @@ describe('the batch selection', () => {
 });
 
 describe('定位', () => {
+  it('collects the same full recording source from the row and Inspector', () => {
+    const onAdd = vi.fn();
+    const props = { ...viewProps(), addToVideo: { disabled: false, onAdd } };
+    const Inspector = HighlightsView.Inspector!;
+    renderView(<><HighlightsView.Body {...props} /><Inspector {...props} /></>);
+    fireEvent.click(screen.getAllByRole('button', { name: '加入作品' })[0] as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: '把这条高光加入作品' }));
+    expect(onAdd).toHaveBeenCalledTimes(2);
+    expect(onAdd.mock.calls[0]?.[0]).toEqual(onAdd.mock.calls[1]?.[0]);
+    expect(onAdd.mock.calls[0]?.[0]).toMatchObject({ playerId: 'kael', tickRate: 64, highlightId: 'h-21-clutch' });
+  });
   it('writes the round and the tick into the address', () => {
     const updateContext = vi.fn<(patch: MatchContextPatch) => void>();
     renderView(<HighlightsView.Body {...viewProps({ updateContext })} />);
@@ -108,6 +119,6 @@ describe('定位', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '定位' })[0] as HTMLElement);
 
     // §4.4: 「URL 是唯一真值」 — the selection is the address, not local state.
-    expect(updateContext).toHaveBeenCalledWith({ round: 21, tick: 148_920 });
+    expect(updateContext).toHaveBeenCalledWith({ highlight: 'h-21-clutch', round: 21, tick: 148_920, player: 'kael' });
   });
 });

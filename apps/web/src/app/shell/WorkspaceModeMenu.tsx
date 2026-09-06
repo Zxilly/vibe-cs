@@ -37,14 +37,14 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
         aria-label={t`切换工作模式，当前：${currentModeLabel}`}
         data-workspace-mode-trigger
         className={cn(
-          'flex h-full w-full items-center gap-2 text-text outline-none hover:bg-neutral-200 ' +
+          'flex h-full w-full items-center gap-3 text-text outline-none hover:bg-neutral-200 ' +
             'data-[state=open]:bg-neutral-200',
-          collapsed ? 'justify-center px-1.5' : 'px-4',
+          collapsed ? 'justify-center px-1.5' : 'px-6',
         )}
       >
         <ModeIcon size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
         {collapsed ? null : (
-          <span className="min-w-0 flex-1 truncate text-left font-heading text-md">
+          <span className="min-w-0 flex-1 truncate text-left text-base font-medium">
             {currentModeLabel}
           </span>
         )}
@@ -59,7 +59,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
           data-workspace-mode-menu
           className={CONTENT_CLASS}
         >
-          <DropdownMenuPrimitive.Label className="px-3 py-1.5 font-heading text-2xs tracking-caps text-neutral-600">
+          <DropdownMenuPrimitive.Label className="px-3 py-1.5 font-heading text-xs tracking-caps text-neutral-600">
             <Trans>工作模式</Trans>
           </DropdownMenuPrimitive.Label>
           <DropdownMenuPrimitive.RadioGroup
@@ -103,7 +103,7 @@ function ModeItem({
       <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
       <span className="flex min-w-0 flex-col">
         <span className="font-heading text-sm">{title}</span>
-        <span className="truncate text-2xs text-neutral-600">{description}</span>
+        <span className="truncate text-xs text-neutral-600">{description}</span>
       </span>
       <DropdownMenuPrimitive.ItemIndicator>
         <Check size={14} strokeWidth={1.5} aria-hidden="true" />

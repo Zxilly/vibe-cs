@@ -51,7 +51,7 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
@@ -75,6 +75,7 @@ import {
   filterHighlights,
   HIGHLIGHT_PAGE_SIZE,
   highlightPage,
+  highlightSelection,
   highlightKindCounts,
   matchHighlights,
   toggleSelected,
@@ -93,6 +94,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
   const [filter, setFilter] = useState<FilterValue>('all');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const listRef = useRef<HTMLUListElement>(null);
 
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
   const counts = useMemo(() => highlightKindCounts(highlights), [highlights]);
@@ -100,14 +102,17 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     () => filterHighlights(highlights, filter === 'all' ? null : filter),
     [highlights, filter],
   );
-  const current = currentHighlightId(highlights, context.round, context.tick);
+  const current = context.highlight ?? currentHighlightId(highlights, context.round, context.tick, context.player);
   const pageCount = Math.max(1, Math.ceil(visible.length / HIGHLIGHT_PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const pageHighlights = useMemo(
     () => highlightPage(visible, currentPage),
     [visible, currentPage],
   );
-  const focusedCurrent = current ?? pageHighlights[0]?.id ?? null;
+  const focusedCurrent = current ?? highlights[0]?.id ?? null;
+  useEffect(() => {
+    if (current !== null) listRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [current, currentPage, pageHighlights]);
   const batch = useMemo(
     () => visibleSelection(selected, pageHighlights),
     [selected, pageHighlights],
@@ -222,6 +227,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
         />
       ) : (
         <ul
+          ref={listRef}
           data-highlights="list"
           data-highlights-page={currentPage}
           className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain"
@@ -240,7 +246,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => updateContext({ round: highlight.round, tick: highlight.startTick })}
+                      onClick={() => updateContext({ highlight: highlight.id, round: highlight.round, tick: highlight.startTick, player: highlight.playerId ?? null })}
                     >
                       <Trans>定位</Trans>
                     </Button>
@@ -252,14 +258,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                         ? {}
                         : { disabledReason: addToVideo.disabledReason })}
                       onClick={() =>
-                        addToVideo.onAdd?.({
-                          round: highlight.round,
-                          highlightId: highlight.id,
-                          ...(highlight.playerId === undefined ? {} : { playerId: highlight.playerId }),
-                          startTick: highlight.startTick,
-                          endTick: highlight.endTick,
-                          ...(highlight.tickRate === undefined ? {} : { tickRate: highlight.tickRate }),
-                        })
+                        addToVideo.onAdd?.(highlightSelection(highlight))
                       }
                     >
                       <Trans>加入作品</Trans>
@@ -295,14 +294,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                   ? {}
                   : { disabledReason: addToVideo.disabledReason })}
                 onClick={() => {
-                  addToVideo.onAddMany?.(batch.map((highlight) => ({
-                    round: highlight.round,
-                    highlightId: highlight.id,
-                    ...(highlight.playerId === undefined ? {} : { playerId: highlight.playerId }),
-                    startTick: highlight.startTick,
-                    endTick: highlight.endTick,
-                    ...(highlight.tickRate === undefined ? {} : { tickRate: highlight.tickRate }),
-                  })));
+                  addToVideo.onAddMany?.(batch.map(highlightSelection));
                 }}
               >
                 <Trans>加入作品</Trans>
@@ -329,7 +321,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
-  const currentId = currentHighlightId(highlights, context.round, context.tick)
+  const currentId = context.highlight ?? currentHighlightId(highlights, context.round, context.tick, context.player)
     ?? highlights[0]?.id
     ?? null;
   const highlight = highlights.find((entry) => entry.id === currentId) ?? null;
@@ -354,15 +346,10 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
   return (
     <MatchInspectorPanel
       title={<Trans>选中：第 {highlight.round} 回合的高光</Trans>}
-      summary={highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}
+      summary={<>{highlight.subject} · {highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}</>}
       addToVideo={addToVideo}
       addLabel={<Trans>把这条高光加入作品</Trans>}
-      selection={{
-        round: highlight.round,
-        highlightId: highlight.id,
-        startTick: highlight.startTick,
-        endTick: highlight.endTick,
-      }}
+      selection={highlightSelection(highlight)}
       collapsed={collapsed}
     >
       <dl className="flex flex-col gap-3 text-sm">
@@ -413,7 +400,7 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
 function Row({ label, children }: { readonly label: ReactNode; readonly children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="font-heading text-2xs tracking-caps text-neutral-600">{label}</dt>
+      <dt className="font-heading text-xs tracking-caps text-neutral-600">{label}</dt>
       <dd className="min-w-0 break-words text-text">{children}</dd>
     </div>
   );

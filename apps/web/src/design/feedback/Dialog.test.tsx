@@ -118,6 +118,6 @@ describe('Dialog', () => {
     const markup = renderMarkup(stopRecording());
 
     expect(markup).toContain('data-overlay="dialog-backdrop"');
-    expect(markup).toContain('bg-neutral-900/50');
+    expect(markup).toContain('bg-media/50');
   });
 });

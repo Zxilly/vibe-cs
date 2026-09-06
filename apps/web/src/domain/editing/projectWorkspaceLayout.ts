@@ -17,7 +17,7 @@ interface WorkspaceLayoutStorage {
   removeItem(key: string): void;
 }
 
-export function createProjectWorkspaceLayout(): IJsonModel {
+export function createProjectWorkspaceLayout(mode: 'wide' | 'compact' = 'wide'): IJsonModel {
   const tab = (id: string, name: string, component: ProjectWorkspacePanel) => ({
     type: 'tab',
     id,
@@ -27,7 +27,7 @@ export function createProjectWorkspaceLayout(): IJsonModel {
     enablePopout: false,
     enableRename: false,
   });
-  return {
+  const model: IJsonModel = {
     global: {
       enableEdgeDock: true,
       enableEdgeDockIndicators: true,
@@ -56,7 +56,7 @@ export function createProjectWorkspaceLayout(): IJsonModel {
           type: 'tabset',
           id: 'project-group',
           name: 'Project panel',
-          weight: 22,
+          weight: 20,
           children: [tab('project-panel', 'Project', 'project')],
         },
         {
@@ -73,14 +73,14 @@ export function createProjectWorkspaceLayout(): IJsonModel {
                   type: 'tabset',
                   id: 'program-group',
                   name: 'Program monitor',
-                  weight: 50,
+                  weight: 70,
                   children: [tab('program-panel', 'Program', 'program')],
                 },
                 {
                   type: 'tabset',
                   id: 'tactical-group',
                   name: 'Tactical monitor',
-                  weight: 50,
+                  weight: 30,
                   children: [tab('tactical-panel', 'Tactical', 'tactical')],
                 },
               ],
@@ -98,12 +98,29 @@ export function createProjectWorkspaceLayout(): IJsonModel {
           type: 'tabset',
           id: 'agent-group',
           name: 'Agent panel',
-          weight: 20,
+          weight: 22,
           children: [
             tab('agent-panel', 'Agent', 'agent'),
             tab('mixer-panel', 'Audio Track Mixer', 'mixer'),
           ],
         },
+      ],
+    },
+  };
+  if (mode === 'wide') return model;
+  return {
+    ...model,
+    borders: [{
+      type: 'border', location: 'right', borderType: 'overlay', selected: -1, size: 360,
+      children: [tab('agent-panel', 'Agent', 'agent'), tab('mixer-panel', 'Audio Track Mixer', 'mixer')],
+    }],
+    layout: {
+      type: 'row', id: 'workspace-root', children: [
+        { type: 'tabset', id: 'project-group', weight: 22, children: [tab('project-panel', 'Project', 'project')] },
+        { type: 'row', id: 'editing-column', weight: 78, children: [
+          { type: 'tabset', id: 'program-group', weight: 45, children: [tab('program-panel', 'Program', 'program'), tab('tactical-panel', 'Tactical', 'tactical')] },
+          { type: 'tabset', id: 'timeline-group', weight: 55, children: [tab('timeline-panel', 'Timeline', 'timeline')] },
+        ] },
       ],
     },
   };

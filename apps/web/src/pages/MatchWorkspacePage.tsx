@@ -76,7 +76,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useDemo } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
 import { useMatchAnalysis } from '../data/match';
-import type { ProjectCollectedClip } from '../domain/project/collectedClip';
+import { collectedClipRange, type ProjectCollectedClip } from '../domain/project/collectedClip';
 import { Alert } from '../design/feedback';
 import { Page, SubNav, useCollapsed, type SubNavItem } from '../design/layout';
 import { Button } from '../design/primitives';
@@ -126,8 +126,8 @@ export function MatchWorkspacePage() {
   const matchLabel = demo.data?.display_name ?? demoId;
   const addToVideo: MatchVideoAction = {
     disabled: false,
-    onAdd: (selection) => setPendingClips([collectedClip(demoId, matchLabel, selection)]),
-    onAddMany: (selections) => setPendingClips(selections.map((selection) => collectedClip(demoId, matchLabel, selection))),
+    onAdd: (selection) => setPendingClips([collectedClip(demoId, matchLabel, selection, analysis.data?.players.find((player) => player.id === selection.playerId)?.name ?? null)]),
+    onAddMany: (selections) => setPendingClips(selections.map((selection) => collectedClip(demoId, matchLabel, selection, analysis.data?.players.find((player) => player.id === selection.playerId)?.name ?? null))),
   };
 
   const viewProps: MatchViewProps = {
@@ -223,17 +223,16 @@ export function MatchWorkspacePage() {
           }
         />
       }
-      /* §8 rule 3: folded, the rail is a row of tabs under the context bar. */
+      /* The same view navigation stays above the data in both layouts. */
       bar={
-        collapsed ? (
           <SubNav
             items={items}
             activeId={context.view}
             onSelect={selectView}
             label={t`比赛工作区视图`}
-            collapsed
+            orientation="tabs"
+            visibleTabs={collapsed ? 5 : items.length}
           />
-        ) : null
       }
       /* §8 rule 2: folded, the Inspector is a 46px summary strip at the bottom
          plus a drawer it pulls out. */
@@ -253,15 +252,6 @@ export function MatchWorkspacePage() {
         </Alert>
       )}
       <div className="flex min-h-0 min-w-0 flex-1">
-        {collapsed ? null : (
-          <SubNav
-            items={items}
-            activeId={context.view}
-            onSelect={selectView}
-            label={t`比赛工作区视图`}
-            collapsed={false}
-          />
-        )}
         <main
           data-match-content=""
           /* The demo id is on the frame, not in a caption: the artboard's bar
@@ -290,6 +280,7 @@ function collectedClip(
   demoId: string,
   matchLabel: string,
   selection: Parameters<NonNullable<MatchVideoAction['onAdd']>>[0],
+  playerName: string | null,
 ): ProjectCollectedClip {
   const kind = selection.highlightId !== undefined
     ? 'highlight'
@@ -308,12 +299,8 @@ function collectedClip(
       : kind === 'evidence' ? `证据 ${identity}`
         : kind === 'round' ? `第 ${String(selection.round)} 回合`
           : kind === 'player' ? `选手 ${String(selection.playerId)}` : '比赛片段');
-  const durationSeconds = selection.startTick === undefined
-    || selection.endTick === undefined
-    || selection.tickRate === undefined
-    || selection.tickRate <= 0
-    ? null
-    : Math.max(0, (selection.endTick - selection.startTick) / selection.tickRate + 2.5);
+  const range = collectedClipRange({ startTick: selection.startTick ?? null, endTick: selection.endTick ?? null, tickRate: selection.tickRate ?? null });
+  const durationSeconds = range === null ? null : range.recordingEnd - range.recordingStart;
   return {
     id: `${demoId}:${kind}:${identity}`,
     demoId,
@@ -322,6 +309,8 @@ function collectedClip(
     label,
     round: selection.round ?? null,
     playerId: selection.playerId ?? null,
+    playerName,
+    tickRate: selection.tickRate ?? null,
     highlightId: selection.highlightId ?? null,
     evidenceId: selection.evidenceId ?? null,
     startTick: selection.startTick ?? null,

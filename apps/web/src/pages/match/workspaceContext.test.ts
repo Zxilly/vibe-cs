@@ -28,6 +28,7 @@ const EMPTY: MatchWorkspaceContext = {
   round: null,
   player: null,
   tick: null,
+  highlight: null,
   evidence: null,
 };
 
@@ -43,6 +44,7 @@ describe('reading the address', () => {
       round: 21,
       player: 'kael',
       tick: 149_380,
+      highlight: null,
       evidence: 'e-9',
     });
   });
@@ -73,6 +75,14 @@ describe('reading the address', () => {
 });
 
 describe('writing the address', () => {
+  it('preserves highlight identity while scrubbing and clears it when changing its subject', () => {
+    const selected = read('view=highlights&round=21&player=niko&tick=173422&highlight=niko-r21');
+    const replay = patchWorkspaceContext(selected, { view: 'replay', tick: 173550 });
+    expect(replay.highlight).toBe('niko-r21');
+    expect(read(writeWorkspaceContext(replay).toString())).toEqual(replay);
+    expect(patchWorkspaceContext(replay, { round: 20 }).highlight).toBeNull();
+    expect(patchWorkspaceContext(replay, { player: 'other' }).highlight).toBeNull();
+  });
   it('omits what is not selected rather than writing it empty', () => {
     expect(writeWorkspaceContext(EMPTY).toString()).toBe('view=overview');
   });
@@ -88,6 +98,7 @@ describe('writing the address', () => {
       round: 21,
       player: 'kael',
       tick: 149_380,
+      highlight: null,
       evidence: 'e-9',
     };
     expect(read(writeWorkspaceContext(context).toString())).toEqual(context);
@@ -106,6 +117,7 @@ describe('patching the context', () => {
     round: 21,
     player: 'kael',
     tick: 149_380,
+    highlight: null,
     evidence: 'e-9',
   };
 
@@ -144,6 +156,7 @@ describe('patching the context', () => {
       round: null,
       player: 'kael',
       tick: null,
+      highlight: null,
       evidence: null,
     });
   });

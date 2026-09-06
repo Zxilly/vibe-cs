@@ -68,7 +68,7 @@ describe('Toolbar', () => {
     );
 
     expect(html).toContain('data-toolbar-height="panel"');
-    expect(html).toContain('style="font-size:var(--text-base)"');
+    expect(html).toContain('style="font-size:var(--text-sm)"');
   });
 
   it('shows no overflow trigger while every action fits', () => {

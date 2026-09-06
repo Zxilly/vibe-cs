@@ -2,7 +2,7 @@
  * Design system, layer 1 of 3 — Kbd.
  *
  * shadcn's Kbd and KbdGroup, in the box the design reference draws: a hairline
- * `--color-divider` outline, 11px (--text-2xs), 1.5 units of inline padding,
+ * `--color-divider` outline, 11px (--text-xs), 1.5 units of inline padding,
  * square like everything else (§3.6 puts every radius at 0).
  *
  * The reference prints key names in five places — the命令面板 header 「ESC 关闭」
@@ -29,7 +29,7 @@ import { cn } from '../cn';
 
 const KBD_CLASS =
   'inline-flex flex-none items-center justify-center border border-divider px-1.5 ' +
-  'font-mono text-2xs leading-tight text-neutral-600';
+  'font-mono text-xs leading-tight text-neutral-600';
 
 export type KbdProps = ComponentPropsWithoutRef<'kbd'>;
 

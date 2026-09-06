@@ -14,7 +14,7 @@ import {
   CONTROL_TEXT_CLASS,
 } from './controlSize';
 
-const TYPE_TOKENS = new Set(['text-2xs', 'text-xs', 'text-sm', 'text-base', 'text-md']);
+const TYPE_TOKENS = new Set(['text-xs', 'text-sm', 'text-base', 'text-md']);
 
 describe('control sizes', () => {
   it('has exactly the four steps of §3.3', () => {

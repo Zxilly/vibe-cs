@@ -150,7 +150,7 @@ export function LibraryFilters({
   return (
     <div
       data-library-filters
-      className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
+      className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
     >
       <InputGroup size="sm" ground="bg" className="min-w-0 max-w-[var(--w-panel)] flex-1">
         <InputGroupAddon>

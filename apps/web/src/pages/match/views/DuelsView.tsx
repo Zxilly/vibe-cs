@@ -71,7 +71,7 @@ import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './view
  */
 function PanelHead({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex h-[var(--h-thead)] flex-none items-center border-b border-divider px-2.5 font-heading text-2xs tracking-widest text-neutral-700">
+    <div className="flex h-[var(--h-thead)] flex-none items-center border-b border-divider px-2.5 font-heading text-xs tracking-widest text-neutral-700">
       {children}
     </div>
   );
@@ -622,7 +622,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
           ))}
 
         {unavailableReason === null ? null : (
-          <p className="border-t border-divider px-3.5 py-2.5 text-2xs text-neutral-600">
+          <p className="border-t border-divider px-3.5 py-2.5 text-xs text-neutral-600">
             {/* The service's own English sentence, kept verbatim under the
                 authored Chinese above so a bug report can quote it. */}
             <Trans>说明：{unavailableReason}</Trans>
@@ -720,7 +720,7 @@ export function DuelSummary({ analysis, playerId, index }: DuelSummaryProps) {
 function SummaryCell({ label, value }: { readonly label: ReactNode; readonly value: string }) {
   return (
     <div className="bg-bg px-3 py-2.5">
-      <dt className="text-2xs text-neutral-600">{label}</dt>
+      <dt className="text-xs text-neutral-600">{label}</dt>
       <dd className="font-mono text-lg">{value}</dd>
     </div>
   );

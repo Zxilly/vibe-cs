@@ -1,6 +1,7 @@
 import type { TimelineClipboard } from './timelinePaste';
 
 export interface TimelineWorkspaceSession {
+  readonly agentSessionId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackIds: readonly string[];
   readonly syncLockedTrackIds: readonly string[];
@@ -85,7 +86,8 @@ function writeStored(storage: TimelineSessionStorage | null, key: string, value:
 
 function isTimelineWorkspaceSession(value: unknown): value is TimelineWorkspaceSession {
   if (!isRecord(value)) return false;
-  return isStringArray(value.selectedClipIds)
+  return (value.agentSessionId === null || typeof value.agentSessionId === 'string')
+    && isStringArray(value.selectedClipIds)
     && isStringArray(value.targetTrackIds)
     && isStringArray(value.syncLockedTrackIds)
     && typeof value.linkedSelectionEnabled === 'boolean'

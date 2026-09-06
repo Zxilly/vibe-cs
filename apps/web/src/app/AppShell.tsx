@@ -142,10 +142,9 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
       className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
       <WindowTitleBar
-        compact={focusedProject}
         mode={mode}
         onModeChange={switchMode}
-        crumb={focusedProject ? null : <RouteBreadcrumb segments={crumb} />}
+        crumb={<RouteBreadcrumb segments={crumb} />}
         navCollapsed={navCollapsed}
         adapter={adapter}
         onOpenCommandPalette={palette.openPalette}

@@ -152,7 +152,7 @@ export function EvidenceDetail({
       </div>
 
       <div className="border border-divider p-3">
-        <div className="mb-2 font-heading text-2xs tracking-caps text-neutral-700">
+        <div className="mb-2 font-heading text-xs tracking-caps text-neutral-700">
           <Trans>注释</Trans>
         </div>
         <p className="text-xs leading-normal text-neutral-700">

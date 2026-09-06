@@ -275,7 +275,7 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
       <dt className="flex-none text-neutral-600">{term}</dt>
       <dd className={mono ? 'min-w-0 truncate font-mono text-xs' : 'min-w-0 truncate'} title={value}>
         {value}

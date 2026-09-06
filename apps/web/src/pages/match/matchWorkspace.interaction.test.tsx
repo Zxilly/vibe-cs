@@ -50,13 +50,14 @@ function address(): string {
  */
 const UNFOLDED_PX = 1700;
 
-describe('§8 rule 3 — the view rail folds into top tabs', () => {
-  it('is a 190px rail above the breakpoint', () => {
+describe('shared horizontal view navigation', () => {
+  it('shows all nine views above the breakpoint without a second rail', () => {
     media = stubMatchMedia(1400);
     renderWorkspace();
 
-    expect(document.querySelector('[data-subnav="rail"]')).not.toBeNull();
-    expect(document.querySelector('[data-subnav="tabs"]')).toBeNull();
+    expect(document.querySelector('[data-subnav="rail"]')).toBeNull();
+    expect(document.querySelectorAll('[data-subnav="tabs"] [data-subnav-item]')).toHaveLength(9);
+    expect(screen.queryByRole('button', { name: /更多视图/u })).toBeNull();
   });
 
   it('is a row of tabs at the breakpoint itself, with the rest under 更多', () => {
@@ -78,14 +79,14 @@ describe('§8 rule 3 — the view rail folds into top tabs', () => {
     expect(current?.getAttribute('data-subnav-item')).toBe('teams');
   });
 
-  it('folds in response to the viewport, not only to a prop', async () => {
+  it('folds only the overflow items in response to the viewport', async () => {
     media = stubMatchMedia(1400);
     renderWorkspace();
-    expect(document.querySelector('[data-subnav="rail"]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-subnav="tabs"] [data-subnav-item]')).toHaveLength(9);
 
     media.setWidth(1000);
     await waitFor(() => {
-      expect(document.querySelector('[data-subnav="tabs"]')).not.toBeNull();
+      expect(document.querySelectorAll('[data-subnav="tabs"] [data-subnav-item]')).toHaveLength(5);
     });
     expect(document.querySelector('[data-subnav="rail"]')).toBeNull();
   });
@@ -256,7 +257,7 @@ describe('加入作品', () => {
     expect((screen.getByLabelText('目标作品') as HTMLSelectElement).value).toBe(
       '00000000-0000-4000-8000-000000000001',
     );
-    expect(screen.getByRole('button', { name: '加入' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '加入 Story 末尾' })).toBeTruthy();
   });
 
 });

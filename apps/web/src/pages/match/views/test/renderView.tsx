@@ -46,6 +46,7 @@ export function viewProps(overrides: ViewPropsOverrides = {}): MatchViewProps {
       player: null,
       tick: null,
       evidence: null,
+      highlight: null,
       ...overrides.context,
     },
     updateContext: overrides.updateContext ?? vi.fn(),

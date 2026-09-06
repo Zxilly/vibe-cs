@@ -305,7 +305,7 @@ export function MatchContextBar({
                     that is every focus player, expanded it is the tail that did
                     not fit. A count of what is already visible would be a lie. */}
                 {hiddenFocusCount === 0 ? null : (
-                  <span className="border border-accent-300 px-1 text-2xs text-accent-700">
+                  <span className="border border-accent-300 px-1 text-xs text-accent-700">
                     <Plural value={hiddenFocusCount} other="聚焦 #" />
                   </span>
                 )}

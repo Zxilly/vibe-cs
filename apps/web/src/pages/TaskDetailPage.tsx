@@ -58,7 +58,7 @@ export function TaskDetailPage() {
       }
     >
       {locator === null ? (
-        <div className="p-7">
+        <div className="p-6">
           <Empty
             variant="error"
             title={<Trans>找不到这条任务</Trans>}
@@ -72,7 +72,7 @@ export function TaskDetailPage() {
           />
         </div>
       ) : task.isError ? (
-        <div className="p-7">
+        <div className="p-6">
           <Empty
             preset="error"
             title={<Trans>这条任务没能打开</Trans>}
@@ -90,7 +90,7 @@ export function TaskDetailPage() {
           role="status"
           aria-busy="true"
           aria-label={t`正在读取任务详情`}
-          className="flex flex-col gap-3 p-7"
+          className="flex flex-col gap-3 p-6"
         >
           <Skeleton width="38%" className="h-4" />
           <Skeleton width="62%" />

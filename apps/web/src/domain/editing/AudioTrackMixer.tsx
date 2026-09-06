@@ -82,7 +82,7 @@ function AudioMixerStrip({ track, timelineTimeSeconds, durationSeconds, fps, pla
   return (
     <div className="grid w-28 flex-none grid-rows-[auto_auto_1fr_auto_auto] gap-2 border-r border-divider px-2 pb-2 last:border-r-0" aria-label={t`混音轨 ${track.name}`}>
       <strong className="truncate text-center text-xs">{track.name}</strong>
-      <select className="h-7 border border-divider bg-bg px-1 text-2xs" aria-label={t`自动化模式 ${track.name}`} value={mode} onChange={(event) => onModeChange(event.currentTarget.value as MixerAutomationMode)}>
+      <select className="h-7 border border-divider bg-bg px-1 text-xs" aria-label={t`自动化模式 ${track.name}`} value={mode} onChange={(event) => onModeChange(event.currentTarget.value as MixerAutomationMode)}>
         <option value="off">Off</option>
         <option value="read">Read</option>
         <option value="write">Write</option>
@@ -110,7 +110,7 @@ function AudioMixerStrip({ track, timelineTimeSeconds, durationSeconds, fps, pla
         <Button size="sm" variant={track.muted ? 'primary' : 'ghost'} aria-pressed={track.muted} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, muted: !track.muted })}>M</Button>
         <Button size="sm" variant={track.solo ? 'primary' : 'ghost'} aria-pressed={track.solo} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, solo: !track.solo })}>S</Button>
       </div>
-      <span className={cn('text-center font-mono text-2xs', peak >= 0.95 ? 'text-fail-text' : 'text-neutral-500')}>{Math.round(peak * 100)}%</span>
+      <span className={cn('text-center font-mono text-xs', peak >= 0.95 ? 'text-fail-text' : 'text-neutral-500')}>{Math.round(peak * 100)}%</span>
     </div>
   );
 }

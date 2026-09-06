@@ -43,7 +43,7 @@ describe('SideNav, expanded', () => {
     for (const item of modeItems('edit')) {
       expect(html.split(`data-nav-item="${item.id}"`)).toHaveLength(2);
     }
-    expect(html).toContain('h-[var(--h-panel-head)]');
+    expect(html).toContain('h-[var(--h-nav-item)]');
   });
 
   it('shows the three group headings the frame labels', () => {

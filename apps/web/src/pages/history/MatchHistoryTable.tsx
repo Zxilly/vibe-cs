@@ -53,7 +53,7 @@ function StateCell({ item, state }: { readonly item: MatchHistoryItem; readonly 
     /* No percentage: `MatchHistoryItem` carries none, and the download job that
        does is a separate record. 「有真实分母时才用进度条，否则只给阶段名」. */
     return (
-      <span className="inline-flex items-center gap-2 text-2xs">
+      <span className="inline-flex items-center gap-2 text-xs">
         <StatusDot status="running" size="sm" />
         {stateLabel(state)}
       </span>
@@ -61,14 +61,14 @@ function StateCell({ item, state }: { readonly item: MatchHistoryItem; readonly 
   }
   if (state === 'expired') {
     return (
-      <span className="text-2xs text-neutral-600">
+      <span className="text-xs text-neutral-600">
         <Trans>已过期 · Valve 不再保留</Trans>
       </span>
     );
   }
   if (state === 'failed') {
     return (
-      <span className="inline-flex items-center gap-2 text-2xs text-fail-text" title={item.last_error ?? undefined}>
+      <span className="inline-flex items-center gap-2 text-xs text-fail-text" title={item.last_error ?? undefined}>
         <StatusDot status="fail" size="sm" />
         {stateLabel(state)}
       </span>

@@ -62,25 +62,17 @@ export function HomePage() {
         />
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-7" data-home-layout="three-sections">
-        <section className="flex flex-col gap-3" data-home-block="needs-attention">
-          <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>需要我处理</Trans></h2>
-          <EnvironmentNotice />
-          <HomeFailureNotice />
-        </section>
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6" data-home-layout="three-sections">
+        <EnvironmentNotice />
+        <HomeFailureNotice />
 
         <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="continue">
-          <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>继续</Trans></h2>
+          <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
           <ActiveProjectsPanel />
         </section>
 
         <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="new">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>新建</Trans></h2>
-            <span className="flex-1" />
-            <Button variant="primary" size="md" onClick={() => void navigate('/projects/new?step=shotlist')}>
-              <Trans>新建作品</Trans>
-            </Button>
             <RouteLink to="/library" size="sm"><Trans>导入 Demo</Trans></RouteLink>
           </div>
           <FirstRunStrip />

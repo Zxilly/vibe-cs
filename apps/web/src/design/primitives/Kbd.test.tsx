@@ -9,7 +9,7 @@ describe('Kbd markup', () => {
 
     expect(html).toMatch(/^<kbd/u);
     expect(html).toContain('border-divider');
-    expect(html).toContain('text-2xs');
+    expect(html).toContain('text-xs');
     expect(html).toContain('font-mono');
     // --radius-* is 0 system-wide; a rounded key would be an invention.
     expect(html).not.toContain('rounded');

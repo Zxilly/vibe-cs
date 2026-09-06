@@ -20,6 +20,22 @@ function storage() {
 }
 
 describe('Project workspace dock layout', () => {
+  it('uses one Timeline with monitor tabs and overlay Agent panels at narrow widths without replacing saved desktop geometry', () => {
+    const target = storage();
+    const wide = createProjectWorkspaceLayout();
+    saveProjectWorkspaceLayout('p', target, wide);
+    const before = target.getItem(projectWorkspaceLayoutKey('p'));
+    const compact = createProjectWorkspaceLayout('compact');
+    const editing = compact.layout.children?.[1] as IJsonRowNode;
+    expect(editing.children?.map((node) => node.id)).toEqual(['program-group', 'timeline-group']);
+    const monitors = editing.children?.[0] as { children: { component: string }[] };
+    expect(monitors.children.map((node) => node.component)).toEqual(['program', 'tactical']);
+    expect(compact.borders?.[0]).toMatchObject({ location: 'right', borderType: 'overlay', selected: -1 });
+    expect(compact.borders?.[0]?.children).toMatchObject([{ component: 'agent' }, { component: 'mixer' }]);
+    saveProjectWorkspaceLayout('p', target, compact);
+    expect(target.getItem(projectWorkspaceLayoutKey('p'))).toBe(before);
+    expect(loadProjectWorkspaceLayout('p', target)).toEqual(wide);
+  });
   it('starts with full-height Project and Agent docks around a nested editing column', () => {
     const layout = createProjectWorkspaceLayout().layout;
     expect(layout.children?.map((node) => node.id)).toEqual([

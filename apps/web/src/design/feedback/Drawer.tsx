@@ -108,8 +108,8 @@ export function Drawer({
         >
           <aside>
             {/* 48px on the artboard → `--h-bar` (46), the nearest §3.4 step. */}
-            <header className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 border-b border-divider px-3.5">
-              <DialogPrimitive.Title className="truncate font-heading text-lg text-text">
+            <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-3">
+              <DialogPrimitive.Title className="truncate text-sm font-medium text-text">
                 {title}
               </DialogPrimitive.Title>
               {description === undefined ? null : (
@@ -132,10 +132,10 @@ export function Drawer({
               </DialogPrimitive.Close>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3.5">{children}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
 
             {footer === undefined ? null : (
-              <footer className={cn('border-t border-divider px-3.5 py-2.5', OVERLAY_ACTIONS_CLASS)}>
+              <footer className={cn('border-t border-divider p-3', OVERLAY_ACTIONS_CLASS)}>
                 {footer}
               </footer>
             )}

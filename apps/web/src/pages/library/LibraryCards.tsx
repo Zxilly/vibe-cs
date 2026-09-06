@@ -72,7 +72,7 @@ export function LibraryCards({
 
   return (
     <div data-library-cards className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto p-7">
+      <div className="min-h-0 flex-1 overflow-y-auto p-6">
         <p className="mb-3 text-xs text-neutral-600">
           <Trans>适合几十场以内的个人资料库；大库仍建议用表格</Trans>
         </p>

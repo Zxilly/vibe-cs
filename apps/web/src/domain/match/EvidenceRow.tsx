@@ -32,11 +32,12 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { formatMillisecondTimecode } from '../../design/timeline';
 
 import { Skeleton } from '../../design/data';
 import { Button, cn, Badge } from '../../design/primitives';
 import { EVIDENCE_KIND } from './matchEnums';
-import { CS2_TICK_RATE, formatTickClock, formatTickCount, formatTickTimecode } from './matchTime';
+import { CS2_TICK_RATE, formatTickClock, formatTickCount } from './matchTime';
 import type { EvidenceItem } from './types';
 
 export type EvidenceDensity = 'comfortable' | 'default' | 'inline';
@@ -103,10 +104,10 @@ export function EvidenceRow({
           which is what their artboards draw. */}
       <span className="flex flex-none flex-col text-left font-mono text-xs">
         <span className="text-accent-700" title={`${i18n._(TICK_LABEL)} ${formatTickCount(evidence.tick)}`}>
-          {density === 'default' ? formatTickCount(evidence.tick) : formatTickClock(evidence.tick, rate)}
+          {density === 'default' ? formatMillisecondTimecode(evidence.tick / rate) : formatTickClock(evidence.tick, rate)}
         </span>
         {density === 'default' ? (
-          <span className="text-neutral-600">{formatTickTimecode(evidence.tick, rate)}</span>
+          <span className="text-neutral-600">{i18n._(TICK_LABEL)} {formatTickCount(evidence.tick)}</span>
         ) : null}
       </span>
 

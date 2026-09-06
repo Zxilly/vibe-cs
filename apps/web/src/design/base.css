@@ -17,7 +17,7 @@
  * layered rule — a cascade layer outranks specificity outright — so
  * `button { border: 0 }` here was silently beating `border-divider` on every
  * button in the product, `code, kbd { font-size: 1em }` was beating
- * `text-2xs` on every key chip, and the heading sizes were beating `text-lg`
+ * `text-xs` on every key chip, and the heading sizes were beating `text-lg`
  * on every heading that asked for one. The rendered app had no borders on its
  * buttons and no type scale on its headings, and nothing in the markup said
  * why.
@@ -80,7 +80,7 @@
     background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-body);
-    font-size: var(--text-md);
+    font-size: var(--text-base);
     font-weight: 400;
     line-height: var(--leading-normal);
     overflow: hidden;
@@ -96,7 +96,7 @@
   /* — type — */
 
   /* Heading level stays a semantic choice; type size stays a utility choice.
-     `<h2 class="text-lg">` is 17px, because `@layer utilities` outranks this
+     `<h2 class="text-lg">` is 18px, because `@layer utilities` outranks this
      whole layer — see the file header for the version of this that did not
      work, and for why these selectors must not be wrapped in `:where()`. */
 
@@ -133,7 +133,7 @@
 
   /* The group heading of the design reference: smallest step, widest tracking. */
   h6 {
-    font-size: var(--text-2xs);
+    font-size: var(--text-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
   }

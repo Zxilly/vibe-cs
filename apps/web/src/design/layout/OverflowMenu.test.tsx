@@ -19,7 +19,7 @@ describe('OverflowMenu', () => {
     expect(html).toContain('更多');
     expect(html).not.toContain('role="menu"');
     // The chevron is drawn, not read.
-    expect(html).toContain('<span aria-hidden="true">▾</span>');
+    expect(html).toContain('lucide-chevron-down');
   });
 
   it('disappears entirely when nothing folded', () => {

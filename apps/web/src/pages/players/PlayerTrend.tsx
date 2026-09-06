@@ -112,7 +112,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
           aria-label={t`趋势指标`}
         />
         <div className="flex-1" aria-hidden="true" />
-        <span className="text-2xs text-neutral-600">
+        <span className="text-xs text-neutral-600">
           <Trans>
             最近 {TREND_WINDOW} 场里有 {points.length} 场有这个指标 · 灰线为个人均值
           </Trans>
@@ -165,7 +165,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
       {/* The axis, as text beside the box rather than inside it: a `<text>` in
           an SVG that scales with its container would scale its own type, and
           §3.2's sizes are not negotiable per container width. */}
-      <div className="flex justify-between font-mono text-2xs text-neutral-600">
+      <div className="flex justify-between font-mono text-xs text-neutral-600">
         <span>
           <Trans>低 {printValue(metric, points.length === 0 ? null : geometry.minimum)}</Trans>
         </span>

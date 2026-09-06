@@ -295,10 +295,10 @@ export function ClipStrip({
                   ) : (
                     <img src={clip.posterSrc} alt="" loading="lazy" className="block size-full object-cover" />
                   )}
-                  <span className="absolute left-2 top-2 bg-bg px-1 font-mono text-2xs" aria-hidden="true">
+                  <span className="absolute left-2 top-2 bg-bg px-1 font-mono text-xs" aria-hidden="true">
                     {String(position).padStart(2, '0')}
                   </span>
-                  <span className="absolute bottom-2 right-2 bg-bg px-1 font-mono text-2xs" aria-hidden="true">
+                  <span className="absolute bottom-2 right-2 bg-bg px-1 font-mono text-xs" aria-hidden="true">
                     {`${seconds}s`}
                   </span>
                   <GripVertical aria-hidden="true" className="absolute right-2 top-2 size-4 text-neutral-500" />

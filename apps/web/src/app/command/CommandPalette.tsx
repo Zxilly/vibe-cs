@@ -231,7 +231,7 @@ export function CommandPalette({
           />
           {/* A key name plus its verb; the artboard prints both, so both go
               through the macro rather than only the Chinese half. */}
-          <span className="flex-none text-2xs text-neutral-600">
+          <span className="flex-none text-xs text-neutral-600">
             <Kbd>ESC</Kbd> <Trans>关闭</Trans>
           </span>
         </div>
@@ -256,7 +256,7 @@ export function CommandPalette({
                 <div key={group.group} role="group" aria-labelledby={headingId}>
                   <div
                     id={headingId}
-                    className="px-4 pt-3 pb-1 font-heading text-2xs tracking-caps text-neutral-600"
+                    className="px-4 pt-3 pb-1 font-heading text-xs tracking-caps text-neutral-600"
                   >
                     {i18n._(COMMAND_GROUP_LABEL[group.group])}
                   </div>
@@ -304,7 +304,7 @@ export function CommandPalette({
                   {hidden > 0 ? (
                     // The cap hides rows, so the palette says how many rather
                     // than truncating silently.
-                    <div className="px-4 pb-1 text-2xs text-neutral-600">
+                    <div className="px-4 pb-1 text-xs text-neutral-600">
                       <Plural value={hidden} other="还有 # 条 · 继续输入以缩小范围" />
                     </div>
                   ) : null}
@@ -314,7 +314,7 @@ export function CommandPalette({
           </div>
         )}
 
-        <div className="flex h-[var(--h-row-compact)] flex-none items-center gap-5 border-t border-divider px-4 text-2xs text-neutral-600">
+        <div className="flex h-[var(--h-row-compact)] flex-none items-center gap-5 border-t border-divider px-4 text-xs text-neutral-600">
           <span>
             <Trans>↑↓ 选择</Trans>
           </span>

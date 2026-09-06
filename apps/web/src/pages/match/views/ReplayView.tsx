@@ -53,9 +53,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../data/match';
 import { dataErrorMessage } from '../../../data/errors';
+import { useNativeShell } from '../../../data/nativeShell';
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, StatusDot } from '../../../design/feedback';
-import { Button, Checkbox, Seg, cn } from '../../../design/primitives';
+import { Button, Checkbox, NativeSelect, cn } from '../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
   DEFAULT_HEAT_STEPS,
@@ -89,6 +90,8 @@ import {
   type ReplayEventRow,
 } from './replayModel';
 import { usePlaybackClock } from './usePlaybackClock';
+import { highlightSelection, matchHighlights, playerNameIndex } from './highlightModel';
+import { formatMillisecondTimecode } from '../../../design/timeline';
 
 /**
  * One address write a second while playing.
@@ -129,6 +132,10 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const heat = useMatchHeatPoints(id);
   const mapName = analysis.data?.map_name ?? null;
   const radar = useMapRadarOverview(mapName);
+  const shell = useNativeShell();
+  const radarSrc = radar.data?.browser_displayable === true && radar.data.image_url !== null
+    ? shell.mediaSrc(radar.data.image_url)
+    : null;
 
   const [layers, setLayers] = useState<ReplayLayerVisibility>(DEFAULT_LAYERS);
   const [floor, setFloor] = useState<number | null>(null);
@@ -285,6 +292,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     ? undefined
     : (clipOutTick - slice.startTick) / slice.tickRate;
   const effectivePlayer = analysis.data?.players.find((player) => player.id === effectivePlayerId) ?? null;
+  const highlight = matchHighlights(analysis.data).find((entry) => entry.id === context.highlight) ?? null;
   const createClipDisabledReason = addToVideo.disabled
     ? addToVideo.disabledReason
     : effectivePlayerId === null
@@ -370,22 +378,19 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               <RailHeading>
                 <Trans>楼层</Trans>
               </RailHeading>
-              <Seg
+              <NativeSelect
                 name="replay-floor"
-                fill
                 size="sm"
                 aria-label={t`楼层`}
                 value={floor === null ? 'all' : String(floor)}
-                options={[
-                  { value: 'all', label: <Trans>全部</Trans> },
-                  ...floors.map((value) => ({
-                    value: String(value),
-                    label: <FloorLabel floor={value} />,
-                  })),
-                ]}
-                onChange={(value) => setFloor(value === 'all' ? null : Number(value))}
-              />
-              <p className="mt-2 text-2xs leading-normal text-neutral-600">
+                onChange={(event) => setFloor(event.currentTarget.value === 'all' ? null : Number(event.currentTarget.value))}
+              >
+                <option value="all"><Trans>全部</Trans></option>
+                {floors.map((value) => (
+                  <option key={value} value={String(value)}><FloorLabel floor={value} /></option>
+                ))}
+              </NativeSelect>
+              <p className="mt-2 text-xs leading-normal text-neutral-600">
                 <Trans>楼层只筛热力叠加：回放数据不记录楼层。</Trans>
               </p>
             </section>
@@ -425,7 +430,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                         <span
                           aria-hidden="true"
                           className={cn(
-                            'grid size-4 flex-none place-items-center text-2xs',
+                            'grid size-4 flex-none place-items-center text-xs',
                             focused ? 'bg-accent text-bg' : 'border border-neutral-400',
                           )}
                         >
@@ -459,6 +464,9 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               className="flex-1"
               mapName={mapName ?? ''}
               overviewTransform={radar.data?.transform}
+              basemap={radarSrc === null ? undefined : (
+                <img src={radarSrc} alt="" className="size-full object-fill opacity-35" data-replay-basemap />
+              )}
               label={label}
               status={status}
               layers={layers}
@@ -528,6 +536,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
             data-replay-transport=""
             className="flex flex-none flex-col gap-2.5 border-t border-divider px-5 py-3"
           >
+            {slice === null || effectiveTick === null ? null : <p className="text-xs text-neutral-600"><Trans>比赛时间</Trans> {formatMillisecondTimecode(effectiveTick / slice.tickRate)} · {context.round === null ? <Trans>整场回放</Trans> : <Trans>回合内</Trans>} {formatMillisecondTimecode(currentSeconds)} · {slice.tickRate} Hz</p>}
             <Transport
               currentTime={currentSeconds}
               durationSeconds={durationSeconds}
@@ -557,7 +566,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               className="flex min-w-0 items-center gap-2 border-t border-divider pt-2"
               data-replay-clip-range=""
             >
-              <p className="min-w-0 flex-1 truncate font-mono text-2xs text-neutral-600">
+              <p className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-600">
                 <Trans>
                   入点 {clipInTick === null ? '—' : formatTickCount(clipInTick)}
                   {' · '}
@@ -601,6 +610,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               >
                 <Trans>创建剪辑</Trans>
               </Button>
+              {highlight === null ? null : <Button size="sm" variant="secondary" disabled={addToVideo.disabled} onClick={() => addToVideo.onAdd?.(highlightSelection(highlight))}><Trans>加入当前高光</Trans></Button>}
             </div>
           </div>
         </div>
@@ -618,6 +628,9 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
   const rows = useMemo(() => replayEventRows(events), [events]);
   const current = currentEventId(rows, context.tick);
   const tickRate = analysis.data?.tick_rate;
+  const names = playerNameIndex(analysis.data);
+  const highlight = matchHighlights(analysis.data).find((entry) => entry.id === context.highlight) ?? null;
+  const focusedEvent = rows.find((row) => row.id === current) ?? null;
 
   const title =
     context.round === null ? <Trans>整场 · 事件</Trans> : <Trans>第 {context.round} 回合 · 事件</Trans>;
@@ -627,8 +640,8 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
       title={title}
       summary={<Trans>事件 {rows.length} 条</Trans>}
       addToVideo={addToVideo}
-      addLabel={context.round === null ? <Trans>加入作品</Trans> : <Trans>把这个回合加入作品</Trans>}
-      selection={{
+      addLabel={highlight !== null ? <Trans>加入当前高光</Trans> : context.round === null ? <Trans>加入作品</Trans> : <Trans>把这个回合加入作品</Trans>}
+      selection={highlight !== null ? highlightSelection(highlight) : {
         ...(context.round === null ? {} : { round: context.round }),
         ...(context.player === null ? {} : { playerId: context.player }),
         ...(context.tick === null ? {} : { startTick: context.tick }),
@@ -667,7 +680,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
               {rows.map((row) => (
                 <li key={row.id}>
                   <EvidenceRow
-                    evidence={toEvidenceItem(row)}
+                    evidence={toEvidenceItem(row, names)}
                     density="default"
                     {...(tickRate === undefined ? {} : { tickRate })}
                     selected={row.id === current}
@@ -678,9 +691,10 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
                 </li>
               ))}
             </ul>
-            <p className="px-1 pt-2.5 text-2xs leading-normal text-neutral-600">
+            <p className="px-1 pt-2.5 text-xs leading-normal text-neutral-600">
               <Trans>只列击杀与目标事件，共 {rows.length} 条。</Trans>
             </p>
+            {focusedEvent === null ? null : <details className="mt-3 border-t border-divider pt-3 text-xs text-neutral-600"><summary className="cursor-pointer"><Trans>精确来源与身份</Trans></summary><p className="mt-2 break-all font-mono">tick {focusedEvent.tick}<br />{focusedEvent.actor}<br />{focusedEvent.target}</p></details>}
           </>
         )}
       </div>
@@ -695,7 +709,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
  * every visible sentence goes through a Lingui macro (§5.1) and a macro yields
  * an element, which a `unit`-project module cannot hold.
  */
-function toEvidenceItem(row: ReplayEventRow): EvidenceItem {
+function toEvidenceItem(row: ReplayEventRow, names: ReadonlyMap<string, string>): EvidenceItem {
   const qualifiers: string[] = [];
   if (row.penetrated) qualifiers.push(t`穿墙`);
   if (row.headshot) qualifiers.push(t`爆头`);
@@ -705,8 +719,8 @@ function toEvidenceItem(row: ReplayEventRow): EvidenceItem {
     tick: row.tick,
     kind: row.kind,
     round: row.round,
-    ...(row.actor === null ? {} : { actor: row.actor }),
-    ...(row.target === null ? {} : { target: row.target }),
+    ...(row.actor === null ? {} : { actor: <span title={row.actor}>{names.get(row.actor) ?? row.actor}</span> }),
+    ...(row.target === null ? {} : { target: <span title={row.target}>{names.get(row.target) ?? row.target}</span> }),
     ...(row.weapon === null || row.weapon === '' ? {} : { weapon: row.weapon }),
     ...(qualifiers.length === 0 ? {} : { description: qualifiers.join(' · ') }),
   };
@@ -738,7 +752,7 @@ function ViewFrame({ state, children }: { readonly state: string; readonly child
 }
 
 function RailHeading({ children }: { readonly children: ReactNode }) {
-  return <h3 className="mb-2.5 font-heading text-2xs tracking-caps text-neutral-600">{children}</h3>;
+  return <h3 className="mb-2.5 font-heading text-xs tracking-caps text-neutral-600">{children}</h3>;
 }
 
 function FloorLabel({ floor }: { readonly floor: number }) {

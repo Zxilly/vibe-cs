@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { renderMarkup } from '../../test/render';
 import { EvidenceRow, EvidenceRowSkeleton } from './EvidenceRow';
 import { EVIDENCE } from './matchFixtures.testing';
-import { formatTickCount, formatTickTimecode, TICK_GROUP_SEPARATOR } from './matchTime';
+import { formatTickCount, TICK_GROUP_SEPARATOR } from './matchTime';
 
 describe('EvidenceRow', () => {
   it('draws the Inspector 「回合内证据」 row of the 03 比赛工作区 artboard', () => {
@@ -29,7 +29,7 @@ describe('EvidenceRow', () => {
     const html = renderMarkup(<EvidenceRow evidence={EVIDENCE} />);
 
     expect(html).toContain(`148${TICK_GROUP_SEPARATOR}920`);
-    expect(html).toContain(formatTickTimecode(148_920, 64));
+    expect(html).toContain('38:46.875');
     expect(html).toContain('data-tick="148920"');
   });
 
@@ -131,7 +131,7 @@ describe('EvidenceRow', () => {
     const html = renderMarkup(<EvidenceRow evidence={{ id: 'bare', tick: 0, kind: 'round' }} />);
 
     expect(html).toContain('data-evidence-row="bare"');
-    expect(html).toContain('00:00:00:00');
+    expect(html).toContain('00:00.000');
   });
 
   it('renders with no backend, no store and no query', () => {

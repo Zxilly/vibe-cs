@@ -127,6 +127,7 @@ export interface ReplayLayerVisibility {
 
 export interface ReplayCanvasProps {
   readonly mapName: string;
+  readonly basemap?: ReactNode | undefined;
   readonly overviewTransform?: OverviewTransform | null | undefined;
   readonly label: string;
   readonly status?: MapCanvasStatus | undefined;
@@ -151,6 +152,7 @@ export interface ReplayCanvasProps {
 
 export function ReplayCanvas({
   mapName,
+  basemap,
   overviewTransform,
   label,
   status = 'ready',
@@ -190,6 +192,7 @@ export function ReplayCanvas({
   return (
     <MapCanvas
       mapName={mapName}
+      basemap={basemap}
       overviewTransform={overviewTransform}
       label={label}
       status={status}

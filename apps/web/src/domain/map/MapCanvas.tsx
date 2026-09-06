@@ -312,7 +312,7 @@ export function MapCanvas({
           {typeof children === 'function' ? children(projection) : children}
         </svg>
         {legend && legend.length > 0 ? (
-          <ul className="absolute bottom-3 left-3 flex list-none flex-wrap gap-4 border border-divider bg-bg px-2 py-1 text-2xs text-neutral-700">
+          <ul className="absolute bottom-3 left-3 flex list-none flex-wrap gap-4 border border-divider bg-bg px-2 py-1 text-xs text-neutral-700">
             {legend.map((item) => (
               <li key={item.id} className="inline-flex items-center gap-2">
                 <LegendGlyph glyph={item.glyph} tone={item.tone} />

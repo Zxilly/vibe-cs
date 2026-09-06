@@ -11,6 +11,8 @@ const SOURCE: ProjectCollectedClip = {
   label: 'NiKo · 149 000–149 640',
   round: 21,
   playerId: '76561198041683378',
+  playerName: 'NiKo',
+  tickRate: 64,
   highlightId: null,
   evidenceId: null,
   startTick: 149_000,
@@ -62,7 +64,11 @@ describe('timelineClipFromCollected', () => {
           clips: [existing],
         }],
         markers: [],
-        settings: { source_demo_ids: [SOURCE.demoId], ripple_sequence_markers: false, use_media_proxies: false },
+        settings: {
+          source_demo_ids: ['00000000-0000-4000-8000-000000000099'],
+          ripple_sequence_markers: true,
+          use_media_proxies: true,
+        },
       },
       created_at: SOURCE.addedAt,
       updated_at: SOURCE.addedAt,
@@ -72,5 +78,12 @@ describe('timelineClipFromCollected', () => {
     const inserted = patch.operations.filter((operation) => operation.op === 'insert_clip');
 
     expect(inserted.map((operation) => operation.clip.placement.start)).toEqual([5, 17.5]);
+    expect(patch.operations[0]).toEqual({
+      op: 'replace_settings',
+      settings: {
+        ...project.document.settings,
+        source_demo_ids: [...project.document.settings.source_demo_ids, SOURCE.demoId],
+      },
+    });
   });
 });

@@ -30,12 +30,12 @@ describe('cn', () => {
      `twMerge` cannot find `2xs` or `md` in its font-size list, falls through to
      colour, and drops the size the moment a colour follows it. */
   it('treats the two non-stock type steps as sizes, not colours', () => {
-    expect(cn('text-2xs', 'text-neutral-600')).toBe('text-2xs text-neutral-600');
+    expect(cn('text-xs', 'text-neutral-600')).toBe('text-xs text-neutral-600');
     expect(cn('text-md', 'text-fail-text')).toBe('text-md text-fail-text');
   });
 
   it('still merges two steps of the type scale against each other', () => {
-    expect(cn('text-2xs', 'text-lg')).toBe('text-lg');
+    expect(cn('text-xs', 'text-lg')).toBe('text-lg');
     expect(cn('text-base', 'text-md')).toBe('text-md');
   });
 

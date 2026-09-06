@@ -55,7 +55,7 @@ export interface InputProps
 }
 
 export const INPUT_BASE_CLASS =
-  'w-full min-w-0 border leading-normal caret-accent ' +
+  'w-full min-w-0 border caret-accent ' +
   'placeholder:text-neutral-600 ' +
   'px-3 ' +
   'hover:not-disabled:not-focus:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +

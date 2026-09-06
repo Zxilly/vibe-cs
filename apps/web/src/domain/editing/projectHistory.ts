@@ -21,8 +21,8 @@ export function projectHistoryCommands(
   changeGroups: readonly ProjectChangeGroup[],
 ): ProjectHistoryCommands {
   const ordered = [...changeGroups]
-    .filter((group) => group.status === 'completed'
-      && group.operations.length > 0
+    // Interrupted turns retain committed edits and participate in the same history.
+    .filter((group) => group.operations.length > 0
       && group.author.kind !== 'system')
     .sort((left, right) => left.to_revision - right.to_revision);
   const rootIdByGroupId = new Map<string, string>();

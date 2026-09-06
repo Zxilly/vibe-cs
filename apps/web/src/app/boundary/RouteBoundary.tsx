@@ -114,10 +114,10 @@ export function RouteErrorState({
       data-tone="error"
       className={cn('mx-auto mt-20 w-[calc(100%-3.5rem)] max-w-[39rem] border border-fail-border bg-bg', className)}
     >
-      <div className="border-b border-fail-border px-4 py-3 font-mono text-2xs tracking-wide text-fail-text">
+      <div className="border-b border-fail-border px-4 py-3 font-mono text-xs tracking-wide text-fail-text">
         ROUTE <span className="text-fail">/</span> FAILED
       </div>
-      <div className={cn(EMPTY_MIN_HEIGHT_CLASS, 'flex flex-col items-center justify-center gap-3 p-7 text-center')}>
+      <div className={cn(EMPTY_MIN_HEIGHT_CLASS, 'flex flex-col items-center justify-center gap-3 p-6 text-center')}>
         <h3 id="route-failed-title" className="font-heading text-xl text-fail-text">
           <Trans>这个页面没能打开</Trans>
         </h3>
@@ -166,10 +166,10 @@ export function NotFound({
       data-tone="empty"
       className={cn('mx-auto mt-20 w-[calc(100%-3.5rem)] max-w-[35rem] border border-divider bg-bg', className)}
     >
-      <div className="border-b border-divider px-4 py-3 font-mono text-2xs tracking-wide text-neutral-600">
+      <div className="border-b border-divider px-4 py-3 font-mono text-xs tracking-wide text-neutral-600">
         ROUTE <span className="text-accent-700">/</span> NOT FOUND
       </div>
-      <div className="flex min-h-[11rem] flex-col items-center justify-center gap-3 p-7 text-center">
+      <div className="flex min-h-[11rem] flex-col items-center justify-center gap-3 p-6 text-center">
         <h3 id="route-not-found-title" className="font-heading text-xl">
           <Trans>找不到这个页面</Trans>
         </h3>

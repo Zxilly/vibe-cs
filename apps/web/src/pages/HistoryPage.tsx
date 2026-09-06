@@ -157,7 +157,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
         />
       }
       bar={
-        <div className="flex flex-wrap items-center gap-2.5 border-b border-divider bg-surface px-7 py-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-divider bg-surface px-6 py-2.5">
           <Badge variant="accent">
             <Trans>全部 {total}</Trans>
           </Badge>
@@ -176,7 +176,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
             </Badge>
           )}
           <div className="flex-1" aria-hidden="true" />
-          <span className="text-2xs text-neutral-600">
+          <span className="text-xs text-neutral-600">
             <Trans>Valve 官方链路。FACEIT 等平台连接器尚未提供</Trans>
           </span>
         </div>
@@ -208,7 +208,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
         )
       }
     >
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-7">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-6">
         {readFailure === null ? null : (
           <Alert
             variant="danger"

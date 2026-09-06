@@ -126,7 +126,7 @@ export function AdvancedSection() {
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
                     <span>{check.label}</span>
-                    <span className="font-mono text-2xs text-neutral-600">{check.state}</span>
+                    <span className="font-mono text-xs text-neutral-600">{check.state}</span>
                   </div>
                   {check.detail === '' ? null : (
                     <p className="ms-5 break-all text-xs leading-normal text-neutral-600">{check.detail}</p>

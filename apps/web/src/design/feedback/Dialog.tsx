@@ -69,11 +69,11 @@ export interface DialogProps {
 }
 
 /* Industry `.dialog-backdrop`: a 50% neutral-900 scrim. */
-const BACKDROP_CLASS = 'fixed inset-0 z-50 bg-neutral-900/50';
+const BACKDROP_CLASS = 'fixed inset-0 z-50 bg-media/50';
 
 const PANEL_CLASS =
   'fixed left-1/2 top-1/2 z-50 flex w-[var(--w-inspector-wide)] max-w-[calc(100%-2rem)] ' +
-  '-translate-x-1/2 -translate-y-1/2 flex-col gap-3 border bg-bg p-4 shadow-[var(--shadow-lg)]';
+  '-translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-hidden rounded-lg border bg-bg p-6 shadow-[var(--shadow-lg)] max-h-[calc(100dvh-2rem)]';
 
 export function Dialog({
   open,
@@ -110,16 +110,16 @@ export function Dialog({
           className={cn(PANEL_CLASS, destructive ? 'border-fail-border' : 'border-divider', className)}
         >
           <DialogPrimitive.Title
-            className={cn('font-heading text-lg', destructive ? 'text-fail-text' : 'text-text')}
+            className={cn('flex-none text-xl font-bold', destructive ? 'text-fail-text' : 'text-text')}
           >
             {title}
           </DialogPrimitive.Title>
 
           {children === undefined ? null : (
-            <div className="text-sm leading-normal text-neutral-800">{children}</div>
+            <div className="min-h-0 overflow-y-auto text-base text-neutral-800">{children}</div>
           )}
 
-          <div className={cn('mt-2', OVERLAY_ACTIONS_CLASS)}>
+          <div className={cn('mt-2 flex-none', OVERLAY_ACTIONS_CLASS)}>
             <DialogPrimitive.Close className={overlayActionClass('secondary')}>
               {cancelLabel ?? <Trans>取消</Trans>}
             </DialogPrimitive.Close>

@@ -345,6 +345,8 @@ function evidenceCollectedClip(row: EvidenceSearchItem): ProjectCollectedClip {
     label: `${row.actor_name ?? row.actor_id ?? row.event_type} · ${row.event_type}`,
     round: row.round,
     playerId: row.actor_id,
+    playerName: row.actor_name,
+    tickRate: null,
     highlightId: row.source_kind === 'highlight' ? row.source_id : null,
     evidenceId: row.evidence_id,
     startTick: row.tick,

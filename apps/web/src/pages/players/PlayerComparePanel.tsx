@@ -98,7 +98,7 @@ function PlayerCard({
       className={`flex-1 border p-3 ${emphasis ? 'border-accent-400' : 'border-divider'}`}
     >
       <div className="truncate font-heading text-lg">{player.name}</div>
-      <div className="truncate text-2xs text-neutral-600">
+      <div className="truncate text-xs text-neutral-600">
         {player.last_team ?? NO_VALUE}
         {' · '}
         <Trans>{player.stats.matches} 场</Trans>
@@ -153,7 +153,7 @@ export function PlayerComparePanel({
           <section className="border border-divider" data-focused-player={focusedPlayer.steam_id}>
             <header className="border-l-2 border-accent px-3 py-2">
               <h3 className="font-heading text-xl">{focusedPlayer.name}</h3>
-              <p className="text-2xs text-neutral-600">
+              <p className="text-xs text-neutral-600">
                 {focusedPlayer.last_team ?? NO_VALUE}
                 {' · '}
                 <Trans>尚未加入比较</Trans>
@@ -249,7 +249,7 @@ export function PlayerComparePanel({
       <div className="flex flex-col gap-3">
         {rows.map((row) => (
           <div key={row.id} data-compare-metric={row.id}>
-            <div className="mb-1 flex justify-between text-2xs text-neutral-600">
+            <div className="mb-1 flex justify-between text-xs text-neutral-600">
               <span>{row.label}</span>
               <span className="font-mono">
                 {row.print(row.left)} · {row.print(row.right)}
@@ -273,7 +273,7 @@ export function PlayerComparePanel({
         {/* Verbatim from the artboard: a statistic the demos do not carry gets a
             dashed empty rail and the words 「数据不可用」, never a zero bar. */}
         <div data-compare-metric="rank">
-          <div className="mb-1 flex justify-between text-2xs text-neutral-600">
+          <div className="mb-1 flex justify-between text-xs text-neutral-600">
             <span>
               <Trans>段位分布</Trans>
             </span>
@@ -285,7 +285,7 @@ export function PlayerComparePanel({
         </div>
       </div>
 
-      <p className="text-2xs leading-normal text-neutral-600">
+      <p className="text-xs leading-normal text-neutral-600">
         <Trans>
           首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。
         </Trans>

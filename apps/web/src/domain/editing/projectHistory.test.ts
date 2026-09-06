@@ -29,6 +29,20 @@ function group({
 }
 
 describe('projectHistoryCommands', () => {
+  it('keeps interrupted edits in the Undo/Redo chain and clears an older redo branch', () => {
+    const a = group({ id: 'a', revision: 1 });
+    const undoA = group({ id: 'undo-a', revision: 2, reverts: a.id });
+    const interrupted: ProjectChangeGroup = {
+      ...group({ id: 'partial-agent', revision: 3 }),
+      status: 'interrupted',
+      author: { kind: 'agent', session_id: 'session', turn_id: 'turn' },
+    };
+    expect(projectHistoryCommands([a, undoA, interrupted])).toEqual({ undo: interrupted, redo: null });
+    const undoAgent = group({ id: 'undo-agent', revision: 4, reverts: interrupted.id });
+    expect(projectHistoryCommands([a, undoA, interrupted, undoAgent])).toEqual({ undo: null, redo: undoAgent });
+    const redoAgent = group({ id: 'redo-agent', revision: 5, reverts: undoAgent.id });
+    expect(projectHistoryCommands([a, undoA, interrupted, undoAgent, redoAgent])).toEqual({ undo: redoAgent, redo: null });
+  });
   it('walks multiple Undo and Redo steps over immutable revert chains', () => {
     const a = group({ id: 'a', revision: 1 });
     const b = group({ id: 'b', revision: 2 });

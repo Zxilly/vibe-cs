@@ -74,7 +74,7 @@ export interface RoundTimelineProps {
    it folds onto, and the strip is a row of cells like any other row. */
 const CELL_CLASS =
   'relative flex h-[var(--h-row)] min-w-0 flex-col items-stretch justify-center overflow-hidden ' +
-  'border border-transparent text-2xs focus-visible:z-10';
+  'border border-transparent text-xs focus-visible:z-10';
 
 const WINNER_FILL = {
   a: 'bg-accent-100 text-accent-900',

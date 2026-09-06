@@ -174,7 +174,7 @@ export function EvidenceConditions({
     >
       <form
         data-evidence-search-bar=""
-        className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
+        className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
         onSubmit={submitSearch}
       >
         <Seg
@@ -205,9 +205,9 @@ export function EvidenceConditions({
 
       <div
         data-evidence-condition-bar=""
-        className="flex h-[var(--h-bar)] flex-none items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
+        className="flex h-[var(--h-bar)] flex-none items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
       >
-        <span className="text-2xs text-neutral-600">
+        <span className="text-xs text-neutral-600">
           <Trans>条件</Trans>
         </span>
 

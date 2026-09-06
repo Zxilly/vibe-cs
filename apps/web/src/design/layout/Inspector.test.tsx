@@ -41,7 +41,7 @@ describe('Inspector docked', () => {
     );
 
     expect(html).toContain('data-inspector-title="true"');
-    expect(html).toContain('style="font-size:var(--text-base)"');
+    expect(html).toContain('text-sm font-medium');
     expect(html).toContain('h-[var(--h-panel-head)]');
   });
 

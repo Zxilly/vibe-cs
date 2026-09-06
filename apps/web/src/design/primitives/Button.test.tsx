@@ -23,7 +23,7 @@ describe('Button markup', () => {
   it('paints the primary variant from the accent token', () => {
     const html = renderMarkup(<Button variant="primary">确认</Button>);
     expect(html).toContain('bg-accent');
-    expect(html).toContain('text-bg');
+    expect(html).toContain('text-on-accent');
   });
 
   it('paints the danger variant from --color-fail, not a page override', () => {

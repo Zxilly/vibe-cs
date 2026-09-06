@@ -17,6 +17,7 @@ import {
   useMatchReplay,
 } from '../../../data/match';
 import { ReplayView } from './ReplayView';
+import { NativeShellProvider, unavailableNativeShell } from '../../../data/nativeShell';
 import { ANALYSIS, HEAT_POINTS, RADAR, REPLAY } from './test/fixtures';
 import { markupView, queryResult, viewProps } from './test/renderView';
 
@@ -62,6 +63,39 @@ function loaded({ replay = REPLAY, replayError, analysisError, pending = false }
 }
 
 describe('the body', () => {
+  it('renders the returned radar through the native media seam under the same calibrated layers', () => {
+    loaded();
+    vi.mocked(useMapRadarOverview).mockReturnValue(queryResult({
+      ...RADAR,
+      image_url: '/api/maps/de_mirage/radar',
+      image_mime: 'image/png',
+      browser_displayable: true,
+    }) as never);
+    const mediaSrc = vi.fn(() => 'http://vibe-cs-media.localhost/maps/de_mirage/radar');
+    const html = markupView(
+      <NativeShellProvider shell={{ ...unavailableNativeShell, available: true, mediaSrc }}>
+        <ReplayView.Body {...viewProps()} />
+      </NativeShellProvider>,
+    );
+    expect(mediaSrc).toHaveBeenCalledWith('/api/maps/de_mirage/radar');
+    expect(html).toContain('data-replay-basemap="true"');
+    expect(html).toContain('src="http://vibe-cs-media.localhost/maps/de_mirage/radar"');
+    expect(html).toContain('data-map-basemap-viewport="full"');
+    expect(html).toContain('data-layer="players"');
+    expect(html).not.toContain('data-testid="map-blueprint-grid"');
+  });
+
+  it('retains the coordinate grid when a returned radar is not browser-displayable', () => {
+    loaded();
+    vi.mocked(useMapRadarOverview).mockReturnValue(queryResult({
+      ...RADAR, image_url: '/api/maps/de_mirage/radar', browser_displayable: false,
+    }) as never);
+    const html = markupView(<ReplayView.Body {...viewProps()} />);
+    expect(html).not.toContain('data-replay-basemap');
+    expect(html).toContain('data-testid="map-blueprint-grid"');
+    expect(html).toContain('data-layer="players"');
+  });
+
   it('draws the artboard’s four layer switches, and only the four it can draw', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps()} />);

@@ -5,7 +5,7 @@
  *
  * `StageBar` already owns everything the two artboards draw as *the bar*: six
  * equal segments in `--color-ok` / `--color-accent` / `--color-fail` /
- * `--color-neutral-200`, the stage names underneath in `--text-2xs`, the
+ * `--color-neutral-200`, the stage names underneath in `--text-xs`, the
  * `aria-current="step"` on the running one and the `sr-only` state word that
  * keeps the four states apart without colour. All of that is layer 1 and none
  * of it is task-specific.
@@ -83,7 +83,7 @@ export function StageTimeline({ label, stages, timeZone, className }: StageTimel
             <li
               key={stage.id}
               data-stage-meta={stage.id}
-              className="flex min-w-0 flex-col gap-0.5 text-2xs text-neutral-600 last:text-end"
+              className="flex min-w-0 flex-col gap-0.5 text-xs text-neutral-600 last:text-end"
             >
               {/* The bar already shows the name; repeat it for a reader who
                   reaches this row on its own, without drawing it twice. */}

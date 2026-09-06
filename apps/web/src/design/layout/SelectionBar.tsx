@@ -38,7 +38,7 @@ export function SelectionBar({ summary, children, primary, className }: Selectio
     <div
       data-selection-bar
       className={cn(
-        'flex h-[var(--h-bar)] flex-none items-center gap-3.5 border-t border-divider bg-accent-100 px-7',
+        'flex h-[var(--h-bar)] flex-none items-center gap-3.5 border-t border-divider bg-accent-100 px-6',
         className,
       )}
     >

@@ -116,7 +116,7 @@ export function Scoreboard({
       </div>
 
       {periods === undefined || periods.length === 0 ? null : (
-        <ul data-scoreboard-periods="" className="flex flex-wrap items-center gap-2.5 text-2xs text-neutral-700">
+        <ul data-scoreboard-periods="" className="flex flex-wrap items-center gap-2.5 text-xs text-neutral-700">
           {periods.map((period) => (
             <li key={period.id} data-scoreboard-period={period.id} className="flex items-center gap-1.5">
               <span className={period.overtime === true ? 'text-accent-700' : undefined}>{period.label}</span>
@@ -153,7 +153,7 @@ function SideBadge({ side }: { readonly side: TeamSide | undefined }) {
     <span
       data-team-side={side}
       title={i18n._(meta.label)}
-      className="flex flex-none items-center gap-1 border border-divider px-1.5 py-0.5 font-heading text-2xs tracking-wide text-neutral-800"
+      className="flex flex-none items-center gap-1 border border-divider px-1.5 py-0.5 font-heading text-xs tracking-wide text-neutral-800"
     >
       <Icon size={11} strokeWidth={1.5} aria-hidden="true" />
       <span className="sr-only">{i18n._(meta.label)}</span>

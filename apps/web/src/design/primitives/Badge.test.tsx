@@ -39,7 +39,7 @@ describe('Badge markup', () => {
 
   it('uses the 11px step and no literal type size', () => {
     const html = renderMarkup(<Badge>x</Badge>);
-    expect(html).toContain('text-2xs');
+    expect(html).toContain('text-xs');
     expect(html).not.toMatch(/text-\[\d/u);
   });
 

@@ -1,10 +1,16 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
+import type { ActivityItem } from '../shared/desktop/viewModels';
+
+
+
+
+
 
 vi.mock('flexlayout-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('flexlayout-react')>();
@@ -451,6 +457,11 @@ function slideProject(): Project {
   };
 }
 
+async function openSourcePreview() {
+  const toggle = await screen.findByRole('button', { name: /源预览与片段信息/u });
+  if (toggle.getAttribute('aria-expanded') === 'false') fireEvent.click(toggle);
+}
+
 function renderWorkspace({
   applyProjectPatch = vi.fn(),
   revertProjectChangeGroup = vi.fn(),
@@ -461,8 +472,10 @@ function renderWorkspace({
   agentConfigured = true,
   project = PROJECT,
   deliveryGate = deliveryGateFor(project),
+  getProjectDeliveryGate,
   getProject,
   getActivity,
+  listActivities,
   listMediaAssets,
   createProjectRecordingPlan,
   executeRecordingPlan,
@@ -486,6 +499,7 @@ function renderWorkspace({
   appendAgentSessionEntry,
   updateAgentTurn,
   cancelAgentChat,
+  route,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
@@ -497,8 +511,10 @@ function renderWorkspace({
   readonly agentConfigured?: boolean;
   readonly project?: Project;
   readonly deliveryGate?: ProjectDeliveryGate;
+  readonly getProjectDeliveryGate?: ReturnType<typeof vi.fn>;
   readonly getProject?: ((projectId: string) => Promise<Project>) | undefined;
   readonly getActivity?: ReturnType<typeof vi.fn> | undefined;
+  readonly listActivities?: ReturnType<typeof vi.fn> | undefined;
   readonly listMediaAssets?: ReturnType<typeof vi.fn> | undefined;
   readonly createProjectRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
   readonly executeRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
@@ -522,6 +538,7 @@ function renderWorkspace({
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
   readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
   readonly cancelAgentChat?: ReturnType<typeof vi.fn> | undefined;
+  readonly route?: string | undefined;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
@@ -529,8 +546,9 @@ function renderWorkspace({
     client: {
       listProjects: listProjects ?? (() => Promise.resolve([project])),
       getProject: getProject ?? (() => Promise.resolve(project)),
-      getProjectDeliveryGate: () => Promise.resolve(deliveryGate),
+      getProjectDeliveryGate: getProjectDeliveryGate ?? (() => Promise.resolve(deliveryGate)),
       ...(getActivity === undefined ? {} : { getActivity }),
+      listActivities: listActivities ?? (() => Promise.resolve({ items: [], total: 0, page: 1, page_size: 20, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } })),
       ...(createProjectRecordingPlan === undefined ? {} : { createProjectRecordingPlan }),
       ...(executeRecordingPlan === undefined ? {} : { executeRecordingPlan }),
       ...(exportProject === undefined ? {} : { exportProject }),
@@ -560,13 +578,162 @@ function renderWorkspace({
       applyProjectPatch,
       revertProjectChangeGroup,
     },
-    route: `/projects/${project.id}${session === null ? '' : `?session=${session.id}`}`,
+    route: route ?? `/projects/${project.id}${session === null ? '' : `?session=${session.id}`}`,
     pattern: '/projects/:projectId',
     shell,
   });
 }
 
+describe('timeline review recovery regressions', () => {
+  it('restores a read-only Agent conversation from a plain Project link and honors explicit session links', async () => {
+    const session = (id: string, content: string): AgentSession => ({
+      id, title: content, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
+      entries: [{ kind: 'assistant', id: `${id}-entry`, at: PROJECT.updated_at,
+        content, status: 'completed', request_id: 'request', retry_of: null, error: null,
+        metadata: null, tool_calls: [] }],
+    });
+    const first = session('read-only-session', '这条只读对话没有修改时间线');
+    const second = session('explicit-session', '这是显式链接选择的对话');
+    const plainRoute = `/projects/${PROJECT.id}`;
+    const opened = renderWorkspace({ session: first });
+    expect(await screen.findByText(first.entries[0]!.content)).toBeTruthy();
+    opened.unmount();
+
+    const reopened = renderWorkspace({ session: first, route: plainRoute });
+    expect(await screen.findByText(first.entries[0]!.content)).toBeTruthy();
+    reopened.unmount();
+
+    const switched = renderWorkspace({ session: second });
+    expect(await screen.findByText(second.entries[0]!.content)).toBeTruthy();
+    expect(screen.queryByText(first.entries[0]!.content)).toBeNull();
+    switched.unmount();
+
+    renderWorkspace({ session: second, route: plainRoute });
+    expect(await screen.findByText(second.entries[0]!.content)).toBeTruthy();
+  });
+
+  it('inline revert targets displayed Agent group after a newer human edit', async () => {
+    const currentClips = PROJECT.document.tracks[0]!.clips;
+    const previousClips = currentClips.map((item, index) => index === 0 ? {...item, name: 'Before Agent'} : item);
+    const agent: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000070', project_id: PROJECT.id,
+      from_revision: 1, to_revision: 2, author: {kind: 'agent', session_id: 'session', turn_id: 'turn'},
+      status: 'completed', summary: 'Agent renames A', reverts_change_group_id: null,
+      operations: [{op: 'replace_track_clips', track_id: STORY_ID, clips: currentClips}],
+      inverse_operations: [{op: 'replace_track_clips', track_id: STORY_ID, clips: previousClips}],
+      created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+    };
+    const human: ProjectChangeGroup = {
+      ...agent, id: '00000000-0000-4000-8000-000000000071', from_revision: 2, to_revision: 3,
+      author: {kind: 'human'}, summary: 'Human marker edit',
+      operations: [{op:'replace_markers', markers:[]}], inverse_operations:[{op:'replace_markers', markers:[]}],
+    };
+    const revertProjectChangeGroup = vi.fn();
+    renderWorkspace({project:{...PROJECT, revision:3}, groups: [human, agent], revertProjectChangeGroup});
+    const note = await screen.findByLabelText('时间轴修改 1');
+    fireEvent.click(within(note).getByRole('button', {name: '撤销这组修改'}));
+    await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(PROJECT.id, agent.id, 3));
+  });
+  it('undo targets latest interrupted Agent edits before older human edits', async () => {
+    const earlier: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000024', project_id: PROJECT.id,
+      from_revision: 0, to_revision: 1, author: {kind: 'human'}, status: 'completed',
+      summary: 'Earlier human edit', reverts_change_group_id: null,
+      operations: [{op: 'replace_markers', markers: []}], inverse_operations: [{op: 'replace_markers', markers: []}],
+      created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+    };
+    const interrupted: ProjectChangeGroup = {
+      ...earlier, id: '00000000-0000-4000-8000-000000000025',
+      from_revision: 1, to_revision: 2, status: 'interrupted',
+      author: {kind: 'agent', session_id: '00000000-0000-4000-8000-000000000026', turn_id: '00000000-0000-4000-8000-000000000027'},
+      summary: 'Stopped after valid Agent edits',
+    };
+    const revertProjectChangeGroup = vi.fn();
+    renderWorkspace({project: {...PROJECT, revision: 2}, groups: [interrupted, earlier], revertProjectChangeGroup});
+    const timeline = await screen.findByRole('region', {name: '时间轴'});
+    fireEvent.keyDown(timeline, {key: 'z', ctrlKey: true});
+    await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(PROJECT.id, interrupted.id, 2));
+  });
+  it('disabled Story selection cannot offer nesting', async () => {
+    const project: Project = {
+      ...PROJECT, document: {...PROJECT.document, tracks: PROJECT.document.tracks.map(track => ({
+        ...track, clips: track.clips.map(item => item.id === CLIP_A
+          ? {...item, placement: {...item.placement, enabled: false}} : item),
+      }))},
+    };
+    renderWorkspace({project});
+    await screen.findByRole('region', {name: '时间轴'});
+    fireEvent.click(screen.getByRole('button', {name: /A 5\.0s · 未录制/u}));
+    fireEvent.click(screen.getByRole('button', {name: /B 5\.0s · 已录制/u}), {ctrlKey: true});
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', {name: '从所选片段创建嵌套序列…'}).getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('Edit Lease blocks group and nest menus on unlocked tracks', async () => {
+    renderWorkspace({lease: {
+      id:'00000000-0000-4000-8000-000000000040', project_id:PROJECT.id,
+      session_id:'00000000-0000-4000-8000-000000000041',
+      turn_id:'00000000-0000-4000-8000-000000000042', base_revision:1,
+      acquired_at:'2026-08-28T10:00:00Z', heartbeat_at:'2026-08-28T10:00:01Z',
+    }});
+    await screen.findByText('Agent 正在编辑 · 你暂时只能查看');
+    fireEvent.click(screen.getByRole('button', {name: /A 5\.0s · 未录制/u}));
+    fireEvent.click(screen.getByRole('button', {name: /B 5\.0s · 已录制/u}), {ctrlKey: true});
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', {name: '组合所选片段'}).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', {name: '从所选片段创建嵌套序列…'}).getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('enabled selection permits nesting as the positive control', async () => {
+    renderWorkspace();
+    await screen.findByRole('region', {name: '时间轴'});
+    fireEvent.click(screen.getByRole('button', {name: /A 5\.0s · 未录制/u}));
+    fireEvent.click(screen.getByRole('button', {name: /B 5\.0s · 已录制/u}), {ctrlKey: true});
+    openTimelineCommands();
+    expect(screen.getByRole('menuitem', {name: '从所选片段创建嵌套序列…'}).getAttribute('aria-disabled')).not.toBe('true');
+  });
+});
+
 describe('unified project workspace', () => {
+  it('restores a project task outside the Agent without starting work or automatically resuming an old conversation', async () => {
+    const task: ActivityItem = {
+      id: 'export:restored-export', kind: 'export', subtype: 'project', job_id: 'restored-export',
+      context_id: PROJECT.id, subject: 'Existing export', status: 'completed', stage: null,
+      progress_percent: null, completed_units: null, total_units: null, unit: null,
+      error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
+      available_actions: ['open_outputs'],
+    };
+    const listActivities = vi.fn(() => Promise.resolve({ items: [task], total: 1, page: 1, page_size: 20,
+      summary: { total: 1, active: 0, completed: 1, failed: 0, cancelled: 0 } }));
+    const getActivity = vi.fn(() => Promise.resolve(task));
+    const streamAgentChat = vi.fn();
+    const exportProject = vi.fn();
+    renderWorkspace({ listActivities, getActivity, streamAgentChat, exportProject,
+      route: `/projects/${PROJECT.id}?session=restored-session`,
+      session: { id: 'restored-session', title: 'Existing conversation', created_at: PROJECT.created_at, updated_at: PROJECT.updated_at, entries: [] },
+    });
+    await waitFor(() => expect(getActivity).toHaveBeenCalledWith('export', 'restored-export', expect.any(AbortSignal)));
+    fireEvent.click(await screen.findByRole('button', { name: '作品任务' }));
+    expect(await screen.findByRole('dialog', { name: '作品任务' })).toBeTruthy();
+    expect(within(screen.getByRole('dialog', { name: '作品任务' })).getByText('导出完成')).toBeTruthy();
+    expect(listActivities).toHaveBeenCalledWith(expect.objectContaining({ project_id: PROJECT.id }), expect.any(AbortSignal));
+    expect(streamAgentChat).not.toHaveBeenCalled();
+    expect(exportProject).not.toHaveBeenCalled();
+  });
+
+  it('starts with a collapsed source preview and keeps its selected source while opening and closing it', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const toggle = await screen.findByRole('button', { name: /源预览与片段信息/u });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('slider', { name: '源素材播放头' })).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: '选择素材 B' }));
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('slider', { name: '源素材播放头' })).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(screen.getByRole('option', { name: '选择素材 B' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByRole('slider', { name: '源素材播放头' })).toBeNull();
+  });
   it('hosts Project, monitors, Timeline and Agent in one dockable workspace', async () => {
     renderWorkspace();
 
@@ -781,6 +948,52 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(getActivity).toHaveBeenCalled());
     await waitFor(() => expect(getProject.mock.calls.length).toBeGreaterThanOrEqual(3));
     expect(listMediaAssets.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('refreshes the delivery gate after a recording advances the Project Head revision', async () => {
+    const before = { ...RECORDABLE_PROJECT, revision: 3 };
+    const after = { ...RECORDED_PROJECT, revision: 4 };
+    let completed = false;
+    let headReadCompleted = false;
+    let completeHeadRead!: () => void;
+    const recordedHead = new Promise<Project>((resolve) => {
+      completeHeadRead = () => { headReadCompleted = true; resolve(after); };
+    });
+    const exportProject = vi.fn(() => new Promise(() => undefined));
+    const getProject = vi.fn(() => completed ? recordedHead : Promise.resolve(before));
+    const getProjectDeliveryGate = vi.fn(() => Promise.resolve(deliveryGateFor(headReadCompleted ? after : before)));
+    const listMediaAssets = vi.fn(() => Promise.resolve({ items: [] }));
+    const getActivity = vi.fn(async () => {
+      completed = true;
+      return {
+        id: 'recording:job-a', kind: 'recording', subtype: null, job_id: 'job-a',
+        context_id: PROJECT.id, subject: 'Recorded clips', status: 'completed',
+        stage: null, progress_percent: 100, completed_units: 1, total_units: 1, unit: 'clips',
+        error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
+        available_actions: [],
+      };
+    });
+    renderWorkspace({
+      project: before, getProject, getProjectDeliveryGate, getActivity, listMediaAssets, exportProject,
+      createProjectRecordingPlan: vi.fn(() => Promise.resolve({ plan_id: 'plan-a' })),
+      executeRecordingPlan: vi.fn(() => Promise.resolve({ job_id: 'job-a', status: 'running' })),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: '录制缺失片段' }));
+    fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
+    await waitFor(() => expect(getProject.mock.calls.length).toBeGreaterThanOrEqual(3));
+    const gateReadsBeforeHead = getProjectDeliveryGate.mock.calls.length;
+    expect((screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => completeHeadRead());
+    await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
+    await waitFor(() => expect((screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement).disabled).toBe(false));
+    expect(getProjectDeliveryGate.mock.calls.length).toBeGreaterThan(gateReadsBeforeHead);
+    expect(screen.queryByText('检查交付状态')).toBeNull();
+    expect(listMediaAssets.mock.calls.length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(screen.getByRole('button', { name: '导出成片' }));
+    fireEvent.click(screen.getByRole('button', { name: '开始导出' }));
+    await waitFor(() => expect(exportProject).toHaveBeenCalledWith(PROJECT.id, {
+      expected_revision: 4, encoder: 'auto', quality: 80,
+    }));
   });
 
   it('offers the backend export actions in the Agent execution card', async () => {
@@ -3249,7 +3462,7 @@ describe('unified project workspace', () => {
     expect(preview.playbackRate).toBe(2);
 
     fireEvent.keyDown(timeline, { key: 'k' });
-    expect(screen.getByText('0.0x')).toBeTruthy();
+    expect(screen.getByText('暂停')).toBeTruthy();
 
     const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
     fireEvent.keyDown(playhead, { key: 'ArrowDown' });
@@ -3665,7 +3878,7 @@ describe('unified project workspace', () => {
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull();
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull();
     const trackGrid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
-    expect(trackGrid.style.gridTemplateRows).toBe('84px 64px 64px 44px 44px');
+    expect(trackGrid.style.gridTemplateRows).toBe('84px 64px 64px 32px 32px');
     expect(screen.getByRole('region', { name: '时间轴内容' }).className).toContain('overflow-y-auto');
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
@@ -3675,7 +3888,7 @@ describe('unified project workspace', () => {
 
     const grid = await screen.findByRole('rowgroup', { name: '时间轴轨道网格' });
     fireEvent.click(screen.getByRole('button', { name: '折叠轨道 Music' }));
-    await waitFor(() => expect(grid.style.gridTemplateRows).toBe('84px 64px 32px 44px 44px'));
+    await waitFor(() => expect(grid.style.gridTemplateRows).toBe('84px 64px 32px 32px 32px'));
     fireEvent.click(screen.getByRole('button', { name: '展开轨道 Music' }));
 
     const resize = screen.getByRole('separator', { name: '调整轨道高度 Music' });
@@ -3684,7 +3897,7 @@ describe('unified project workspace', () => {
     fireEvent.pointerUp(resize, { pointerId: 51, clientY: 140 });
     await waitFor(() => {
       expect(resize.getAttribute('aria-valuenow')).toBe('104');
-      expect(grid.style.gridTemplateRows).toBe('84px 64px 104px 44px 44px');
+      expect(grid.style.gridTemplateRows).toBe('84px 64px 104px 32px 32px');
     });
   });
 
@@ -5034,9 +5247,10 @@ describe('unified project workspace', () => {
     };
     renderWorkspace({ project: RECORDABLE_PROJECT, assets: [asset] });
 
+    await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('准备录制');
-    expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('已录制');
+    expect(within(panel).getByRole('option', { name: '选择素材 B' }).getAttribute('aria-description')).toBe('已录制');
     expect(within(panel).getByRole('option', { name: '选择素材 New angle' }).textContent).toContain('导入');
     expect(within(panel).getByRole('region', { name: '准备录制' })).toBeTruthy();
     expect(within(panel).getByRole('region', { name: '已录制' })).toBeTruthy();
@@ -5083,6 +5297,7 @@ describe('unified project workspace', () => {
     const replaceMediaAssetMarkers = vi.fn((_id: string, markers: readonly typeof sourceMarker[]) => Promise.resolve({ ...asset, markers }));
     renderWorkspace({ assets: [asset], replaceMediaAssetMarkers });
 
+    await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 B' }));
     const sourceMarkerButton = within(panel).getByRole('button', { name: '片段标记 Source beat 00:02.000' });
@@ -5132,6 +5347,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], generateMediaProxy, cleanupMediaProxies, applyProjectPatch });
 
+    await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 B' }));
     fireEvent.click(within(panel).getByRole('button', { name: '生成代理 Source B' }));
@@ -5145,7 +5361,8 @@ describe('unified project workspace', () => {
       }],
     })));
 
-    fireEvent.click(within(panel).getByRole('button', { name: '清理代理媒体' }));
+    fireEvent.pointerDown(within(panel).getByRole('button', { name: '更多素材操作' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '清理代理媒体' }));
     await waitFor(() => expect(cleanupMediaProxies).toHaveBeenCalledTimes(1));
   });
 
@@ -5180,7 +5397,8 @@ describe('unified project workspace', () => {
     renderWorkspace({ project, assets: [source('first', 'First'), source('second', 'Second')], applyProjectPatch });
 
     const panel = await screen.findByRole('region', { name: '项目素材' });
-    fireEvent.click(within(panel).getByRole('button', { name: '批量组接到序列' }));
+    fireEvent.pointerDown(within(panel).getByRole('button', { name: '更多素材操作' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '批量组接到序列' }));
     const dialog = screen.getByRole('dialog', { name: '批量组接到序列' });
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /First/u }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: /First/u }));
@@ -5222,7 +5440,8 @@ describe('unified project workspace', () => {
     const createMulticam = vi.fn(() => new Promise(() => undefined));
     renderWorkspace({ assets: [first, second], createMulticam });
     const panel = await screen.findByRole('region', { name: '项目素材' });
-    fireEvent.click(within(panel).getByRole('button', { name: '创建多机位序列' }));
+    fireEvent.pointerDown(within(panel).getByRole('button', { name: '更多素材操作' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '创建多机位序列' }));
     const dialog = screen.getByRole('dialog', { name: '创建多机位源序列' });
     fireEvent.change(within(dialog).getByRole('combobox', { name: '同步点' }), { target: { value: 'marker' } });
     fireEvent.change(within(dialog).getByLabelText('标记名称'), { target: { value: 'Clap' } });
@@ -5412,8 +5631,10 @@ describe('unified project workspace', () => {
       },
     });
 
+    await openSourcePreview();
     const option = await screen.findByRole('option', { name: '选择素材 Title card' });
-    expect(option.textContent).toContain('00:05.000');
+    expect(option.textContent).toContain('5s');
+    expect(option.querySelector('[title="00:05.000"]')).not.toBeNull();
     fireEvent.click(option);
     const preview = await waitFor(() => {
       const element = document.querySelector<HTMLImageElement>('img[data-source-preview-asset-id="asset-image"]');
@@ -5455,6 +5676,7 @@ describe('unified project workspace', () => {
       shell: { ...unavailableNativeShell, available: true, chooseFiles },
     });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 Manage me' }));
     fireEvent.click(screen.getByRole('button', { name: '重新定位素材 Manage me' }));
     await waitFor(() => expect(relinkMediaAsset).toHaveBeenCalledWith('asset-manage', 'E:\\moved\\manage.wav'));
@@ -5467,7 +5689,7 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(deleteMediaAsset).toHaveBeenCalledWith('asset-manage'));
   });
 
-  it('allows a referenced Timeline asset to relink but never to delete or place again', async () => {
+  it('allows a missing referenced Timeline asset to relink but never to delete or place again', async () => {
     const referencedAsset: MediaAsset = {
       id: 'asset-a',
       project_id: PROJECT.id,
@@ -5488,6 +5710,7 @@ describe('unified project workspace', () => {
     };
     renderWorkspace({ project: RECORDED_PROJECT, assets: [referencedAsset] });
 
+    await openSourcePreview();
     const option = await screen.findByRole('option', { name: '选择素材 A' });
     expect(option.textContent).toContain('不可用');
     fireEvent.click(option);
@@ -5519,6 +5742,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 New angle' }));
     const sourcePlayhead = screen.getByRole('slider', { name: '源素材播放头' });
     fireEvent.change(sourcePlayhead, { target: { value: 1 } });
@@ -5553,6 +5777,7 @@ describe('unified project workspace', () => {
     };
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, assets: [asset], applyProjectPatch });
+    await openSourcePreview();
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     stepTimelineSeconds(playhead, 2);
     fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
@@ -5701,6 +5926,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 Overwrite angle' }));
     fireEvent.click(screen.getByRole('button', { name: '在播放头覆盖 Overwrite angle' }));
 
@@ -5753,6 +5979,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: authoredProject, assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 Replacement angle' }));
     fireEvent.click(screen.getByRole('button', { name: '用 Replacement angle 替换所选片段' }));
 
@@ -5796,6 +6023,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(screen.getByRole('button', { name: '设为目标轨道 Music' }));
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Bed' }));
@@ -5887,6 +6115,7 @@ describe('unified project workspace', () => {
       getProject: () => Promise.resolve(serverProject),
     });
 
+    await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 Voice' }));
     expect(within(panel).getByText('A → 新建音频轨道')).toBeTruthy();
@@ -5906,7 +6135,7 @@ describe('unified project workspace', () => {
     expect(await screen.findByText('目标：Story')).toBeTruthy();
     const voiceItems = within(panel).getAllByRole('option', { name: '选择素材 Voice' });
     expect(voiceItems).toHaveLength(1);
-    expect(voiceItems[0]?.textContent).toContain('已录制');
+    expect(voiceItems[0]?.getAttribute('aria-description')).toBe('已录制');
   });
 
   it('source-patches an AV clip onto linked free video and audio tracks in one Project Patch', async () => {
@@ -5955,6 +6184,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project, assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('button', { name: '设为目标轨道 B-Roll' }));
     fireEvent.click(screen.getByRole('option', { name: '选择素材 AV source' }));
     expect(screen.getByRole('button', { name: '包含源视频' }).getAttribute('aria-pressed')).toBe('true');
@@ -6044,6 +6274,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project, assets: [asset], applyProjectPatch });
 
+    await openSourcePreview();
     fireEvent.click(await screen.findByRole('button', { name: '设为目标轨道 Silent B-Roll' }));
     fireEvent.click(screen.getByRole('option', { name: '选择素材 Silent source' }));
     fireEvent.click(screen.getByRole('button', { name: '包含源音频' }));
@@ -6852,7 +7083,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ session });
 
     expect(await screen.findByText('执行失败')).toBeTruthy();
-    expect(screen.getByText('invalid Project Patch: missing field id')).toBeTruthy();
+    expect(screen.getByText(/invalid Project Patch: missing field id/u)).toBeTruthy();
     expect(screen.queryByText('增量修改已提交到统一时间线。')).toBeNull();
   });
 
@@ -7018,7 +7249,7 @@ describe('unified project workspace', () => {
 
     renderWorkspace({ session, groups: [oldGroup] });
     expect(await screen.findByText('已读取，没有修改。')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '接受交付' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '接受修改' })).toBeNull();
   });
 
   it('offers delivery actions for the current session change', async () => {
@@ -7070,10 +7301,10 @@ describe('unified project workspace', () => {
       };
     });
     renderWorkspace({ session, groups: [currentGroup], appendAgentSessionEntry });
-    expect(await screen.findByRole('button', { name: '接受交付' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '接受修改' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '退回修改' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '直接修改' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '接受交付' }));
+    fireEvent.click(screen.getByRole('button', { name: '接受修改' }));
     await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(session.id, {
       kind: 'tool_decision',
       tool_call_id: `delivery:${currentGroup.id}`,
@@ -7198,11 +7429,11 @@ describe('unified project workspace', () => {
     renderWorkspace({ session, groups: [group] });
     expect(await screen.findByText('已接受 Agent 修改')).toBeTruthy();
     expect(screen.getByText(groupId)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '接受交付' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '接受修改' })).toBeNull();
     expect(screen.queryByText('Agent 修改待审阅')).toBeNull();
   });
 
-  it('locks human timeline controls immediately when Agent streaming starts before Lease polling', async () => {
+  it('sends the visible timeline context and locks human controls before Lease polling', async () => {
     const session: AgentSession = {
       id: '00000000-0000-4000-8000-000000000070',
       title: 'Agent · 统一作品',
@@ -7253,14 +7484,25 @@ describe('unified project workspace', () => {
       cancelAgentChat: vi.fn(async () => true),
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s/u }));
+    fireEvent.click(await screen.findByRole('button', { name: /A 5\.0s/u }));
+    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s/u }), { ctrlKey: true });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'Home' });
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
+    stepTimelineSeconds(playhead, 2);
+    fireEvent.click(screen.getByRole('button', { name: '在播放头标记出点' }));
     const input = await screen.findByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦');
     fireEvent.change(input, { target: { value: '只添加一个标记' } });
     fireEvent.click(screen.getByRole('button', { name: '发送给 Agent' }));
     await waitFor(() => expect(streamAgentChat).toHaveBeenCalledTimes(1));
     expect(streamAgentChat).toHaveBeenCalledWith(
       expect.objectContaining({
-        workspaceContext: expect.objectContaining({ selectedClipId: CLIP_B }),
+        workspaceContext: expect.objectContaining({
+          selectedClipId: CLIP_B, selectedClipIds: [CLIP_A, CLIP_B],
+          playheadSeconds: expect.closeTo(4, 6), rangeInSeconds: 2, rangeOutSeconds: 4,
+          targetTrackIds: expect.arrayContaining([STORY_ID]),
+        }),
       }),
       expect.any(Function),
     );

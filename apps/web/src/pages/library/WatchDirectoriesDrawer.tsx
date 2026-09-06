@@ -109,7 +109,7 @@ export function WatchDirectoriesDrawer({
                   {root.path}
                 </span>
                 {root.message === null ? null : (
-                  <span className="truncate text-2xs text-neutral-600">{root.message}</span>
+                  <span className="truncate text-xs text-neutral-600">{root.message}</span>
                 )}
               </div>
               <Button

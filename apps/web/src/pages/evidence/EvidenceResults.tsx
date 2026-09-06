@@ -119,7 +119,7 @@ export function EvidenceResults({
 }: EvidenceResultsProps) {
   if (error !== undefined) {
     return (
-      <div data-evidence-results="error" className="p-7">
+      <div data-evidence-results="error" className="p-6">
         <Alert
           variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}

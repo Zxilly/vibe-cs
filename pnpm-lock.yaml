@@ -24,6 +24,12 @@ importers:
       '@fluentui/react-icons':
         specifier: 2.0.339
         version: 2.0.339(react@19.2.8)
+      '@fontsource-variable/noto-sans-sc':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/roboto-mono':
+        specifier: 5.3.0
+        version: 5.3.0
       '@lingui/core':
         specifier: ^6.6.0
         version: 6.6.0(@babel/core@7.29.7)(@babel/types@7.29.8)
@@ -449,6 +455,12 @@ packages:
     resolution: {integrity: sha512-HbMdk4xAFus8i7B7i7IVf5Rr3bzMbumTkAcP/OwHqMNn+Yq7+96/mDprIyC/NuhQOG/gXCd4npr4fYUS/UI6QQ==}
     peerDependencies:
       react: '>=16.8.0 <20.0.0'
+
+  '@fontsource-variable/noto-sans-sc@5.3.0':
+    resolution: {integrity: sha512-lNar1dF7Ik/lHNPo/7JWG0TolXY29LtsqYgMvEysooZ5bsO9uH4shJmRrwyJ3PjyTPljhpMJEK0jDuLSU4vJ1w==}
+
+  '@fontsource-variable/roboto-mono@5.3.0':
+    resolution: {integrity: sha512-h5r+KY/6qy8JEOj33JgcrFO81YAnvrc1EAwMpl/EPJLb2OIvOy0/jmB5M7qs7x/uXk5JUP5Ux4LrkeOK7faHkQ==}
 
   '@griffel/core@1.21.3':
     resolution: {integrity: sha512-FMnlwhtmCRWvXEg2j/6W90wzvW+PFqdrsWFslfmxwS6l9X73gO0dnndKphht9ZOsJODvmLdqlnU1Lh8igg2mKw==}
@@ -3275,6 +3287,10 @@ snapshots:
       '@griffel/react': 1.7.7(react@19.2.8)
       react: 19.2.8
       tslib: 2.8.1
+
+  '@fontsource-variable/noto-sans-sc@5.3.0': {}
+
+  '@fontsource-variable/roboto-mono@5.3.0': {}
 
   '@griffel/core@1.21.3':
     dependencies:

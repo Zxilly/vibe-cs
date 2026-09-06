@@ -64,7 +64,7 @@ import {
  */
 function PanelHead({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex h-[var(--h-thead)] items-center border-b border-divider px-2.5 font-heading text-2xs tracking-widest text-neutral-700">
+    <div className="flex h-[var(--h-thead)] items-center border-b border-divider px-2.5 font-heading text-xs tracking-widest text-neutral-700">
       {children}
     </div>
   );
@@ -410,7 +410,7 @@ function StatCell({
 }) {
   return (
     <div className={last ? 'flex-1 px-3 py-2.5' : 'flex-1 border-r border-divider px-3 py-2.5'}>
-      <div className="text-2xs text-neutral-600">{label}</div>
+      <div className="text-xs text-neutral-600">{label}</div>
       <div className="font-mono text-lg">{children}</div>
     </div>
   );

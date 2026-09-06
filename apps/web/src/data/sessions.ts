@@ -53,6 +53,7 @@
  *   states with retry identity, not missing assistant messages.
  */
 
+import { t } from '@lingui/core/macro';
 import {
   skipToken,
   useMutation,
@@ -360,7 +361,12 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     return () => {
       mountedRef.current = false;
       // Leaving the page must not leave a request running in the backend.
-      if (requestIdRef.current !== null) void client.cancelAgentChat(requestIdRef.current);
+      if (requestIdRef.current !== null) {
+        void client.cancelAgentChat(requestIdRef.current).catch((cause: unknown) => {
+          console.error('Unable to stop the Agent while leaving the workspace', cause);
+        });
+      }
+      requestIdRef.current = null;
       const turn = turnRef.current;
       turnRef.current = null;
       if (turn !== null) {
@@ -378,7 +384,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             invalidateSessions(queryClient),
             invalidateAgentProject(queryClient, turn.projectId),
           ]);
-        })();
+        })().catch((cause: unknown) => {
+          console.error('Unable to save the stopped Agent turn while leaving the workspace', cause);
+        });
       }
     };
   }, [client, queryClient]);
@@ -390,7 +398,13 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     setStreaming(false);
     setDraft('');
     setActivity([]);
-    void client.cancelAgentChat(requestId);
+    const reportCancellationError = (cause: unknown) => {
+      if (mountedRef.current && requestIdRef.current === null) {
+        const detail = messageOf(cause);
+        setError(t`停止 Agent 时发生错误：${detail}`);
+      }
+    };
+    void client.cancelAgentChat(requestId).catch(reportCancellationError);
     const turn = turnRef.current;
     turnRef.current = null;
     if (turn !== null) {
@@ -408,7 +422,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           invalidateSessions(queryClient),
           invalidateAgentProject(queryClient, turn.projectId),
         ]);
-      })();
+      })().catch(reportCancellationError);
     }
     inflightRef.current = { text: '', toolCalls: [] };
   }, [client, queryClient]);
@@ -418,7 +432,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const send = useCallback(
     async (input: AgentChatSend) => {
       const targetSessionId = input.sessionId ?? sessionId;
-      if (targetSessionId === null || streaming) return;
+      if (targetSessionId === null || requestIdRef.current !== null) return;
 
       const requestId = createRequestId();
       requestIdRef.current = requestId;
@@ -428,159 +442,155 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       setActivity([]);
       inflightRef.current = { text: '', toolCalls: [] };
 
-      // The user entry is written first, so a failed stream still leaves the
-      // question in the transcript rather than losing what the user typed.
-      await client.appendAgentSessionEntry(targetSessionId, {
-        kind: 'user',
-        content: input.message,
-      });
-      const activeTurn = await client.appendAgentSessionEntry(targetSessionId, {
-        kind: 'assistant',
-        content: '',
-        tool_calls: [],
-        status: 'streaming',
-        request_id: requestId,
-        retry_of: input.retryOf ?? null,
-        error: null,
-        metadata: null,
-      });
-      if (activeTurn.kind !== 'assistant') {
-        throw new Error('agent turn creation did not return an assistant entry');
-      }
-      turnRef.current = {
-        sessionId: targetSessionId,
-        entryId: activeTurn.id,
-        status: 'streaming',
-        projectId: input.projectId,
-      };
-      await invalidateSessions(queryClient);
-
-      let text = '';
-      const toolCalls: AgentChatEventPayload['toolCalls'] = [];
-      const completionMetadata = {
-        current: null as Extract<AgentEvent, { type: 'complete' }>['metadata'] | null,
-      };
-      let failure: string | null = null;
-
-      const onEvent = (event: AgentEvent) => {
-        switch (event.type) {
-          case 'textDelta':
-            text += event.delta;
-            inflightRef.current = { ...inflightRef.current, text };
-            if (mountedRef.current) setDraft(text);
-            break;
-          case 'toolCallStarted': {
-            const running = runningToolActivity(event.toolCall);
-            if (mountedRef.current) {
-              setActivity((current) => upsertToolActivity(current, running));
-            }
-            break;
-          }
-          case 'toolCallFinished':
-            toolCalls.push(event.toolCall);
-            inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
-            if (mountedRef.current) {
-              setActivity((current) => upsertToolActivity(current, event.toolCall));
-            }
-            if (event.toolCall.status === 'completed' && projectMutatingTool(event.toolCall.name)) {
-              void invalidateAgentProject(queryClient, input.projectId);
-            }
-            break;
-          case 'error':
-            failure = event.message;
-            break;
-          case 'complete':
-            completionMetadata.current = event.metadata;
-            break;
-          default:
-            break;
-        }
-      };
-
       try {
-        await client.streamAgentChat(
-          buildChatInput(requestId, targetSessionId, input),
-          onEvent,
-        );
-      } catch (cause) {
-        failure = messageOf(cause);
-      }
-      // `cancel` clears the ref, so this is how a cancelled request is told
-      // apart from one that finished. `cancel` has already persisted the exact
-      // partial text and terminal tool calls under a cancelled turn status;
-      // this branch only prevents the stream task from overwriting that state.
-      const cancelled = requestIdRef.current !== requestId;
-      requestIdRef.current = null;
+        // The user entry is written first, so a failed stream still leaves the
+        // question in the transcript rather than losing what the user typed.
+        await client.appendAgentSessionEntry(targetSessionId, {
+          kind: 'user',
+          content: input.message,
+        });
+        if (requestIdRef.current !== requestId) return;
+        const activeTurn = await client.appendAgentSessionEntry(targetSessionId, {
+          kind: 'assistant',
+          content: '',
+          tool_calls: [],
+          status: 'streaming',
+          request_id: requestId,
+          retry_of: input.retryOf ?? null,
+          error: null,
+          metadata: null,
+        });
+        if (activeTurn.kind !== 'assistant') {
+          throw new Error('agent turn creation did not return an assistant entry');
+        }
+        if (requestIdRef.current !== requestId) {
+          await client.updateAgentTurn(targetSessionId, activeTurn.id, {
+            expected_status: 'streaming', status: 'cancelled', content: '',
+            tool_calls: [], error: null, metadata: null,
+          });
+          await invalidateSessions(queryClient);
+          return;
+        }
+        turnRef.current = {
+          sessionId: targetSessionId,
+          entryId: activeTurn.id,
+          status: 'streaming',
+          projectId: input.projectId,
+        };
+        await invalidateSessions(queryClient);
+        if (requestIdRef.current !== requestId) return;
 
-      if (cancelled) {
+        let text = '';
+        const toolCalls: AgentChatEventPayload['toolCalls'] = [];
+        const completionMetadata = {
+          current: null as Extract<AgentEvent, { type: 'complete' }>['metadata'] | null,
+        };
+        let failure: string | null = null;
+
+        const onEvent = (event: AgentEvent) => {
+          if (requestIdRef.current !== requestId) return;
+          switch (event.type) {
+            case 'textDelta':
+              text += event.delta;
+              inflightRef.current = { ...inflightRef.current, text };
+              if (mountedRef.current) setDraft(text);
+              break;
+            case 'toolCallStarted': {
+              const running = runningToolActivity(event.toolCall);
+              if (mountedRef.current) {
+                setActivity((current) => upsertToolActivity(current, running));
+              }
+              break;
+            }
+            case 'toolCallFinished':
+              toolCalls.push(event.toolCall);
+              inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
+              if (mountedRef.current) {
+                setActivity((current) => upsertToolActivity(current, event.toolCall));
+              }
+              if (event.toolCall.status === 'completed' && projectMutatingTool(event.toolCall.name)) {
+                void invalidateAgentProject(queryClient, input.projectId);
+              }
+              break;
+            case 'error':
+              failure = event.message;
+              break;
+            case 'complete':
+              completionMetadata.current = event.metadata;
+              break;
+            default:
+              break;
+          }
+        };
+
+        try {
+          await client.streamAgentChat(
+            buildChatInput(requestId, targetSessionId, input),
+            onEvent,
+          );
+        } catch (cause) {
+          failure = messageOf(cause);
+        }
+        // `cancel` clears the ref, so this is how a cancelled request is told
+        // apart from one that finished. `cancel` has already persisted the exact
+        // partial text and terminal tool calls under a cancelled turn status;
+        // this branch only prevents the stream task from overwriting that state.
+        if (requestIdRef.current !== requestId) return;
+
+        const turn = turnRef.current;
+        turnRef.current = null;
+        if (turn === null) return;
+        const terminalTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+          expected_status: turn.status,
+          status: failure === null ? 'completed' : 'failed',
+          content: text,
+          tool_calls: toolCalls,
+          error: failure,
+          metadata: failure !== null || completionMetadata.current === null ? null : {
+            provider: completionMetadata.current.provider,
+            model: completionMetadata.current.model,
+            input_tokens: completionMetadata.current.inputTokens,
+            output_tokens: completionMetadata.current.outputTokens,
+            total_tokens: completionMetadata.current.totalTokens,
+            cached_input_tokens: completionMetadata.current.cachedInputTokens,
+            reasoning_tokens: completionMetadata.current.reasoningTokens,
+            estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
+          },
+        });
+        cacheAgentTurn(queryClient, turn.sessionId, terminalTurn);
+        if (requestIdRef.current !== requestId) return;
         if (mountedRef.current) {
+          setError(failure);
           setStreaming(false);
           setDraft('');
           setActivity([]);
         }
-        return;
-      }
-
-      if (failure !== null) {
-        const turn = turnRef.current;
-        turnRef.current = null;
-        if (turn !== null) {
-          const failedTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
-            expected_status: turn.status,
-            status: 'failed',
-            content: text,
-            tool_calls: toolCalls,
-            error: failure,
-            metadata: null,
-          });
-          cacheAgentTurn(queryClient, turn.sessionId, failedTurn);
+        inflightRef.current = { text: '', toolCalls: [] };
+        requestIdRef.current = null;
+        await Promise.all([
+          invalidateSessions(queryClient),
+          invalidateAgentProject(queryClient, turn.projectId),
+        ]);
+      } catch (cause) {
+        if (requestIdRef.current !== requestId) return;
+        if (mountedRef.current) {
+          const detail = messageOf(cause);
+          setError(t`对话保存失败，请重试。${detail}`);
+        }
+        throw cause;
+      } finally {
+        if (requestIdRef.current === requestId) {
+          requestIdRef.current = null;
+          turnRef.current = null;
+          inflightRef.current = { text: '', toolCalls: [] };
           if (mountedRef.current) {
-            setError(failure);
             setStreaming(false);
             setActivity([]);
           }
-          inflightRef.current = { text: '', toolCalls: [] };
-          await Promise.all([
-            invalidateSessions(queryClient),
-            invalidateAgentProject(queryClient, turn.projectId),
-          ]);
         }
-        return;
       }
-
-      const turn = turnRef.current;
-      turnRef.current = null;
-      if (turn === null) return;
-      const completedTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
-        expected_status: turn.status,
-        status: 'completed',
-        content: text,
-        tool_calls: toolCalls,
-        error: null,
-        metadata: completionMetadata.current === null ? null : {
-          provider: completionMetadata.current.provider,
-          model: completionMetadata.current.model,
-          input_tokens: completionMetadata.current.inputTokens,
-          output_tokens: completionMetadata.current.outputTokens,
-          total_tokens: completionMetadata.current.totalTokens,
-          cached_input_tokens: completionMetadata.current.cachedInputTokens,
-          reasoning_tokens: completionMetadata.current.reasoningTokens,
-          estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
-        },
-      });
-      cacheAgentTurn(queryClient, turn.sessionId, completedTurn);
-      if (mountedRef.current) {
-        setStreaming(false);
-        setDraft('');
-        setActivity([]);
-      }
-      inflightRef.current = { text: '', toolCalls: [] };
-      await Promise.all([
-        invalidateSessions(queryClient),
-        invalidateAgentProject(queryClient, turn.projectId),
-      ]);
     },
-    [client, queryClient, sessionId, streaming],
+    [client, queryClient, sessionId],
   );
 
   return { streaming, draft, error, activity, send, cancel };
@@ -646,6 +656,12 @@ function buildChatInput(
       projectId: context.projectId ?? input.projectId,
       lens: context.lens ?? 'quick',
       selectedClipId: context.selectedClipId ?? null,
+      selectedClipIds: context.selectedClipIds ?? [],
+      targetTrackId: context.targetTrackId ?? null,
+      targetTrackIds: context.targetTrackIds ?? [],
+      playheadSeconds: context.playheadSeconds ?? null,
+      rangeInSeconds: context.rangeInSeconds ?? null,
+      rangeOutSeconds: context.rangeOutSeconds ?? null,
     },
     message: input.message,
   };

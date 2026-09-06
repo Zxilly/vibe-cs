@@ -19,10 +19,10 @@ try {
     # test has succeeded.
     New-Item -ItemType Directory -Force -Path $stagingDirectory | Out-Null
     $env:TS_RS_EXPORT_DIR = $stagingDirectory
-    # Binding exports compile the Desktop DTOs but do not bundle an app. Removing
-    # the external binary from Tauri's build-only view keeps this generator
-    # independent of the release Demo Worker artifact.
-    $env:TAURI_CONFIG = '{"bundle":{"externalBin":[]}}'
+    # Binding exports compile the Desktop DTOs but do not bundle an app. Skip
+    # packaged binaries and resources so generation neither needs the release
+    # Demo Worker artifact nor overwrites FFmpeg DLLs used by the running app.
+    $env:TAURI_CONFIG = '{"bundle":{"externalBin":[],"resources":[]}}'
     cargo test --quiet --workspace export_bindings_ -- --test-threads=1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {

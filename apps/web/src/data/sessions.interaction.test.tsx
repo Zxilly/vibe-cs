@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type {
   AgentChatInput,
+  AgentEvent,
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
@@ -45,6 +46,75 @@ function deferred<T>() {
 }
 
 describe('useAgentChatStream', () => {
+  it('preserves the human selection, target tracks and timeline range without adding document data', async () => {
+    let captured: AgentChatInput | undefined;
+    const workspaceContext = {
+      projectId: PROJECT_ID, lens: 'multitrack' as const,
+      selectedClipId: 'clip-b', selectedClipIds: ['clip-a', 'clip-b'],
+      targetTrackId: 'video-track', targetTrackIds: ['video-track', 'audio-track'],
+      playheadSeconds: 12.5, rangeInSeconds: 10, rangeOutSeconds: 20,
+    };
+    const client: DesktopClientStub = {
+      appendAgentSessionEntry: async (_id, entry) => ({ ...entry, id: crypto.randomUUID(), at: AT }),
+      updateAgentTurn: async (_id, entryId, update) => ({ ...update, kind: 'assistant', id: entryId, at: AT, request_id: 'request', retry_of: null }),
+      streamAgentChat: async (input) => { captured = input; return { sessionId: SESSION_ID }; },
+    };
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
+    await act(async () => result.current.send({ message: '压缩选区', projectId: PROJECT_ID, workspaceContext }));
+    expect(captured?.workspaceContext).toEqual(workspaceContext);
+  });
+
+  it.each(['create', 'finish'] as const)('releases the composer and exposes %s persistence failures', async (stage) => {
+    const client: DesktopClientStub = {
+      appendAgentSessionEntry: async (_id, entry) => {
+        if (stage === 'create') throw new Error('无法保存对话');
+        return { ...entry, id: 'entry', at: AT };
+      },
+      updateAgentTurn: async () => { throw new Error('无法保存对话'); },
+      streamAgentChat: async () => ({ sessionId: SESSION_ID }),
+      cancelAgentChat: async () => true,
+    };
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
+    await act(async () => {
+      await expect(result.current.send({ message: '修改开场', projectId: PROJECT_ID })).rejects.toThrow('无法保存对话');
+    });
+    expect(result.current.streaming).toBe(false);
+    expect(result.current.error).toContain('无法保存对话');
+  });
+
+  it('ignores a stopped stream while a new request is running', async () => {
+    const streams: Array<{ emit: (event: AgentEvent) => void; finish: () => void }> = [];
+    const client: DesktopClientStub = {
+      appendAgentSessionEntry: async (_id, entry) => ({ ...entry, id: crypto.randomUUID(), at: AT }),
+      updateAgentTurn: async (_id, entryId, update) => ({ ...update, kind: 'assistant', id: entryId, at: AT, request_id: 'request', retry_of: null }),
+      cancelAgentChat: async () => true,
+      streamAgentChat: async (_input, emit) => {
+        const completion = deferred<void>();
+        streams.push({ emit, finish: () => completion.resolve() });
+        await completion.promise;
+        return { sessionId: SESSION_ID };
+      },
+    };
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
+    let first!: Promise<void>;
+    act(() => { first = result.current.send({ message: '旧请求', projectId: PROJECT_ID }); });
+    await waitFor(() => expect(streams).toHaveLength(1));
+    await act(async () => result.current.cancel());
+    let second!: Promise<void>;
+    act(() => { second = result.current.send({ message: '新请求', projectId: PROJECT_ID }); });
+    await waitFor(() => expect(streams).toHaveLength(2));
+    act(() => {
+      streams[1]!.emit({ type: 'textDelta', delta: '新回复' });
+      streams[0]!.emit({ type: 'textDelta', delta: '旧回复' });
+    });
+    expect(result.current.draft).toBe('新回复');
+    await act(async () => { streams[0]!.finish(); await first; });
+    expect(result.current.streaming).toBe(true);
+    expect(result.current.draft).toBe('新回复');
+    await act(async () => { streams[1]!.finish(); await second; });
+    expect(result.current.streaming).toBe(false);
+  });
+
   it('sends only the durable session identity after a stale confirmation handler persists a decision', async () => {
     const pendingToolCall: AgentToolCall = {
       id: 'request-export:tool:1',

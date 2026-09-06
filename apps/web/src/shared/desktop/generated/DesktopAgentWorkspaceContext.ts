@@ -5,4 +5,10 @@ export type DesktopAgentWorkspaceContext = {
   projectId: string;
   lens: DesktopAgentEditingLens;
   selectedClipId: string | null;
+  selectedClipIds: Array<string>;
+  targetTrackId: string | null;
+  targetTrackIds: Array<string>;
+  playheadSeconds: number | null;
+  rangeInSeconds: number | null;
+  rangeOutSeconds: number | null;
 };

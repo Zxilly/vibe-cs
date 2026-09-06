@@ -26,7 +26,10 @@ use vibe_cs_domain::{
 use vibe_cs_storage::ProjectLeaseAcquire;
 
 use crate::{
-    agent_context::{model_history, workspace_context},
+    agent_context::{
+        demo_evidence_with_capture_bounds, model_history, timeline_event_coverage,
+        workspace_assets, workspace_context, workspace_event_coverage,
+    },
     bridge::{DesktopBridge, DesktopCall, DesktopMethod},
 };
 
@@ -288,6 +291,12 @@ impl AgentToolHost for DesktopAgentToolHost {
             .await
             .map_err(|error| format!("unable to read Project: {error}"))?
             .ok_or_else(|| "Project does not exist".to_owned())?;
+        if input.get("detail").and_then(Value::as_str) == Some("assets") {
+            return workspace_assets(&self.bridge.storage, &project, input).await;
+        }
+        if input.get("detail").and_then(Value::as_str) == Some("coverage") {
+            return workspace_event_coverage(&self.bridge.storage, &project, input).await;
+        }
         let mut workspace = self.workspace.clone();
         if let Some(object) = workspace.as_object_mut() {
             object.insert(
@@ -399,6 +408,7 @@ impl AgentToolHost for DesktopAgentToolHost {
             "deliveryGate": delivery_gate,
             "latestExport": latest_export,
             "matchesCurrentRevision": matches_current_revision,
+            "evidenceBoundary":"File existence, metadata and revision checks can confirm export success; they do not verify visible kills, title/subtitle content or audio/video synchronization.",
         }))
     }
 
@@ -458,6 +468,9 @@ impl AgentToolHost for DesktopAgentToolHost {
             timeline_start += timeline_clip.placement.duration;
             clips.push(timeline_clip);
         }
+        let coverage =
+            timeline_event_coverage(&self.bridge.storage, &clips.iter().collect::<Vec<_>>())
+                .await?;
         let patch = ProjectPatch {
             project_id: project.id,
             base_revision: project.revision,
@@ -475,7 +488,9 @@ impl AgentToolHost for DesktopAgentToolHost {
                 clips,
             }],
         };
-        apply_agent_patch(&self.bridge.storage, patch).await
+        let mut result = apply_agent_patch(&self.bridge.storage, patch).await?;
+        result["eventCoverage"] = coverage;
+        Ok(result)
     }
 }
 
@@ -513,6 +528,8 @@ struct StoryClipInput {
     #[serde(default)]
     post_roll_seconds: f64,
     duration_seconds: f64,
+    #[serde(default)]
+    source_in_seconds: f64,
     camera_style: HlaeCameraStyle,
     camera_intent: StoryCameraIntent,
     rationale: String,
@@ -524,8 +541,11 @@ impl StoryClipInput {
     fn validate_camera_design(&self) -> Result<(), String> {
         if !self.camera_intent.supports(self.camera_style) {
             return Err(format!(
-                "clip '{}' camera style does not express its camera intent",
-                self.name
+                "clip '{}' camera style does not express its camera intent: {} allows styles {}, received {}",
+                self.name,
+                json!(self.camera_intent),
+                json!(self.camera_intent.allowed_styles()),
+                json!(self.camera_style)
             ));
         }
         if self.rationale.trim().chars().count() < 8 {
@@ -558,8 +578,8 @@ impl StoryClipInput {
             placement: TimelinePlacement {
                 start,
                 duration: self.duration_seconds,
-                source_in: 0.0,
-                source_out: self.duration_seconds,
+                source_in: self.source_in_seconds,
+                source_out: self.source_in_seconds + self.duration_seconds,
                 speed: 1.0,
                 reverse: false,
                 frame_hold_source_time: None,
@@ -596,6 +616,31 @@ enum StoryCameraIntent {
 }
 
 impl StoryCameraIntent {
+    const ALL: [Self; 7] = [
+        Self::PlayerPov,
+        Self::EstablishLocation,
+        Self::FollowEntry,
+        Self::RevealDuel,
+        Self::HoldCrossfire,
+        Self::RiseAfterClimax,
+        Self::TransitionThroughSpace,
+    ];
+
+    fn allowed_styles(self) -> Vec<HlaeCameraStyle> {
+        [
+            HlaeCameraStyle::Pov,
+            HlaeCameraStyle::Orbit,
+            HlaeCameraStyle::Dolly,
+            HlaeCameraStyle::Static,
+            HlaeCameraStyle::Tracking,
+            HlaeCameraStyle::Crane,
+            HlaeCameraStyle::Flyby,
+        ]
+        .into_iter()
+        .filter(|style| self.supports(*style))
+        .collect()
+    }
+
     const fn supports(self, style: HlaeCameraStyle) -> bool {
         match self {
             Self::PlayerPov => matches!(style, HlaeCameraStyle::Pov),
@@ -674,9 +719,26 @@ fn reuse_compatible_story_take(
         .ok_or_else(|| "Story clip is missing its Capture Intent".to_owned())?
         .fingerprint()
         .map_err(|error| format!("unable to fingerprint Story clip: {error}"))?;
-    let Some(existing) = candidates.get_mut(&fingerprint).and_then(Vec::pop) else {
+    let Some(available) = candidates.get_mut(&fingerprint) else {
         return Ok(clip);
     };
+    let mut covering_index = None;
+    for (index, existing) in available.iter().enumerate().rev() {
+        let mut proposed = clip.clone();
+        proposed.material = existing.material.clone();
+        if proposed
+            .materialization_state()
+            .map_err(|error| format!("unable to check Story Take coverage: {error}"))?
+            == vibe_cs_domain::TimelineClipMaterializationState::Recorded
+        {
+            covering_index = Some(index);
+            break;
+        }
+    }
+    let Some(index) = covering_index else {
+        return Ok(clip);
+    };
+    let existing = available.remove(index);
     let TimelineClipMaterial::Take {
         take_id,
         asset_id,
@@ -757,6 +819,15 @@ fn cinematic_scene_from_replay(
         })
         .collect::<Vec<_>>();
     let spatial_frame_count = eligible.len();
+    let recommended_style = if spatial_frame_count >= 4 {
+        HlaeCameraStyle::Tracking
+    } else {
+        HlaeCameraStyle::Pov
+    };
+    let recommended_intents = StoryCameraIntent::ALL
+        .into_iter()
+        .filter(|intent| intent.supports(recommended_style))
+        .collect::<Vec<_>>();
     let selected_indices = evenly_spaced_indices(spatial_frame_count, MAXIMUM_CINEMATIC_SAMPLES);
     let positioned = selected_indices
         .into_iter()
@@ -826,7 +897,8 @@ fn cinematic_scene_from_replay(
             "highlightSpatialFrameCount": spatial_frame_count,
             "minimumSpatialSamples": 4,
             "nonPovSupportedWithoutWiderHandles": spatial_frame_count >= 4,
-            "recommendedCameraStyle": if spatial_frame_count >= 4 { "tracking" } else { "pov" },
+            "recommendedCameraStyle": recommended_style,
+            "recommendedCameraIntents": recommended_intents,
             "roundStartTick": artifact.metadata.start_tick,
             "roundEndTick": artifact.metadata.end_tick,
         },
@@ -872,7 +944,7 @@ fn camera_spatial_sample_count(
     clippy::cast_precision_loss,
     clippy::cast_sign_loss
 )]
-fn seconds_to_replay_ticks(seconds: f64, tick_rate: f64) -> Result<u64, String> {
+pub(crate) fn seconds_to_replay_ticks(seconds: f64, tick_rate: f64) -> Result<u64, String> {
     let ticks = seconds * tick_rate;
     if !ticks.is_finite() || ticks < 0.0 || ticks > u64::MAX as f64 {
         return Err("capture handles are outside the supported tick range".to_owned());
@@ -1024,6 +1096,16 @@ pub(crate) struct AgentWorkspaceContext {
     pub(crate) lens: AgentEditingLens,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub(crate) selected_clip_id: Option<Uuid>,
+    pub(crate) selected_clip_ids: Vec<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) target_track_id: Option<Uuid>,
+    pub(crate) target_track_ids: Vec<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) playhead_seconds: Option<f64>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) range_in_seconds: Option<f64>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) range_out_seconds: Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ts_rs::TS)]
@@ -1215,6 +1297,20 @@ fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommand
             "agent workspace context targets another Project",
         ));
     }
+    let context = &input.workspace_context;
+    if [
+        context.playhead_seconds,
+        context.range_in_seconds,
+        context.range_out_seconds,
+    ]
+    .into_iter()
+    .flatten()
+    .any(|seconds| !seconds.is_finite() || seconds < 0.0)
+    {
+        return Err(AgentCommandError::invalid(
+            "workspace playhead and In/Out positions must be finite, non-negative seconds",
+        ));
+    }
     Ok(())
 }
 
@@ -1292,11 +1388,15 @@ async fn run_agent_chat(
             AgentCommandError::internal(format!("unable to read demo evidence: {error}"))
         })?)
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
-        let analysis =
-            serde_json::to_value(state.storage.get_analysis(id).await.map_err(|error| {
-                AgentCommandError::internal(format!("unable to read demo analysis: {error}"))
-            })?)
-            .map_err(|error| AgentCommandError::internal(error.to_string()))?;
+        let analysis = state.storage.get_analysis(id).await.map_err(|error| {
+            AgentCommandError::internal(format!("unable to read demo analysis: {error}"))
+        })?;
+        let analysis = analysis
+            .as_ref()
+            .map(demo_evidence_with_capture_bounds)
+            .transpose()
+            .map_err(|error| AgentCommandError::internal(error.to_string()))?
+            .unwrap_or(Value::Null);
         series.push((id, demo, analysis));
     }
     let raw_analysis = series.first().map_or(Value::Null, |entry| entry.2.clone());
@@ -1578,6 +1678,130 @@ fn series_evidence_analysis(series: &[(Uuid, Value, Value)]) -> Value {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn story_source_offset_is_explicit_and_does_not_change_timeline_duration() {
+        let input: StoryClipInput = serde_json::from_value(json!({
+            "name":"Winning shot", "demoId":Uuid::new_v4(), "playerId":"76561198041683378",
+            "startTick":173_150, "endTick":173_950, "preRollSeconds":2.0, "postRollSeconds":0.5,
+            "sourceInSeconds":0.75, "durationSeconds":14.0, "cameraStyle":"pov",
+            "cameraIntent":"player_pov", "rationale":"retain the winning kill in the visible slice"
+        }))
+        .expect("explicit source offset");
+        let clip = input.into_timeline_clip(30.0);
+        assert!((clip.placement.source_in - 0.75).abs() < f64::EPSILON);
+        assert!((clip.placement.source_out - 14.75).abs() < f64::EPSILON);
+        assert!((clip.placement.duration - 14.0).abs() < f64::EPSILON);
+        assert!((clip.placement.start - 30.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn used_window_coverage_excludes_an_event_exactly_at_source_out() {
+        use vibe_cs_domain::{
+            EventKind, Highlight, HighlightKind, MatchAnalysis, RoundSummary, TimelineEvent,
+        };
+        let mut input = story_input();
+        input.start_tick = 173_150;
+        input.end_tick = 173_950;
+        input.pre_roll_seconds = 2.0;
+        input.post_roll_seconds = 0.5;
+        input.duration_seconds = 14.0;
+        let mut clip = input.into_timeline_clip(30.0);
+        clip.placement.source_in = 0.25;
+        clip.placement.source_out = 14.25;
+        let capture = clip.capture_intent.as_ref().unwrap();
+        let analysis = MatchAnalysis {
+            demo_id: capture.demo_id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 3000.0,
+            verified_total_ticks: Some(200_000),
+            teams: Vec::new(),
+            players: Vec::new(),
+            rounds: vec![RoundSummary {
+                number: 7,
+                start_tick: 170_000,
+                end_tick: 173_950,
+                winner: "A".to_owned(),
+                reason: "elimination".to_owned(),
+                team_a_score: 4,
+                team_b_score: 3,
+                events: vec![TimelineEvent {
+                    id: "winning-kill".to_owned(),
+                    tick: 173_950,
+                    seconds: 0.0,
+                    kind: EventKind::Kill,
+                    actor: Some(capture.player_id.clone()),
+                    target: Some("opponent".to_owned()),
+                    weapon: None,
+                    headshot: true,
+                    penetrated: false,
+                    position: None,
+                    detail: json!({}),
+                }],
+            }],
+            highlights: vec![Highlight {
+                id: capture.highlight_id.clone().unwrap(),
+                player_id: capture.player_id.clone(),
+                round: 7,
+                start_tick: 173_150,
+                end_tick: 173_950,
+                kind: HighlightKind::OneTap,
+                title: "Winning kill".to_owned(),
+                description: String::new(),
+                score: 1.0,
+                tags: Vec::new(),
+                victims: Vec::new(),
+            }],
+        };
+        let missed = crate::agent_context::clip_event_coverage(&clip, &analysis).unwrap();
+        assert_eq!(missed["captureRange"]["startTick"], 173_022);
+        assert_eq!(
+            missed["usedRange"],
+            json!({"startTick":173_038,"endTickExclusive":173_934})
+        );
+        assert_eq!(missed["eventCoverage"]["missingEvents"][0]["tick"], 173_950);
+        clip.placement.source_in = 0.5;
+        clip.placement.source_out = 14.5;
+        let boundary = crate::agent_context::clip_event_coverage(&clip, &analysis).unwrap();
+        assert_eq!(boundary["usedRange"]["endTickExclusive"], 173_950);
+        assert_eq!(boundary["eventCoverage"]["visibleCount"], 0);
+        clip.placement.source_in = 0.75;
+        clip.placement.source_out = 14.75;
+        let included = crate::agent_context::clip_event_coverage(&clip, &analysis).unwrap();
+        assert_eq!(included["eventCoverage"]["visibleCount"], 1);
+        assert_eq!(included["eventCoverage"]["status"], "complete");
+        assert!((clip.placement.duration - 14.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn workspace_context_preserves_timeline_selection_and_validates_time_positions() {
+        let project_id = uuid::Uuid::from_u128(1);
+        let clip_id = uuid::Uuid::from_u128(2);
+        let track_id = uuid::Uuid::from_u128(3);
+        let workspace = serde_json::json!({
+            "projectId": project_id, "lens":"multitrack", "selectedClipId":clip_id,
+            "selectedClipIds":[clip_id], "targetTrackId":track_id, "targetTrackIds":[track_id],
+            "playheadSeconds":12.5, "rangeInSeconds":10.0, "rangeOutSeconds":20.0
+        });
+        let input = serde_json::json!({
+            "requestId":uuid::Uuid::new_v4(), "sessionId":uuid::Uuid::new_v4(),
+            "projectId":project_id, "message":"Shorten this range", "workspaceContext":workspace
+        });
+        let parsed: super::AgentChatInput =
+            serde_json::from_value(input.clone()).expect("view context");
+        super::validate_workspace_context(&parsed).expect("valid view times");
+        assert_eq!(
+            serde_json::to_value(&parsed.workspace_context).unwrap(),
+            workspace
+        );
+        for field in ["playheadSeconds", "rangeInSeconds", "rangeOutSeconds"] {
+            let mut invalid = input.clone();
+            invalid["workspaceContext"][field] = serde_json::json!(-1);
+            let parsed = serde_json::from_value(invalid).expect("numeric context");
+            assert!(super::validate_workspace_context(&parsed).is_err());
+        }
+    }
+
     use super::*;
     use vibe_cs_domain::{
         RoundReplayFieldAvailability, RoundReplayFields, RoundReplayFrame, RoundReplayMetadata,
@@ -1655,6 +1879,7 @@ mod tests {
             pre_roll_seconds: 2.0,
             post_roll_seconds: 2.0,
             duration_seconds: 12.0,
+            source_in_seconds: 0.0,
             camera_style: HlaeCameraStyle::Pov,
             camera_intent: StoryCameraIntent::PlayerPov,
             rationale: "keep the verified action".to_owned(),
@@ -1709,13 +1934,15 @@ mod tests {
             .validate_camera_design()
             .expect_err("a flyby cannot hold a readable crossfire");
         assert!(error.contains("does not express its camera intent"));
+        assert!(error.contains("hold_crossfire"));
+        assert!(error.contains("[\"static\"]"));
     }
 
     #[test]
-    fn whole_story_replan_reuses_each_compatible_take_once_and_ripples_to_real_duration() {
+    fn whole_story_replan_reuses_a_covering_take_once_without_changing_target_timing() {
         let mut recorded = story_input()
             .into_timeline_clip(0.0)
-            .with_recorded_take(Uuid::from_u128(20), Uuid::from_u128(21), 6.0)
+            .with_recorded_take(Uuid::from_u128(20), Uuid::from_u128(21), 20.0)
             .expect("recorded Story Take");
         recorded.id = Uuid::from_u128(22);
         recorded.placement.volume = 0.5;
@@ -1734,7 +1961,8 @@ mod tests {
 
         assert_eq!(reused.id, recorded.id);
         assert!((reused.placement.start - 30.0).abs() < f64::EPSILON);
-        assert!((reused.placement.duration - 6.0).abs() < f64::EPSILON);
+        assert!((reused.placement.duration - 12.0).abs() < f64::EPSILON);
+        assert!((reused.placement.source_out - 12.0).abs() < f64::EPSILON);
         assert!((reused.placement.volume - 0.5).abs() < f64::EPSILON);
         assert_eq!(reused.metadata["review"], "keep");
         assert_eq!(
@@ -1743,10 +1971,52 @@ mod tests {
         );
 
         let duplicate =
-            reuse_compatible_story_take(story_input().into_timeline_clip(36.0), &mut candidates)
+            reuse_compatible_story_take(story_input().into_timeline_clip(42.0), &mut candidates)
                 .expect("duplicate Story clip");
         assert!(matches!(duplicate.material, TimelineClipMaterial::Planned));
         assert_ne!(duplicate.id, recorded.id);
+    }
+
+    #[test]
+    fn story_take_reuse_skips_short_candidates_and_preserves_them_for_shorter_placements() {
+        let target = story_input().into_timeline_clip(30.0);
+        let short = story_input()
+            .into_timeline_clip(0.0)
+            .with_recorded_take(Uuid::from_u128(30), Uuid::from_u128(31), 6.0)
+            .unwrap();
+        let long = story_input()
+            .into_timeline_clip(0.0)
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 20.0)
+            .unwrap();
+        let fingerprint = target
+            .capture_intent
+            .as_ref()
+            .unwrap()
+            .fingerprint()
+            .unwrap();
+        let mut candidates = HashMap::from([(fingerprint.clone(), vec![short.clone()])]);
+        let planned = reuse_compatible_story_take(target.clone(), &mut candidates).unwrap();
+        assert_eq!(planned, target);
+        candidates
+            .get_mut(&fingerprint)
+            .unwrap()
+            .insert(0, long.clone());
+        let reused = reuse_compatible_story_take(target.clone(), &mut candidates).unwrap();
+        assert_eq!(reused.id, long.id);
+        assert_eq!(reused.placement, target.placement);
+        assert_eq!(
+            reused.materialization_state().unwrap(),
+            vibe_cs_domain::TimelineClipMaterializationState::Recorded
+        );
+        let mut shorter = story_input();
+        shorter.duration_seconds = 4.0;
+        let reused_short =
+            reuse_compatible_story_take(shorter.into_timeline_clip(42.0), &mut candidates).unwrap();
+        assert_eq!(reused_short.id, short.id);
+        assert_eq!(
+            reused_short.materialization_state().unwrap(),
+            vibe_cs_domain::TimelineClipMaterializationState::Recorded
+        );
     }
 
     #[test]
@@ -1773,6 +2043,24 @@ mod tests {
             scene.pointer("/cameraFeasibility/recommendedCameraStyle"),
             Some(&json!("pov"))
         );
+        for count in [3, 4] {
+            let recommendation = cinematic_scene_from_replay(&highlight, &replay_artifact(count));
+            let camera = &recommendation["cameraFeasibility"];
+            let style: HlaeCameraStyle =
+                serde_json::from_value(camera["recommendedCameraStyle"].clone()).unwrap();
+            let intents: Vec<StoryCameraIntent> =
+                serde_json::from_value(camera["recommendedCameraIntents"].clone())
+                    .expect("recommended style must disclose legal intents");
+            assert!(!intents.is_empty());
+            for intent in intents {
+                let mut input = story_input();
+                input.camera_style = style;
+                input.camera_intent = intent;
+                input
+                    .validate_camera_design()
+                    .expect("recommended pair must pass the actual validator");
+            }
+        }
     }
 
     #[test]
@@ -1806,6 +2094,7 @@ mod tests {
                     "kind":"one_tap",
                     "score":0.9,
                     "start_tick":index,
+                    "captureBounds":{"roundStartTick":index,"roundEndTick":index+10,"playerDeathTick":null},
                 })
             })
             .collect::<Vec<_>>();
@@ -1830,6 +2119,13 @@ mod tests {
 
         assert_eq!(result["highlights"].as_array().map(Vec::len), Some(10));
         assert_eq!(result["evidence_query"]["matched_highlight_count"], 10);
+        assert!(
+            result["highlights"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|item| item["captureBounds"]["roundStartTick"] == item["start_tick"])
+        );
         assert!(
             result["highlights"]
                 .as_array()

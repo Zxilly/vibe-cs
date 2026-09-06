@@ -215,10 +215,16 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadWorkspace,
             "read_workspace",
-            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Use detail='timeline' only for placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the exact current revision in both formats.",
+            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Use detail='coverage' with clipIds/trackIds to inspect authored used tick windows and missing key events. Use detail='assets' to discover owned imported media, including unused music; narrow by name/kind or assetIds, and page with offset/maximumAssets. For creation shapes, use detail='editing_reference' with topic='text'/'caption'; before adding a transition, use topic='transitions'. Use detail='timeline' for existing placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the current revision.",
             object_schema(
                 json!({
-                    "detail":{"type":"string","enum":["summary","timeline"],"default":"summary"},
+                    "detail":{"type":"string","enum":["summary","timeline","editing_reference","assets","coverage"],"default":"summary"},
+                    "topic":{"type":"string","enum":["text","caption","transitions"]},
+                    "name":{"type":"string","maxLength":256},
+                    "kind":{"type":"string","maxLength":32},
+                    "assetIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":64},
+                    "maximumAssets":{"type":"integer","minimum":1,"maximum":64,"default":32},
+                    "offset":{"type":"integer","minimum":0,"default":0},
                     "trackIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":16},
                     "clipIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":64}
                 }),
@@ -228,7 +234,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadDemoEvidence,
             "read_demo_evidence",
-            "Query bounded verified Demo evidence supplied by the current workspace. For player-focused work, pass playerName or playerId; optionally narrow demoIds and kinds. The result returns stable highlight/demo IDs and at most maximumHighlights rows instead of dumping the whole series.",
+            "Query bounded verified Demo evidence supplied by the current workspace. For player-focused work, pass playerName or playerId; optionally narrow demoIds and kinds. Rows include captureBounds and compact keyEvents from MatchAnalysis. roundEndTick is the statistical result; recordableEndTick is the inclusive playback bound before nextRoundStartTick or verified demoEndTick. playerDeathTick remains a separate POV bound. Use these bounds for POV handles and keyEvents to choose the visible source slice without loading spatial trajectories; null means unavailable/no event. Returns stable highlight/demo IDs and at most maximumHighlights rows.",
             object_schema(
                 json!({
                     "playerId":{"type":"string","minLength":1,"maxLength":64},
@@ -243,7 +249,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadCinematicContext,
             "read_cinematic_context",
-            "Read bounded selected-round replay evidence and camera feasibility for explicit highlight IDs. Non-POV camera styles require at least four target-player spatial samples inside the requested round-bounded capture handles.",
+            "Read bounded selected-round spatial replay evidence and camera feasibility for explicit highlight IDs. Ordinary POV boundary checks use read_demo_evidence captureBounds when available. recommendedCameraIntents lists the valid intents for recommendedCameraStyle; keep the intent consistent with the shot's purpose. Non-POV camera styles still require at least four target-player spatial samples inside the requested round-bounded capture handles.",
             object_schema(
                 json!({"highlightIds": string_array_schema(64)}),
                 &["highlightIds"],
@@ -252,19 +258,19 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadProjectDelivery,
             "read_project_delivery",
-            "Read the authoritative Project Delivery Gate and latest export artifact, including its source Project revision, job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. matchesCurrentRevision is true only when that artifact was rendered from the current Project Head. Call this after recording or export completion before claiming the Project is deliverable.",
+            "Read the authoritative Project Delivery Gate and latest export artifact, including its source Project revision, job status, file availability, size, duration, resolution, frame rate, and codecs when probing succeeds. matchesCurrentRevision is true only when that artifact was rendered from the current Project Head. Call this after recording or export completion. File metadata/revision can confirm export success, but cannot verify visible kills, title/subtitle content, or audio/video synchronization.",
             object_schema(json!({"projectId":uuid_schema()}), &["projectId"]),
         ),
         definition(
             ToolKind::ApplyProjectPatch,
             "apply_project_patch",
-            "Apply a small revision-bound edit directly to the canonical Project. The host validates the Project Patch, holds the Agent edit lease, writes one undoable Change Group, and returns the new revision.",
+            "Apply a small revision-bound edit directly to the canonical Project. Before creating text/caption clips or transitions, read_workspace detail='editing_reference' with topic='text', 'caption', or 'transitions' for the exact fields. Adding a track uses insert_track; replace_track requires a fresh complete read and an explicitly requested change to that track. The host validates the Project Patch, holds the Agent edit lease, writes one undoable Change Group, and returns the new revision.",
             project_patch_schema(),
         ),
         definition(
             ToolKind::ReplaceStoryTimeline,
             "replace_story_timeline",
-            "Atomically replan the entire story track. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, and commits one undoable Change Group. Each shot carries a purposeful camera intent, an HLAE camera style, a concrete rationale, and optional per-shot presentation. The host rejects mismatched intent/style pairs and non-POV cameras without four in-range spatial samples.",
+            "Atomically replan the entire story track. sourceInSeconds selects the start inside captured media (including pre-roll); sourceOut is sourceInSeconds+durationSeconds. Returned eventCoverage reports the half-open used interval and missing highlight events; explain intentional B-roll/replay omissions in rationale. This is an Agent-only high-level operation; the host allocates clip identities, canonicalizes verified highlight IDs, and commits one undoable Change Group. Each shot carries a purposeful camera intent, an HLAE camera style, a concrete rationale, and optional per-shot presentation. The host rejects mismatched intent/style pairs and non-POV cameras without four in-range spatial samples.",
             replace_story_schema(),
         ),
         definition(
@@ -444,6 +450,7 @@ fn replace_story_schema() -> Value {
                         "preRollSeconds":{"type":"number","minimum":0,"maximum":30},
                         "postRollSeconds":{"type":"number","minimum":0,"maximum":30},
                         "durationSeconds":{"type":"number","exclusiveMinimum":0,"maximum":120},
+                        "sourceInSeconds":{"type":"number","minimum":0,"default":0,"description":"Offset into recorded Capture (including pre-roll). The used source range is [sourceInSeconds, sourceInSeconds+durationSeconds), independent of the wider Capture window."},
                         "cameraStyle":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},
                         "cameraIntent":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},
                         "rationale":{"type":"string","minLength":8,"maxLength":500},
@@ -603,17 +610,14 @@ fn optional_string_array(
 ///
 /// # Errors
 ///
-/// Returns an error when the analysis is unavailable, a query field is malformed, both player
-/// selectors are supplied, or the requested player is absent from the current series.
+/// Returns an error when the analysis is unavailable, a query field is malformed,
+/// or no player satisfies the supplied selectors in the current series.
 pub fn query_demo_evidence(analysis: &Value, input: &Value) -> Result<Value, String> {
     let source = analysis
         .as_object()
         .ok_or_else(|| "Demo analysis is unavailable".to_owned())?;
     let player_id = optional_string(input, "playerId", 64)?;
     let player_name = optional_string(input, "playerName", 128)?;
-    if player_id.is_some() && player_name.is_some() {
-        return Err("provide playerId or playerName, not both".to_owned());
-    }
     let requested_demo_ids = optional_string_array(input, "demoIds", 16)?
         .map(|values| values.into_iter().collect::<std::collections::HashSet<_>>());
     let requested_kinds = optional_string_array(input, "kinds", 32)?.map(|values| {
@@ -637,25 +641,18 @@ pub fn query_demo_evidence(analysis: &Value, input: &Value) -> Result<Value, Str
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let matched_player_ids = if let Some(id) = player_id.as_ref() {
-        players
-            .iter()
-            .filter(|player| player.get("steam_id").and_then(Value::as_str) == Some(id.as_str()))
-            .filter_map(|player| {
-                player
-                    .get("steam_id")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .collect::<Vec<_>>()
-    } else if let Some(name) = player_name.as_ref() {
+    let matched_player_ids = if player_id.is_some() || player_name.is_some() {
         players
             .iter()
             .filter(|player| {
-                player
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+                player_id.as_ref().is_none_or(|id| {
+                    player.get("steam_id").and_then(Value::as_str) == Some(id.as_str())
+                }) && player_name.as_ref().is_none_or(|name| {
+                    player
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+                })
             })
             .filter_map(|player| {
                 player
@@ -834,7 +831,17 @@ mod tests {
         assert_eq!(schema["properties"]["detail"]["default"], "summary");
         assert_eq!(
             schema["properties"]["detail"]["enum"],
-            json!(["summary", "timeline"])
+            json!([
+                "summary",
+                "timeline",
+                "editing_reference",
+                "assets",
+                "coverage"
+            ])
+        );
+        assert_eq!(
+            schema["properties"]["topic"]["enum"],
+            json!(["text", "caption", "transitions"])
         );
         assert!(tool.description.contains("marker-only refreshes"));
         assert!(tool.description.contains("markersTruncated=false"));
@@ -889,6 +896,8 @@ mod tests {
             .find(|tool| tool.name == "replace_story_timeline")
             .expect("story replacement tool");
         let clip = &tool.parameters["properties"]["clips"]["items"];
+        assert_eq!(clip["properties"]["sourceInSeconds"]["minimum"], 0);
+        assert_eq!(clip["properties"]["sourceInSeconds"]["default"], 0);
 
         assert_eq!(
             clip["properties"]["cameraStyle"]["enum"],
@@ -1015,6 +1024,21 @@ mod tests {
         assert_eq!(result["evidence_query"]["matched_highlight_count"], 2);
         assert_eq!(result["evidence_query"]["returned_highlight_count"], 1);
         assert_eq!(result["evidence_query"]["truncated"], true);
+        let with_id = query_demo_evidence(
+            &analysis,
+            &json!({"playerId":"niko-id","playerName":"NiKo","kinds":["one_tap","multi_kill"],"maximumHighlights":1}),
+        ).expect("consistent ID and name are valid query filters");
+        assert_eq!(with_id["highlights"], result["highlights"]);
+        assert!(
+            query_demo_evidence(
+                &analysis,
+                &json!({"playerId":"other-id","playerName":"NiKo"})
+            )
+            .is_err()
+        );
+        assert!(
+            query_demo_evidence(&analysis, &json!({"playerId":"niko-id","playerName":""})).is_err()
+        );
     }
 
     #[test]

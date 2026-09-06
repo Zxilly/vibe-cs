@@ -25,7 +25,7 @@ import {
   useDemo,
   useDemoList,
   useEnsureDemoAnalysis,
-  useImportDemoFiles,
+  useImportDemoPaths,
   useLaunchDemoPlayback,
   useReviewTags,
   useStartDemoAnalysis,
@@ -234,14 +234,14 @@ const SCAN_RESULT: ScanResult = {
   errors: [],
 };
 
-describe('useImportDemoFiles', () => {
+describe('useImportDemoPaths', () => {
   it('re-runs the list after a successful import — the invalidation chain, proved', async () => {
     const list = countingStub(page([DEMO]));
     const importer = countingStub(SCAN_RESULT);
 
     const { result } = renderDataHook(
-      () => ({ list: useDemoList({}), importer: useImportDemoFiles() }),
-      { client: { listDemos: list.call, importDemos: importer.call } as never },
+      () => ({ list: useDemoList({}), importer: useImportDemoPaths() }),
+      { client: { listDemos: list.call, importDemoPaths: importer.call } as never },
     );
 
     await waitFor(() => {
@@ -251,7 +251,7 @@ describe('useImportDemoFiles', () => {
 
     list.succeed(page([DEMO, { ...DEMO, id: 'demo-b', display_name: 'Nova vs Pulse' }]));
     await act(async () => {
-      await result.current.importer.mutateAsync([new File([], 'nova.dem')]);
+      await result.current.importer.mutateAsync(['C:/matches/nova.dem']);
     });
 
     // Not "invalidateQueries was called" — the query actually ran again and the
@@ -269,8 +269,8 @@ describe('useImportDemoFiles', () => {
     importer.fail(new DesktopError('磁盘空间不足', 507, 'STORAGE_FULL'));
 
     const { result } = renderDataHook(
-      () => ({ list: useDemoList({}), importer: useImportDemoFiles() }),
-      { client: { listDemos: list.call, importDemos: importer.call } as never },
+      () => ({ list: useDemoList({}), importer: useImportDemoPaths() }),
+      { client: { listDemos: list.call, importDemoPaths: importer.call } as never },
     );
 
     await waitFor(() => {
@@ -278,7 +278,7 @@ describe('useImportDemoFiles', () => {
     });
 
     await act(async () => {
-      await result.current.importer.mutateAsync([new File([], 'nova.dem')]).catch(() => undefined);
+      await result.current.importer.mutateAsync(['C:/matches/nova.dem']).catch(() => undefined);
     });
 
     await waitFor(() => {

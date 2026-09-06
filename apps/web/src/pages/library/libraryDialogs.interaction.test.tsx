@@ -14,7 +14,19 @@
  */
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const nativeFiles = vi.hoisted(() => ({ choose: vi.fn(), subscribe: vi.fn() }));
+vi.mock('../../shared/desktop/dialog', async (original) => ({
+  ...await original<typeof import('../../shared/desktop/dialog')>(),
+  chooseLocalFiles: nativeFiles.choose,
+  subscribeLocalFileDrop: nativeFiles.subscribe,
+}));
+
+beforeEach(() => {
+  nativeFiles.choose.mockReset().mockResolvedValue(['C:\\matches\\aurora.dem']);
+  nativeFiles.subscribe.mockReset().mockResolvedValue(() => {});
+});
 
 import type { AppConfig } from '../../shared/desktop/dto';
 import {
@@ -55,14 +67,11 @@ describe('导入 Demo', () => {
 
   it('turns into a real confirmation once files are staged, and imports them', async () => {
     const importer = recorder(SCAN_RESULT);
-    renderLibrary({ seed: ONLINE, client: { importDemos: importer.call } });
+    renderLibrary({ seed: ONLINE, client: { importDemoPaths: importer.call } });
 
     fireEvent.click(screen.getByRole('button', { name: /导入 Demo/u }));
 
-    const file = new File([new Uint8Array([1, 2, 3])], 'aurora.dem');
-    fireEvent.change(within(dialog()).getByLabelText('选择要导入的 Demo 文件'), {
-      target: { files: [file] },
-    });
+    fireEvent.click(within(dialog()).getByRole('button', { name: '选择文件' }));
 
     const confirm = await within(dialog()).findByRole('button', { name: '导入 1 个文件' });
     fireEvent.click(confirm);
@@ -70,7 +79,7 @@ describe('导入 Demo', () => {
     await waitFor(() => {
       expect(importer.calls()).toBe(1);
     });
-    expect((importer.lastArgs()[0] as File[])[0]?.name).toBe('aurora.dem');
+    expect(importer.lastArgs()[0]).toEqual(['C:\\matches\\aurora.dem']);
     // A successful import closes the overlay.
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
@@ -80,12 +89,10 @@ describe('导入 Demo', () => {
   it('renders a failure in place, with a retry, and keeps the staged files', async () => {
     const importer = recorder(SCAN_RESULT);
     importer.fail(new Error('磁盘空间不足'));
-    renderLibrary({ seed: ONLINE, client: { importDemos: importer.call } });
+    renderLibrary({ seed: ONLINE, client: { importDemoPaths: importer.call } });
 
     fireEvent.click(screen.getByRole('button', { name: /导入 Demo/u }));
-    fireEvent.change(within(dialog()).getByLabelText('选择要导入的 Demo 文件'), {
-      target: { files: [new File([], 'aurora.dem')] },
-    });
+    fireEvent.click(within(dialog()).getByRole('button', { name: '选择文件' }));
     fireEvent.click(await within(dialog()).findByRole('button', { name: '导入 1 个文件' }));
 
     // 「不用 Toast 承载错误」 — the message lands inside the dialog, beside the
@@ -93,6 +100,29 @@ describe('导入 Demo', () => {
     expect(await within(dialog()).findByText('磁盘空间不足')).toBeTruthy();
     expect(within(dialog()).getByRole('button', { name: '重试' })).toBeTruthy();
     expect(within(dialog()).getByRole('button', { name: '导入 1 个文件' })).toBeTruthy();
+  });
+
+  it('keeps per-file errors visible when a native import batch returns partial success', async () => {
+    const importer = recorder({ ...SCAN_RESULT, errors: ['broken.dem: invalid demo header'] });
+    renderLibrary({ seed: ONLINE, client: { importDemoPaths: importer.call } });
+    fireEvent.click(screen.getByRole('button', { name: /导入 Demo/u }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: '选择文件' }));
+    fireEvent.click(await within(dialog()).findByRole('button', { name: '导入 1 个文件' }));
+    expect(await screen.findByText('broken.dem: invalid demo header')).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('stages native dropped paths without allocating browser File contents', async () => {
+    const importer = recorder(SCAN_RESULT);
+    renderLibrary({ seed: ONLINE, client: { importDemoPaths: importer.call } });
+    fireEvent.click(screen.getByRole('button', { name: /导入 Demo/u }));
+    await waitFor(() => expect(nativeFiles.subscribe).toHaveBeenCalled());
+    const paths = ['C:\\matches\\large-match.dem', 'C:\\matches\\maps.zip'];
+    const drop = nativeFiles.subscribe.mock.calls.at(-1)![0] as (paths: string[]) => void;
+    const { act } = await import('@testing-library/react');
+    act(() => drop(paths));
+    fireEvent.click(await within(dialog()).findByRole('button', { name: '导入 2 个文件' }));
+    await waitFor(() => expect(importer.lastArgs()[0]).toEqual(paths));
   });
 });
 

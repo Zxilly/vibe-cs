@@ -629,18 +629,6 @@ export const commands = {
       body: { paths, source: 'local' },
       timeoutMs: 600_000,
     }),
-  importDemos: async (files: File[]) => {
-    const results = await Promise.all(
-      files.map((file) => uploadNativeFile<ScanResult>('/demo/upload-multiple', file)),
-    );
-    return results.reduce<ScanResult>((total, result) => ({
-      discovered: total.discovered + result.discovered,
-      imported: total.imported + result.imported,
-      updated: total.updated + result.updated,
-      skipped: total.skipped + result.skipped,
-      errors: [...total.errors, ...result.errors],
-    }), { discovered: 0, imported: 0, updated: 0, skipped: 0, errors: [] });
-  },
   updateDemo: async (id: string, update: DemoUpdate) => {
     const record = await request<DemoRecord>(`/demos/${encodeURIComponent(id)}`, {
       method: 'PATCH',

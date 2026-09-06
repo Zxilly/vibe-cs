@@ -24,16 +24,11 @@ use vibe_cs_domain::{
 };
 use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
-use crate::{
-    ApiError, ApiJson, ApiMultipart, ApiQuery, ApiResult, AppState, DemoWatchStatus,
-    extract::{multipart_error, persist_multipart_field},
-};
+use crate::{ApiError, ApiJson, ApiQuery, ApiResult, AppState, DemoWatchStatus};
 
-const MAXIMUM_DEMO_UPLOAD_FILES: usize = 32;
-const MAXIMUM_DEMO_UPLOAD_BATCH_BYTES: u64 = 2 * 1024 * 1024 * 1024;
-const MAXIMUM_DEMO_UPLOAD_REQUEST_BYTES: usize = 2 * 1024 * 1024 * 1024 + 8 * 1024 * 1024;
-const MAXIMUM_EXPANDED_UPLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
-const MAXIMUM_EXPANDED_UPLOAD_DEMOS: usize = 256;
+const MAXIMUM_ARCHIVE_IMPORT_FILES: usize = 32;
+const MAXIMUM_EXPANDED_IMPORT_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAXIMUM_EXPANDED_IMPORT_DEMOS: usize = 256;
 const MAXIMUM_PLAYBACK_REQUEST_BYTES: usize = 1024;
 const MAXIMUM_DEMO_EXPORT_ROWS: u32 = 10_000;
 const MAXIMUM_BINARY_REPLAY_BYTES: usize = 128 * 1024 * 1024;
@@ -50,10 +45,6 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/demos/scan", post(scan_demos))
         .route("/api/demos/watch/status", get(watch_status))
         .route("/api/demos/watch/rescan", post(watch_rescan))
-        .route(
-            "/api/demo/upload-multiple",
-            post(upload_multiple).layer(DefaultBodyLimit::max(MAXIMUM_DEMO_UPLOAD_REQUEST_BYTES)),
-        )
         .route(
             "/api/demos/{id}",
             get(get_demo).patch(patch_demo).delete(delete_demo),
@@ -754,66 +745,16 @@ async fn scan_demos(
     Ok(Json(result))
 }
 
-async fn upload_multiple(
-    State(state): State<AppState>,
-    ApiMultipart(mut multipart): ApiMultipart,
-) -> ApiResult<Json<ScanResult>> {
-    let upload_dir = state.data_dir().join("uploads").join("demos");
-    tokio::fs::create_dir_all(&upload_dir).await?;
-    let batch_id = Uuid::new_v4();
-    let intake_dir = upload_dir.join(format!(".intake-{batch_id}"));
-    let staging_dir = upload_dir.join(format!(".batch-{batch_id}.staging"));
-    let final_dir = upload_dir.join(format!("batch-{batch_id}"));
-    tokio::fs::create_dir(&intake_dir).await?;
-    let mut inputs = Vec::new();
-    if let Err(error) = receive_demo_uploads(&mut multipart, &intake_dir, &mut inputs).await {
-        remove_directory(&intake_dir).await;
-        return Err(error);
-    }
-    if inputs.is_empty() {
-        remove_directory(&intake_dir).await;
-        return Err(ApiError::invalid(
-            "upload requires at least one .dem or .zip file",
-        ));
-    }
-
-    let prepared_task = tokio::task::spawn_blocking({
-        let staging_dir = staging_dir.clone();
-        move || prepare_upload_batch(&inputs, &staging_dir, true)
-    })
-    .await;
-    remove_directory(&intake_dir).await;
-    let prepared = match prepared_task {
-        Ok(Ok(prepared)) => prepared,
-        Ok(Err(error)) => {
-            remove_directory(&staging_dir).await;
-            state.events.publish("demo_import", "failed", None);
-            return Err(ApiError::invalid(error));
-        }
-        Err(error) => {
-            remove_directory(&staging_dir).await;
-            state.events.publish("demo_import", "failed", None);
-            return Err(ApiError::new(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "upload_worker_failed",
-                format!("Demo upload worker failed: {error}"),
-            ));
-        }
-    };
-
-    publish_prepared_batch(&state, prepared, &staging_dir, &final_dir, "upload").await
-}
-
 async fn import_local_bundle(state: &AppState, paths: Vec<String>) -> ApiResult<ScanResult> {
-    if paths.len() > MAXIMUM_DEMO_UPLOAD_FILES {
+    if paths.len() > MAXIMUM_ARCHIVE_IMPORT_FILES {
         return Err(ApiError::invalid(format!(
-            "a local archive batch may contain at most {MAXIMUM_DEMO_UPLOAD_FILES} files"
+            "a local archive batch may contain at most {MAXIMUM_ARCHIVE_IMPORT_FILES} files"
         )));
     }
     let mut inputs = Vec::with_capacity(paths.len());
     for raw in paths {
         let path = PathBuf::from(raw);
-        if !path.is_absolute() || !is_upload_path(&path) {
+        if !path.is_absolute() || !is_import_path(&path) {
             return Err(ApiError::invalid(
                 "local archive imports require absolute .dem or .zip paths",
             ));
@@ -837,7 +778,7 @@ async fn import_local_bundle(state: &AppState, paths: Vec<String>) -> ApiResult<
     let final_dir = upload_dir.join(format!("batch-{batch_id}"));
     let prepared = tokio::task::spawn_blocking({
         let staging_dir = staging_dir.clone();
-        move || prepare_upload_batch(&inputs, &staging_dir, false)
+        move || prepare_import_batch(&inputs, &staging_dir)
     })
     .await;
     let prepared = match prepared {
@@ -857,17 +798,15 @@ async fn import_local_bundle(state: &AppState, paths: Vec<String>) -> ApiResult<
             ));
         }
     };
-    let Json(result) =
-        publish_prepared_batch(state, prepared, &staging_dir, &final_dir, "local").await?;
+    let Json(result) = publish_prepared_batch(state, prepared, &staging_dir, &final_dir).await?;
     Ok(result)
 }
 
 async fn publish_prepared_batch(
     state: &AppState,
-    prepared: PreparedUploadBatch,
+    prepared: PreparedImportBatch,
     staging_dir: &Path,
     final_dir: &Path,
-    source: &str,
 ) -> ApiResult<Json<ScanResult>> {
     if let Err(error) = tokio::fs::rename(staging_dir, final_dir).await {
         remove_directory(staging_dir).await;
@@ -886,7 +825,7 @@ async fn publish_prepared_batch(
                     size: demo.size,
                     sha256: demo.sha256.clone(),
                 },
-                source,
+                "local",
             )
         })
         .collect::<Result<Vec<_>, String>>()
@@ -945,76 +884,32 @@ async fn publish_prepared_batch(
     }))
 }
 
-async fn receive_demo_uploads(
-    multipart: &mut axum::extract::Multipart,
-    upload_dir: &Path,
-    paths: &mut Vec<PathBuf>,
-) -> ApiResult<()> {
-    let mut uploaded_bytes = 0_u64;
-    while let Some(mut field) = multipart
-        .next_field()
-        .await
-        .map_err(|error| multipart_error(&error))?
-    {
-        if field.name() != Some("files") {
-            continue;
-        }
-        if paths.len() >= MAXIMUM_DEMO_UPLOAD_FILES {
-            return Err(ApiError::invalid(format!(
-                "a demo upload may contain at most {MAXIMUM_DEMO_UPLOAD_FILES} files"
-            )));
-        }
-        let Some(file_name) = field.file_name().and_then(safe_file_name) else {
-            continue;
-        };
-        if !is_upload_path(Path::new(&file_name)) {
-            return Err(ApiError::invalid(format!(
-                "unsupported upload file: {file_name}; expected .dem or .zip"
-            )));
-        }
-        let item_directory = upload_dir.join(format!("item-{}", paths.len()));
-        tokio::fs::create_dir(&item_directory).await?;
-        let destination = item_directory.join(file_name);
-        let remaining = MAXIMUM_DEMO_UPLOAD_BATCH_BYTES.saturating_sub(uploaded_bytes);
-        if remaining == 0 {
-            return Err(ApiError::invalid(format!(
-                "demo upload exceeds the {MAXIMUM_DEMO_UPLOAD_BATCH_BYTES} byte batch limit"
-            )));
-        }
-        let written = persist_multipart_field(&mut field, &destination, remaining).await?;
-        uploaded_bytes = uploaded_bytes.saturating_add(written);
-        paths.push(destination);
-    }
-    Ok(())
-}
-
 #[derive(Debug)]
-struct PreparedUploadDemo {
+struct PreparedImportDemo {
     relative_path: PathBuf,
     size: u64,
     sha256: String,
 }
 
 #[derive(Debug)]
-struct PreparedUploadBatch {
-    demos: Vec<PreparedUploadDemo>,
+struct PreparedImportBatch {
+    demos: Vec<PreparedImportDemo>,
     discovered: u64,
     skipped: u64,
 }
 
-fn prepare_upload_batch(
+fn prepare_import_batch(
     inputs: &[PathBuf],
     staging_dir: &Path,
-    move_direct_files: bool,
-) -> Result<PreparedUploadBatch, String> {
+) -> Result<PreparedImportBatch, String> {
     std::fs::create_dir(staging_dir).map_err(|error| error.to_string())?;
     let cancellation = ParseCancellation::default();
     let demo_limits = ValidationLimits::default();
     let mut expanded_bytes = 0_u64;
     let mut validated = Vec::new();
     for (index, input) in inputs.iter().enumerate() {
-        let remaining_bytes = MAXIMUM_EXPANDED_UPLOAD_BYTES.saturating_sub(expanded_bytes);
-        let remaining_demos = MAXIMUM_EXPANDED_UPLOAD_DEMOS.saturating_sub(validated.len());
+        let remaining_bytes = MAXIMUM_EXPANDED_IMPORT_BYTES.saturating_sub(expanded_bytes);
+        let remaining_demos = MAXIMUM_EXPANDED_IMPORT_DEMOS.saturating_sub(validated.len());
         if remaining_bytes == 0 || remaining_demos == 0 {
             return Err("expanded upload exhausted its batch limits".to_owned());
         }
@@ -1048,14 +943,10 @@ fn prepare_upload_batch(
                 .len();
             if input_size > remaining_bytes {
                 return Err(format!(
-                    "expanded upload exceeds the {MAXIMUM_EXPANDED_UPLOAD_BYTES} byte batch limit"
+                    "expanded upload exceeds the {MAXIMUM_EXPANDED_IMPORT_BYTES} byte batch limit"
                 ));
             }
-            if move_direct_files {
-                std::fs::rename(input, &destination).map_err(|error| error.to_string())?;
-            } else {
-                std::fs::copy(input, &destination).map_err(|error| error.to_string())?;
-            }
+            std::fs::copy(input, &destination).map_err(|error| error.to_string())?;
             let demo = validate_demo(&destination, demo_limits, &cancellation)
                 .map_err(|error| format!("{}: {error}", destination.display()))?;
             expanded_bytes = expanded_bytes
@@ -1063,14 +954,14 @@ fn prepare_upload_batch(
                 .ok_or_else(|| "expanded upload size overflowed".to_owned())?;
             validated.push(demo);
         }
-        if expanded_bytes > MAXIMUM_EXPANDED_UPLOAD_BYTES {
+        if expanded_bytes > MAXIMUM_EXPANDED_IMPORT_BYTES {
             return Err(format!(
-                "expanded upload exceeds the {MAXIMUM_EXPANDED_UPLOAD_BYTES} byte batch limit"
+                "expanded upload exceeds the {MAXIMUM_EXPANDED_IMPORT_BYTES} byte batch limit"
             ));
         }
-        if validated.len() > MAXIMUM_EXPANDED_UPLOAD_DEMOS {
+        if validated.len() > MAXIMUM_EXPANDED_IMPORT_DEMOS {
             return Err(format!(
-                "expanded upload contains more than {MAXIMUM_EXPANDED_UPLOAD_DEMOS} demos"
+                "expanded upload contains more than {MAXIMUM_EXPANDED_IMPORT_DEMOS} demos"
             ));
         }
     }
@@ -1086,7 +977,7 @@ fn prepare_upload_batch(
             .map_err(|_| "prepared demo escaped the upload staging directory".to_owned())?
             .to_path_buf();
         if seen_hashes.insert(demo.sha256.clone()) {
-            demos.push(PreparedUploadDemo {
+            demos.push(PreparedImportDemo {
                 relative_path,
                 size: demo.size,
                 sha256: demo.sha256,
@@ -1096,7 +987,7 @@ fn prepare_upload_batch(
             skipped = skipped.saturating_add(1);
         }
     }
-    Ok(PreparedUploadBatch {
+    Ok(PreparedImportBatch {
         demos,
         discovered,
         skipped,
@@ -1185,9 +1076,6 @@ async fn import_candidates(
                     } else {
                         let existing = outcome.into_demo();
                         if demo_file_matches_catalog(&existing).await {
-                            if source == "upload" {
-                                remove_uploaded_paths(std::slice::from_ref(&path)).await;
-                            }
                             result.skipped += 1;
                             continue;
                         }
@@ -1200,20 +1088,6 @@ async fn import_candidates(
                 state.events.publish("demo", "changed", Some(record.id));
             }
             Err(error) => {
-                if source == "upload" {
-                    match tokio::fs::remove_file(&path).await {
-                        Err(cleanup_error)
-                            if cleanup_error.kind() != std::io::ErrorKind::NotFound =>
-                        {
-                            tracing::warn!(
-                                %cleanup_error,
-                                %path,
-                                "unable to remove rejected demo upload"
-                            );
-                        }
-                        _ => {}
-                    }
-                }
                 result.skipped += 1;
                 result.errors.push(format!("{path}: {error}"));
             }
@@ -1459,21 +1333,8 @@ fn is_zip_path(path: &Path) -> bool {
         .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
 }
 
-fn is_upload_path(path: &Path) -> bool {
+fn is_import_path(path: &Path) -> bool {
     is_demo_path(path) || is_zip_path(path)
-}
-
-fn safe_file_name(file_name: &str) -> Option<String> {
-    file_name
-        .rsplit(['/', '\\'])
-        .next()
-        .filter(|name| {
-            !name.is_empty()
-                && !matches!(*name, "." | "..")
-                && !name.contains(':')
-                && !name.chars().any(char::is_control)
-        })
-        .map(ToOwned::to_owned)
 }
 
 async fn get_analysis(
@@ -1924,7 +1785,6 @@ fn validate_demo_window(page: Option<u32>, page_size: Option<u32>) -> ApiResult<
 #[cfg(test)]
 mod tests {
     use std::{
-        fmt::Write as _,
         io::Write as _,
         sync::{
             Arc,
@@ -1933,12 +1793,7 @@ mod tests {
     };
 
     use async_trait::async_trait;
-    use axum::{
-        body::Body,
-        extract::{FromRequest, Multipart},
-        http::{Request, header},
-        response::IntoResponse,
-    };
+    use axum::response::IntoResponse;
 
     use super::*;
 
@@ -2270,26 +2125,6 @@ mod tests {
         bytes.into_inner()
     }
 
-    async fn upload_multipart(file_name: &str, contents: &[u8]) -> Multipart {
-        let boundary = "vibe-cs-upload-boundary";
-        let mut body = format!(
-            "--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{file_name}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
-        )
-        .into_bytes();
-        body.extend_from_slice(contents);
-        body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
-        let request = Request::builder()
-            .header(
-                header::CONTENT_TYPE,
-                format!("multipart/form-data; boundary={boundary}"),
-            )
-            .body(Body::from(body))
-            .expect("request");
-        Multipart::from_request(request, &())
-            .await
-            .expect("multipart")
-    }
-
     #[test]
     fn demo_list_query_parses_exact_statuses_and_whitelisted_sorts() {
         assert!(
@@ -2373,19 +2208,6 @@ mod tests {
             }))
             .is_err()
         );
-    }
-
-    #[test]
-    fn upload_file_name_drops_parent_components() {
-        assert_eq!(
-            safe_file_name("../unsafe/match.dem").as_deref(),
-            Some("match.dem")
-        );
-        assert_eq!(
-            safe_file_name(r"C:\unsafe\match.dem").as_deref(),
-            Some("match.dem")
-        );
-        assert!(safe_file_name("../..").is_none());
     }
 
     #[tokio::test]
@@ -2770,7 +2592,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prepared_upload_recovers_missing_and_tampered_content_owners() {
+    async fn prepared_import_recovers_missing_and_tampered_content_owners() {
         for stale_kind in ["missing", "tampered"] {
             let directory = tempfile::tempdir().expect("temporary directory");
             let stale_path = directory.path().join(format!("{stale_kind}-owner.dem"));
@@ -2818,8 +2640,8 @@ mod tests {
 
             let Json(result) = publish_prepared_batch(
                 &state,
-                PreparedUploadBatch {
-                    demos: vec![PreparedUploadDemo {
+                PreparedImportBatch {
+                    demos: vec![PreparedImportDemo {
                         relative_path,
                         size: incoming.size,
                         sha256: incoming.sha256.clone(),
@@ -2829,7 +2651,6 @@ mod tests {
                 },
                 &staging_dir,
                 &final_dir,
-                "upload",
             )
             .await
             .expect("publish upload");
@@ -2979,46 +2800,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn file_count_failure_rolls_back_the_entire_received_batch() {
+    async fn archive_file_count_failure_leaves_sources_and_database_untouched() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
-        let state = AppState::new(storage, directory.path().to_path_buf());
-        let mut body = String::new();
-        for index in 0..=MAXIMUM_DEMO_UPLOAD_FILES {
-            write!(
-                body,
-                "--demo-boundary\r\nContent-Disposition: form-data; name=\"files\"; filename=\"match-{index}.dem\"\r\n\r\ndemo-{index}\r\n"
-            )
-            .expect("multipart body");
-        }
-        body.push_str("--demo-boundary--\r\n");
-        let request = Request::builder()
-            .header(
-                header::CONTENT_TYPE,
-                "multipart/form-data; boundary=demo-boundary",
-            )
-            .body(Body::from(body))
-            .expect("request");
-        let multipart = Multipart::from_request(request, &())
-            .await
-            .expect("multipart");
-
-        let error = upload_multiple(State(state), ApiMultipart(multipart))
-            .await
-            .expect_err("too many files must fail");
-
+        let state = AppState::new(storage.clone(), directory.path().to_path_buf());
+        let paths = (0..=MAXIMUM_ARCHIVE_IMPORT_FILES)
+            .map(|index| {
+                directory
+                    .path()
+                    .join(format!("match-{index}.zip"))
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        let error = import_paths(
+            State(state),
+            ApiJson(ImportRequest {
+                paths,
+                source: "local".to_owned(),
+            }),
+        )
+        .await
+        .expect_err("too many files must fail");
         assert_eq!(error.into_response().status(), StatusCode::BAD_REQUEST);
-        let entries = std::fs::read_dir(directory.path().join("uploads/demos"))
-            .expect("upload directory")
-            .collect::<Result<Vec<_>, _>>()
-            .expect("entries");
-        assert!(entries.is_empty());
+        assert!(!directory.path().join("uploads/demos").exists());
+        assert_eq!(
+            storage
+                .list_demos(DemoQuery::default())
+                .await
+                .expect("demos")
+                .total,
+            0
+        );
     }
 
     #[tokio::test]
-    async fn zip_upload_validates_hashes_and_deduplicates_demo_entries() {
+    async fn zip_import_validates_hashes_and_deduplicates_demo_entries() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
@@ -3029,11 +2848,21 @@ mod tests {
             ("nested/two.dem", b"PBDEMS2\0same!!!!"),
             ("notes.txt", b"not extracted"),
         ]);
-        let multipart = upload_multipart("matches.zip", &archive).await;
-
-        let Json(result) = upload_multiple(State(state), ApiMultipart(multipart))
-            .await
-            .expect("upload archive");
+        let archive_path = directory.path().join("matches.zip");
+        std::fs::write(&archive_path, &archive).expect("archive");
+        let Json(result) = import_paths(
+            State(state),
+            ApiJson(ImportRequest {
+                paths: vec![archive_path.to_string_lossy().into_owned()],
+                source: "local".to_owned(),
+            }),
+        )
+        .await
+        .expect("import archive");
+        assert_eq!(
+            std::fs::read(&archive_path).expect("source archive"),
+            archive
+        );
 
         assert_eq!(result.discovered, 2);
         assert_eq!(result.imported, 1);
@@ -3060,11 +2889,21 @@ mod tests {
             ("valid.dem", b"PBDEMS2\0valid!!!"),
             ("invalid.dem", b"NOTADEMOinvalid!"),
         ]);
-        let multipart = upload_multipart("invalid.zip", &archive).await;
-
-        let error = upload_multiple(State(state), ApiMultipart(multipart))
-            .await
-            .expect_err("invalid archive must fail");
+        let archive_path = directory.path().join("invalid.zip");
+        std::fs::write(&archive_path, &archive).expect("archive");
+        let error = import_paths(
+            State(state),
+            ApiJson(ImportRequest {
+                paths: vec![archive_path.to_string_lossy().into_owned()],
+                source: "local".to_owned(),
+            }),
+        )
+        .await
+        .expect_err("invalid archive must fail");
+        assert_eq!(
+            std::fs::read(&archive_path).expect("source archive"),
+            archive
+        );
 
         assert_eq!(error.into_response().status(), StatusCode::BAD_REQUEST);
         assert_eq!(
@@ -3077,6 +2916,46 @@ mod tests {
         );
         let entries = std::fs::read_dir(directory.path().join("uploads/demos"))
             .expect("upload directory")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("entries");
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn local_archive_rejects_traversal_without_touching_source_files() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let archive_path = directory.path().join("unsafe.zip");
+        let archive = demo_zip(&[("../escape.dem", b"PBDEMS2\0fixture!")]);
+        std::fs::write(&archive_path, &archive).expect("archive");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let state = AppState::new(storage.clone(), directory.path().join("data"));
+        let error = import_paths(
+            State(state),
+            ApiJson(ImportRequest {
+                paths: vec![archive_path.to_string_lossy().into_owned()],
+                source: "local".to_owned(),
+            }),
+        )
+        .await
+        .expect_err("archive traversal must fail");
+        assert_eq!(error.into_response().status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            std::fs::read(&archive_path).expect("source archive"),
+            archive
+        );
+        assert!(!directory.path().join("escape.dem").exists());
+        assert_eq!(
+            storage
+                .list_demos(DemoQuery::default())
+                .await
+                .expect("demos")
+                .total,
+            0
+        );
+        let entries = std::fs::read_dir(directory.path().join("data/uploads/demos"))
+            .expect("managed directory")
             .collect::<Result<Vec<_>, _>>()
             .expect("entries");
         assert!(entries.is_empty());
@@ -3098,12 +2977,15 @@ mod tests {
             .expect("storage");
         let state = AppState::new(storage.clone(), directory.path().join("data"));
 
-        let result = import_local_bundle(
-            &state,
-            vec![
-                direct.to_string_lossy().into_owned(),
-                archive_path.to_string_lossy().into_owned(),
-            ],
+        let Json(result) = import_paths(
+            State(state),
+            ApiJson(ImportRequest {
+                paths: vec![
+                    direct.to_string_lossy().into_owned(),
+                    archive_path.to_string_lossy().into_owned(),
+                ],
+                source: "local".to_owned(),
+            }),
         )
         .await
         .expect("import local bundle");

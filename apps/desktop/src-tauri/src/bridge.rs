@@ -296,13 +296,11 @@ fn internal_uri(path: &str) -> Result<Uri, DesktopCommandError> {
 
 fn validate_upload_path(path: &str) -> Result<(), DesktopCommandError> {
     validate_desktop_path(path)?;
-    let is_allowed = matches!(
-        path,
-        "/demo/upload-multiple" | "/media/assets" | "/editor/packages/upload"
-    ) || path
-        .strip_prefix("/media/assets/")
-        .and_then(|tail| tail.strip_suffix("/replace"))
-        .is_some_and(|id| !id.is_empty() && !id.contains('/'));
+    let is_allowed = matches!(path, "/media/assets" | "/editor/packages/upload")
+        || path
+            .strip_prefix("/media/assets/")
+            .and_then(|tail| tail.strip_suffix("/replace"))
+            .is_some_and(|id| !id.is_empty() && !id.contains('/'));
     if !is_allowed {
         return Err(DesktopCommandError::invalid(
             "desktop upload target is not allowed",

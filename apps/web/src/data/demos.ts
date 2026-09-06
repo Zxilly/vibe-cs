@@ -42,7 +42,7 @@ import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
 /**
  * One page of the library table / card grid.
  *
- * Invalidated by: `importDemoPaths`, `importDemos`, `scanDemos`,
+ * Invalidated by: `importDemoPaths`, `scanDemos`,
  * `rescanDemoWatch`, `updateDemo`, `updateDemoMetadata*`, `deleteDemo`, and by
  * an analysis run completing (it moves a row from 「未分析」 to 「已分析」).
  * All of those change row *content*, not just membership, so they invalidate
@@ -127,27 +127,8 @@ export function useReviewTags(tuning: DataQueryTuning = {}) {
 /* ── writes: getting demos into the library ──────────────────────────────── */
 
 /**
- * 「导入 Demo」 with files the user dropped or picked in the browser file
- * dialog. `commands.importDemos` uploads each one through the desktop bridge
- * and folds the per-file `ScanResult`s into one.
- *
- * Invalidates `qk.demos.all`: an import adds rows (every `demos.list` query,
- * whatever its filter) and moves the watch counters that `qk.demos.watch()`
- * reports. Both hang under the namespace, so one call reaches both.
- */
-export function useImportDemoFiles() {
-  const client = useDesktopClient();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (files: readonly File[]) => client.importDemos([...files]),
-    onSuccess: () => invalidateDemos(queryClient),
-  });
-}
-
-/**
- * The same import addressed by path — what the watch-directory drawer's
- * 「导入这个目录」 uses. Same invalidation, same reason.
+ * Native file picker and drop imports share one path-based command.
+ * Refresh every library list and watch counter after successful intake.
  */
 export function useImportDemoPaths() {
   const client = useDesktopClient();

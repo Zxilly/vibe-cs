@@ -74,7 +74,6 @@ export type DesktopClient = Pick<
      duplicate types and `demos.ts`'s `as unknown as` narrowing. */
   // demos (data/demos.ts)
   | 'importDemoPaths'
-  | 'importDemos'
   | 'scanDemos'
   | 'rescanDemoWatch'
   | 'updateDemo'

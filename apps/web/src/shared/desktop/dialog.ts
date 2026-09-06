@@ -71,6 +71,15 @@ export async function chooseLocalDirectories(options: {
   return typeof selected === 'string' ? [selected] : [];
 }
 
+/** WebView2's native drop event provides paths without reading file bytes. */
+export async function subscribeLocalFileDrop(onDrop: (paths: string[]) => void): Promise<() => void> {
+  if (!isDesktopShell()) return () => {};
+  const { getCurrentWebview } = await import('@tauri-apps/api/webview');
+  return getCurrentWebview().onDragDropEvent((event) => {
+    if (event.payload.type === 'drop') onDrop(event.payload.paths);
+  });
+}
+
 export async function saveLocalBytes(options: {
   title: string;
   defaultFileName: string;

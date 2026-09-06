@@ -3,6 +3,7 @@ import type { ActivityKindFilter } from "./ActivityKindFilter";
 import type { ActivityStateFilter } from "./ActivityStateFilter";
 
 export type ActivityQuery = {
+  project_id?: string;
   search?: string;
   kind?: ActivityKindFilter;
   state?: ActivityStateFilter;

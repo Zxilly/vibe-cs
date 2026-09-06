@@ -39,6 +39,7 @@ impl ActivityState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActivityQuery {
+    pub project_id: Option<uuid::Uuid>,
     pub search: Option<String>,
     pub kind: Option<ActivityKind>,
     pub state: Option<ActivityState>,
@@ -134,7 +135,16 @@ const ACTIVITY_FILTER_SQL: &str = "
         OR (:state = 'completed' AND status = 'completed')
         OR (:state = 'cancelled' AND status = 'cancelled')
     )
-      AND (:search IS NULL OR instr(lower(search_text), lower(:search)) > 0)";
+      AND (:search IS NULL OR instr(lower(search_text), lower(:search)) > 0)
+      AND (:project_id IS NULL
+        OR (source_kind = 'export' AND EXISTS (
+            SELECT 1 FROM export_jobs AS owner
+            WHERE owner.id = source_id AND owner.project_id = :project_id
+        ))
+        OR (source_kind = 'recording' AND EXISTS (
+            SELECT 1 FROM project_recording_runs AS owner
+            WHERE owner.recording_job_id = source_id AND owner.project_id = :project_id
+        )))";
 
 const RECORDING_ACTIVITY_SQL: &str = "
     SELECT
@@ -523,7 +533,16 @@ impl Storage {
         }
         self.run(move |connection| {
             let transaction = connection.transaction()?;
-            let summary = transaction.query_row(ACTIVITY_SUMMARY_SQL, [], |row| {
+            let project_id = query.project_id.map(|id| id.to_string());
+            let summary_sql = format!(
+                "SELECT COUNT(*),
+                    COALESCE(SUM(status NOT IN ('completed', 'failed', 'cancelled')), 0),
+                    COALESCE(SUM(status = 'failed'), 0),
+                    COALESCE(SUM(status = 'completed'), 0),
+                    COALESCE(SUM(status = 'cancelled'), 0)
+                 FROM ({RECORDING_ACTIVITY_SQL} UNION ALL {EXPORT_ACTIVITY_SQL}) AS activity{ACTIVITY_FILTER_SQL}"
+            );
+            let read_summary = |row: &rusqlite::Row<'_>| {
                 Ok(ActivitySummary {
                     total: row_u64(row, 0)?,
                     active: row_u64(row, 1)?,
@@ -531,7 +550,16 @@ impl Storage {
                     completed: row_u64(row, 3)?,
                     cancelled: row_u64(row, 4)?,
                 })
-            })?;
+            };
+            let summary = if project_id.is_some() {
+                transaction.query_row(&summary_sql, named_params! {
+                    ":state": Option::<&str>::None,
+                    ":search": Option::<&str>::None,
+                    ":project_id": project_id,
+                }, read_summary)?
+            } else {
+                transaction.query_row(ACTIVITY_SUMMARY_SQL, [], read_summary)?
+            };
             let state = query.state.map(ActivityState::as_str);
             let search = query
                 .search
@@ -543,6 +571,7 @@ impl Storage {
                 named_params! {
                     ":state": state,
                     ":search": search,
+                    ":project_id": project_id,
                 },
                 |row| row_u64(row, 0),
             )?;
@@ -554,6 +583,7 @@ impl Storage {
                 statement.query(named_params! {
                     ":state": state,
                     ":search": search,
+                    ":project_id": project_id,
                     ":limit": limit,
                     ":offset": offset,
                 })?
@@ -566,6 +596,7 @@ impl Storage {
                 statement.query(named_params! {
                     ":state": state,
                     ":search": search,
+                    ":project_id": project_id,
                     ":window": window,
                     ":limit": limit,
                     ":offset": offset,
@@ -810,6 +841,124 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn project_activity_filter_scopes_rows_counts_and_summary_before_paging() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let project_a = create_export_project(&storage).await;
+        let project_b = create_export_project(&storage).await;
+        let now = chrono::Utc::now();
+        let recording_id = uuid::Uuid::new_v4();
+        storage
+            .put_recording_job(vibe_cs_domain::RecordingJob {
+                id: recording_id,
+                retry_of: None,
+                status: vibe_cs_domain::JobStatus::Running,
+                items: vec![],
+                current_index: 0,
+                progress: 0.0,
+                message: String::new(),
+                outputs: vec![],
+                error_code: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("put recording");
+        storage
+            .bind_project_recording_run(recording_id, project_a)
+            .await
+            .expect("bind recording");
+        for (project_id, status) in [
+            (project_a, vibe_cs_domain::JobStatus::Completed),
+            (project_b, vibe_cs_domain::JobStatus::Failed),
+        ] {
+            storage
+                .put_export_job(ExportJobRecord {
+                    kind: "project".to_owned(),
+                    job: vibe_cs_domain::ExportJob {
+                        id: uuid::Uuid::new_v4(),
+                        project_id,
+                        project_revision: 1,
+                        range_start_seconds: 0.0,
+                        range_end_seconds: 1.0,
+                        status,
+                        progress: 0.0,
+                        output_path: "C:/exports/scoped.mp4".to_owned(),
+                        error: None,
+                        error_code: None,
+                        created_at: now,
+                        updated_at: now,
+                    },
+                })
+                .await
+                .expect("put export");
+        }
+        let query = ActivityQuery {
+            project_id: Some(project_a),
+            search: None,
+            kind: None,
+            state: None,
+            page: 1,
+            page_size: 1,
+        };
+        let first = storage
+            .query_activities(query.clone())
+            .await
+            .expect("first project page");
+        assert_eq!(first.total, 2);
+        assert_eq!(first.items.len(), 1);
+        assert_eq!(
+            first.summary,
+            ActivitySummary {
+                total: 2,
+                active: 1,
+                completed: 1,
+                failed: 0,
+                cancelled: 0
+            }
+        );
+        let second = storage
+            .query_activities(ActivityQuery {
+                page: 2,
+                ..query.clone()
+            })
+            .await
+            .expect("second project page");
+        assert_eq!(second.total, 2);
+        assert_eq!(second.items.len(), 1);
+        assert_ne!(first.items, second.items);
+        let only_recording = storage
+            .query_activities(ActivityQuery {
+                kind: Some(ActivityKind::Recording),
+                ..query.clone()
+            })
+            .await
+            .expect("recording filter");
+        assert_eq!(only_recording.total, 1);
+        assert_eq!(only_recording.summary, first.summary);
+        assert!(
+            matches!(only_recording.items.as_slice(), [ActivitySource::Recording { job, .. }] if job.id == recording_id)
+        );
+        let other = storage
+            .query_activities(ActivityQuery {
+                project_id: Some(project_b),
+                ..query
+            })
+            .await
+            .expect("other project");
+        assert_eq!(other.total, 1);
+        assert_eq!(
+            other.summary,
+            ActivitySummary {
+                total: 1,
+                active: 0,
+                completed: 0,
+                failed: 1,
+                cancelled: 0
+            }
+        );
+    }
+
+    #[tokio::test]
     async fn activity_search_accepts_each_copyable_exact_activity_id() {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let now = chrono::Utc::now();
@@ -931,6 +1080,7 @@ mod tests {
         ] {
             let page = storage
                 .query_activities(ActivityQuery {
+                    project_id: None,
                     search: Some(exact_id.clone()),
                     kind: None,
                     state: None,
@@ -1196,6 +1346,7 @@ mod tests {
             .await
             .expect("parent job");
         let query = ActivityQuery {
+            project_id: None,
             search: Some(format!("recording:{parent_id}")),
             kind: Some(ActivityKind::Recording),
             state: None,
@@ -1260,6 +1411,7 @@ mod tests {
 
         let failed = storage
             .query_activities(ActivityQuery {
+                project_id: None,
                 search: Some(format!("analysis:{run_id}")),
                 kind: Some(ActivityKind::Analysis),
                 state: Some(ActivityState::Failed),
@@ -1278,6 +1430,7 @@ mod tests {
 
         let active = storage
             .query_activities(ActivityQuery {
+                project_id: None,
                 search: Some(format!("analysis:{run_id}")),
                 kind: Some(ActivityKind::Analysis),
                 state: Some(ActivityState::Active),
@@ -1305,6 +1458,7 @@ mod tests {
 
         let cancelled = storage
             .query_activities(ActivityQuery {
+                project_id: None,
                 search: Some(format!("analysis:{run_id}")),
                 kind: Some(ActivityKind::Analysis),
                 state: Some(ActivityState::Cancelled),
@@ -1363,6 +1517,7 @@ mod tests {
 
             let page = storage
                 .query_activities(ActivityQuery {
+                    project_id: None,
                     search: Some(format!("analysis:{run_id}")),
                     kind: Some(ActivityKind::Analysis),
                     state: Some(ActivityState::Failed),
@@ -1395,6 +1550,7 @@ mod tests {
             .unwrap();
         let run_id = complete_analysis(&storage, demo_id).await;
         let query = ActivityQuery {
+            project_id: None,
             search: Some(format!("analysis:{run_id}")),
             kind: Some(ActivityKind::Analysis),
             state: Some(ActivityState::Completed),
@@ -1543,6 +1699,7 @@ mod tests {
         let storage = Storage::open_in_memory().await.expect("open storage");
         for query in [
             ActivityQuery {
+                project_id: None,
                 search: None,
                 kind: None,
                 state: None,
@@ -1550,6 +1707,7 @@ mod tests {
                 page_size: 50,
             },
             ActivityQuery {
+                project_id: None,
                 search: None,
                 kind: None,
                 state: None,
@@ -1557,6 +1715,7 @@ mod tests {
                 page_size: 50,
             },
             ActivityQuery {
+                project_id: None,
                 search: None,
                 kind: None,
                 state: None,

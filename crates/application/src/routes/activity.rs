@@ -54,6 +54,8 @@ struct ActivitySummary {
 #[ts(export)]
 struct ActivityQuery {
     #[ts(optional)]
+    project_id: Option<Uuid>,
+    #[ts(optional)]
     search: Option<String>,
     #[ts(optional)]
     kind: Option<ActivityKindFilter>,
@@ -217,6 +219,7 @@ async fn list_activities(
     let page_result = state
         .storage
         .query_activities(StoredActivityQuery {
+            project_id: query.project_id,
             search: query.search,
             kind: query.kind.map(ActivityKindFilter::stored),
             state: query.state.map(ActivityStateFilter::stored),

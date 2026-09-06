@@ -1007,6 +1007,7 @@ export const commands = {
   listActivities: async (query: ActivityQuery = {}, signal?: AbortSignal) =>
     parseActivityFeed(await request<ActivityFeed>(
       `/activities${queryString({
+        project_id: query.project_id,
         search: query.search?.trim(),
         kind: query.kind,
         state: query.state,

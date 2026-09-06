@@ -1016,6 +1016,7 @@ mod tests {
                     player_name: Some("Player".to_owned()),
                     spectator_slot: None,
                     verified_total_ticks: None,
+                    recordable_end_tick: None,
                     start_tick: 100,
                     end_tick: 164,
                     tick_rate: 64.0,

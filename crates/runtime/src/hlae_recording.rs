@@ -2052,11 +2052,17 @@ impl HlaeRecordingBackend {
                     "this Demo must be reanalyzed before recording".to_owned(),
                 )
             })?;
-            let maximum_end_overshoot = verified_total_ticks
-                .saturating_sub(u32::try_from(item.segment.end_tick).map_err(|_| {
-                    DomainError::InvalidInput("recording end tick is unsupported".to_owned())
-                })?)
-                .min(CAPTURE_SCHEDULER_OVERSHOOT_TICKS);
+            let capture_end_limit = item
+                .segment
+                .recordable_end_tick
+                .unwrap_or(u64::from(verified_total_ticks))
+                .min(u64::from(verified_total_ticks));
+            let maximum_end_overshoot = u32::try_from(
+                capture_end_limit
+                    .saturating_sub(item.segment.end_tick)
+                    .min(u64::from(CAPTURE_SCHEDULER_OVERSHOOT_TICKS)),
+            )
+            .expect("scheduler tolerance is bounded to eight ticks");
             clips.push(HlaeRecordingClipContext {
                 binding: item.clone(),
                 expected_output_mp4,
@@ -2610,6 +2616,7 @@ mod tests {
             player_name: Some("FalleN".to_owned()),
             spectator_slot: Some(7),
             verified_total_ticks: Some(4_096),
+            recordable_end_tick: Some(4_096),
             start_tick: request.start_tick,
             end_tick: request.end_tick,
             tick_rate: 64.0,
@@ -2704,6 +2711,8 @@ mod tests {
                 request.verified_total_ticks,
                 request.max_end_overshoot_ticks,
             ));
+            let observed_end_tick = u32::try_from(plan.end_tick).expect("fixture end tick")
+                + request.max_end_overshoot_ticks.min(1);
             std::fs::write(&request.output_mp4, b"verified-native-mp4")
                 .expect("fake native output");
             Ok(HlaeRecordingSessionResult {
@@ -2717,11 +2726,11 @@ mod tests {
                 loader_process_id: 100,
                 game_process_id: 200,
                 observed_start_tick: 1_001,
-                observed_end_tick: 1_321,
+                observed_end_tick,
                 observer_steam_id64: Some(76_561_197_960_690_195),
                 observer_mode_raw: Some(2),
                 observer_verified_before_capture_tick: Some(1_000),
-                observer_verified_at_capture_stop_tick: Some(1_321),
+                observer_verified_at_capture_stop_tick: Some(observed_end_tick),
                 audio_stream_included: true,
             })
         }
@@ -3357,6 +3366,167 @@ mod tests {
 
         let video_only = HlaeRecordingBackend::verify_native_encoder_candidates(&report, false);
         assert!(video_only.is_ok());
+    }
+
+    #[tokio::test]
+    async fn planned_pov_death_boundary_reaches_the_actual_session_stop_window() {
+        use std::time::Duration;
+        use vibe_cs_application::RecordingPort as _;
+        use vibe_cs_domain::{
+            AnalysisInputFingerprint, EventKind, MatchAnalysis, PlayerStats, RoundSummary,
+            TimelineEvent,
+        };
+
+        let (directory, mut item) = fixture();
+        item.demo.file_size = std::fs::metadata(&item.demo.path).unwrap().len();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        storage.put_demo(item.demo.clone()).await.unwrap();
+        let fingerprint = AnalysisInputFingerprint {
+            sha256: item.demo.content_sha256.clone().unwrap(),
+            size: item.demo.file_size,
+        };
+        let analysis = MatchAnalysis {
+            demo_id: item.demo.id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 64.0,
+            verified_total_ticks: Some(4_096),
+            teams: Vec::new(),
+            players: vec![PlayerStats {
+                steam_id: item.request.player_id.clone(),
+                spectator_slot: Some(7),
+                name: "FalleN".to_owned(),
+                team: "T".to_owned(),
+                kills: 0,
+                deaths: 1,
+                assists: 0,
+                headshots: 0,
+                damage: 0,
+                adr: 0.0,
+                kill_death_ratio: 0.0,
+                score: 0,
+            }],
+            rounds: vec![RoundSummary {
+                number: 1,
+                start_tick: 900,
+                end_tick: 1_350,
+                winner: "B".to_owned(),
+                reason: "elimination".to_owned(),
+                team_a_score: 0,
+                team_b_score: 1,
+                events: vec![TimelineEvent {
+                    id: "death".to_owned(),
+                    tick: 1_321,
+                    seconds: 1_321.0 / 64.0,
+                    kind: EventKind::Kill,
+                    actor: Some("opponent".to_owned()),
+                    target: Some(item.request.player_id.clone()),
+                    weapon: None,
+                    headshot: false,
+                    penetrated: false,
+                    position: None,
+                    detail: Value::Null,
+                }],
+            }],
+            highlights: Vec::new(),
+        };
+        storage
+            .set_demo_status(item.demo.id, DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run = storage
+            .start_analysis_run(item.demo.id)
+            .await
+            .unwrap()
+            .run
+            .id;
+        storage
+            .bind_analysis_run_input(run, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run)
+            .await
+            .unwrap();
+        storage.mark_analysis_projection_started(run).await.unwrap();
+        storage
+            .complete_analysis_run(run, analysis, fingerprint)
+            .await
+            .unwrap();
+
+        let runner = Arc::new(FakeSessionRunner::default());
+        let backend = Arc::new(HlaeRecordingBackend::with_dependencies(
+            directory.path().to_owned(),
+            runner.clone(),
+            Arc::new(FakeLaunchEnvironment {
+                root: directory.path().to_owned(),
+            }),
+        ));
+        let port = crate::recording::RuntimeRecordingPort::new(storage.clone(), backend);
+        let mut job = orphaned_recording_job(&item);
+        job.status = JobStatus::Queued;
+        let started = port
+            .execute(job)
+            .await
+            .expect("start through production planning");
+        let completed = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let job = storage
+                    .get_recording_job(started.id)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                if job.status.is_terminal() {
+                    break job;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("fake recording completion");
+        assert_eq!(
+            completed.status,
+            JobStatus::Completed,
+            "{}",
+            completed.message
+        );
+        assert_eq!(
+            runner.observed.lock().unwrap()[0].3,
+            0,
+            "end=death-1 must have no positive stop overshoot"
+        );
+        assert_eq!(completed.items[0].end_tick, 1_320);
+        assert_eq!(completed.outputs[0].metadata["scheduled_end_tick"], 1_320);
+    }
+
+    #[tokio::test]
+    async fn session_stop_tolerance_cannot_cross_the_round_playback_boundary() {
+        for remaining_ticks in [0, 2, 20] {
+            let (directory, mut item) = fixture();
+            item.segment.recordable_end_tick =
+                Some(item.segment.end_tick + u64::from(remaining_ticks));
+            let runner = Arc::new(FakeSessionRunner::default());
+            let backend = HlaeRecordingBackend::with_dependencies(
+                directory.path().to_owned(),
+                runner.clone(),
+                Arc::new(FakeLaunchEnvironment {
+                    root: directory.path().to_owned(),
+                }),
+            );
+            let clip = backend
+                .record_for_test(
+                    &AppConfig::default(),
+                    &item,
+                    &RecordingCancellation::default(),
+                    &ignored_progress(),
+                )
+                .await
+                .expect("record with a bounded stop window");
+            assert_eq!(runner.observed.lock().unwrap()[0].3, remaining_ticks.min(8));
+            assert_eq!(clip.metadata["scheduled_end_tick"], 1_320);
+            assert_eq!(item.segment.end_tick, 1_320);
+        }
     }
 
     #[tokio::test]

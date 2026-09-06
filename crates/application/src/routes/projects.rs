@@ -237,6 +237,7 @@ async fn get_delivery_gate(
         .tracks
         .iter()
         .flat_map(|track| &track.clips)
+        .filter(|clip| clip.placement.enabled)
     {
         let TimelineClipMaterial::Sequence {
             project_id,
@@ -1256,6 +1257,36 @@ mod tests {
         assert_eq!(gate["blockers"][0]["state"], "stale");
         let (_, projects) = call(&router, Method::GET, "/api/projects", None).await;
         assert_eq!(projects.as_array().expect("projects").len(), 2);
+
+        let mut disabled_nested =
+            nested["parent_project"]["document"]["tracks"][0]["clips"][0].clone();
+        disabled_nested["placement"]["enabled"] = json!(false);
+        disabled_nested["placement"]["start"] = json!(5.0);
+        let (status, _) = call(
+            &router,
+            Method::PATCH,
+            &format!("/api/projects/{project_id}"),
+            Some(json!({
+                "project_id":project_id,
+                "base_revision":3,
+                "scope":{"kind":"project"},
+                "author":{"kind":"human"},
+                "reverts_change_group_id":null,
+                "summary":"Disable unfinished nested sequence",
+                "operations":[{"op":"replace_track_clips","track_id":story_id,"clips":[clip_json(Uuid::new_v4(),"Keep",0.0),disabled_nested]}]
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], true);
+        assert_eq!(gate["blockers"], json!([]));
     }
 
     #[test]

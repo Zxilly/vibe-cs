@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use vibe_cs_application::{AnalysisPort, RecordingPort};
 use vibe_cs_domain::{
-    AnalysisRunStatus, AppConfig, DemoRecord, DomainError, EventKind, Highlight, HighlightKind,
+    AnalysisRunStatus, AppConfig, DemoRecord, DomainError, Highlight, HighlightKind,
     JobFailureCode, JobStatus, MatchAnalysis, RecordedClip, RecordingJob, RecordingRequest,
     ReplayFrame, ReplayPlayer, RoundReplayArtifact,
 };
@@ -1367,51 +1367,71 @@ fn build_segment_plan(
                 .find(|highlight| highlight.id == highlight_id)
         })
     });
-    let highlight_round = highlight.and_then(|highlight| {
-        analysis.and_then(|analysis| {
-            analysis
-                .rounds
-                .iter()
-                .find(|round| round.number == highlight.round)
-        })
-    });
     let camera_player_id = resolve_camera_player(request, analysis, highlight)?;
-    // CS2 can temporarily leave Demo playback while applying the full packet
-    // at a round boundary. A highlight belongs to one authoritative round, so
-    // its optional handles are clipped to that round instead of asking HLAE to
-    // record across a state reset that is not part of the highlight itself.
-    let start_tick = highlight_round.map_or(requested_window_start, |round| {
-        requested_window_start.max(round.start_tick)
+    let capture_bounds = analysis.and_then(|analysis| {
+        let round = analysis
+            .rounds
+            .iter()
+            .filter(|round| round.start_tick <= request.start_tick)
+            .max_by_key(|round| round.start_tick)?;
+        analysis.round_capture_bounds(round.number, &camera_player_id)
     });
-    let mut end_tick = highlight_round.map_or(requested_window_end, |round| {
-        requested_window_end.min(round.end_tick)
-    });
+    let verified_total_ticks = analysis
+        .and_then(|analysis| analysis.verified_total_ticks)
+        .filter(|ticks| *ticks > 0);
+    // RoundEnd is a statistical result, often the winning kill itself. The
+    // replay remains capturable until the next RoundStart or its verified EOF.
+    // These bounds validate Capture Intent; they never shorten it.
+    let start_tick = requested_window_start;
+    let end_tick = requested_window_end;
+    if let Some(demo_end_tick) = verified_total_ticks
+        && end_tick > u64::from(demo_end_tick)
+    {
+        return Err(DomainError::InvalidInput(format!(
+            "requested capture ticks {start_tick}..{end_tick} exceed the verified Demo end tick {demo_end_tick}; adjust the Capture Intent before recording"
+        )));
+    }
+    if let Some(bounds) = capture_bounds
+        && (start_tick < bounds.round_start_tick
+            || bounds
+                .recordable_end_tick
+                .is_some_and(|last_tick| end_tick > last_tick))
+    {
+        return Err(DomainError::InvalidInput(format!(
+            "requested capture ticks {start_tick}..{end_tick} cross round {} playable bounds {}..{}; adjust the Capture Intent or split the shot before recording",
+            bounds.round_number,
+            bounds.round_start_tick,
+            bounds
+                .recordable_end_tick
+                .map_or_else(|| "unverified".to_owned(), |tick| tick.to_string())
+        )));
+    }
     let player_death_tick =
         if request.camera_style == vibe_cs_domain::HlaeCameraStyle::Pov && !request.victim_pov {
-            highlight_round.and_then(|round| {
-                round
-                    .events
-                    .iter()
-                    .filter(|event| {
-                        event.kind == EventKind::Kill
-                            && event.target.as_deref() == Some(camera_player_id.as_str())
-                            && event.tick >= start_tick
-                            && event.tick <= end_tick
-                    })
-                    .map(|event| event.tick)
-                    .min()
-            })
+            capture_bounds.and_then(|bounds| bounds.player_death_tick)
         } else {
             None
         };
-    if let Some(death_tick) = player_death_tick {
-        end_tick = end_tick.min(death_tick.saturating_sub(1));
+    if let Some(death_tick) = player_death_tick.filter(|tick| *tick <= end_tick) {
+        return Err(DomainError::InvalidInput(format!(
+            "requested POV capture ticks {start_tick}..{end_tick} extend beyond player death at {death_tick}; choose an earlier end tick or a different camera before recording"
+        )));
     }
     if end_tick <= start_tick || end_tick - start_tick > u64::from(u32::MAX) {
         return Err(DomainError::InvalidInput(
             "recording segment tick span exceeds the supported range".to_owned(),
         ));
     }
+    let round_end_limit = capture_bounds
+        .and_then(|bounds| bounds.recordable_end_tick)
+        .or(verified_total_ticks.map(u64::from));
+    // A valid requested end can still be only one tick before death. The
+    // session's scheduler tolerance must stop before that same POV boundary.
+    let recordable_end_tick = match (round_end_limit, player_death_tick) {
+        (Some(round_end), Some(death_tick)) => Some(round_end.min(death_tick - 1)),
+        (None, Some(death_tick)) => Some(death_tick - 1),
+        (round_end, None) => round_end,
+    };
     let player_name = analysis
         .and_then(|analysis| {
             analysis
@@ -1422,9 +1442,6 @@ fn build_segment_plan(
         .map_or_else(|| camera_player_id.clone(), |player| player.name.clone());
     let spectator_slot =
         analysis.and_then(|analysis| resolved_spectator_slot(analysis, &camera_player_id));
-    let verified_total_ticks = analysis
-        .and_then(|analysis| analysis.verified_total_ticks)
-        .filter(|ticks| *ticks > 0);
     let category = highlight.map_or("custom", |highlight| highlight_category(highlight.kind));
     let mut tags = highlight.map_or_else(Vec::new, |highlight| highlight.tags.clone());
     if request.victim_pov && !tags.iter().any(|tag| tag == "victim_pov") {
@@ -1439,6 +1456,7 @@ fn build_segment_plan(
         player_name: Some(player_name.clone()),
         spectator_slot,
         verified_total_ticks,
+        recordable_end_tick,
         start_tick,
         end_tick,
         tick_rate,
@@ -1452,11 +1470,9 @@ fn build_segment_plan(
             "requested_end_tick": request.end_tick,
             "effective_start_tick": start_tick,
             "effective_end_tick": end_tick,
-            "round_boundary_tick": highlight_round.map(|round| round.end_tick),
-            "pre_roll_clamped": start_tick != requested_window_start,
-            "post_roll_clamped": end_tick != requested_window_end,
-            "pov_end_clamped_to_player_death": player_death_tick.is_some(),
-            "player_death_tick": player_death_tick,
+            "statistical_round_end_tick": capture_bounds.map(|bounds| bounds.round_end_tick),
+            "recordable_end_tick": recordable_end_tick,
+            "next_round_start_tick": capture_bounds.and_then(|bounds| bounds.next_round_start_tick),
             "pre_roll_seconds": request.pre_roll_seconds,
             "post_roll_seconds": request.post_roll_seconds,
             "pre_roll_ticks": pre_roll_ticks,
@@ -1710,6 +1726,7 @@ mod tests {
         },
         time::Duration,
     };
+    use vibe_cs_domain::EventKind;
 
     use super::*;
 
@@ -3849,7 +3866,109 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn highlight_roll_is_clamped_to_its_round_and_player_death() {
+    async fn winning_kill_post_roll_uses_next_round_and_demo_bounds() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let mut request = job.items[0].clone();
+        let demo = storage.get_demo(request.demo_id).await.unwrap().unwrap();
+        let mut analysis = storage
+            .get_analysis(request.demo_id)
+            .await
+            .unwrap()
+            .unwrap();
+        analysis.verified_total_ticks = Some(100_000);
+        let round = |number, start_tick, end_tick| vibe_cs_domain::RoundSummary {
+            number,
+            start_tick,
+            end_tick,
+            winner: "A".to_owned(),
+            reason: "elimination".to_owned(),
+            team_a_score: number,
+            team_b_score: 0,
+            events: Vec::new(),
+        };
+        analysis.rounds = vec![round(12, 91_075, 98_308), round(13, 99_000, 99_950)];
+        analysis.rounds[0]
+            .events
+            .push(vibe_cs_domain::TimelineEvent {
+                id: "winning-kill".to_owned(),
+                tick: 98_308,
+                seconds: 1_536.062_5,
+                kind: EventKind::Kill,
+                actor: Some("player".to_owned()),
+                target: Some("opponent".to_owned()),
+                weapon: None,
+                headshot: false,
+                penetrated: false,
+                position: None,
+                detail: serde_json::Value::Null,
+            });
+        request.start_tick = 97_918;
+        request.end_tick = 98_308;
+        request.post_roll_seconds = 26.0 / 64.0;
+        let plan = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect("post-roll after the winning kill is still playable");
+        assert_eq!((plan.start_tick, plan.end_tick), (97_918, 98_334));
+
+        request.post_roll_seconds = 0.0;
+        request.start_tick = 98_320;
+        request.end_tick = 98_999;
+        assert!(
+            build_segment_plan(
+                &request,
+                &demo,
+                Some(&analysis),
+                std::path::absolute(&demo.path).unwrap(),
+                64.0,
+                Uuid::new_v4()
+            )
+            .is_ok()
+        );
+        request.end_tick = 99_000;
+        let error = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect_err("cannot include the next round reset");
+        assert!(matches!(error, DomainError::InvalidInput(message) if message.contains("round")));
+
+        request.start_tick = 99_800;
+        request.end_tick = 100_000;
+        let plan = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect("final round can include the remaining verified Demo footage");
+        assert_eq!(plan.end_tick, 100_000);
+        request.end_tick = 100_001;
+        let error = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect_err("cannot record beyond the verified Demo boundary");
+        assert!(matches!(error, DomainError::InvalidInput(message) if message.contains("Demo")));
+    }
+
+    #[tokio::test]
+    async fn capture_plan_rejects_unsafe_ranges_instead_of_shortening_them() {
         let (_root, storage, _port, job) = fixture(false).await;
         let demo = storage
             .get_demo(job.items[0].demo_id)
@@ -3920,7 +4039,15 @@ mod tests {
             }],
         };
 
-        let segment = build_segment_plan(
+        let mut analysis = analysis;
+        let mut next_round = analysis.rounds[0].clone();
+        next_round.number = 2;
+        next_round.start_tick = 1_300;
+        next_round.end_tick = 1_500;
+        next_round.events.clear();
+        analysis.rounds.push(next_round);
+
+        let error = build_segment_plan(
             &request,
             &demo,
             Some(&analysis),
@@ -3928,13 +4055,104 @@ mod tests {
             64.0,
             Uuid::from_u128(5),
         )
-        .expect("round-bound highlight segment");
+        .expect_err("cross-round request must not silently produce a shorter Take");
+        assert!(matches!(error, DomainError::InvalidInput(message) if message.contains("round")));
 
-        assert_eq!(segment.start_tick, 936);
-        assert_eq!(segment.end_tick, 1_219);
-        assert_eq!(segment.metadata["round_boundary_tick"], 1_250);
-        assert_eq!(segment.metadata["post_roll_clamped"], true);
-        assert_eq!(segment.metadata["player_death_tick"], 1_220);
-        assert_eq!(segment.metadata["pov_end_clamped_to_player_death"], true);
+        request.post_roll_seconds = 0.5;
+        let error = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            64.0,
+            Uuid::from_u128(6),
+        )
+        .expect_err("POV request crossing player death must not be shortened");
+        assert!(matches!(error, DomainError::InvalidInput(message) if message.contains("death")));
+
+        request.camera_style = vibe_cs_domain::HlaeCameraStyle::Static;
+        let segment = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect("observer cameras retain their legal post-death interval");
+        assert_eq!(segment.end_tick, 1_232);
+        assert_eq!(segment.recordable_end_tick, Some(1_299));
+        request.camera_style = vibe_cs_domain::HlaeCameraStyle::Pov;
+
+        let mut victim_analysis = analysis.clone();
+        let mut victim = victim_analysis.players[0].clone();
+        victim.steam_id = "victim".to_owned();
+        victim.spectator_slot = Some(8);
+        victim_analysis.players.push(victim);
+        victim_analysis.highlights[0]
+            .victims
+            .push("victim".to_owned());
+        let mut death = victim_analysis.rounds[0].events[0].clone();
+        death.id = "victim-death".to_owned();
+        death.tick = 1_210;
+        death.seconds = 1_210.0 / 64.0;
+        death.actor = Some("player".to_owned());
+        death.target = Some("victim".to_owned());
+        victim_analysis.rounds[0].events.push(death);
+        request.victim_pov = true;
+        let segment = build_segment_plan(
+            &request,
+            &demo,
+            Some(&victim_analysis),
+            std::path::absolute(&demo.path).unwrap(),
+            64.0,
+            Uuid::new_v4(),
+        )
+        .expect("an explicitly requested victim reaction retains its existing capture semantics");
+        assert_eq!(segment.player_id, "victim");
+        assert_eq!(segment.end_tick, 1_232);
+        assert_eq!(segment.recordable_end_tick, Some(1_299));
+        request.victim_pov = false;
+
+        request.pre_roll_seconds = 0.0;
+        request.post_roll_seconds = 0.0;
+        let segment = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            64.0,
+            Uuid::from_u128(7),
+        )
+        .expect("explicit safe capture span");
+        assert_eq!((segment.start_tick, segment.end_tick), (1_000, 1_200));
+        assert_eq!(segment.recordable_end_tick, Some(1_219));
+
+        request.highlight_id = None;
+        request.end_tick = 1_230;
+        let error = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            64.0,
+            Uuid::from_u128(8),
+        )
+        .expect_err("manual capture must obey the same POV evidence");
+        assert!(matches!(error, DomainError::InvalidInput(message) if message.contains("death")));
+
+        request.highlight_id = Some("round-one-highlight".to_owned());
+        request.start_tick = 1_320;
+        request.end_tick = 1_400;
+        let segment = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            64.0,
+            Uuid::from_u128(9),
+        )
+        .expect("a highlight label must not replace the explicit capture interval");
+        assert_eq!((segment.start_tick, segment.end_tick), (1_320, 1_400));
     }
 }

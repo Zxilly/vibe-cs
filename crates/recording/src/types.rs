@@ -64,6 +64,9 @@ pub struct SegmentPlan {
     /// absent when the parser cannot prove it rather than being approximated
     /// from duration.
     pub verified_total_ticks: Option<u32>,
+    /// Last permissible observed capture tick, including scheduler tolerance.
+    /// Derived from the next round start and the verified replay boundary.
+    pub recordable_end_tick: Option<u64>,
     pub start_tick: u64,
     pub end_tick: u64,
     pub tick_rate: f64,

@@ -12,8 +12,6 @@ use crate::{
     TextStyle, TrackKind, Transform,
 };
 
-const MINIMUM_AUTOMATIC_TAKE_FIT_SPEED: f64 = 0.98;
-
 const MAX_PROJECT_PATCH_OPERATIONS: usize = 1_024;
 pub const MAX_PROJECT_SOURCE_DEMOS: usize = 12;
 
@@ -433,19 +431,14 @@ impl TimelineClip {
         }
     }
 
-    /// Attaches one verified recording while preserving source truth.
-    ///
-    /// A managed capture may start a few ticks after its scheduled boundary. When the
-    /// resulting file is only slightly shorter than the planned source range, the Take
-    /// is fitted by narrowing `source_out` and applying a near-1x constant speed. A
-    /// material shortfall instead shrinks the clip at its existing speed; the Project
-    /// reconciliation caller then applies Story ripple rather than inventing slow motion.
+    /// Attaches the recorded media truth without changing the authored placement.
+    /// A short Take remains stale until the user changes the edit or records sufficient
+    /// media. Recording completion never implies permission to trim or retime a clip.
     ///
     /// # Errors
     ///
-    /// Returns [`DomainError::InvalidInput`] when the clip has no Capture Intent, the
-    /// media cannot cover its source-in point, or fitting would require segmented or
-    /// unsupported speed.
+    /// Returns [`DomainError::InvalidInput`] when the clip or media duration is invalid
+    /// or the clip has no Capture Intent.
     pub fn with_recorded_take(
         &self,
         take_id: Uuid,
@@ -458,31 +451,6 @@ impl TimelineClip {
             .as_ref()
             .ok_or_else(|| invalid("recorded Take requires a Capture Intent"))?;
         let mut recorded = self.clone();
-        if recorded.placement.source_out > media_duration_seconds {
-            if !recorded.speed_segments.is_empty() {
-                return Err(invalid(
-                    "a short recorded Take cannot fit a segmented-speed clip",
-                ));
-            }
-            let source_span = media_duration_seconds - recorded.placement.source_in;
-            if source_span <= 0.0 || recorded.placement.duration <= 0.0 {
-                return Err(invalid(
-                    "recorded Take does not cover the clip source range",
-                ));
-            }
-            let fitted_speed = source_span / recorded.placement.duration;
-            if !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&fitted_speed) {
-                return Err(invalid(
-                    "recorded Take requires an unsupported fitted speed",
-                ));
-            }
-            recorded.placement.source_out = media_duration_seconds;
-            if fitted_speed >= MINIMUM_AUTOMATIC_TAKE_FIT_SPEED {
-                recorded.placement.speed = fitted_speed;
-            } else {
-                recorded.placement.duration = source_span / recorded.placement.speed;
-            }
-        }
         recorded.material = TimelineClipMaterial::Take {
             take_id,
             asset_id,
@@ -590,6 +558,75 @@ impl Project {
             created_at: now,
             completed_at: now,
         })
+    }
+
+    /// Reverts a Change Group only when its inverse preserves later edits.
+    ///
+    /// The inverse and forward operations must round-trip the current editing
+    /// state. This allows unrelated later edits while refusing an old full-track
+    /// inverse that would overwrite newer clip changes. Both trials stay local;
+    /// only the inverse becomes one new Change Group.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::Conflict`] when later edits make the inverse unsafe,
+    /// or [`DomainError::InvalidInput`] for a group from a different Project.
+    pub fn revert_change_group(
+        &mut self,
+        target: &ProjectChangeGroup,
+        author: ProjectChangeAuthor,
+        inverse_group_id: Uuid,
+        now: DateTime<Utc>,
+    ) -> Result<ProjectChangeGroup, DomainError> {
+        if target.project_id != self.id {
+            return Err(invalid("change group belongs to another project"));
+        }
+        let conflict = || {
+            DomainError::Conflict(format!(
+                "Cannot revert '{}': later edits affect the same content. No changes were made; review or undo those later edits first.",
+                target.summary,
+            ))
+        };
+        let mut reverted = self.clone();
+        let inverse = reverted
+            .apply_patch(
+                ProjectPatch {
+                    project_id: self.id,
+                    base_revision: self.revision,
+                    scope: ProjectPatchScope::Project,
+                    author,
+                    reverts_change_group_id: Some(target.id),
+                    summary: format!("Revert: {}", target.summary)
+                        .chars()
+                        .take(400)
+                        .collect(),
+                    operations: target.inverse_operations.clone(),
+                },
+                inverse_group_id,
+                now,
+            )
+            .map_err(|_| conflict())?;
+        let mut replayed = reverted.clone();
+        replayed
+            .apply_patch(
+                ProjectPatch {
+                    project_id: self.id,
+                    base_revision: replayed.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: target.author.clone(),
+                    reverts_change_group_id: None,
+                    summary: target.summary.clone(),
+                    operations: target.operations.clone(),
+                },
+                target.id,
+                now,
+            )
+            .map_err(|_| conflict())?;
+        if replayed.name != self.name || replayed.document != self.document {
+            return Err(conflict());
+        }
+        *self = reverted;
+        Ok(inverse)
     }
 
     /// Returns enabled clips that block final delivery.
@@ -1269,46 +1306,47 @@ mod tests {
     }
 
     #[test]
-    fn short_recorded_take_fits_source_truth_without_changing_timeline_duration() {
+    fn a_few_missing_frames_never_retime_the_authored_clip() {
         let current = clip(100);
         let recorded = current
             .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 4.98)
-            .expect("fit Take");
+            .expect("attach Take");
 
-        assert!((recorded.placement.duration - 5.0).abs() < f64::EPSILON);
-        assert!((recorded.placement.source_out - 4.98).abs() < f64::EPSILON);
-        assert!((recorded.placement.speed - 0.996).abs() < 1e-12);
+        assert_eq!(recorded.placement, current.placement);
         assert_eq!(
             recorded.materialization_state().expect("state"),
-            TimelineClipMaterializationState::Recorded
+            TimelineClipMaterializationState::Stale
         );
     }
 
     #[test]
-    fn materially_short_take_shrinks_instead_of_inventing_slow_motion() {
-        let current = clip(100);
+    fn materially_short_take_preserves_the_authored_placement_and_stays_stale() {
+        let mut current = clip(100);
+        current.placement.duration = 14.0;
+        current.placement.source_out = 14.0;
         let recorded = current
-            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 3.0)
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 9.740_746_3)
             .expect("attach short Take");
 
-        assert!((recorded.placement.duration - 3.0).abs() < f64::EPSILON);
-        assert!((recorded.placement.source_out - 3.0).abs() < f64::EPSILON);
-        assert!((recorded.placement.speed - 1.0).abs() < f64::EPSILON);
+        assert_eq!(recorded.placement, current.placement);
         assert_eq!(
             recorded.materialization_state().expect("state"),
-            TimelineClipMaterializationState::Recorded
+            TimelineClipMaterializationState::Stale
         );
     }
 
     #[test]
-    fn short_recorded_take_rejects_uncoverable_or_segmented_source_ranges() {
+    fn short_recorded_take_preserves_uncovered_and_segmented_source_ranges() {
         let mut current = clip(100);
         current.placement.source_in = 2.0;
         current.placement.source_out = 7.0;
-        assert!(
-            current
-                .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 2.0)
-                .is_err()
+        let recorded = current
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 2.0)
+            .expect("keep insufficient media evidence");
+        assert_eq!(recorded.placement, current.placement);
+        assert_eq!(
+            recorded.materialization_state().unwrap(),
+            TimelineClipMaterializationState::Stale
         );
 
         current.speed_segments.push(EditorSpeedSegment {
@@ -1317,10 +1355,14 @@ mod tests {
             end: 5.0,
             speed: 1.0,
         });
-        assert!(
-            current
-                .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 6.0)
-                .is_err()
+        let recorded = current
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 6.0)
+            .expect("keep segmented placement");
+        assert_eq!(recorded.placement, current.placement);
+        assert_eq!(recorded.speed_segments, current.speed_segments);
+        assert_eq!(
+            recorded.materialization_state().unwrap(),
+            TimelineClipMaterializationState::Stale
         );
     }
 

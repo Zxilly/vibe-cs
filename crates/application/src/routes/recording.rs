@@ -17,8 +17,7 @@ use uuid::Uuid;
 use vibe_cs_domain::{
     DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, MediaAsset,
     MediaMetadataStatus, MediaProxyStatus, ProjectChangeAuthor, ProjectEditOperation, ProjectPatch,
-    ProjectPatchScope, RecordingJob, RecordingRequest, TimelineClip, TimelineClipMaterial,
-    TimelineTrack,
+    ProjectPatchScope, RecordingJob, RecordingRequest, TimelineClipMaterial,
 };
 use vibe_cs_recording::{DirectorPolicy, build_director_plan};
 
@@ -848,6 +847,12 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         .get_project(project_id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
+    // Read receipts after the Head: any concurrent attachment after this read
+    // is rejected by apply_project_patch's revision check and retried next poll.
+    let reconciled_clips = state
+        .storage
+        .reconciled_recording_clip_ids(project_id, job_id)
+        .await?;
     let mut replacements = HashMap::new();
     for output in &job.outputs {
         let Some(clip_id) = output
@@ -858,6 +863,9 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         else {
             continue;
         };
+        if reconciled_clips.contains(&clip_id) {
+            continue;
+        }
         let Some(clip) = project
             .document
             .tracks
@@ -869,6 +877,17 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         };
         if matches!(clip.material, TimelineClipMaterial::Take { take_id, .. } if take_id == output.id)
         {
+            continue;
+        }
+        let Some(request) = job.items.iter().find(|item| item.id == Some(clip_id)) else {
+            continue;
+        };
+        let Some(intent) = &clip.capture_intent else {
+            continue;
+        };
+        // The recorder executed the job's immutable request, not the current
+        // Capture Intent. An intervening capture edit cannot bless old footage.
+        if request.spec_fingerprint()? != intent.fingerprint()? {
             continue;
         }
         let metadata = tokio::fs::metadata(&output.path).await.map_err(|error| {
@@ -906,11 +925,20 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         return Ok(());
     }
     let replacement_count = replacements.len();
-    let operations = recorded_take_operations(
-        &project.document.tracks,
-        project.document.story_track_id,
-        &replacements,
-    );
+    let operations = project
+        .document
+        .tracks
+        .iter()
+        .flat_map(|track| &track.clips)
+        .filter_map(|clip| {
+            replacements.get(&clip.id).cloned().map(|replacement| {
+                ProjectEditOperation::ReplaceClip {
+                    clip_id: clip.id,
+                    clip: Box::new(replacement),
+                }
+            })
+        })
+        .collect();
     state
         .storage
         .apply_project_patch(
@@ -931,51 +959,6 @@ pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) 
         .await?;
     state.events.publish("project", "edited", Some(project_id));
     Ok(())
-}
-
-fn recorded_take_operations(
-    tracks: &[TimelineTrack],
-    story_track_id: Uuid,
-    replacements: &HashMap<Uuid, TimelineClip>,
-) -> Vec<ProjectEditOperation> {
-    let mut operations = Vec::new();
-    for track in tracks {
-        if track.id == story_track_id
-            && track
-                .clips
-                .iter()
-                .any(|clip| replacements.contains_key(&clip.id))
-        {
-            let mut cursor = track.clips.first().map_or(0.0, |clip| clip.placement.start);
-            let clips = track
-                .clips
-                .iter()
-                .map(|clip| {
-                    let mut clip = replacements
-                        .get(&clip.id)
-                        .cloned()
-                        .unwrap_or_else(|| clip.clone());
-                    clip.placement.start = cursor;
-                    cursor += clip.placement.duration;
-                    clip
-                })
-                .collect();
-            operations.push(ProjectEditOperation::ReplaceTrackClips {
-                track_id: track.id,
-                clips,
-            });
-            continue;
-        }
-        operations.extend(track.clips.iter().filter_map(|clip| {
-            replacements.get(&clip.id).cloned().map(|replacement| {
-                ProjectEditOperation::ReplaceClip {
-                    clip_id: clip.id,
-                    clip: Box::new(replacement),
-                }
-            })
-        }));
-    }
-    operations
 }
 
 async fn reserve_active_job(state: &AppState, id: Uuid) -> ApiResult<ActiveJobReservation> {
@@ -1046,61 +1029,387 @@ const fn execution_status(status: JobStatus) -> &'static str {
 mod recorded_take_operation_tests {
     use super::*;
     use serde_json::json;
+    use vibe_cs_domain::{Project, RecordedClip, TimelineClip, TimelineClipMaterializationState};
 
-    fn clip(id: u128, start: f64) -> TimelineClip {
-        serde_json::from_value(json!({
-            "id":Uuid::from_u128(id),
-            "name":format!("Clip {id}"),
-            "capture_intent":null,
-            "material":{"kind":"planned"},
-            "placement":{"start":start,"duration":5.0,"source_in":0.0,"source_out":5.0,"speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
-            "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
-            "effects":[],
-            "transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
-            "text":null,
-            "metadata":{},
-            "group_id":null,
-            "link_group_id":null,
-            "keyframes":[],
-            "speed_segments":[]
-        }))
-        .expect("Timeline Clip fixture")
+    async fn recording_fixture(storage: &vibe_cs_storage::Storage) -> Project {
+        let story_id = Uuid::new_v4();
+        let project = serde_json::from_value(json!({
+            "id":Uuid::new_v4(),"name":"Recording reconciliation","revision":1,
+            "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":6.0,
+                "story_track_id":story_id,"tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,
+                    "muted":false,"solo":false,"volume":1.0,"pan":0.0,"keyframes":[],"locked":false,"hidden":false,
+                    "clips":[{"id":Uuid::new_v4(),"name":"NiKo","capture_intent":{
+                        "demo_id":Uuid::new_v4(),"highlight_id":null,"player_id":"76561198041683378",
+                        "start_tick":171_405,"end_tick":171_789,"pre_roll_seconds":0.0,
+                        "post_roll_seconds":0.0,"victim_pov":false,"camera_style":"pov","presentation":null},
+                    "material":{"kind":"planned"},
+                    "placement":{"start":0.0,"duration":6.0,"source_in":0.0,"source_out":6.0,
+                        "speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
+                    "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
+                    "effects":[],"transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
+                    "text":null,"metadata":{},"group_id":null,"link_group_id":null,"keyframes":[],"speed_segments":[]}]}],
+                "markers":[],"settings":{"source_demo_ids":[],"ripple_sequence_markers":false,"use_media_proxies":false}},
+            "created_at":Utc::now(),"updated_at":Utc::now()
+        })).expect("Project");
+        storage.create_project(project).await.unwrap()
     }
 
-    fn assert_close(actual: f64, expected: f64) {
-        assert!((actual - expected).abs() < f64::EPSILON);
+    async fn completed_recording(
+        state: &AppState,
+        directory: &std::path::Path,
+        project: &Project,
+    ) -> RecordingJob {
+        let clip = &project.document.tracks[0].clips[0];
+        let id = Uuid::new_v4();
+        let path = directory.join(format!("{id}.mp4"));
+        std::fs::write(&path, b"published recorder output").unwrap();
+        let job = RecordingJob {
+            id,
+            retry_of: None,
+            status: JobStatus::Completed,
+            items: vec![
+                clip.capture_intent
+                    .clone()
+                    .unwrap()
+                    .into_recording_request(clip.id, &clip.name),
+            ],
+            current_index: 1,
+            progress: 1.0,
+            message: "Complete".to_owned(),
+            outputs: vec![RecordedClip {
+                id: Uuid::new_v4(),
+                path: path.to_string_lossy().into_owned(),
+                title: clip.name.clone(),
+                duration_seconds: 6.0,
+                demo_id: Some(clip.capture_intent.as_ref().unwrap().demo_id),
+                player_name: None,
+                category: "pov".to_owned(),
+                tags: Vec::new(),
+                metadata: json!({"request_id":clip.id}),
+                created_at: Utc::now(),
+            }],
+            error_code: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        state.storage.put_recording_job(job.clone()).await.unwrap();
+        state
+            .storage
+            .bind_project_recording_run(id, project.id)
+            .await
+            .unwrap();
+        job
     }
 
-    #[test]
-    fn materially_short_story_take_ripples_every_following_clip() {
-        let story_track_id = Uuid::from_u128(10);
-        let clips = vec![clip(1, 0.0), clip(2, 5.0), clip(3, 10.0)];
-        let track = TimelineTrack {
-            id: story_track_id,
-            name: "Story".to_owned(),
-            kind: vibe_cs_domain::TrackKind::Video,
-            order: 0,
-            muted: false,
-            solo: false,
-            volume: 1.0,
-            pan: 0.0,
-            keyframes: Vec::new(),
-            locked: false,
-            hidden: false,
-            clips: clips.clone(),
-        };
-        let mut shorter = clips[1].clone();
-        shorter.placement.duration = 3.0;
-        shorter.placement.source_out = 3.0;
-        let replacements = HashMap::from([(shorter.id, shorter)]);
+    async fn hide_capture_hud(state: &AppState, project: Project) -> Project {
+        let mut clip = project.document.tracks[0].clips[0].clone();
+        clip.capture_intent.as_mut().unwrap().presentation =
+            Some(vibe_cs_domain::RecordingPresentation {
+                show_hud: false,
+                ..Default::default()
+            });
+        state
+            .storage
+            .apply_project_patch(
+                ProjectPatch {
+                    project_id: project.id,
+                    base_revision: project.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: ProjectChangeAuthor::Human,
+                    reverts_change_group_id: None,
+                    summary: "Hide capture HUD".to_owned(),
+                    operations: vec![ProjectEditOperation::ReplaceClip {
+                        clip_id: clip.id,
+                        clip: Box::new(clip),
+                    }],
+                },
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .unwrap()
+            .0
+    }
 
-        let operations = recorded_take_operations(&[track], story_track_id, &replacements);
-        let [ProjectEditOperation::ReplaceTrackClips { clips, .. }] = operations.as_slice() else {
-            panic!("Story attachment must be one ripple operation");
-        };
-        assert_close(clips[0].placement.start, 0.0);
-        assert_close(clips[1].placement.start, 5.0);
-        assert_close(clips[1].placement.duration, 3.0);
-        assert_close(clips[2].placement.start, 8.0);
+    #[tokio::test]
+    async fn old_recording_completion_cannot_replace_a_new_take() {
+        // Cover both an edited Capture Intent and explicit same-intent re-recording,
+        // including an old completion that was not reconciled before the new one.
+        for edit_intent in [true, false] {
+            for attach_old_first in [true, false] {
+                let directory = tempfile::tempdir().unwrap();
+                let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+                let state = AppState::new(storage.clone(), directory.path().to_owned());
+                let mut project = recording_fixture(&storage).await;
+                let old = completed_recording(&state, directory.path(), &project).await;
+                if attach_old_first {
+                    reconcile_project_recording(&state, old.id).await.unwrap();
+                    project = storage.get_project(project.id).await.unwrap().unwrap();
+                }
+                if edit_intent {
+                    project = hide_capture_hud(&state, project).await;
+                }
+                let new = completed_recording(&state, directory.path(), &project).await;
+                reconcile_project_recording(&state, new.id).await.unwrap();
+                let recorded = storage.get_project(project.id).await.unwrap().unwrap();
+                assert!(matches!(recorded.document.tracks[0].clips[0].material,
+                    TimelineClipMaterial::Take {take_id, ..} if take_id == new.outputs[0].id));
+
+                reconcile_project_recording(&state, old.id).await.unwrap();
+                let replayed = storage.get_project(project.id).await.unwrap().unwrap();
+                assert_eq!(
+                    replayed, recorded,
+                    "old completion overwrote new Take: edit={edit_intent}, attached={attach_old_first}"
+                );
+
+                let group = storage
+                    .list_project_change_groups(project.id, 1)
+                    .await
+                    .unwrap()
+                    .remove(0);
+                let (undone, _) = storage
+                    .revert_project_change_group(
+                        project.id,
+                        group.id,
+                        recorded.revision,
+                        ProjectChangeAuthor::Human,
+                        Uuid::new_v4(),
+                        Utc::now(),
+                    )
+                    .await
+                    .unwrap();
+                reconcile_project_recording(&state, new.id).await.unwrap();
+                reconcile_project_recording(&state, old.id).await.unwrap();
+                assert_eq!(
+                    storage.get_project(project.id).await.unwrap().unwrap(),
+                    undone,
+                    "reading a completed recording must not undo the user's revert"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn completion_after_capture_edit_does_not_claim_the_new_intent() {
+        let directory = tempfile::tempdir().unwrap();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let state = AppState::new(storage.clone(), directory.path().to_owned());
+        let project = recording_fixture(&storage).await;
+        let old = completed_recording(&state, directory.path(), &project).await;
+        let edited = hide_capture_hud(&state, project).await;
+
+        reconcile_project_recording(&state, old.id).await.unwrap();
+        assert_eq!(
+            storage.get_project(edited.id).await.unwrap().unwrap(),
+            edited
+        );
+    }
+
+    #[tokio::test]
+    async fn running_and_failed_recordings_attach_each_successful_clip_once() {
+        let directory = tempfile::tempdir().unwrap();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let state = AppState::new(storage.clone(), directory.path().to_owned());
+        let mut project = recording_fixture(&storage).await;
+        let mut second = project.document.tracks[0].clips[0].clone();
+        second.placement.start = 6.0;
+        project = storage
+            .apply_project_patch(
+                ProjectPatch {
+                    project_id: project.id,
+                    base_revision: project.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: ProjectChangeAuthor::Human,
+                    reverts_change_group_id: None,
+                    summary: "Add second shot".to_owned(),
+                    operations: vec![ProjectEditOperation::InsertClip {
+                        track_id: project.document.story_track_id,
+                        index: 1,
+                        clip: Box::new(second),
+                    }],
+                },
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .unwrap()
+            .0;
+        let second = &project.document.tracks[0].clips[1];
+        let mut job = completed_recording(&state, directory.path(), &project).await;
+        job.items.push(
+            second
+                .capture_intent
+                .clone()
+                .unwrap()
+                .into_recording_request(second.id, &second.name),
+        );
+        job.status = JobStatus::Running;
+        job.progress = 0.5;
+        storage.put_recording_job(job.clone()).await.unwrap();
+        reconcile_project_recording(&state, job.id).await.unwrap();
+        let partial = storage.get_project(project.id).await.unwrap().unwrap();
+        assert_eq!(partial.revision, project.revision + 1);
+        assert!(matches!(
+            partial.document.tracks[0].clips[0].material,
+            TimelineClipMaterial::Take { .. }
+        ));
+        assert!(matches!(
+            partial.document.tracks[0].clips[1].material,
+            TimelineClipMaterial::Planned
+        ));
+
+        // The first output is still in the snapshot when a later output arrives,
+        // and a subsequent recorder failure must not discard either success.
+        let mut output = job.outputs[0].clone();
+        output.id = Uuid::new_v4();
+        output.metadata = json!({"request_id":second.id});
+        job.outputs.push(output);
+        job.status = JobStatus::Failed;
+        job.message = "Recorder failed after publishing its outputs".to_owned();
+        storage.put_recording_job(job.clone()).await.unwrap();
+        reconcile_project_recording(&state, job.id).await.unwrap();
+        let failed = storage.get_project(project.id).await.unwrap().unwrap();
+        assert_eq!(failed.revision, partial.revision + 1);
+        assert_eq!(
+            failed.document.tracks[0].clips[0],
+            partial.document.tracks[0].clips[0]
+        );
+        assert!(matches!(failed.document.tracks[0].clips[1].material,
+            TimelineClipMaterial::Take {take_id, ..} if take_id == job.outputs[1].id));
+        reconcile_project_recording(&state, job.id).await.unwrap();
+        assert_eq!(
+            storage.get_project(project.id).await.unwrap().unwrap(),
+            failed
+        );
+    }
+
+    #[tokio::test]
+    async fn short_take_reconciliation_keeps_the_twenty_second_edit_and_blocks_delivery() {
+        let directory = tempfile::tempdir().expect("recording fixture");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let state = AppState::new(storage.clone(), directory.path().to_owned());
+        let story_id = Uuid::new_v4();
+        let demo_id = Uuid::new_v4();
+        let clips: Vec<TimelineClip> = [(0.0, 6.0, 171_405_u64, 171_789_u64), (6.0, 14.0, 173_326, 174_222)]
+            .into_iter().map(|(start, duration, start_tick, end_tick)| {
+                serde_json::from_value(json!({
+                    "id":Uuid::new_v4(),"name":"NiKo","capture_intent":{
+                        "demo_id":demo_id,"highlight_id":null,"player_id":"76561198041683378",
+                        "start_tick":start_tick,"end_tick":end_tick,"pre_roll_seconds":0.0,
+                        "post_roll_seconds":0.0,"victim_pov":false,"camera_style":"pov","presentation":null},
+                    "material":{"kind":"planned"},
+                    "placement":{"start":start,"duration":duration,"source_in":0.0,"source_out":duration,
+                        "speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
+                    "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
+                    "effects":[],"transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
+                    "text":null,"metadata":{},"group_id":null,"link_group_id":null,"keyframes":[],"speed_segments":[]
+                })).expect("Timeline Clip")
+            }).collect();
+        let original_placements = clips
+            .iter()
+            .map(|clip| clip.placement.clone())
+            .collect::<Vec<_>>();
+        let requests = clips
+            .iter()
+            .map(|clip| {
+                clip.capture_intent
+                    .clone()
+                    .unwrap()
+                    .into_recording_request(clip.id, &clip.name)
+            })
+            .collect::<Vec<_>>();
+        let project: Project = serde_json::from_value(json!({
+            "id":Uuid::new_v4(),"name":"Twenty second intent","revision":1,
+            "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":20.0,
+                "story_track_id":story_id,"tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,
+                    "muted":false,"solo":false,"volume":1.0,"pan":0.0,"keyframes":[],"locked":false,"hidden":false,"clips":clips}],
+                "markers":[],"settings":{"source_demo_ids":[demo_id],"ripple_sequence_markers":false,"use_media_proxies":false}},
+            "created_at":Utc::now(),"updated_at":Utc::now()
+        })).expect("Project");
+        let project_id = project.id;
+        storage
+            .create_project(project)
+            .await
+            .expect("store project");
+        let job_id = Uuid::new_v4();
+        let mut outputs = Vec::new();
+        for (index, duration) in [5.955_946, 9.740_746_3].into_iter().enumerate() {
+            let path = directory.path().join(format!("published-{index}.mp4"));
+            // Reconciliation consumes already verified recorder results; no encoder or
+            // game is involved in this fixture.
+            std::fs::write(&path, b"published recorder output").expect("published output");
+            outputs.push(RecordedClip {
+                id: Uuid::new_v4(),
+                path: path.to_string_lossy().into_owned(),
+                title: "NiKo".to_owned(),
+                duration_seconds: duration,
+                demo_id: Some(demo_id),
+                player_name: Some("NiKo".to_owned()),
+                category: "pov".to_owned(),
+                tags: Vec::new(),
+                metadata: json!({"request_id":requests[index].id}),
+                created_at: Utc::now(),
+            });
+        }
+        storage
+            .put_recording_job(RecordingJob {
+                id: job_id,
+                retry_of: None,
+                status: JobStatus::Completed,
+                items: requests,
+                current_index: 2,
+                progress: 1.0,
+                message: "Capture complete".to_owned(),
+                outputs: outputs.clone(),
+                error_code: None,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            })
+            .await
+            .expect("recording job");
+        storage
+            .bind_project_recording_run(job_id, project_id)
+            .await
+            .expect("bind project");
+
+        reconcile_project_recording(&state, job_id)
+            .await
+            .expect("attach media evidence");
+        let updated = storage.get_project(project_id).await.unwrap().unwrap();
+        assert!((updated.document.duration_seconds - 20.0).abs() < f64::EPSILON);
+        assert_eq!(
+            updated.document.tracks[0]
+                .clips
+                .iter()
+                .map(|clip| clip.placement.clone())
+                .collect::<Vec<_>>(),
+            original_placements
+        );
+        assert_eq!(updated.unresolved_delivery_clips().unwrap().len(), 2);
+        for (clip, output) in updated.document.tracks[0].clips.iter().zip(&outputs) {
+            assert_eq!(
+                clip.materialization_state().unwrap(),
+                TimelineClipMaterializationState::Stale
+            );
+            assert!(
+                matches!(clip.material, TimelineClipMaterial::Take{take_id,media_duration_seconds,..}
+                if take_id == output.id && (media_duration_seconds - output.duration_seconds).abs() < f64::EPSILON)
+            );
+            assert!(std::path::Path::new(&output.path).is_file());
+        }
+        reconcile_project_recording(&state, job_id)
+            .await
+            .expect("repeat reconciliation");
+        assert_eq!(
+            storage
+                .get_project(project_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            updated.revision
+        );
     }
 }

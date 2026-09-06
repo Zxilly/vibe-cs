@@ -1,9 +1,10 @@
+use std::collections::HashSet;
+
 use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension as _, Transaction, TransactionBehavior, params};
 use uuid::Uuid;
 use vibe_cs_domain::{
     DomainError, Project, ProjectChangeAuthor, ProjectChangeGroup, ProjectEditLease, ProjectPatch,
-    ProjectPatchScope,
 };
 
 use super::{Storage, decode, encode, sql_u64};
@@ -214,16 +215,7 @@ impl Storage {
                     project.revision
                 ))));
             }
-            let patch = ProjectPatch {
-                project_id,
-                base_revision: project.revision,
-                scope: ProjectPatchScope::Project,
-                author,
-                reverts_change_group_id: Some(target.id),
-                summary: format!("Revert: {}", target.summary),
-                operations: target.inverse_operations,
-            };
-            let group = project.apply_patch(patch, inverse_group_id, now)?;
+            let group = project.revert_change_group(&target, author, inverse_group_id, now)?;
             let affected = transaction.execute(
                 "UPDATE projects SET name = ?2, revision = ?3, updated_at = ?4, document_json = ?5 \
                  WHERE id = ?1 AND revision = ?6",
@@ -373,6 +365,42 @@ impl Storage {
                 .optional()?
                 .map(|id| Uuid::parse_str(&id).map_err(|_| invalid_stored("recording Project id")))
                 .transpose()
+        })
+        .await
+    }
+
+    /// Clips already attached by this recording run or a later run. Committed
+    /// change groups remain receipts after subsequent edits or undo; a job read
+    /// must never reapply them. Keep this per clip so partial outputs can arrive
+    /// incrementally and failed jobs retain their successful prefix.
+    pub async fn reconciled_recording_clip_ids(
+        &self,
+        project_id: Uuid,
+        recording_job_id: Uuid,
+    ) -> Result<HashSet<Uuid>> {
+        self.run(move |connection| {
+            let mut statement = connection.prepare(
+                "SELECT DISTINCT json_extract(operation.value, '$.clip_id')
+                 FROM project_change_groups AS change_group
+                 JOIN project_recording_runs AS run
+                   ON run.recording_job_id = json_extract(change_group.document_json, '$.author.operation_id')
+                  AND run.project_id = change_group.project_id
+                 JOIN project_recording_runs AS target ON target.recording_job_id = ?2
+                 JOIN json_each(change_group.document_json, '$.operations') AS operation
+                 WHERE change_group.project_id = ?1
+                   AND json_extract(change_group.document_json, '$.author.kind') = 'system'
+                   AND (run.created_at, run.rowid) >= (target.created_at, target.rowid)
+                   AND json_extract(operation.value, '$.op') = 'replace_clip'
+                   AND json_extract(operation.value, '$.clip.material.kind') = 'take'",
+            )?;
+            let rows = statement.query_map(
+                params![project_id.to_string(), recording_job_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )?;
+            rows.map(|row| {
+                Uuid::parse_str(&row?).map_err(|_| invalid_stored("recording Timeline Clip id"))
+            })
+            .collect()
         })
         .await
     }
@@ -550,9 +578,9 @@ fn invalid_stored(field: &str) -> StorageError {
 mod tests {
     use super::*;
     use vibe_cs_domain::{
-        EditingDocument, ProjectChangeGroupStatus, ProjectEditOperation, TimelineClip,
-        TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement, TimelineTrack, TrackKind,
-        Transform,
+        EditingDocument, ProjectChangeGroupStatus, ProjectEditOperation, ProjectPatchScope,
+        TimelineClip, TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement,
+        TimelineTrack, TrackKind, Transform,
     };
 
     fn project() -> Project {
@@ -660,6 +688,146 @@ mod tests {
         assert_eq!(reverted.revision, 3);
         assert_eq!(reverted.name, "Unified project");
         assert_eq!(inverse.reverts_change_group_id, Some(group_id));
+    }
+
+    #[tokio::test]
+    async fn selective_revert_preserves_later_markers_and_redoes_the_agent_edit() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let original = storage.create_project(project()).await.expect("create");
+        let mut edited_clips = original.document.tracks[0].clips.clone();
+        edited_clips[0].name = "Agent opening".to_owned();
+        let (edited, agent_group) = apply_revert_test_edit(
+            &storage,
+            &original,
+            ProjectEditOperation::ReplaceTrackClips {
+                track_id: original.document.story_track_id,
+                clips: edited_clips.clone(),
+            },
+        )
+        .await;
+        let markers = vec![vibe_cs_domain::EditorMarker {
+            id: Uuid::new_v4(),
+            time: 1.0,
+            duration: 0.0,
+            label: "Keep my marker".to_owned(),
+            color: "#FFFFFF".to_owned(),
+            kind: vibe_cs_domain::EditorMarkerKind::Comment,
+            comment: String::new(),
+        }];
+        let (marked, _) = apply_revert_test_edit(
+            &storage,
+            &edited,
+            ProjectEditOperation::ReplaceMarkers {
+                markers: markers.clone(),
+            },
+        )
+        .await;
+        let (reverted, inverse) = storage
+            .revert_project_change_group(
+                original.id,
+                agent_group.id,
+                marked.revision,
+                ProjectChangeAuthor::Human,
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .expect("safe targeted undo");
+        assert_eq!(
+            reverted.document.tracks[0].clips,
+            original.document.tracks[0].clips
+        );
+        assert_eq!(reverted.document.markers, markers);
+        let (redone, _) = storage
+            .revert_project_change_group(
+                original.id,
+                inverse.id,
+                reverted.revision,
+                ProjectChangeAuthor::Human,
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .expect("redo");
+        assert_eq!(redone.document.tracks[0].clips, edited_clips);
+        assert_eq!(redone.document.markers, markers);
+    }
+
+    #[tokio::test]
+    async fn selective_revert_rejects_overwriting_later_story_edits_without_a_write() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let original = storage.create_project(project()).await.expect("create");
+        let mut edited_clips = original.document.tracks[0].clips.clone();
+        edited_clips[0].name = "Agent opening".to_owned();
+        let (edited, agent_group) = apply_revert_test_edit(
+            &storage,
+            &original,
+            ProjectEditOperation::ReplaceTrackClips {
+                track_id: original.document.story_track_id,
+                clips: edited_clips,
+            },
+        )
+        .await;
+        let mut later_clip = edited.document.tracks[0].clips[0].clone();
+        later_clip.placement.volume = 0.5;
+        let (later, _) = apply_revert_test_edit(
+            &storage,
+            &edited,
+            ProjectEditOperation::ReplaceClip {
+                clip_id: later_clip.id,
+                clip: Box::new(later_clip),
+            },
+        )
+        .await;
+        let result = storage
+            .revert_project_change_group(
+                original.id,
+                agent_group.id,
+                later.revision,
+                ProjectChangeAuthor::Human,
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await;
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(DomainError::Conflict(_)))
+        ));
+        assert_eq!(
+            storage.get_project(original.id).await.expect("read"),
+            Some(later)
+        );
+        assert_eq!(
+            storage
+                .list_project_change_groups(original.id, 100)
+                .await
+                .expect("history")
+                .len(),
+            2
+        );
+    }
+
+    async fn apply_revert_test_edit(
+        storage: &Storage,
+        current: &Project,
+        operation: ProjectEditOperation,
+    ) -> (Project, ProjectChangeGroup) {
+        storage
+            .apply_project_patch(
+                ProjectPatch {
+                    project_id: current.id,
+                    base_revision: current.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: ProjectChangeAuthor::Human,
+                    reverts_change_group_id: None,
+                    summary: "Review edit".to_owned(),
+                    operations: vec![operation],
+                },
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .expect("edit")
     }
 
     #[tokio::test]

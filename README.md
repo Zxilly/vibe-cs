@@ -52,8 +52,9 @@ Start the native desktop development host:
 corepack pnpm desktop:dev
 ```
 
-The React client calls Tauri commands through IPC. Replay payloads use raw IPC bytes, uploads use
-bounded raw-byte commands, and video/audio/image resources are served by the private
+The React client calls Tauri commands through IPC. Demo import uses native file selection or
+native file-drop paths, so match-sized files are read by Rust without crossing WebView memory.
+Replay payloads use raw IPC bytes, media uploads use bounded raw-byte commands, and video/audio/image resources are served by the private
 `vibe-cs-media` protocol with range support. No product API origin or CORS policy exists. The only
 loopback listener is the narrow, token-authenticated CS2 GSI receiver required by the game itself;
 it exposes no UI or product commands.

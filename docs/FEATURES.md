@@ -104,10 +104,11 @@ missing.
   authenticated HLAE/CS2 process. Each Take advances only after its MP4 and database ACK, while
   mixed-Demo, non-POV or presentation-changing queues remain isolated. A later failure preserves the
   published prefix and closes/cleans the shared raw session.
-- Attach each verified Take through the canonical Timeline Clip. If seek overshoot makes the real
-  file a few frames shorter than the planned source range, preserve Timeline duration by fitting
-  source-out and constant speed to the probed media truth; files that still cannot cover the range
-  remain visibly stale and require another recording.
+- Attach each verified Take through the canonical Timeline Clip without changing placement,
+  source range, speed or the positions of later clips. A file shorter than the requested source
+  coverage remains visibly stale and blocks delivery; recording never silently retimes the film.
+  Capture Intent defines the execution window, including handles. A window outside its round or
+  valid POV lifetime is rejected before launch rather than silently shortened to a highlight.
 - Edit a planned clip's capture camera, tick range and pre/post-roll in the same Timeline Inspector.
   A recorded clip with a Capture Intent can be returned to Planned for a verified re-record without
   deleting the old media file. Recording terminal state refreshes both the Project Head and Project

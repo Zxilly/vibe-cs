@@ -30,3 +30,6 @@ Thumbs.db
 coverage/
 *.tsbuildinfo
 /tmp-doc/
+# Local design-tool sessions and duplicate review captures. Published design
+# decisions and selected evidence live under docs/ instead.
+/apps/web/.impeccable/

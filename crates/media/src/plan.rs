@@ -742,10 +742,16 @@ fn build_editor_command<S: BuildHasher>(
         ));
     }
 
-    let mut filters = vec![format!(
-        "color=c=black:s={}x{}:r={}:d={duration:.6},format=rgba[base]",
-        project.width, project.height, project.fps
-    )];
+    command = command.args([
+        OsString::from("-f"),
+        OsString::from("lavfi"),
+        OsString::from("-i"),
+        OsString::from(format!(
+            "color=c=black:s={}x{}:r={}:d={duration:.6}",
+            project.width, project.height, project.fps
+        )),
+    ]);
+    let mut filters = vec![format!("[{next_input}:v]format=rgba[base]")];
     let mut previous_video = "base".to_owned();
     let mut audio_labels = Vec::new();
     for (index, item) in prepared.iter().enumerate() {
@@ -1688,17 +1694,7 @@ fn ffmpeg_color(value: &str) -> MediaResult<String> {
 
 fn font_filter_option(family: &str, custom_path: Option<&Path>) -> MediaResult<String> {
     if let Some(path) = custom_path {
-        let supported = path
-            .extension()
-            .and_then(|value| value.to_str())
-            .is_some_and(|extension| {
-                extension.eq_ignore_ascii_case("ttf") || extension.eq_ignore_ascii_case("otf")
-            });
-        if !supported || !path.is_file() {
-            return Err(MediaError::InvalidInput(
-                "custom font must be a managed .ttf or .otf file".to_owned(),
-            ));
-        }
+        crate::validate_font_file(path)?;
         return Ok(format!(
             "fontfile='{}'",
             escape_filter_value(path.to_string_lossy().as_ref())?
@@ -1826,13 +1822,13 @@ fn validated_encoder(value: &str) -> MediaResult<&'static str> {
     }
 }
 
-const fn quality_to_crf(quality: u8) -> u8 {
+const fn quality_to_quantizer(quality: u8) -> u8 {
     let quality = if quality > 100 { 100 } else { quality };
     35 - (quality / 4)
 }
 
 fn encoder_quality_args(encoder: &str, quality: u8) -> Vec<OsString> {
-    let value = quality_to_crf(quality).to_string();
+    let value = quality_to_quantizer(quality).to_string();
     match encoder {
         "h264_nvenc" | "hevc_nvenc" => vec![OsString::from("-cq:v"), OsString::from(value)],
         "h264_qsv" => vec![OsString::from("-global_quality"), OsString::from(value)],
@@ -1848,9 +1844,14 @@ fn encoder_quality_args(encoder: &str, quality: u8) -> Vec<OsString> {
             OsString::from("-quality"),
             OsString::from(quality.min(100).to_string()),
         ],
+        // OpenH264 has no CRF option. Bound its actual quantizer instead of
+        // assigning the same bitrate to every resolution, FPS and scene.
+        // Fixed QP deliberately lets high-detail exports use larger files.
         "libopenh264" => vec![
-            OsString::from("-b:v"),
-            OsString::from(format!("{}k", 500 + u32::from(quality.min(100)) * 100)),
+            OsString::from("-qmin"),
+            OsString::from(&value),
+            OsString::from("-qmax"),
+            OsString::from(value),
         ],
         _ => vec![OsString::from("-crf"), OsString::from(value)],
     }

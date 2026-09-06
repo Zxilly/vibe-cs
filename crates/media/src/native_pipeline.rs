@@ -139,7 +139,7 @@ impl NativeJob {
                     index += 2;
                 }
                 "-crf" | "-global_quality" | "-qp_i" | "-qp_p" | "-quality" | "-rate_control"
-                | "-cq:v" => {
+                | "-cq:v" | "-qmin" | "-qmax" => {
                     let key = token
                         .trim_start_matches('-')
                         .trim_end_matches(":v")

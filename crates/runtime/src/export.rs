@@ -168,6 +168,7 @@ impl RuntimeExportPort {
             .tracks
             .iter()
             .flat_map(|track| &track.clips)
+            .filter(|clip| clip.placement.enabled)
             .filter_map(|clip| match clip.material {
                 vibe_cs_domain::TimelineClipMaterial::Take { asset_id, .. }
                 | vibe_cs_domain::TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
@@ -181,6 +182,7 @@ impl RuntimeExportPort {
                 .tracks
                 .iter()
                 .flat_map(|track| &track.clips)
+                .filter(|clip| clip.placement.enabled)
                 .filter_map(|clip| clip.text.as_ref()?.font_asset_id),
         );
         for asset_id in referenced_assets {
@@ -226,6 +228,7 @@ impl RuntimeExportPort {
             .tracks
             .iter()
             .flat_map(|track| &track.clips)
+            .filter(|clip| clip.placement.enabled)
         {
             let vibe_cs_domain::TimelineClipMaterial::Sequence {
                 project_id: nested_project_id,
@@ -536,5 +539,83 @@ fn export_failure_code(error: &MediaError) -> JobFailureCode {
         | MediaError::InvalidToolOutput(_)
         | MediaError::Json(_)
         | MediaError::OutputLimit { .. } => JobFailureCode::DependencyFailed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn export_dependencies_follow_enabled_clips() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let runtime = RuntimeExportPort::new(storage.clone(), directory.path().to_owned());
+        let text = json!({
+            "content":"Keep this title", "font_family":"Arial", "font_asset_id":null,
+            "font_size":36.0, "color":"#ffffff", "background":null, "align":"center"
+        });
+        let make_clip = |material: Value, text: Value, enabled: bool| {
+            json!({
+                "id":Uuid::new_v4(), "name":"Source", "capture_intent":null, "material":material,
+                "placement":{"start":0.0,"duration":5.0,"source_in":0.0,"source_out":5.0,
+                    "speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":enabled},
+                "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
+                "effects":[],"transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
+                "text":text,"metadata":{},"group_id":null,"link_group_id":null,"keyframes":[],"speed_segments":[]
+            })
+        };
+        let missing_asset =
+            json!({"kind":"asset","asset_id":Uuid::new_v4(),"media_duration_seconds":5.0});
+        let missing_sequence = json!({"kind":"sequence","project_id":Uuid::new_v4(),"project_revision":1,"media_duration_seconds":5.0});
+        let mut missing_font = text.clone();
+        missing_font["font_asset_id"] = json!(Uuid::new_v4());
+
+        for (material, source_text) in [
+            (missing_asset, Value::Null),
+            (missing_sequence, Value::Null),
+            (json!({"kind":"planned"}), missing_font),
+        ] {
+            for enabled in [false, true] {
+                let story_id = Uuid::new_v4();
+                let project: vibe_cs_domain::Project = serde_json::from_value(json!({
+                    "id":Uuid::new_v4(),"name":"Enabled sources","revision":1,
+                    "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":5.0,
+                        "story_track_id":story_id,
+                        "tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,
+                            "muted":false,"solo":false,"volume":1.0,"pan":0.0,"keyframes":[],"locked":false,"hidden":false,
+                            "clips":[make_clip(json!({"kind":"planned"}),text.clone(),true),
+                                make_clip(material.clone(),source_text.clone(),enabled)]}],
+                        "markers":[],"settings":{"source_demo_ids":[],"ripple_sequence_markers":false,"use_media_proxies":false}},
+                    "created_at":Utc::now(),"updated_at":Utc::now()
+                })).expect("project");
+                let id = project.id;
+                storage.create_project(project).await.expect("save project");
+                let result = runtime
+                    .project_plan(
+                        id,
+                        &directory.path().join(format!("{id}.mp4")),
+                        &ProjectRenderRequest {
+                            encoder: "libopenh264".to_owned(),
+                            quality: 80,
+                            range_start_seconds: None,
+                            range_end_seconds: None,
+                        },
+                    )
+                    .await;
+                if enabled {
+                    assert!(
+                        matches!(result, Err(DomainError::NotFound(_))),
+                        "{result:?}"
+                    );
+                } else {
+                    assert!(result.is_ok(), "disabled source blocked export: {result:?}");
+                }
+            }
+        }
     }
 }

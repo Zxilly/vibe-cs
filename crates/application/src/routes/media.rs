@@ -331,6 +331,11 @@ async fn recorded_clip_waveform(
     }))
 }
 
+// The desktop custom protocol buffers one response before returning it to WebView.
+// RFC 9110 15.3.7 permits a 206 to satisfy a requested range in smaller parts;
+// Content-Range tells the media client which bytes to request next.
+const MAXIMUM_MEDIA_RANGE_BYTES: u64 = 8 * 1024 * 1024;
+
 pub(super) async fn stream_media_file(
     path: &str,
     headers: HeaderMap,
@@ -345,8 +350,9 @@ pub(super) async fn stream_media_file(
         }
     })?;
     let length = file.metadata().await?.len();
-    let range = headers
-        .get(header::RANGE)
+    let range = (!head_only)
+        .then(|| headers.get(header::RANGE))
+        .flatten()
         .map(|value| {
             value
                 .to_str()
@@ -428,7 +434,10 @@ fn parse_byte_range(value: &str, length: u64) -> ApiResult<(u64, u64)> {
         if suffix == 0 {
             return Err(ApiError::invalid("Range suffix must be positive"));
         }
-        (length.saturating_sub(suffix.min(length)), length - 1)
+        (
+            length.saturating_sub(suffix.min(length).min(MAXIMUM_MEDIA_RANGE_BYTES)),
+            length - 1,
+        )
     } else {
         let start = start
             .parse::<u64>()
@@ -449,7 +458,78 @@ fn parse_byte_range(value: &str, length: u64) -> ApiResult<(u64, u64)> {
             "Requested byte range is not satisfiable",
         ));
     }
-    Ok((start, end))
+    Ok((
+        start,
+        end.min(start.saturating_add(MAXIMUM_MEDIA_RANGE_BYTES - 1)),
+    ))
+}
+
+#[cfg(test)]
+mod media_range_tests {
+    use super::*;
+    use axum::body::to_bytes;
+
+    #[tokio::test]
+    async fn range_chunks_preserve_requested_offsets_and_head_metadata() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("large.mp4");
+        let length = 1_248_924_755_u64;
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(length)
+            .unwrap();
+        let path = path.to_str().unwrap();
+        let chunk = 8 * 1024 * 1024_u64;
+        for (requested, start, end) in [
+            ("bytes=0-".to_owned(), 0, chunk - 1),
+            (format!("bytes={chunk}-"), chunk, 2 * chunk - 1),
+            ("bytes=20-29".to_owned(), 20, 29),
+            ("bytes=20-999999999".to_owned(), 20, 20 + chunk - 1),
+            ("bytes=-4".to_owned(), length - 4, length - 1),
+            (format!("bytes=-{}", chunk + 16), length - chunk, length - 1),
+            (format!("bytes={}-", length - 4), length - 4, length - 1),
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::RANGE, requested.parse().unwrap());
+            let response = stream_media_file(path, headers, false, "fixture")
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+            assert_eq!(
+                response.headers()[header::CONTENT_RANGE],
+                format!("bytes {start}-{end}/{length}")
+            );
+            assert_eq!(
+                response.headers()[header::CONTENT_LENGTH],
+                (end - start + 1).to_string()
+            );
+            let body = to_bytes(response.into_body(), usize::try_from(chunk).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(u64::try_from(body.len()).unwrap(), end - start + 1);
+        }
+        let mut headers = HeaderMap::new();
+        headers.insert(header::RANGE, "bytes=0-3".parse().unwrap());
+        let head = stream_media_file(path, headers, true, "fixture")
+            .await
+            .unwrap();
+        assert_eq!(head.status(), StatusCode::OK);
+        assert_eq!(head.headers()[header::CONTENT_LENGTH], length.to_string());
+        assert!(to_bytes(head.into_body(), 0).await.unwrap().is_empty());
+        let full = stream_media_file(path, HeaderMap::new(), false, "fixture")
+            .await
+            .unwrap();
+        assert_eq!(full.status(), StatusCode::OK);
+        assert_eq!(full.headers()[header::CONTENT_LENGTH], length.to_string());
+        assert!(!full.headers().contains_key(header::CONTENT_RANGE));
+        let mut headers = HeaderMap::new();
+        headers.insert(header::RANGE, format!("bytes={length}-").parse().unwrap());
+        assert!(
+            stream_media_file(path, headers, false, "fixture")
+                .await
+                .is_err()
+        );
+    }
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -556,6 +636,31 @@ mod media_availability_tests {
             projected.metadata_status,
             MediaMetadataStatus::Unavailable { ref message } if message.contains("missing")
         ));
+    }
+
+    #[tokio::test]
+    async fn failed_font_inspection_does_not_persist_an_unusable_font_asset() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("source.ttf");
+        std::fs::write(&path, b"unusable font").expect("fixture");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        // The unavailable port exercises propagation of a failed inspection;
+        // RuntimeMediaPort separately tests real and invalid SFNT files.
+        let state = AppState::new(storage.clone(), directory.path().to_owned());
+        let result = import_asset(
+            State(state),
+            ApiJson(ImportAssetRequest {
+                project_id: None,
+                path: path.to_string_lossy().into_owned(),
+                name: None,
+                kind: Some("font".to_owned()),
+            }),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(storage.list_assets(None).await.expect("assets").is_empty());
     }
 
     #[test]
@@ -1668,6 +1773,7 @@ async fn asset_from_path(
     let inferred_kind = mime_guess::from_path(&path)
         .first()
         .map_or_else(|| "binary".to_owned(), |mime| mime.type_().to_string());
+    let kind = kind.unwrap_or(inferred_kind);
     let (duration_seconds, width, height, has_audio, metadata_status) =
         match state.media.probe(path.clone()).await {
             Ok(probe) => (
@@ -1677,6 +1783,7 @@ async fn asset_from_path(
                 probe.has_audio,
                 MediaMetadataStatus::Ready,
             ),
+            Err(error) if kind == "font" || kind.starts_with("font/") => return Err(error.into()),
             Err(error) => {
                 let message = error.to_string().chars().take(500).collect::<String>();
                 tracing::warn!(%error, path = %path.display(), "media metadata probe unavailable");
@@ -1694,7 +1801,7 @@ async fn asset_from_path(
         project_id,
         path: path.to_string_lossy().into_owned(),
         name: name.unwrap_or(fallback_name),
-        kind: kind.unwrap_or(inferred_kind),
+        kind,
         duration_seconds,
         width,
         height,

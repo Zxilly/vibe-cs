@@ -9,7 +9,8 @@ use vibe_cs_media::{
     EncoderSelection, MediaError, ProcessCancellation, SingleInputTranscodeOptions,
     ThumbnailOptions, WaveformOptions, analyze_native_audio, build_audio_extraction_plan,
     build_single_input_transcode_plan, execute_native_filter_plan, generate_native_thumbnail,
-    generate_native_waveform, native_probe_media, plan_clip_alignment,
+    generate_native_waveform, is_font_path, native_probe_media, plan_clip_alignment,
+    validate_font_file,
 };
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(20);
@@ -80,6 +81,13 @@ impl RuntimeMediaPort {
 #[async_trait]
 impl MediaPort for RuntimeMediaPort {
     async fn probe(&self, path: PathBuf) -> Result<ProbedMediaMetadata, DomainError> {
+        if is_font_path(&path) {
+            tokio::task::spawn_blocking(move || validate_font_file(&path))
+                .await
+                .map_err(|error| DomainError::Internal(format!("font probe task failed: {error}")))?
+                .map_err(map_media_error)?;
+            return Ok(ProbedMediaMetadata::default());
+        }
         let cancellation = ProcessCancellation::default();
         let probe_cancellation = cancellation.clone();
         let result = tokio::time::timeout(
@@ -340,6 +348,53 @@ fn map_media_error(error: MediaError) -> DomainError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn installed_truetype_font_has_ready_streamless_metadata() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let media = RuntimeMediaPort::new(storage);
+        let paths = std::iter::once(PathBuf::from("C:/Windows/Fonts/simhei.ttf"))
+            .chain(std::env::var_os("VIBE_CS_FONT_PROBE_FIXTURE").map(PathBuf::from));
+        for path in paths {
+            let path = std::fs::canonicalize(path).expect("installed font fixture");
+            let metadata = media
+                .probe(path)
+                .await
+                .expect("font metadata must not use the A/V demuxer");
+            assert_eq!(metadata, ProbedMediaMetadata::default());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_fake_font_is_not_ready_and_audio_still_uses_native_probing() {
+        let directory = tempfile::tempdir().unwrap();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let media = RuntimeMediaPort::new(storage);
+        let fake = directory.path().join("not-a-font.ttf");
+        std::fs::write(&fake, b"not an OpenType font").unwrap();
+        assert!(media.probe(fake).await.is_err());
+        let wav = directory.path().join("source.wav");
+        let mut bytes = b"RIFF".to_vec();
+        bytes.extend_from_slice(&8_036_u32.to_le_bytes());
+        bytes.extend_from_slice(b"WAVEfmt ");
+        bytes.extend_from_slice(&16_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        bytes.extend_from_slice(&8_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&16_000_u32.to_le_bytes());
+        bytes.extend_from_slice(&2_u16.to_le_bytes());
+        bytes.extend_from_slice(&16_u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&8_000_u32.to_le_bytes());
+        bytes.resize(8_044, 0);
+        std::fs::write(&wav, bytes).unwrap();
+        let metadata = media.probe(wav).await.expect("real PCM WAV metadata");
+        assert!(metadata.has_audio);
+        assert_eq!(metadata.audio_codec.as_deref(), Some("pcm_s16le"));
+        assert!((metadata.duration_seconds.unwrap() - 0.5).abs() < f64::EPSILON);
+        assert_eq!(metadata.width, None);
+    }
 
     #[test]
     fn embedded_timecode_uses_the_exact_stream_rate() {

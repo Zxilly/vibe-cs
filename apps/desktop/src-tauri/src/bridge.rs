@@ -496,9 +496,125 @@ mod tests {
     use axum::http::{Method, Uri};
 
     use super::{
-        DesktopCall, DesktopCommandError, DesktopMethod, decode_hex, media_uri,
+        DesktopBridge, DesktopCall, DesktopCommandError, DesktopMethod, decode_hex, media_uri,
         validate_media_method,
     };
+
+    #[tokio::test]
+    async fn large_export_range_survives_the_real_media_bridge() {
+        use axum::http::{Request, StatusCode, header};
+        use chrono::Utc;
+        use std::{
+            io::{Seek as _, SeekFrom, Write as _},
+            sync::Arc,
+        };
+        use tokio::sync::OnceCell;
+        use vibe_cs_domain::{ExportJob, JobStatus};
+        use vibe_cs_storage::{ExportJobRecord, Storage};
+
+        let directory = tempfile::tempdir().expect("transport fixture");
+        let exports = directory.path().join("exports");
+        std::fs::create_dir(&exports).unwrap();
+        let path = exports.join("large.mp4");
+        let length = u64::try_from(super::MAXIMUM_MEDIA_RESPONSE_BYTES).unwrap() + 1;
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.set_len(length).unwrap();
+        file.write_all(b"HEAD").unwrap();
+        file.seek(SeekFrom::End(-4)).unwrap();
+        file.write_all(b"TAIL").unwrap();
+        drop(file);
+        let storage = Storage::open_in_memory().await.unwrap();
+        let router = Arc::new(OnceCell::new());
+        router
+            .set(vibe_cs_application::build_dispatcher(
+                vibe_cs_application::AppState::new(storage.clone(), directory.path().to_owned()),
+            ))
+            .unwrap();
+        let bridge = DesktopBridge::new(router);
+        let project = bridge.dispatch(DesktopCall {
+            method:DesktopMethod::Post,path:"/projects".to_owned(),
+            body:Some(serde_json::json!({"name":"Large export transport","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+        }).await.unwrap();
+        let project_id = uuid::Uuid::parse_str(project["id"].as_str().unwrap()).unwrap();
+        let id = uuid::Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "project".to_owned(),
+                job: ExportJob {
+                    id,
+                    project_id,
+                    project_revision: 1,
+                    range_start_seconds: 0.0,
+                    range_end_seconds: 180.0,
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: path.to_string_lossy().into_owned(),
+                    error: None,
+                    error_code: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .unwrap();
+        let uri = format!("http://vibe-cs-media.localhost/outputs/export/{id}/stream");
+        let response = bridge
+            .dispatch_media(
+                Request::builder()
+                    .uri(&uri)
+                    .header(header::RANGE, "bytes=0-")
+                    .body(Vec::new())
+                    .unwrap(),
+            )
+            .await;
+        assert_eq!(
+            response.status(),
+            StatusCode::PARTIAL_CONTENT,
+            "large Media GET failed: {}",
+            String::from_utf8_lossy(response.body())
+        );
+        assert_eq!(response.body().len(), 8 * 1024 * 1024);
+        assert_eq!(&response.body()[..4], b"HEAD");
+        assert_eq!(
+            response.headers()[header::CONTENT_RANGE],
+            format!("bytes 0-8388607/{length}")
+        );
+        assert_eq!(response.headers()[header::CONTENT_LENGTH], "8388608");
+        assert!(
+            !response
+                .headers()
+                .contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+        );
+
+        let head = bridge
+            .dispatch_media(
+                Request::builder()
+                    .method(Method::HEAD)
+                    .uri(&uri)
+                    .body(Vec::new())
+                    .unwrap(),
+            )
+            .await;
+        assert_eq!(head.status(), StatusCode::OK);
+        assert!(head.body().is_empty());
+        assert_eq!(head.headers()[header::CONTENT_LENGTH], length.to_string());
+        let tail = bridge
+            .dispatch_media(
+                Request::builder()
+                    .uri(&uri)
+                    .header(header::RANGE, "bytes=-4")
+                    .body(Vec::new())
+                    .unwrap(),
+            )
+            .await;
+        assert_eq!(tail.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(tail.body(), b"TAIL");
+        assert_eq!(
+            tail.headers()[header::CONTENT_RANGE],
+            format!("bytes {}-{}/{length}", length - 4, length - 1)
+        );
+    }
 
     #[test]
     fn command_paths_are_local_and_private() {

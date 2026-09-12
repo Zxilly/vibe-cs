@@ -60,7 +60,7 @@ export interface SegProps<Value extends string> {
 }
 
 /** Industry's `.seg`: hairline box, square corners, options clipped to it. */
-const GROUP_CLASS = 'inline-flex overflow-hidden border border-divider';
+const GROUP_CLASS = 'inline-flex overflow-hidden rounded-md border border-divider';
 
 /**
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`

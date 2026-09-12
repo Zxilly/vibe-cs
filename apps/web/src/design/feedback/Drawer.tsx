@@ -62,6 +62,7 @@ export interface DrawerProps {
   footer?: ReactNode;
   width?: DrawerWidth;
   className?: string;
+  bodyClassName?: string;
 }
 
 const WIDTH_CLASS: Record<DrawerWidth, string> = {
@@ -82,6 +83,7 @@ export function Drawer({
   footer,
   width = 'wide',
   className,
+  bodyClassName,
 }: DrawerProps) {
   const returnFocus = useOverlayReturnFocus(open);
 
@@ -132,7 +134,7 @@ export function Drawer({
               </DialogPrimitive.Close>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
+            <div className={cn('min-h-0 flex-1 overflow-y-auto p-3', bodyClassName)}>{children}</div>
 
             {footer === undefined ? null : (
               <footer className={cn('border-t border-divider p-3', OVERLAY_ACTIONS_CLASS)}>

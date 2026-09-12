@@ -123,6 +123,9 @@
   --h-ctl-lg: 40px;
   --h-ctl-hero: 44px;
   --h-titlebar: 48px;
+  --h-timeline-toolbar: 44px;
+  --h-workspace-status: 32px;
+  --w-agent-drawer: 360px;
   --h-topbar: 56px;
   --h-bar: 44px;
   --h-panel-head: 36px;
@@ -290,6 +293,20 @@
 /* A single compact command strip for the production timeline. */
 .project-timeline [data-timeline-toolbar] { scrollbar-width: thin; }
 .project-timeline [data-timeline-toolbar] > * { flex-shrink: 0; }
+.project-media-view-toggle {
+  gap: calc(var(--spacing) * 2);
+  border: 0;
+  overflow: visible;
+}
+.project-media-view-toggle [role='radio'] {
+  width: var(--h-ctl-sm);
+  height: var(--h-ctl-sm);
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.project-media-view-toggle [data-state='checked'] { border-color: var(--color-accent); }
 .project-timeline [data-timeline-toolbar] button,
 .project-timeline [data-timeline-toolbar] select {
   border-color: transparent;
@@ -373,7 +390,7 @@
 }
 
 .project-workspace-dock .flexlayout__layout {
-  background: var(--color-neutral-100);
+  background: var(--color-surface);
 }
 
 .project-workspace-dock .flexlayout__tabset {

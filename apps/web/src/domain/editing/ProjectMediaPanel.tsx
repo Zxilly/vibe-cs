@@ -288,8 +288,8 @@ export function ProjectMediaPanel({
       className="@container flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-bg"
       aria-label={t`项目素材`}
     >
-      <header className="min-w-0 border-b border-divider px-3 py-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-1">
+      <header data-project-media-toolbar className="min-w-0 flex-none border-b border-divider px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="secondary"
@@ -323,7 +323,7 @@ export function ProjectMediaPanel({
             <X className="size-3.5" aria-hidden="true" />
           </Button>}
         </div>
-        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
           {docked ? null : <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>}
           <span className="whitespace-nowrap text-xs tabular-nums text-neutral-600 @max-[280px]:hidden">
             <Trans>
@@ -336,7 +336,7 @@ export function ProjectMediaPanel({
             {plannedItems.length > 0 ? <Trans>待录 {plannedItems.length}</Trans> : <Trans>已录 {recordedItems.length}</Trans>}
           </span>
           <Seg<ProjectMediaView>
-            className="ml-auto flex-none"
+            className="project-media-view-toggle ml-auto flex-none"
             name="project-media-view"
             aria-label={t`项目素材视图`}
             value={view}
@@ -400,7 +400,7 @@ export function ProjectMediaPanel({
         </div>
       </header>
 
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_104px] gap-2 border-b border-divider p-3">
+      <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_104px] gap-2 border-b border-divider px-3 py-2">
         <label className="relative min-w-0">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
           <Input
@@ -427,7 +427,7 @@ export function ProjectMediaPanel({
         </NativeSelect>
       </div>
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto border-t border-divider" aria-live="polite">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-live="polite">
         {pending ? <Skeleton className="m-2 h-24" /> : filtered.length > 0 ? (
           <div role="listbox" aria-label={t`项目素材列表`}>
             <MediaItemSection

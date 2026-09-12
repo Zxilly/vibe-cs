@@ -1,6 +1,7 @@
 import { t } from '@lingui/core/macro';
 import {
   type Action,
+  Actions,
   I18nLabel,
   Layout as FlexLayout,
   Model,
@@ -8,8 +9,10 @@ import {
   type TabNode,
 } from 'flexlayout-react';
 import 'flexlayout-react/style/light.css';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useImperativeHandle, useState, type ReactNode, type Ref } from 'react';
 import { useCollapsed } from '../../design/layout';
+import { Drawer } from '../../design/feedback';
+import { Seg } from '../../design/primitives';
 
 import {
   loadProjectWorkspaceLayout,
@@ -19,26 +22,39 @@ import {
 } from './projectWorkspaceLayout';
 
 export interface ProjectWorkspaceDockProps {
+  readonly ref?: Ref<ProjectWorkspaceDockHandle>;
   readonly projectId: string;
   readonly panels: Readonly<Record<ProjectWorkspacePanel, ReactNode>>;
   readonly labels: Readonly<Record<ProjectWorkspacePanel, string>>;
 }
 
-export function ProjectWorkspaceDock({ projectId, panels, labels }: ProjectWorkspaceDockProps) {
+export interface ProjectWorkspaceDockHandle {
+  showPanel(panel: ProjectWorkspacePanel): void;
+}
+
+export function ProjectWorkspaceDock({ projectId, panels, labels, ref }: ProjectWorkspaceDockProps) {
   const storage = browserStorage();
   const compact = useCollapsed(undefined);
-  const [wideModel] = useState(() => Model.fromJson(loadProjectWorkspaceLayout(projectId, storage)));
-  const [compactModel] = useState(() => Model.fromJson(createProjectWorkspaceLayout('compact')));
+  const [wideModel] = useState(() => localizedWorkspaceModel(loadProjectWorkspaceLayout(projectId, storage), labels));
+  const [compactModel] = useState(() => localizedWorkspaceModel(createProjectWorkspaceLayout('compact'), labels));
   const model = compact ? compactModel : wideModel;
+  const [supportPanel, setSupportPanel] = useState<'agent' | 'mixer' | null>(null);
+  useImperativeHandle(ref, () => ({
+    showPanel(panel) {
+      if (compact && (panel === 'agent' || panel === 'mixer')) setSupportPanel(panel);
+      else model.doAction(Actions.selectTab(`${panel}-panel`));
+    },
+  }), [compact, model]);
   const factory = useCallback((node: TabNode) => {
     const component = node.getComponent();
     if (!isProjectWorkspacePanel(component)) return null;
+    if (compact && (component === 'agent' || component === 'mixer')) return null;
     return (
       <div className="size-full min-h-0 min-w-0 overflow-hidden" data-dock-panel={component}>
         {panels[component]}
       </div>
     );
-  }, [panels]);
+  }, [compact, panels]);
   const renderTab = useCallback((node: TabNode, values: ITabRenderValues) => {
     const component = node.getComponent();
     if (isProjectWorkspacePanel(component)) values.content = labels[component];
@@ -64,8 +80,36 @@ export function ProjectWorkspaceDock({ projectId, panels, labels }: ProjectWorks
         realtimeResize
         supportsPopout={false}
       />
+      <Drawer
+        open={compact && supportPanel !== null}
+        title={labels[supportPanel ?? 'agent']}
+        onClose={() => setSupportPanel(null)}
+        className="w-[var(--w-agent-drawer)]"
+        bodyClassName="flex flex-col overflow-hidden p-0"
+      >
+        <div className="flex-none border-b border-divider px-3 py-2">
+          <Seg<'agent' | 'mixer'> name="workspace-support-panel" value={supportPanel ?? 'agent'}
+            aria-label={t`辅助面板`} onChange={setSupportPanel}
+            options={[{ value: 'agent', label: labels.agent }, { value: 'mixer', label: labels.mixer }]} />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden [&>*]:h-full [&>*]:min-h-0" data-dock-panel={supportPanel ?? 'agent'}>{panels[supportPanel ?? 'agent']}</div>
+      </Drawer>
     </div>
   );
+}
+
+function localizedWorkspaceModel(
+  layout: Parameters<typeof Model.fromJson>[0],
+  labels: ProjectWorkspaceDockProps['labels'],
+): Model {
+  const model = Model.fromJson(layout);
+  model.visitNodes((node) => {
+    if (node.getType() !== 'tab') return;
+    const tab = node as TabNode;
+    const panel = tab.getComponent();
+    if (isProjectWorkspacePanel(panel)) model.doAction(Actions.renameTab(tab.getId(), labels[panel]));
+  });
+  return model;
 }
 
 function projectWorkspaceLabel(label: I18nLabel): string | undefined {

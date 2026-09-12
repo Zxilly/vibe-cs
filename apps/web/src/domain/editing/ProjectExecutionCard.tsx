@@ -42,14 +42,6 @@ export function ProjectExecutionCard({ execution, pending, onCancel, onOpenOutpu
       {execution.subject === null ? null : execution.kind === 'export'
         ? <details className="text-sm text-neutral-600"><summary className="cursor-pointer"><Trans>文件信息</Trans></summary><p className="mt-2 break-all font-mono text-xs">{execution.subject}</p></details>
         : <p className="break-words text-base">{execution.subject}</p>}
-      <p className="text-sm text-neutral-700">
-        {completed ? execution.kind === 'recording'
-          ? <Trans>录制结果已就绪。导出前会重新检查当前作品的素材状态。</Trans>
-          : <Trans>文件已生成；仍需人工观看检查画面与音画同步。</Trans>
-          : failed ? <Trans>任务未完成。作品与已有素材保留，请检查错误后重试。</Trans>
-            : cancelled ? <Trans>任务已取消。作品、已有素材和旧成品仍保留。</Trans>
-              : <Trans>任务正在本机执行。关闭此详情不会取消任务。</Trans>}
-      </p>
       {execution.error === null ? null : <p className="break-words text-sm text-fail-text">{execution.error}</p>}
       <div className="flex flex-wrap gap-2">
         {execution.job_id === null || !execution.available_actions.includes('cancel') ? null : <Button size="sm" variant="secondary" disabled={pending} aria-label={execution.kind === 'recording' ? t`取消录制任务` : t`取消导出任务`} onClick={() => onCancel(execution)}><Trans>取消</Trans></Button>}

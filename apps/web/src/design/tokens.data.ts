@@ -542,6 +542,9 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--h-ctl-lg": "40px",
   "--h-ctl-hero": "44px",
   "--h-titlebar": "48px",
+  "--h-timeline-toolbar": "44px",
+  "--h-workspace-status": "32px",
+  "--w-agent-drawer": "360px",
   "--h-topbar": "56px",
   "--h-bar": "44px",
   "--h-panel-head": "36px",
@@ -818,6 +821,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
 
 /** Structural widths consumed by the design-layer boundary checker. */
 export const PANEL_WIDTH_PX = {
+  '--w-agent-drawer': 360,
   '--w-nav': 216,
   '--w-nav-collapsed': 56,
   '--w-agent-rail': 46,

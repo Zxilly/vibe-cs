@@ -38,7 +38,7 @@ import { useDemo } from '../../../data/demos';
 import { useAgentStatus } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
 import { activityIsActive, useCancelTask, useTask, useTaskFeed } from '../../../data/tasks';
-import { ProjectExecutionCard, executionStatusLabel } from '../../../domain/editing/ProjectExecutionCard';
+import { ProjectExecutionCard } from '../../../domain/editing/ProjectExecutionCard';
 import { useMapRadarOverview, useMatchReplay } from '../../../data/match';
 import { useNativeShell } from '../../../data/nativeShell';
 import {
@@ -58,7 +58,7 @@ import {
 } from '../../../data/sessions';
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, Dialog, Drawer, toast } from '../../../design/feedback';
-import { OverflowMenu, Page, Toolbar } from '../../../design/layout';
+import { OverflowMenu, Page, Toolbar, useCollapsed } from '../../../design/layout';
 import { Button, cn } from '../../../design/primitives';
 import { formatMillisecondTimecode } from '../../../design/timeline/timeScale';
 import { ClipInspector } from '../../../domain/editing/ClipInspector';
@@ -71,7 +71,7 @@ import {
   type ProjectSourceRange,
 } from '../../../domain/editing/ProjectMediaPanel';
 import { ProjectTimeline } from '../../../domain/editing/ProjectTimeline';
-import { ProjectWorkspaceDock } from '../../../domain/editing/ProjectWorkspaceDock';
+import { ProjectWorkspaceDock, type ProjectWorkspaceDockHandle } from '../../../domain/editing/ProjectWorkspaceDock';
 import { TimelineProgramMonitor } from '../../../domain/editing/TimelineProgramMonitor';
 import { planAutomateToSequence } from '../../../domain/editing/automateSequence';
 import { clipLocalTimeAtTimeline } from '../../../domain/editing/keyframeEditing';
@@ -116,6 +116,7 @@ import {
   writeTimelineWorkspaceSession,
 } from '../../../domain/editing/timelineWorkspaceSession';
 import { MapCanvas, PathLayer, type MapProjection } from '../../../domain/map';
+import { ProjectOutputLink } from '../../../domain/project/ProjectOutputLink';
 import type {
   EditorMarker,
   Project,
@@ -238,6 +239,9 @@ export function ProjectWorkspacePage() {
     [nestedSequenceMedia.data],
   );
   const cancelTask = useCancelTask();
+  const compactWorkspace = useCollapsed(undefined);
+  const workspaceDock = useRef<ProjectWorkspaceDockHandle>(null);
+  const [agentDraft, setAgentDraft] = useState('');
   const lens: EditingLens = 'multitrack';
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
   const [sequenceTabIds, setSequenceTabIds] = useState<readonly string[]>(() => readSequenceTabs(globalThis.localStorage));
@@ -1362,6 +1366,8 @@ export function ProjectWorkspacePage() {
   );
   const agentPanel = (
     <AgentPanel
+      draftMessage={agentDraft}
+      onDraftChange={setAgentDraft}
       showHeader={false}
       session={agentSession.data ?? null}
       chat={agentChat}
@@ -1463,6 +1469,15 @@ export function ProjectWorkspacePage() {
     <Page
       className="review-workbench"
       scroll={false}
+      footer={
+        <div data-project-workspace-status className="flex h-[var(--h-workspace-status)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-3 text-xs">
+          <span className="min-w-0 truncate">
+            {readOnly ? <Trans>Agent 正在编辑 · 只读</Trans> : <Trans>{current.document.tracks.reduce((count, track) => count + track.clips.length, 0)} 个片段</Trans>}
+          </span>
+          <span className="font-mono text-neutral-600">{formatMillisecondTimecode(current.document.duration_seconds)}</span>
+          <button type="button" className="rounded-sm px-2 py-1 text-accent-700 hover:bg-accent-100" onClick={() => setTaskDetailsOpen(true)}><Trans>作品任务</Trans></button>
+        </div>
+      }
       toolbar={(
         <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-bg px-3 py-2">
           <Button size="sm" variant="ghost" type="button" data-window-no-drag className="gap-2" onClick={() => void navigate('/projects')}>
@@ -1470,7 +1485,7 @@ export function ProjectWorkspacePage() {
             <Trans>作品</Trans>
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
-          <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>版本 #{current.revision}</Trans></span>
+          <span className="whitespace-nowrap font-mono text-xs text-neutral-600">r{current.revision}</span>
           {pendingAgentReviewGroup === null ? null : (
             <>
               <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-700">
@@ -1487,9 +1502,7 @@ export function ProjectWorkspacePage() {
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
           )}
           {readOnly ? <span className="text-xs text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
-          <Button size="sm" variant="secondary" aria-label={t`作品任务`} onClick={() => setTaskDetailsOpen(true)}>
-            {externalExecutions[0] === undefined ? <Trans>作品任务</Trans> : executionStatusLabel(externalExecutions[0])}
-          </Button>
+          {!compactWorkspace ? <ProjectOutputLink projectId={current.id} /> : null}
           <Button size="sm" variant="ghost" icon
             type="button"
             data-window-no-drag
@@ -1540,6 +1553,7 @@ export function ProjectWorkspacePage() {
             <Download className="size-4" aria-hidden="true" />
             <Trans>导出成片</Trans>
           </Button>
+          {compactWorkspace ? <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}><Trans>Agent</Trans></Button> : null}
         </header>
       )}
     >
@@ -1551,6 +1565,7 @@ export function ProjectWorkspacePage() {
         onClose={closeSequenceWorkspace}
       />
       <ProjectWorkspaceDock
+        ref={workspaceDock}
         key={`${current.id}:${workspaceLayoutEpoch}`}
         projectId={current.id}
         panels={dockPanels}
@@ -1558,7 +1573,7 @@ export function ProjectWorkspacePage() {
           project: t`项目素材`,
           program: t`视频预览`,
           tactical: t`战术示意`,
-          timeline: t`时间轴（修改审阅）`,
+          timeline: t`时间轴`,
           agent: t`Agent`,
           mixer: t`音轨混音器`,
         }}
@@ -1773,6 +1788,7 @@ function ProjectSequenceTabs({ ids, activeId, projects, onOpen, onClose }: {
   readonly onOpen: (id: string) => void;
   readonly onClose: (id: string) => void;
 }) {
+  if (ids.length < 2) return null;
   const projectById = new Map(projects.map((project) => [project.id, project] as const));
   return (
     <nav className="flex h-8 flex-none items-end overflow-x-auto border-b border-divider bg-neutral-50 px-2" aria-label={t`打开的序列`}>

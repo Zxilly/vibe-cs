@@ -45,6 +45,8 @@ export interface ProjectAgentConversation {
 }
 
 export interface AgentPanelProps {
+  readonly draftMessage: string;
+  readonly onDraftChange: (message: string) => void;
   readonly showHeader?: boolean;
   readonly session: AgentSession | null;
   readonly chat: ProjectAgentConversation;
@@ -79,6 +81,8 @@ export interface AgentPanelProps {
 }
 
 export const AgentPanel = memo(function AgentPanel({
+  draftMessage: message,
+  onDraftChange: setMessage,
   showHeader = true,
   session,
   chat,
@@ -107,7 +111,6 @@ export const AgentPanel = memo(function AgentPanel({
   onReturnDelivery,
   onDirectEdit,
 }: AgentPanelProps) {
-  const [message, setMessage] = useState('');
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [returningChangeGroupId, setReturningChangeGroupId] = useState<string | null>(null);
   const conversationEnd = useRef<HTMLDivElement>(null);
@@ -155,11 +158,6 @@ export const AgentPanel = memo(function AgentPanel({
       </header> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <ol className="flex list-none flex-col gap-3">
-            {session === null || entries.length === 0 ? (
-              <ConversationShell actor="Agent" tone="agent">
-                <p className="text-xs leading-5 text-neutral-600"><Trans>告诉我你想怎么剪。我会直接修改左侧时间线，所有改动都能撤销。</Trans></p>
-              </ConversationShell>
-            ) : null}
             {!agentStatusPending && !agentReady ? (
               <ConversationShell actor={t`系统`} tone="error">
                 <div className="flex items-center gap-2 text-xs font-medium text-fail-text">
@@ -253,9 +251,7 @@ export const AgentPanel = memo(function AgentPanel({
             disabled={chat.streaming || creatingSession || readOnly || !agentReady}
             placeholder={!agentReady
               ? t`先配置 Agent 模型`
-              : returningChangeGroupId === null
-                ? t`例如：重新规划成 3 分钟 NiKo 集锦`
-                : t`例如：删除第二个标记，并保持其他内容不变`}
+              : t`告诉 Agent 要调整什么…`}
             onChange={(event) => setMessage(event.currentTarget.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') submit(); }}
           />

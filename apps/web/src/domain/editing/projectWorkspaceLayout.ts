@@ -56,31 +56,31 @@ export function createProjectWorkspaceLayout(mode: 'wide' | 'compact' = 'wide'):
           type: 'tabset',
           id: 'project-group',
           name: 'Project panel',
-          weight: 20,
+          weight: 304,
           children: [tab('project-panel', 'Project', 'project')],
         },
         {
           type: 'row',
           id: 'editing-column',
-          weight: 58,
+          weight: 800,
           children: [
             {
               type: 'row',
               id: 'monitor-row',
-              weight: 46,
+              weight: 336,
               children: [
                 {
                   type: 'tabset',
                   id: 'program-group',
                   name: 'Program monitor',
-                  weight: 70,
+                  weight: 544,
                   children: [tab('program-panel', 'Program', 'program')],
                 },
                 {
                   type: 'tabset',
                   id: 'tactical-group',
                   name: 'Tactical monitor',
-                  weight: 30,
+                  weight: 248,
                   children: [tab('tactical-panel', 'Tactical', 'tactical')],
                 },
               ],
@@ -89,7 +89,7 @@ export function createProjectWorkspaceLayout(mode: 'wide' | 'compact' = 'wide'):
               type: 'tabset',
               id: 'timeline-group',
               name: 'Timeline panel',
-              weight: 54,
+              weight: 420,
               children: [tab('timeline-panel', 'Timeline', 'timeline')],
             },
           ],
@@ -98,7 +98,7 @@ export function createProjectWorkspaceLayout(mode: 'wide' | 'compact' = 'wide'):
           type: 'tabset',
           id: 'agent-group',
           name: 'Agent panel',
-          weight: 22,
+          weight: 320,
           children: [
             tab('agent-panel', 'Agent', 'agent'),
             tab('mixer-panel', 'Audio Track Mixer', 'mixer'),
@@ -111,13 +111,13 @@ export function createProjectWorkspaceLayout(mode: 'wide' | 'compact' = 'wide'):
   return {
     ...model,
     borders: [{
-      type: 'border', location: 'right', borderType: 'overlay', selected: -1, size: 360,
+      type: 'border', location: 'right', borderType: 'overlay', selected: -1, size: 360, show: false,
       children: [tab('agent-panel', 'Agent', 'agent'), tab('mixer-panel', 'Audio Track Mixer', 'mixer')],
     }],
     layout: {
       type: 'row', id: 'workspace-root', children: [
-        { type: 'tabset', id: 'project-group', weight: 22, children: [tab('project-panel', 'Project', 'project')] },
-        { type: 'row', id: 'editing-column', weight: 78, children: [
+        { type: 'tabset', id: 'project-group', weight: 304, children: [tab('project-panel', 'Project', 'project')] },
+        { type: 'row', id: 'editing-column', weight: 788, children: [
           { type: 'tabset', id: 'program-group', weight: 45, children: [tab('program-panel', 'Program', 'program'), tab('tactical-panel', 'Tactical', 'tactical')] },
           { type: 'tabset', id: 'timeline-group', weight: 55, children: [tab('timeline-panel', 'Timeline', 'timeline')] },
         ] },

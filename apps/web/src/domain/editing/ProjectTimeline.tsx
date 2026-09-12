@@ -2185,8 +2185,8 @@ export function ProjectTimeline({
         }
       }}
     >
-      <header data-timeline-toolbar className="flex h-[var(--h-panel-head)] flex-none items-center gap-1 border-b border-divider bg-surface-chrome px-2 overflow-x-auto">
-        {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴（修改审阅）</Trans></h2>}
+      <header data-timeline-toolbar className="flex min-h-[var(--h-timeline-toolbar)] flex-none items-center gap-2 overflow-x-auto border-b border-divider bg-surface-chrome px-2 py-2">
+        {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴</Trans></h2>}
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
             <span className="flex h-7 flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status">

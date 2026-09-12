@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../../../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../../../data/nativeShell';
 import { renderPage } from '../../../test/renderPage';
+import { stubMatchMedia } from '../../../design/layout/collapse.testing';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 import type { ActivityItem } from '../../../shared/desktop/viewModels';
 
@@ -695,6 +696,23 @@ describe('timeline review recovery regressions', () => {
 });
 
 describe('unified project workspace', () => {
+  it('keeps an unsent Agent draft across drawer close and viewport changes', async () => {
+    const viewport = stubMatchMedia(1100);
+    try {
+      renderWorkspace({});
+      fireEvent.click(await screen.findByRole('button', { name: 'Agent' }));
+      const input = await screen.findByPlaceholderText('告诉 Agent 要调整什么…');
+      fireEvent.change(input, { target: { value: '保留尚未发送的想法' } });
+      fireEvent.keyDown(input, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Agent' })).toBeNull());
+      fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
+      expect((await screen.findByPlaceholderText('告诉 Agent 要调整什么…') as HTMLInputElement).value).toBe('保留尚未发送的想法');
+      act(() => viewport.setWidth(1440));
+      await waitFor(() => expect((screen.getByPlaceholderText('告诉 Agent 要调整什么…') as HTMLInputElement).value).toBe('保留尚未发送的想法'));
+    } finally {
+      viewport.restore();
+    }
+  });
   it('restores a project task outside the Agent without starting work or automatically resuming an old conversation', async () => {
     const task: ActivityItem = {
       id: 'export:restored-export', kind: 'export', subtype: 'project', job_id: 'restored-export',
@@ -749,7 +767,7 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('tab', { name: '项目素材' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: '视频预览' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: '战术示意' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: '时间轴（修改审阅）' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '时间轴' })).toBeTruthy();
     expect(screen.queryByText('修改注释')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Agent' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: '音轨混音器' })).toBeTruthy();
@@ -1150,7 +1168,7 @@ describe('unified project workspace', () => {
 
     renderWorkspace({ project, groups: [group] });
 
-    expect(await screen.findByRole('tab', { name: '时间轴（修改审阅）' })).toBeTruthy();
+    expect(await screen.findByRole('tab', { name: '时间轴' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: '修改摘要' })).toBeNull();
     expect(screen.getByText('1 处修改')).toBeTruthy();
     expect(screen.getByText('修改注释')).toBeTruthy();
@@ -1158,7 +1176,7 @@ describe('unified project workspace', () => {
     expect(screen.getByLabelText('时间轴修改 1').textContent).toContain('7.000s');
     expect(screen.getByLabelText('时间轴修改 1').textContent).toContain('波纹 +2.000s');
     expect(screen.getByLabelText('后续片段移动 +2.000s')).toBeTruthy();
-    expect(screen.getByText('00:12.000')).toBeTruthy();
+    expect(screen.getAllByText('00:12.000')[0]).toBeTruthy();
     expect(screen.getByText('00:10.000')).toBeTruthy();
   });
 
@@ -7375,7 +7393,7 @@ describe('unified project workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: '退回修改' }));
     expect(appendAgentSessionEntry).not.toHaveBeenCalled();
     expect(screen.getByText('说明需要 Agent 修改什么')).toBeTruthy();
-    const feedback = screen.getByPlaceholderText('例如：删除第二个标记，并保持其他内容不变');
+    const feedback = screen.getByPlaceholderText('告诉 Agent 要调整什么…');
     await waitFor(() => expect(document.activeElement).toBe(feedback));
     fireEvent.change(feedback, { target: { value: '删除第二个标记，保留第一个标记。' } });
     fireEvent.click(screen.getByRole('button', { name: '发送修改意见' }));
@@ -7492,7 +7510,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '在播放头标记入点' }));
     stepTimelineSeconds(playhead, 2);
     fireEvent.click(screen.getByRole('button', { name: '在播放头标记出点' }));
-    const input = await screen.findByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦');
+    const input = await screen.findByPlaceholderText('告诉 Agent 要调整什么…');
     fireEvent.change(input, { target: { value: '只添加一个标记' } });
     fireEvent.click(screen.getByRole('button', { name: '发送给 Agent' }));
     await waitFor(() => expect(streamAgentChat).toHaveBeenCalledTimes(1));
@@ -7548,7 +7566,7 @@ describe('unified project workspace', () => {
     });
 
     expect(await screen.findByText('Agent 正在编辑 · 你暂时只能查看')).toBeTruthy();
-    expect((screen.getByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByPlaceholderText('告诉 Agent 要调整什么…') as HTMLInputElement).disabled).toBe(true);
     expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.doubleClick(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }));
     expect((await screen.findByRole('textbox', { name: '名称' }) as HTMLInputElement).disabled).toBe(true);

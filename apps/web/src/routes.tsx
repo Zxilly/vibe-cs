@@ -13,27 +13,27 @@ import { createHashRouter, type RouteObject } from 'react-router-dom';
 import { AppShell } from './app/AppShell';
 import { NotFound, RouteErrorElement } from './app/boundary';
 
-const HomePage = lazy(async () => ({ default: (await import('./pages/HomePage')).HomePage }));
-const LibraryPage = lazy(async () => ({ default: (await import('./pages/LibraryPage')).LibraryPage }));
-const PlayersPage = lazy(async () => ({ default: (await import('./pages/PlayersPage')).PlayersPage }));
+const HomePage = lazy(async () => ({ default: (await import('./pages/editing/workspace/HomePage')).HomePage }));
+const LibraryPage = lazy(async () => ({ default: (await import('./pages/shared/library/LibraryPage')).LibraryPage }));
+const PlayersPage = lazy(async () => ({ default: (await import('./pages/analysis/players/PlayersPage')).PlayersPage }));
 const PlayerProfilePage = lazy(async () => ({
-  default: (await import('./pages/PlayerProfilePage')).PlayerProfilePage,
+  default: (await import('./pages/analysis/players/PlayerProfilePage')).PlayerProfilePage,
 }));
-const EvidencePage = lazy(async () => ({ default: (await import('./pages/EvidencePage')).EvidencePage }));
+const EvidencePage = lazy(async () => ({ default: (await import('./pages/analysis/evidence/EvidencePage')).EvidencePage }));
 const MatchWorkspacePage = lazy(async () => ({
-  default: (await import('./pages/MatchWorkspacePage')).MatchWorkspacePage,
+  default: (await import('./pages/analysis/match/MatchWorkspacePage')).MatchWorkspacePage,
 }));
-const ProjectsPage = lazy(async () => ({ default: (await import('./pages/ProjectsPage')).ProjectsPage }));
+const ProjectsPage = lazy(async () => ({ default: (await import('./pages/editing/projects/ProjectsPage')).ProjectsPage }));
 const ProjectWorkspacePage = lazy(async () => ({
-  default: (await import('./pages/ProjectWorkspacePage')).ProjectWorkspacePage,
+  default: (await import('./pages/editing/editor/ProjectWorkspacePage')).ProjectWorkspacePage,
 }));
-const DeliveryPage = lazy(async () => ({ default: (await import('./pages/DeliveryPage')).DeliveryPage }));
+const DeliveryPage = lazy(async () => ({ default: (await import('./pages/editing/delivery/DeliveryPage')).DeliveryPage }));
 const TaskDetailPage = lazy(async () => ({
-  default: (await import('./pages/TaskDetailPage')).TaskDetailPage,
+  default: (await import('./pages/shared/tasks/TaskDetailPage')).TaskDetailPage,
 }));
-const SettingsPage = lazy(async () => ({ default: (await import('./pages/SettingsPage')).SettingsPage }));
-const RecoveryPage = lazy(async () => ({ default: (await import('./pages/RecoveryPage')).RecoveryPage }));
-const GuidePage = lazy(async () => ({ default: (await import('./pages/GuidePage')).GuidePage }));
+const SettingsPage = lazy(async () => ({ default: (await import('./pages/shared/settings/SettingsPage')).SettingsPage }));
+const RecoveryPage = lazy(async () => ({ default: (await import('./pages/shared/settings/RecoveryPage')).RecoveryPage }));
+const GuidePage = lazy(async () => ({ default: (await import('./pages/shared/onboarding/GuidePage')).GuidePage }));
 
 export const APP_PAGES = {
   home: <HomePage />,

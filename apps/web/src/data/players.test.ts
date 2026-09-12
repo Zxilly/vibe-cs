@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { heatmapTruncation } from './players';
-import { playerHeatmap, heatmapPoints } from '../pages/players/test/fixtures';
+import { playerHeatmap, heatmapPoints } from '../pages/analysis/players/test/fixtures';
 
 describe('heatmapTruncation', () => {
   it('says nothing was cut when the response is complete', () => {

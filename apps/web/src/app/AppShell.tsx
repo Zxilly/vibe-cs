@@ -43,7 +43,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { ActivityDrawer } from '../ActivityDrawer';
+import { ActivityDrawer } from '../domain/task/ActivityDrawer';
 import { Toaster } from '../design/feedback';
 import { useShellCollapsed } from '../design/layout';
 import {

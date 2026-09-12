@@ -401,7 +401,6 @@ export function RoundDetailPanels({
               headingLevel={4}
               className="border-0"
               title={<Trans>这一回合没有击杀或目标事件</Trans>}
-              description={<Trans>可能是一次很快结束的回合，也可能是解析结果不完整。</Trans>}
               actions={
                 <Button variant="secondary" onClick={() => onUpdateContext({ view: 'replay' })}>
                   <Trans>在 2D 回放里查看</Trans>
@@ -479,11 +478,6 @@ export function RoundsPanels({
               ) : (
                 <Trans>这场比赛没有第 {selectedRound} 回合</Trans>
               )
-            }
-            description={
-              <Trans>
-                在上面的回合时间线里点一格，这里会显示那一回合的人数曲线、目标事件与逐条证据。
-              </Trans>
             }
             actions={
               firstRound === undefined ? (

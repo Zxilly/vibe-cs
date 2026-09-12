@@ -18,6 +18,7 @@ mod media;
 mod project;
 mod recording;
 mod review_metadata;
+mod round_equipment;
 mod round_replay;
 
 pub use agent_session::*;
@@ -38,6 +39,7 @@ pub use media::*;
 pub use project::*;
 pub use recording::*;
 pub use review_metadata::*;
+pub use round_equipment::*;
 pub use round_replay::*;
 
 use serde::{Deserialize, Serialize};

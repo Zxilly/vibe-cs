@@ -287,7 +287,6 @@ export function EconomyPanel({
       title={<Trans>经济</Trans>}
       /* Stated in the head, not in a footnote: a reader who takes 「CT 购买」 for
          「主队购买」 would read the second half of the match backwards. */
-      hint={<Trans>购买事件带的是当回合的阵营，不是队伍</Trans>}
     >
       {!availability.present ? (
         <p className="px-3.5 py-3 text-sm text-neutral-700">
@@ -381,7 +380,6 @@ export function RoundOutcomePanel({ analysis, teamAName, teamBName }: RoundOutco
     <ViewPanel
       id="round-outcomes"
       title={<Trans>回合结束方式</Trans>}
-      hint={<Trans>每一行是一种结束原因，数字是用这种方式赢下的回合数</Trans>}
     >
       {rows.length === 0 ? (
         <p className="px-3.5 py-3 text-sm text-neutral-700">
@@ -537,9 +535,7 @@ function TeamsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
-          <Trans>在上面的名单里点一名选手，他这一场的数据会出现在这里。</Trans>
-        </p>
+        {null}
       </MatchInspectorPanel>
     );
   }

@@ -28,6 +28,9 @@ pub struct AnalysisInsights {
 #[ts(export)]
 pub struct RoundEconomyInsight {
     pub round: u32,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub freeze_end_tick: Option<u64>,
+    pub team_equipment: Vec<crate::TeamEquipmentInsight>,
     pub teams: Vec<TeamPurchaseInsight>,
     pub unattributed_purchase_count: u32,
 }
@@ -258,8 +261,12 @@ fn derive_round_economy(analysis: &MatchAnalysis) -> Vec<RoundEconomyInsight> {
                     accumulator.missing_price = true;
                 }
             }
+            let (freeze_end_tick, team_equipment) =
+                crate::round_equipment::equipment_for_round(analysis, round);
             RoundEconomyInsight {
                 round: round.number,
+                freeze_end_tick,
+                team_equipment,
                 teams: by_team
                     .into_iter()
                     .map(|(team, accumulator)| TeamPurchaseInsight {

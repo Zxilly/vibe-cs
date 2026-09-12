@@ -66,7 +66,7 @@ describe('nothing selected', () => {
   it('focuses the first round without writing it behind the address’s back', async () => {
     await openRounds();
 
-    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
+    expect(screen.queryByText('选中：第 1 回合')).toBeNull();
     expect(address()).not.toContain('round=');
   });
 
@@ -196,11 +196,11 @@ describe('the Inspector is the same round', () => {
     expect(screen.getByText('教学素材')).toBeTruthy();
   });
 
-  it('uses the first round as the default Inspector focus', async () => {
+  it('keeps the Inspector closed until a round is explicitly selected', async () => {
     await openRounds();
 
-    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
-    expect(document.querySelector('[data-match-round-evidence]')).not.toBeNull();
+    expect(screen.queryByText('选中：第 1 回合')).toBeNull();
+    expect(document.querySelector('[data-inspector="docked"]')).toBeNull();
   });
 
   it('keeps 加入作品 visible and enabled for the selected round', async () => {

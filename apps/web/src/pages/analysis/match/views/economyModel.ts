@@ -1,34 +1,5 @@
-/*
- * pages/match/views — 队伍's 经济 block.
- *
- * ── The one thing to know before reading a number off this file ───────────
- *
- * **Round economy is keyed by side, not by team.** `RoundEconomyInsightRecord`
- * carries `teams: [{ team: 'CT' | 'T', … }]`, and the analyser says why in a
- * comment on the line that builds it (`crates/domain/src/insights.rs`):
- *
- *     // A player's side changes at halftime. Only the team carried
- *     // by this purchase event is valid for a per-round side total.
- *
- * So the purchase totals of round 3 and round 20 belong to *sides*, and joining
- * them onto Aurora and Meridian needs a per-round side assignment that is not on
- * the wire — `TeamSummary.side` is the side each team is on now, once, at the
- * end. Rather than pick a half boundary and silently attribute half the match to
- * the wrong team, this module keeps the side labelling the analyser gave it and
- * the view prints 「CT 方 / T 方」. That is a real limitation of the data and it
- * is visible on screen instead of buried here.
- *
- * ── Spend is nullable and the sum is nullable with it ─────────────────────
- *
- * `TeamPurchaseInsight.spend` is `None` whenever any purchase in that round
- * arrived without a price, which is common: the price lives in the event detail
- * blob and older parses do not carry it. A total that quietly skipped those
- * rounds would read low and look authoritative, so a total is `null` the moment
- * one of its rounds is — 「—」 on screen, never a number that is wrong by an
- * unknown amount.
- *
- * Pure; `economyModel.test.ts` runs it in the `unit` project.
- */
+/** Purchase summaries retain CT/T side identity; freeze-end equipment
+ * snapshots provide separate stable-team A/B measurements. */
 
 import type {
   AnalysisInsightsRecord,

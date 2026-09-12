@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     path::Path,
 };
 
@@ -21,7 +21,9 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use source2_demo::prelude::Parser as MetadataParser;
 use uuid::Uuid;
-use vibe_cs_domain::MatchAnalysis;
+use vibe_cs_domain::{
+    MatchAnalysis, PlayerEquipmentSnapshot, ROUND_EQUIPMENT_DETAIL, RoundEquipmentSnapshot,
+};
 
 use crate::{
     DemoError, DemoResult, ParseCancellation,
@@ -35,6 +37,7 @@ use crate::{
 
 const FAST_EVENTS: &[&str] = &[
     "round_start",
+    "round_freeze_end",
     "round_end",
     "player_death",
     "player_hurt",
@@ -194,20 +197,35 @@ fn attach_selected_tick_rosters(
     huffman: &Vec<(u8, u8)>,
     config: DemoEngineConfig,
 ) -> DemoResult<()> {
-    let wanted_ticks = events
+    let start_ticks = events
         .iter()
         .filter(|event| event.name == "round_start")
         .filter_map(|event| i32::try_from(event.tick).ok())
         .collect::<Vec<_>>();
-    if wanted_ticks.is_empty() || wanted_ticks.len() > MAXIMUM_COMPETITIVE_ROUNDS {
+    if start_ticks.is_empty() || start_ticks.len() > MAXIMUM_COMPETITIVE_ROUNDS {
         return Err(DemoError::ParserResourceLimit {
             resource: "round_roster_ticks".to_owned(),
             limit: MAXIMUM_COMPETITIVE_ROUNDS,
-            actual: wanted_ticks.len(),
+            actual: start_ticks.len(),
         });
     }
 
-    let friendly_props = vec!["team_num".to_owned()];
+    let freeze_ends = round_freeze_ends(events);
+    let wanted_ticks = start_ticks
+        .into_iter()
+        .chain(
+            freeze_ends
+                .values()
+                .filter_map(|tick| i32::try_from(*tick).ok()),
+        )
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let friendly_props = vec![
+        "team_num".to_owned(),
+        "current_equip_value".to_owned(),
+        "balance".to_owned(),
+    ];
     let real_props = rm_user_friendly_names(&friendly_props)
         .map_err(|error| DemoError::Parse(format!("demoparser roster properties: {error}")))?;
     let real_name_to_og_name = real_props
@@ -238,7 +256,7 @@ fn attach_selected_tick_rosters(
         ParsingMode::Normal,
         ParserResourceOptions {
             max_game_events: config.maximum_events,
-            max_collected_rows: MAXIMUM_COMPETITIVE_ROUNDS * 64,
+            max_collected_rows: MAXIMUM_COMPETITIVE_ROUNDS * 2 * 64,
             ..ParserResourceOptions::default()
         },
     )
@@ -251,29 +269,69 @@ fn attach_selected_tick_rosters(
         .find(|info| info.prop_friendly_name == "team_num")
         .map(|info| info.id)
         .ok_or_else(|| DemoError::Parse("demoparser roster team property is absent".to_owned()))?;
-    let rosters = selected_tick_rosters(&output.df_per_player, team_prop_id);
+    let equipment_prop_id = output
+        .prop_controller
+        .prop_infos
+        .iter()
+        .find(|prop| prop.prop_friendly_name == "current_equip_value")
+        .map(|prop| prop.id);
+    let money_prop_id = output
+        .prop_controller
+        .prop_infos
+        .iter()
+        .find(|prop| prop.prop_friendly_name == "balance")
+        .map(|prop| prop.id);
+    let states = selected_tick_player_states(
+        &output.df_per_player,
+        team_prop_id,
+        equipment_prop_id,
+        money_prop_id,
+    );
     for event in events
         .iter_mut()
         .filter(|event| event.name == "round_start")
     {
         let roster = i32::try_from(event.tick)
             .ok()
-            .and_then(|tick| rosters.get(&tick).cloned())
+            .and_then(|tick| states.get(&tick))
+            .map(|players| {
+                players
+                    .iter()
+                    .map(|(id, player)| (id.clone(), player.side.clone()))
+                    .collect()
+            })
             .and_then(complete_competitive_roster)
             .unwrap_or_default();
         event.fields.insert(
             "_round_roster".to_owned(),
             serde_json::to_value(roster).expect("round roster serialization cannot fail"),
         );
+        if let Some(freeze_end_tick) = freeze_ends.get(&event.tick) {
+            let players = i32::try_from(*freeze_end_tick)
+                .ok()
+                .and_then(|tick| states.get(&tick))
+                .cloned()
+                .unwrap_or_default();
+            event.fields.insert(
+                ROUND_EQUIPMENT_DETAIL.to_owned(),
+                serde_json::to_value(RoundEquipmentSnapshot {
+                    freeze_end_tick: *freeze_end_tick,
+                    players,
+                })
+                .expect("equipment snapshot serialization cannot fail"),
+            );
+        }
     }
     Ok(())
 }
 
-fn selected_tick_rosters(
+fn selected_tick_player_states(
     per_player: &AHashMap<u64, AHashMap<u32, PropColumn>>,
     team_prop_id: u32,
-) -> BTreeMap<i32, BTreeMap<String, String>> {
-    let mut rosters = BTreeMap::<i32, BTreeMap<String, String>>::new();
+    equipment_prop_id: Option<u32>,
+    money_prop_id: Option<u32>,
+) -> BTreeMap<i32, BTreeMap<String, PlayerEquipmentSnapshot>> {
+    let mut states = BTreeMap::<i32, BTreeMap<String, PlayerEquipmentSnapshot>>::new();
     for (steam_id, columns) in per_player {
         if *steam_id == 0 {
             continue;
@@ -299,13 +357,57 @@ fn selected_tick_rosters(
                 Some(3) => "CT",
                 _ => continue,
             };
-            rosters
-                .entry(*tick)
-                .or_default()
-                .insert(steam_id.to_string(), team.to_owned());
+            let equipment_value = equipment_prop_id
+                .and_then(|id| columns.get(&id))
+                .and_then(|column| column.data.as_ref())
+                .and_then(|values| team_number_at(values, index))
+                .and_then(|value| u32::try_from(value).ok())
+                .filter(|value| *value <= 100_000);
+            let money = money_prop_id
+                .and_then(|id| columns.get(&id))
+                .and_then(|column| column.data.as_ref())
+                .and_then(|values| team_number_at(values, index))
+                .and_then(|value| u32::try_from(value).ok());
+            states.entry(*tick).or_default().insert(
+                steam_id.to_string(),
+                PlayerEquipmentSnapshot {
+                    side: team.to_owned(),
+                    equipment_value,
+                    money,
+                },
+            );
         }
     }
-    rosters
+    states
+}
+
+fn round_freeze_ends(events: &[ParsedEvent]) -> BTreeMap<u64, u64> {
+    let mut result = BTreeMap::new();
+    let mut start = None;
+    let mut freeze_ticks = BTreeSet::new();
+    for event in events {
+        match event.name.as_str() {
+            "round_start" => {
+                start = Some(event.tick);
+                freeze_ticks.clear();
+            }
+            "round_freeze_end" if start.is_some() => {
+                freeze_ticks.insert(event.tick);
+            }
+            "round_end" => {
+                if let (Some(start), Some(freeze)) = (start.take(), freeze_ticks.first().copied())
+                    && freeze_ticks.len() == 1
+                    && freeze >= start
+                    && freeze <= event.tick
+                {
+                    result.insert(start, freeze);
+                }
+                freeze_ticks.clear();
+            }
+            _ => {}
+        }
+    }
+    result
 }
 
 fn team_number_at(values: &VarVec, index: usize) -> Option<i64> {
@@ -798,6 +900,8 @@ mod tests {
     #[test]
     fn selected_tick_columns_form_exact_steam_rosters() {
         let team_prop_id = 1_234;
+        let equipment_prop_id = 1_235;
+        let money_prop_id = 1_236;
         let mut per_player = AHashMap::new();
         per_player.insert(
             76_561_198_000_000_001,
@@ -816,13 +920,77 @@ mod tests {
                         num_nones: 0,
                     },
                 ),
+                (
+                    money_prop_id,
+                    PropColumn {
+                        data: Some(VarVec::I32(vec![Some(800), Some(-1)])),
+                        num_nones: 0,
+                    },
+                ),
+                (
+                    equipment_prop_id,
+                    PropColumn {
+                        data: Some(VarVec::I32(vec![Some(5_200), Some(-1)])),
+                        num_nones: 0,
+                    },
+                ),
             ]),
         );
 
-        let rosters = selected_tick_rosters(&per_player, team_prop_id);
+        let states = selected_tick_player_states(
+            &per_player,
+            team_prop_id,
+            Some(equipment_prop_id),
+            Some(money_prop_id),
+        );
 
-        assert_eq!(rosters[&100]["76561198000000001"], "T");
-        assert_eq!(rosters[&200]["76561198000000001"], "CT");
+        assert_eq!(states[&100]["76561198000000001"].side, "T");
+        assert_eq!(states[&200]["76561198000000001"].side, "CT");
+        assert_eq!(
+            states[&100]["76561198000000001"].equipment_value,
+            Some(5_200)
+        );
+        assert_eq!(states[&200]["76561198000000001"].equipment_value, None);
+        assert_eq!(states[&100]["76561198000000001"].money, Some(800));
+        assert_eq!(states[&200]["76561198000000001"].money, None);
+        let missing = selected_tick_player_states(&per_player, team_prop_id, None, None);
+        assert_eq!(missing[&100]["76561198000000001"].equipment_value, None);
+        assert_eq!(missing[&100]["76561198000000001"].money, None);
+    }
+
+    #[test]
+    fn freeze_end_sampling_requires_one_tick_in_a_complete_round() {
+        let events = [
+            ("round_freeze_end", 10),
+            ("round_start", 100),
+            ("round_freeze_end", 120),
+            ("round_end", 200),
+            ("round_start", 300),
+            ("round_freeze_end", 320),
+            ("round_freeze_end", 330),
+            ("round_end", 400),
+            ("round_start", 500),
+            ("round_end", 600),
+            ("round_start", 700),
+            ("round_freeze_end", 720),
+            ("round_freeze_end", 720),
+            ("round_end", 800),
+            ("round_start", 900),
+            ("round_freeze_end", 920),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(sequence, (name, tick))| ParsedEvent {
+            sequence: u64::try_from(sequence).unwrap(),
+            tick,
+            name: name.to_owned(),
+            fields: Map::new(),
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(
+            round_freeze_ends(&events),
+            BTreeMap::from([(100, 120), (700, 720)])
+        );
     }
 
     #[test]
@@ -925,6 +1093,40 @@ mod tests {
                 assert_eq!(clutches[0].title, "1v2 clutch", "{file}");
             } else {
                 assert!(clutches.is_empty(), "{file}");
+            }
+            let mut normalized = analysis;
+            assert!(normalized.normalize_team_continuity(), "{file}");
+            let economy = normalized.derived_insights().round_economy;
+            assert_eq!(economy.len(), 21, "{file}");
+            for (round, row) in normalized.rounds.iter().zip(economy) {
+                let freeze = row.freeze_end_tick.expect("observed freeze-end tick");
+                assert!(
+                    (round.start_tick..=round.end_tick).contains(&freeze),
+                    "{file}"
+                );
+                assert_eq!(row.team_equipment.len(), 2, "{file} R{}", round.number);
+                assert!(
+                    row.team_equipment
+                        .iter()
+                        .all(|team| team.equipment_value.is_some()),
+                    "{file} R{} equipment must be complete",
+                    round.number
+                );
+                for team in &row.team_equipment {
+                    assert!(
+                        team.buy_type.is_some(),
+                        "{file} R{} {} buy type",
+                        round.number,
+                        team.team
+                    );
+                    assert_eq!(
+                        team.buy_type == Some(vibe_cs_domain::EquipmentBuyType::Pistol),
+                        matches!(round.number, 1 | 13),
+                        "{file} R{} {} pistol round",
+                        round.number,
+                        team.team
+                    );
+                }
             }
         }
     }

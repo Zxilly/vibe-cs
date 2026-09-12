@@ -51,8 +51,7 @@ describe('the first paint', () => {
   });
 
   it('says nothing is selected rather than inventing a player', () => {
-    expect(html).toContain('data-inspector="docked"');
-    expect(html).toContain('点左侧记分板的一行');
+    expect(html).not.toContain('data-inspector="docked"');
     expect(html).not.toContain('data-player-detail');
   });
 });

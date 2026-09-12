@@ -1,49 +1,5 @@
-/*
- * pages/match/views — the arithmetic behind 道具与经济 (`?view=utility`).
- *
- * Pure and React-free, so `utilityModel.test.ts` runs it in the `unit` project.
- *
- * ── The two halves are two different records ──────────────────────────────
- *
- * 道具 is `insights.player_utility` — per player: throws, detonations, the item
- * histogram, utility damage, and the blind events they caused. 经济 is
- * `insights.round_economy` — per round, per *side*, how many purchase events
- * were decoded and what they cost. Neither is a projection of the other, which
- * is why the artboard puts a segmented control between them rather than one
- * table with more columns.
- *
- * ── 「生命周期不完整」 is a real number, not a mood ──────────────────────────
- *
- * The artboard draws a dashed fourth tile labelled 「生命周期不完整」 and captions
- * the whole board 「不完整的投掷物生命周期会明确降级」. The service's own
- * accounting is what makes that expressible: `crates/domain/src/insights.rs`
- * counts a `throw` off `grenade_thrown-*` and a `detonation` off the five
- * activation events, and a demo whose grenade lifecycle did not decode leaves
- * the first without the second. So the tile is `throws − detonations`, clamped
- * at zero, and it means exactly 「投出了但没有解出后续」.
- *
- * ── What is deliberately absent ───────────────────────────────────────────
- *
- *   · **The per-throw 结果 column** (「致盲 2 人 · 3.1s」, 「封 A 大道」). It needs
- *     a link from one throw to its own detonation and blind events; the wire
- *     carries neither a grenade entity id nor a typed `detail`, so the link
- *     cannot be made without guessing. The per-player totals below say the same
- *     things at the only granularity the data supports.
- *   · **The equipment-value bar chart** (「柱高＝回合起始装备价值」). `spend` is
- *     the cost of decoded *purchases*, not the value carried into the round, and
- *     it is `null` whenever one price was missing. Drawing purchases as
- *     equipment value would relabel a number rather than show one.
- *   · **枪局胜率 / 经济劣势翻盘.** Both classify a round as eco or full-buy,
- *     which needs the equipment value above.
- *
- * ── The side / team join is not made here ─────────────────────────────────
- *
- * `round_economy` is keyed by 「CT」/「T」 because a purchase event carries a side.
- * Sides swap at the half, so 「CT」 is not a team; `TeamSummary.side` says which
- * side a team is on *now*, not in round 3. The economy table therefore prints
- * sides, and only the round's winner is named as a team — that one the analysis
- * states directly.
- */
+/** Per-player utility and per-side purchase projections.
+ * Freeze-end equipment values are projected independently in equipmentModel. */
 
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
@@ -82,11 +38,11 @@ export type UtilityItemKind = 'flash' | 'smoke' | 'fire' | 'he' | 'decoy' | 'oth
  * compile-time macro, so each call is written out rather than generated.
  */
 export const UTILITY_ITEM_LABEL: Readonly<Record<UtilityItemKind, MessageDescriptor>> = {
-  flash: msg({ message: '闪光', context: 'utility-item' }),
-  smoke: msg({ message: '烟雾', context: 'utility-item' }),
-  fire: msg({ message: '燃烧', context: 'utility-item' }),
-  he: msg({ message: '高爆', context: 'utility-item' }),
-  decoy: msg({ message: '诱饵', context: 'utility-item' }),
+  flash: msg({ message: '闪光弹', context: 'utility-item' }),
+  smoke: msg({ message: '烟雾弹', context: 'utility-item' }),
+  fire: msg({ message: '燃烧瓶 / 燃烧弹', context: 'utility-item' }),
+  he: msg({ message: '手雷', context: 'utility-item' }),
+  decoy: msg({ message: '诱饵弹', context: 'utility-item' }),
   other: msg({ message: '其他道具', context: 'utility-item' }),
 };
 

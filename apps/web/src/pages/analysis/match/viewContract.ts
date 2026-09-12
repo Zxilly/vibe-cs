@@ -240,7 +240,7 @@ export const MATCH_VIEW: Readonly<Record<MatchViewId, MatchViewMeta>> = {
   },
   review: {
     id: 'review',
-    label: msg({ message: 'Review 与注释', context: 'match-view' }),
+    label: msg({ message: '复盘笔记', context: 'match-view' }),
     icon: ClipboardList,
   },
   teams: {
@@ -327,6 +327,8 @@ export interface MatchViewModule {
   readonly Body: MatchViewComponent;
   /** Omitted when the view has nothing to inspect. */
   readonly Inspector?: MatchViewComponent | undefined;
+  /** Evidence browsing keeps a detail panel; data tables open it after selection. */
+  readonly inspectorMode?: 'persistent' | 'selection';
 }
 
 /**

@@ -717,7 +717,6 @@ function AnnotationsPanel({
         <Empty
           className="m-3.5"
           title={<Trans>这场还没有注释</Trans>}
-          description={<Trans>注释会同时出现在证据检索里，可以跨比赛检索。</Trans>}
           actions={
             <RouteLink to="/evidence?view=annotations">
               <Trans>去证据检索看全部注释</Trans>

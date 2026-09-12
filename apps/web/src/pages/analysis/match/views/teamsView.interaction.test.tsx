@@ -81,7 +81,7 @@ describe('阵营', () => {
   it('focuses Team A’s first player without writing the address', async () => {
     await openTeams();
 
-    expect(await screen.findByText('选中：Kael')).toBeTruthy();
+    expect(screen.queryByText('选中：Kael')).toBeNull();
     expect(document.querySelector('[data-row-id="kael"]')?.getAttribute('data-active')).toBe('true');
     expect(address()).not.toContain('player=');
   });

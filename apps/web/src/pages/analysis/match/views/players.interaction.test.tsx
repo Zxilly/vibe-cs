@@ -51,7 +51,7 @@ describe('picking a player', () => {
 
     await waitFor(() => {
       expect(document.querySelector('[data-row-id="kael"]')?.getAttribute('data-active')).toBe('true');
-      expect(document.querySelector('[data-player-detail="kael"]')).not.toBeNull();
+      expect(document.querySelector('[data-player-detail="kael"]')).toBeNull();
     });
     expect(address()).not.toContain('player=');
   });

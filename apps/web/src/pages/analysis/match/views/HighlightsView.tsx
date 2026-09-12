@@ -334,9 +334,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
-          <Trans>点一行的「定位」，这里会显示高光对应的回合、选手和 tick 区间。选择也会写入地址，方便分享。</Trans>
-        </p>
+        {null}
       </MatchInspectorPanel>
     );
   }
@@ -407,6 +405,7 @@ function Row({ label, children }: { readonly label: ReactNode; readonly children
 }
 
 export const HighlightsView: MatchViewModule = {
+  inspectorMode: 'persistent',
   id: 'highlights',
   Body: HighlightsBody,
   Inspector: HighlightsInspector,

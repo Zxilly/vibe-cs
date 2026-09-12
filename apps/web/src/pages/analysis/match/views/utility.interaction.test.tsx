@@ -1,32 +1,33 @@
-/*
- * `interaction` project — 道具与经济.
- *
- * The view has two selections rather than one — a player on the 道具 half and a
- * round on the 经济 half — and both are §4.4 parameters the rest of the
- * workspace already reads. What is pinned here is that each half writes its own
- * and the Inspector follows whichever the address holds.
- */
-
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { AnalysisWorkspace } from '../../../../shared/desktop/viewModels';
 import type { DesktopClient } from '../../../../data/desktopClient';
 import { stubMatchMedia, type MatchMediaStub } from '../../../../design/layout/collapse.testing';
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
-import { ANALYSIS, BARE_ANALYSIS, DEMO_ID } from './test/rosterFixtures';
+import { ANALYSIS, BARE_ANALYSIS, DEMO_ID, INSIGHTS } from './test/rosterFixtures';
 
 let media: MatchMediaStub | null = null;
+afterEach(() => { media?.restore(); media = null; });
 
-afterEach(() => {
-  media?.restore();
-  media = null;
-});
+const equipmentAnalysis: AnalysisWorkspace = {
+  ...ANALYSIS,
+  insights: {
+    ...INSIGHTS,
+    round_economy: INSIGHTS.round_economy.map((row, index) => ({
+      ...row,
+      freeze_end_tick: (ANALYSIS.rounds.find((round) => round.number === row.round)?.start_tick ?? 0) + 10,
+      team_equipment: [
+        { team: 'A', buy_type: index === 0 ? 'full_buy' : 'force_buy', side: index === 0 ? 'T' : 'CT', equipment_value: index === 0 ? 25_000 : 7_000 },
+        { team: 'B', buy_type: 'full_buy', side: index === 0 ? 'CT' : 'T', equipment_value: 20_000 },
+      ],
+    })),
+  },
+};
 
-const UNFOLDED_PX = 1700;
-
-function open(query = '', analysis = ANALYSIS) {
-  media = stubMatchMedia(UNFOLDED_PX);
+function open(query = '', analysis: AnalysisWorkspace = equipmentAnalysis) {
+  media = stubMatchMedia(1700);
   return renderWorkspace({
     url: `/match/${DEMO_ID}?view=utility${query}`,
     client: {
@@ -35,111 +36,59 @@ function open(query = '', analysis = ANALYSIS) {
     } as Partial<DesktopClient>,
   });
 }
+const address = () => document.querySelector('[data-address]')?.textContent ?? '';
 
-function address(): string {
-  return document.querySelector('[data-address]')?.textContent ?? '';
-}
-
-async function row(id: string): Promise<HTMLElement> {
-  return await waitFor(() => {
-    const found = document.querySelector(`[data-row-id="${id}"]`);
-    expect(found).not.toBeNull();
-    return found as HTMLElement;
-  });
-}
-
-describe('the 道具 half', () => {
-  it('focuses the first utility row without writing the address', async () => {
+describe('utility and round economy', () => {
+  it('presents utility and team equipment together without changing the initial selection', async () => {
     open();
-
-    await waitFor(() => {
-      expect(document.querySelector('[data-utility-detail]')).not.toBeNull();
-      expect(document.querySelector('[data-row-id]')?.getAttribute('data-active')).toBe('true');
-    });
+    expect(await screen.findByRole('img', { name: '两队逐回合装备价值' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '道具' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '回合经济' })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: '经济' })).toBeNull();
+    expect(address()).not.toContain('round=');
     expect(address()).not.toContain('player=');
   });
 
-  it('writes ?player= when a row is picked', async () => {
+  it('selects the real round and compares its teams instead of summing their equipment', async () => {
     open();
-    fireEvent.click(await row('kael'));
-
-    await waitFor(() => {
-      expect(address()).toContain('player=kael');
-    });
-    expect(address()).toContain('view=utility');
+    fireEvent.click(await screen.findByRole('button', { name: '第 2 回合装备' }));
+    await waitFor(() => expect(address()).toContain('round=2'));
+    expect(screen.getByRole('button', { name: '第 2 回合装备' }).getAttribute('aria-pressed')).toBe('true');
+    const panel = screen.getByRole('region', { name: '回合经济' });
+    expect(panel.textContent).toContain('$7,000 / $20,000');
+    expect(panel.textContent).toContain('$13,000');
+    expect(panel.textContent).toContain('购买类型强起 / 全起');
+    expect(panel.textContent).not.toContain('两队合计');
   });
 
-  it('fills the Inspector with that player’s item breakdown', async () => {
-    open('&player=kael');
-    expect(await screen.findByText('选中：Kael')).toBeTruthy();
-
+  it('keeps per-player breakdown available through the utility details', async () => {
+    open();
+    fireEvent.click(await screen.findByText('选手道具明细'));
+    const row = await waitFor(() => {
+      const node = document.querySelector('[data-row-id="kael"]');
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    fireEvent.click(row);
+    await waitFor(() => expect(address()).toContain('player=kael'));
     const detail = document.querySelector('[data-utility-detail="kael"]');
-    expect(detail).not.toBeNull();
-    expect(detail?.textContent).toContain('闪光');
-    expect(detail?.textContent).toContain('烟雾');
+    expect(detail?.textContent).toContain('投掷物构成');
+    expect(detail?.closest('details')?.open).toBe(true);
   });
 
-  it('shows the four tiles, including the degradation one', async () => {
-    open();
-    const tiles = await waitFor(() => {
-      const found = document.querySelector('[data-utility-tiles]');
-      expect(found).not.toBeNull();
-      return found as HTMLElement;
-    });
-    expect(tiles.textContent).toContain('生命周期不完整');
-    // 41 throws − 34 detonations.
-    expect(tiles.textContent).toContain('7');
-  });
-});
-
-describe('the 经济 half', () => {
-  it('swaps the board and writes ?round= when a round is picked', async () => {
-    open();
-    fireEvent.click(await screen.findByRole('radio', { name: '经济' }));
-
-    fireEvent.click(await row('2'));
-    await waitFor(() => {
-      expect(address()).toContain('round=2');
-    });
-    expect(address()).toContain('view=utility');
+  it('clears player focus when choosing a round and preserves purchase details', async () => {
+    open('&player=kael');
+    fireEvent.click(await screen.findByRole('button', { name: '第 2 回合装备' }));
+    await waitFor(() => expect(address()).not.toContain('player='));
+    fireEvent.click(screen.getByText('购买明细'));
+    expect(document.querySelector('[data-economy-detail="2"]')?.textContent).toContain('购买条数');
   });
 
-  it('fills the Inspector with that round’s purchases, by side', async () => {
-    open('&round=2');
-    expect(await screen.findByText('选中：第 2 回合')).toBeTruthy();
-
-    const detail = document.querySelector('[data-economy-detail="2"]');
-    expect(detail).not.toBeNull();
-    expect(detail?.textContent).toContain('CT');
-    expect(detail?.textContent).toContain('没有带阵营');
-  });
-
-  it('prefers the player over the round when the address carries both', async () => {
-    open('&player=kael&round=2');
-    expect(await screen.findByText('选中：Kael')).toBeTruthy();
-    expect(document.querySelector('[data-economy-detail]')).toBeNull();
-  });
-});
-
-describe('an analysis whose insights did not decode', () => {
-  it('says so on the 道具 half rather than listing zeros', async () => {
+  it('shows missing data without inventing equipment or utility zeros', async () => {
     open('', BARE_ANALYSIS);
-
-    expect(await screen.findByText('没有道具记录')).toBeTruthy();
-    expect(screen.getByText(/no grenade lifecycle events were decoded/u)).toBeTruthy();
-    expect(document.querySelector('[data-row-id]')).toBeNull();
-  });
-
-  it('says so on the 经济 half too, and the segment is the recovery', async () => {
-    open('', BARE_ANALYSIS);
-    fireEvent.click(await screen.findByRole('button', { name: '改看经济' }));
-
-    expect(await screen.findByText('没有购买记录')).toBeTruthy();
-    expect(screen.getByText(/no item_purchase events were decoded/u)).toBeTruthy();
-  });
-
-  it('leaves the Inspector saying what a selection would show', async () => {
-    open('', BARE_ANALYSIS);
-    expect(await screen.findByText(/点道具表的一行/u)).toBeTruthy();
+    expect(await screen.findByText('暂无装备价值数据')).toBeTruthy();
+    expect(screen.queryByRole('img', { name: '两队逐回合装备价值' })).toBeNull();
+    expect(screen.getByRole('region', { name: '道具' }).textContent).not.toContain('0 次');
+    expect(screen.queryByText(/点道具表的一行/)).toBeNull();
   });
 });

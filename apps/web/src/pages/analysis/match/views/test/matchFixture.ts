@@ -215,6 +215,8 @@ export const INSIGHTS: AnalysisInsightsRecord = {
         spend: entry.number === 24 ? null : 11_400 + entry.number * 210,
       },
     ],
+    freeze_end_tick: null,
+    team_equipment: [],
     unattributed_purchase_count: entry.number === 7 ? 2 : 0,
   })),
   player_utility: [],

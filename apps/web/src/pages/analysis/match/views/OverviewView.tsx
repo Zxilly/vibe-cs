@@ -370,6 +370,7 @@ function OverviewInspector({
 }
 
 export const OverviewView: MatchViewModule = {
+  inspectorMode: 'persistent',
   id: 'overview',
   Body: OverviewBody,
   Inspector: OverviewInspector,

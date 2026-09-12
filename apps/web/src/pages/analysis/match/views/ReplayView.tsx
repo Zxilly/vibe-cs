@@ -818,6 +818,7 @@ function ReplayProvenance({
 }
 
 export const ReplayView: MatchViewModule = {
+  inspectorMode: 'persistent',
   id: 'replay',
   Body: ReplayBody,
   Inspector: ReplayInspector,

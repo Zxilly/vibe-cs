@@ -236,7 +236,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
         title={<Trans>玩家</Trans>}
         {...(gate.analysis === undefined || empty
           ? {}
-          : { hint: <Trans>共 {rows.length} 名选手 · 点一行看他这一场</Trans> })}
+          : { hint: <Trans>共 {rows.length} 名选手</Trans> })}
       >
         {gate.fallback ??
           (empty ? (

@@ -1,71 +1,5 @@
-/*
- * pages/ — 03 比赛工作区 (spec §7 `/match/:demoId?view=…`, phase 3c).
- *
- * §7 promotes the demo id from a query to a path segment, which is what makes
- * the crumb 「资料库 › Aurora vs Meridian › 概览」 expressible at all — the match
- * is a first-class identity, not a filter on the analysis page.
- *
- * ── What this file owns ────────────────────────────────────────────────────
- *
- * The shell, and only the shell: the context bar, the view rail, the Inspector
- * frame, and the address. The nine views are `pages/match/views/*` and are
- * addressed through the exhaustive registry in `pages/match/viewContract.ts` —
- * which is also where the contract they are written against is documented.
- *
- * Three things are deliberately constant across all nine views, because the
- * reference draws them that way:
- *
- *   `domain/match/MatchContextBar`   the identity of the match
- *   `design/layout/SubNav`           the 190px rail (`--w-subnav`)
- *   `design/layout/Inspector`        the 380px detail panel
- *
- * ── §8, all three collapse rules at once ───────────────────────────────────
- *
- * This is the only page in the product where all three fire:
- *
- *   rule 1  the shell's side nav folds — `app/`, not here
- *   rule 2  the Inspector becomes a 46px summary strip plus a drawer, so it
- *           moves out of the content row and into `Page`'s footer slot
- *   rule 3  the rail becomes a row of top tabs, so it moves out of the content
- *           row and into `Page`'s bar slot
- *
- * `SubNav` and `Inspector` each implement their own fold; what a component
- * cannot do is re-parent itself, so the *placement* is decided here. Both are
- * handed the same `collapsed` value, observed once with `useCollapsed`, because
- * two independent subscriptions can be read in different states mid-transition
- * and the two halves must fold together. No media query is written in this
- * file.
- *
- * The context bar folds on its own, later, at `CONTEXT_BAR_BREAKPOINT_PX`
- * (1600) — crossing 1100 upward makes the content column *narrower*, which
- * §10.3 deviation 1 explains. That is the component's business and is not
- * repeated here.
- *
- * ── Where the data comes from ──────────────────────────────────────────────
- *
- * Two reads, both shared with the views by query key rather than by props:
- *
- *   `useDemo`           the library record — map, date, team names and the
- *                       final score. It answers even for a demo that has never
- *                       been analysed, which is the state the bar has to look
- *                       right in.
- *   `useMatchAnalysis`  the parsed match. The bar prefers it where it has an
- *                       answer (tick rate, real round count), and the rail's
- *                       「高光 18」 badge is its highlight count.
- *
- * The shell does **not** render the analysis's loading or error states: eight
- * of the nine views call the same hook and each renders its own three states
- * next to the thing that failed (§4.1 sets `throwOnError: false` for exactly
- * that). What the shell does own is the failure of the *identity* read — if the
- * demo record cannot be fetched the bar says so in place and keeps 「‹ 资料库」
- * reachable, which is what a user whose workspace failed to open needs.
- *
- * ── 「加入作品」 is one workspace action ────────────────────────────────────
- *
- * Scoreboard rows, highlights, rounds and Inspector footers all call the same
- * action. It opens one project picker and writes the selection to the client-
- * side project collection; no view keeps its own queue or its own feedback.
- */
+/** Match identity, view navigation and URL-owned selection.
+ * Evidence collection writes through the shared AddToProjectDialog. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -81,7 +15,6 @@ import { Alert } from '../../../design/feedback';
 import { Page, SubNav, useCollapsed, type SubNavItem } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import { MatchContextBar } from '../../../domain/match';
-import { MatchInspectorPanel } from './MatchInspectorPanel';
 import { focusedPlayers, matchIdentity, matchTeams, roundLabel } from './matchModel';
 import {
   MATCH_VIEW,
@@ -166,22 +99,10 @@ export function MatchWorkspacePage() {
     if (target !== undefined) updateContext({ view: target });
   };
 
+  const hasSelection = context.round !== null || context.player !== null
+    || context.tick !== null || context.evidence !== null || context.highlight !== null;
   const inspector =
-    view.Inspector === undefined ? (
-      <MatchInspectorPanel
-        title={<Trans>选中项</Trans>}
-        summary={<Trans>未选中任何内容</Trans>}
-        addToVideo={addToVideo}
-        collapsed={collapsed}
-      >
-        <p className="text-sm text-neutral-700">
-          <Trans>
-            在左侧选择回合、选手或证据，详情会显示在这里。
-            选择也会写入地址，方便分享和后退。
-          </Trans>
-        </p>
-      </MatchInspectorPanel>
-    ) : (
+    view.Inspector === undefined || (view.inspectorMode !== 'persistent' && !hasSelection) ? null : (
       <view.Inspector {...viewProps} />
     );
 

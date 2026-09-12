@@ -18,10 +18,9 @@ import {
   PlayerUtilityDetail,
   RoundEconomyDetail,
   UtilityTable,
-  UtilityTiles,
 } from './UtilityView';
-import { economyRows, utilityRows, utilityTotals } from './utilityModel';
-import { ANALYSIS, BARE_ANALYSIS, densityAnalysis, INSIGHTS } from './test/rosterFixtures';
+import { economyRows, utilityRows } from './utilityModel';
+import { ANALYSIS, densityAnalysis, INSIGHTS } from './test/rosterFixtures';
 
 const INDEX = rosterIndex(ANALYSIS);
 const ROWS = utilityRows(INSIGHTS, INDEX);
@@ -43,44 +42,6 @@ describe('the first paint', () => {
 
   it('states no count while the read is pending — 「共 0 名选手」 is a claim', () => {
     expect(html).not.toContain('名选手有道具记录');
-  });
-});
-
-describe('the four tiles', () => {
-  const html = renderMarkup(
-    <UtilityTiles totals={utilityTotals(INSIGHTS)} damageAvailable flashAvailable />,
-  );
-
-  it('carries the artboard’s four labels', () => {
-    expect(html).toContain('data-utility-tiles');
-    expect(html).toContain('投掷物');
-    expect(html).toContain('道具伤害');
-    expect(html).toContain('生命周期不完整');
-  });
-
-  it('prints 「有效闪」 as the field it actually is', () => {
-    expect(html).toContain('致盲人次');
-    expect(html).not.toContain('有效闪');
-  });
-
-  it('sums the roster', () => {
-    expect(html).toContain('41');
-    expect(html).toContain('396');
-  });
-
-  it('draws the degradation tile dashed, as the artboard does', () => {
-    expect(html).toContain('border-dashed');
-  });
-
-  it('dashes the numbers whose events did not decode instead of showing 0', () => {
-    const degraded = renderMarkup(
-      <UtilityTiles
-        totals={utilityTotals(BARE_ANALYSIS.insights)}
-        damageAvailable={false}
-        flashAvailable={false}
-      />,
-    );
-    expect(degraded).toContain('—');
   });
 });
 
@@ -107,7 +68,7 @@ describe('the per-player table', () => {
   it('translates the item names and keeps their counts', () => {
     expect(html).toContain('闪光');
     expect(html).toContain('烟雾');
-    expect(html).toContain('高爆');
+    expect(html).toContain('手雷');
   });
 
   it('prints the dash for a flash duration the wire said was incomplete', () => {

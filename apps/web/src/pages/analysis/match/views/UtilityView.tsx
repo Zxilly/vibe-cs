@@ -1,55 +1,15 @@
-/*
- * pages/match/views — 道具与经济 (`?view=utility`).
- *
- * 「补齐 · 比赛工作区子视图 · 道具与经济」, whose caption is the whole design
- * brief: 「不完整的投掷物生命周期会明确降级」. The segmented control swaps between
- * two different records — per-player utility and per-round economy — and the
- * four tiles at the top belong to the first of them.
- *
- * ── What was drawn and is not here, and why ───────────────────────────────
- *
- *   · **The 投掷物查找 table's 结果 column** (「致盲 2 人 · 3.1s」, 「封 A 大道」).
- *     It needs a link from one throw to its own detonation and blind events;
- *     the wire has no grenade entity id and `TimelineEvent.detail` is `unknown`,
- *     so the link cannot be made without guessing which smoke was whose. The
- *     per-player totals below state the same facts at the granularity the data
- *     actually supports, and the per-throw table is reported as a gap.
- *   · **The equipment-value bar chart.** `spend` is the cost of decoded
- *     purchases, not the value carried into the round, and it is `null` the
- *     moment one price is missing. Drawing purchases as equipment value would
- *     relabel a number instead of showing one — and 枪局胜率 / 经济劣势翻盘 both
- *     classify rounds using that same missing value.
- *
- * What *is* here and is not decoration: 「生命周期不完整」 is `throws −
- * detonations`, which is exactly the artboard's dashed tile — the service counts
- * a throw and an activation separately (`crates/domain/src/insights.rs`), so a
- * demo whose grenade lifecycle did not decode leaves the first without the
- * second. See `utilityModel.ts`.
- *
- * ── Density ───────────────────────────────────────────────────────────────
- *
- * 道具 is at most `MATCH_ROSTER_SIZE` rows. 经济 is one row per round, bounded
- * by `LONG_OVERTIME_ROUNDS` (58); both scroll inside `DataTable`'s own scroller
- * and the header prints the total, so nothing is silently cut.
- */
-
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 
-import { useMatchAnalysis } from '../../../../data/match';
 import { DataTable, Empty, type DataTableColumn } from '../../../../design/data';
-import { Button, Seg } from '../../../../design/primitives';
 import type { CountedItemRecord } from '../../../../shared/desktop/dto';
-import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
-import { rosterIndex, type RosterEntry } from './duelsModel';
+import { rosterIndex } from './duelsModel';
 import { formatCount, formatFixed, NO_VALUE, teamNames } from './playersModel';
 import {
-  capabilityReason,
   economyRows,
-  economyPurchaseTotal,
   economySide,
   ECONOMY_SIDES,
   UTILITY_ITEM_LABEL,
@@ -59,9 +19,11 @@ import {
   utilityTotals,
   type EconomyRow,
   type UtilityRow,
-  type UtilityTotals,
+  type UtilityItemKind,
 } from './utilityModel';
-import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './viewChrome';
+import { useAnalysisGate, ViewFrame } from './viewChrome';
+import { EquipmentChart } from './EquipmentChart';
+import { BUY_TYPE_LABEL, equipmentRounds } from './equipmentModel';
 
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
@@ -79,68 +41,6 @@ function PanelHead({ children }: { readonly children: ReactNode }) {
 }
 
 /* ── the four tiles ──────────────────────────────────────────────────────── */
-
-export interface UtilityTilesProps {
-  readonly totals: UtilityTotals;
-  /** `false` greys the damage tile's number out — the events did not decode. */
-  readonly damageAvailable: boolean;
-  readonly flashAvailable: boolean;
-}
-
-/**
- * 投掷物 · 道具伤害 · 致盲人次 · 生命周期不完整.
- *
- * The third tile is the artboard's 「有效闪」 renamed to what the field is:
- * `flash_events` counts `player_blind` events attributed to a thrower, which is
- * blinded-player-instances, not a judgement about whether the flash was useful.
- * The fourth carries the artboard's dashed border because it is the degradation
- * marker, not a metric anyone wants to be high.
- */
-export function UtilityTiles({ totals, damageAvailable, flashAvailable }: UtilityTilesProps) {
-  return (
-    <div data-utility-tiles="" className="flex flex-none flex-wrap gap-3">
-      <Tile label={<Trans>投掷物</Trans>} value={formatCount(totals.throws)} />
-      <Tile
-        label={<Trans>道具伤害</Trans>}
-        value={damageAvailable ? formatCount(totals.damage) : NO_VALUE}
-      />
-      <Tile
-        label={<Trans>致盲人次</Trans>}
-        value={flashAvailable ? formatCount(totals.flashEvents) : NO_VALUE}
-      />
-      <Tile
-        label={<Trans>生命周期不完整</Trans>}
-        value={formatCount(totals.incompleteLifecycle)}
-        degraded
-      />
-    </div>
-  );
-}
-
-function Tile({
-  label,
-  value,
-  degraded = false,
-}: {
-  readonly label: ReactNode;
-  readonly value: string;
-  readonly degraded?: boolean | undefined;
-}) {
-  return (
-    <div
-      className={
-        degraded
-          ? 'min-w-0 flex-1 border border-dashed border-neutral-400 px-3 py-2.5'
-          : 'min-w-0 flex-1 border border-divider px-3 py-2.5'
-      }
-    >
-      <div className="text-xs text-neutral-600">{label}</div>
-      <div className={degraded ? 'font-mono text-lg text-neutral-600' : 'font-mono text-lg'}>
-        {value}
-      </div>
-    </div>
-  );
-}
 
 /* ── the 道具 table ──────────────────────────────────────────────────────── */
 
@@ -383,134 +283,79 @@ export function EconomyTable({
 
 /* ── the body ────────────────────────────────────────────────────────────── */
 
-type UtilityMode = 'utility' | 'economy';
-
 function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
   const gate = useAnalysisGate(demoId);
-  const [mode, setMode] = useState<UtilityMode>('utility');
-
-  const index = useMemo(() => rosterIndex(gate.analysis), [gate.analysis]);
-  const names = useMemo(() => teamNames(gate.analysis), [gate.analysis]);
-  const insights = gate.analysis?.insights;
-  const rounds = gate.analysis?.rounds ?? [];
-  const totals = useMemo(() => utilityTotals(insights), [insights]);
+  const { i18n } = useLingui();
+  const analysis = gate.analysis;
+  const index = useMemo(() => rosterIndex(analysis), [analysis]);
+  const names = useMemo(() => teamNames(analysis), [analysis]);
+  const insights = analysis?.insights;
   const rows = useMemo(() => utilityRows(insights, index), [insights, index]);
-  const economy = useMemo(() => economyRows(insights, rounds), [insights, rounds]);
-  const activePlayerId = context.player ?? rows[0]?.playerId ?? null;
-
+  const totals = useMemo(() => utilityTotals(insights), [insights]);
+  const equipment = useMemo(() => analysis === undefined ? [] : equipmentRounds(analysis), [analysis]);
+  const purchases = useMemo(() => economyRows(insights, analysis?.rounds ?? []), [insights, analysis]);
+  const selected = equipment.find((row) => row.round === context.round) ?? equipment[0];
+  const selectedPurchases = purchases.find((row) => row.round === selected?.round);
+  const selectedPlayer = rows.find((row) => row.playerId === context.player);
   const damageAvailable = insights?.availability.utility_damage.available ?? false;
   const flashAvailable = insights?.availability.flash_effects.available ?? false;
   const spendAvailable = insights?.availability.purchase_spend.available ?? false;
-  const purchaseTotal = economyPurchaseTotal(economy);
+  const utilityAvailable = insights?.availability.utility_events.available ?? false;
+  const counts = new Map<UtilityItemKind, number>();
+  for (const row of rows) for (const item of row.items) {
+    const kind = utilityItemKind(item.name) ?? 'other';
+    counts.set(kind, (counts.get(kind) ?? 0) + item.count);
+  }
+  const kinds: UtilityItemKind[] = ['smoke', 'flash', 'fire', 'he', 'decoy'];
+  if (counts.has('other')) kinds.push('other');
+  const money = (value: number | null) => value === null ? NO_VALUE : `$${new Intl.NumberFormat(i18n.locale).format(value)}`;
+  const difference = selected?.a == null || selected.b === null ? null : selected.a - selected.b;
 
-  /* The service's own English sentence for whichever half is on screen. */
-  const degraded =
-    mode === 'utility'
-      ? capabilityReason(insights?.availability.utility_events)
-      : capabilityReason(insights?.availability.purchase_events);
-
-  return (
-    <ViewFrame view="utility" state={gate.state}>
-      <ViewPanel
-        id="utility"
-        title={<Trans>道具与经济</Trans>}
-        hint={
-          gate.analysis === undefined ? undefined : mode === 'utility' ? (
-            <Trans>共 {rows.length} 名选手有道具记录 · 点一行看他的构成</Trans>
-          ) : (
-            <Trans>共 {economy.length} 个回合 · 解析出 {purchaseTotal} 条购买记录</Trans>
-          )
-        }
-        actions={
-          <Seg
-            name="match-utility-mode"
-            value={mode}
-            onChange={setMode}
-            aria-label={t`道具与经济视图`}
-            options={[
-              { value: 'utility', label: <Trans>道具</Trans> },
-              { value: 'economy', label: <Trans>经济</Trans> },
-            ]}
-          />
-        }
-      >
-        {gate.fallback ??
-          (mode === 'utility' ? (
-            <div className="flex flex-col gap-3 p-3.5">
-              <UtilityTiles
-                totals={totals}
-                damageAvailable={damageAvailable}
-                flashAvailable={flashAvailable}
-              />
-              {rows.length === 0 ? (
-                <Empty
-                  headingLevel={4}
-                  title={<Trans>没有道具记录</Trans>}
-                  description={
-                    <Trans>
-                      这份分析没有解出投掷物的生命周期事件，所以逐选手的道具账目是空的。
-                    </Trans>
-                  }
-                  actions={
-                    <Button variant="secondary" onClick={() => setMode('economy')}>
-                      <Trans>改看经济</Trans>
-                    </Button>
-                  }
-                />
-              ) : (
-                <UtilityTable
-                  rows={rows}
-                  activePlayerId={activePlayerId}
-                  onSelect={(playerId) => updateContext({ player: playerId })}
-                  damageAvailable={damageAvailable}
-                  flashAvailable={flashAvailable}
-                />
-              )}
+  return <ViewFrame view="utility" state={gate.state}>
+    {gate.fallback ?? <>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2" data-utility-overview>
+        <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`道具`}>
+          <h3 className="px-5 py-3 text-sm font-medium"><Trans>道具</Trans></h3>
+          <dl className="divide-y divide-divider">
+            {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
+              <dt className="text-neutral-700">{i18n._(UTILITY_ITEM_LABEL[kind])}</dt>
+              <dd className="font-mono">{utilityAvailable ? <Trans>{counts.get(kind) ?? 0} 次</Trans> : NO_VALUE}</dd>
+            </div>)}
+          </dl>
+          {damageAvailable || flashAvailable ? <dl className="flex flex-wrap gap-4 border-t border-divider px-5 py-3 text-xs">
+            {damageAvailable ? <div><dt className="text-neutral-600"><Trans>道具伤害</Trans></dt><dd className="font-mono">{totals.damage}</dd></div> : null}
+            {flashAvailable ? <div><dt className="text-neutral-600"><Trans>致盲人次</Trans></dt><dd className="font-mono">{totals.flashEvents}</dd></div> : null}
+          </dl> : null}
+        </section>
+        <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`回合经济`}>
+          <h3 className="px-5 py-3 text-sm font-medium"><Trans>回合经济</Trans></h3>
+          {selected === undefined ? <Empty title={<Trans>没有回合记录</Trans>} actions={null} /> : <>
+            <EquipmentChart rounds={equipment} activeRound={selected.round} teamA={names.A} teamB={names.B}
+              onSelect={(round) => updateContext({ round, player: null })} />
+            <div className="flex items-center justify-between gap-4 border-t border-divider px-5 py-3 text-xs">
+              <span>R{selected.round} · {selected.winner === null ? t`胜方未知` : t`${names[selected.winner]} 胜`}</span>
+              <span>{names.A} / {names.B}</span>
             </div>
-          ) : economy.length === 0 ? (
-            <Empty
-              className="m-3.5"
-              headingLevel={4}
-              title={<Trans>没有购买记录</Trans>}
-              description={<Trans>这场比赛没有解析出物品购买记录，所以每回合的经济账目是空的。</Trans>}
-              actions={
-                <Button variant="secondary" onClick={() => setMode('utility')}>
-                  <Trans>改看道具</Trans>
-                </Button>
-              }
-            />
-          ) : (
-            <div className="flex flex-col gap-3 p-3.5">
-              {spendAvailable ? null : (
-                <p className="text-xs text-neutral-600">
-                  {/* 花费 is dropped rather than summed from the purchases that
-                      did carry a price — a partial sum looks like a total. */}
-                  <Trans>有购买事件没有带价格，因此不列花费，只列购买条数。</Trans>
-                </p>
-              )}
-              <EconomyTable
-                rows={economy}
-                teamAName={names.A}
-                teamBName={names.B}
-                activeRound={context.round}
-                onSelect={(round) => updateContext({ round })}
-                spendAvailable={spendAvailable}
-              />
-            </div>
-          ))}
-
-        {gate.fallback !== null || degraded === null ? null : (
-          <p className="border-t border-divider px-3.5 py-2.5 text-xs text-neutral-600">
-            {/* The service's own English sentence, verbatim, so a bug report can
-                quote the reason the block above is degraded. */}
-            <Trans>说明：{degraded}</Trans>
-          </p>
-        )}
-      </ViewPanel>
-
-      <SelectedRoundLine round={context.round} />
-    </ViewFrame>
-  );
+            <dl className="divide-y divide-divider border-t border-divider text-sm">
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备价值</Trans></dt><dd className="font-mono">{money(selected.a)} / {money(selected.b)}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>购买类型</Trans></dt><dd>{selected.aBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.aBuyType])} / {selected.bBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.bBuyType])}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备差额</Trans></dt><dd>{difference === null ? NO_VALUE : difference === 0 ? t`持平` : `${difference > 0 ? names.A : names.B} +${money(Math.abs(difference))}`}</dd></div>
+            </dl>
+          </>}
+        </section>
+      </div>
+      <details className="rounded-lg border border-divider" open={context.player !== null}>
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium"><Trans>选手道具明细</Trans></summary>
+        <UtilityTable rows={rows} activePlayerId={context.player} onSelect={(player) => updateContext({ player })} damageAvailable={damageAvailable} flashAvailable={flashAvailable} />
+        {selectedPlayer === undefined ? null : <div className="border-t border-divider p-4"><PlayerUtilityDetail row={selectedPlayer} damageAvailable={damageAvailable} flashAvailable={flashAvailable} /></div>}
+      </details>
+      <details className="rounded-lg border border-divider">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium"><Trans>购买明细</Trans></summary>
+        <EconomyTable rows={purchases} teamAName={names.A} teamBName={names.B} activeRound={selected?.round ?? null} onSelect={(round) => updateContext({ round, player: null })} spendAvailable={spendAvailable} />
+        {selectedPurchases === undefined ? null : <div className="border-t border-divider p-4"><RoundEconomyDetail row={selectedPurchases} spendAvailable={spendAvailable} /></div>}
+      </details>
+    </>}
+  </ViewFrame>;
 }
 
 /* ── the Inspector ───────────────────────────────────────────────────────── */
@@ -626,90 +471,4 @@ function DetailCell({ label, value }: { readonly label: ReactNode; readonly valu
   );
 }
 
-function UtilityInspector({ demoId, context, updateContext, addToVideo, collapsed }: MatchViewProps) {
-  const analysis = useMatchAnalysis(demoId === '' ? null : demoId);
-  const index = useMemo(() => rosterIndex(analysis.data), [analysis.data]);
-  const insights = analysis.data?.insights;
-  const rows = useMemo(() => utilityRows(insights, index), [insights, index]);
-  const economy = useMemo(
-    () => economyRows(insights, analysis.data?.rounds ?? []),
-    [insights, analysis.data],
-  );
-
-  const damageAvailable = insights?.availability.utility_damage.available ?? false;
-  const flashAvailable = insights?.availability.flash_effects.available ?? false;
-  const spendAvailable = insights?.availability.purchase_spend.available ?? false;
-
-  const effectivePlayerId = context.player
-    ?? (context.round === null ? rows[0]?.playerId ?? null : null);
-  const player: RosterEntry | undefined = effectivePlayerId === null
-    ? undefined
-    : index.get(effectivePlayerId);
-  const utilityRow = effectivePlayerId === null
-    ? undefined
-    : rows.find((row) => row.playerId === effectivePlayerId);
-  const economyRow = context.round === null ? undefined : economy.find((row) => row.round === context.round);
-
-  if (utilityRow !== undefined) {
-    return (
-      <MatchInspectorPanel
-        title={<Trans>选中：{player?.name ?? utilityRow.name}</Trans>}
-        summary={<Trans>{utilityRow.name} · 投出 {utilityRow.throws}</Trans>}
-        addToVideo={addToVideo}
-        addLabel={<Trans>把这名选手加入作品</Trans>}
-        selection={{ playerId: utilityRow.playerId }}
-        collapsed={collapsed}
-        secondaryActions={
-          <Button variant="secondary" size="sm" grow onClick={() => updateContext({ view: 'players' })}>
-            <Trans>单场记分板</Trans>
-          </Button>
-        }
-      >
-        <PlayerUtilityDetail
-          row={utilityRow}
-          damageAvailable={damageAvailable}
-          flashAvailable={flashAvailable}
-        />
-      </MatchInspectorPanel>
-    );
-  }
-
-  if (economyRow !== undefined) {
-    return (
-      <MatchInspectorPanel
-        title={<Trans>选中：第 {economyRow.round} 回合</Trans>}
-        summary={<Trans>第 {economyRow.round} 回合的购买</Trans>}
-        addToVideo={addToVideo}
-        addLabel={<Trans>把这个回合加入作品</Trans>}
-        selection={{ round: economyRow.round }}
-        collapsed={collapsed}
-        secondaryActions={
-          <Button variant="secondary" size="sm" grow onClick={() => updateContext({ view: 'rounds' })}>
-            <Trans>逐回合复盘</Trans>
-          </Button>
-        }
-      >
-        <RoundEconomyDetail row={economyRow} spendAvailable={spendAvailable} />
-      </MatchInspectorPanel>
-    );
-  }
-
-  return (
-    <MatchInspectorPanel
-      title={<Trans>选中项</Trans>}
-      summary={<Trans>未选中任何选手或回合</Trans>}
-      addToVideo={addToVideo}
-      collapsed={collapsed}
-    >
-      <p className="text-sm text-neutral-700">
-        <Trans>点道具表的一行看这名选手的投掷物构成，点经济表的一行看这个回合的购买。</Trans>
-      </p>
-    </MatchInspectorPanel>
-  );
-}
-
-export const UtilityView: MatchViewModule = {
-  id: 'utility',
-  Body: UtilityBody,
-  Inspector: UtilityInspector,
-};
+export const UtilityView: MatchViewModule = { id: 'utility', Body: UtilityBody };

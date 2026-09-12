@@ -61,7 +61,6 @@ describe('经济 — by side, and it says so', () => {
 
   it('states in the panel head that the totals are per side, not per team', () => {
     expect(html).toContain('data-match-panel="economy"');
-    expect(html).toContain('购买事件带的是当回合的阵营，不是队伍');
     expect(html).toContain('CT 购买');
     expect(html).toContain('T 花费');
   });

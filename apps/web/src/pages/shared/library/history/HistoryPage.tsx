@@ -127,9 +127,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
           height={embedded ? 'bar' : 'topbar'}
           title={<Trans>比赛历史</Trans>}
           meta={
-            syncedAt === null ? (
-              <Trans>Steam 上的对局记录与回放下载</Trans>
-            ) : (
+            syncedAt === null ? null : (
               <Trans>Steam · 上次同步 {formatSyncedAt(syncedAt)}</Trans>
             )
           }

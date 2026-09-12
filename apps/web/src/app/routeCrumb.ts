@@ -68,7 +68,6 @@ const CRUMB_OVERRIDES: readonly CrumbOverride[] = [
   { pattern: /^\/match\/[^/]+$/u, base: 'library', leaf: msg`比赛工作区` },
   { pattern: /^\/players\/[^/]+$/u, base: 'players', leaf: msg`玩家档案` },
   { pattern: /^\/projects\/[^/]+$/u, base: 'projects', leaf: msg`作品工作区` },
-  { pattern: /^\/delivery\/task\/[^/]+$/u, base: 'outputs', leaf: msg`后台任务详情` },
   /* Frame draws no rail entry for it; `activeNavItemId` lights 设置与诊断,
      which is the group-less footer item, so that label is the head. */
   { pattern: /^\/recovery$/u, base: 'settings', leaf: msg`恢复中心` },
@@ -102,6 +101,10 @@ function groupLabel(id: ShellNavItemId): MessageDescriptor | null {
  */
 export function routeCrumb(pathname: string, search = ''): readonly CrumbSegment[] {
   const path = normalizePath(pathname);
+  if (path === '/tasks') return [{ label: msg`任务中心` }];
+  if (/^\/tasks\/[^/]+$/u.test(path)) {
+    return [{ label: msg`任务中心`, to: '/tasks' }, { label: msg`任务详情` }];
+  }
 
   if (path === '/library' && new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('view') === 'steam') {
     const library = navItem('library');
@@ -127,7 +130,7 @@ export function routeCrumb(pathname: string, search = ''): readonly CrumbSegment
       : [{ label: group }, parentRung, { label: override.leaf }];
   }
 
-  const id = activeNavItemId(path, search);
+  const id = activeNavItemId(path);
   if (id === null) return [];
   const item = navItem(id);
   if (item === null) return [];

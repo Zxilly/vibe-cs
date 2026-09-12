@@ -230,7 +230,7 @@ function RowAction({
     // 「查看」 — the run itself lives on the delivery task list, which is where
     // §7 puts 「分析、录制与导出的执行记录」.
     existing = (
-      <RouteLink to="/delivery?view=tasks">
+      <RouteLink to="/tasks">
         <Trans>查看</Trans>
       </RouteLink>
     );

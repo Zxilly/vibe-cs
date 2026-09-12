@@ -67,7 +67,7 @@ export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
       <TaskCard task={summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">
-          <RouteLink to="/delivery?view=tasks" size="sm">
+          <RouteLink to="/tasks" size="sm">
             <Trans>另有 {failed - 1} 条失败记录</Trans>
           </RouteLink>
         </p>

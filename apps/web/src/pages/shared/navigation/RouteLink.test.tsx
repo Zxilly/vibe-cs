@@ -39,10 +39,10 @@ describe('RouteLink', () => {
   it('carries the query through', () => {
     const html = renderMarkup(
       <MemoryRouter>
-        <RouteLink to="/delivery?view=tasks">任务记录</RouteLink>
+        <RouteLink to="/tasks">任务记录</RouteLink>
       </MemoryRouter>,
     );
-    expect(html).toContain('href="/delivery?view=tasks"');
+    expect(html).toContain('href="/tasks"');
   });
 
   it('keeps the design layer’s link treatment rather than restyling it', () => {

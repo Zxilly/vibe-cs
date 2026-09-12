@@ -63,6 +63,7 @@ const FORBIDDEN_IMPORTS = {
   pages: ['app'],
   app: ['pages'],
 };
+const PAGE_MODES = new Set(['editing', 'analysis', 'shared']);
 
 /** Rule 6: layers that must reach the desktop IPC client through `data/**`. */
 const NO_DIRECT_DESKTOP_CLIENT = new Set(['pages', 'domain']);
@@ -440,6 +441,14 @@ function checkImports({ file, layer, source, failures }) {
     if (!target) continue;
 
     const at = `${file}:${lineOf(source, match.index)}`;
+    if (layer === 'pages' && target === 'pages') {
+      const owner = file.split('/')[1];
+      const dependency = resolved.split('/')[1];
+      if (PAGE_MODES.has(owner) && PAGE_MODES.has(dependency) && owner !== dependency && dependency !== 'shared') {
+        failures.push(`${at}: pages/${owner}/** must not import pages/${dependency}/**; move shared behavior into domain/** or pages/shared/** (${specifier})`);
+        continue;
+      }
+    }
     if (forbidden.includes(target)) {
       failures.push(`${at}: ${layer}/** must not import ${target}/** (${specifier})`);
       continue;

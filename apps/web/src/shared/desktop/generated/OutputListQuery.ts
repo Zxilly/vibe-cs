@@ -4,6 +4,7 @@ import type { OutputAvailability } from "./OutputAvailability";
 import type { OutputKind } from "./OutputKind";
 
 export type OutputListQuery = {
+  project_id?: string;
   page?: number;
   page_size?: number;
   kind?: OutputKind;

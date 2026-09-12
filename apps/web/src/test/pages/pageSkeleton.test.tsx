@@ -125,8 +125,8 @@ const PAGES: readonly PageCase[] = [
     title: '成品',
   },
   {
-    pattern: '/delivery/task/:taskId',
-    at: '/delivery/task/t-42',
+    pattern: '/tasks/:taskId',
+    at: '/tasks/t-42',
     Component: TaskDetailPage,
     title: '后台任务详情',
   },

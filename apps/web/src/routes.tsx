@@ -31,6 +31,9 @@ const DeliveryPage = lazy(async () => ({ default: (await import('./pages/editing
 const TaskDetailPage = lazy(async () => ({
   default: (await import('./pages/shared/tasks/TaskDetailPage')).TaskDetailPage,
 }));
+const TaskCenterPage = lazy(async () => ({
+  default: (await import('./pages/shared/tasks/TaskCenterPage')).TaskCenterPage,
+}));
 const SettingsPage = lazy(async () => ({ default: (await import('./pages/shared/settings/SettingsPage')).SettingsPage }));
 const RecoveryPage = lazy(async () => ({ default: (await import('./pages/shared/settings/RecoveryPage')).RecoveryPage }));
 const GuidePage = lazy(async () => ({ default: (await import('./pages/shared/onboarding/GuidePage')).GuidePage }));
@@ -45,7 +48,8 @@ export const APP_PAGES = {
   projects: <ProjectsPage />,
   projectWorkspace: <ProjectWorkspacePage />,
   delivery: <DeliveryPage />,
-  deliveryTask: <TaskDetailPage />,
+  tasks: <TaskCenterPage />,
+  taskDetail: <TaskDetailPage />,
   settings: <SettingsPage />,
   recovery: <RecoveryPage />,
   guide: <GuidePage />,
@@ -61,7 +65,8 @@ export const ROUTE_PATHS = [
   '/projects',
   '/projects/:projectId',
   '/delivery',
-  '/delivery/task/:taskId',
+  '/tasks',
+  '/tasks/:taskId',
   '/settings',
   '/recovery',
   '/guide',
@@ -83,7 +88,8 @@ export const appRoutes: RouteObject[] = [
       { id: 'projects', path: 'projects', element: APP_PAGES.projects },
       { id: 'project-workspace', path: 'projects/:projectId', element: APP_PAGES.projectWorkspace },
       { id: 'delivery', path: 'delivery', element: APP_PAGES.delivery },
-      { id: 'delivery-task', path: 'delivery/task/:taskId', element: APP_PAGES.deliveryTask },
+      { id: 'tasks', path: 'tasks', element: APP_PAGES.tasks },
+      { id: 'task-detail', path: 'tasks/:taskId', element: APP_PAGES.taskDetail },
       { id: 'settings', path: 'settings', element: APP_PAGES.settings },
       { id: 'recovery', path: 'recovery', element: APP_PAGES.recovery },
       { id: 'guide', path: 'guide', element: APP_PAGES.guide },

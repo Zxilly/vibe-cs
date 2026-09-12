@@ -20,7 +20,7 @@ import { useHref } from 'react-router-dom';
 import { Link, type LinkProps } from '../../../design/primitives';
 
 export interface RouteLinkProps extends Omit<LinkProps, 'href' | 'external'> {
-  /** A router path with its query attached, e.g. `/delivery?view=tasks`. */
+  /** A router path with its query attached, e.g. `/tasks`. */
   readonly to: string;
 }
 

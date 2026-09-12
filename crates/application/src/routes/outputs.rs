@@ -128,6 +128,8 @@ struct OutputItemDto {
 #[ts(export)]
 struct OutputListQuery {
     #[ts(optional)]
+    project_id: Option<Uuid>,
+    #[ts(optional)]
     page: Option<u32>,
     #[ts(optional)]
     page_size: Option<u32>,
@@ -408,6 +410,7 @@ async fn list_all_outputs(
     state: &AppState,
     roots: &ManagedRoots,
     kind: Option<OutputKind>,
+    project_id: Option<Uuid>,
 ) -> ApiResult<(Vec<OutputItemDto>, bool)> {
     let fetch_limit = MAXIMUM_OUTPUT_SCAN_PER_KIND.saturating_add(1);
     let (clips, exports) = tokio::try_join!(
@@ -422,7 +425,7 @@ async fn list_all_outputs(
             if kind.is_none_or(|kind| kind == OutputKind::Export) {
                 state
                     .storage
-                    .list_export_jobs_limited(None, fetch_limit)
+                    .list_export_jobs_limited(project_id, fetch_limit)
                     .await
             } else {
                 Ok(Vec::new())
@@ -460,9 +463,15 @@ async fn list_outputs(
         .map(|search| search.trim().to_lowercase())
         .filter(|search| !search.is_empty());
     let roots = ManagedRoots::discover(state.data_dir()).await?;
-    let (items, scan_limited) = list_all_outputs(&state, &roots, query.kind).await?;
+    let (items, scan_limited) =
+        list_all_outputs(&state, &roots, query.kind, query.project_id).await?;
     let filtered = items
         .into_iter()
+        .filter(|item| {
+            query
+                .project_id
+                .is_none_or(|project_id| item.project_id == Some(project_id))
+        })
         .filter(|item| query.status.is_none_or(|status| item.status == status))
         .filter(|item| {
             query
@@ -1492,7 +1501,7 @@ mod tests {
         let roots = ManagedRoots::discover(fixture.root.path())
             .await
             .expect("managed roots");
-        let (items, scan_limited) = list_all_outputs(&fixture.state, &roots, None)
+        let (items, scan_limited) = list_all_outputs(&fixture.state, &roots, None, None)
             .await
             .expect("list outputs");
 
@@ -1549,7 +1558,7 @@ mod tests {
         let roots = ManagedRoots::discover(fixture.root.path())
             .await
             .expect("managed roots");
-        let (items, _) = list_all_outputs(&fixture.state, &roots, Some(OutputKind::Export))
+        let (items, _) = list_all_outputs(&fixture.state, &roots, Some(OutputKind::Export), None)
             .await
             .expect("list outputs");
         assert!(items.is_empty());
@@ -1559,6 +1568,53 @@ mod tests {
                 .expect("preview stream path"),
             source.to_string_lossy()
         );
+    }
+
+    #[tokio::test]
+    async fn project_outputs_are_filtered_before_pagination() {
+        let fixture = Fixture::new().await;
+        let selected = fixture.project().await;
+        let other = fixture.project().await;
+        for (index, project_id) in [selected, other].into_iter().enumerate() {
+            let now = Utc::now() + chrono::Duration::seconds(i64::try_from(index).unwrap());
+            fixture
+                .state
+                .storage
+                .put_export_job(ExportJobRecord {
+                    kind: "project".to_owned(),
+                    job: ExportJob {
+                        id: Uuid::new_v4(),
+                        project_id,
+                        project_revision: 1,
+                        range_start_seconds: 0.0,
+                        range_end_seconds: 3.0,
+                        status: JobStatus::Completed,
+                        progress: 1.0,
+                        output_path: String::new(),
+                        error: None,
+                        error_code: None,
+                        created_at: now,
+                        updated_at: now,
+                    },
+                })
+                .await
+                .expect("export record");
+        }
+        let Json(page) = list_outputs(
+            State(fixture.state.clone()),
+            ApiQuery(OutputListQuery {
+                project_id: Some(selected),
+                kind: Some(OutputKind::Export),
+                page: Some(1),
+                page_size: Some(1),
+                ..OutputListQuery::default()
+            }),
+        )
+        .await
+        .expect("project outputs");
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].project_id, Some(selected));
     }
 
     struct Fixture {

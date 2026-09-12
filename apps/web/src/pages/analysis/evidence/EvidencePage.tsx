@@ -160,7 +160,7 @@ export function EvidencePage() {
           meta={
             availability === undefined ? null : (
               <Trans>
-                {availability.indexed_demos} 场比赛 · {availability.indexed_items} 条规范化证据
+                {availability.indexed_demos} 场比赛 · {availability.indexed_items} 条证据
               </Trans>
             )
           }

@@ -22,6 +22,7 @@
  */
 
 import { t } from '@lingui/core/macro';
+import { useSearchParams } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
@@ -72,12 +73,14 @@ export interface OutputsViewProps {
 }
 
 export function OutputsView({ now }: OutputsViewProps) {
+  const [params] = useSearchParams();
+  const projectId = params.get('project');
   const projects = useProjects();
   const [filter, setFilter] = useState<OutputFilter>('all');
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const outputs = useOutputList({ page, page_size: OUTPUT_PAGE_SIZE, ...filterQuery(filter) });
+  const outputs = useOutputList({ page, page_size: OUTPUT_PAGE_SIZE, ...filterQuery(filter), ...(projectId === null ? {} : { project_id: projectId }) });
   const reveal = useRevealOutput();
   const remove = useDeleteOutput();
 

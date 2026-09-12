@@ -97,7 +97,7 @@ export function useTaskFeed(query: ActivityQuery, tuning: TaskQueryTuning = {}) 
 }
 
 /**
- * One activity item — the row the task detail page (`/delivery/task/:taskId`)
+ * One activity item — the row the task detail page (`/tasks/:taskId`)
  * is built from. Addressed by the `kind` + job id locator the feed uses, which
  * is why both are in the key.
  */

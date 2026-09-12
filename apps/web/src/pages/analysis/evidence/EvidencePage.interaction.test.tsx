@@ -200,7 +200,7 @@ describe('density at 248 matches and 1 284 632 rows (§10.3)', () => {
   it('truncates the top bar s meta rather than pushing the actions off it', async () => {
     const { container } = mount();
     // The fixture's availability block is the artboard's own corpus size.
-    await screen.findByText(/1284632 条规范化证据/u);
+    await screen.findByText(/1284632 条证据/u);
     const meta = container.querySelector('[data-toolbar-meta]');
     expect(meta?.className).toContain('truncate');
   });

@@ -125,7 +125,7 @@ export function SettingsPage() {
   return (
     <Page
       scroll={false}
-      toolbar={<Toolbar title={<Trans>设置与诊断</Trans>} meta={SECTION_LABEL[section]} />}
+      toolbar={<Toolbar title={<Trans>设置与诊断</Trans>} />}
       bar={collapsed ? sectionNav : null}
     >
       <div className="flex min-h-0 min-w-0 flex-1">

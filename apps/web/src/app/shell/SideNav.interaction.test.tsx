@@ -139,7 +139,7 @@ describe('current destination', () => {
     ).toBe('projects');
     expanded.unmount();
 
-    const collapsed = mount({ collapsed: true }, '/delivery?view=tasks');
+    const collapsed = mount({ collapsed: true }, '/delivery');
     expect(collapsed.container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
     expect(
       collapsed.container.querySelector('[aria-current="page"]')?.getAttribute('data-nav-item'),
@@ -157,7 +157,6 @@ describe('tab order', () => {
     expect(stops).toEqual([
       'home',
       'library',
-      'agent',
       'projects',
       'outputs',
       'settings',

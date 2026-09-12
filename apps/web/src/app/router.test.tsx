@@ -18,7 +18,7 @@ function withSampleParams(pattern: string): string {
   return pattern.replaceAll(/:[A-Za-z]+\??/gu, 'sample');
 }
 
-/** `/delivery?view=tasks` → `/delivery`; `matchRoutes` takes a path, not a URL. */
+/** `matchRoutes` takes a path without its query. */
 function pathOnly(to: string): string {
   return to.split('?')[0] ?? to;
 }
@@ -33,7 +33,7 @@ describe('application routes', () => {
   });
 
   it('declares the current destinations and one catch-all inside the shell', () => {
-    expect(ROUTE_PATHS).toHaveLength(13);
+    expect(ROUTE_PATHS).toHaveLength(14);
 
     const shell = appRoutes.find((route) => route.id === 'app-shell');
     expect(shell?.children?.some((child) => child.id === 'not-found')).toBe(true);
@@ -50,7 +50,7 @@ describe('application routes', () => {
 
   it('keeps the task detail out of the delivery route despite the shared prefix', () => {
     expect(routeIdFor('/delivery')).toBe('delivery');
-    expect(routeIdFor('/delivery/task/t-42')).toBe('delivery-task');
+    expect(routeIdFor('/tasks/t-42')).toBe('task-detail');
   });
 
   it('gives every §7 route its own id, so a match can be identified', () => {

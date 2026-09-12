@@ -1,5 +1,5 @@
 /*
- * pages/delivery — the body of `/delivery/task/:taskId`, once the record has
+ * pages/delivery — the body of `/tasks/:taskId`, once the record has
  * arrived.
  *
  * `TaskDetailPage` owns the address, the frame and the three states a record

@@ -1,32 +1,4 @@
-/*
- * pages/ — 使用引导 (§7 `/guide`, phase 3g).
- *
- * ═══════════════════════════════════════════════════════════════════════════
- *  Why this page exists at all, given the board wanted it gone
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * 「02 补齐 · 暗色与其余页面」 lists GuidePage among the pages to retire, with
- * the note 「工作台首页已接管入口，引导建议改成首次使用时的三步提示条」. §10
- * kept it anyway, and both halves of that decision are built:
- *
- *   · the **three-step strip** is on the workbench, shown only while the
- *     library is empty (`home/FirstRunStrip`);
- *   · this page keeps the one thing the strip cannot carry — the **environment
- *     self-check**, item by item, with a way to re-run it.
- *
- * The old `features/guide/GuidePage.tsx` was 198 lines of exactly that: a
- * `quickCheck` readout plus a row of entry cards. Retiring the page would have
- * retired the readout with it, and 「为什么录制起不来」 is the question a new
- * user has on day one.
- *
- * ── It is not 设置 · 高级与诊断 ───────────────────────────────────────────
- *
- * That section lists every check with its raw state, for someone diagnosing a
- * problem they already have. This page answers 「我现在能做什么」: the same
- * checks, grouped by what they enable, and each one saying what still works
- * without it. A missing HLAE stops recording and stops nothing else, and a
- * first-time user needs to know they can still import and analyse today.
- */
+/** Environment readiness, grouped by the operations available on this machine. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';

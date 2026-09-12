@@ -17,11 +17,11 @@ describe('RouteLink in hash mode', () => {
   it('prefixes the address with the hash the router owns', () => {
     const { container } = renderInteractive(
       <HashRouter>
-        <RouteLink to="/delivery?view=tasks">任务记录</RouteLink>
+        <RouteLink to="/tasks">任务记录</RouteLink>
       </HashRouter>,
     );
 
-    expect(container.querySelector('a')?.getAttribute('href')).toBe('#/delivery?view=tasks');
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('#/tasks');
   });
 
   it('navigates without a reload, which is what hash routing buys', () => {

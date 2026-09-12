@@ -59,6 +59,24 @@ after(() => {
   for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
 });
 
+describe('page module ownership', () => {
+  for (const [owner, dependency] of [['editing', 'analysis'], ['analysis', 'editing'], ['shared', 'editing'], ['shared', 'analysis']]) {
+    it(`rejects pages/${owner} importing pages/${dependency}`, () => {
+      const failure = onlyFailure(run({
+        [`pages/${owner}/screen/Page.tsx`]: `import { view } from '../../${dependency}/screen/View';`,
+      }));
+      assert.match(failure, /move shared behavior/);
+    });
+  }
+  it('allows both modes to use shared UI and domain modules', () => {
+    const result = run({
+      'pages/editing/editor/Page.tsx': "import { link } from '../../shared/navigation/RouteLink'; import { timeline } from '../../../domain/editing/ProjectTimeline';",
+      'pages/analysis/match/Page.tsx': "import { dialog } from '../../../domain/project/AddToProjectDialog';",
+    });
+    assert.deepEqual(result.failures, []);
+  });
+});
+
 describe('rule 1 — design/** imports nothing above it', () => {
   for (const [layer, specifier] of [
     ['domain', '../../domain/match/EvidenceRow'],

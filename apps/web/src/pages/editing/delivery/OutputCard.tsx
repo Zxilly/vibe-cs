@@ -48,7 +48,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
     <>
       <Blueprint as="article" data-output={output.id} data-output-kind={output.output_kind}
         data-output-availability={output.availability} data-output-emphasized={emphasized ? 'true' : undefined}
-        className={cn('grid min-h-26 border-x border-b', OUTPUT_ROW_COLUMNS,
+        className={cn('grid min-h-30 border-x border-b', OUTPUT_ROW_COLUMNS,
           usable ? 'border-divider' : 'border-fail-border', emphasized && usable ? 'bg-accent-100' : 'bg-bg', className)}>
         <div className="flex items-center justify-center px-4 py-2">
           <button type="button" className="relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-sm border border-divider bg-media text-on-media"
@@ -67,7 +67,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           </p>}
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
-            {sourceTaskId === null ? null : <RouteLink to={`/delivery/task/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>来源任务</Trans></RouteLink>}
+            {sourceTaskId === null ? null : <RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>来源任务</Trans></RouteLink>}
           </div>
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2 text-xs text-neutral-600">
@@ -93,7 +93,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
             <dt className="text-neutral-600"><Trans>文件参数</Trans></dt><dd>{facts.join(' · ') || t`参数不可读取`}</dd>
             <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{output.path}</dd>
           </dl>
-          <p className="text-sm text-neutral-700">{usable ? <Trans>文件可读取；仍需人工观看检查黑帧、音画同步与剪辑内容。</Trans> : <Trans>文件已不在原位，记录仍然保留。</Trans>}</p>
+          {usable ? null : <p className="text-sm text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
             <Button size="sm" variant="secondary" onClick={async () => {
@@ -113,7 +113,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
 }
 
 export function OutputCardSkeleton() {
-  return <div role="status" aria-busy="true" className="flex min-h-26 gap-4 border border-divider p-4">
+  return <div role="status" aria-busy="true" className="flex min-h-30 gap-4 border border-divider p-4">
     <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse bg-neutral-200" />
     <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-100" /></div>
   </div>;

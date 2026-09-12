@@ -63,7 +63,6 @@ export function EvidenceDetail({
       <Inspector title={<Trans>证据详情</Trans>} label={t`证据详情`}>
         <Empty
           title={<Trans>还没有选中证据</Trans>}
-          description={<Trans>点一行结果，这里会给出它的比赛、回合、tick 和可以做的事。</Trans>}
           actions={null}
         />
       </Inspector>

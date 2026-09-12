@@ -74,7 +74,6 @@ export function RecoveryPage() {
       toolbar={
         <Toolbar
           title={<Trans>恢复中心</Trans>}
-          meta={<Trans>数据库、缓存与中断任务的修复</Trans>}
         />
       }
     >

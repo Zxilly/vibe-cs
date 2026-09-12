@@ -38,7 +38,7 @@ describe('routeCrumb', () => {
       crumb('/montage'),
       crumb('/delivery'),
       crumb('/delivery', '?view=tasks'),
-      crumb('/delivery/task/t-42'),
+      crumb('/tasks/t-42'),
     ].join('\n');
 
     for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
@@ -71,7 +71,7 @@ describe('routeCrumb', () => {
   it('names the leaf for the four §7 routes the rail cannot list', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
     expect(crumb('/players/kael')).toBe('分析 › 玩家目录 › 玩家档案');
-    expect(crumb('/delivery/task/t-42')).toBe('交付 › 成品文件 › 后台任务详情');
+    expect(crumb('/tasks/t-42')).toBe('任务中心 › 任务详情');
     expect(crumb('/projects/plan%3Ap-1')).toBe('制作 › 作品 › 作品工作区');
     // The footer entry has no group heading, so its own label opens the crumb —
     // once, carrying the destination rather than being repeated as a heading.

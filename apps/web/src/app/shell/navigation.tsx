@@ -1,33 +1,4 @@
-/*
- * App shell — the primary navigation table.
- *
- * Source of truth: `Frame.dc.html` in the Claude Design project
- * (f5cf6827-461a-4508-837f-4d18ba7d192f). Its `renderVals()` spells the four
- * groups out, in order, with the icon path and the badge each entry carries:
- *
- *   ''      工作台
- *   资料库   Demo 资料库 · 比赛历史 · 玩家目录 · 证据检索
- *   制作     Agent 创作 (badge) · 录制计划 · 快速合辑 · 多轨编辑
- *   交付     输出 · 任务记录 (badge)
- *   footer  设置与诊断        (drawn below a `flex:1` spacer, above a top rule)
- *
- * The destinations are spec §7's route table. Two entries there are not nav
- * entries and are reached from a page instead:
- *   · `/match/:demoId` — opened from the library; the 1100×700 artboard proves
- *     it, drawing the match workspace (crumb 「Aurora vs Meridian › 概览」)
- *     with the *library* icon lit, so the workspace lights 资料库.
- *   · `/recovery` — Frame draws no entry for it. It lights 设置与诊断, whose
- *     own label already names diagnostics.
- *
- * The 交付 group is two entries onto one route: §7 gives `/delivery` a
- * `?view=outputs|tasks` query, and Frame lists 输出 and 任务记录 separately. So
- * "which entry is current" is a function of pathname *and* query, which is why
- * matching is a function here rather than react-router's `NavLink` isActive.
- *
- * Labels are `msg` descriptors (spec §5.2) rather than `<Trans>` nodes: the
- * collapsed rail needs the same string as a flyout, as the link's accessible
- * name, and as a `title`, and a descriptor renders into all three.
- */
+/** Mode-specific navigation. Shared routes retain the current workspace mode. */
 
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
@@ -38,7 +9,6 @@ import {
   Home,
   Search,
   Settings,
-  Sparkles,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -50,7 +20,6 @@ export type ShellNavItemId =
   | 'library'
   | 'players'
   | 'evidence'
-  | 'agent'
   | 'projects'
   | 'outputs'
   | 'settings';
@@ -90,7 +59,6 @@ const EDIT_NAV_GROUPS: readonly ShellNavGroup[] = [
     id: 'production',
     label: msg`制作`,
     items: [
-      { id: 'agent', label: msg`Agent 创作`, icon: Sparkles, to: '/projects/new?step=shotlist' },
       { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
     ],
   },
@@ -147,7 +115,7 @@ const NAV_ITEM_BY_ID = new Map(
 );
 
 export const SHELL_NAV_ITEMS: readonly ShellNavItem[] = [
-  ...(['home', 'library', 'players', 'evidence', 'agent', 'projects', 'outputs'] as const)
+  ...(['home', 'library', 'players', 'evidence', 'projects', 'outputs'] as const)
     .map((id) => NAV_ITEM_BY_ID.get(id))
     .filter((item): item is ShellNavItem => item !== undefined),
   SHELL_NAV_FOOTER_ITEM,
@@ -201,18 +169,11 @@ function normalizePath(pathname: string): string {
  *
  * `search` is the raw `location.search`, leading `?` optional.
  */
-export function activeNavItemId(pathname: string, search = ''): ShellNavItemId | null {
+export function activeNavItemId(pathname: string): ShellNavItemId | null {
   const path = normalizePath(pathname);
   if (path === '/') return 'home';
 
-  if (path === '/projects/new') {
-    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-    if (params.get('step') === 'shotlist') return 'agent';
-  }
-
   if (path === '/delivery' || path.startsWith('/delivery/')) {
-    /* §7: `/delivery/task/:taskId` is the task detail, which belongs to
-       任务记录 rather than to 输出. */
     return 'outputs';
   }
 

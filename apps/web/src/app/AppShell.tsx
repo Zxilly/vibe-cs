@@ -1,44 +1,5 @@
-/*
- * App shell — the frame every route renders inside (spec §10, phase 1).
- *
- * ── The composition ──────────────────────────────────────────────────────
- *
- *   ┌──────────────────────────────────────────────────────────┐
- *   │ WindowTitleBar                       48px  `--h-titlebar` │  flex-none
- *   ├──────────────────────────────────────────────────────────┤
- *   │ ServiceOfflineNotice        only while status === offline │  flex-none
- *   ├──────────┬──────────────────────────────────┬────────────┤
- *   │ SideNav  │ <main> RouteBoundary → Outlet                 │  flex-1
- *   │ 216 / 56 │ flex-1, min-w-0                               │  min-h-0
- *   └──────────┴───────────────────────────────────────────────┘
- *   CommandPalette — fixed, above everything, mounted last
- *
- * Every piece already exists: this file owns the arrangement, the three
- * decisions the artboards left to the container, and nothing else.
- *
- * ── Decision 1: who scrolls ──────────────────────────────────────────────
- *
- * Nobody above the page. `base.css` puts `overflow: hidden` on `body` because
- * the window *is* the viewport; the shell root is `h-full` and every band in it
- * is `flex-none` except the row, which is `flex-1 min-h-0`. `<main>` is
- * `overflow-hidden`, so the scroll boundary is `design/layout/Page`'s
- * `data-page-body` — one scroller per page, and the title bar, rail and Agent
- * column never move. `min-w-0` on `<main>` is what stops a wide table from
- * pushing the Agent rail off the right edge instead of scrolling inside itself.
- *
- * ── Decision 2: the stacking order ───────────────────────────────────────
- *
- * The design layer already spends z-index: sticky table head 10, OverflowMenu
- * and the collapsed rail's flyout 30, Drawer and the folded Inspector 40,
- * Dialog 50. The palette is mounted last in the shell and takes 50 as well, so
- * it sits above a page's Dialog by DOM order — which is right: Ctrl K is a
- * shell-level surface, and its scrim deliberately starts *below* the title bar
- * so the window controls stay usable while it is open. Nothing else in this
- * file positions anything, so the whole shell is one flow layer under those.
- *
- * The former right-edge Agent rail is intentionally absent. Agent remains
- * reachable from SideNav and Ctrl K until its capability moves into projects.
- */
+/** Shared window chrome, mode navigation, route boundaries and task drawer.
+ * Project workspaces use the full viewport below the window title bar. */
 
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -112,13 +73,6 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
     setMode(routeMode);
   }, [routeMode, setMode]);
 
-  useEffect(() => {
-    if (location.pathname !== '/delivery') return;
-    if (new URLSearchParams(location.search).get('view') !== 'tasks') return;
-    setActivityOpen(true);
-    void navigate('/delivery', { replace: true });
-  }, [location.pathname, location.search, navigate]);
-
   const goTo = (to: string) => {
     void navigate(to);
   };
@@ -145,7 +99,7 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         mode={mode}
         onModeChange={switchMode}
         crumb={<RouteBreadcrumb segments={crumb} />}
-        navCollapsed={navCollapsed}
+        navCollapsed={focusedProject ? false : navCollapsed}
         adapter={adapter}
         onOpenCommandPalette={palette.openPalette}
         onOpenActivity={() => setActivityOpen(true)}

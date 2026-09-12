@@ -28,7 +28,7 @@ function at(pattern: string, url: string, element: React.ReactElement): string {
 
 describe('/delivery', () => {
   const outputs = at('/delivery', '/delivery', <DeliveryPage />);
-  const tasks = at('/delivery', '/delivery?view=tasks', <DeliveryPage />);
+  const tasks = at('/delivery', '/delivery?project=p-1', <DeliveryPage />);
 
   it('is a Page with a Toolbar, not a bare div', () => {
     expect(outputs).toContain('data-page=');
@@ -65,8 +65,8 @@ describe('/delivery', () => {
   });
 });
 
-describe('/delivery/task/:taskId', () => {
-  const html = at('/delivery/task/:taskId', '/delivery/task/recording%3Ajob-1', <TaskDetailPage />);
+describe('/tasks/:taskId', () => {
+  const html = at('/tasks/:taskId', '/tasks/recording%3Ajob-1', <TaskDetailPage />);
 
   it('shows the id it was given', () => {
     expect(html).toContain('recording:job-1');
@@ -77,7 +77,7 @@ describe('/delivery/task/:taskId', () => {
   });
 
   it('answers an address that is not a locator without asking the service', () => {
-    const bad = at('/delivery/task/:taskId', '/delivery/task/t-42', <TaskDetailPage />);
+    const bad = at('/tasks/:taskId', '/tasks/t-42', <TaskDetailPage />);
     expect(bad).toContain('找不到这条任务');
   });
 });

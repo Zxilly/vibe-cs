@@ -96,8 +96,8 @@ function render(taskId: string, client: Record<string, unknown>) {
   return renderPage({
     element: <TaskDetailPage />,
     client,
-    route: `/delivery/task/${encodeURIComponent(taskId)}`,
-    pattern: '/delivery/task/:taskId',
+    route: `/tasks/${encodeURIComponent(taskId)}`,
+    pattern: '/tasks/:taskId',
   });
 }
 

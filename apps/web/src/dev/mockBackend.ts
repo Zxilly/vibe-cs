@@ -34,6 +34,7 @@
  * its check. It also makes the data unmistakably fake at a glance.
  */
 
+import { PREVIEW_DELIVERY_GATE, PREVIEW_PROJECT } from './projectFixtures';
 import type {
   ActivityFeed,
   AgentSessionPage,
@@ -616,17 +617,24 @@ function analysisOf(demoId: string): MatchAnalysisRecord {
   const teamA = ['s1mple', 'b1t', 'Aleksib', 'jL', 'iM'];
   const teamB = ['ropz', 'karrigan', 'rain', 'frozen', 'broky'];
   const tickRate = 64;
-  const rounds = Array.from({ length: source.total_rounds ?? 24 }, (_unused, index) => {
+  const roundCount = source.total_rounds ?? 24;
+  const targetA = source.team_a_score ?? 13;
+  const aWinsLast = targetA > (source.team_b_score ?? 11);
+  const aBeforeLast = targetA - Number(aWinsLast);
+  let scoreA = 0;
+  let scoreB = 0;
+  const rounds = Array.from({ length: roundCount }, (_unused, index) => {
     const number = index + 1;
-    const aWins = number % 3 !== 0;
+    const aWins = index === roundCount - 1 ? aWinsLast : Math.floor((index + 1) * aBeforeLast / (roundCount - 1)) > Math.floor(index * aBeforeLast / (roundCount - 1));
+    if (aWins) scoreA += 1; else scoreB += 1;
     return {
       number,
       start_tick: 10_000 + index * 7_400,
       end_tick: 10_000 + index * 7_400 + 6_100,
       winner: aWins ? 'A' : 'B',
       reason: aWins ? 'elimination' : 'bomb_defused',
-      team_a_score: Math.ceil(((index + 1) * 2) / 3),
-      team_b_score: Math.floor((index + 1) / 3),
+      team_a_score: scoreA,
+      team_b_score: scoreB,
       events: [],
     };
   });
@@ -688,12 +696,20 @@ function analysisOf(demoId: string): MatchAnalysisRecord {
       },
     ],
     insights: {
-      round_economy: [],
+      round_economy: rounds.map((round, index) => ({
+        round: round.number, freeze_end_tick: round.start_tick + 960,
+        team_equipment: [
+          { team: 'A', buy_type: index % 12 === 0 ? 'pistol' : (['full_buy', 'semi_buy', 'full_buy', 'full_buy', 'eco', 'full_buy'] as const)[index % 6]!, side: index < 12 ? 'T' : 'CT', equipment_value: index % 12 === 0 ? 3_500 : [24_200, 8_600, 26_400, 22_500, 4_200, 25_800][index % 6]! },
+          { team: 'B', buy_type: index % 12 === 0 ? 'pistol' : (['full_buy', 'full_buy', 'force_buy', 'semi_buy', 'full_buy', 'full_buy'] as const)[index % 6]!, side: index < 12 ? 'CT' : 'T', equipment_value: index % 12 === 0 ? 3_600 : [23_800, 25_200, 7_400, 21_800, 26_600, 24_200][index % 6]! },
+        ],
+        teams: ['CT', 'T'].map((team) => ({ team, purchase_count: 10, items: [], spend: 15_000 })),
+        unattributed_purchase_count: 0,
+      })),
       player_utility: [],
       matchups: [],
       availability: {
-        purchase_events: { available: false, reason: '浏览器模式没有采样这份数据。' },
-        purchase_spend: { available: false, reason: '浏览器模式没有采样这份数据。' },
+        purchase_events: { available: true, reason: null },
+        purchase_spend: { available: true, reason: null },
         utility_events: { available: false, reason: '浏览器模式没有采样这份数据。' },
         utility_damage: { available: false, reason: '浏览器模式没有采样这份数据。' },
         flash_effects: { available: false, reason: '浏览器模式没有采样这份数据。' },
@@ -1023,10 +1039,27 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['GET', '/review-tags', () => REVIEW_TAGS],
 
   /* activity, outputs */
-  ['GET', '/activities', () => ACTIVITIES],
+  ['GET', '/activities', ({ query }) => {
+    const projectId = query.get('project_id');
+    const state = query.get('state');
+    const scoped = ACTIVITIES.items.filter((item) => projectId === null || item.context_id === projectId);
+    const filtered = scoped.filter((item) => state === null || (state === 'active'
+      ? !['completed', 'failed', 'cancelled'].includes(item.status) : item.status === state));
+    const page = Math.max(1, Number(query.get('page') ?? 1));
+    const pageSize = Math.max(1, Number(query.get('page_size') ?? 20));
+    return { ...ACTIVITIES, items: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, page_size: pageSize };
+  }],
   ['GET', '/activities/:kind/:id', ({ params }) =>
     ACTIVITIES.items.find((item) => item.id === `${params.kind}:${params.id}`) ?? ACTIVITIES.items[0]],
-  ['GET', '/outputs', () => OUTPUTS],
+  ['GET', '/outputs', ({ query }) => {
+    const items = OUTPUTS.items.filter((item) =>
+      (!query.has('project_id') || item.project_id === query.get('project_id'))
+      && (!query.has('kind') || item.output_kind === query.get('kind'))
+      && (!query.has('status') || item.status === query.get('status')));
+    const page = Math.max(1, Number(query.get('page') ?? 1));
+    const pageSize = Math.max(1, Number(query.get('page_size') ?? 20));
+    return { ...OUTPUTS, items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, page_size: pageSize };
+  }],
 
   /* players, lineups, history */
   ['GET', '/players', () => PLAYERS],
@@ -1095,6 +1128,13 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['POST', '/recording/jobs/:id/cancel', () => ({ ...RECORDING_JOB_DETAIL, status: 'cancelling' as const })],
 
   /* editing and delivery */
+  ['GET', '/projects', () => [PREVIEW_PROJECT]],
+  ['GET', '/projects/:id', () => PREVIEW_PROJECT],
+  ['GET', '/projects/:id/delivery-gate', () => PREVIEW_DELIVERY_GATE],
+  ['GET', '/projects/:id/change-groups', () => []],
+  ['GET', '/projects/:id/edit-lease', () => null],
+  ['GET', '/projects/:id/render-previews', () => []],
+  ['GET', '/projects/:id/nested-sequences', () => []],
   ['GET', '/editor/presets', () => ({ items: [] })],
   ['GET', '/media/assets', () => ({ items: MEDIA_ASSETS })],
   ['GET', '/recorded-clips', () => paged(RECORDED_CLIPS)],

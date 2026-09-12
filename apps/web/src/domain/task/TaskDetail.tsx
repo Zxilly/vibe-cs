@@ -267,18 +267,11 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
     )}>
       <div className="flex h-[var(--h-thead)] flex-none items-center gap-2.5 border-b border-divider px-2.5 font-heading text-xs tracking-caps">
         <Trans>阶段日志</Trans>
-        {/* The heading carries `--tracking-caps`; the hint beside it is prose
-            and returns to normal spacing. There is no `tracking-normal` in this
-            theme (§3 resets `--tracking-*`), so it is spelled out. */}
-        <span className="text-xs [letter-spacing:normal] text-neutral-600">
-          <Trans>用户语言；实现细节收在「技术细节」里</Trans>
-        </span>
       </div>
 
       {log.entries.length === 0 ? (
         <Empty
           title={<Trans>还没有阶段日志</Trans>}
-          description={<Trans>任务每进入一个阶段，都会在这里留下一行。</Trans>}
           headingLevel={3}
           /* No recovery action: an empty log is not a fault to recover from —
              the task simply has not reached its first stage. `Empty`

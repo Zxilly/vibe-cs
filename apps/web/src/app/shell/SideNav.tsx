@@ -79,7 +79,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
 
   const isCollapsed = collapsed ?? (storedCollapsed || viewportFolded);
   const groups = shellNavGroups(mode ?? storedMode);
-  const activeId = activeNavItemId(location.pathname, location.search);
+  const activeId = activeNavItemId(location.pathname);
   const toggle = onToggleCollapsed ?? toggleNav;
 
   const renderItem = (item: ShellNavItem, groupLabel: string | null, footer = false) => {

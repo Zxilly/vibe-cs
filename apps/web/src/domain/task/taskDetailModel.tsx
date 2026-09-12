@@ -1,5 +1,5 @@
 /*
- * pages/delivery — what `/delivery/task/:taskId` has to work out before
+ * pages/delivery — what `/tasks/:taskId` has to work out before
  * `domain/task/TaskDetail` can draw.
  *
  * ── The address ───────────────────────────────────────────────────────────

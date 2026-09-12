@@ -33,7 +33,7 @@ import { taskStatusOfActivity, toTaskSummary } from './taskModel';
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {
-  return `/delivery/task/${encodeURIComponent(item.id)}`;
+  return `/tasks/${encodeURIComponent(item.id)}`;
 }
 
 export interface TaskCardBindings {
@@ -66,8 +66,8 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
   /*
    * `domain/task`'s `TaskLink.href` reaches `design/primitives/Link`, which
    * takes a plain href and knows nothing about the router — deliberately, per
-   * its own note. The router is in hash mode (§1.1), where `/delivery/task/x`
-   * has to be written `#/delivery/task/x`, and `useHref` is react-router's
+   * its own note. The router is in hash mode (§1.1), where `/tasks/x`
+   * has to be written `#/tasks/x`, and `useHref` is react-router's
    * answer. It cannot be called per link (the number of links varies per
    * render), so the prefix is resolved once from the root path and applied by
    * hand. `RouteLink` does the same thing for a single destination.

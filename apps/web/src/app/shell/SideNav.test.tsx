@@ -67,8 +67,8 @@ describe('SideNav, expanded', () => {
 
   it('keeps delivery queries on the one finished-files entry', () => {
     expect(currentIds(nav({}, '/delivery?view=outputs'))).toEqual(['outputs']);
-    expect(currentIds(nav({}, '/delivery?view=tasks'))).toEqual(['outputs']);
-    expect(currentIds(nav({}, '/delivery/task/A-2481'))).toEqual(['outputs']);
+    expect(currentIds(nav({}, '/tasks'))).toEqual([]);
+    expect(currentIds(nav({}, '/tasks/A-2481'))).toEqual([]);
   });
 
   it('marks nothing when the route is outside the rail', () => {
@@ -125,7 +125,7 @@ describe('SideNav modes', () => {
   it('shows creation destinations in editing mode', () => {
     const html = nav({ mode: 'edit' });
     expect(html).toContain('data-nav-item="home"');
-    expect(html).toContain('data-nav-item="agent"');
+    expect(html).not.toContain('data-nav-item="agent"');
     expect(html).toContain('data-nav-item="projects"');
     expect(html).toContain('data-nav-item="outputs"');
     expect(html).not.toContain('data-nav-item="players"');

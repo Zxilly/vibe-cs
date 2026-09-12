@@ -140,7 +140,7 @@ describe('AppShell — the title bar crumb', () => {
   });
 
   it('reads the query, so 输出 and 任务记录 are told apart on one path', () => {
-    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '成品文件']);
+    expect(rungs('/tasks')).toEqual(['任务中心']);
     expect(rungs('/delivery')).toEqual(['交付', '成品文件']);
   });
 
@@ -194,7 +194,7 @@ describe('AppShell — the §8 fold at 1100 × 700', () => {
     // The sparkle item survives the fold: it is the artboard's own entry point
     // and the reason the right column can go.
     expect(html).toContain('data-nav-item="projects"');
-    expect(html).toContain('data-nav-item="agent"');
+    expect(html).not.toContain('data-nav-item="agent"');
   });
 
   it('renders the expanded rail at full width when nothing is folded', () => {

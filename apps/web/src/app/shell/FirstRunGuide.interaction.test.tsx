@@ -5,12 +5,12 @@ import { renderInteractive } from '../../test/render';
 import { FirstRunGuide } from './FirstRunGuide';
 
 describe('FirstRunGuide', () => {
-  it('explains the shared data model and starts from editing mode', () => {
-    const { getByText } = renderInteractive(
+  it('offers the two modes directly and starts from editing mode', () => {
+    const { queryByText } = renderInteractive(
       <FirstRunGuide open initialMode="edit" onChoose={() => undefined} onDismiss={() => undefined} />,
     );
 
-    expect(getByText(/同一份 Demo/u)).toBeTruthy();
+    expect(queryByText(/同一份 Demo/u)).toBeNull();
     expect(document.querySelector('[data-first-run-mode="edit"]')?.getAttribute('aria-pressed')).toBe('true');
     expect(document.querySelector('[data-first-run-mode="analysis"]')?.getAttribute('aria-pressed')).toBe('false');
   });

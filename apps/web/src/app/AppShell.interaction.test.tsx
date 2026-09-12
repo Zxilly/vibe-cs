@@ -32,7 +32,7 @@ function shellRouter(initial = '/library') {
           { path: 'library', element: <span data-page="library">资料库内容</span> },
           { path: 'players', element: <span data-page="players">玩家内容</span> },
           { path: 'evidence', element: <span data-page="evidence">证据内容</span> },
-          { path: 'agent', element: <span data-page="agent">创作内容</span> },
+          { path: 'tasks', element: <span data-page="tasks">任务内容</span> },
           { path: 'projects/:projectId', element: <span data-page="project">作品内容</span> },
           { path: 'delivery', element: <span data-page="delivery">成品内容</span> },
         ],
@@ -137,7 +137,7 @@ describe('AppShell — the retired Agent column', () => {
     // The 1100 × 700 board has no right column at all.
     expect(container.querySelector('[data-agent-rail]')).toBeNull();
 
-    expect(container.querySelector('[data-nav-item="agent"]')).not.toBeNull();
+    expect(container.querySelector('[data-nav-item="agent"]')).toBeNull();
     expect(container.querySelector('[data-nav-item="projects"]')).not.toBeNull();
   });
 });
@@ -273,13 +273,13 @@ describe('AppShell — background activity', () => {
     await waitFor(() => expect(document.querySelector('[data-overlay="drawer"]')).toBeNull());
   });
 
-  it('redirects the legacy tasks query to finished files and opens the drawer', async () => {
+  it('opens the task center without switching the analysis mode or forcing a drawer', async () => {
     media = stubMatchMedia(false);
-    const router = shellRouter('/delivery?view=tasks');
+    useShellStore.setState({ mode: 'analysis' });
+    const router = shellRouter('/tasks');
     renderInteractive(<RouterProvider router={router} />);
-
-    await waitFor(() => expect(router.state.location.search).toBe(''));
-    expect(router.state.location.pathname).toBe('/delivery');
-    expect(document.querySelector('[data-overlay="drawer"]')).not.toBeNull();
+    expect(router.state.location.pathname).toBe('/tasks');
+    expect(useShellStore.getState().mode).toBe('analysis');
+    expect(document.querySelector('[data-overlay="drawer"]')).toBeNull();
   });
 });

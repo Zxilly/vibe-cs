@@ -1141,6 +1141,7 @@ export const commands = {
   listOutputs: (query: OutputQuery = {}, signal?: AbortSignal) =>
     request<OutputPage>(
       `/outputs${queryString({
+        project_id: query.project_id,
         page: query.page,
         page_size: query.page_size,
         kind: query.kind,

@@ -16,7 +16,7 @@
  *     It becomes a `match` group command fed from `data/demos.ts`, which is
  *     exactly what the 壳层规格 artboard draws ("Aurora vs Meridian · Mirage →
  *     打开工作区").
- *   · `/delivery/task/:taskId` — same reason; a `task` id has to come from a
+ *   · `/tasks/:taskId` — same reason; a `task` id has to come from a
  *     query.
  *
  * `/recording/:taskId?`, `/montage/:projectId?` and `/editor/:projectId?` have
@@ -96,7 +96,7 @@ export const COMMAND_GROUP_LABEL: Record<CommandGroupId, MessageDescriptor> = {
 /**
  * What a command is handed when it runs. Deliberately tiny: the palette itself
  * closes, so a command never needs to. `navigate` receives a router path with
- * its query attached (`/delivery?view=tasks`), never a hash — the router is in
+ * its query attached (`/tasks`), never a hash — the router is in
  * hash mode (spec §1.1) and react-router builds the `#` prefix itself.
  */
 export interface CommandContext {
@@ -201,7 +201,7 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
   pageCommand({
     id: 'delivery-tasks',
     title: UI_TERMINOLOGY.backgroundTask.current,
-    to: '/delivery?view=tasks',
+    to: '/tasks',
     keywords: ['delivery', 'tasks', '任务', '记录', '交付'],
   }),
   pageCommand({

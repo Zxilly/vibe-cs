@@ -59,7 +59,7 @@ describe('PAGE_COMMANDS', () => {
       '/projects',
       '/projects/new?step=shotlist',
       '/delivery?view=outputs',
-      '/delivery?view=tasks',
+      '/tasks',
       '/settings',
       '/recovery',
       '/guide',
@@ -67,7 +67,7 @@ describe('PAGE_COMMANDS', () => {
   });
 
   it('registers nothing that needs a route parameter', () => {
-    // `/match/:demoId` and `/delivery/task/:taskId` are object commands, not
+    // `/match/:demoId` and `/tasks/:taskId` are object commands, not
     // page commands; they arrive through `buildCommandList` in a later phase.
     for (const command of PAGE_COMMANDS) {
       expect(destinationOf(command)).not.toContain(':');

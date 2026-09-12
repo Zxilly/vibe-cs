@@ -18,12 +18,12 @@
  * service on the same machine. What separates them is how much of the answer is
  * on screen and how closely the user is watching it.
  *
- *   DETAIL  2 s   `/delivery/task/:taskId` is one record with its stage bar and
+ *   DETAIL  2 s   `/tasks/:taskId` is one record with its stage bar and
  *                 its 阶段日志 — the user opened it to watch. The recording
  *                 pipeline's stages are seconds long (「片段 1 采集完成 · 3.0
  *                 秒」 on 「补齐 · 规范与状态」), so a slower interval would skip
  *                 stages entirely and the bar would jump.
- *   FEED    5 s   `/delivery?view=tasks` is up to 50 records (`TASK_RECORD_COUNT`,
+ *   FEED    5 s   `/tasks` is up to 50 records (`TASK_RECORD_COUNT`,
  *                 the 「最近 50 条」 retention default). One request either way,
  *                 but nobody reads 50 rows for a stage transition — they read
  *                 them for 完成 / 失败, which arrive whole. 5 s is also the

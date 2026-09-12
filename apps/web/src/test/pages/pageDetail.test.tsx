@@ -23,6 +23,7 @@ import { MATCH_VIEW_IDS } from '../../pages/analysis/match/viewContract';
 import { PlayerProfilePage } from '../../pages/analysis/players/PlayerProfilePage';
 import { RecoveryPage } from '../../pages/shared/settings/RecoveryPage';
 import { SettingsPage, SETTINGS_SECTIONS } from '../../pages/shared/settings/SettingsPage';
+import { TaskCenterPage } from '../../pages/shared/tasks/TaskCenterPage';
 import { TaskDetailPage } from '../../pages/shared/tasks/TaskDetailPage';
 
 function at(pattern: string, url: string, element: ReactElement): string {
@@ -47,22 +48,12 @@ describe('the §7 queries', () => {
     expect(at('/evidence', '/evidence', <EvidencePage />)).toContain('证据检索');
   });
 
-  it('/delivery?view=tasks leaves the page on finished files for the shell redirect', () => {
+  it('separates shared tasks from finished files', () => {
     const outputs = at('/delivery', '/delivery', <DeliveryPage />);
-    const tasks = at('/delivery', '/delivery?view=tasks', <DeliveryPage />);
-
-    /* Both faces print both words — the Seg in the topbar carries 输出 and
-       任务记录 whichever is showing — so the title is no longer what tells them
-       apart. Their own filter strips are: 输出 filters by output kind, 任务记录
-       by task state, and neither control exists on the other face. */
+    const tasks = at('/tasks', '/tasks', <TaskCenterPage />);
     expect(outputs).toContain('name="delivery-output-filter"');
-    expect(outputs).not.toContain('name="delivery-task-state"');
-    expect(tasks).not.toContain('name="delivery-task-state"');
-    expect(tasks).toContain('name="delivery-output-filter"');
-
-    // The retired Seg is absent on both forms; AppShell owns the legacy redirect.
-    expect(outputs).not.toContain('name="delivery-view"');
-    expect(tasks).not.toContain('name="delivery-view"');
+    expect(tasks).toContain('name="task-state"');
+    expect(tasks).not.toContain('name="delivery-output-filter"');
   });
 
   it.each(SETTINGS_SECTIONS)('/settings?section=%s', (section) => {
@@ -99,8 +90,8 @@ describe('the §7 path parameters', () => {
     expect(at('/players/:playerId', '/players/kael', <PlayerProfilePage />)).toContain('kael');
   });
 
-  it('/delivery/task/:taskId shows the id it was given', () => {
-    expect(at('/delivery/task/:taskId', '/delivery/task/t-42', <TaskDetailPage />)).toContain('t-42');
+  it('/tasks/:taskId shows the id it was given', () => {
+    expect(at('/tasks/:taskId', '/tasks/t-42', <TaskDetailPage />)).toContain('t-42');
   });
 
 });
@@ -116,7 +107,7 @@ describe('detail-route navigation', () => {
   });
 
   it('leaves task-detail return navigation to the shell breadcrumb', () => {
-    const html = at('/delivery/task/:taskId', '/delivery/task/t-1', <TaskDetailPage />);
+    const html = at('/tasks/:taskId', '/tasks/t-1', <TaskDetailPage />);
     expect(html).not.toContain('‹ 后台任务');
   });
 

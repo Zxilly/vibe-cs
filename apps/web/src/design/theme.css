@@ -456,5 +456,3 @@
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover { background-color: var(--color-neutral-400); }
-.timeline-tool-strip::-webkit-scrollbar { width: 6px; }
-.timeline-tool-strip::-webkit-scrollbar-thumb { border-width: 2px; }

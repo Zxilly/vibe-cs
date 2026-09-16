@@ -2447,7 +2447,7 @@ msgstr "Refresh"
 msgid "刷新所选嵌套序列"
 msgstr "Refresh Selected Nested Sequences"
 
-#: src/domain/editing/TimelineToolStrip.tsx:105
+#: src/domain/editing/TimelineToolStrip.tsx:144
 msgid "剃刀工具 (C)"
 msgstr "Razor Tool (C)"
 
@@ -2928,7 +2928,7 @@ msgstr "Following clips {0}"
 msgid "后续片段移动 {0}"
 msgstr "Move following clips {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:78
+#: src/domain/editing/TimelineToolStrip.tsx:117
 msgid "向前选择轨道工具 (A)"
 msgstr "Track Select Forward Tool (A)"
 
@@ -2936,7 +2936,7 @@ msgstr "Track Select Forward Tool (A)"
 msgid "向右调整声像"
 msgstr "Pan Right"
 
-#: src/domain/editing/TimelineToolStrip.tsx:87
+#: src/domain/editing/TimelineToolStrip.tsx:126
 msgid "向后选择轨道工具 (Shift+A)"
 msgstr "Track Select Backward Tool (Shift+A)"
 
@@ -4492,7 +4492,7 @@ msgstr "Set manually"
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "The manifest a manual update check reads. Empty means no update check, which is the default."
 
-#: src/domain/editing/TimelineToolStrip.tsx:60
+#: src/domain/editing/TimelineToolStrip.tsx:99
 msgid "手形工具 (H)"
 msgstr "Hand Tool (H)"
 
@@ -4740,15 +4740,15 @@ msgstr "Decline this external execution request."
 msgid "拖动播放头时间码"
 msgstr "Drag the playhead timecode"
 
-#: src/domain/editing/TimelineToolStrip.tsx:61
+#: src/domain/editing/TimelineToolStrip.tsx:100
 msgid "拖动时间轴画布，不改变播放头或片段"
 msgstr "Drag the timeline canvas without changing the playhead or clips"
 
-#: src/domain/editing/TimelineToolStrip.tsx:133
+#: src/domain/editing/TimelineToolStrip.tsx:172
 msgid "拖动片段终点改变播放速度和时长"
 msgstr "Drag a clip's end point to change playback speed and duration"
 
-#: src/domain/editing/TimelineToolStrip.tsx:97
+#: src/domain/editing/TimelineToolStrip.tsx:136
 msgid "拖动片段边缘并实时移动后续片段；保留自由轨已有间隙"
 msgstr "Drag a clip edge to ripple-move following clips in real time; existing gaps on free tracks are kept"
 
@@ -5326,7 +5326,7 @@ msgstr "Timeline content"
 msgid "时间轴可视范围"
 msgstr "Timeline visible range"
 
-#: src/domain/editing/TimelineToolStrip.tsx:151
+#: src/domain/editing/TimelineToolStrip.tsx:198
 msgid "时间轴工具"
 msgstr "Timeline tools"
 
@@ -5422,9 +5422,13 @@ msgstr "Not available: {disabledReason}"
 msgid "暂时不能输入：{disabledReason}"
 msgstr "Can't type right now: {disabledReason}"
 
-#: src/design/layout/OverflowMenu.tsx:104
+#: src/design/layout/OverflowMenu.tsx:111
 msgid "更多"
 msgstr "More"
+
+#: src/domain/editing/TimelineToolStrip.tsx:226
+msgid "更多工具"
+msgstr "More tools"
 
 #: src/design/layout/Toolbar.tsx:189
 msgid "更多操作"
@@ -5438,7 +5442,7 @@ msgstr "More views"
 msgid "更多素材操作"
 msgstr "More media actions"
 
-#: src/domain/editing/TimelineToolStrip.tsx:115
+#: src/domain/editing/TimelineToolStrip.tsx:154
 msgid "更换片段的源入点和源出点，不改变时间轴位置与时长"
 msgstr "Change the clip's source In and Out points without moving it or changing its duration on the timeline"
 
@@ -6235,7 +6239,7 @@ msgstr "Score {score}"
 msgid "比率伸缩 {0}%"
 msgstr "Rate stretch {0}%"
 
-#: src/domain/editing/TimelineToolStrip.tsx:132
+#: src/domain/editing/TimelineToolStrip.tsx:171
 msgid "比率伸缩工具 (R)"
 msgstr "Rate Stretch Tool (R)"
 
@@ -6346,7 +6350,7 @@ msgstr "Nothing was changed, so a retry is safe."
 msgid "没有关键时刻可预览"
 msgstr "No critical moment to preview"
 
-#: src/domain/editing/TimelineToolStrip.tsx:143
+#: src/domain/editing/TimelineToolStrip.tsx:182
 msgid "没有具备可编辑相邻片段的未锁定 Story 片段"
 msgstr "No unlocked Story clips with editable adjacent clips"
 
@@ -6396,19 +6400,19 @@ msgstr "No matching player"
 msgid "没有可归属的首杀"
 msgstr "No attributable opening kill"
 
-#: src/domain/editing/TimelineToolStrip.tsx:134
+#: src/domain/editing/TimelineToolStrip.tsx:173
 msgid "没有可比率伸缩的未锁定媒体片段"
 msgstr "No unlocked media clips to rate stretch"
 
-#: src/domain/editing/TimelineToolStrip.tsx:98
+#: src/domain/editing/TimelineToolStrip.tsx:137
 msgid "没有可波纹裁切的未锁定片段"
 msgstr "No unlocked clips to ripple trim"
 
-#: src/domain/editing/TimelineToolStrip.tsx:116
+#: src/domain/editing/TimelineToolStrip.tsx:155
 msgid "没有可滑移的未锁定媒体片段"
 msgstr "No unlocked media clips to slip"
 
-#: src/domain/editing/TimelineToolStrip.tsx:125
+#: src/domain/editing/TimelineToolStrip.tsx:164
 msgid "没有可滚动编辑的未锁定相邻片段"
 msgstr "No unlocked adjacent clips to roll edit"
 
@@ -6509,7 +6513,7 @@ msgstr "Ripple Delete Selected Gap"
 msgid "波纹移动序列标记"
 msgstr "Ripple Move Sequence Marker"
 
-#: src/domain/editing/TimelineToolStrip.tsx:96
+#: src/domain/editing/TimelineToolStrip.tsx:135
 msgid "波纹编辑工具 (B)"
 msgstr "Ripple Edit Tool (B)"
 
@@ -6831,7 +6835,7 @@ msgstr "Slide"
 msgid "滑动 {0}"
 msgstr "Slide {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:141
+#: src/domain/editing/TimelineToolStrip.tsx:180
 msgid "滑动工具 (U)"
 msgstr "Slide tool (U)"
 
@@ -6844,7 +6848,7 @@ msgstr "Slide edit preview"
 msgid "滑移 {0}"
 msgstr "Slip {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:114
+#: src/domain/editing/TimelineToolStrip.tsx:153
 msgid "滑移工具 (Y)"
 msgstr "Slip tool (Y)"
 
@@ -6854,7 +6858,7 @@ msgstr "Slip tool (Y)"
 msgid "滚动编辑 {0} / {1}"
 msgstr "Rolling edit {0} / {1}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:123
+#: src/domain/editing/TimelineToolStrip.tsx:162
 msgid "滚动编辑工具 (N)"
 msgstr "Rolling edit tool (N)"
 
@@ -6889,7 +6893,7 @@ msgstr "Click a cell for every engagement of that pair, or a row head for all ma
 msgid "点任一阵容表的一行，这里会显示这名选手的本场数据。"
 msgstr "Click a row in either roster; that player’s numbers for this match appear here."
 
-#: src/domain/editing/TimelineToolStrip.tsx:106
+#: src/domain/editing/TimelineToolStrip.tsx:145
 msgid "点击切开片段；按 Shift 切开所有轨道，按 Alt 仅切开当前声道"
 msgstr "Click to split a clip; Shift-click to split all tracks; Alt-click to split only the current audio channel"
 
@@ -6897,7 +6901,7 @@ msgstr "Click to split a clip; Shift-click to split all tracks; Alt-click to spl
 msgid "点击回合进入逐回合复盘"
 msgstr "Click a round to open the round-by-round review"
 
-#: src/domain/editing/TimelineToolStrip.tsx:70
+#: src/domain/editing/TimelineToolStrip.tsx:109
 msgid "点击放大，Alt 点击缩小；以点击位置为锚点"
 msgstr "Click to zoom in, Alt-click to zoom out; zooms around the click point"
 
@@ -7359,7 +7363,7 @@ msgstr "Kind: {0}"
 msgid "秒"
 msgstr "s"
 
-#: src/domain/editing/TimelineToolStrip.tsx:142
+#: src/domain/editing/TimelineToolStrip.tsx:181
 msgid "移动中间片段并同时裁切相邻片段，不改变它的时长"
 msgstr "Move the middle clip and trim adjacent clips at the same time, without changing its duration"
 
@@ -7367,7 +7371,7 @@ msgstr "Move the middle clip and trim adjacent clips at the same time, without c
 msgid "移动多个面板"
 msgstr "Move multiple panels"
 
-#: src/domain/editing/TimelineToolStrip.tsx:124
+#: src/domain/editing/TimelineToolStrip.tsx:163
 msgid "移动相邻片段的剪辑点，不改变两个片段的总时长"
 msgstr "Move the edit point between adjacent clips without changing their total duration"
 
@@ -7713,7 +7717,7 @@ msgstr "Zoom out timeline"
 msgid "缩放"
 msgstr "Zoom"
 
-#: src/domain/editing/TimelineToolStrip.tsx:69
+#: src/domain/editing/TimelineToolStrip.tsx:108
 msgid "缩放工具 (Z)"
 msgstr "Zoom Tool (Z)"
 
@@ -9017,7 +9021,7 @@ msgstr "Select {0}"
 msgid "选择 CS2 安装目录"
 msgstr "Choose the CS2 install folder"
 
-#: src/domain/editing/TimelineToolStrip.tsx:52
+#: src/domain/editing/TimelineToolStrip.tsx:91
 msgid "选择、移动和裁切时间轴片段"
 msgstr "Select, move, and trim timeline clips"
 
@@ -9033,7 +9037,7 @@ msgstr "Select a clip before adding it to a project."
 msgid "选择导入素材可插入或覆盖。"
 msgstr "Select imported media to insert or overwrite."
 
-#: src/domain/editing/TimelineToolStrip.tsx:51
+#: src/domain/editing/TimelineToolStrip.tsx:90
 msgid "选择工具 (V)"
 msgstr "Selection Tool (V)"
 
@@ -9051,11 +9055,11 @@ msgstr "Choose the data directory"
 msgid "选择文件"
 msgstr "Choose files"
 
-#: src/domain/editing/TimelineToolStrip.tsx:79
+#: src/domain/editing/TimelineToolStrip.tsx:118
 msgid "选择点击位置及其右侧的片段；按 Shift 跨所有轨道"
 msgstr "Selects the clip at the click and all clips to its right; hold Shift to select across all tracks"
 
-#: src/domain/editing/TimelineToolStrip.tsx:88
+#: src/domain/editing/TimelineToolStrip.tsx:127
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "Selects the clip at the click and all clips to its left; hold Shift to select across all tracks"
 

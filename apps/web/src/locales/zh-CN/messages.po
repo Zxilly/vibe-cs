@@ -2446,7 +2446,7 @@ msgstr "刷新"
 msgid "刷新所选嵌套序列"
 msgstr "刷新所选嵌套序列"
 
-#: src/domain/editing/TimelineToolStrip.tsx:105
+#: src/domain/editing/TimelineToolStrip.tsx:144
 msgid "剃刀工具 (C)"
 msgstr "剃刀工具 (C)"
 
@@ -2927,7 +2927,7 @@ msgstr "后续片段 {0}"
 msgid "后续片段移动 {0}"
 msgstr "后续片段移动 {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:78
+#: src/domain/editing/TimelineToolStrip.tsx:117
 msgid "向前选择轨道工具 (A)"
 msgstr "向前选择轨道工具 (A)"
 
@@ -2935,7 +2935,7 @@ msgstr "向前选择轨道工具 (A)"
 msgid "向右调整声像"
 msgstr "向右调整声像"
 
-#: src/domain/editing/TimelineToolStrip.tsx:87
+#: src/domain/editing/TimelineToolStrip.tsx:126
 msgid "向后选择轨道工具 (Shift+A)"
 msgstr "向后选择轨道工具 (Shift+A)"
 
@@ -4491,7 +4491,7 @@ msgstr "手动指定"
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 
-#: src/domain/editing/TimelineToolStrip.tsx:60
+#: src/domain/editing/TimelineToolStrip.tsx:99
 msgid "手形工具 (H)"
 msgstr "手形工具 (H)"
 
@@ -4739,15 +4739,15 @@ msgstr "拒绝这次外部执行请求。"
 msgid "拖动播放头时间码"
 msgstr "拖动播放头时间码"
 
-#: src/domain/editing/TimelineToolStrip.tsx:61
+#: src/domain/editing/TimelineToolStrip.tsx:100
 msgid "拖动时间轴画布，不改变播放头或片段"
 msgstr "拖动时间轴画布，不改变播放头或片段"
 
-#: src/domain/editing/TimelineToolStrip.tsx:133
+#: src/domain/editing/TimelineToolStrip.tsx:172
 msgid "拖动片段终点改变播放速度和时长"
 msgstr "拖动片段终点改变播放速度和时长"
 
-#: src/domain/editing/TimelineToolStrip.tsx:97
+#: src/domain/editing/TimelineToolStrip.tsx:136
 msgid "拖动片段边缘并实时移动后续片段；保留自由轨已有间隙"
 msgstr "拖动片段边缘并实时移动后续片段；保留自由轨已有间隙"
 
@@ -5325,7 +5325,7 @@ msgstr "时间轴内容"
 msgid "时间轴可视范围"
 msgstr "时间轴可视范围"
 
-#: src/domain/editing/TimelineToolStrip.tsx:151
+#: src/domain/editing/TimelineToolStrip.tsx:198
 msgid "时间轴工具"
 msgstr "时间轴工具"
 
@@ -5421,9 +5421,13 @@ msgstr "暂时不能执行：{disabledReason}"
 msgid "暂时不能输入：{disabledReason}"
 msgstr "暂时不能输入：{disabledReason}"
 
-#: src/design/layout/OverflowMenu.tsx:104
+#: src/design/layout/OverflowMenu.tsx:111
 msgid "更多"
 msgstr "更多"
+
+#: src/domain/editing/TimelineToolStrip.tsx:226
+msgid "更多工具"
+msgstr "更多工具"
 
 #: src/design/layout/Toolbar.tsx:189
 msgid "更多操作"
@@ -5437,7 +5441,7 @@ msgstr "更多视图"
 msgid "更多素材操作"
 msgstr "更多素材操作"
 
-#: src/domain/editing/TimelineToolStrip.tsx:115
+#: src/domain/editing/TimelineToolStrip.tsx:154
 msgid "更换片段的源入点和源出点，不改变时间轴位置与时长"
 msgstr "更换片段的源入点和源出点，不改变时间轴位置与时长"
 
@@ -6234,7 +6238,7 @@ msgstr "比分 {score}"
 msgid "比率伸缩 {0}%"
 msgstr "比率伸缩 {0}%"
 
-#: src/domain/editing/TimelineToolStrip.tsx:132
+#: src/domain/editing/TimelineToolStrip.tsx:171
 msgid "比率伸缩工具 (R)"
 msgstr "比率伸缩工具 (R)"
 
@@ -6345,7 +6349,7 @@ msgstr "没有任何数据被改动，可以直接重试。"
 msgid "没有关键时刻可预览"
 msgstr "没有关键时刻可预览"
 
-#: src/domain/editing/TimelineToolStrip.tsx:143
+#: src/domain/editing/TimelineToolStrip.tsx:182
 msgid "没有具备可编辑相邻片段的未锁定 Story 片段"
 msgstr "没有具备可编辑相邻片段的未锁定 Story 片段"
 
@@ -6395,19 +6399,19 @@ msgstr "没有匹配的选手"
 msgid "没有可归属的首杀"
 msgstr "没有可归属的首杀"
 
-#: src/domain/editing/TimelineToolStrip.tsx:134
+#: src/domain/editing/TimelineToolStrip.tsx:173
 msgid "没有可比率伸缩的未锁定媒体片段"
 msgstr "没有可比率伸缩的未锁定媒体片段"
 
-#: src/domain/editing/TimelineToolStrip.tsx:98
+#: src/domain/editing/TimelineToolStrip.tsx:137
 msgid "没有可波纹裁切的未锁定片段"
 msgstr "没有可波纹裁切的未锁定片段"
 
-#: src/domain/editing/TimelineToolStrip.tsx:116
+#: src/domain/editing/TimelineToolStrip.tsx:155
 msgid "没有可滑移的未锁定媒体片段"
 msgstr "没有可滑移的未锁定媒体片段"
 
-#: src/domain/editing/TimelineToolStrip.tsx:125
+#: src/domain/editing/TimelineToolStrip.tsx:164
 msgid "没有可滚动编辑的未锁定相邻片段"
 msgstr "没有可滚动编辑的未锁定相邻片段"
 
@@ -6508,7 +6512,7 @@ msgstr "波纹删除所选间隙"
 msgid "波纹移动序列标记"
 msgstr "波纹移动序列标记"
 
-#: src/domain/editing/TimelineToolStrip.tsx:96
+#: src/domain/editing/TimelineToolStrip.tsx:135
 msgid "波纹编辑工具 (B)"
 msgstr "波纹编辑工具 (B)"
 
@@ -6830,7 +6834,7 @@ msgstr "滑动"
 msgid "滑动 {0}"
 msgstr "滑动 {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:141
+#: src/domain/editing/TimelineToolStrip.tsx:180
 msgid "滑动工具 (U)"
 msgstr "滑动工具 (U)"
 
@@ -6843,7 +6847,7 @@ msgstr "滑动编辑预览"
 msgid "滑移 {0}"
 msgstr "滑移 {0}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:114
+#: src/domain/editing/TimelineToolStrip.tsx:153
 msgid "滑移工具 (Y)"
 msgstr "滑移工具 (Y)"
 
@@ -6853,7 +6857,7 @@ msgstr "滑移工具 (Y)"
 msgid "滚动编辑 {0} / {1}"
 msgstr "滚动编辑 {0} / {1}"
 
-#: src/domain/editing/TimelineToolStrip.tsx:123
+#: src/domain/editing/TimelineToolStrip.tsx:162
 msgid "滚动编辑工具 (N)"
 msgstr "滚动编辑工具 (N)"
 
@@ -6888,7 +6892,7 @@ msgstr "点一个单元格看这一对的每一次交手，点行首看这名选
 msgid "点任一阵容表的一行，这里会显示这名选手的本场数据。"
 msgstr "点任一阵容表的一行，这里会显示这名选手的本场数据。"
 
-#: src/domain/editing/TimelineToolStrip.tsx:106
+#: src/domain/editing/TimelineToolStrip.tsx:145
 msgid "点击切开片段；按 Shift 切开所有轨道，按 Alt 仅切开当前声道"
 msgstr "点击切开片段；按 Shift 切开所有轨道，按 Alt 仅切开当前声道"
 
@@ -6896,7 +6900,7 @@ msgstr "点击切开片段；按 Shift 切开所有轨道，按 Alt 仅切开当
 msgid "点击回合进入逐回合复盘"
 msgstr "点击回合进入逐回合复盘"
 
-#: src/domain/editing/TimelineToolStrip.tsx:70
+#: src/domain/editing/TimelineToolStrip.tsx:109
 msgid "点击放大，Alt 点击缩小；以点击位置为锚点"
 msgstr "点击放大，Alt 点击缩小；以点击位置为锚点"
 
@@ -7358,7 +7362,7 @@ msgstr "种类：{0}"
 msgid "秒"
 msgstr "秒"
 
-#: src/domain/editing/TimelineToolStrip.tsx:142
+#: src/domain/editing/TimelineToolStrip.tsx:181
 msgid "移动中间片段并同时裁切相邻片段，不改变它的时长"
 msgstr "移动中间片段并同时裁切相邻片段，不改变它的时长"
 
@@ -7366,7 +7370,7 @@ msgstr "移动中间片段并同时裁切相邻片段，不改变它的时长"
 msgid "移动多个面板"
 msgstr "移动多个面板"
 
-#: src/domain/editing/TimelineToolStrip.tsx:124
+#: src/domain/editing/TimelineToolStrip.tsx:163
 msgid "移动相邻片段的剪辑点，不改变两个片段的总时长"
 msgstr "移动相邻片段的剪辑点，不改变两个片段的总时长"
 
@@ -7712,7 +7716,7 @@ msgstr "缩小时间轴"
 msgid "缩放"
 msgstr "缩放"
 
-#: src/domain/editing/TimelineToolStrip.tsx:69
+#: src/domain/editing/TimelineToolStrip.tsx:108
 msgid "缩放工具 (Z)"
 msgstr "缩放工具 (Z)"
 
@@ -9016,7 +9020,7 @@ msgstr "选择 {0}"
 msgid "选择 CS2 安装目录"
 msgstr "选择 CS2 安装目录"
 
-#: src/domain/editing/TimelineToolStrip.tsx:52
+#: src/domain/editing/TimelineToolStrip.tsx:91
 msgid "选择、移动和裁切时间轴片段"
 msgstr "选择、移动和裁切时间轴片段"
 
@@ -9032,7 +9036,7 @@ msgstr "选择一条片段后再加入作品。"
 msgid "选择导入素材可插入或覆盖。"
 msgstr "选择导入素材可插入或覆盖。"
 
-#: src/domain/editing/TimelineToolStrip.tsx:51
+#: src/domain/editing/TimelineToolStrip.tsx:90
 msgid "选择工具 (V)"
 msgstr "选择工具 (V)"
 
@@ -9050,11 +9054,11 @@ msgstr "选择数据目录"
 msgid "选择文件"
 msgstr "选择文件"
 
-#: src/domain/editing/TimelineToolStrip.tsx:79
+#: src/domain/editing/TimelineToolStrip.tsx:118
 msgid "选择点击位置及其右侧的片段；按 Shift 跨所有轨道"
 msgstr "选择点击位置及其右侧的片段；按 Shift 跨所有轨道"
 
-#: src/domain/editing/TimelineToolStrip.tsx:88
+#: src/domain/editing/TimelineToolStrip.tsx:127
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 

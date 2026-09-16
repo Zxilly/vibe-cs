@@ -3,6 +3,7 @@ import {
   ArrowRightFromLine,
   BetweenHorizontalEnd,
   BetweenHorizontalStart,
+  Ellipsis,
   Gauge,
   Hand,
   MousePointer2,
@@ -12,8 +13,10 @@ import {
   Scissors,
   ZoomIn,
 } from 'lucide-react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 import { Tooltip } from '../../design/feedback';
+import { OverflowMenu } from '../../design/layout';
 import { cn } from '../../design/primitives';
 
 export type TimelineEditTool =
@@ -28,6 +31,42 @@ export type TimelineEditTool =
   | 'slide'
   | 'hand'
   | 'zoom';
+
+/*
+ * The rail is as tall as the track area, which the Dock lets the user shrink
+ * well below the eleven 32px slots the tools need (304px in the default
+ * 1440 × 900 layout, 190px at 700px). Rather than scroll a 40px-wide rail,
+ * the tools that do not fit fold into a 「更多工具」 disclosure in the last
+ * slot — the same fold `Toolbar` applies to secondary actions past its width.
+ *
+ * Slots are counted from the rail's own box (`--h-ctl-sm` per button plus the
+ * column gap). Until a real measurement arrives every tool is shown, which is
+ * also what a layout-less test renderer sees.
+ */
+function useToolSlots(rail: RefObject<HTMLElement | null>): number | null {
+  const [slots, setSlots] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const element = rail.current;
+    if (element === null) return undefined;
+    const update = () => {
+      if (element.clientHeight === 0) return;
+      const style = getComputedStyle(element);
+      const control = Number.parseFloat(style.getPropertyValue('--h-ctl-sm'));
+      const gap = Number.parseFloat(style.rowGap);
+      const padding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+      setSlots(Math.max(1, Math.floor((element.clientHeight - padding + gap) / (control + gap))));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rail]);
+  return slots;
+}
+
+const TOOL_BUTTON_CLASS =
+  'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-neutral-600 hover:bg-neutral-100 hover:text-text disabled:text-neutral-300';
+const TOOL_PRESSED_CLASS = 'bg-accent-100 text-accent-700';
 
 export function TimelineToolStrip({
   editTool,
@@ -147,9 +186,18 @@ export function TimelineToolStrip({
       action: () => onChangeTool('slide'),
     },
   ] as const;
+  const railRef = useRef<HTMLElement>(null);
+  const slots = useToolSlots(railRef);
+  const fits = slots === null || slots >= tools.length;
+  const shown = fits ? tools : tools.slice(0, slots - 1);
+  const folded = fits ? [] : tools.slice(slots - 1);
   return (
-    <aside className="timeline-tool-strip absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex min-h-0 w-10 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto border-r border-divider bg-bg pt-1" aria-label={t`时间轴工具`}>
-      {tools.map((tool) => {
+    <aside
+      ref={railRef}
+      className="absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex min-h-0 w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1"
+      aria-label={t`时间轴工具`}
+    >
+      {shown.map((tool) => {
         const explanation = tool.enabled ? tool.description : tool.unavailable;
         return (
           <Tooltip
@@ -162,10 +210,7 @@ export function TimelineToolStrip({
           >
             <button
               type="button"
-              className={cn(
-                'grid size-8 place-items-center rounded-sm text-neutral-600 hover:bg-neutral-100 hover:text-text disabled:text-neutral-300',
-                tool.pressed && 'bg-accent-100 text-accent-700',
-              )}
+              className={cn(TOOL_BUTTON_CLASS, tool.pressed && TOOL_PRESSED_CLASS)}
               aria-label={tool.label}
               aria-pressed={tool.pressed}
               disabled={!tool.enabled}
@@ -176,6 +221,31 @@ export function TimelineToolStrip({
           </Tooltip>
         );
       })}
+      {folded.length === 0 ? null : (
+        <OverflowMenu
+          label={t`更多工具`}
+          triggerLabel={<Ellipsis className="size-4" aria-hidden="true" />}
+          iconOnly
+          side="right"
+          align="end"
+          triggerClassName={cn(
+            'rounded-sm hover:bg-neutral-100',
+            folded.some((tool) => tool.pressed) && TOOL_PRESSED_CLASS,
+          )}
+          items={folded.map((tool) => ({
+            id: tool.label,
+            label: (
+              <>
+                {tool.icon}
+                <span>{tool.label}</span>
+              </>
+            ),
+            disabled: !tool.enabled,
+            current: tool.pressed,
+            onSelect: tool.action,
+          }))}
+        />
+      )}
     </aside>
   );
 }

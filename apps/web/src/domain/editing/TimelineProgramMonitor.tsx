@@ -5,7 +5,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { mediaAssetProxyStreamPath, mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
-import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
+import { formatTimelinePosition, type TimelineTimeDisplayMode } from '../../design/timeline';
 import type { ExportJobRecord, MediaAsset, NestedSequenceMedia, Project, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import {
@@ -75,6 +75,8 @@ export interface TimelineProgramMonitorProps {
   readonly renderPreviews?: readonly ExportJobRecord[];
   readonly nestedSequenceMediaByClipId?: ReadonlyMap<string, NestedSequenceMedia>;
   readonly timelineTimeSeconds: number;
+  /** The Timeline footer's TC / frames choice; the transport readout prints the same form. */
+  readonly timeDisplayMode: TimelineTimeDisplayMode;
   readonly selectedClipId: string | null;
   readonly readOnly: boolean;
   readonly playing: boolean;
@@ -109,6 +111,7 @@ export function TimelineProgramMonitor({
   renderPreviews = [],
   nestedSequenceMediaByClipId = EMPTY_NESTED_SEQUENCE_MEDIA,
   timelineTimeSeconds,
+  timeDisplayMode,
   selectedClipId,
   readOnly,
   playing,
@@ -402,6 +405,8 @@ export function TimelineProgramMonitor({
             title={selected?.name}
             playing={playing}
             playbackRate={playbackRate}
+            fps={project.document.fps}
+            timeDisplayMode={timeDisplayMode}
             timeSeconds={targetTimelineTime}
             onTogglePlayback={onTogglePlayback}
             onShuttle={onShuttle}
@@ -663,6 +668,8 @@ export function TimelineProgramMonitor({
             title={slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}
             playing={playing}
             playbackRate={playbackRate}
+            fps={project.document.fps}
+            timeDisplayMode={timeDisplayMode}
             timeSeconds={playbackRange !== null && playing
               ? targetTimelineTime
               : slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime}
@@ -868,6 +875,8 @@ function ProgramTransportBar({
   title,
   playing,
   playbackRate,
+  fps,
+  timeDisplayMode,
   timeSeconds,
   onTogglePlayback,
   onShuttle,
@@ -875,6 +884,8 @@ function ProgramTransportBar({
 }: {
   readonly title: string | undefined;
   readonly playing: boolean;
+  readonly fps: number;
+  readonly timeDisplayMode: TimelineTimeDisplayMode;
   readonly playbackRate: number;
   readonly timeSeconds: number;
   readonly onTogglePlayback: () => void;
@@ -904,7 +915,7 @@ function ProgramTransportBar({
       <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
       <span className="flex-none whitespace-nowrap text-neutral-600">{playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}</span>
-      <span className="flex-none whitespace-nowrap font-mono">{formatMillisecondTimecode(timeSeconds)}</span>
+      <span className="flex-none whitespace-nowrap font-mono">{formatTimelinePosition(timeSeconds, fps, timeDisplayMode)}</span>
     </div>
   );
 }

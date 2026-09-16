@@ -100,7 +100,9 @@ function deliveryGateFor(project: Project): ProjectDeliveryGate {
       blockers.push({ clip_id: clip.id, state: 'stale' });
     }
   }
-  return { project_id: project.id, revision: project.revision, ready: blockers.length === 0, blockers };
+  // Mirrors `get_delivery_gate`: an empty sequence has nothing to block and nothing to deliver.
+  const hasMedia = project.document.tracks.some((track) => track.clips.some((clip) => clip.placement.enabled && clip.text === null));
+  return { project_id: project.id, revision: project.revision, ready: hasMedia && blockers.length === 0, blockers };
 }
 
 function mediaDragEvent(
@@ -851,9 +853,11 @@ describe('unified project workspace', () => {
 
     const mixer = await screen.findByRole('region', { name: '音轨混音器' });
     const story = within(mixer).getByLabelText('混音轨 Story');
-    const volume = within(story).getByRole('slider', { name: '轨道音量 Story' }) as HTMLInputElement;
-    expect(volume.disabled).toBe(true);
+    expect((within(story).getByRole('slider', { name: '轨道音量 Story' }) as HTMLInputElement).disabled).toBe(true);
     fireEvent.change(within(story).getByRole('combobox', { name: '自动化模式 Story' }), { target: { value: 'touch' } });
+    // Leaving Read mode drops the disabled-reason tooltip wrapper, so the fader is a fresh node.
+    const volume = within(story).getByRole('slider', { name: '轨道音量 Story' }) as HTMLInputElement;
+    expect(volume.disabled).toBe(false);
     fireEvent.change(volume, { target: { value: '2' } });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -873,7 +877,7 @@ describe('unified project workspace', () => {
     renderWorkspace();
 
     expect(await screen.findByText('已录制 1')).toBeTruthy();
-    expect(screen.getByText('未录制 1')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: '时间轴' })).getByText('未录制 1')).toBeTruthy();
     expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u })).toBeTruthy();
     expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
   });
@@ -903,16 +907,48 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByRole('button', { name: /B 5\.0s · 需要重录/u })).toBeTruthy();
     expect(screen.getByText('2 个素材未就绪')).toBeTruthy();
-    expect((screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement).disabled).toBe(true);
+    const exportButton = screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(true);
+    expect(document.getElementById(exportButton.getAttribute('aria-describedby')!)?.textContent).toContain('2 个素材未就绪，检查素材面板里标红的片段');
+    const record = screen.getByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement;
+    expect(record.disabled).toBe(true);
+    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('未就绪的素材不能靠录制补齐');
     fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
     expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('button', { name: '从 Demo 创建剪辑' })).toBeTruthy();
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
-    expect(panel.textContent).toContain('待录 2 · 已录 0');
+    expect(panel.textContent).toContain('未录制 2 · 已录制 0');
   });
 
+
+  it('explains why the header actions are disabled and calls out an empty sequence', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const record = await screen.findByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement;
+    expect(record.disabled).toBe(true);
+    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('没有需要录制的片段');
+    const exportButton = screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(false);
+    expect(exportButton.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.getByText('素材就绪')).toBeTruthy();
+  });
+
+  it('keeps export closed on an empty sequence instead of reporting the material ready', async () => {
+    const empty: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 0,
+        tracks: PROJECT.document.tracks.map((track) => ({ ...track, clips: [] })),
+      },
+    };
+    renderWorkspace({ project: empty });
+    expect(await screen.findByText('时间线还没有片段')).toBeTruthy();
+    expect(screen.queryByText('素材就绪')).toBeNull();
+    const exportButton = screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement;
+    expect(exportButton.disabled).toBe(true);
+    expect(document.getElementById(exportButton.getAttribute('aria-describedby')!)?.textContent).toContain('时间线还没有片段');
+  });
   it('shows the recording preflight reason instead of a generic workspace failure', async () => {
     const createProjectRecordingPlan = vi.fn(() => Promise.reject(new Error(
       'external dependency is unavailable: this shot needs at least four spatial replay samples for camera movement',
@@ -3562,6 +3598,27 @@ describe('unified project workspace', () => {
     expect(Number(playhead.getAttribute('aria-valuenow'))).toBeCloseTo(2 + 10 / 60);
   });
 
+
+  it('prints the Program readout and playhead bubble in the footer time display mode', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    const timecode = screen.getByRole('textbox', { name: '播放头时间码' });
+    fireEvent.focus(timecode);
+    fireEvent.change(timecode, { target: { value: '00:00:04:30' } });
+    fireEvent.keyDown(timecode, { key: 'Enter' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(4.5);
+
+    const monitor = screen.getByRole('region', { name: '视频预览' });
+    expect(monitor.textContent).toContain('00:00:04:30');
+    expect(monitor.textContent).not.toContain('00:04.500');
+    expect(playhead.parentElement?.textContent).toContain('00:00:04:30');
+
+    fireEvent.click(screen.getByRole('button', { name: '切换时间显示模式' }));
+    expect((screen.getByRole('textbox', { name: '播放头帧计数' }) as HTMLInputElement).value).toBe('270');
+    expect(monitor.textContent).toContain('270');
+    expect(monitor.textContent).not.toContain('00:00:04:30');
+    expect(playhead.parentElement?.textContent).toContain('270');
+  });
   it('navigates target-track edits by default and every track with Shift', async () => {
     renderWorkspace({ project: navigationProject() });
 
@@ -3668,7 +3725,7 @@ describe('unified project workspace', () => {
     const timelineZoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
     fireEvent.change(timelineZoom, { target: { value: timelineZoom.max } });
     await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
-    expect(playhead.parentElement?.style.left).toBe('calc(var(--w-track-head) + 500px)');
+    expect(playhead.parentElement?.style.left).toBe('500px');
     expect(applyProjectPatch).not.toHaveBeenCalled();
     clientWidth.mockRestore();
   });
@@ -5267,10 +5324,10 @@ describe('unified project workspace', () => {
 
     await openSourcePreview();
     const panel = await screen.findByRole('region', { name: '项目素材' });
-    expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('准备录制');
+    expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('未录制');
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).getAttribute('aria-description')).toBe('已录制');
     expect(within(panel).getByRole('option', { name: '选择素材 New angle' }).textContent).toContain('导入');
-    expect(within(panel).getByRole('region', { name: '准备录制' })).toBeTruthy();
+    expect(within(panel).getByRole('region', { name: '未录制' })).toBeTruthy();
     expect(within(panel).getByRole('region', { name: '已录制' })).toBeTruthy();
     expect(within(panel).getByRole('region', { name: '导入素材' })).toBeTruthy();
 

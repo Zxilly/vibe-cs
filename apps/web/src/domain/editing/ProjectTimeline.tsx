@@ -248,6 +248,9 @@ export interface ProjectTimelineSelection {
 
 export interface ProjectTimelineTransport {
   readonly timelineTimeSeconds: number;
+  /** How the playhead is printed — shared with the Program Monitor so both read the same number. */
+  readonly timeDisplayMode: TimelineTimeDisplayMode;
+  readonly onTimeDisplayModeChange: (mode: TimelineTimeDisplayMode) => void;
   readonly rangeInSeconds: number | null;
   readonly rangeOutSeconds: number | null;
   readonly playing: boolean;
@@ -364,6 +367,8 @@ export function ProjectTimeline({
   },
   transport: {
     timelineTimeSeconds,
+    timeDisplayMode,
+    onTimeDisplayModeChange,
     rangeInSeconds,
     rangeOutSeconds,
     playing: transportPlaying,
@@ -414,7 +419,6 @@ export function ProjectTimeline({
   const timelineWheelHandlerRef = useRef<(event: WheelEvent) => void>(() => undefined);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
-  const [timeDisplayMode, setTimeDisplayMode] = useState<TimelineTimeDisplayMode>('timecode');
   const [displaySettings, setDisplaySettings] = useState<TimelineDisplaySettings>({
     names: true,
     thumbnailMode: 'head',
@@ -1786,6 +1790,7 @@ export function ProjectTimeline({
     dragScrollFrameRef.current = requestAnimationFrame(tick);
   };
 
+  const playheadViewportPx = timeToPx(scale, rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds) - scrollLeft;
   return (
     <div ref={timelinePanelRef} className="contents">
     <ReviewPanel
@@ -2185,11 +2190,11 @@ export function ProjectTimeline({
         }
       }}
     >
-      <header data-timeline-toolbar className="flex min-h-[var(--h-timeline-toolbar)] flex-none items-center gap-2 overflow-x-auto border-b border-divider bg-surface-chrome px-2 py-2">
+      <header data-timeline-toolbar className="flex min-h-[var(--h-timeline-toolbar)] flex-none items-center gap-2 overflow-x-auto border-b border-divider bg-surface-chrome px-2 py-1.5">
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴</Trans></h2>}
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
-            <span className="flex h-7 flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status">
+            <span className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status">
               <strong><Trans>修剪模式</Trans> · {activeTrimModeEdits.length}</strong>
               <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
               <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出修剪模式`} onClick={exitTrimMode}>×</button>
@@ -2197,7 +2202,7 @@ export function ProjectTimeline({
           </Tooltip>
         )}
         {selectedCutTransition === null ? null : (
-          <span className="flex h-7 flex-none items-center overflow-hidden rounded-sm border border-accent-300 bg-accent-100 text-xs text-accent-700">
+          <span className="flex h-[var(--h-ctl-sm)] flex-none items-center overflow-hidden rounded-sm border border-accent-300 bg-accent-100 text-xs text-accent-700">
             <span className="max-w-28 truncate px-2 font-medium">{selectedCutTransition.channel === 'video' ? t`视频转场` : t`音频转场`} · {selectedCutTransition.kind}</span>
             {([
               ['end_at_cut', t`到剪辑点结束`],
@@ -2207,7 +2212,7 @@ export function ProjectTimeline({
               <Tooltip key={alignment} content={label} side="bottom">
                 <button
                   type="button"
-                  className={cn('h-7 border-l border-accent-200 px-1.5 font-mono hover:bg-accent-200', selectedCutTransition.alignment === alignment && 'bg-accent-200 font-semibold')}
+                  className={cn('h-[var(--h-ctl-sm)] border-l border-accent-200 px-1.5 font-mono hover:bg-accent-200', selectedCutTransition.alignment === alignment && 'bg-accent-200 font-semibold')}
                   aria-label={label}
                   aria-pressed={selectedCutTransition.alignment === alignment}
                   disabled={readOnly}
@@ -2221,7 +2226,7 @@ export function ProjectTimeline({
           label={t`添加到时间轴`}
           triggerLabel={<SquarePlus className="size-3.5" aria-hidden="true" />}
           align="start"
-          triggerClassName="h-7 gap-1 rounded-sm border border-divider px-1.5 text-xs disabled:text-neutral-300"
+          triggerClassName="h-[var(--h-ctl-sm)] gap-1 rounded-sm border border-divider px-1.5 text-xs disabled:text-neutral-300"
           items={[
             { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
             { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
@@ -2231,11 +2236,11 @@ export function ProjectTimeline({
             { id: 'caption-clip', label: t`在播放头添加字幕`, disabled: readOnly, onSelect: () => openTextClipDraft('caption') },
           ]}
         />
-        {captions.length === 0 ? null : <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider">
+        {captions.length === 0 ? null : <span className="flex h-[var(--h-ctl-sm)] items-center overflow-hidden rounded-sm border border-divider">
           <Tooltip content={t`上一个字幕`} side="bottom">
             <button
               type="button"
-              className="grid size-7 place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
+              className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
               aria-label={t`上一个字幕`}
               disabled={adjacentCaptionClip(captions, playheadSeconds, -1) === null}
               onClick={() => navigateCaption(-1)}
@@ -2244,7 +2249,7 @@ export function ProjectTimeline({
           <Tooltip content={t`下一个字幕`} side="bottom">
             <button
               type="button"
-              className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
               aria-label={t`下一个字幕`}
               disabled={adjacentCaptionClip(captions, playheadSeconds, 1) === null}
               onClick={() => navigateCaption(1)}
@@ -2253,7 +2258,7 @@ export function ProjectTimeline({
           <Tooltip content={nativeShell.available ? t`导出 SRT 字幕` : t`需要桌面应用才能导出 SRT`} side="bottom">
             <button
               type="button"
-              className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
               aria-label={t`导出 SRT 字幕`}
               disabled={captions.length === 0 || !nativeShell.available}
               onClick={exportCaptions}
@@ -2264,7 +2269,7 @@ export function ProjectTimeline({
           label={t`剪辑操作`}
           triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
           align="start"
-          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
+          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
           items={[
             { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
             { id: 'video-transition', label: t`应用默认视频转场`, disabled: readOnly || defaultTransitionUpdates('video', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('video') },
@@ -2313,7 +2318,7 @@ export function ProjectTimeline({
           label={t`标记操作`}
           triggerLabel={<><Bookmark className="size-3.5" aria-hidden="true" /><Trans>标记</Trans></>}
           align="start"
-          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
+          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
           items={[
             { id: 'go-in', label: t`跳转到入点`, disabled: rangeInSeconds === null, onSelect: () => rangeInSeconds === null ? undefined : onSeek(rangeInSeconds) },
             { id: 'go-out', label: t`跳转到出点`, disabled: rangeOutSeconds === null, onSelect: () => rangeOutSeconds === null ? undefined : onSeek(rangeOutSeconds) },
@@ -2341,7 +2346,7 @@ export function ProjectTimeline({
           label={t`时间轴显示设置`}
           triggerLabel={<><Eye className="size-3.5" aria-hidden="true" /><Trans>显示</Trans></>}
           align="start"
-          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs"
+          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
           items={[
             ...([
               ['head', t`视频缩略图：仅片头`],
@@ -2393,13 +2398,13 @@ export function ProjectTimeline({
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
         </span>
         <span className="flex items-center overflow-hidden rounded-sm border border-divider">
-          <button type="button" className="grid size-7 place-items-center hover:bg-neutral-100" aria-label={t`上一个目标轨编辑点`} onClick={() => navigateEditPoint(-1)}><ChevronUp className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个目标轨编辑点`} onClick={() => navigateEditPoint(1)}><ChevronDown className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100" aria-label={t`上一个目标轨编辑点`} onClick={() => navigateEditPoint(-1)}><ChevronUp className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个目标轨编辑点`} onClick={() => navigateEditPoint(1)}><ChevronDown className="size-3.5" aria-hidden="true" /></button>
         </span>
         <button
           type="button"
           className={cn(
-            'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+            'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
             linkedSelectionEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
           )}
           aria-label={t`切换链接选择`}
@@ -2411,7 +2416,7 @@ export function ProjectTimeline({
         <button
           type="button"
           className={cn(
-            'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+            'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
             snapEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
           )}
           aria-label={t`切换时间轴吸附`}
@@ -2425,7 +2430,7 @@ export function ProjectTimeline({
         </button>
         {!canChangeLinks && sharedLinkGroupId === null ? null : <button
           type="button"
-          className="h-7 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
+          className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
           aria-label={sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`}
           disabled={!canChangeLinks}
           onClick={toggleSelectedClipLinks}
@@ -2433,20 +2438,20 @@ export function ProjectTimeline({
           {sharedLinkGroupId === null ? <Trans>链接片段</Trans> : <Trans>取消链接</Trans>}
         </button>}
         <span className="flex items-center overflow-hidden rounded-sm border border-divider text-xs">
-          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => onRangeChange(editPlayheadSeconds, rangeOutSeconds)}>I</button>
-          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => onRangeChange(rangeInSeconds, editPlayheadSeconds)}>O</button>
+          <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => onRangeChange(editPlayheadSeconds, rangeOutSeconds)}>I</button>
+          <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => onRangeChange(rangeInSeconds, editPlayheadSeconds)}>O</button>
           {rangeStart === null || rangeEnd === null ? null : (
             <span className="border-l border-divider px-2 font-mono text-accent-700">{formatMillisecondTimecode(rangeStart)}–{formatMillisecondTimecode(rangeEnd)}</span>
           )}
           {rangeInSeconds === null && rangeOutSeconds === null ? null : (
-            <button type="button" className="h-7 border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>×</button>
+            <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>×</button>
           )}
         </span>
         <Tooltip content={loopPlaybackEnabled ? t`关闭循环播放` : t`循环播放：有完整入出点时循环范围，否则循环整个序列`} side="bottom">
           <button
             type="button"
             className={cn(
-              'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+              'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
               loopPlaybackEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
             )}
             aria-label={t`切换循环播放`}
@@ -2460,12 +2465,12 @@ export function ProjectTimeline({
           <>
             <span className="ml-auto whitespace-nowrap border-l border-divider pl-2 text-xs text-neutral-600"><Trans>{reviewChangeCount} 处修改</Trans></span>
             <span className="flex items-center overflow-hidden rounded-sm border border-divider">
-              <button type="button" className="grid size-7 place-items-center hover:bg-neutral-100" aria-label={t`上一个修改`} onClick={() => selectAdjacentChange(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
-              <button type="button" className="grid size-7 place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个修改`} onClick={() => selectAdjacentChange(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+              <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100" aria-label={t`上一个修改`} onClick={() => selectAdjacentChange(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+              <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个修改`} onClick={() => selectAdjacentChange(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
             </span>
             <select
               aria-label={t`修改筛选`}
-              className="h-7 rounded-sm border border-divider bg-bg px-2 text-xs"
+              className="h-[var(--h-ctl-sm)] rounded-sm border border-divider bg-bg px-2 text-xs"
               value={changeFilter}
               onChange={(event) => setChangeFilter(event.currentTarget.value as 'all' | 'selected')}
             >
@@ -2899,7 +2904,7 @@ export function ProjectTimeline({
           durationSeconds={document.duration_seconds}
           fps={document.fps}
           mode={timeDisplayMode}
-          onModeChange={setTimeDisplayMode}
+          onModeChange={onTimeDisplayModeChange}
           onSeek={onSeek}
         />
         <TimelineZoomNavigator
@@ -2915,12 +2920,21 @@ export function ProjectTimeline({
         />
       </footer>
 
+      {/* Everything drawn across the track content — playhead, snap guide, In/Out range —
+          lives in one clipped overlay so a position scrolled past the left edge is cut
+          off at the track head instead of being painted over it. */}
+      <div className="pointer-events-none absolute bottom-10 left-[var(--w-track-head)] right-0 top-[var(--h-panel-head)] z-20 overflow-hidden">
       <div
-        className="absolute bottom-10 top-[var(--h-panel-head)] z-20 w-px bg-accent-600"
-        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds) - scrollLeft}px)` }}
+        className="pointer-events-auto absolute inset-y-0 z-20 w-px bg-accent-600"
+        style={{ left: playheadViewportPx }}
       >
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-xs text-bg">
-          {formatMillisecondTimecode(rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds)}
+        {/* The bubble is centred on the line, except at the left edge where it would be
+            cut by the overlay clip; there it hangs to the right instead. */}
+        <span className={cn(
+          'absolute top-1 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-xs text-bg',
+          playheadViewportPx < 48 ? 'left-0' : 'left-1/2 -translate-x-1/2',
+        )}>
+          {formatTimelinePosition(rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds, document.fps, timeDisplayMode)}
         </span>
         <button
           type="button"
@@ -2969,21 +2983,22 @@ export function ProjectTimeline({
       </div>
       {snapGuideTime === null ? null : (
         <span
-          className="pointer-events-none absolute bottom-10 top-[var(--h-panel-head)] z-30 w-0.5 bg-accent-400/80"
-          style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, snapGuideTime) - scrollLeft}px)` }}
+          className="absolute inset-y-0 z-30 w-0.5 bg-accent-400/80"
+          style={{ left: timeToPx(scale, snapGuideTime) - scrollLeft }}
           aria-label={t`吸附到 ${formatMillisecondTimecode(snapGuideTime)}`}
         />
       )}
       {rangeStart === null || rangeEnd === null || rangeEnd <= rangeStart ? null : (
         <span
-          className="pointer-events-none absolute bottom-10 top-[var(--h-panel-head)] z-10 border-x border-accent-400 bg-accent-100/35"
+          className="absolute inset-y-0 z-10 border-x border-accent-400 bg-accent-100/35"
           style={{
-            left: `calc(var(--w-track-head) + ${timeToPx(scale, rangeStart) - scrollLeft}px)`,
+            left: timeToPx(scale, rangeStart) - scrollLeft,
             width: timeToPx(scale, rangeEnd - rangeStart),
           }}
           aria-label={t`入出点范围 ${formatMillisecondTimecode(rangeStart)} 到 ${formatMillisecondTimecode(rangeEnd)}`}
         />
       )}
+      </div>
       <Drawer
         open={textDraft !== null}
         title={textDraft?.kind === 'caption' ? <Trans>添加字幕</Trans> : <Trans>添加文字</Trans>}
@@ -3119,7 +3134,7 @@ function TimelineTimecodeControl({ seconds, durationSeconds, fps, mode, onModeCh
     else onSeek(Math.min(durationSeconds, Math.max(0, parsed)));
   };
   return (
-    <span className="flex h-7 items-center overflow-hidden rounded-sm border border-divider bg-bg">
+    <span className="flex h-[var(--h-ctl-sm)] items-center overflow-hidden rounded-sm border border-divider bg-bg">
       <Tooltip content={mode === 'timecode' ? t`切换为总帧计数` : t`切换为 HH:MM:SS:FF 时间码`} side="top">
         <button
           type="button"
@@ -3655,7 +3670,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         showAutomationControls={height >= 80}
         onAutomationPropertyChange={setAutomationProperty}
       />
-      <div className={cn('relative min-h-0 overflow-hidden', track.track.hidden && 'opacity-45')} style={{ width: contentWidth }}>
+      <div className={cn('relative isolate min-h-0 overflow-hidden', track.track.hidden && 'opacity-45')} style={{ width: contentWidth }}>
         {mediaDropPreview === null ? null : (
           <div
             className="pointer-events-none absolute inset-y-1 z-30 min-w-2 border-2 border-dashed border-accent-500 bg-accent-100/80"
@@ -4672,7 +4687,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       data-source-in={visualClip.placement.source_in}
       data-source-out={visualClip.placement.source_out}
       data-clip-speed={visualClip.placement.speed}
-      title={`${clip.name} · ${formatMillisecondTimecode(clip.placement.duration)} · ${material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`待录制`}`}
+      title={`${clip.name} · ${formatMillisecondTimecode(clip.placement.duration)} · ${material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
     >
       {kind === 'audio' ? (
         <>
@@ -4714,7 +4729,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         <span className="grid size-full place-items-center bg-accent-100 px-2 text-xs font-medium text-accent-700"><Trans>嵌套序列</Trans> · {clip.name}</span>
       ) : material.streamAssetId === null ? (
         <span className="flex size-full items-center justify-center overflow-hidden whitespace-nowrap bg-neutral-200/60 text-xs text-neutral-500" data-unrecorded-placeholder>
-          {visualWidth >= 76 ? <Trans>待录制</Trans> : visualWidth >= 22 ? <Clapperboard className="size-3 shrink-0 opacity-50" aria-hidden="true" /> : null}
+          {visualWidth >= 76 ? <Trans>未录制</Trans> : visualWidth >= 22 ? <Clapperboard className="size-3 shrink-0 opacity-50" aria-hidden="true" /> : null}
         </span>
       ) : (
         <>
@@ -6078,7 +6093,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, selectedMar
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
-      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+      <div className="relative isolate min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         <TimelineGrid ticks={ticks} />
         {ordered.map((marker, index) => (
           <TimelineMarkerItem
@@ -6290,7 +6305,7 @@ const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentW
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`事件`}>
       <TimelineTrackHead icon={<Star className="size-4" />} label={t`事件`} controls="none" />
-      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+      <div className="relative isolate min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         <TimelineGrid ticks={ticks} />
         {clips.map((clip) => (
           <button

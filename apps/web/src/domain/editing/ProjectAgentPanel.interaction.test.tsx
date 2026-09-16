@@ -95,3 +95,55 @@ describe('Agent edit review', () => {
     expect(view.getByText(/会话保存失败/)).toBeTruthy();
   });
 });
+
+describe('Agent composer', () => {
+  it('offers example instructions when there is no conversation yet', () => {
+    const view = renderInteractive(<TestPanel {...props({ session: null, changeGroups: [] })} />);
+    expect(view.getByRole('heading', { name: '还没有对话' })).toBeTruthy();
+    fireEvent.click(view.getByRole('button', { name: '把每个片段前面留 1 秒缓冲' }));
+    const composer = view.getByRole('textbox', { name: '给 Agent 的指令' }) as HTMLTextAreaElement;
+    expect(composer.value).toBe('把每个片段前面留 1 秒缓冲');
+    expect(document.activeElement).toBe(composer);
+  });
+
+  it('is a multi-line box at body size that sends on Enter and breaks lines on Shift+Enter', async () => {
+    const sent: string[] = [];
+    const view = renderInteractive(<TestPanel {...props({ onSend: async (message) => { sent.push(message); } })} />);
+    const composer = view.getByRole('textbox', { name: '给 Agent 的指令' }) as HTMLTextAreaElement;
+    expect(composer.tagName).toBe('TEXTAREA');
+    expect(composer.rows).toBe(2);
+    expect(composer.className).toContain('text-base');
+    fireEvent.change(composer, { target: { value: '把每个片段前面留 1 秒缓冲' } });
+    const shiftEnter = fireEvent.keyDown(composer, { key: 'Enter', shiftKey: true });
+    expect(shiftEnter).toBe(true);
+    expect(sent).toEqual([]);
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    await waitFor(() => expect(sent).toEqual(['把每个片段前面留 1 秒缓冲']));
+    expect(view.queryByRole('heading', { name: '还没有对话' })).toBeNull();
+  });
+
+  it('explains why the composer is disabled while Agent is editing', () => {
+    const view = renderInteractive(<TestPanel {...props({ readOnly: true })} />);
+    const composer = view.getByRole('textbox', { name: '给 Agent 的指令' }) as HTMLTextAreaElement;
+    expect(composer.disabled).toBe(true);
+    const describedBy = composer.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy!)?.textContent).toContain('Agent 正在编辑，完成后才能继续对话');
+  });
+
+  it('renders the folded preview of a long reply as Markdown, not raw markers', () => {
+    const body = `**clip 15 修正**：\`end_tick\` 98270→**98307**。${'补充说明。'.repeat(120)}`;
+    const panel = props();
+    const session = panel.session!;
+    const view = renderInteractive(<TestPanel {...panel} session={{ ...session, entries: session.entries.map((entry) => entry.kind === 'assistant'
+      ? { ...entry, content: body }
+      : entry) }} />);
+    const preview = view.container.querySelector('[data-agent-reply-preview]')!;
+    expect(preview).toBeTruthy();
+    expect(preview.querySelector('strong')?.textContent).toBe('clip 15 修正');
+    expect(preview.querySelector('code')?.textContent).toBe('end_tick');
+    expect(preview.textContent).not.toContain('**');
+    expect(preview.textContent).not.toContain('`');
+    expect(view.getByRole('button', { name: '查看完整回复' })).toBeTruthy();
+  });
+});

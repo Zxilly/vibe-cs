@@ -3,7 +3,8 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { useAssetWaveform } from '../../data/mediaAssets';
-import { Button, cn } from '../../design/primitives';
+import { Tooltip } from '../../design/feedback';
+import { Button, NativeSelect, cn } from '../../design/primitives';
 import type { TimelineTrack } from '../../shared/desktop/dto';
 import { clipSourceTimeAtLocalTime } from './timelineInteraction';
 import { evaluateTrackAudioProperty, type TrackAudioProperty, upsertTrackAudioKeyframe } from './trackAudioEditing';
@@ -11,7 +12,20 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 
 export type MixerAutomationMode = 'off' | 'read' | 'write' | 'touch' | 'latch';
 
-export function AudioTrackMixer({ tracks, storyTrackId, timelineTimeSeconds, durationSeconds, fps, playing, readOnly, onReplaceTrack }: {
+const AUTOMATION_MODES: readonly MixerAutomationMode[] = ['off', 'read', 'write', 'touch', 'latch'];
+
+/** DAW automation modes in the product's Chinese; the English DAW names stay in the tooltip. */
+function automationModeLabel(mode: MixerAutomationMode): string {
+  switch (mode) {
+    case 'off': return t`关 · Off`;
+    case 'read': return t`读取 · Read`;
+    case 'write': return t`写入 · Write`;
+    case 'touch': return t`触动 · Touch`;
+    case 'latch': return t`闭锁 · Latch`;
+  }
+}
+
+export function AudioTrackMixer({ tracks, storyTrackId, timelineTimeSeconds, durationSeconds, fps, playing, readOnly, showHeader = true, onReplaceTrack }: {
   readonly tracks: readonly TimelineTrack[];
   readonly storyTrackId: string;
   readonly timelineTimeSeconds: number;
@@ -19,13 +33,15 @@ export function AudioTrackMixer({ tracks, storyTrackId, timelineTimeSeconds, dur
   readonly fps: number;
   readonly playing: boolean;
   readonly readOnly: boolean;
+  /** Off when the Dock already names the panel in its tab. */
+  readonly showHeader?: boolean;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
 }) {
   const audioTracks = tracks.filter((track) => track.kind === 'audio' || track.id === storyTrackId);
   const [modes, setModes] = useState<Readonly<Record<string, MixerAutomationMode>>>({});
   return (
     <section className="flex size-full min-h-0 flex-col bg-bg" aria-label={t`音轨混音器`}>
-      <header className="flex h-8 flex-none items-center border-b border-divider px-2 text-xs font-semibold"><Trans>音轨混音器</Trans></header>
+      {showHeader ? <header className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-3 text-xs font-semibold"><Trans>音轨混音器</Trans></header> : null}
       <div className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-2">
         {audioTracks.map((track) => (
           <AudioMixerStrip
@@ -79,38 +95,43 @@ function AudioMixerStrip({ track, timelineTimeSeconds, durationSeconds, fps, pla
     fps,
     () => globalThis.crypto.randomUUID(),
   ));
+  const faderDisabledReason = readOnly
+    ? t`Agent 正在编辑，完成后才能调整`
+    : mode === 'read'
+      ? t`「读取」模式只回放自动化；切到「关」或「写入」后才能手动调整`
+      : undefined;
   return (
     <div className="grid w-28 flex-none grid-rows-[auto_auto_1fr_auto_auto] gap-2 border-r border-divider px-2 pb-2 last:border-r-0" aria-label={t`混音轨 ${track.name}`}>
       <strong className="truncate text-center text-xs">{track.name}</strong>
-      <select className="h-7 border border-divider bg-bg px-1 text-xs" aria-label={t`自动化模式 ${track.name}`} value={mode} onChange={(event) => onModeChange(event.currentTarget.value as MixerAutomationMode)}>
-        <option value="off">Off</option>
-        <option value="read">Read</option>
-        <option value="write">Write</option>
-        <option value="touch">Touch</option>
-        <option value="latch">Latch</option>
-      </select>
+      <NativeSelect aria-label={t`自动化模式 ${track.name}`} value={mode} onChange={(event) => onModeChange(event.currentTarget.value as MixerAutomationMode)}>
+        {AUTOMATION_MODES.map((option) => <option key={option} value={option}>{automationModeLabel(option)}</option>)}
+      </NativeSelect>
       <div className="grid min-h-0 grid-cols-[1fr_10px] gap-2">
-        <input
-          type="range"
-          min={0}
-          max={4}
-          step={0.01}
-          value={volume}
-          disabled={readOnly || mode === 'read'}
-          aria-label={t`轨道音量 ${track.name}`}
-          className="m-auto h-full [direction:rtl] [writing-mode:vertical-lr]"
-          onChange={(event) => replaceProperty('volume', event.currentTarget.valueAsNumber)}
-        />
+        <Tooltip content={faderDisabledReason} side="right" wrap wrapFocusable={faderDisabledReason !== undefined} wrapClassName="grid min-h-0">
+          <input
+            type="range"
+            min={0}
+            max={4}
+            step={0.01}
+            value={volume}
+            disabled={faderDisabledReason !== undefined}
+            aria-label={t`轨道音量 ${track.name}`}
+            className="m-auto h-full [direction:rtl] [writing-mode:vertical-lr] disabled:opacity-45"
+            onChange={(event) => replaceProperty('volume', event.currentTarget.valueAsNumber)}
+          />
+        </Tooltip>
         <div className="relative min-h-0 overflow-hidden bg-neutral-200" aria-label={t`峰值 ${track.name} ${Math.round(peak * 100)}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(peak * 100)}>
           <span className="absolute inset-x-0 bottom-0 bg-ok transition-[height] duration-75" style={{ height: `${peak * 100}%` }} />
         </div>
       </div>
-      <input type="range" min={-1} max={1} step={0.01} value={pan} disabled={readOnly || mode === 'read'} aria-label={t`轨道声像 ${track.name}`} onChange={(event) => replaceProperty('pan', event.currentTarget.valueAsNumber)} />
+      <Tooltip content={faderDisabledReason} wrap wrapFocusable={faderDisabledReason !== undefined} wrapClassName="grid">
+        <input type="range" min={-1} max={1} step={0.01} value={pan} disabled={faderDisabledReason !== undefined} aria-label={t`轨道声像 ${track.name}`} className="disabled:opacity-45" onChange={(event) => replaceProperty('pan', event.currentTarget.valueAsNumber)} />
+      </Tooltip>
       <div className="grid grid-cols-2 gap-1">
-        <Button size="sm" variant={track.muted ? 'primary' : 'ghost'} aria-pressed={track.muted} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, muted: !track.muted })}>M</Button>
-        <Button size="sm" variant={track.solo ? 'primary' : 'ghost'} aria-pressed={track.solo} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, solo: !track.solo })}>S</Button>
+        <Button size="sm" variant={track.muted ? 'primary' : 'ghost'} aria-label={t`静音 ${track.name}`} aria-pressed={track.muted} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, muted: !track.muted })}>M</Button>
+        <Button size="sm" variant={track.solo ? 'primary' : 'ghost'} aria-label={t`独奏 ${track.name}`} aria-pressed={track.solo} disabled={readOnly} onClick={() => onReplaceTrack({ ...track, solo: !track.solo })}>S</Button>
       </div>
-      <span className={cn('text-center font-mono text-xs', peak >= 0.95 ? 'text-fail-text' : 'text-neutral-500')}>{Math.round(peak * 100)}%</span>
+      <span className={cn('text-center text-xs', peak >= 0.95 ? 'text-fail-text' : 'text-neutral-500')}><Trans>峰值</Trans> <span className="font-mono">{Math.round(peak * 100)}%</span></span>
     </div>
   );
 }

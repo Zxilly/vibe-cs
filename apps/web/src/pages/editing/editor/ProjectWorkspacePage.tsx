@@ -61,6 +61,7 @@ import { Alert, Dialog, Drawer, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, Toolbar, useCollapsed } from '../../../design/layout';
 import { Button, cn } from '../../../design/primitives';
 import { formatMillisecondTimecode } from '../../../design/timeline/timeScale';
+import type { TimelineTimeDisplayMode } from '../../../design/timeline';
 import { ClipInspector } from '../../../domain/editing/ClipInspector';
 import { AgentPanel, pendingDeliveryGroup } from '../../../domain/editing/ProjectAgentPanel';
 import { AudioTrackMixer } from '../../../domain/editing/AudioTrackMixer';
@@ -265,6 +266,7 @@ export function ProjectWorkspacePage() {
   const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [timeDisplayMode, setTimeDisplayMode] = useState<TimelineTimeDisplayMode>('timecode');
   const [loopPlaybackEnabled, setLoopPlaybackEnabled] = useState(false);
   const [timelineSessionReadyProjectId, setTimelineSessionReadyProjectId] = useState<string | null>(null);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
@@ -661,6 +663,31 @@ export function ProjectWorkspacePage() {
     const clip = clipById.get(blocker.clip_id);
     return clip?.capture_intent === null || clip?.capture_intent === undefined ? [] : [blocker.clip_id];
   });
+  const timelineEmpty = currentDeliveryGate !== null && !currentDeliveryGate.ready && deliveryBlockers.length === 0;
+  const recordDisabledReason = readOnly
+    ? t`Agent 正在编辑，完成后再录制`
+    : deliveryGatePending
+      ? t`正在检查交付状态`
+      : startRecording.isPending
+        ? t`正在开始录制`
+        : recordableClipIds.length === 0
+          ? (deliveryBlockers.length === 0 ? t`没有需要录制的片段` : t`未就绪的素材不能靠录制补齐`)
+          : undefined;
+  const exportDisabledReason = readOnly
+    ? t`Agent 正在编辑，完成后再导出`
+    : deliveryGatePending
+      ? t`正在检查交付状态`
+      : exportProject.isPending
+        ? t`正在开始导出`
+        : currentDeliveryGate === null
+          ? t`没能检查交付状态`
+          : timelineEmpty
+            ? t`时间线还没有片段`
+            : currentDeliveryGate.ready
+              ? undefined
+              : recordableClipIds.length > 0
+                ? t`${deliveryBlockers.length} 个素材还没录制，先录制缺失片段`
+                : t`${deliveryBlockers.length} 个素材未就绪，检查素材面板里标红的片段`;
   const mutate = (
     summary: string,
     scope: ProjectPatchScope,
@@ -1127,6 +1154,7 @@ export function ProjectWorkspacePage() {
       renderPreviews={renderPreviews.data ?? []}
       nestedSequenceMediaByClipId={nestedSequenceMediaByClipId}
       timelineTimeSeconds={transportTimeSeconds}
+      timeDisplayMode={timeDisplayMode}
       selectedClipId={selectedClipId}
       readOnly={readOnly || apply.isPending || selected?.track.locked === true}
       playing={playing}
@@ -1230,6 +1258,8 @@ export function ProjectWorkspacePage() {
       }}
       transport={{
         timelineTimeSeconds: transportTimeSeconds,
+        timeDisplayMode,
+        onTimeDisplayModeChange: setTimeDisplayMode,
         rangeInSeconds: rangeInSeconds,
         rangeOutSeconds: rangeOutSeconds,
         playing: playing,
@@ -1449,6 +1479,7 @@ export function ProjectWorkspacePage() {
       fps={current.document.fps}
       playing={playing}
       readOnly={readOnly}
+      showHeader={false}
       onReplaceTrack={(track) => mutate(
         `混音轨 ${track.name}`,
         { kind: 'track', track_id: track.id },
@@ -1498,6 +1529,8 @@ export function ProjectWorkspacePage() {
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查交付状态</Trans></span>
           ) : currentDeliveryGate?.ready === true ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
+          ) : timelineEmpty ? (
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>时间线还没有片段</Trans></span>
           ) : (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
           )}
@@ -1534,7 +1567,8 @@ export function ProjectWorkspacePage() {
             type="button"
             data-window-no-drag
             className="gap-2"
-            disabled={readOnly || deliveryGatePending || recordableClipIds.length === 0 || startRecording.isPending}
+            disabled={recordDisabledReason !== undefined}
+            disabledReason={recordDisabledReason}
             onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
           >
             <Video className="size-4" aria-hidden="true" />
@@ -1544,7 +1578,8 @@ export function ProjectWorkspacePage() {
             type="button"
             data-window-no-drag
             className="gap-2"
-            disabled={readOnly || deliveryGatePending || currentDeliveryGate?.ready !== true || exportProject.isPending}
+            disabled={exportDisabledReason !== undefined}
+            disabledReason={exportDisabledReason}
             onClick={() => setExternalConfirm({
               kind: 'export',
               draft: { encoder: 'auto', quality: 80, sourceRange: hasExportRange ? 'in_out' : 'sequence' },
@@ -1879,6 +1914,20 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
   }, [demo.isPending, intent, mapName, markers, presentedReplayTick, radar.data?.transform, radar.isPending, radarSrc, replay.isPending, selected, tracks]);
   const [displayed, setDisplayed] = useState<TacticalScene | null>(null);
   const [mountedRadarSources, setMountedRadarSources] = useState<readonly string[]>([]);
+  const [failedRadarSources, setFailedRadarSources] = useState<readonly string[]>([]);
+  // Why no scene can be built for this clip, once every query has settled.
+  // Each of these used to leave the pulsing placeholder up for ever.
+  const unavailableReason = intent === null
+    ? null
+    : demo.isError || (!demo.isPending && mapName === null)
+      ? t`这段素材没有可用的地图上下文`
+      : radar.isError || (!radar.isPending && radarSrc === null)
+        ? t`没有 ${mapName ?? ''} 的雷达图`
+        : radarSrc !== null && failedRadarSources.includes(radarSrc)
+          ? t`雷达图没能加载`
+          : replay.isError || (!replay.isPending && replaySlice === null)
+            ? t`这段素材在 Demo 里没有可用的回放数据`
+            : null;
   const mountedRadarSourcesRef = useRef(new Set<string>());
   const readyRadarSourcesRef = useRef(new Set<string>());
   const pendingRadarScenesRef = useRef(new Map<string, TacticalScene>());
@@ -1951,10 +2000,18 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
                 const scene = pendingRadarScenesRef.current.get(src);
                 if (scene !== undefined && selectedSceneKeyRef.current === scene.sceneKey) setDisplayed(scene);
               }}
+              onError={() => setFailedRadarSources((current) => current.includes(src) ? current : [...current, src])}
             />
           ))}
-          {displayed === null ? (
-            <div className="absolute inset-0 z-10 animate-pulse bg-media-divider" role="status" aria-label={t`正在读取战术图`} />
+          {displayed === null && unavailableReason !== null ? (
+            <div className="absolute inset-0 z-10 grid place-items-center bg-media px-5 text-center text-sm text-on-media-muted" role="status">
+              {unavailableReason}
+            </div>
+          ) : displayed === null ? (
+            <div className="absolute inset-0 z-10 flex animate-pulse items-center justify-center gap-2 bg-media-divider text-xs text-on-media-muted" role="status">
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+              <Trans>正在读取战术图</Trans>
+            </div>
           ) : (
             <>
               <StableMapCanvas

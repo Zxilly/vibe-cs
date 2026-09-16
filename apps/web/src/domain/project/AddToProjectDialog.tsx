@@ -115,7 +115,7 @@ export function AddToProjectDialog({
         <dt className="text-neutral-600"><Trans>加入位置</Trans></dt><dd>Story · {formatMillisecondTimecode(start)}</dd>
         <dt className="text-neutral-600"><Trans>加入后时长</Trans></dt><dd>{!knownDuration || invalidRange ? <Trans>待范围有效后计算</Trans> : formatMillisecondTimecode(Math.max(target?.document.duration_seconds ?? 0, start + duration))}</dd>
       </dl>
-      <p className="text-xs text-warn-text"><Trans>加入后为待录制片段；录制完成后才能导出。</Trans></p>
+      <p className="text-xs text-warn-text"><Trans>加入后是未录制片段；录制完成后才能导出。</Trans></p>
       {projects.isError ? <Alert className="mt-3" variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: () => void projects.refetch() }}><Trans>无法读取目标作品。</Trans></Alert> : null}
       {failure === null ? null : (
         <Alert className="mt-3" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: confirm }}>

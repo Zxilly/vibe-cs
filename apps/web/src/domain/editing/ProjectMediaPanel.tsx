@@ -327,13 +327,13 @@ export function ProjectMediaPanel({
           {docked ? null : <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>}
           <span className="whitespace-nowrap text-xs tabular-nums text-neutral-600 @max-[280px]:hidden">
             <Trans>
-              待录 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
+              未录制 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
               {' · '}
-              已录 {items.filter((item) => item.state === 'recorded').length}
+              已录制 {items.filter((item) => item.state === 'recorded').length}
             </Trans>
           </span>
           <span className="hidden whitespace-nowrap text-xs text-neutral-600 @max-[280px]:inline">
-            {plannedItems.length > 0 ? <Trans>待录 {plannedItems.length}</Trans> : <Trans>已录 {recordedItems.length}</Trans>}
+            {plannedItems.length > 0 ? <Trans>未录制 {plannedItems.length}</Trans> : <Trans>已录制 {recordedItems.length}</Trans>}
           </span>
           <Seg<ProjectMediaView>
             className="project-media-view-toggle ml-auto flex-none"
@@ -421,7 +421,7 @@ export function ProjectMediaPanel({
           onChange={(event) => setStateFilter(event.currentTarget.value as MediaStateFilter)}
         >
           <option value="all">{t`全部状态`}</option>
-          <option value="planned">{t`准备录制`}</option>
+          <option value="planned">{t`未录制`}</option>
           <option value="recorded">{t`已录制`}</option>
           <option value="imported">{t`导入素材`}</option>
         </NativeSelect>
@@ -431,7 +431,7 @@ export function ProjectMediaPanel({
         {pending ? <Skeleton className="m-2 h-24" /> : filtered.length > 0 ? (
           <div role="listbox" aria-label={t`项目素材列表`}>
             <MediaItemSection
-              label={t`准备录制`}
+              label={t`未录制`}
               items={plannedItems}
               view={view}
               selectedKey={selectedKey}
@@ -467,7 +467,7 @@ export function ProjectMediaPanel({
             className="m-3 min-h-40 min-w-0 p-3"
             title={normalizedQuery === '' && stateFilter === 'all' ? <Trans>项目还没有素材</Trans> : <Trans>没有匹配的素材</Trans>}
             description={normalizedQuery === '' && stateFilter === 'all'
-              ? <Trans>时间线待录制片段、已录制片段和导入素材都会显示在这里。</Trans>
+              ? <Trans>时间线上未录制的片段、已录制的片段和导入素材都会显示在这里。</Trans>
               : <Trans>调整搜索词或素材状态筛选。</Trans>}
             actions={normalizedQuery !== '' || stateFilter !== 'all' ? undefined : (
               <Button size="sm" variant="secondary" disabled={!importAvailable || importing} onClick={onImport}>
@@ -1079,6 +1079,17 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
   };
 
   const selectedPreviewReady = previewAssetId !== null && displayedAssetId === previewAssetId;
+  const playDisabledReason = item === null
+    ? t`选择素材后才能播放`
+    : item.sourceAsset?.metadata_status.status === 'unavailable'
+      ? t`源文件不可用，重新定位后才能播放`
+      : item.state === 'planned'
+        ? t`未录制，暂不能播放`
+        : item.isStillImage
+          ? t`静态图片没有可播放的画面`
+          : previewAssetId === null
+            ? t`这个素材还没有可预览的媒体`
+            : undefined;
   return (
     <>
     <div
@@ -1178,10 +1189,10 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
           <div className="absolute inset-0 grid place-items-center bg-media px-4 text-center text-xs text-on-media-muted">
             <span>
               <CircleDashed className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
-              <span className="block"><Trans>准备录制</Trans></span>
+              <span className="block"><Trans>未录制</Trans></span>
               {item.timelineClip?.capture_intent === null || item.timelineClip?.capture_intent === undefined ? null : (
-                <span className="mt-1 block text-xs text-neutral-400">
-                  {item.timelineClip.capture_intent.player_id} · tick {item.timelineClip.capture_intent.start_tick}–{item.timelineClip.capture_intent.end_tick}
+                <span className="mt-1 block font-mono text-xs text-neutral-400">
+                  tick {item.timelineClip.capture_intent.start_tick}–{item.timelineClip.capture_intent.end_tick}
                 </span>
               )}
             </span>
@@ -1204,14 +1215,16 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
       </div>
       <div className="border-t border-media-divider bg-media text-on-media">
         <div className="flex min-h-7 flex-wrap items-center justify-center gap-1">
-          <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材上一帧`} disabled={item === null} onClick={() => stepFrame(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="grid size-6 place-items-center" aria-label={playing ? t`暂停源素材` : t`播放源素材`} disabled={previewAssetId === null || item?.isStillImage === true} onClick={togglePlayback}>{playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}</button>
-          <button type="button" className="grid size-6 place-items-center" aria-label={t`源素材下一帧`} disabled={item === null} onClick={() => stepFrame(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-6 place-items-center disabled:opacity-45" aria-label={t`源素材上一帧`} disabled={item === null} onClick={() => stepFrame(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+          <Tooltip content={playDisabledReason} wrap wrapFocusable={playDisabledReason !== undefined} wrapClassName="flex-none">
+            <button type="button" className="grid size-6 place-items-center disabled:opacity-45" aria-label={playing ? t`暂停源素材` : t`播放源素材`} disabled={playDisabledReason !== undefined} onClick={togglePlayback}>{playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}</button>
+          </Tooltip>
+          <button type="button" className="grid size-6 place-items-center disabled:opacity-45" aria-label={t`源素材下一帧`} disabled={item === null} onClick={() => stepFrame(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
           <span className="ml-1 whitespace-nowrap font-mono text-xs">{formatSourceTime(sourceTime)}</span>
-          <button type="button" className="ml-auto grid size-6 place-items-center" aria-label={t`在源播放头添加或编辑片段标记`} disabled={sourceAsset === null || readOnly || busy || duration <= 0} onClick={editSourceMarker}><BookmarkPlus className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="h-6 px-1.5 font-mono text-xs" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
-          <button type="button" className="h-6 px-1.5 font-mono text-xs" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
-          <button type="button" className="mr-1 h-6 px-1.5 text-xs" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
+          <button type="button" className="ml-auto grid size-6 place-items-center disabled:opacity-45" aria-label={t`在源播放头添加或编辑片段标记`} disabled={sourceAsset === null || readOnly || busy || duration <= 0} onClick={editSourceMarker}><BookmarkPlus className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="h-6 px-1.5 font-mono text-xs disabled:opacity-45" aria-label={t`标记源入点`} disabled={!canMarkSourceRange} onClick={markSourceIn}>I</button>
+          <button type="button" className="h-6 px-1.5 font-mono text-xs disabled:opacity-45" aria-label={t`标记源出点`} disabled={!canMarkSourceRange} onClick={markSourceOut}>O</button>
+          <button type="button" className="mr-1 h-6 px-1.5 text-xs disabled:opacity-45" aria-label={t`清除源入出点`} disabled={item === null} onClick={() => onSourceRangeChange({ sourceIn: 0, sourceOut: duration })}>×</button>
         </div>
         <div className="relative h-6">
           <div className="pointer-events-none absolute inset-x-2 top-2 h-2 overflow-visible bg-neutral-700">
@@ -1375,7 +1388,7 @@ function formatSourceTime(seconds: number): string {
 }
 
 function stateLabel(state: ProjectMediaItem['state']): string {
-  if (state === 'planned') return t`准备录制`;
+  if (state === 'planned') return t`未录制`;
   if (state === 'stale') return t`需要重录`;
   if (state === 'recorded') return t`已录制`;
   return t`导入`;

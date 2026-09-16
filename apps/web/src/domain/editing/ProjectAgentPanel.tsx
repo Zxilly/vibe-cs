@@ -14,9 +14,10 @@ import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import { Empty } from '../../design/data';
 import { Drawer, toast } from '../../design/feedback';
 import { ProjectExecutionCard } from './ProjectExecutionCard';
-import { Button, cn } from '../../design/primitives';
+import { Button, Textarea, cn } from '../../design/primitives';
 import type {
   AgentSession,
   AgentSessionEntry,
@@ -114,8 +115,26 @@ export const AgentPanel = memo(function AgentPanel({
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [returningChangeGroupId, setReturningChangeGroupId] = useState<string | null>(null);
   const conversationEnd = useRef<HTMLDivElement>(null);
-  const messageInput = useRef<HTMLInputElement>(null);
+  const messageInput = useRef<HTMLTextAreaElement>(null);
   const entries = session?.entries ?? [];
+  const conversationEmpty = entries.length === 0
+    && chat.draft === ''
+    && (chat.activity === undefined || chat.activity.length === 0)
+    && externalExecutions.length === 0;
+  const examplePrompts = [
+    t`把每个片段前面留 1 秒缓冲`,
+    t`只保留击杀最多的三个片段`,
+    t`给所有片段加上默认转场`,
+  ];
+  const composerDisabledReason = !agentReady
+    ? t`先配置 Agent 模型`
+    : readOnly
+      ? t`Agent 正在编辑，完成后才能继续对话`
+      : chat.streaming
+        ? t`Agent 正在回复`
+        : creatingSession
+          ? t`正在创建对话`
+          : undefined;
   const pendingConfirmationToolCallId = pendingConfirmationToolCall(entries);
   const toolDecisions = new Map<string, ToolDecisionEntry>();
   for (const entry of entries) {
@@ -167,6 +186,28 @@ export const AgentPanel = memo(function AgentPanel({
                 <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>配置提供方、模型、API 地址和密钥后即可在这里继续。</Trans></p>
                 <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
               </ConversationShell>
+            ) : null}
+            {agentReady && !readOnly && conversationEmpty ? (
+              <li className="min-w-0">
+                <Empty
+                  icon={<Sparkles className="size-8 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />}
+                  title={<Trans>还没有对话</Trans>}
+                  description={<Trans>用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。</Trans>}
+                  actions={examplePrompts.map((example) => (
+                    <Button
+                      key={example}
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setMessage(example);
+                        messageInput.current?.focus();
+                      }}
+                    >
+                      {example}
+                    </Button>
+                  ))}
+                />
+              </li>
             ) : null}
             {entries.map((entry) => (
               <ConversationEntry
@@ -243,22 +284,37 @@ export const AgentPanel = memo(function AgentPanel({
             }}><Trans>取消</Trans></Button>
           </div>
         )}
-        <div className="flex gap-2">
-          <input
+        <div className="flex items-end gap-2">
+          <Textarea
             ref={messageInput}
-            className="h-10 min-w-0 flex-1 rounded-sm border border-divider bg-neutral-50 px-3 text-xs outline-none focus:border-accent-400"
+            className="flex-1 rounded-md text-base"
+            rows={2}
+            resize="none"
+            aria-label={t`给 Agent 的指令`}
             value={message}
-            disabled={chat.streaming || creatingSession || readOnly || !agentReady}
+            disabled={composerDisabledReason !== undefined}
+            disabledReason={composerDisabledReason}
             placeholder={!agentReady
               ? t`先配置 Agent 模型`
               : t`告诉 Agent 要调整什么…`}
             onChange={(event) => setMessage(event.currentTarget.value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') submit(); }}
+            onKeyDown={(event) => {
+              // Enter sends; Shift+Enter keeps a line break for a longer brief.
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                submit();
+              }
+            }}
           />
           {chat.streaming ? (
             <Button variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
           ) : (
-            <Button aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送修改意见`} disabled={message.trim() === '' || creatingSession || readOnly || !agentReady} onClick={submit}><Send className="size-4" aria-hidden="true" /></Button>
+            <Button
+              aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送修改意见`}
+              disabled={message.trim() === '' || composerDisabledReason !== undefined}
+              disabledReason={composerDisabledReason ?? (message.trim() === '' ? t`先写下要调整什么` : undefined)}
+              onClick={submit}
+            ><Send className="size-4" aria-hidden="true" /></Button>
           )}
         </div>
       </footer>
@@ -318,7 +374,13 @@ function ConversationEntry({
     <ConversationShell actor="Agent" at={entry.at} tone={entry.status === 'failed' ? 'error' : 'agent'}>
       {entry.content.trim() === '' ? null : (
         entry.content.length > 600 ? <>
-          <p className="whitespace-pre-wrap break-words text-base">{entry.content.slice(0, 320)}…</p>
+          {/* The preview is the same rendered Markdown as the full reply, cut by
+              height rather than by character count so no `**` or backtick pair
+              is split and no raw marker leaks into the conversation. */}
+          <div className="relative max-h-48 overflow-hidden" data-agent-reply-preview>
+            <AgentMarkdown onOpenExternalUrl={onOpenExternalUrl}>{entry.content}</AgentMarkdown>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-t from-bg to-transparent" aria-hidden="true" />
+          </div>
           <Button className="mt-2" size="sm" variant="ghost" onClick={() => setFullReplyOpen(true)}><Trans>查看完整回复</Trans></Button>
           <Drawer open={fullReplyOpen} title={<Trans>Agent · 完整回复</Trans>} width="wide" onClose={() => setFullReplyOpen(false)}>
             <AgentMarkdown onOpenExternalUrl={onOpenExternalUrl}>{entry.content}</AgentMarkdown>

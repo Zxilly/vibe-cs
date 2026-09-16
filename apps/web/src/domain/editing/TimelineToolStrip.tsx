@@ -1,5 +1,6 @@
 import { t } from '@lingui/core/macro';
 import {
+  ArrowRightFromLine,
   BetweenHorizontalEnd,
   BetweenHorizontalStart,
   Gauge,
@@ -95,7 +96,7 @@ export function TimelineToolStrip({
       label: t`波纹编辑工具 (B)`,
       description: t`拖动片段边缘并实时移动后续片段；保留自由轨已有间隙`,
       unavailable: t`没有可波纹裁切的未锁定片段`,
-      icon: <MoveRight className="size-4" aria-hidden="true" />,
+      icon: <ArrowRightFromLine className="size-4" aria-hidden="true" />,
       enabled: canRippleTool,
       pressed: editTool === 'ripple',
       action: () => onChangeTool('ripple'),

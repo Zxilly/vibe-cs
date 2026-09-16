@@ -41,6 +41,7 @@ const MAXIMUM_REPLAY_EFFECT_RECORDS: usize = 100_000;
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/demos/compact", get(list_demos))
+        .route("/api/demos/maps", get(list_demo_map_names))
         .route("/api/demos/import", post(import_paths))
         .route("/api/demos/scan", post(scan_demos))
         .route("/api/demos/watch/status", get(watch_status))
@@ -225,6 +226,11 @@ async fn list_demos(
         page: page.page,
         page_size: page.page_size,
     }))
+}
+
+/// The distinct map names of the whole catalogue, for the library's map filter.
+async fn list_demo_map_names(State(state): State<AppState>) -> ApiResult<Json<Vec<String>>> {
+    Ok(Json(state.storage.list_demo_map_names().await?))
 }
 
 async fn export_demos(
@@ -820,8 +826,10 @@ async fn publish_prepared_batch(
             let final_path = final_dir.join(&demo.relative_path);
             record_from_validated(
                 ValidatedDemo {
-                    path: std::fs::canonicalize(&final_path)
-                        .map_err(|error| format!("{}: {error}", final_path.display()))?,
+                    path: catalog_path(
+                        std::fs::canonicalize(&final_path)
+                            .map_err(|error| format!("{}: {error}", final_path.display()))?,
+                    ),
                     size: demo.size,
                     sha256: demo.sha256.clone(),
                 },
@@ -1145,10 +1153,14 @@ async fn reconcile_missing_demos(state: &AppState, roots: &[String]) -> ApiResul
         .map(PathBuf::from)
         .filter_map(|requested| {
             if requested.is_file() {
-                std::fs::canonicalize(requested).ok().map(ScanScope::File)
+                std::fs::canonicalize(requested)
+                    .ok()
+                    .map(catalog_path)
+                    .map(ScanScope::File)
             } else if requested.is_dir() {
                 std::fs::canonicalize(requested)
                     .ok()
+                    .map(catalog_path)
                     .map(ScanScope::Directory)
             } else if is_demo_path(&requested) {
                 Some(ScanScope::File(requested))
@@ -1223,10 +1235,20 @@ impl ScanScope {
     }
 }
 
+/// The form a path takes in the catalogue: canonical, but without Windows'
+/// `\\?\` verbatim prefix, which `canonicalize` adds and the Inspector's 「位置」
+/// row would otherwise print. `dunce` keeps the prefix only where dropping it
+/// would change what the path names (over 260 characters, reserved names).
+fn catalog_path(canonical: PathBuf) -> PathBuf {
+    dunce::simplified(&canonical).to_path_buf()
+}
+
 async fn build_demo_record(path: &str, source: &str) -> Result<DemoRecord, String> {
-    let path = tokio::fs::canonicalize(path)
-        .await
-        .map_err(|error| error.to_string())?;
+    let path = catalog_path(
+        tokio::fs::canonicalize(path)
+            .await
+            .map_err(|error| error.to_string())?,
+    );
     let validation_path = path.clone();
     let validated = tokio::task::spawn_blocking(move || {
         validate_demo(
@@ -2207,6 +2229,75 @@ mod tests {
                 "console_command": "quit"
             }))
             .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn map_names_are_the_whole_catalogue_distinct_and_sorted() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let demo = |map: Option<&str>| {
+            let id = Uuid::new_v4();
+            DemoRecord {
+                id,
+                path: format!("C:/matches/{id}.dem"),
+                file_name: format!("{id}.dem"),
+                display_name: id.to_string(),
+                source: "local".to_owned(),
+                status: DemoStatus::Ready,
+                map_name: map.map(str::to_owned),
+                match_date: Some(now),
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec![],
+                remark: String::new(),
+                content_sha256: Some(id.simple().to_string().repeat(2)),
+                file_size: 42,
+                created_at: now,
+                updated_at: now,
+            }
+        };
+        storage
+            .put_demos(vec![
+                demo(Some("de_mirage")),
+                demo(Some("de_ancient")),
+                demo(Some("de_mirage")),
+                demo(None),
+            ])
+            .await
+            .expect("persist demos");
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let state = AppState::new(storage, directory.path().join("data"));
+
+        let Json(names) = list_demo_map_names(State(state)).await.expect("map names");
+
+        // A facet over every record — not the page on screen — with no
+        // duplicates and no entry for a record that has no map yet.
+        assert_eq!(names, vec!["de_ancient".to_owned(), "de_mirage".to_owned()]);
+    }
+
+    #[tokio::test]
+    async fn catalog_path_never_carries_the_verbatim_prefix() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("catalogued.dem");
+        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
+
+        let demo = build_demo_record(&path.to_string_lossy(), "local")
+            .await
+            .expect("demo record");
+
+        // The Inspector prints `path` as the file's 「位置」; `canonicalize`'s
+        // `\\?\` is an API namespace, not a place a user can recognise.
+        assert!(!demo.path.starts_with(r"\\?\"), "{}", demo.path);
+        assert_eq!(
+            std::fs::canonicalize(&demo.path).expect("catalogued path resolves"),
+            std::fs::canonicalize(&path).expect("fixture path resolves")
         );
     }
 

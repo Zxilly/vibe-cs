@@ -537,6 +537,21 @@ impl Storage {
         .await
     }
 
+    /// Every distinct map name in the catalogue, sorted — the library's map
+    /// filter facet, independent of whatever page or filter is on screen.
+    pub async fn list_demo_map_names(&self) -> Result<Vec<String>> {
+        self.run(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT DISTINCT map_name FROM demos WHERE map_name IS NOT NULL ORDER BY map_name",
+            )?;
+            let names = statement
+                .query_map([], |row| row.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(names)
+        })
+        .await
+    }
+
     pub async fn list_demo_metadata_export(
         &self,
         query: DemoQuery,

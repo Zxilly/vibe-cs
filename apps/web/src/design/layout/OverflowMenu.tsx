@@ -61,6 +61,8 @@ export interface OverflowMenuProps {
   iconOnly?: boolean | undefined;
   /** Which edge of the trigger the menu hangs from. */
   align?: 'start' | 'end' | undefined;
+  /** Which side of the trigger the menu opens on; a vertical rail opens to the right. */
+  side?: 'bottom' | 'right' | undefined;
   className?: string | undefined;
   triggerClassName?: string | undefined;
 }
@@ -76,9 +78,13 @@ const LIST_CLASS =
  * `data-highlighted` is Radix's own attribute for the item the keyboard or the
  * pointer is on. It replaces a `:hover` rule, which could not paint the item
  * the arrow keys had moved to.
+ *
+ * `flex-none` keeps every row at `--h-row-compact` once the list hits its
+ * max-height: without it the flex column squeezes 28 rows into the cap instead
+ * of scrolling them.
  */
 const ITEM_CLASS =
-  'flex h-[var(--h-row-compact)] w-full cursor-pointer items-center gap-3 whitespace-nowrap px-4 ' +
+  'flex h-[var(--h-row-compact)] w-full flex-none cursor-pointer items-center gap-3 whitespace-nowrap px-4 ' +
   'text-left text-sm text-text outline-none data-[highlighted]:bg-accent-100 ' +
   'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45';
 
@@ -88,6 +94,7 @@ export function OverflowMenu({
   triggerLabel,
   iconOnly = false,
   align = 'end',
+  side = 'bottom',
   className,
   triggerClassName,
 }: OverflowMenuProps) {
@@ -107,6 +114,7 @@ export function OverflowMenu({
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           align={align}
+          side={side}
           sideOffset={1}
           collisionPadding={8}
           /* The hand-rolled menu wrapped at both ends and spec §6.2 tests it.

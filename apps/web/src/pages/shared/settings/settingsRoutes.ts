@@ -18,6 +18,7 @@ export const SETTINGS_ITEM_SECTION = {
   dependencies: 'advanced',
   capture: 'advanced',
   diagnostics: 'advanced',
+  recovery: 'advanced',
 } as const satisfies Readonly<Record<string, SettingsSection>>;
 
 export type SettingsItem = keyof typeof SETTINGS_ITEM_SECTION;

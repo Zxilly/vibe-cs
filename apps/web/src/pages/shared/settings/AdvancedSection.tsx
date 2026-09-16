@@ -27,6 +27,12 @@
  *
  * The path comes back and is shown with 定位文件, rather than leaving the user
  * to hunt for a filename they never saw.
+ *
+ * ── 恢复中心 and 使用引导 live under this section ─────────────────────────
+ *
+ * Neither has a rail entry; both light 设置与诊断 and crumb under it. The
+ * command palette reaches them, and so does the last block here — otherwise
+ * the crumb promises a parent that has no way back down.
  */
 
 import { t } from '@lingui/core/macro';
@@ -44,6 +50,8 @@ import {
 } from '../../../data/config';
 import { useRevealPath } from '../../../data/nativeShell';
 import { dataErrorMessage } from '../../../data/errors';
+import type { DependencyState } from '../../../shared/desktop/dto';
+import { RouteLink } from '../navigation/RouteLink';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
 
 export function AdvancedSection() {
@@ -80,15 +88,15 @@ export function AdvancedSection() {
               </span>
             </SettingsRow>
             <SettingsRow
-              label={<Trans>当前运行编号</Trans>}
+              label={<Trans>当前运行状态</Trans>}
               hint={
                 <Trans>
-                  录制与回放是互斥的，这个编号说明为什么某个动作现在不可用。
+                  录制与回放是互斥的，这个状态说明为什么某个动作现在不可用。
                 </Trans>
               }
             >
-              <span className="font-mono text-xs text-neutral-700" data-runtime-session="">
-                {runtime.data.runtime_session}
+              <span className="text-xs text-neutral-700" data-runtime-session={runtime.data.runtime_session}>
+                <RuntimeSessionLabel session={runtime.data.runtime_session} />
               </span>
             </SettingsRow>
             {runtime.data.active_recording_job === null ? null : (
@@ -101,6 +109,10 @@ export function AdvancedSection() {
                 </span>
               </SettingsRow>
             )}
+            <SettingsRow
+              label={<Trans>数据目录</Trans>}
+              hint={<Trans>应用写出的所有文件都在这里。要改请到「文件与资料库」。</Trans>}
+            />
             <PathReadout path={runtime.data.data_dir} empty={<Trans>没有数据目录</Trans>} />
           </>
         )}
@@ -126,7 +138,9 @@ export function AdvancedSection() {
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
                     <span>{check.label}</span>
-                    <span className="font-mono text-xs text-neutral-600">{check.state}</span>
+                    <span className="text-xs text-neutral-600" data-check-state={check.state}>
+                      {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>缺失</Trans>}
+                    </span>
                   </div>
                   {check.detail === '' ? null : (
                     <p className="ms-5 break-all text-xs leading-normal text-neutral-600">{check.detail}</p>
@@ -191,7 +205,13 @@ export function AdvancedSection() {
               </span>
             </SettingsRow>
             {hlae.data.executable === null ? null : (
-              <PathReadout path={hlae.data.executable} empty={null} />
+              <>
+                <SettingsRow
+                  label={<Trans>可执行文件</Trans>}
+                  hint={<Trans>录制时启动的 HLAE 程序。</Trans>}
+                />
+                <PathReadout path={hlae.data.executable} empty={null} />
+              </>
             )}
             {hlae.data.messages.length === 0 ? null : (
               <ul className="flex flex-col gap-1">
@@ -289,8 +309,55 @@ export function AdvancedSection() {
           </Alert>
         )}
       </SettingsBlock>
+
+      <SettingsBlock
+        id="recovery"
+        layout="split"
+        title={<Trans>恢复与引导</Trans>}
+        description={<Trans>修复损坏的配置和残留文件，或重看三步引导。</Trans>}
+      >
+        <SettingsRow
+          label={<Trans>恢复中心</Trans>}
+          hint={<Trans>配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。</Trans>}
+        >
+          <RouteLink to="/recovery" data-settings-link="recovery">
+            <Trans>打开恢复中心</Trans>
+          </RouteLink>
+        </SettingsRow>
+        <SettingsRow
+          label={<Trans>使用引导</Trans>}
+          hint={<Trans>三步做出第一条视频，以及这台机器现在能做什么。</Trans>}
+        >
+          <RouteLink to="/guide" data-settings-link="guide">
+            <Trans>打开使用引导</Trans>
+          </RouteLink>
+        </SettingsRow>
+      </SettingsBlock>
     </div>
   );
+}
+
+/**
+ * The runtime session, in words. The wire carries the state machine's own
+ * names (`state.rs`'s `runtime_session_snapshot`); a name this list does not
+ * know is printed as-is rather than dropped, because a diagnostics page that
+ * hides a state it cannot name is hiding the one thing worth reporting.
+ */
+function RuntimeSessionLabel({ session }: { readonly session: string }) {
+  switch (session) {
+    case 'idle':
+      return <Trans>空闲</Trans>;
+    case 'playback_launching':
+      return <Trans>正在启动回放</Trans>;
+    case 'playback':
+      return <Trans>回放中</Trans>;
+    case 'playback_stopping':
+      return <Trans>正在停止回放</Trans>;
+    case 'recording':
+      return <Trans>录制中</Trans>;
+    default:
+      return <span className="font-mono">{session}</span>;
+  }
 }
 
 const MANAGED_HLAE_BOUNDARY_MESSAGE =
@@ -306,20 +373,7 @@ function HlaeMessage({ message }: { readonly message: string }) {
   );
 }
 
-/** Same reading as `GameSection`'s — see the note there on why `idle`. */
-function dotStatus(state: string): StatusDotStatus {
-  switch (state) {
-    case 'ready':
-    case 'ok':
-      return 'ok';
-    case 'warning':
-    case 'degraded':
-      return 'warn';
-    case 'missing':
-    case 'error':
-    case 'blocked':
-      return 'fail';
-    default:
-      return 'idle';
-  }
+/** Two states, so two dots — the same reading as `GameSection`'s. */
+function dotStatus(state: DependencyState): StatusDotStatus {
+  return state === 'ready' ? 'ok' : 'fail';
 }

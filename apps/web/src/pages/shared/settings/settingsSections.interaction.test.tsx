@@ -266,6 +266,54 @@ describe('游戏与录制', () => {
     });
   });
 
+  it('prints a chosen CS2 path as the one the user chose, with the check beside it', async () => {
+    render(<GameSection />);
+    await loaded('CS2 位置');
+
+    const readout = document.querySelector('[data-game-location]') as HTMLElement;
+    expect(readout.getAttribute('data-game-location')).toBe('specified');
+    expect(readout.textContent).toContain('手动指定');
+    expect(readout.textContent).toContain(CONFIG.cs2_path);
+    expect(readout.textContent).not.toContain('还没有');
+  });
+
+  it('prints a found install as found, never as 「还没有设置」 beside it', async () => {
+    // Two sources, one line: the service discovered cs2.exe and the user chose
+    // nothing, which used to read 「已找到 …cs2.exe」 over 「还没有设置」.
+    render(<GameSection />, {
+      getConfig: () => Promise.resolve({ ...CONFIG, cs2_path: '' }),
+      quickCheck: () => Promise.resolve({
+        ...CHECKS,
+        checks: [{ kind: 'game', state: 'ready', label: 'CS2', detail: String.raw`E:\Steam\cs2.exe` }],
+      }),
+    });
+    await loaded('CS2 位置');
+
+    const readout = await waitFor(() => {
+      const node = document.querySelector('[data-game-location="detected"]');
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    expect(readout.textContent).toContain('自动检测到');
+    expect(readout.textContent).toContain(String.raw`E:\Steam\cs2.exe`);
+    expect(document.body.textContent).not.toContain('还没有设置');
+  });
+
+  it('says what to do when nothing is chosen and nothing was found', async () => {
+    render(<GameSection />, {
+      getConfig: () => Promise.resolve({ ...CONFIG, cs2_path: '' }),
+      quickCheck: () => Promise.resolve({
+        ...CHECKS,
+        checks: [{ kind: 'game', state: 'missing', label: 'CS2', detail: 'CS2 was not found' }],
+      }),
+    });
+    await loaded('CS2 位置');
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-game-location="none"]')?.textContent).toContain('点「更改」');
+    });
+  });
+
   it('states 「改动只影响之后新建的录制任务」 once, at the top', async () => {
     render(<GameSection />);
     await loaded('游戏');
@@ -296,7 +344,7 @@ describe('高级与诊断', () => {
     runtimeState: () =>
       Promise.resolve({
         version: '0.4.2',
-        runtime_session: 'session-1',
+        runtime_session: 'idle',
         active_recording_job: null,
         data_dir: 'D:\CS2',
       }),
@@ -326,11 +374,37 @@ describe('高级与诊断', () => {
     expect(document.body.textContent).not.toContain('proposal exports remain process-free');
   });
 
+  it('names states and the runtime session in words, not wire enums', async () => {
+    render(<AdvancedSection />, DIAGNOSTIC_STUBS);
+    await loaded('运行时');
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-check="encoder"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-check="game"] [data-check-state]')?.textContent).toBe('就绪');
+    expect(document.querySelector('[data-check="encoder"] [data-check-state]')?.textContent).toBe('缺失');
+    expect(document.body.textContent).not.toMatch(/\bready\b|\bmissing\b/u);
+    expect(document.querySelector('[data-runtime-session]')?.textContent).toBe('空闲');
+    expect(document.body.textContent).not.toContain('idle');
+  });
+
+  it('labels the data directory, and reaches 恢复中心 and 使用引导', async () => {
+    render(<AdvancedSection />, DIAGNOSTIC_STUBS);
+    await loaded('运行时');
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-path]')).not.toBeNull();
+    });
+    expect(document.body.textContent).toContain('数据目录');
+    expect(screen.getByRole('link', { name: '打开恢复中心' }).getAttribute('href')).toBe('/recovery');
+    expect(screen.getByRole('link', { name: '打开使用引导' }).getAttribute('href')).toBe('/guide');
+  });
+
   it('uses title rails for diagnostic readouts', async () => {
     render(<AdvancedSection />, DIAGNOSTIC_STUBS);
     await loaded('运行时');
 
-    expect(document.querySelectorAll('[data-settings-layout="split"]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-settings-layout="split"]')).toHaveLength(5);
   });
 
   it('prepares a missing managed capture component and refreshes its status', async () => {

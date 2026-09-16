@@ -1152,12 +1152,12 @@ const ROUTES: Array<[string, string, Handler]> = [
     version: '0.1.0-dev',
     data_dir: DATA_DIR,
     active_recording_job: 'job-771',
-    runtime_session: 'session-dev-1',
+    runtime_session: 'recording',
   } satisfies RuntimeState)],
   ['GET', '/config/quick-check', () => ({
     checked_at: NOW,
     checks: [
-      { kind: 'game', state: 'ready', label: 'Counter-Strike 2', detail: '已在 D:\\Steam 找到。' },
+      { kind: 'game', state: 'ready', label: 'Counter-Strike 2', detail: 'D:\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\bin\\win64\\cs2.exe' },
       { kind: 'hlae', state: 'ready', label: 'HLAE', detail: '托管版本 2.152.0，已校验签名。' },
       { kind: 'encoder', state: 'missing', label: 'NVENC 编码器', detail: '未检测到可用的硬件编码器，将回退到软件编码。', action_path: '/settings' },
     ],

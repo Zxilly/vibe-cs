@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/collapse.testing';
@@ -24,6 +24,27 @@ describe('settings navigation', () => {
 
     expect(document.querySelector('[data-page-bar] [data-subnav="tabs"]')).not.toBeNull();
     expect(document.querySelector('[data-page-body] > div > [data-subnav="tabs"]')).toBeNull();
+  });
+
+  it('starts every section at the top rather than where the last one was left', () => {
+    // One scroll container serves all five sections; a section opened after
+    // scrolling another must not open with its first card's title above the fold.
+    media = stubMatchMedia(1400);
+    render('/settings?section=files');
+
+    const content = document.querySelector('[data-settings-content]') as HTMLElement;
+    let position = 0;
+    Object.defineProperty(content, 'scrollTop', {
+      configurable: true,
+      get: () => position,
+      set: (value: number) => { position = value; },
+    });
+    content.scrollTop = 191;
+
+    fireEvent.click(screen.getByRole('button', { name: '游戏与录制' }));
+
+    expect(screen.getByRole('button', { name: '游戏与录制' }).getAttribute('aria-current')).toBe('page');
+    expect(content.scrollTop).toBe(0);
   });
 
   it('deep-links to a setting item and marks the scrolled target', async () => {

@@ -85,6 +85,14 @@ export function SettingsPage() {
   const collapsed = useCollapsed(undefined);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  /* The content pane is one scroll container shared by all five sections, so
+     a section opened after scrolling another would otherwise start wherever
+     the last one left off — with its first card's title above the fold. A deep
+     link scrolls to its item right after this, in the effect below. */
+  useEffect(() => {
+    if (contentRef.current !== null) contentRef.current.scrollTop = 0;
+  }, [section]);
+
   useEffect(() => {
     if (item === null) return;
     const target = [...(contentRef.current?.querySelectorAll<HTMLElement>('[data-setting-item], [data-setting]') ?? [])]

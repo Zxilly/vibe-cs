@@ -26,6 +26,13 @@ const ONE_DEMO = {
   page_size: 1,
 };
 
+const READY_DEMO = {
+  items: [{ id: 'demo-1', display_name: 'Aurora vs Meridian', lifecycle_status: 'ready' }],
+  total: 1,
+  page: 1,
+  page_size: 1,
+};
+
 const CHECKS = {
   checks: [
     { kind: 'game', state: 'ready', label: 'CS2', detail: '版本 1.40.9.6' },
@@ -39,6 +46,7 @@ function render(element: React.ReactElement, overrides: Record<string, unknown> 
     element,
     client: {
       listDemos: () => Promise.resolve(EMPTY_LIBRARY),
+      listProjects: () => Promise.resolve([]),
       quickCheck: () => Promise.resolve(CHECKS),
       ...overrides,
     },
@@ -99,12 +107,55 @@ describe('the first-run strip', () => {
 });
 
 describe('使用引导', () => {
-  it('presents the pipeline beside readiness and focuses the first real action', async () => {
+  it('presents the pipeline beside readiness and, on an empty machine, points at the first step', async () => {
     render(<GuidePage />);
     await screen.findByText('这台机器现在能做什么');
 
-    expect(document.querySelector('[data-guide-current="true"]')?.getAttribute('data-guide-step')).toBe('import');
+    await waitFor(() => {
+      expect(document.querySelector('[data-guide-current="true"]')?.getAttribute('data-guide-step')).toBe('import');
+    });
     expect(document.querySelectorAll('[data-guide-step]')).toHaveLength(3);
+    expect(document.querySelector('[data-guide-done]')).toBeNull();
+  });
+
+  it('marks the steps the data says are taken and points at the next one', async () => {
+    // The accent face is the shell's 「you are here」; on a library with an
+    // analysed match it belongs on 「让 Agent 做一条视频」, not on 「导入 Demo」.
+    render(<GuidePage />, {
+      listDemos: (query: { status?: string }) => Promise.resolve(query.status === 'ready' ? READY_DEMO : ONE_DEMO),
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-guide-current="true"]')?.getAttribute('data-guide-step')).toBe('create');
+    });
+    expect(document.querySelector('[data-guide-step="import"]')?.getAttribute('data-guide-done')).toBe('true');
+    expect(document.querySelector('[data-guide-step="analyse"]')?.getAttribute('data-guide-done')).toBe('true');
+    expect(document.querySelector('[data-guide-step="create"]')?.getAttribute('data-guide-done')).toBeNull();
+    expect(screen.getAllByText('已完成')).toHaveLength(2);
+  });
+
+  it('points at nothing once all three steps are taken', async () => {
+    render(<GuidePage />, {
+      listDemos: () => Promise.resolve(READY_DEMO),
+      listProjects: () => Promise.resolve([{ id: 'p-1' }]),
+    });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-guide-done="true"]')).toHaveLength(3);
+    });
+    expect(document.querySelector('[data-guide-current="true"]')).toBeNull();
+  });
+
+  it('keeps each step one target with the step name as its accessible name', async () => {
+    render(<GuidePage />);
+    await screen.findByText('这台机器现在能做什么');
+
+    const link = screen.getByRole('link', { name: '让 Agent 做一条视频' });
+    expect(link.getAttribute('href')).toBe('/projects/new?step=shotlist');
+    // The anchor is stretched over its card, so the number and the sentence
+    // beside the title are not a dead zone inside something drawn as a button.
+    expect(link.className).toContain('after:absolute');
+    expect(link.closest('[data-guide-step]')?.className).toContain('relative');
   });
 
   it('says what each dependency is for', async () => {

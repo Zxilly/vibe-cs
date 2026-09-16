@@ -27,7 +27,7 @@
  * The table is `shell/navigation.tsx`, reused rather than restated: an entry's
  * group is the first crumb segment and its label is the second, which is
  * exactly what the reference draws for every rail destination
- * (「资料库 › Demo 资料库」). Four §7 routes are not rail entries and need the
+ * (「资料库 › Demo 资料库」). Five §7 routes are not rail entries and need the
  * leaf spelled out; they are listed below and nowhere else.
  *
  * The middle segment of the reference's three-part crumb — the match title —
@@ -71,6 +71,7 @@ const CRUMB_OVERRIDES: readonly CrumbOverride[] = [
   /* Frame draws no rail entry for it; `activeNavItemId` lights 设置与诊断,
      which is the group-less footer item, so that label is the head. */
   { pattern: /^\/recovery$/u, base: 'settings', leaf: msg`恢复中心` },
+  { pattern: /^\/guide$/u, base: 'settings', leaf: msg`使用引导` },
 ];
 
 /** `/library/` and `/library` are the same destination; `/` stays `/`. */

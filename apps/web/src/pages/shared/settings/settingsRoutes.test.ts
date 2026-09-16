@@ -7,7 +7,7 @@ describe('settings deep links', () => {
     expect(Object.keys(SETTINGS_ITEM_SECTION)).toEqual([
       'appearance', 'updates', 'storage', 'watch-folders', 'steam', 'game',
       'recording-defaults', 'video-output', 'model', 'conversations',
-      'behavior', 'runtime', 'dependencies', 'capture', 'diagnostics',
+      'behavior', 'runtime', 'dependencies', 'capture', 'diagnostics', 'recovery',
     ]);
   });
 

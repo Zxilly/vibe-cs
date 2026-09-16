@@ -1,4 +1,16 @@
-/** Environment readiness, grouped by the operations available on this machine. */
+/*
+ * pages/onboarding — 使用引导: the three steps beside what this machine can do.
+ *
+ * The step cards mark progress from the data (`useFirstRunProgress`) rather
+ * than always pointing at step one: the accent face and left rule are the
+ * shell's 「you are here」 vocabulary, and on a machine with a library full of
+ * analysed matches that vocabulary on 「导入 Demo」 is a wrong answer. A taken
+ * step is labelled done; the first step not taken is the current one.
+ *
+ * Each card is one target. The title is the anchor — the accessible name stays
+ * the step's name — and it is stretched over the card, so the number and the
+ * sentence beside it are not a dead zone inside something drawn as a button.
+ */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -6,16 +18,19 @@ import { Trans } from '@lingui/react/macro';
 import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
-import { Button } from '../../../design/primitives';
+import { Badge, Button } from '../../../design/primitives';
+import { cn } from '../../../design/cn';
 import { useQuickCheck } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
 import type { DependencyCheck, DependencyState } from '../../../shared/desktop/dto';
+import { useFirstRunProgress } from './firstRunProgress';
 import { FIRST_RUN_STEPS } from './firstRunSteps';
 import { RouteLink } from '../navigation/RouteLink';
 import { settingsPath } from '../settings/settingsRoutes';
 
 export function GuidePage() {
   const checks = useQuickCheck();
+  const progress = useFirstRunProgress();
   const error = dataErrorMessage(checks.error);
 
   return (
@@ -27,37 +42,59 @@ export function GuidePage() {
         />
       }
     >
-      <div className="grid min-h-0 grid-cols-1 gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
-        <section className="flex min-h-[40rem] flex-col gap-4 border border-divider p-5">
+      {/* `items-start`: the two columns are unrelated readouts, and the left
+          one is three fixed cards. Stretching it to the taller column left a
+          panel with a page of empty border under its last card. */}
+      <div className="grid min-h-0 grid-cols-1 items-start gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
+        <section className="flex flex-col gap-4 border border-divider p-5">
           <h2 className="text-base font-medium">
             <Trans>三步</Trans>
           </h2>
           <ol className="flex flex-col gap-3">
-            {FIRST_RUN_STEPS.map((step, index) => (
-              <li
-                key={step.id}
-                data-guide-step={step.id}
-                data-guide-current={index === 0 ? 'true' : undefined}
-                className={index === 0
-                  ? 'flex min-h-28 items-center gap-6 border border-accent bg-accent-100 p-5 shadow-[inset_3px_0_0_var(--color-accent)]'
-                  : 'flex min-h-28 items-center gap-6 border border-divider p-5'}
-              >
-                <span className={index === 0
-                  ? 'w-16 flex-none font-heading text-3xl text-accent-800'
-                  : 'w-16 flex-none font-heading text-3xl text-neutral-500'}
+            {FIRST_RUN_STEPS.map((step, index) => {
+              const current = progress?.current === step.id;
+              const done = progress?.done.has(step.id) ?? false;
+              return (
+                <li
+                  key={step.id}
+                  data-guide-step={step.id}
+                  data-guide-current={current ? 'true' : undefined}
+                  data-guide-done={done ? 'true' : undefined}
+                  className={cn(
+                    'relative flex min-h-28 items-center gap-6 border p-5',
+                    current
+                      ? 'border-accent bg-accent-100 shadow-[inset_3px_0_0_var(--color-accent)]'
+                      : 'border-divider hover:bg-action-hover',
+                  )}
                 >
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <RouteLink to={step.to}>{step.title()}</RouteLink>
-                  <p className="text-xs leading-normal text-neutral-600">{step.description()}</p>
-                </div>
-              </li>
-            ))}
+                  <span
+                    className={cn(
+                      'w-16 flex-none font-heading text-3xl',
+                      current ? 'text-accent-800' : 'text-neutral-500',
+                    )}
+                  >
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <RouteLink to={step.to} className="after:absolute after:inset-0">
+                        {step.title()}
+                      </RouteLink>
+                      {done ? (
+                        <Badge variant="neutral" size="sm">
+                          <Trans>已完成</Trans>
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-xs leading-normal text-neutral-600">{step.description()}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </section>
 
-        <section className="flex min-h-[40rem] min-w-0 flex-col gap-4 border border-divider p-5">
+        <section className="flex min-w-0 flex-col gap-4 border border-divider p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-medium">
               <Trans>这台机器现在能做什么</Trans>
@@ -108,7 +145,7 @@ export function GuidePage() {
             </ul>
           )}
 
-          <p className="mt-auto text-xs leading-normal text-neutral-600">
+          <p className="text-xs leading-normal text-neutral-600">
             <Trans>
               逐项的原始状态与路径校验在
               <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。

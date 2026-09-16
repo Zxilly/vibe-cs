@@ -28,6 +28,16 @@
  * That sentence is the board's, and it is true of every row in this section: a
  * recording task captures its settings when it is planned. It is stated once at
  * the top rather than repeated per row.
+ *
+ * ── CS2 位置 has two sources and one readout ─────────────────────────────
+ *
+ * `AppConfig.cs2_path` is what the user chose; the quick check's `game` entry
+ * is what the service found, which is the configured path when it exists and
+ * an auto-discovered install otherwise. Both used to be printed — the check
+ * beside the button, the config under the hint — so a machine with a found
+ * install and no manual choice read 「已找到 …cs2.exe」 and 「还没有设置」 on
+ * two adjacent lines. One line now: the path in use, and which of the two
+ * sources it came from.
  */
 
 import { t } from '@lingui/core/macro';
@@ -122,30 +132,30 @@ export function GameSection() {
               hint={<Trans>回放与录制都从这个目录启动游戏。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
-              <div className="flex items-center gap-2.5">
-                <CheckDot checks={checks.data?.checks ?? []} kind="game" />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  {...(shellAction.available
-                    ? { disabled: blocked, ...(blockedReason === undefined ? {} : { disabledReason: blockedReason }) }
-                    : shellAction.buttonProps)}
-                  onClick={() => {
-                    setPicking(true);
-                    void shell
-                      .chooseDirectories({ title: t`选择 CS2 安装目录`, multiple: false })
-                      .then((paths) => {
-                        const [path] = paths;
-                        if (path !== undefined) write({ ...current, cs2_path: path });
-                      })
-                      .finally(() => setPicking(false));
-                  }}
-                >
-                  <Trans>更改</Trans>
-                </Button>
-              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                {...(shellAction.available
+                  ? { disabled: blocked, ...(blockedReason === undefined ? {} : { disabledReason: blockedReason }) }
+                  : shellAction.buttonProps)}
+                onClick={() => {
+                  setPicking(true);
+                  void shell
+                    .chooseDirectories({ title: t`选择 CS2 安装目录`, multiple: false })
+                    .then((paths) => {
+                      const [path] = paths;
+                      if (path !== undefined) write({ ...current, cs2_path: path });
+                    })
+                    .finally(() => setPicking(false));
+                }}
+              >
+                <Trans>更改</Trans>
+              </Button>
             </SettingsRow>
-            <PathReadout path={current.cs2_path} empty={<Trans>还没有设置</Trans>} />
+            <GameLocationReadout
+              configured={current.cs2_path}
+              check={(checks.data?.checks ?? []).find((check) => check.kind === 'game')}
+            />
 
             <SettingsRow
               label={<Trans>录制文件目录</Trans>}
@@ -301,20 +311,40 @@ function encoderChecks(checks: readonly DependencyCheck[]): DependencyCheck[] {
   return checks.filter((check) => ENCODER_CHECK_KINDS.includes(check.kind));
 }
 
-function CheckDot({
-  checks,
-  kind,
+/**
+ * The CS2 path in use and where it came from — see the module comment.
+ *
+ * A configured path is printed as the user's own choice, with the check's dot
+ * saying whether it still exists. Without one, the check's `detail` is the
+ * discovered path (the service prints the path itself when it found one), and
+ * the line says it was found rather than set. Nothing found and nothing set
+ * is the one case that reads as an instruction.
+ */
+function GameLocationReadout({
+  configured,
+  check,
 }: {
-  readonly checks: readonly DependencyCheck[];
-  readonly kind: DependencyKind;
+  readonly configured: string;
+  readonly check: DependencyCheck | undefined;
 }) {
-  const check = checks.find((each) => each.kind === kind);
-  if (check === undefined) return null;
+  const specified = configured.trim() !== '';
+  const detected = !specified && check?.state === 'ready';
+  const path = specified ? configured : detected ? check.detail : '';
+
   return (
-    <span className="flex items-center gap-1.5 text-xs text-neutral-700">
-      <StatusDot status={dotStatus(check.state)} />
-      {check.detail === '' ? check.label : check.detail}
-    </span>
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs" data-game-location={specified ? 'specified' : detected ? 'detected' : 'none'}>
+      {check === undefined ? null : <StatusDot status={dotStatus(check.state)} />}
+      <span className="text-neutral-600">
+        {specified ? (
+          <Trans>手动指定</Trans>
+        ) : detected ? (
+          <Trans>自动检测到</Trans>
+        ) : (
+          <Trans>还没有找到 CS2。点「更改」选择安装目录。</Trans>
+        )}
+      </span>
+      {path === '' ? null : <PathReadout path={path} empty={null} />}
+    </div>
   );
 }
 

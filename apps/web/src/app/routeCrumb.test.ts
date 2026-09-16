@@ -68,7 +68,7 @@ describe('routeCrumb', () => {
     expect(crumb('/delivery', 'view=tasks')).toBe('交付 › 成品文件');
   });
 
-  it('names the leaf for the four §7 routes the rail cannot list', () => {
+  it('names the leaf for the §7 routes the rail cannot list', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
     expect(crumb('/players/kael')).toBe('分析 › 选手目录 › 选手档案');
     expect(crumb('/tasks/t-42')).toBe('任务中心 › 任务详情');
@@ -76,6 +76,9 @@ describe('routeCrumb', () => {
     // The footer entry has no group heading, so its own label opens the crumb —
     // once, carrying the destination rather than being repeated as a heading.
     expect(crumb('/recovery')).toBe('设置与诊断 › 恢复中心');
+    // The guide lights the same rail entry and is reached from the same
+    // section, so it climbs the same way rather than claiming to *be* 设置.
+    expect(crumb('/guide')).toBe('设置与诊断 › 使用引导');
   });
 
   /* The trail is climbable, which is the whole reason it is a trail. The rung
@@ -86,6 +89,7 @@ describe('routeCrumb', () => {
     expect(targets('/match/x')).toBe('- /library -');
     expect(targets('/players/kael')).toBe('- /players -');
     expect(targets('/recovery')).toBe('/settings -');
+    expect(targets('/guide')).toBe('/settings -');
   });
 
   it('leaves the page you are on without a destination', () => {

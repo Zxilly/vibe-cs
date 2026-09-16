@@ -71,7 +71,16 @@ import {
 } from '../../../data/sessions';
 import { Skeleton } from '../../../design/data';
 import { Dialog, Alert } from '../../../design/feedback';
-import { Button, Field, Input, Seg, Textarea, Toggle } from '../../../design/primitives';
+import {
+  Button,
+  Field,
+  Input,
+  InputGroup,
+  InputGroupInput,
+  InputGroupText,
+  Seg,
+  Textarea,
+} from '../../../design/primitives';
 import type {
   AgentSessionRetention,
   AgentWorkspaceSettings,
@@ -85,6 +94,7 @@ import {
   retentionChoices,
   retentionFromOptionId,
 } from './aiAgentModel';
+import { SettingsBlock, SettingsRow, SettingsSwitch } from './settingsShared';
 
 /** Which irreversible action is waiting for its second confirmation. */
 type PendingConfirmation = 'retention' | 'clear' | null;
@@ -154,7 +164,7 @@ export function AiAgentSection() {
   };
 
   return (
-    <div data-settings-section="ai" className="flex flex-col gap-3.5 p-5">
+    <div data-settings-section="ai" className="flex flex-col">
       {writeError === null ? null : (
         <Alert
           variant="danger"
@@ -216,7 +226,11 @@ export function AiAgentSection() {
         onRetry={() => void config.refetch()}
       />
 
-      <Block id="conversations" title={<Trans>对话</Trans>}>
+      <SettingsBlock
+        id="conversations"
+        title={<Trans>对话</Trans>}
+        description={<Trans>Agent 对话保留多久，以及它们占了多少空间。</Trans>}
+      >
         {settingsError !== null ? (
           <Alert
             variant="danger"
@@ -263,54 +277,47 @@ export function AiAgentSection() {
           }}
           busy={exportSessions.isPending || clearSessions.isPending}
         />
-      </Block>
+      </SettingsBlock>
 
-      <Block id="behavior" title={<Trans>行为边界</Trans>}>
-        <div className="flex items-center gap-3.5">
-          <div className="min-w-0 flex-1">
-            <p className="text-base">
-              <Trans>录制前始终由你确认</Trans>
-            </p>
-            <p id="agent-confirm-locked" className="mt-1 text-xs leading-normal text-neutral-600">
-              <Trans>此确认始终开启：录制会启动游戏并写出文件，每次都由你确认。</Trans>
-            </p>
-          </div>
-          <Toggle
-            locked
-            checked={RECORDING_CONFIRMATION_LOCKED_ON}
-            data-setting="recording-confirmation"
-            aria-label={t`录制前始终由你确认`}
-            aria-describedby="agent-confirm-locked"
-          />
-        </div>
+      <SettingsBlock
+        id="behavior"
+        title={<Trans>行为边界</Trans>}
+        description={<Trans>Agent 做视频时默认遵守的规则。</Trans>}
+      >
+        <SettingsSwitch
+          label={<Trans>录制前始终由你确认</Trans>}
+          hint={<Trans>此确认始终开启：录制会启动游戏并写出文件，每次都由你确认。</Trans>}
+          name="recording-confirmation"
+          ariaLabel={t`录制前始终由你确认`}
+          checked={RECORDING_CONFIRMATION_LOCKED_ON}
+          locked
+        />
 
         {current === undefined ? null : (
           <>
-            <SwitchRow
+            <SettingsSwitch
               label={<Trans>显示 Agent 读取了哪些证据</Trans>}
               hint={<Trans>在工作进度里展开 Agent 每次读取的回合与事件。</Trans>}
               name="show-evidence-reads"
               ariaLabel={t`显示 Agent 读取了哪些证据`}
               checked={current.show_evidence_reads}
               disabled={updateSettings.isPending}
+              {...(updateSettings.isPending ? { disabledReason: t`正在保存` } : {})}
               onChange={(next) => void write({ ...current, show_evidence_reads: next })}
             />
 
             <VideoLengthRow
               value={current.default_video_seconds}
               disabled={updateSettings.isPending}
+              disabledReason={updateSettings.isPending ? t`正在保存` : undefined}
               onCommit={(seconds) => void write({ ...current, default_video_seconds: seconds })}
             />
 
-            <div className="flex flex-col gap-2">
-              <p className="text-base">
-                <Trans>默认视角</Trans>
-              </p>
-              <p className="text-xs text-neutral-600">
-                <Trans>
-                  Agent 创建片段时默认使用这个视角。每个片段仍可单独调整。
-                </Trans>
-              </p>
+            <SettingsRow
+              label={<Trans>默认视角</Trans>}
+              hint={<Trans>Agent 创建片段时默认使用这个视角。每个片段仍可单独调整。</Trans>}
+              {...(updateSettings.isPending ? { disabledReason: t`正在保存` } : {})}
+            >
               <Seg
                 name="default-shot-view"
                 size="sm"
@@ -323,12 +330,13 @@ export function AiAgentSection() {
                 }))}
                 onChange={(next) => void write({ ...current, default_camera_style: next })}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="flex flex-col gap-2">
-              <p className="text-base">
-                <Trans>点评语气</Trans>
-              </p>
+            <SettingsRow
+              label={<Trans>点评语气</Trans>}
+              hint={<Trans>Agent 撰写点评和片段说明时使用的语气。</Trans>}
+              {...(updateSettings.isPending ? { disabledReason: t`正在保存` } : {})}
+            >
               <Seg
                 name="commentary-tone"
                 size="sm"
@@ -348,13 +356,10 @@ export function AiAgentSection() {
                 ]}
                 onChange={(tone) => void write({ ...current, commentary_tone: tone })}
               />
-              <p className="text-xs leading-normal text-neutral-600">
-                <Trans>Agent 撰写点评和片段说明时使用的语气。</Trans>
-              </p>
-            </div>
+            </SettingsRow>
           </>
         )}
-      </Block>
+      </SettingsBlock>
 
       <Dialog
         open={confirming === 'retention'}
@@ -392,29 +397,6 @@ export function AiAgentSection() {
 }
 
 /* ── the three blocks ────────────────────────────────────────────────────── */
-
-/** The artboard's bordered block: a 34px head with a tracked label, then body. */
-function Block({
-  id,
-  title,
-  actions,
-  children,
-}: {
-  id: string;
-  title: ReactNode;
-  actions?: ReactNode | undefined;
-  children: ReactNode;
-}) {
-  return (
-    <section id={`setting-${id}`} data-setting-item={id} tabIndex={-1} className="border border-divider">
-      <header className="flex min-h-[var(--h-panel-head)] items-center gap-3 border-b border-divider px-3 py-1">
-        <h3 className="font-heading text-sm tracking-wider">{title}</h3>
-        {actions === undefined ? null : <div className="ml-auto flex items-center gap-2">{actions}</div>}
-      </header>
-      <div className="flex flex-col gap-3.5 p-3">{children}</div>
-    </section>
-  );
-}
 
 interface ModelBlockProps {
   readonly draft: LlmConfig | null;
@@ -479,9 +461,10 @@ function ModelBlock({
     ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
     : {};
   return (
-    <Block
+    <SettingsBlock
       id="model"
       title={<Trans>模型</Trans>}
+      description={<Trans>Agent 使用的模型和连接方式。</Trans>}
       actions={draft === null ? undefined : (
         <>
           <Button variant="primary" size="sm" onClick={onSave} {...actionProps}>
@@ -592,7 +575,7 @@ function ModelBlock({
           {disabledReason === undefined ? null : <p className="text-xs text-warn">{disabledReason}</p>}
         </div>
       )}
-    </Block>
+    </SettingsBlock>
   );
 }
 
@@ -822,46 +805,40 @@ function RetentionRow({
   const choices = retentionChoices(current.session_retention);
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-base">
-        <Trans>保留多久</Trans>
-      </p>
-      <Seg
-        name="agent-session-retention"
-        aria-label={t`对话保留多久`}
-        value={retentionOptionId(current.session_retention)}
-        options={choices.map((choice) => ({
-          value: retentionOptionId(choice),
-          label: <RetentionLabel retention={choice} />,
-          disabled,
-        }))}
-        onChange={(id) => {
-          const next = retentionFromOptionId(id, choices);
-          if (next !== null) onChange(next);
-        }}
-      />
-      {/* 「禁用并写明原因，不隐藏、不静默失败」 — a `Seg` has no `disabledReason`
-          slot the way a Button does, so the reason is written beside it. */}
-      {disabledReason === undefined ? null : (
-        <p data-retention-disabled-reason="" className="text-xs leading-normal text-neutral-600">
-          {disabledReason}
-        </p>
-      )}
-      <p className="text-xs leading-normal text-neutral-600">
-        <Trans>决定对话列表保留多久。成片和后台任务不会删除。</Trans>
-      </p>
-      <div className="flex items-center gap-2.5">
-        {/* The sweep has no scheduler on the wire — see this file's header for
-            why the frontend does not invent one. This button is its one
-            trigger, and it is a confirmation away from deleting. */}
-        <p className="min-w-0 flex-1 text-xs leading-normal text-neutral-600">
-          <Trans>新策略不会立即清理旧对话。要现在清理，点「立即应用」。</Trans>
-        </p>
+    <>
+      <SettingsRow
+        label={<Trans>保留多久</Trans>}
+        hint={<Trans>决定对话列表保留多久。成片和后台任务不会删除。</Trans>}
+        {...(disabledReason === undefined ? {} : { disabledReason })}
+      >
+        <Seg
+          name="agent-session-retention"
+          size="sm"
+          aria-label={t`对话保留多久`}
+          value={retentionOptionId(current.session_retention)}
+          options={choices.map((choice) => ({
+            value: retentionOptionId(choice),
+            label: <RetentionLabel retention={choice} />,
+            disabled,
+          }))}
+          onChange={(id) => {
+            const next = retentionFromOptionId(id, choices);
+            if (next !== null) onChange(next);
+          }}
+        />
+      </SettingsRow>
+      {/* The sweep has no scheduler on the wire — see this file's header for
+          why the frontend does not invent one. This button is its one
+          trigger, and it is a confirmation away from deleting. */}
+      <SettingsRow
+        label={<Trans>立即清理</Trans>}
+        hint={<Trans>新策略不会立即清理旧对话。现在清理会按上面的策略删除超出范围的对话。</Trans>}
+      >
         <Button size="sm" data-setting-action="apply-retention" onClick={onApplyNow}>
           <Trans>立即应用</Trans>
         </Button>
-      </div>
-    </div>
+      </SettingsRow>
+    </>
   );
 }
 
@@ -878,94 +855,76 @@ function RetentionLabel({ retention }: { retention: AgentSessionRetention }) {
   }
 }
 
-interface SwitchRowProps {
-  readonly label: ReactNode;
-  readonly hint: ReactNode;
-  /** Becomes `data-setting`, so a test names the switch rather than its index. */
-  readonly name: string;
-  readonly ariaLabel: string;
-  readonly checked: boolean;
-  readonly disabled: boolean;
-  readonly onChange: (next: boolean) => void;
-}
-
-/**
- * One labelled switch with its explanatory line.
- *
- * The hint is not decoration: every row of this artboard states what the
- * setting *changes*, because a switch called 「显示 Agent 读取了哪些证据」 is
- * otherwise a guess about where the evidence would show up.
- */
-function SwitchRow({ label, hint, name, ariaLabel, checked, disabled, onChange }: SwitchRowProps) {
-  const hintId = `agent-${name}-hint`;
-  return (
-    <div className="flex items-center gap-3.5">
-      <div className="min-w-0 flex-1">
-        <p className="text-base">{label}</p>
-        <p id={hintId} className="mt-1 text-xs leading-normal text-neutral-600">
-          {hint}
-        </p>
-      </div>
-      <Toggle
-        checked={checked}
-        disabled={disabled}
-        data-setting={name}
-        aria-label={ariaLabel}
-        aria-describedby={hintId}
-        onChange={onChange}
-      />
-    </div>
-  );
-}
-
 interface VideoLengthRowProps {
   readonly value: number;
   readonly disabled: boolean;
+  readonly disabledReason: string | undefined;
   readonly onCommit: (seconds: number) => void;
 }
 
-/** See `VideoLengthRow` — the lengths people actually ask a highlight for. */
-const VIDEO_LENGTH_STOPS = [20, 40, 60, 90] as const;
+/** The service's own bounds for `default_video_seconds` (domain `validate`). */
+const VIDEO_LENGTH_MIN = 5;
+const VIDEO_LENGTH_MAX = 3600;
 
 /**
- * 「默认成片时长」. The artboard draws 「40 秒左右」 and 「左右」 is the whole
- * point: this is a target, not a ceiling, and the hint says so. A plan that
- * needs 44 seconds is not truncated to fit it.
+ * 「默认成片时长」. This is a target, not a ceiling, and the hint says so: a
+ * plan that needs 44 seconds is not truncated to fit it.
  *
- * Stops rather than a free slider, because the answer is one of four numbers in
- * practice — and because the service accepts 5…3600, a value set elsewhere is
- * printed rather than hidden, or the panel would look like it had reset it.
+ * A number field rather than a row of stops. The stored default is 180 and
+ * the service accepts 5…3600, so any fixed set of stops leaves the value most
+ * people actually have with no selected option — and one click away from a
+ * value they cannot get back to. The draft is local until the field is left,
+ * like every other text field here, and an out-of-range number keeps its
+ * draft and says so instead of being silently clamped or dropped.
  */
-function VideoLengthRow({ value, disabled, onCommit }: VideoLengthRowProps) {
-  const known = VIDEO_LENGTH_STOPS.some((seconds) => seconds === value);
+function VideoLengthRow({ value, disabled, disabledReason, onCommit }: VideoLengthRowProps) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+  const parsed = Number(shown);
+  const invalid = draft !== null
+    && (!Number.isInteger(parsed) || parsed < VIDEO_LENGTH_MIN || parsed > VIDEO_LENGTH_MAX);
+  const invalidId = 'setting-default-video-seconds-invalid';
+
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-base">
-        <Trans>默认成片时长</Trans>
-      </p>
-      <Seg
-        name="default-video-seconds"
-        size="sm"
-        value={String(value)}
-        aria-label={t`默认成片时长`}
-        options={VIDEO_LENGTH_STOPS.map((seconds) => ({
-          value: String(seconds),
-          label: t`${seconds} 秒左右`,
-          disabled,
-        }))}
-        onChange={(next) => onCommit(Number(next))}
-      />
-      <p className="text-xs leading-normal text-neutral-600">
-        <Trans>
-          Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。
-        </Trans>
-      </p>
-      {known ? null : (
-        <p className="text-xs leading-normal text-neutral-600" data-video-length-custom={value}>
-          <Trans>当前是 {value} 秒，不在上面这几档里。</Trans>
-        </p>
-      )}
-    </div>
+    <SettingsRow
+      label={<Trans>默认成片时长</Trans>}
+      hint={<Trans>Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。</Trans>}
+      {...(disabledReason === undefined ? {} : { disabledReason })}
+    >
+      <div className="flex w-40 flex-col gap-1">
+        <InputGroup size="sm" invalid={invalid}>
+          <InputGroupInput
+            type="number"
+            inputMode="numeric"
+            min={VIDEO_LENGTH_MIN}
+            max={VIDEO_LENGTH_MAX}
+            step={1}
+            value={shown}
+            disabled={disabled}
+            data-setting="default-video-seconds"
+            aria-label={t`默认成片时长`}
+            aria-invalid={invalid ? true : undefined}
+            aria-describedby={invalid ? invalidId : undefined}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={() => {
+              if (invalid) return;
+              setDraft(null);
+              if (draft !== null && parsed !== value) onCommit(parsed);
+            }}
+          />
+          <InputGroupText>
+            <Trans>秒</Trans>
+          </InputGroupText>
+        </InputGroup>
+        {invalid ? (
+          <p id={invalidId} className="text-xs leading-normal text-fail-text">
+            <Trans>
+              只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒。
+            </Trans>
+          </p>
+        ) : null}
+      </div>
+    </SettingsRow>
   );
 }
 

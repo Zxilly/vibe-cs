@@ -585,11 +585,11 @@ msgid "↵ 打开"
 msgstr "↵ 打开"
 
 #. placeholder {0}: textFieldLabel(field)
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:285
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:291
 msgid "＋ {0}"
 msgstr "＋ {0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:299
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:305
 msgid "＋ 仅爆头"
 msgstr "＋ 仅爆头"
 
@@ -601,7 +601,7 @@ msgstr "＋ 新建作品"
 msgid "＋ 添加选手"
 msgstr "＋ 添加选手"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:319
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:325
 msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
 msgstr "＋ 近 {RECENT_WINDOW_DAYS} 天"
 

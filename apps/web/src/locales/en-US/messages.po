@@ -586,11 +586,11 @@ msgid "↵ 打开"
 msgstr "↵ Open"
 
 #. placeholder {0}: textFieldLabel(field)
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:285
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:291
 msgid "＋ {0}"
 msgstr "＋ {0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:299
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:305
 msgid "＋ 仅爆头"
 msgstr "＋ Headshots only"
 
@@ -602,7 +602,7 @@ msgstr "+ New project"
 msgid "＋ 添加选手"
 msgstr "＋ Add player"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:319
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:325
 msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
 msgstr "＋ Last {RECENT_WINDOW_DAYS} days"
 

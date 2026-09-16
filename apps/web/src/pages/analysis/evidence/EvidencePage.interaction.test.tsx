@@ -261,6 +261,27 @@ describe('selecting a row', () => {
     });
   });
 
+  it('keeps the selection when Esc only cancels an inline condition field', async () => {
+    const { container } = mount();
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+
+    fireEvent.click(container.querySelectorAll('[data-evidence-select]')[1] as HTMLElement);
+    await screen.findByText('已选 1 条证据');
+    const selected = address();
+    expect(selected).toContain('evidence=');
+
+    fireEvent.click(screen.getByText('＋ 地图'));
+    const field = container.querySelector<HTMLInputElement>('[data-condition-input="map"]');
+    expect(field).not.toBeNull();
+    fireEvent.keyDown(field as HTMLInputElement, { key: 'Escape' });
+
+    // The field closed, and that is all the key did.
+    expect(container.querySelector('[data-condition-input="map"]')).toBeNull();
+    expect(screen.getByText('＋ 地图')).toBeTruthy();
+    expect(address()).toBe(selected);
+    expect(screen.getByText('已选 1 条证据')).toBeTruthy();
+  });
+
   it('adds a result to an existing project and points back to it', async () => {
     const { container } = mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');

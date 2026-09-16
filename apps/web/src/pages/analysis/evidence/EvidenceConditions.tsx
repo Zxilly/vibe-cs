@@ -269,7 +269,13 @@ export function EvidenceConditions({
                     event.preventDefault();
                     commitField(field);
                   }
-                  if (event.key === 'Escape') setEditing(null);
+                  if (event.key === 'Escape') {
+                    /* Esc here is the field's: it cancels the edit and stops
+                       there. The page's own Esc listener releases the selected
+                       row only when nothing closer has claimed the key. */
+                    event.preventDefault();
+                    setEditing(null);
+                  }
                 }}
               />
             </span>

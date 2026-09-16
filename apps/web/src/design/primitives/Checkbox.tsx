@@ -39,12 +39,29 @@
  * for the one that lands on the control. The id is generated here rather than
  * asked of the caller, so a labelled box cannot be built unlabelled by
  * accident; `children` stays the whole of the API.
+ *
+ * ── Disabled, with the reason ─────────────────────────────────────────────
+ *
+ * The same contract `Button` keeps (「禁用控件保留原因提示」): `disabledReason`
+ * reaches a screen reader through `aria-describedby` and a sighted pointer
+ * through a `Tooltip` that wraps the box, because a disabled control raises no
+ * pointer events of its own. Unlike `Button`, the wrapper is never a tab stop:
+ * a table at its selection cap disables eighteen boxes at once, and eighteen
+ * extra stops between one focusable row and the next would be the wrong
+ * price for a hover line. The row is focusable; the reason is read from it.
+ * Pass the reason whenever it *could* apply, not only while the box is
+ * disabled: the wrapper is what keeps the box's node stable across the cap
+ * coming and going, and the reason is only shown while `disabled` holds.
+ *
+ * One opacity, on the outer span — not one on the box and one on the whole,
+ * multiplied into a box nobody can see.
  */
 
 import { Checkbox as CheckboxPrimitive } from 'radix-ui';
 import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 
 import { cn } from '../cn';
+import { Tooltip } from '../feedback/Tooltip';
 
 export type CheckboxSize = 'sm' | 'md';
 
@@ -60,6 +77,8 @@ export interface CheckboxProps
   size?: CheckboxSize;
   /** Neither checked nor unchecked — a partial selection. */
   indeterminate?: boolean;
+  /** Why the box cannot be ticked. Rendered for assistive technology and as a tooltip. */
+  disabledReason?: string | undefined;
   /** Visible label. Omit for a bare box, which then needs `aria-label`. */
   children?: ReactNode;
   className?: string;
@@ -74,7 +93,7 @@ const BOX_CLASS =
   'grid flex-none place-items-center rounded-none border border-neutral-400 ' +
   'data-[state=checked]:border-accent data-[state=checked]:bg-accent ' +
   'data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent ' +
-  'disabled:cursor-not-allowed disabled:opacity-45';
+  'disabled:cursor-not-allowed';
 
 export function Checkbox({
   checked = false,
@@ -82,11 +101,32 @@ export function Checkbox({
   size = 'md',
   indeterminate = false,
   disabled = false,
+  disabledReason,
   className,
   children,
   ...rest
 }: CheckboxProps) {
   const id = useId();
+  const reasonId = `${id}-reason`;
+  const hasReason = disabledReason !== undefined && disabledReason !== '';
+  const showReason = disabled && hasReason;
+
+  const box = (
+    <CheckboxPrimitive.Root
+      {...rest}
+      id={id}
+      checked={indeterminate ? 'indeterminate' : checked}
+      disabled={disabled}
+      {...(showReason ? { 'aria-describedby': reasonId } : {})}
+      className={cn(BOX_CLASS, BOX_SIZE_CLASS[size])}
+      onCheckedChange={(next) => onChange?.(next === true)}
+    >
+      {/* Not `CheckboxPrimitive.Indicator`: it renders for the checked state
+          too, and the checked state has nothing to draw — the fill is the
+          mark. The bar is the indeterminate state's own glyph. */}
+      {indeterminate ? <span className="h-[1px] w-[7px] bg-bg" /> : null}
+    </CheckboxPrimitive.Root>
+  );
 
   return (
     <span
@@ -96,19 +136,20 @@ export function Checkbox({
         className,
       )}
     >
-      <CheckboxPrimitive.Root
-        {...rest}
-        id={id}
-        checked={indeterminate ? 'indeterminate' : checked}
-        disabled={disabled}
-        className={cn(BOX_CLASS, BOX_SIZE_CLASS[size])}
-        onCheckedChange={(next) => onChange?.(next === true)}
-      >
-        {/* Not `CheckboxPrimitive.Indicator`: it renders for the checked state
-            too, and the checked state has nothing to draw — the fill is the
-            mark. The bar is the indeterminate state's own glyph. */}
-        {indeterminate ? <span className="h-[1px] w-[7px] bg-bg" /> : null}
-      </CheckboxPrimitive.Root>
+      {hasReason ? (
+        <>
+          <Tooltip content={showReason ? disabledReason : undefined} wrap>
+            {box}
+          </Tooltip>
+          {showReason ? (
+            <span id={reasonId} className="sr-only">
+              {disabledReason}
+            </span>
+          ) : null}
+        </>
+      ) : (
+        box
+      )}
       {children === undefined ? null : (
         <label htmlFor={id} className={cn('min-w-0', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
           {children}

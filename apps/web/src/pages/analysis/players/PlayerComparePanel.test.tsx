@@ -103,7 +103,7 @@ describe('with two selected', () => {
   });
 
   it('says which artboard columns the service does not send', () => {
-    expect(html).toContain('首杀、残局胜率与常用地图');
+    expect(html).toContain('首杀、残局胜率和常用地图还没有分析结果');
   });
 });
 

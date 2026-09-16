@@ -17,7 +17,10 @@
  *                     lighter). The active row keeps its accent instead.
  *   checkbox column   44px wide (`w-13` = 44.2px), gutter-indented, a 13px
  *                     square (`size-4` = 13.6px) filled accent when checked and
- *                     outlined neutral-400 when not.
+ *                     outlined neutral-400 when not. The box is the *mark*; the
+ *                     whole cell is the *target* — a 13px square is not a
+ *                     thing to aim a pointer at, so the cell toggles too, and
+ *                     a cell click never moves the Inspector.
  *   numeric columns   mono, via `TableCell variant="numeric"`.
  *
  * Two things the reference makes explicit and a generic table would get wrong:
@@ -225,15 +228,26 @@ export function DataTable<Row>({
 
   const handleRowClick = useCallback(
     (event: MouseEvent<HTMLTableRowElement>, id: string, row: Row) => {
-      // A row action ("工作区", "定位 · 加入视频") and the checkbox are their own
-      // targets; clicking one must not also move the Inspector.
-      if (event.target instanceof Element && event.target.closest('a,button,input,label,select,textarea') !== null) {
+      // A row action ("工作区", "定位 · 加入视频"), the checkbox and its cell are
+      // their own targets; clicking one must not also move the Inspector.
+      if (
+        event.target instanceof Element &&
+        event.target.closest('a,button,input,label,select,textarea,[data-selection-cell]') !== null
+      ) {
         return;
       }
       activateRow(id, row);
     },
     [activateRow],
   );
+
+  const toggleRow = (id: string) => {
+    const next = toggleSelection(selection, id, { limit: selectionLimit });
+    if (next !== selection) onSelectedChange?.(next as Set<string>);
+  };
+
+  const blockedReason =
+    selectionLimit === undefined ? undefined : t`已选满 ${selectionLimit} 项，先取消一项再选`;
 
   const overlay = loading ? (skeleton ?? null) : rows.length === 0 ? (empty ?? null) : null;
 
@@ -320,16 +334,25 @@ export function DataTable<Row>({
                   )}
                 >
                   {selectable ? (
-                    <TableCell edge="leading">
+                    <TableCell
+                      edge="leading"
+                      data-selection-cell=""
+                      className={cn(!blocked && onSelectedChange !== undefined && 'cursor-pointer')}
+                      onClick={(event) => {
+                        // The box answers its own click through Radix; the cell
+                        // around it is the same target, so a pointer need not
+                        // find 13px.
+                        if (event.target instanceof Element && event.target.closest('button') !== null) return;
+                        toggleRow(id);
+                      }}
+                    >
                       <Checkbox
                         size="sm"
                         checked={selection.has(id)}
                         disabled={blocked || onSelectedChange === undefined}
+                        disabledReason={blockedReason}
                         aria-label={rowLabel?.(row) ?? id}
-                        onChange={() => {
-                          const next = toggleSelection(selection, id, { limit: selectionLimit });
-                          if (next !== selection) onSelectedChange?.(next as Set<string>);
-                        }}
+                        onChange={() => toggleRow(id)}
                       />
                     </TableCell>
                   ) : null}

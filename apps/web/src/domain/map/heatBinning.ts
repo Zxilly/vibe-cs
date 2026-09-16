@@ -105,12 +105,14 @@ export interface HeatDistribution {
 export const DEFAULT_HEAT_GRID_SIZE = 48;
 
 /**
- * Nine rungs, because the legend gradient on 「04」 runs
- * accent-100 → accent-500 → accent-900 and the accent ramp has exactly nine
- * steps. Keeping the ladder and the ramp the same length means no rung has to
- * be invented by mixing.
+ * Seven rungs: the accent ramp's steps from accent-300 up to the accent-900
+ * the 「04」 legend gradient ends on. The two palest steps are not rungs — at
+ * the layer's opacity they are indistinguishable from the canvas ground, and
+ * rule 3 above says the least dense occupied cell must be visible. Keeping
+ * the ladder one ramp step per rung means no rung has to be invented by
+ * mixing; `HeatLayer` owns the class names and has exactly this many.
  */
-export const DEFAULT_HEAT_STEPS = 9;
+export const DEFAULT_HEAT_STEPS = 7;
 
 const EMPTY_DISTRIBUTION_BINS: readonly HeatBin[] = [];
 

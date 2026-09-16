@@ -38,7 +38,7 @@ describe('the page frame', () => {
   it('is a Page with a Toolbar', () => {
     expect(html).toContain('data-page=');
     expect(html).toContain('data-page-toolbar');
-    expect(html).toContain('玩家档案');
+    expect(html).toContain('选手档案');
   });
 
   it('shows the id it was given, which is all the route knows yet', () => {
@@ -48,7 +48,7 @@ describe('the page frame', () => {
   // The title bar's crumb says where you *are*; this is the way back, and the
   // two are not the same affordance.
   it('leaves parent navigation to the shell breadcrumb', () => {
-    expect(html).not.toContain('‹ 玩家目录');
+    expect(html).not.toContain('‹ 选手目录');
     expect(html).not.toContain('href="/players"');
   });
 

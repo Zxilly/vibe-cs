@@ -1,5 +1,5 @@
 /*
- * pages/ — 06 玩家目录 (spec §7 `/players`, phase 3d).
+ * pages/ — 06 选手目录 (spec §7 `/players`, phase 3d).
  *
  * ── The contract §10.3 wrote down ──────────────────────────────────────────
  *
@@ -28,11 +28,24 @@
  * 爆头率 is not a wire field either, but it *is* derivable — headshots ÷ kills
  * — so it is computed (`playerStats.headshotRate`) and shows the dash only when
  * the denominator is missing.
+ *
+ * ── Search ─────────────────────────────────────────────────────────────────
+ *
+ * The box filters as you type, `SEARCH_DEBOUNCE_MS` after the last keystroke,
+ * and Enter commits at once. Writes go through `replace`, as the parity plan
+ * says for search (「搜索 debounce … 使用 replace」): each keystroke is a
+ * refinement of one query, not a place the back button should revisit.
+ *
+ * The draft is state of its own so typing never waits for the URL, but the
+ * URL stays the truth (`playerDirectoryParams`): when `q` changes underneath
+ * — the sidebar's 「选手目录」 resets the route, 「清空搜索」 in the empty state —
+ * the draft is re-seeded from it, so the box can never show a filter the
+ * table is not applying.
  */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { usePlayerDirectory } from '../../../data/players';
@@ -64,6 +77,9 @@ import {
   type PlayerDirectoryState,
 } from './playerDirectoryParams';
 import { formatFixed, formatMonthDay, formatPercent, headshotRate, NO_VALUE } from './playerStats';
+
+/** How long the box waits after the last keystroke before it filters. */
+export const SEARCH_DEBOUNCE_MS = 250;
 
 /**
  * Column ids *are* the service's sort names, so 「点表头排序」 needs no lookup
@@ -176,9 +192,30 @@ export function PlayersPage() {
   const state = readPlayerDirectory(params);
   const directory = usePlayerDirectory(toPlayerQuery(state));
 
-  const commit = (next: PlayerDirectoryState) => {
-    setParams(writePlayerDirectory(next));
+  const commit = (next: PlayerDirectoryState, options?: { replace: boolean }) => {
+    setParams(writePlayerDirectory(next), options);
   };
+
+  /* The search draft, re-seeded whenever the address changes `q` under it
+     (React's own "adjusting state when a prop changes" shape). */
+  const [draft, setDraft] = useState(state.search);
+  const [seededFrom, setSeededFrom] = useState(state.search);
+  if (seededFrom !== state.search) {
+    setSeededFrom(state.search);
+    setDraft(state.search);
+  }
+  const commitSearch = (search: string) => {
+    if (search === state.search) return;
+    commit({ ...state, search, page: 1, activeId: '' }, { replace: true });
+  };
+  const pending = draft.trim();
+  useEffect(() => {
+    if (pending === state.search) return undefined;
+    const timer = window.setTimeout(() => commitSearch(pending), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // `commitSearch` closes over `state`, which is derived from `params` — the
+    // dependency that decides what the timer would write.
+  }, [pending, params]);
 
   const rows = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
@@ -210,12 +247,15 @@ export function PlayersPage() {
   };
 
   const error = dataErrorMessage(directory.error);
+  const clearCompare = () => commit({ ...state, compare: [] });
+  /* Folded, the drawer is the only action surface, so the panel gets 清空选择;
+     docked, the `SelectionBar` under the table owns it. */
   const panel = (
     <PlayerComparePanel
       players={comparePlayers}
       focusedPlayer={activePlayer}
       limit={PLAYER_COMPARE_LIMIT}
-      onClear={() => commit({ ...state, compare: [] })}
+      onClear={collapsed ? clearCompare : undefined}
     />
   );
 
@@ -224,7 +264,7 @@ export function PlayersPage() {
       scroll={false}
       toolbar={
         <Toolbar
-          title={<Trans>玩家目录</Trans>}
+          title={<Trans>选手目录</Trans>}
           meta={
             directory.data === undefined ? null : (
               <Trans>
@@ -240,18 +280,14 @@ export function PlayersPage() {
             <Input
               type="search"
               ground="bg"
-              defaultValue={state.search}
+              value={draft}
               aria-label={t`搜索选手或别名`}
               placeholder={t`搜索选手或别名`}
+              onChange={(event) => setDraft(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
-                commit({
-                  ...state,
-                  search: event.currentTarget.value.trim(),
-                  page: 1,
-                  activeId: '',
-                });
+                commitSearch(event.currentTarget.value.trim());
               }}
             />
           </div>
@@ -267,17 +303,8 @@ export function PlayersPage() {
                 已选 {state.compare.length} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名
               </Trans>
             }
-            primary={
-              comparePlayers.length === PLAYER_COMPARE_LIMIT ? (
-                <RouteLink
-                  to={`/players/${encodeURIComponent(comparePlayers[0]?.steam_id ?? '')}`}
-                >
-                  <Trans>打开 {comparePlayers[0]?.name} 的档案</Trans>
-                </RouteLink>
-              ) : null
-            }
           >
-            <Button variant="secondary" size="sm" onClick={() => commit({ ...state, compare: [] })}>
+            <Button variant="secondary" size="sm" onClick={clearCompare}>
               <Trans>清空选择</Trans>
             </Button>
           </SelectionBar>
@@ -293,12 +320,12 @@ export function PlayersPage() {
                 action={{ label: <Trans>重试</Trans>, onAction: () => void directory.refetch() }}
                 detail={<Trans>目录是只读的，重试不会改动任何数据。</Trans>}
               >
-                <Trans>玩家目录没能读出来：{error}</Trans>
+                <Trans>选手目录没能读出来：{error}</Trans>
               </Alert>
             </div>
           )}
           <DataTable
-            caption={<Trans>玩家目录</Trans>}
+            caption={<Trans>选手目录</Trans>}
             columns={columns}
             rows={rows}
             rowId={(row) => row.steam_id}
@@ -314,12 +341,12 @@ export function PlayersPage() {
             sort={sort}
             onSortChange={onSortChange}
             loading={directory.isPending}
-            skeleton={<TableSkeleton rows={8} stage={t`正在读取玩家目录`} className="m-7" />}
+            skeleton={<TableSkeleton rows={8} stage={t`正在读取选手目录`} className="m-7" />}
             empty={
               <Empty
                 className="m-7"
                 title={
-                  state.search === '' ? <Trans>还没有玩家</Trans> : <Trans>没有匹配的选手</Trans>
+                  state.search === '' ? <Trans>还没有选手</Trans> : <Trans>没有匹配的选手</Trans>
                 }
                 description={
                   state.search === '' ? (

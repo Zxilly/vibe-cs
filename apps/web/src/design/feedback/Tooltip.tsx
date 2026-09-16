@@ -27,12 +27,28 @@
  * carrying errors in transient overlays. A tooltip here is only ever the
  * short 「为什么现在不能点」 line — never a recovery action, never something
  * the user has to read to proceed. Anything with an action is a Notice.
+ *
+ * ── The title bar is not free space ───────────────────────────────────────
+ *
+ * The window chrome is self-drawn (`app/shell/WindowTitleBar`, `--h-titlebar`),
+ * so to Radix it is just the top of the viewport and a `side="top"` tooltip on
+ * a toolbar control lands over the bell and the window buttons. The collision
+ * padding reserves that band, the same way `CommandPalette` starts its overlay
+ * below it: a tooltip that would enter it flips under its trigger instead.
  */
 
 import { Tooltip as TooltipPrimitive } from 'radix-ui';
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { useState, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 
 import { cn } from '../cn';
+
+/** `--h-titlebar` as a number, read once per tooltip from the live theme. */
+function titleBarHeightPx(): number {
+  if (typeof document === 'undefined') return 0;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--h-titlebar');
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 /**
  * Radix shares one delay timer per provider, which is what makes moving along
@@ -67,7 +83,9 @@ export interface TooltipProps {
    *
    * Decide this once for a given control and keep it: flipping `wrap` remounts
    * the child, which for a button that has just become available means the
-   * node the caller was holding is gone.
+   * node the caller was holding is gone. For the same reason the wrapper stays
+   * in place while `content` is empty — a control whose reason comes and goes
+   * (a checkbox at a selection cap) keeps its node either way.
    */
   wrap?: boolean;
   /**
@@ -98,11 +116,14 @@ export function Tooltip({
   side = 'top',
   className,
 }: TooltipProps) {
-  if (content === undefined || content === null || content === '') return <>{children}</>;
+  const [titleBar] = useState(titleBarHeightPx);
+  const hasContent = content !== undefined && content !== null && content !== '';
+
+  if (!hasContent && !wrap) return <>{children}</>;
 
   return (
     <TooltipProvider>
-      <TooltipPrimitive.Root>
+      <TooltipPrimitive.Root {...(hasContent ? {} : { open: false })}>
         <TooltipPrimitive.Trigger asChild>
           {wrap ? (
             /* `inline-flex`, not `block`: the wrapper stands where the control
@@ -117,20 +138,22 @@ export function Tooltip({
             children
           )}
         </TooltipPrimitive.Trigger>
-        <TooltipPrimitive.Portal>
-          {/* `collisionPadding`: Radix's default is 0, which lets a tooltip on
-              a control at the window's edge sit flush against it with its own
-              border clipped. 8px keeps the box inside the page like every other
-              floating layer. */}
-          <TooltipPrimitive.Content
-            side={side}
-            sideOffset={4}
-            collisionPadding={8}
-            className={cn(CONTENT_CLASS, className)}
-          >
-            {content}
-          </TooltipPrimitive.Content>
-        </TooltipPrimitive.Portal>
+        {hasContent ? (
+          <TooltipPrimitive.Portal>
+            {/* `collisionPadding`: Radix's default is 0, which lets a tooltip on
+                a control at the window's edge sit flush against it with its own
+                border clipped. 8px keeps the box inside the page like every other
+                floating layer; the top edge also reserves the title bar band. */}
+            <TooltipPrimitive.Content
+              side={side}
+              sideOffset={4}
+              collisionPadding={{ top: titleBar + 8, right: 8, bottom: 8, left: 8 }}
+              className={cn(CONTENT_CLASS, className)}
+            >
+              {content}
+            </TooltipPrimitive.Content>
+          </TooltipPrimitive.Portal>
+        ) : null}
       </TooltipPrimitive.Root>
     </TooltipProvider>
   );

@@ -340,7 +340,7 @@ export function MapCanvas({
         )}
         {provisional ? (
           <p data-testid="map-calibration-warning" className="text-warn-text">
-            <Trans>{resolved.mapName} 用的是占位标定，坐标可能整体偏移；接上本地雷达后会自动改用真实变换。</Trans>
+            <Trans>{resolved.mapName} 还没有本地雷达数据，位置按通用参数估算，可能整体偏移。安装 CS2 后会改用本地雷达的数据。</Trans>
           </p>
         ) : null}
         {footnote === undefined ? null : <p>{footnote}</p>}

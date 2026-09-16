@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../../test/render';
-import { binNormalizedSamples } from './heatBinning';
+import { binNormalizedSamples, DEFAULT_HEAT_STEPS } from './heatBinning';
 import { HeatLayer, HeatLegend, HEAT_STEP_FILL } from './HeatLayer';
 import type { MapCalibration } from './mapCalibration';
 import { createMapProjection } from './mapProjection';
@@ -24,10 +24,19 @@ const distribution = binNormalizedSamples(
     { x: 0.1, y: 0.1, weight: 1 },
     { x: 0.9, y: 0.9, weight: 34 },
   ],
-  { gridSize: 4, steps: 9 },
+  { gridSize: 4, steps: DEFAULT_HEAT_STEPS },
 );
 
 const empty = binNormalizedSamples([], { gridSize: 4 });
+
+/** Every occupied cell seen once — the shape a small sample always has. */
+const uniform = binNormalizedSamples(
+  [
+    { x: 0.1, y: 0.1, weight: 1 },
+    { x: 0.9, y: 0.9, weight: 1 },
+  ],
+  { gridSize: 4 },
+);
 
 describe('HeatLayer', () => {
   it('draws one rect per occupied cell and none for the rest', () => {
@@ -58,8 +67,18 @@ describe('HeatLayer', () => {
       </svg>,
     );
     expect(html).toContain(HEAT_STEP_FILL[0]);
-    expect(html).toContain(HEAT_STEP_FILL[8]);
+    expect(html).toContain(HEAT_STEP_FILL[DEFAULT_HEAT_STEPS - 1]);
     expect(html).not.toMatch(/#[0-9a-f]{3,8}/iu);
+  });
+
+  it('has one class per rung, so no step is ever clamped onto a neighbour', () => {
+    expect(HEAT_STEP_FILL).toHaveLength(DEFAULT_HEAT_STEPS);
+  });
+
+  it('starts the ladder where a cell can be seen — never on the ground colour', () => {
+    expect(HEAT_STEP_FILL[0]).toBe('fill-accent-300');
+    expect(HEAT_STEP_FILL).not.toContain('fill-accent-100');
+    expect(HEAT_STEP_FILL).not.toContain('fill-accent-200');
   });
 
   it('names itself with measured numbers only', () => {
@@ -108,9 +127,19 @@ describe('HeatLegend', () => {
 
   it('draws the scale as the same finite ladder the cells were assigned from', () => {
     const html = renderMarkup(<HeatLegend distribution={distribution} />);
-    expect(html).toContain('bg-accent-100');
+    expect(html).toContain('bg-accent-300');
     expect(html).toContain('bg-accent-900');
     expect(html).not.toContain('gradient');
+    expect(html.match(/class="flex-1 bg-accent-\d+"/gu)).toHaveLength(DEFAULT_HEAT_STEPS);
+  });
+
+  it('collapses to one swatch when every cell has the same count', () => {
+    const html = renderMarkup(<HeatLegend distribution={uniform} />);
+    expect(html).toContain('data-heat-legend="uniform"');
+    expect(html).toContain('每个格子都是 1 次');
+    // No gradient whose two ends would both read 「1 次」.
+    expect(html).not.toContain('bg-accent-300');
+    expect(html).toContain('bg-accent-900');
   });
 
   it('draws no scale at all when nothing was measured', () => {

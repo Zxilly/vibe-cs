@@ -69,7 +69,7 @@ export function useObjectCommands(query: string, enabled: boolean): readonly Com
       id: `player.${player.steam_id}`,
       group: 'player',
       title: literal(player.name),
-      hint: msg({ message: '玩家档案', context: 'palette-hint' }),
+      hint: msg({ message: '选手档案', context: 'palette-hint' }),
       keywords: [...player.aliases, player.last_team ?? '', player.steam_id]
         .filter((keyword) => keyword !== '')
         .map((keyword) => keyword.toLowerCase()),

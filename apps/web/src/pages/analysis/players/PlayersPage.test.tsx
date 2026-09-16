@@ -35,7 +35,7 @@ describe('the page frame', () => {
   it('is a Page with a Toolbar carrying the §7 title', () => {
     expect(html).toContain('data-page=');
     expect(html).toContain('data-page-toolbar');
-    expect(html).toContain('玩家目录');
+    expect(html).toContain('选手目录');
   });
 
   it('puts directory search in the shared secondary control band', () => {
@@ -50,7 +50,7 @@ describe('the page frame', () => {
   });
 
   it('loads with a table skeleton and no fabricated percentage', () => {
-    expect(html).toContain('正在读取玩家目录');
+    expect(html).toContain('正在读取选手目录');
     expect(html).not.toContain('role="progressbar"');
   });
 });

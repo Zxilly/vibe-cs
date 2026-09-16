@@ -138,11 +138,23 @@ export function trendSeries(
     if (value === null || !Number.isFinite(value)) continue;
     points.push({
       demoId: match.demo_id,
-      label: `${match.map_name ?? NO_VALUE} · ${formatMonthDay(match.match_date)}`,
+      label: trendLabel(match),
       value,
     });
   }
   return points;
+}
+
+/**
+ * How a point names its match on the time axis: the map and the day, or
+ * whichever of the two the demo carries, or the file's own name when it has
+ * neither — a manually imported demo has no `match_date` (that field comes
+ * from Steam's match history), and 「de_mirage · 」 with nothing after the
+ * dot would be the dangling label 玩家档案's header used to print.
+ */
+function trendLabel(match: PlayerMatch): string {
+  const parts = [match.map_name ?? '', formatMonthDay(match.match_date)].filter((part) => part !== '');
+  return parts.length === 0 ? match.demo_name : parts.join(' · ');
 }
 
 /** The mean of a series — the artboard's 「灰线为该指标的个人均值」. */

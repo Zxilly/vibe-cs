@@ -38,8 +38,9 @@ describe('with samples', () => {
     expect(html).toContain('个采样点');
   });
 
-  it('states that nothing was cut when the response was complete', () => {
-    expect(html).toContain('全部计入');
+  it('counts a complete sample once — in the legend, with no second footnote', () => {
+    expect(html).toContain('共 200 个采样点');
+    expect(html).not.toMatch(/共 \d+ 个位置/u);
   });
 
   it('introduces no image — §10.3 gap 8 has no delivery path yet', () => {

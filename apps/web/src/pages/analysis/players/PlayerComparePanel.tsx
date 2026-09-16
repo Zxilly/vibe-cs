@@ -19,6 +19,15 @@
  * against the larger of the two so the comparison is between them and not
  * against an invented ceiling; the numbers above them are the actual values, so
  * the bar can never be the only place a reader gets the fact.
+ *
+ * ── One place per action ───────────────────────────────────────────────────
+ *
+ * Each card carries its own 「打开档案」, so both players have an entry and the
+ * panel never has to pick one of them for a footer link. 「清空选择」 is drawn
+ * here only when the caller hands over `onClear` — the folded drawer, where
+ * this panel is the only action surface. Docked, the page's `SelectionBar`
+ * already owns that button under the table, and the same action drawn twice
+ * on one screen reads as two different actions.
  */
 
 import { t } from '@lingui/core/macro';
@@ -95,7 +104,7 @@ function PlayerCard({
   return (
     <div
       data-compare-card={player.steam_id}
-      className={`flex-1 border p-3 ${emphasis ? 'border-accent-400' : 'border-divider'}`}
+      className={`flex min-w-0 flex-1 flex-col gap-1 border p-3 ${emphasis ? 'border-accent-400' : 'border-divider'}`}
     >
       <div className="truncate font-heading text-lg">{player.name}</div>
       <div className="truncate text-xs text-neutral-600">
@@ -103,7 +112,23 @@ function PlayerCard({
         {' · '}
         <Trans>{player.stats.matches} 场</Trans>
       </div>
+      <RouteLink
+        to={`/players/${encodeURIComponent(player.steam_id)}`}
+        className="text-xs"
+        aria-label={t`打开 ${player.name} 的档案`}
+      >
+        <Trans>打开档案</Trans>
+      </RouteLink>
     </div>
+  );
+}
+
+/** The folded drawer's only way to clear; docked, `SelectionBar` has it. */
+function ClearFooter({ onClear }: { readonly onClear: () => void }) {
+  return (
+    <Button variant="secondary" size="md" block onClick={onClear}>
+      <Trans>清空选择</Trans>
+    </Button>
   );
 }
 
@@ -117,8 +142,12 @@ export interface PlayerComparePanelProps {
   readonly focusedPlayer?: PlayerDirectoryItem | undefined;
   /** How many may be compared, for the 「还差一名」 copy. */
   readonly limit: number;
-  /** Clears the selection — the way out of the "only one picked" state. */
-  readonly onClear: () => void;
+  /**
+   * Clears the selection. Pass it only where this panel is the sole action
+   * surface (the folded drawer); the docked page draws the same button on its
+   * `SelectionBar` and must not get a second one here.
+   */
+  readonly onClear?: (() => void) | undefined;
 }
 
 export function PlayerComparePanel({
@@ -195,11 +224,7 @@ export function PlayerComparePanel({
         title={<Trans>比较</Trans>}
         label={t`比较`}
         summary={<Trans>已选 {left.name}，还差一名</Trans>}
-        footer={
-          <RouteLink to={`/players/${encodeURIComponent(left.steam_id)}`}>
-            <Trans>先看 {left.name} 的档案</Trans>
-          </RouteLink>
-        }
+        footer={onClear === undefined ? undefined : <ClearFooter onClear={onClear} />}
       >
         <div className="flex gap-3">
           <PlayerCard player={left} emphasis />
@@ -222,24 +247,7 @@ export function PlayerComparePanel({
           比较 {left.name} 与 {right.name}
         </Trans>
       }
-      summaryActions={
-        <RouteLink to={`/players/${encodeURIComponent(left.steam_id)}`}>
-          <Trans>打开档案</Trans>
-        </RouteLink>
-      }
-      footer={
-        <div className="flex gap-2">
-          <Button variant="secondary" size="md" grow onClick={onClear}>
-            <Trans>清空选择</Trans>
-          </Button>
-          <RouteLink
-            to={`/players/${encodeURIComponent(left.steam_id)}`}
-            className="flex-1 text-center"
-          >
-            <Trans>查看 {left.name} 的档案</Trans>
-          </RouteLink>
-        </div>
-      }
+      footer={onClear === undefined ? undefined : <ClearFooter onClear={onClear} />}
     >
       <div className="flex gap-3">
         <PlayerCard player={left} emphasis />
@@ -286,9 +294,7 @@ export function PlayerComparePanel({
       </div>
 
       <p className="text-xs leading-normal text-neutral-600">
-        <Trans>
-          首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。
-        </Trans>
+        <Trans>首杀、残局胜率和常用地图还没有分析结果，暂不显示。</Trans>
       </p>
     </Inspector>
   );

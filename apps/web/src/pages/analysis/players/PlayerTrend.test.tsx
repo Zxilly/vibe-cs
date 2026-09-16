@@ -40,6 +40,23 @@ describe('with matches', () => {
     expect(html).toContain('最近 20 场里有 6 场有这个指标');
   });
 
+  it('names the one dashed line, not 「the grey line」 among three grey gridlines', () => {
+    expect(html).toContain('虚线为个人均值');
+    expect(html).not.toContain('灰线');
+  });
+
+  it('stretches to its frame instead of letterboxing a 560-unit box in the middle', () => {
+    expect(html).toContain('preserveAspectRatio="none"');
+    // Stretching must not fatten the strokes with it.
+    expect(html.match(/vector-effect="non-scaling-stroke"/gu)?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('anchors the two ends of the time axis to their matches', () => {
+    expect(html).toContain('data-trend-axis');
+    expect(html).toMatch(/最早 de_mirage · \d\d-\d\d/u);
+    expect(html).toMatch(/最近 de_mirage · \d\d-\d\d/u);
+  });
+
   it('offers the artboard s three metrics', () => {
     expect(html).toContain('K/D');
     expect(html).toContain('ADR');

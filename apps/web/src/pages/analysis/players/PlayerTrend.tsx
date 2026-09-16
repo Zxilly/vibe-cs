@@ -50,9 +50,11 @@ import {
   type TrendMetric,
 } from './playerStats';
 
-/** View-box units. The artboard's box is 560 × 170; the SVG scales to its
- *  container, so these are a ratio anchor rather than a pixel commitment —
- *  the same disposition `MAP_CANVAS_EXTENT` records. */
+/** View-box units. The artboard's box is 560 × 170; the SVG stretches to its
+ *  container (`preserveAspectRatio="none"`, as `Waveform` and `RoundsView`
+ *  draw their own horizontal lines), so these are a ratio anchor rather than a
+ *  pixel commitment — the same disposition `MAP_CANVAS_EXTENT` records. The
+ *  strokes are `non-scaling` so a wide panel does not fatten the line. */
 const CHART_WIDTH = 560;
 const CHART_HEIGHT = 170;
 
@@ -95,6 +97,8 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
   const points = trendSeries(matches, metric);
   const geometry = trendGeometry(points, CHART_WIDTH, CHART_HEIGHT);
   const average = trendAverage(points);
+  const first = points[0];
+  const last = points[points.length - 1];
 
   const options: readonly SegOption<TrendMetric>[] = TREND_METRICS.map((value) => ({
     value,
@@ -114,7 +118,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
         <div className="flex-1" aria-hidden="true" />
         <span className="text-xs text-neutral-600">
           <Trans>
-            最近 {TREND_WINDOW} 场里有 {points.length} 场有这个指标 · 灰线为个人均值
+            最近 {TREND_WINDOW} 场里有 {points.length} 场有这个指标 · 虚线为个人均值
           </Trans>
         </span>
       </div>
@@ -131,14 +135,19 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
         <div className="border border-divider">
           <svg
             viewBox={`0 0 ${String(CHART_WIDTH)} ${String(CHART_HEIGHT)}`}
+            preserveAspectRatio="none"
             className="block h-[170px] w-full"
             role="img"
             aria-label={t`${metricName(metric)} 趋势，共 ${points.length} 场，从 ${printValue(metric, geometry.minimum)} 到 ${printValue(metric, geometry.maximum)}，均值 ${printValue(metric, average)}`}
           >
-            <g className="stroke-neutral-300" strokeWidth={1}>
+            {/* Hairlines two steps lighter than the mean rule, so the one
+                dashed line the caption names cannot be mistaken for a
+                gridline when the mean happens to land on one. */}
+            <g className="stroke-neutral-200" strokeWidth={1}>
               <path
                 d={`M0 ${String(CHART_HEIGHT / 4)} H${String(CHART_WIDTH)} M0 ${String(CHART_HEIGHT / 2)} H${String(CHART_WIDTH)} M0 ${String((CHART_HEIGHT * 3) / 4)} H${String(CHART_WIDTH)}`}
                 fill="none"
+                vectorEffect="non-scaling-stroke"
               />
             </g>
             {geometry.averageY === null ? null : (
@@ -148,6 +157,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
                 strokeWidth={1}
                 strokeDasharray="5 4"
                 fill="none"
+                vectorEffect="non-scaling-stroke"
                 data-trend-average=""
               />
             )}
@@ -156,9 +166,24 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
               className="stroke-accent-800"
               strokeWidth={2}
               fill="none"
+              vectorEffect="non-scaling-stroke"
               data-trend-path=""
             />
           </svg>
+        </div>
+      )}
+
+      {/* The time axis: which match the line starts and ends on. The 最近比赛
+          list beside the chart names every match; this only anchors the two
+          ends so the slope can be read as a direction in time. */}
+      {first === undefined || last === undefined || first === last ? null : (
+        <div className="flex justify-between gap-3 text-xs text-neutral-600" data-trend-axis="">
+          <span className="min-w-0 truncate">
+            <Trans>最早 {first.label}</Trans>
+          </span>
+          <span className="min-w-0 truncate text-right">
+            <Trans>最近 {last.label}</Trans>
+          </span>
         </div>
       )}
 

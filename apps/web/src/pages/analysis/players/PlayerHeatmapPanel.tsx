@@ -39,7 +39,8 @@
  *
  * When `complete` is false the panel says which sample it is drawn from
  * (「取样 5 000 / 12 480」). §10.3's density rule is that a silent truncation is
- * a bug; that applies to a picture as much as to a table.
+ * a bug; that applies to a picture as much as to a table. A complete sample
+ * gets no footnote of its own: the legend caption already carries the count.
  */
 
 import { t } from '@lingui/core/macro';
@@ -123,8 +124,12 @@ export function PlayerHeatmapPanel({
   const subject = `${playerName} · ${kindSubject(kind)}`;
 
   return (
-    <section className="flex min-h-0 flex-col gap-3" data-player-heatmap={mapName}>
-      <div className="flex flex-wrap items-center gap-2.5">
+    /* `flex-none`, not `min-h-0`: the aside this sits in scrolls (DESIGN.md,
+       「内容面板各自滚动」). A shrinkable section would take the whole column's
+       overflow itself — its square canvas is then centred *over* the title row
+       and the kind switch, which is what a 1100 × 700 window used to show. */
+    <section className="flex flex-none flex-col gap-3" data-player-heatmap={mapName}>
+      <div className="flex flex-none flex-wrap items-center gap-2.5">
         <span className="font-heading text-xs tracking-caps text-neutral-600">
           <Trans>{mapName === '' ? '—' : mapName} 热图</Trans>
         </span>
@@ -152,14 +157,15 @@ export function PlayerHeatmapPanel({
           <Trans>这张地图上还没有这名选手的位置样本。分析更多这张图的比赛之后就会有。</Trans>
         }
         emptyActions={null}
+        /* Only a cut sample gets a footnote. A complete one is already counted
+           by the legend's caption (「共 N 个采样点」), and saying the same number
+           twice under one picture reads as two different numbers. */
         footnote={
-          truncation === null ? undefined : truncation.truncated ? (
+          truncation === null || !truncation.truncated ? undefined : (
             <Trans>
               取样 {truncation.shown} / {truncation.total} 个位置（上限 {truncation.limit}）。
               这张图画的是这批取样，不是全部。
             </Trans>
-          ) : (
-            <Trans>共 {truncation.total} 个位置，全部计入。</Trans>
           )
         }
       >

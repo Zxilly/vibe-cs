@@ -16,9 +16,14 @@
  * back. It takes a `HeatDistribution`, not raw points, so there is no API here
  * that could put ten thousand nodes on screen.
  *
- * Colour comes from the accent ramp's nine steps, one per rung of the ladder,
+ * Colour comes from the accent ramp, one step per rung of the ladder,
  * addressed as Tailwind classes off `--color-accent-*`. No value is mixed, so
- * there is no hex here and none in the ladder module either.
+ * there is no hex here and none in the ladder module either. The ramp's two
+ * palest steps are left out: at 70% opacity over the canvas ground accent-100
+ * and accent-200 are the ground, and the least dense occupied cell — always
+ * rung 1 — would be invisible, which breaks `heatBinning`'s 「observed, so it
+ * is visible」 contract. Seven rungs, accent-300 → accent-900, is the part of
+ * the ramp a cell can actually be seen in.
  *
  * The layer is not selectable. A bin is an aggregate over samples that belong
  * to different rounds, players and ticks; selecting one could not report a
@@ -36,12 +41,11 @@ import { LayerEmpty } from './LayerEmpty';
 import type { MapProjection } from './mapProjection';
 
 /**
- * The ladder. Nine rungs of the accent ramp, low to high, exactly the gradient
- * 「04」 draws for the legend (accent-100 → accent-500 → accent-900).
+ * The ladder. The visible rungs of the accent ramp, low to high, ending where
+ * 「04」's legend gradient ends (accent-900). One entry per
+ * `DEFAULT_HEAT_STEPS`.
  */
 export const HEAT_STEP_FILL: readonly string[] = [
-  'fill-accent-100',
-  'fill-accent-200',
   'fill-accent-300',
   'fill-accent-400',
   'fill-accent-500',
@@ -53,8 +57,6 @@ export const HEAT_STEP_FILL: readonly string[] = [
 
 /** The same ladder as backgrounds, for the legend's stepped bar. */
 export const HEAT_STEP_BACKGROUND: readonly string[] = [
-  'bg-accent-100',
-  'bg-accent-200',
   'bg-accent-300',
   'bg-accent-400',
   'bg-accent-500',
@@ -142,7 +144,10 @@ export interface HeatLegendProps {
  *
  * When nothing was binned the bar is not drawn at all — a scale with no
  * measurements has no ends to label, and printing 「0 次 … 0 次」 would be the
- * fabricated denominator the states artboard rules out.
+ * fabricated denominator the states artboard rules out. When every cell
+ * carries the same weight there is no scale either: `heatStep` puts them all
+ * on the top rung, and the legend is that one swatch with the one count,
+ * not a seven-step gradient whose two ends read 「1 次 — 1 次」.
  */
 export function HeatLegend({ distribution, caption, className }: HeatLegendProps) {
   const { bins, minWeight, maxWeight, steps } = distribution;
@@ -155,6 +160,22 @@ export function HeatLegend({ distribution, caption, className }: HeatLegendProps
           <Trans>当前条件下没有采样点，因此没有密度可比。</Trans>
         </p>
         {caption}
+      </div>
+    );
+  }
+
+  if (minWeight === maxWeight) {
+    return (
+      <div className={cn('flex flex-col gap-2', className)} data-testid="heat-legend" data-heat-legend="uniform">
+        <div
+          className={cn('h-[14px] border border-divider', rungClass(rungs, HEAT_STEP_BACKGROUND))}
+          role="img"
+          aria-label={t`密度色阶：每个格子都是 ${maxWeight} 次`}
+        />
+        <div className="text-xs text-neutral-600">
+          <Trans>每个格子都是 {maxWeight} 次，没有疏密之分</Trans>
+        </div>
+        {caption === undefined ? null : <p className="text-xs leading-normal text-neutral-700">{caption}</p>}
       </div>
     );
   }

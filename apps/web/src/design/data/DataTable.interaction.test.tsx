@@ -155,6 +155,30 @@ describe('DataTable row activation', () => {
     expect([...(onSelectedChange.mock.calls[0]?.[0] as Set<string>)]).toEqual(['m1']);
     expect(onRowActivate).not.toHaveBeenCalled();
   });
+
+  it('treats the whole checkbox cell as the box — a 13px square is not a target', () => {
+    const onRowActivate = vi.fn();
+    const onSelectedChange = vi.fn();
+    const { container } = renderInteractive(
+      <DataTable<Match>
+        caption="Demo 资料库"
+        columns={COLUMNS}
+        rows={ROWS}
+        rowId={(row) => row.id}
+        selectable
+        selectionLimit={2}
+        onSelectedChange={onSelectedChange}
+        onRowActivate={onRowActivate}
+      />,
+    );
+
+    const cell = container.querySelector('tr[data-row-id="m2"] [data-selection-cell]') as HTMLElement;
+    fireEvent.click(cell);
+    expect(onSelectedChange).toHaveBeenCalledTimes(1);
+    expect([...(onSelectedChange.mock.calls[0]?.[0] as Set<string>)]).toEqual(['m2']);
+    // A cell click ticks; it never moves the Inspector.
+    expect(onRowActivate).not.toHaveBeenCalled();
+  });
 });
 
 describe('DataTable selection cap', () => {
@@ -186,6 +210,19 @@ describe('DataTable selection cap', () => {
 
     fireEvent.click(boxes()[0] as HTMLElement);
     expect(boxes()[2]?.disabled).toBe(false);
+  });
+
+  it('tells a blocked box why — 禁用控件保留原因提示', () => {
+    const { getAllByRole, container } = renderInteractive(<Harness />);
+    const boxes = () => getAllByRole('checkbox') as HTMLButtonElement[];
+
+    fireEvent.click(boxes()[1] as HTMLElement);
+    const blocked = boxes()[2] as HTMLButtonElement;
+    const reasonId = blocked.getAttribute('aria-describedby');
+    expect(reasonId).not.toBeNull();
+    expect(container.querySelector(`[id="${String(reasonId)}"]`)?.textContent).toContain('已选满 2 项');
+    // The ones that can still be ticked carry no reason.
+    expect(boxes()[0]?.getAttribute('aria-describedby')).toBeNull();
   });
 });
 

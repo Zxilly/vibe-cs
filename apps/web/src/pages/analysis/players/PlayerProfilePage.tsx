@@ -1,5 +1,5 @@
 /*
- * pages/ — 玩家档案与趋势 (spec §7 `/players/:playerId`, phase 3d).
+ * pages/ — 选手档案与趋势 (spec §7 `/players/:playerId`, phase 3d).
  *
  * ── Where the layout comes from ────────────────────────────────────────────
  *
@@ -23,6 +23,13 @@
  *      toolbar would spend 120px of a 700px window on saying the same name
  *      twice. Parent navigation stays in the shell breadcrumb, while the
  *      player's initial plate occupies `leading`.
+ *   3. The panel's 「做一条集锦」 is not drawn. Highlights are cut in a match
+ *      workspace or by the Agent, never from a profile, so a primary button
+ *      here could only ever be disabled — and a main action that can never be
+ *      taken is not a main action (DESIGN.md: 「蓝色优先表达主动作」; a
+ *      `disabledReason` is for 「为什么现在不能点」, not for 「never」). The
+ *      route offers the thing it can do instead: a secondary link into the
+ *      player's most recent match workspace.
  *   2. The right column is `--w-panel` (340) rather than the panel's 320 — §3.5
  *      has no 320 token and 340 is the nearest, a 20px fold well inside the
  *      80px bound `PANEL_WIDTH_MAX_FOLD_PX` records.
@@ -106,6 +113,8 @@ export function PlayerProfilePage() {
   const matchesError = dataErrorMessage(matches.error);
   const heatmapError = dataErrorMessage(heatmap.error);
   const recentMatches = matches.data?.items ?? [];
+  const latestMatch = recentMatches[0];
+  const lastSeen = player === undefined ? '' : formatMonthDay(player.last_match_date);
 
   return (
     <Page
@@ -122,21 +131,44 @@ export function PlayerProfilePage() {
               </span>
             )
           }
-          title={player === undefined ? <Trans>玩家档案</Trans> : player.name}
+          title={player === undefined ? <Trans>选手档案</Trans> : player.name}
           meta={
             player === undefined ? (
               playerId
             ) : (
-              <Trans>
-                {player.last_team ?? NO_VALUE} · {player.stats.matches} 场 · 别名{' '}
-                {player.aliases_total} 个 · 最近出场 {formatMonthDay(player.last_match_date)}
-              </Trans>
+              /* 最近出场 only when a date exists. A manually imported demo has
+                 no match date (that field comes from Steam's history), and a
+                 label with nothing after it is the one thing worse than the
+                 table's dash. */
+              <>
+                <Trans>
+                  {player.last_team ?? NO_VALUE} · {player.stats.matches} 场 · 别名{' '}
+                  {player.aliases_total} 个
+                </Trans>
+                {lastSeen === '' ? null : (
+                  <>
+                    {' · '}
+                    <Trans>最近出场 {lastSeen}</Trans>
+                  </>
+                )}
+              </>
             )
           }
-          primary={
-            <Button variant="primary" disabled disabledReason={t`集锦制作要从比赛工作区或 Agent 发起`}>
-              <Trans>做一条集锦</Trans>
-            </Button>
+          inlineActionsWhenCollapsed={1}
+          actions={
+            latestMatch === undefined
+              ? []
+              : [
+                  {
+                    id: 'workspace',
+                    label: <Trans>去比赛工作区做集锦</Trans>,
+                    control: (
+                      <RouteLink to={`/match/${encodeURIComponent(latestMatch.demo_id)}`}>
+                        <Trans>去比赛工作区做集锦</Trans>
+                      </RouteLink>
+                    ),
+                  },
+                ]
           }
         />
       }

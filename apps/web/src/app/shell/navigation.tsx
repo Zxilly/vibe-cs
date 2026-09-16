@@ -81,7 +81,7 @@ const ANALYSIS_NAV_GROUPS: readonly ShellNavGroup[] = [
     id: 'analysis-insights',
     label: msg`分析`,
     items: [
-      { id: 'players', label: msg`玩家目录`, icon: UsersRound, to: '/players' },
+      { id: 'players', label: msg`选手目录`, icon: UsersRound, to: '/players' },
       { id: 'evidence', label: msg`证据检索`, icon: Search, to: '/evidence' },
     ],
   },

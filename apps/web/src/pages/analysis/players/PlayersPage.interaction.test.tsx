@@ -9,14 +9,14 @@
  * a rendered page in which it does.
  */
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../data/desktopClient';
 import { PLAYER_DIRECTORY_COUNT } from '../../../domain/densityFixtures';
 import { renderInteractive } from '../../../test/render';
-import { PlayersPage } from './PlayersPage';
+import { PlayersPage, SEARCH_DEBOUNCE_MS } from './PlayersPage';
 import { PLAYER_COMPARE_LIMIT, PLAYER_PAGE_SIZE } from './playerDirectoryParams';
 import { directoryItems } from './test/fixtures';
 
@@ -44,7 +44,16 @@ function stubClient(total = PLAYER_DIRECTORY_COUNT): Partial<DesktopClient> {
  *  to it — §4.4 makes the URL the state, so this is the state under test. */
 function AddressProbe() {
   const location = useLocation();
-  return <output data-testid="address">{`${location.pathname}${location.search}`}</output>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="address">{`${location.pathname}${location.search}`}</output>
+      {/* The sidebar's 「选手目录」: the same route with its query dropped. */}
+      <button type="button" data-testid="reset" onClick={() => navigate('/players')}>
+        reset
+      </button>
+    </>
+  );
 }
 
 function mount(url = '/players', client = stubClient()) {
@@ -185,6 +194,76 @@ describe('paging', () => {
     });
     // Row 21 of 312 — proof the second page came from the service.
     expect(await screen.findAllByText('Kael-20')).not.toHaveLength(0);
+  });
+});
+
+describe('the docked comparison and the selection bar', () => {
+  it('draws each action once — the bar clears, the cards link', async () => {
+    mount('/players?compare=STEAM_0,STEAM_1');
+    await rowCheckboxes();
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: '清空选择' })).toHaveLength(1);
+    });
+    // One profile entry per compared player, both worded the same way, and
+    // none of them repeated on the selection bar.
+    expect(screen.getByRole('link', { name: '打开 Kael-0 的档案' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '打开 Kael-1 的档案' })).toBeTruthy();
+    expect(screen.queryByText(/查看 .* 的档案/u)).toBeNull();
+    expect(screen.getByText('已选 2 名 · 比较上限 2 名')).toBeTruthy();
+  });
+});
+
+describe('search', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('filters as you type, a debounce after the last keystroke', async () => {
+    mount();
+    await rowCheckboxes();
+    const box = screen.getByLabelText('搜索选手或别名') as HTMLInputElement;
+
+    fireEvent.change(box, { target: { value: 'z' } });
+    fireEvent.change(box, { target: { value: 'zy' } });
+    expect(address()).toBe('/players');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 10);
+    });
+    expect(address()).toBe('/players?q=zy');
+    expect(box.value).toBe('zy');
+  });
+
+  it('commits on Enter at once', async () => {
+    mount();
+    await rowCheckboxes();
+    const box = screen.getByLabelText('搜索选手或别名') as HTMLInputElement;
+
+    fireEvent.change(box, { target: { value: 'kael' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(address()).toBe('/players?q=kael');
+  });
+
+  it('follows the address when the query is reset under it, so the box never shows a stale filter', async () => {
+    mount('/players?q=abc');
+    await rowCheckboxes();
+    const box = screen.getByLabelText('搜索选手或别名') as HTMLInputElement;
+    expect(box.value).toBe('abc');
+
+    fireEvent.click(screen.getByTestId('reset'));
+    await waitFor(() => {
+      expect(address()).toBe('/players');
+    });
+    expect(box.value).toBe('');
+
+    // And the empty draft does not write `q=` back a debounce later.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 10);
+    });
+    expect(address()).toBe('/players');
   });
 });
 

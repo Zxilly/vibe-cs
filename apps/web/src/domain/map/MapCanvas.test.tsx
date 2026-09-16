@@ -77,7 +77,7 @@ describe('MapCanvas', () => {
   it('says so on screen when it is drawing from a placeholder calibration', () => {
     const html = renderMarkup(<MapCanvas mapName="de_inferno" label="Inferno" />);
     expect(html).toContain('data-testid="map-calibration-warning"');
-    expect(html).toContain('占位标定');
+    expect(html).toContain('可能整体偏移');
     expect(html).toContain('text-warn-text');
   });
 

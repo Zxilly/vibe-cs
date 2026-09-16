@@ -82,7 +82,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
               value="analysis"
               icon={ChartNoAxesCombined}
               title={<Trans>分析模式</Trans>}
-              description={<Trans>比赛、玩家、证据与回放</Trans>}
+              description={<Trans>比赛、选手、证据与回放</Trans>}
             />
           </DropdownMenuPrimitive.RadioGroup>
         </DropdownMenuPrimitive.Content>

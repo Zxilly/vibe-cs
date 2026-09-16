@@ -85,13 +85,13 @@ const PAGES: readonly PageCase[] = [
     pattern: '/players',
     at: '/players',
     Component: PlayersPage,
-    title: '玩家目录',
+    title: '选手目录',
   },
   {
     pattern: '/players/:playerId',
     at: '/players/kael',
     Component: PlayerProfilePage,
-    title: '玩家档案',
+    title: '选手档案',
   },
   {
     pattern: '/evidence',

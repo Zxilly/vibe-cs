@@ -275,7 +275,7 @@ describe('AppShell — work modes', () => {
     const { getByRole, queryByText } = renderInteractive(<RouterProvider router={router} />);
 
     expect(queryByText('作品')).not.toBeNull();
-    expect(queryByText('玩家目录')).toBeNull();
+    expect(queryByText('选手目录')).toBeNull();
 
     fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
       button: 0,
@@ -284,7 +284,7 @@ describe('AppShell — work modes', () => {
     fireEvent.click(getByRole('menuitemradio', { name: /^分析模式/u }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
-    expect(queryByText('玩家目录')).not.toBeNull();
+    expect(queryByText('选手目录')).not.toBeNull();
     expect(queryByText('证据检索')).not.toBeNull();
     expect(queryByText('作品')).toBeNull();
 
@@ -297,7 +297,7 @@ describe('AppShell — work modes', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(useShellStore.getState().mode).toBe('edit');
     expect(queryByText('作品')).not.toBeNull();
-    expect(queryByText('玩家目录')).toBeNull();
+    expect(queryByText('选手目录')).toBeNull();
   });
 
   it('opens analysis deep links in analysis mode without a wrong-nav frame', () => {
@@ -306,7 +306,7 @@ describe('AppShell — work modes', () => {
       <RouterProvider router={shellRouter('/players')} />,
     );
 
-    expect(queryAllByText('玩家目录').length).toBeGreaterThan(0);
+    expect(queryAllByText('选手目录').length).toBeGreaterThan(0);
     expect(queryByText('作品')).toBeNull();
   });
 });

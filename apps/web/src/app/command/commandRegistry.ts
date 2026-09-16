@@ -117,7 +117,7 @@ export interface CommandDefinition {
   /** The row's main text. Matched against first, and with the highest weight. */
   readonly title: MessageDescriptor;
   /**
-   * The muted right-hand text: 「打开工作区」「玩家档案」. Names what running
+   * The muted right-hand text: 「打开工作区」「选手档案」. Names what running
    * the command does when the title alone does not say it.
    */
   readonly hint?: MessageDescriptor | undefined;
@@ -182,7 +182,7 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/library?view=steam',
     keywords: ['history', 'steam', '下载', '历史'],
   }),
-  pageCommand({ id: 'players', title: msg`玩家目录`, to: '/players', keywords: ['players', '玩家', '选手'] }),
+  pageCommand({ id: 'players', title: msg`选手目录`, to: '/players', keywords: ['players', '玩家', '选手'] }),
   pageCommand({
     id: 'evidence',
     title: msg`证据检索`,

@@ -295,7 +295,7 @@ fn activity_item(source: ActivitySource, retry_account: Option<&str>) -> Activit
         ActivitySource::Export {
             record,
             project_name,
-        } => export_activity(record, project_name),
+        } => export_activity(record, &project_name),
         ActivitySource::Download {
             job,
             retryable,
@@ -419,7 +419,7 @@ fn recording_stage_ordinal(stage: &str) -> Option<u64> {
 /// An export is titled by the work it belongs to — 「作品名 · r12」 — never by
 /// its output path: the path is a detail the export job record still carries,
 /// and every export of one Project would otherwise share one truncated title.
-fn export_activity(record: ExportJobRecord, project_name: String) -> ActivityItem {
+fn export_activity(record: ExportJobRecord, project_name: &str) -> ActivityItem {
     let kind = record.kind;
     let job = record.job;
     let mut available_actions = Vec::with_capacity(2);

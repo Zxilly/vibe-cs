@@ -8,10 +8,16 @@
  * An index of those is the same block, one per row, with the evidence it hangs
  * on named so it can be opened.
  *
- * Read-only this round. `DesktopClient` exposes `listEvidenceAnnotations` and
- * not the three writes, so 「写注释」 / 「标记已处理」 are disabled with the reason
- * attached rather than hidden — §8's rule, and the same treatment the search
- * Inspector gives the same missing seam.
+ * The Inspector block sits inside one match, so it never has to say which. This
+ * list spans every match — the empty state promises 「跨比赛可检索」 — so each
+ * row starts with the match and the map, the way the results rows do, before
+ * the tick and the round.
+ *
+ * A row is selectable the way a results row is: a real button carrying the
+ * body, `aria-current` on the current one, and the selection written to the
+ * URL by the page so the Inspector beside the list describes the same note.
+ * 「标记已处理」 / 「重新打开」 flips `review_state` through the page's mutation
+ * and 「定位」 opens the match workspace on the note's evidence.
  */
 
 import { Trans } from '@lingui/react/macro';
@@ -19,7 +25,7 @@ import type { ReactNode } from 'react';
 
 import { Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
-import { Button, Badge } from '../../../design/primitives';
+import { Button, Badge, cn } from '../../../design/primitives';
 import { EvidenceRowSkeleton, formatTickCount } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
 import { EVIDENCE_PAGE_SIZE } from './evidenceSearchParams';
@@ -29,21 +35,31 @@ export interface EvidenceAnnotationsProps {
   readonly total: number;
   readonly page: number;
   readonly onPageChange: (page: number) => void;
+  /** The note the Inspector is describing. */
+  readonly activeId: string;
+  readonly onSelect: (annotation: EvidenceAnnotation) => void;
   readonly onOpen: (annotation: EvidenceAnnotation) => void;
-  /** Why the annotation writes are unavailable. */
-  readonly editDisabledReason?: string | undefined;
+  /** 「标记已处理」 on an open note, 「重新打开」 on a resolved one. */
+  readonly onToggleReviewState: (annotation: EvidenceAnnotation) => void;
+  readonly togglePending?: boolean | undefined;
   readonly loading?: boolean | undefined;
   readonly error?: { readonly message: string; readonly onRetry: () => void } | undefined;
   readonly empty?: ReactNode | undefined;
 }
+
+/** The results row's selected plate, so the two faces of the page agree. */
+const SELECTED_CLASS = 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 export function EvidenceAnnotations({
   rows,
   total,
   page,
   onPageChange,
+  activeId,
+  onSelect,
   onOpen,
-  editDisabledReason,
+  onToggleReviewState,
+  togglePending = false,
   loading = false,
   error,
   empty,
@@ -83,51 +99,67 @@ export function EvidenceAnnotations({
   return (
     <div data-evidence-annotations="ready" className="flex min-h-0 flex-1 flex-col">
       <ul className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain">
-        {rows.map((annotation) => (
-          <li
-            key={annotation.id}
-            className="flex flex-col gap-2 border-b border-divider px-6 py-3"
-            data-annotation={annotation.id}
-          >
-            <div className="flex items-baseline gap-2.5">
-              <span className="font-mono text-xs text-accent-700">
-                <Trans>tick {formatTickCount(annotation.tick)}</Trans>
-              </span>
-              <span className="text-xs text-neutral-600">
-                <Trans>第 {annotation.round} 回合</Trans>
-              </span>
-              <div className="flex-1" aria-hidden="true" />
-              <Badge variant={annotation.review_state === 'resolved' ? 'neutral' : 'outline'}>
-                {annotation.review_state === 'resolved' ? (
-                  <Trans>已处理</Trans>
-                ) : (
-                  <Trans>待处理</Trans>
-                )}
-              </Badge>
-            </div>
-            <p className="text-sm leading-normal">{annotation.body}</p>
-            <div className="flex flex-wrap items-center gap-2">
-              {annotation.tags.map((tag) => (
-                <Badge key={tag} variant="neutral">
-                  {tag}
-                </Badge>
-              ))}
-              <div className="flex-1" aria-hidden="true" />
-              <Button
-                variant="secondary"
-                size="sm"
-                {...(editDisabledReason === undefined
-                  ? {}
-                  : { disabled: true, disabledReason: editDisabledReason })}
+        {rows.map((annotation) => {
+          const selected = annotation.id === activeId;
+          const resolved = annotation.review_state === 'resolved';
+          return (
+            <li
+              key={annotation.id}
+              className={cn(
+                'flex flex-col gap-2 border-b border-divider px-6 py-3',
+                selected ? SELECTED_CLASS : 'hover:bg-surface',
+              )}
+              data-annotation={annotation.id}
+              aria-current={selected ? true : undefined}
+            >
+              <button
+                type="button"
+                data-annotation-select=""
+                aria-pressed={selected}
+                onClick={() => onSelect(annotation)}
+                className="flex w-full flex-col gap-1 text-left"
               >
-                <Trans>标记已处理</Trans>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => onOpen(annotation)}>
-                <Trans>定位</Trans>
-              </Button>
-            </div>
-          </li>
-        ))}
+                <span className="flex min-w-0 items-center gap-2 text-xs text-neutral-600">
+                  <span className="truncate">{annotation.demo_display_name}</span>
+                  <span className="flex-none">·</span>
+                  <span className="truncate">{annotation.map_name}</span>
+                </span>
+                <span className="flex items-baseline gap-2.5">
+                  <span className="whitespace-nowrap font-mono text-xs text-accent-700">
+                    <Trans>tick {formatTickCount(annotation.tick)}</Trans>
+                  </span>
+                  <span className="text-xs text-neutral-600">
+                    <Trans>第 {annotation.round} 回合</Trans>
+                  </span>
+                  <span className="flex-1" aria-hidden="true" />
+                  <Badge variant={resolved ? 'neutral' : 'outline'}>
+                    {resolved ? <Trans>已处理</Trans> : <Trans>待处理</Trans>}
+                  </Badge>
+                </span>
+                <span className="text-sm leading-normal">{annotation.body}</span>
+              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {annotation.tags.map((tag) => (
+                  <Badge key={tag} variant="neutral">
+                    {tag}
+                  </Badge>
+                ))}
+                <div className="flex-1" aria-hidden="true" />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={togglePending}
+                  onClick={() => onToggleReviewState(annotation)}
+                >
+                  {resolved ? <Trans>重新打开</Trans> : <Trans>标记已处理</Trans>}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onOpen(annotation)}>
+                  <Trans>定位</Trans>
+                </Button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
       <Pagination
         page={page}

@@ -24,6 +24,7 @@
  * rather than papered over here.
  */
 
+import { weaponSearchId } from '../../../domain/match';
 import type { EvidenceSearchEventFamily, EvidenceSearchQuery } from '../../../shared/desktop/dto';
 import { pickQueryValue } from '../../shared/navigation/routeQuery';
 
@@ -67,6 +68,10 @@ export interface EvidenceSearchState {
   /** The row the Inspector is describing. Deep-linkable — this is the field
    *  that makes 「把这条证据发给别人」 work at all. */
   readonly evidenceId: string;
+  /** The annotation the Inspector describes on the 注释 face. Its own field:
+   *  one piece of evidence can carry several notes, so the evidence id alone
+   *  does not name one. */
+  readonly annotationId: string;
 }
 
 export const EMPTY_EVIDENCE_SEARCH: EvidenceSearchState = {
@@ -81,6 +86,7 @@ export const EMPTY_EVIDENCE_SEARCH: EvidenceSearchState = {
   to: '',
   page: 1,
   evidenceId: '',
+  annotationId: '',
 };
 
 /** Rows per page. 20 keeps the results list inside one 1100 × 700 screen with
@@ -108,6 +114,7 @@ export function readEvidenceSearch(params: ReadableParams): EvidenceSearchState 
     to: date(params.get('to')),
     page: pageNumber(params.get('page')),
     evidenceId: text(params.get('evidence')),
+    annotationId: text(params.get('annotation')),
   };
 }
 
@@ -133,6 +140,7 @@ export function writeEvidenceSearch(state: EvidenceSearchState): URLSearchParams
   if (state.to !== '') params.set('to', state.to);
   if (state.page > 1) params.set('page', String(state.page));
   if (state.evidenceId !== '') params.set('evidence', state.evidenceId);
+  if (state.annotationId !== '') params.set('annotation', state.annotationId);
   return params;
 }
 
@@ -168,7 +176,8 @@ function conditions(state: EvidenceSearchState): EvidenceSearchQuery {
   return {
     ...(state.q === '' ? {} : { q: state.q }),
     ...(state.player === '' ? {} : { player: state.player }),
-    ...(state.weapon === '' ? {} : { weapon: state.weapon }),
+    /* The chip may say 「AK-47」 the way the rows do; the index keys on `ak47`. */
+    ...(state.weapon === '' ? {} : { weapon: weaponSearchId(state.weapon) }),
     ...(state.map === '' ? {} : { map: state.map }),
     ...(state.headshot ? { headshot: true } : {}),
     ...(state.from === '' ? {} : { match_date_from: state.from }),

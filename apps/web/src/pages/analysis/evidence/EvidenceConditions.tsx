@@ -87,6 +87,19 @@ function textFieldName(field: TextField): string {
   }
 }
 
+/** What the open field wants, in the spelling the index keys on: the three
+ *  fields look identical once open, and 「地图」 could mean Mirage or de_mirage. */
+function textFieldPlaceholder(field: TextField): string {
+  switch (field) {
+    case 'player':
+      return t`选手昵称，Enter 确认`;
+    case 'map':
+      return t`地图，例如 de_mirage`;
+    case 'weapon':
+      return t`武器，例如 AK-47`;
+  }
+}
+
 function conditionLabel(condition: EvidenceCondition): ReactNode {
   switch (condition.field) {
     case 'family':
@@ -132,8 +145,19 @@ export function EvidenceConditions({
 }: EvidenceConditionsProps) {
   /* The only local state on this page. The typed-but-not-submitted query is
      genuinely not shared — it has no meaning until 「检索」 — and putting every
-     keystroke in the URL would fill the back stack with half-words. */
+     keystroke in the URL would fill the back stack with half-words.
+
+     It is a draft *of* `state.q`, though, so when the address changes under it
+     — the 关键词 chip removed, back / forward, a pasted link — the draft
+     follows. Otherwise the box would keep showing a keyword the chip row and
+     the results had already dropped, and the next 「检索」 would quietly put
+     it back. */
   const [draft, setDraft] = useState(state.q);
+  const [draftOf, setDraftOf] = useState(state.q);
+  if (draftOf !== state.q) {
+    setDraftOf(state.q);
+    setDraft(state.q);
+  }
   const [editing, setEditing] = useState<TextField | null>(null);
   const [editingValue, setEditingValue] = useState('');
 
@@ -230,12 +254,13 @@ export function EvidenceConditions({
 
         {TEXT_FIELDS.filter((field) => state[field] === '').map((field) =>
           editing === field ? (
-            <span key={field} className="inline-flex w-40 flex-none items-center">
+            <span key={field} className="inline-flex w-52 flex-none items-center">
               <Input
                 autoFocus
                 ground="bg"
                 value={editingValue}
                 aria-label={textFieldName(field)}
+                placeholder={textFieldPlaceholder(field)}
                 data-condition-input={field}
                 onChange={(event) => setEditingValue(event.target.value)}
                 onBlur={() => commitField(field)}

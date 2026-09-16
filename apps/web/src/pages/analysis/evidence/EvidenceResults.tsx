@@ -31,6 +31,7 @@
  * with the results only by accident.
  */
 
+import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
@@ -39,6 +40,7 @@ import { Alert } from '../../../design/feedback';
 import { Button } from '../../../design/primitives';
 import { EvidenceRow, EvidenceRowSkeleton, type EvidenceItem } from '../../../domain/match';
 import type { EvidenceSearchItem } from '../../../shared/desktop/dto';
+import { evidenceEventLabel } from './evidenceEventLabel';
 import {
   evidenceQualifiers,
   formatMatchMonthDay,
@@ -50,30 +52,33 @@ import { EVIDENCE_PAGE_SIZE } from './evidenceSearchParams';
 /* ── one row ─────────────────────────────────────────────────────────────── */
 
 /**
- * The two slots that need authored words: the qualifier tail after the weapon,
- * and the 「地图 · 日期」 second line. Everything else comes from
- * `toEvidenceIdentity`, which is pure and unit-tested.
+ * The two slots that need authored words: the description after the weapon —
+ * what kind of row this is (「购买」, 「回合开始」, 「多杀」) when the kind glyph
+ * alone would not say, then the 「穿墙」 / 「爆头」 qualifiers — and the
+ * 「地图 · 日期」 second line. Everything else comes from `toEvidenceIdentity`,
+ * which is pure and unit-tested.
  */
-function toEvidenceItem(row: EvidenceSearchItem, perspective: EvidencePerspective): EvidenceItem {
+function toEvidenceItem(
+  row: EvidenceSearchItem,
+  perspective: EvidencePerspective,
+  eventPhrase: string | null,
+): EvidenceItem {
   const qualifiers = evidenceQualifiers(row);
   const day = formatMatchMonthDay(row.match_date);
+  const description: ReactNode[] = [];
+  if (eventPhrase !== null) description.push(<span key="event">{eventPhrase}</span>);
+  for (const qualifier of qualifiers) {
+    description.push(
+      <span key={qualifier}>
+        {description.length > 0 ? ' · ' : null}
+        {qualifier === 'penetrated' ? <Trans>穿墙</Trans> : <Trans>爆头</Trans>}
+      </span>,
+    );
+  }
 
   return {
     ...toEvidenceIdentity(row, perspective),
-    ...(qualifiers.length === 0
-      ? {}
-      : {
-          description: (
-            <>
-              {qualifiers.map((qualifier, index) => (
-                <span key={qualifier}>
-                  {index > 0 ? ' · ' : null}
-                  {qualifier === 'penetrated' ? <Trans>穿墙</Trans> : <Trans>爆头</Trans>}
-                </span>
-              ))}
-            </>
-          ),
-        }),
+    ...(description.length === 0 ? {} : { description: <>{description}</> }),
     context: day === '' ? row.map_name : `${row.map_name} · ${day}`,
   };
 }
@@ -117,6 +122,8 @@ export function EvidenceResults({
   error,
   empty,
 }: EvidenceResultsProps) {
+  const { i18n } = useLingui();
+
   if (error !== undefined) {
     return (
       <div data-evidence-results="error" className="p-6">
@@ -163,7 +170,8 @@ export function EvidenceResults({
     <div data-evidence-results="ready" className="flex min-h-0 flex-1 flex-col">
       <ul className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain">
         {rows.map((row) => {
-          const item = toEvidenceItem(row, perspective);
+          const eventLabel = evidenceEventLabel(row);
+          const item = toEvidenceItem(row, perspective, eventLabel === null ? null : i18n._(eventLabel));
           return (
             <li key={row.evidence_id}>
               <EvidenceRow

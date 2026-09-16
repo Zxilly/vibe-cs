@@ -11,9 +11,13 @@
  * of apologising. An empty evidence search has three different true causes and
  * only one of them is the user's query:
  *
- *   index empty     nothing has been analysed into the index yet. Loosening the
- *                   filters would change nothing, so the recovery is 「去资料库
- *                   分析一场」, not 「清空条件」.
+ *   index empty     nothing is in the index yet. Loosening the filters would
+ *                   change nothing. Which recovery is honest depends on why the
+ *                   index is empty: with no analysed match at all the only fix
+ *                   is 「去资料库分析一场」; with matches analysed and their rows
+ *                   not yet projected, sending the reader off to analyse
+ *                   another one would not help, and the recovery is the same
+ *                   as the partial case — wait and 「重新检索」.
  *   index partial   the projection is still running. The row may exist and
  *                   simply not be in yet; the honest recovery is to wait and
  *                   retry, and the count says how far it has got.
@@ -62,19 +66,28 @@ export function EvidenceEmpty({
   onRetry,
 }: EvidenceEmptyProps) {
   if (indexState === 'empty') {
-    return (
+    return totalAnalyses === 0 ? (
       <Empty
         className="m-7"
         title={<Trans>还没有可检索的证据</Trans>}
-        description={
-          <Trans>
-            已分析 {totalAnalyses} 场，但证据索引还没准备好，所以暂时没有结果。
-          </Trans>
-        }
+        description={<Trans>资料库里还没有分析过的比赛，证据索引是空的。</Trans>}
         actions={
           <RouteLink to="/library">
             <Trans>去资料库分析一场</Trans>
           </RouteLink>
+        }
+      />
+    ) : (
+      <Empty
+        className="m-7"
+        title={<Trans>证据索引还在建立</Trans>}
+        description={
+          <Trans>已分析 {totalAnalyses} 场，证据还没有写进索引。稍等片刻再检索。</Trans>
+        }
+        actions={
+          <Button variant="secondary" onClick={onRetry}>
+            <Trans>重新检索</Trans>
+          </Button>
         }
       />
     );

@@ -4,13 +4,11 @@
  * Feeds `/evidence` with its two views (`?view=evidence|annotations`, §7) and
  * the evidence rail inside the match workspace.
  *
- * Reads only, still. The annotation writes (create / update / delete) cannot be
- * added yet: `DesktopClient` in `desktopClient.tsx` is a `Pick<typeof commands,
- * …>` that lists `searchEvidence` and `listEvidenceAnnotations` and nothing
- * else, and widening it means editing a file phase 3d does not own. See the
- * phase report — `invalidateEvidenceAnnotations` below is already the single
- * target those writes will point at, so adding them is a hook plus one line in
- * that Pick, not a new key literal.
+ * Reads. The annotation writes (create / update / delete) are the three
+ * mutations in `data/match.ts` — `useCreateMatchAnnotation` and friends — and
+ * they all settle on `invalidateEvidenceAnnotations` below, so a note written
+ * in the workspace or on `/evidence` shows up in both without either page
+ * knowing about the other.
  *
  * ## Why the availability reasoning lives here
  *

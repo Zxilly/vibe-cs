@@ -33,7 +33,7 @@ describe('reading the URL', () => {
 
   it('takes every condition off the query string', () => {
     expect(
-      read('view=annotations&family=kill&q=穿墙&player=Kael&weapon=AK-47&map=de_mirage&headshot=1&from=2026-07-16&to=2026-08-15&page=3&evidence=e-1'),
+      read('view=annotations&family=kill&q=穿墙&player=Kael&weapon=AK-47&map=de_mirage&headshot=1&from=2026-07-16&to=2026-08-15&page=3&evidence=e-1&annotation=ann-1'),
     ).toEqual({
       view: 'annotations',
       family: 'kill',
@@ -46,6 +46,7 @@ describe('reading the URL', () => {
       to: '2026-08-15',
       page: 3,
       evidenceId: 'e-1',
+      annotationId: 'ann-1',
     });
   });
 
@@ -79,7 +80,7 @@ describe('writing the URL', () => {
   });
 
   it('round-trips every field', () => {
-    const state = read('view=annotations&family=objective&q=a&player=b&weapon=c&map=d&headshot=1&from=2026-01-02&to=2026-03-04&page=5&evidence=f');
+    const state = read('view=annotations&family=objective&q=a&player=b&weapon=c&map=d&headshot=1&from=2026-01-02&to=2026-03-04&page=5&evidence=f&annotation=g');
     expect(readEvidenceSearch(writeEvidenceSearch(state))).toEqual(state);
   });
 
@@ -109,6 +110,15 @@ describe('the IPC query', () => {
     );
     expect(toEvidenceQuery({ ...EMPTY_EVIDENCE_SEARCH, family: 'kill' })).toMatchObject({
       event_family: 'kill',
+    });
+  });
+
+  it('sends the weapon as the id the index keys on, whichever spelling was typed', () => {
+    expect(toEvidenceQuery({ ...EMPTY_EVIDENCE_SEARCH, weapon: 'AK-47' })).toMatchObject({
+      weapon: 'ak47',
+    });
+    expect(toEvidenceQuery({ ...EMPTY_EVIDENCE_SEARCH, weapon: 'ak47' })).toMatchObject({
+      weapon: 'ak47',
     });
   });
 

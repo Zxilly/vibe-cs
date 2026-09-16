@@ -15,8 +15,7 @@
  * activation and no DOM.
  */
 
-import type { EvidenceKind } from '../../../domain/match';
-import type { EvidenceItem } from '../../../domain/match';
+import { formatWeaponName, type EvidenceItem, type EvidenceKind } from '../../../domain/match';
 import type { EvidenceSearchItem } from '../../../shared/desktop/dto';
 import { jsonMember } from '../../../shared/desktop/json';
 
@@ -29,13 +28,15 @@ import { jsonMember } from '../../../shared/desktop/json';
  * tables are transcribed here, mapped onto the five members of
  * `domain/match`'s `EvidenceKind`.
  *
- * Two of the mappings are judgements rather than identities and are called out
- * so a reviewer can disagree with them:
+ * One of the mappings is a judgement rather than an identity and is called
+ * out so a reviewer can disagree with it:
  *
  *   `damage`   lands on 击杀 — a shot that connected. `EvidenceKind` has no
  *              「伤害」 member, and inventing one is a `domain/**` change.
- *   `purchase` lands on 回合 — an economy fact belongs to the round, not to a
- *              duel.
+ *
+ * `purchase` has its own member: the index holds one row per item bought, so on
+ * an unfiltered page they are most of what is on screen, and a page of
+ * identical round flags said nothing about what any row was.
  *
  * An unrecognised string falls back to 击杀 rather than throwing: a newer
  * analyser writing a kind this build has not heard of should still produce a
@@ -48,7 +49,7 @@ const KIND_BY_EVENT_TYPE: Readonly<Record<string, EvidenceKind>> = {
   damage: 'kill',
   round_start: 'round',
   round_end: 'round',
-  purchase: 'round',
+  purchase: 'purchase',
   bomb_plant: 'objective',
   bomb_defuse: 'objective',
   bomb_explode: 'objective',
@@ -147,7 +148,7 @@ export function toEvidenceIdentity(
     matchLabel: row.demo_display_name,
     ...(actor === null ? {} : { actor }),
     ...(target === null ? {} : { target }),
-    ...(row.weapon === null ? {} : { weapon: row.weapon }),
+    ...(row.weapon === null ? {} : { weapon: formatWeaponName(row.weapon) }),
   };
 }
 

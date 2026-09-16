@@ -34,7 +34,7 @@ export function evidenceItem(overrides: Partial<EvidenceSearchItem> = {}): Evide
     actor_name: 'Kael',
     target_id: 'STEAM_CORVIN',
     target_name: 'Corvin',
-    weapon: 'AK-47',
+    weapon: 'ak47',
     headshot: true,
     penetrated: true,
     source_kind: 'event',
@@ -81,6 +81,8 @@ export function annotation(overrides: Partial<EvidenceAnnotation> = {}): Evidenc
   return {
     id: 'ann-1',
     demo_id: 'aurora',
+    demo_display_name: 'Aurora vs Meridian',
+    map_name: 'de_mirage',
     evidence_id: 'demo:aurora/event:e-1',
     round: 21,
     tick: 149_380,

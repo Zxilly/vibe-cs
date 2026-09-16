@@ -71,6 +71,7 @@ import type {
   StorageStatus,
   ExportJobRecord,
   EvidenceAnnotation,
+  EvidenceSearchItem,
   MatchDownloadJob,
 } from '../shared/desktop/dto';
 
@@ -93,6 +94,172 @@ function paged<T>(items: readonly T[]): Paginated<T> {
 }
 
 /* ── the demo library ─────────────────────────────────────────────────────── */
+
+/* ── evidence ─────────────────────────────────────────────────────────────── */
+
+/** One kill, one purchase, one round boundary and one highlight per round,
+ *  spread over the three analysed demos, so 「05 证据检索」 has every row shape
+ *  on its first page and the 注释 face has notes from more than one match. */
+const EVIDENCE_DEMOS = [
+  { id: '3f2c9a10-11d4-4a6e-9d21-6b0f1a2c3d41', name: 'NAVI vs FaZe · Mirage', map: 'de_mirage', date: '2026-08-11T18:20:00Z', players: ['s1mple', 'b1t', 'NiKo', 'ropz'] },
+  { id: '5b81e4c7-22d4-4a6e-9d21-6b0f1a2c3d42', name: 'Vitality vs G2 · Inferno', map: 'de_inferno', date: '2026-08-13T15:05:00Z', players: ['ZywOo', 'apEX', 'm0NESY', 'HooXi'] },
+  { id: '7d40b2f9-33d4-4a6e-9d21-6b0f1a2c3d43', name: '队内训练赛 · Ancient', map: 'de_ancient', date: '2026-08-12T12:00:00Z', players: ['Kael', 'Sable', 'Corvin', 'Ilse'] },
+] as const;
+
+const EVIDENCE_WEAPONS = ['ak47', 'usp_silencer', 'awp', 'deagle', 'm4a1_silencer', 'glock'] as const;
+
+function evidenceRow(
+  demo: (typeof EVIDENCE_DEMOS)[number],
+  round: number,
+  tick: number,
+  sourceKind: EvidenceSearchItem['source_kind'],
+  sourceId: string,
+  eventType: string,
+  fields: Partial<EvidenceSearchItem>,
+): EvidenceSearchItem {
+  const evidenceId = `demo:${demo.id}/${sourceKind}:${sourceId}`;
+  return {
+    evidence_id: evidenceId,
+    demo_id: demo.id,
+    demo_display_name: demo.name,
+    map_name: demo.map,
+    match_date: demo.date,
+    round,
+    tick,
+    end_tick: tick,
+    event_type: eventType,
+    actor_id: null,
+    actor_name: null,
+    target_id: null,
+    target_name: null,
+    weapon: null,
+    headshot: null,
+    penetrated: null,
+    source_kind: sourceKind,
+    source_id: sourceId,
+    attributes: {},
+    analysis_href: `/demos/${demo.id}/analysis`,
+    replay_href: `/demos/${demo.id}/replay`,
+    ...fields,
+  };
+}
+
+const EVIDENCE_ROWS: EvidenceSearchItem[] = EVIDENCE_DEMOS.flatMap((demo, demoIndex) =>
+  Array.from({ length: 6 }, (_, index): EvidenceSearchItem[] => {
+    const round = index + 1;
+    const base = 3_200 + index * 7_040 + demoIndex * 100_000;
+    const actor: string = demo.players[index % 4] ?? 'Kael';
+    const target: string = demo.players[(index + 1) % 4] ?? 'Sable';
+    const weapon: string = EVIDENCE_WEAPONS[(index + demoIndex) % EVIDENCE_WEAPONS.length] ?? 'ak47';
+    const named = (name: string) => ({ id: `STEAM_${name.toUpperCase()}`, name });
+    const rows: EvidenceSearchItem[] = [
+      evidenceRow(demo, round, base, 'event', `round_start-${String(base)}-1`, 'round_start', {}),
+      evidenceRow(demo, round, base + 320, 'event', `item_purchase-${String(base + 320)}-1`, 'purchase', {
+        actor_id: named(actor).id,
+        actor_name: actor,
+        weapon: index % 2 === 0 ? 'Kevlar Vest' : 'Flashbang',
+      }),
+      evidenceRow(demo, round, base + 2_880, 'event', `player_death-${String(base + 2_880)}-1`, 'kill', {
+        actor_id: named(actor).id,
+        actor_name: actor,
+        target_id: named(target).id,
+        target_name: target,
+        weapon,
+        headshot: index % 3 === 0,
+        penetrated: index % 4 === 1,
+        attributes: { position: [-1200 + index * 90, 640 - index * 40, 64] },
+      }),
+    ];
+    if (index % 2 === 1) {
+      rows.push(
+        evidenceRow(demo, round, base + 2_880, 'highlight', `hl-${String(demoIndex)}-${String(index)}`, 'multi_kill', {
+          end_tick: base + 3_600,
+          actor_id: named(actor).id,
+          actor_name: actor,
+          weapon,
+        }),
+      );
+    }
+    return rows;
+  }).flat(),
+);
+
+const EVIDENCE_FAMILY_OF: Readonly<Record<string, string>> = {
+  kill: 'kill',
+  multi_kill: 'multi_kill',
+  round_start: 'round_start',
+};
+
+function evidenceSearch(query: URLSearchParams): EvidenceSearchResponse {
+  const family = query.get('event_family');
+  const q = query.get('q')?.trim().toLowerCase() ?? '';
+  const player = query.get('player')?.trim().toLowerCase() ?? '';
+  const weapon = query.get('weapon')?.trim().toLowerCase() ?? '';
+  const map = query.get('map')?.trim().toLowerCase() ?? '';
+  const headshot = query.get('headshot') === 'true';
+  const page = Math.max(1, Number(query.get('page') ?? '1'));
+  const pageSize = Math.max(1, Number(query.get('page_size') ?? '20'));
+  const hits = EVIDENCE_ROWS.filter((row) => {
+    if (family !== null && EVIDENCE_FAMILY_OF[row.event_type] !== family) return false;
+    if (headshot && row.headshot !== true) return false;
+    if (map !== '' && row.map_name.toLowerCase() !== map) return false;
+    if (weapon !== '' && row.weapon?.toLowerCase() !== weapon) return false;
+    if (player !== '' && row.actor_name?.toLowerCase() !== player && row.target_name?.toLowerCase() !== player) {
+      return false;
+    }
+    if (q !== '') {
+      const text = [row.demo_display_name, row.actor_name, row.target_name, row.weapon, row.event_type]
+        .join(' ')
+        .toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    return true;
+  });
+  return {
+    items: hits.slice((page - 1) * pageSize, page * pageSize),
+    total: hits.length,
+    page,
+    page_size: pageSize,
+    availability: {
+      indexed_items: EVIDENCE_ROWS.length,
+      indexed_demos: EVIDENCE_DEMOS.length,
+      total_analyses: EVIDENCE_DEMOS.length,
+      scan_complete: true,
+      match_date: { available: true, indexed_items: EVIDENCE_ROWS.length, reason: null },
+      source: { available: true, indexed_items: EVIDENCE_ROWS.length, reason: null },
+    },
+  };
+}
+
+const EVIDENCE_ANNOTATIONS: EvidenceAnnotation[] = [
+  ['s1mple 的穿墙点可以单独做一条教学。', 0, 0, 'open', ['教学']],
+  ['ZywOo 这波架点太深，回防慢了半拍。', 1, 1, 'resolved', ['复盘']],
+  ['Kael 的 A 点连接处穿墙，配合烟雾时机很好。', 2, 2, 'open', ['教学', '穿墙']],
+  ['b1t 这颗爆头是整场的转折点。', 0, 3, 'open', []],
+  ['m0NESY 的 AWP 站位值得剪进集锦。', 1, 4, 'resolved', ['集锦']],
+  ['Sable 的补枪慢了，下次训练重点。', 2, 5, 'open', ['训练']],
+  ['第 1 回合手枪局的经济选择可以回顾。', 0, 1, 'resolved', ['经济']],
+].map(([body, demoIndex, roundIndex, state, tags], index) => {
+  const demo = EVIDENCE_DEMOS[demoIndex as number] as (typeof EVIDENCE_DEMOS)[number];
+  const kill = EVIDENCE_ROWS.find(
+    (row) => row.demo_id === demo.id && row.round === (roundIndex as number) + 1 && row.event_type === 'kill',
+  ) as EvidenceSearchItem;
+  return {
+    id: `ann-${String(index + 1)}`,
+    demo_id: demo.id,
+    demo_display_name: demo.name,
+    map_name: demo.map,
+    evidence_id: kill.evidence_id,
+    round: kill.round,
+    tick: kill.tick,
+    body: body as string,
+    tags: tags as string[],
+    review_state: state as EvidenceAnnotation['review_state'],
+    created_at: '2026-08-14T21:00:00Z',
+    updated_at: '2026-08-15T09:12:00Z',
+  };
+});
+
 
 const DEMOS: DemoRecord[] = [
   {
@@ -1125,18 +1292,14 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['GET', '/match-history/downloads/active', () => [] as MatchDownloadJob[]],
 
   /* evidence */
-  ['GET', '/evidence/search', () => ({
-    items: [], total: 0, page: 1, page_size: 20,
-    availability: {
-      indexed_items: 0,
-      indexed_demos: 3,
-      total_analyses: 3,
-      scan_complete: true,
-      match_date: { available: true, indexed_items: 0, reason: null },
-      source: { available: true, indexed_items: 0, reason: null },
-    },
-  } satisfies EvidenceSearchResponse)],
-  ['GET', '/evidence/annotations', () => paged([] as EvidenceAnnotation[])],
+  ['GET', '/evidence/search', ({ query }) => evidenceSearch(query)],
+  ['GET', '/evidence/annotations', ({ query }) => {
+    const evidenceId = query.get('evidence_id');
+    const demoId = query.get('demo_id');
+    return paged(EVIDENCE_ANNOTATIONS.filter((note) =>
+      (evidenceId === null || note.evidence_id === evidenceId)
+      && (demoId === null || note.demo_id === demoId)));
+  }],
 
   /* the Agent workspace */
   ['GET', '/agent/sessions', () => AGENT_SESSIONS],

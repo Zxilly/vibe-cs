@@ -28,14 +28,14 @@ const base = {
   onRetry: () => undefined,
 };
 
-describe('nothing indexed', () => {
+describe('nothing indexed and nothing analysed', () => {
   const html = render(
-    <EvidenceEmpty {...base} indexState="empty" indexedItems={0} totalAnalyses={12} />,
+    <EvidenceEmpty {...base} indexState="empty" indexedItems={0} indexedDemos={0} totalAnalyses={0} />,
   );
 
   it('blames the index, not the query', () => {
     expect(html).toContain('还没有可检索的证据');
-    expect(html).toContain('已分析 12 场');
+    expect(html).toContain('还没有分析过的比赛');
   });
 
   it('sends the user where the fix actually is', () => {
@@ -43,6 +43,22 @@ describe('nothing indexed', () => {
     expect(html).toContain('去资料库分析一场');
     expect(html).toContain('href="/library"');
     expect(html).not.toContain('清空条件');
+  });
+});
+
+describe('nothing indexed yet, but matches analysed', () => {
+  const html = render(
+    <EvidenceEmpty {...base} indexState="empty" indexedItems={0} indexedDemos={0} totalAnalyses={12} />,
+  );
+
+  it('says the index is still being built, with the count', () => {
+    expect(html).toContain('证据索引还在建立');
+    expect(html).toContain('已分析 12 场');
+  });
+
+  it('offers a retry rather than sending the user to analyse yet another match', () => {
+    expect(html).toContain('重新检索');
+    expect(html).not.toContain('去资料库分析一场');
   });
 });
 

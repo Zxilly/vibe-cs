@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { TICK_GROUP_SEPARATOR } from '../../../domain/match';
 import { renderMarkup } from '../../../test/render';
 import { EvidenceDetail } from './EvidenceDetail';
-import { evidenceItem } from './test/fixtures';
+import { annotation, evidenceItem } from './test/fixtures';
 
 function render(node: Parameters<typeof renderMarkup>[0]): string {
   return renderMarkup(<MemoryRouter>{node}</MemoryRouter>);
@@ -22,6 +22,7 @@ const handlers = {
   onOpenWorkspace: () => undefined,
   onLocate: () => undefined,
   onAddToVideo: () => undefined,
+  onCreateNote: () => Promise.resolve(),
 };
 
 describe('with nothing selected', () => {
@@ -46,14 +47,34 @@ describe('with a row selected', () => {
     expect(html).toContain('Aurora vs Meridian');
     expect(html).toContain('de_mirage');
     expect(html).toContain('第 21 回合');
-    // `formatTickCount` groups with a thin space (U+2009) so the number cannot
-    // break across lines; the panel prints the grouped form verbatim.
-    expect(html).toContain(`tick 149${TICK_GROUP_SEPARATOR}380`);
+    // `formatTickCount` groups with a narrow no-break space (U+202F) so the
+    // number cannot break across lines; the panel prints the grouped form
+    // verbatim and keeps 「tick」 glued to it.
+    expect(TICK_GROUP_SEPARATOR).toBe('\u202f');
+    expect(html).toMatch(/whitespace-nowrap[^>]*>tick 149\u202f380</u);
   });
 
   it('reports the qualifiers the projector recorded', () => {
     expect(html).toContain('穿墙');
     expect(html).toContain('爆头');
+  });
+
+  it('names the kind of event and the weapon by its product name', () => {
+    expect(html).toContain('事件');
+    expect(html).toContain('击杀');
+    expect(html).toContain('AK-47');
+    expect(html).not.toContain('ak47');
+  });
+
+  it('spells out a row the glyph alone would not explain', () => {
+    const purchase = render(
+      <EvidenceDetail {...handlers} row={evidenceItem({ event_type: 'purchase', weapon: 'Kevlar Vest' })} />,
+    );
+    expect(purchase).toContain('购买');
+    const roundStart = render(
+      <EvidenceDetail {...handlers} row={evidenceItem({ event_type: 'round_start', actor_name: null, actor_id: null, target_name: null, target_id: null })} />,
+    );
+    expect(roundStart).toContain('回合开始');
   });
 
   it('reports whether there is spatial evidence, instead of dropping the field', () => {
@@ -82,12 +103,38 @@ describe('a row with no position', () => {
 });
 
 describe('the annotation block', () => {
-  it('disables the editor and says why, rather than hiding it', () => {
-    const html = render(
-      <EvidenceDetail {...handlers} row={evidenceItem()} annotateDisabledReason="写入尚未接通" />,
-    );
+  it('says the row has no notes, and offers to write one', () => {
+    const html = render(<EvidenceDetail {...handlers} row={evidenceItem()} />);
+    expect(html).toContain('这条证据还没有注释');
+    expect(html).toContain('data-evidence-note-composer');
     expect(html).toContain('写注释');
-    expect(html).toContain('写入尚未接通');
-    expect(html).toContain('disabled=""');
+  });
+
+  it('lists the notes the row already carries, with their state', () => {
+    const html = render(
+      <EvidenceDetail
+        {...handlers}
+        row={evidenceItem()}
+        notes={[annotation(), annotation({ id: 'ann-2', body: '第二条', review_state: 'resolved' })]}
+      />,
+    );
+    expect(html).not.toContain('这条证据还没有注释');
+    expect(html).toContain('这堵墙的穿点可以单独做一条教学。');
+    expect(html).toContain('第二条');
+    expect(html).toContain('待处理');
+    expect(html).toContain('已处理');
+  });
+
+  it('shows a failed write in place with a way to dismiss it', () => {
+    const html = render(
+      <EvidenceDetail
+        {...handlers}
+        row={evidenceItem()}
+        noteError="服务未启动"
+        onDismissNoteError={() => undefined}
+      />,
+    );
+    expect(html).toContain('注释没有写成功：服务未启动');
+    expect(html).toContain('知道了');
   });
 });

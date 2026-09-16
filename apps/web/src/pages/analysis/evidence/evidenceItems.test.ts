@@ -24,7 +24,7 @@ describe('the kind', () => {
     ['multi_kill', 'kill'],
     ['round_start', 'round'],
     ['round_end', 'round'],
-    ['purchase', 'round'],
+    ['purchase', 'purchase'],
     ['bomb_plant', 'objective'],
     ['bomb_defuse', 'objective'],
     ['defuse', 'objective'],
@@ -84,6 +84,12 @@ describe('the identity', () => {
       actor: 'Kael',
       target: 'Corvin',
       weapon: 'AK-47',
+    });
+  });
+
+  it('prints the weapon by its product name, not the demo id', () => {
+    expect(toEvidenceIdentity(evidenceItem({ weapon: 'usp_silencer' }))).toMatchObject({
+      weapon: 'USP-S',
     });
   });
 

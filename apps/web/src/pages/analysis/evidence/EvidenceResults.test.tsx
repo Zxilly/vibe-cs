@@ -75,6 +75,37 @@ describe('what a row says', () => {
     expect(html).not.toContain('穿墙');
   });
 
+  it('names the kind of a row the glyph alone would not explain', () => {
+    const purchase = render(
+      <EvidenceResults
+        {...base}
+        rows={[evidenceItem({ event_type: 'purchase', target_id: null, target_name: null, weapon: 'Kevlar Vest', headshot: null, penetrated: null })]}
+        total={1}
+      />,
+    );
+    expect(purchase).toContain('data-kind="purchase"');
+    expect(purchase).toContain('Kevlar Vest');
+    expect(purchase).toContain('购买');
+
+    const roundStart = render(
+      <EvidenceResults
+        {...base}
+        rows={[evidenceItem({ event_type: 'round_start', actor_id: null, actor_name: null, target_id: null, target_name: null, weapon: null, headshot: null, penetrated: null })]}
+        total={1}
+      />,
+    );
+    expect(roundStart).toContain('回合开始');
+    expect(roundStart).not.toContain('· 回合开始');
+  });
+
+  it('prints the weapon by its product name', () => {
+    const html = render(
+      <EvidenceResults {...base} rows={[evidenceItem({ weapon: 'usp_silencer' })]} total={1} />,
+    );
+    expect(html).toContain('USP-S');
+    expect(html).not.toContain('usp_silencer');
+  });
+
   it('puts the map and the date on the second line', () => {
     const html = render(<EvidenceResults {...base} rows={[evidenceItem()]} total={1} />);
     expect(html).toContain('de_mirage · 08-14');

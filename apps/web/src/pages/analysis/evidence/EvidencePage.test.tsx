@@ -94,10 +94,13 @@ describe('the §7 query', () => {
 });
 
 describe('actions whose write path does not exist', () => {
-  it('are disabled with the reason attached, never hidden', () => {
+  it('are disabled with their own reason attached, never hidden', () => {
     const html = at('/evidence');
     expect(html).toContain('保存为视图');
+    expect(html).toContain('现在还不能保存视图');
     expect(html).toContain('导出结果');
-    expect(html).toContain('现在还不能保存注释');
+    expect(html).toContain('现在还不能导出结果');
+    // The old shared sentence made 导出结果 talk about notes.
+    expect(html).not.toContain('现在还不能保存注释');
   });
 });

@@ -45,6 +45,7 @@ pub(crate) fn router() -> Router<AppState> {
             post(cleanup_missing_outputs),
         )
         .route("/api/outputs/cleanup-staged", post(cleanup_staged_outputs))
+        .route("/api/outputs/recovery-scan", get(scan_recovery_outputs))
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, TS)]
@@ -858,12 +859,21 @@ struct CleanupMissingResponse {
     scan_limited: bool,
 }
 
-async fn cleanup_missing_outputs(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<CleanupMissingRequest>,
-) -> ApiResult<Json<CleanupMissingResponse>> {
-    let _mutation = state.output_mutations.lock().await;
-    let roots = ManagedRoots::discover(state.data_dir()).await?;
+/// The records whose file is gone, found the same way whether the caller is
+/// about to delete them or only asking how many there are. 恢复中心 prints the
+/// count before offering the button, so the scan and the cleanup have to agree
+/// on what "missing" means — one function, two callers.
+struct MissingOutputs {
+    outputs: Vec<StoredOutput>,
+    inspected: usize,
+    scan_limited: bool,
+}
+
+async fn find_missing_outputs(
+    state: &AppState,
+    roots: &ManagedRoots,
+    kind: Option<OutputKind>,
+) -> ApiResult<MissingOutputs> {
     let fetch_limit = MAXIMUM_OUTPUT_SCAN_PER_KIND.saturating_add(1);
     let (mut clips, mut exports) = tokio::try_join!(
         state.storage.list_recorded_clips_limited(fetch_limit),
@@ -873,40 +883,52 @@ async fn cleanup_missing_outputs(
         || exports.len() > MAXIMUM_OUTPUT_SCAN_PER_KIND as usize;
     clips.truncate(MAXIMUM_OUTPUT_SCAN_PER_KIND as usize);
     exports.truncate(MAXIMUM_OUTPUT_SCAN_PER_KIND as usize);
-    let mut outputs = Vec::with_capacity(clips.len() + exports.len());
-    if request
-        .kind
-        .is_none_or(|kind| kind == OutputKind::Recording)
-    {
-        outputs.extend(clips.into_iter().map(StoredOutput::Recording));
+    let mut candidates = Vec::with_capacity(clips.len() + exports.len());
+    if kind.is_none_or(|kind| kind == OutputKind::Recording) {
+        candidates.extend(clips.into_iter().map(StoredOutput::Recording));
     }
-    if request.kind.is_none_or(|kind| kind == OutputKind::Export) {
-        outputs.extend(
+    if kind.is_none_or(|kind| kind == OutputKind::Export) {
+        candidates.extend(
             exports
                 .into_iter()
                 .filter(|record| record.job.status.is_terminal())
                 .map(StoredOutput::Export),
         );
     }
-    let inspected = outputs.len();
-    let mut deleted = 0;
-    for output in outputs {
-        if inspect_output_path(output.path(), &roots)
-            .await
-            .availability
-            != OutputAvailability::Missing
+    let inspected = candidates.len();
+    let mut outputs = Vec::new();
+    for output in candidates {
+        if inspect_output_path(output.path(), roots).await.availability
+            == OutputAvailability::Missing
         {
-            continue;
+            outputs.push(output);
         }
+    }
+    Ok(MissingOutputs {
+        outputs,
+        inspected,
+        scan_limited,
+    })
+}
+
+async fn cleanup_missing_outputs(
+    State(state): State<AppState>,
+    ApiJson(request): ApiJson<CleanupMissingRequest>,
+) -> ApiResult<Json<CleanupMissingResponse>> {
+    let _mutation = state.output_mutations.lock().await;
+    let roots = ManagedRoots::discover(state.data_dir()).await?;
+    let missing = find_missing_outputs(&state, &roots, request.kind).await?;
+    let mut deleted = 0;
+    for output in missing.outputs {
         if delete_output_record(&state, &output).await? {
             deleted += 1;
             publish_output_change(&state, output.kind(), output.id(), "deleted");
         }
     }
     Ok(Json(CleanupMissingResponse {
-        inspected,
+        inspected: missing.inspected,
         deleted,
-        scan_limited,
+        scan_limited: missing.scan_limited,
     }))
 }
 
@@ -919,36 +941,51 @@ struct CleanupStagedResponse {
     scan_limited: bool,
 }
 
+/// What the quarantine directory holds: the regular files a cleanup would
+/// remove, with their sizes, and the entries it refuses to touch. Symlinks and
+/// directories are never removed — a symlink in the trash could point anywhere.
+struct StagedFiles {
+    files: Vec<(PathBuf, u64)>,
+    skipped: usize,
+    scan_limited: bool,
+}
+
+async fn scan_staged_files(state: &AppState, roots: &ManagedRoots) -> ApiResult<StagedFiles> {
+    let mut scan = StagedFiles {
+        files: Vec::new(),
+        skipped: 0,
+        scan_limited: false,
+    };
+    let Some(trash) = managed_trash_directory(state, roots, false).await? else {
+        return Ok(scan);
+    };
+    let mut directory = fs::read_dir(&trash).await?;
+    while let Some(entry) = directory.next_entry().await? {
+        if scan.files.len() + scan.skipped == MAXIMUM_STAGED_CLEANUP {
+            scan.scan_limited = true;
+            break;
+        }
+        let path = entry.path();
+        let metadata = fs::symlink_metadata(&path).await?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            scan.skipped += 1;
+            continue;
+        }
+        scan.files.push((path, metadata.len()));
+    }
+    Ok(scan)
+}
+
 async fn cleanup_staged_outputs(
     State(state): State<AppState>,
 ) -> ApiResult<Json<CleanupStagedResponse>> {
     let _mutation = state.output_mutations.lock().await;
     let roots = ManagedRoots::discover(state.data_dir()).await?;
-    let Some(trash) = managed_trash_directory(&state, &roots, false).await? else {
-        return Ok(Json(CleanupStagedResponse {
-            inspected: 0,
-            deleted: 0,
-            failed: 0,
-            scan_limited: false,
-        }));
-    };
-    let mut directory = fs::read_dir(&trash).await?;
-    let mut inspected = 0;
+    let staged = scan_staged_files(&state, &roots).await?;
+    let inspected = staged.files.len() + staged.skipped;
     let mut deleted = 0;
-    let mut failed = 0;
-    let mut scan_limited = false;
-    while let Some(entry) = directory.next_entry().await? {
-        if inspected == MAXIMUM_STAGED_CLEANUP {
-            scan_limited = true;
-            break;
-        }
-        inspected += 1;
-        let path = entry.path();
-        let metadata = fs::symlink_metadata(&path).await?;
-        if metadata.file_type().is_symlink() || !metadata.is_file() {
-            failed += 1;
-            continue;
-        }
+    let mut failed = staged.skipped;
+    for (path, _) in staged.files {
         match fs::remove_file(&path).await {
             Ok(()) => deleted += 1,
             Err(error) => {
@@ -961,7 +998,54 @@ async fn cleanup_staged_outputs(
         inspected,
         deleted,
         failed,
-        scan_limited,
+        scan_limited: staged.scan_limited,
+    }))
+}
+
+/// 恢复中心's read before either cleanup: how many staged files and how many
+/// bytes 「清理暂存成片」 would remove, and how many records 「清理失效记录」
+/// would drop. Nothing is changed; the same scans feed the two cleanups, so
+/// the count the page prints is the count the button acts on.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct RecoveryScanResponse {
+    staged: StagedOutputScan,
+    missing: MissingOutputScan,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct StagedOutputScan {
+    files: usize,
+    bytes: u64,
+    scan_limited: bool,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct MissingOutputScan {
+    records: usize,
+    scan_limited: bool,
+}
+
+async fn scan_recovery_outputs(
+    State(state): State<AppState>,
+) -> ApiResult<Json<RecoveryScanResponse>> {
+    let roots = ManagedRoots::discover(state.data_dir()).await?;
+    let (staged, missing) = tokio::try_join!(
+        scan_staged_files(&state, &roots),
+        find_missing_outputs(&state, &roots, None)
+    )?;
+    Ok(Json(RecoveryScanResponse {
+        staged: StagedOutputScan {
+            files: staged.files.len(),
+            bytes: staged.files.iter().map(|(_, bytes)| bytes).sum(),
+            scan_limited: staged.scan_limited,
+        },
+        missing: MissingOutputScan {
+            records: missing.outputs.len(),
+            scan_limited: missing.scan_limited,
+        },
     }))
 }
 
@@ -1519,6 +1603,85 @@ mod tests {
                 .expect("storage")
                 .is_some()
         );
+    }
+
+    #[tokio::test]
+    async fn recovery_scan_counts_what_the_cleanups_would_remove_without_removing_it() {
+        let fixture = Fixture::new().await;
+        let present = fixture.recorded_clip("present.mp4").await;
+        let missing_path = fixture
+            .root
+            .path()
+            .join(RECORDINGS_DIRECTORY)
+            .join("gone.mp4");
+        let missing = fixture
+            .put_clip(missing_path.to_string_lossy().into_owned(), "Gone")
+            .await;
+        let trash = fixture.root.path().join(TRASH_DIRECTORY);
+        fs::create_dir_all(&trash).await.expect("trash directory");
+        fs::write(trash.join("a.pending-delete"), b"12345")
+            .await
+            .expect("staged file");
+        fs::write(trash.join("b.pending-delete"), b"123")
+            .await
+            .expect("staged file");
+        fs::create_dir_all(trash.join("nested"))
+            .await
+            .expect("nested directory");
+
+        let scan = scan_recovery_outputs(State(fixture.state.clone()))
+            .await
+            .expect("scan")
+            .0;
+
+        assert_eq!(scan.staged.files, 2);
+        assert_eq!(scan.staged.bytes, 8);
+        assert!(!scan.staged.scan_limited);
+        assert_eq!(scan.missing.records, 1);
+        assert!(!scan.missing.scan_limited);
+        // A scan is a read: the files and the records are all still there.
+        assert!(trash.join("a.pending-delete").exists());
+        assert!(
+            fixture
+                .state
+                .storage
+                .get_recorded_clip(missing.id)
+                .await
+                .expect("storage")
+                .is_some()
+        );
+
+        let cleaned = cleanup_staged_outputs(State(fixture.state.clone()))
+            .await
+            .expect("cleanup staged")
+            .0;
+        assert_eq!(cleaned.deleted, 2);
+        assert_eq!(cleaned.failed, 1);
+        let cleaned = cleanup_missing_outputs(
+            State(fixture.state.clone()),
+            ApiJson(CleanupMissingRequest::default()),
+        )
+        .await
+        .expect("cleanup missing")
+        .0;
+        assert_eq!(cleaned.inspected, 2);
+        assert_eq!(cleaned.deleted, 1);
+        assert!(
+            fixture
+                .state
+                .storage
+                .get_recorded_clip(present.id)
+                .await
+                .expect("storage")
+                .is_some()
+        );
+
+        let scan = scan_recovery_outputs(State(fixture.state.clone()))
+            .await
+            .expect("scan")
+            .0;
+        assert_eq!(scan.staged.files, 0);
+        assert_eq!(scan.missing.records, 0);
     }
 
     #[tokio::test]

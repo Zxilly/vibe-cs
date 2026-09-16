@@ -40,7 +40,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useMatchAnalysis } from '../../../../data/match';
 import { DataTable, Empty, type DataTableColumn } from '../../../../design/data';
 import { Button, Seg, Badge } from '../../../../design/primitives';
-import { formatTickTimecode } from '../../../../domain/match';
+import { formatTickTimecode, formatWeaponName } from '../../../../domain/match';
 import type { PlayerMatchupInsightRecord } from '../../../../shared/desktop/dto';
 import type { AnalysisWorkspace } from '../../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
@@ -285,9 +285,7 @@ export function OpeningDuelTable({
         header: <Trans>武器</Trans>,
         headerLabel: t`武器`,
         truncate: true,
-        /* Rendered verbatim, as `domain/map/EngagementLayer` already
-           established: the demo spells it `ak47` and no rename table exists. */
-        cell: (duel) => duel.weapon ?? NO_VALUE,
+        cell: (duel) => (duel.weapon === null ? NO_VALUE : formatWeaponName(duel.weapon)),
       },
       {
         id: 'marks',
@@ -404,7 +402,9 @@ export function PairKillList({
               <span className="w-13 flex-none font-mono text-xs text-neutral-700">
                 <Trans>R{kill.round}</Trans>
               </span>
-              <span className="min-w-0 flex-1 truncate">{kill.weapon ?? NO_VALUE}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {kill.weapon === null ? NO_VALUE : formatWeaponName(kill.weapon)}
+              </span>
               <DuelMarks headshot={kill.headshot} penetrated={kill.penetrated} />
               <span className="flex-none font-mono text-xs text-neutral-700">
                 {formatTickTimecode(kill.tick, tickRate)}

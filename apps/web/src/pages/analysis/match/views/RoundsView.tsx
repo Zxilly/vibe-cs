@@ -57,6 +57,7 @@ import {
   ROUND_END_REASON,
   RoundTimeline,
   formatTickClock,
+  formatWeaponName,
   type EvidenceItem,
 } from '../../../../domain/match';
 import { useRoundReview } from '../../../../data/match';
@@ -115,7 +116,7 @@ function toEvidenceItem(moment: RoundMoment, objectiveLabel: ReactNode): Evidenc
     kind: moment.evidenceKind,
     ...(moment.actor === null ? {} : { actor: moment.actor }),
     ...(moment.target === null ? {} : { target: moment.target }),
-    ...(moment.weapon === null ? {} : { weapon: moment.weapon }),
+    ...(moment.weapon === null ? {} : { weapon: formatWeaponName(moment.weapon) }),
     ...(moment.kind === 'kill'
       ? qualifiers === undefined
         ? {}
@@ -282,7 +283,7 @@ export function RoundDetailPanels({
           <span className="min-w-0 truncate">
             {moment.actor ?? ''}
             {moment.target === null ? '' : ` → ${moment.target}`}
-            {moment.weapon === null ? '' : ` · ${moment.weapon}`}
+            {moment.weapon === null ? '' : ` · ${formatWeaponName(moment.weapon)}`}
           </span>
           {moment.headshot ? (
             <Badge variant="neutral">

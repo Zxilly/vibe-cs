@@ -39,11 +39,13 @@ export const CS2_TICK_RATE = 64;
 
 /**
  * Digit grouping for a tick number. The reference writes 「148 920」 and
- * 「149 340–149 420」 with a space, in mono. A thin space (U+2009) rather than
- * an ordinary one: the group must not become a line-break opportunity in the
- * middle of a number.
+ * 「149 340–149 420」 with a space, in mono. A narrow no-break space (U+202F)
+ * rather than an ordinary one: the group must not become a line-break
+ * opportunity in the middle of a number. Not the thin space (U+2009) — that one
+ * is a `BA` (break after) class in UAX #14, so a wrapping subtitle split
+ * 「tick 105 600」 into 「tick 105」 and 「600」; U+202F is `GL` (glue).
  */
-export const TICK_GROUP_SEPARATOR = '\u2009';
+export const TICK_GROUP_SEPARATOR = '\u202f';
 
 /** The reference's range dash: an en dash, 「148 920–150 440」. */
 export const TICK_RANGE_DASH = '\u2013';

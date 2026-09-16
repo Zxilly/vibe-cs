@@ -138,9 +138,10 @@ describe('the opening duels', () => {
     expect(html).toContain('Sable');
   });
 
-  it('prints the weapon the way the demo spells it', () => {
-    expect(html).toContain('ak47');
-    expect(html).toContain('awp');
+  it('prints the weapon by its product name, not the demo id', () => {
+    expect(html).toContain('AK-47');
+    expect(html).toContain('AWP');
+    expect(html).not.toContain('ak47');
   });
 
   it('marks 爆头 and 穿墙 with a word, not only a hue', () => {

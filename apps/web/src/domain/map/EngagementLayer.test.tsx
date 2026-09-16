@@ -70,7 +70,7 @@ describe('EngagementLayer', () => {
         <EngagementLayer projection={projection} engagements={[wallbang]} />
       </svg>,
     );
-    expect(html).toContain('Kael → Corvin · ak47');
+    expect(html).toContain('Kael → Corvin · AK-47');
     expect(html).toContain('穿墙');
     expect(html).toContain('交战轴 0°');
     expect(html).toContain('距离 18.7m');

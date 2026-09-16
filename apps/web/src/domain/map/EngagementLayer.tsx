@@ -30,6 +30,8 @@
 
 import { t } from '@lingui/core/macro';
 
+import { formatWeaponName } from '../match/weaponNames';
+
 import { LayerEmpty } from './LayerEmpty';
 import type { MapProjection } from './mapProjection';
 import { crossCommand, worldBearingDegrees, worldDistanceMetres } from './pathGeometry';
@@ -57,7 +59,8 @@ export interface Engagement {
   readonly round?: number | undefined;
   readonly attacker: EngagementActor;
   readonly victim: EngagementActor;
-  /** As the demo spells it — `deagle`, `ak47`. Rendered verbatim. */
+  /** As the demo spells it — `deagle`, `ak47`; named through `domain/match`'s
+   *  weapon table when spoken. */
   readonly weapon: string;
   readonly headshot?: boolean | undefined;
   /** 穿墙. */
@@ -97,7 +100,7 @@ export function describeEngagement(engagement: Engagement): string {
   const distance = worldDistanceMetres(engagement.attacker, engagement.victim);
   const attacker = engagement.attacker.playerName;
   const victim = engagement.victim.playerName;
-  const weapon = engagement.weapon;
+  const weapon = formatWeaponName(engagement.weapon);
 
   const parts: string[] = [t`${attacker} → ${victim} · ${weapon}`];
   if (engagement.throughWall) parts.push(t`穿墙`);

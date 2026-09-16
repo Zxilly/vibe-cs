@@ -66,7 +66,7 @@ import {
   resolveMapCalibration,
   type HeatDistribution,
 } from '../../../../domain/map';
-import { EvidenceRow, formatTickCount, type EvidenceItem } from '../../../../domain/match';
+import { EvidenceRow, formatTickCount, formatWeaponName, type EvidenceItem } from '../../../../domain/match';
 import { DEFAULT_PLAYBACK_RATES, Transport } from '../../../../domain/media';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { NotAnalysedState } from './viewChrome';
@@ -711,7 +711,7 @@ function toEvidenceItem(row: ReplayEventRow, names: ReadonlyMap<string, string>)
     round: row.round,
     ...(row.actor === null ? {} : { actor: <span title={row.actor}>{names.get(row.actor) ?? row.actor}</span> }),
     ...(row.target === null ? {} : { target: <span title={row.target}>{names.get(row.target) ?? row.target}</span> }),
-    ...(row.weapon === null || row.weapon === '' ? {} : { weapon: row.weapon }),
+    ...(row.weapon === null || row.weapon === '' ? {} : { weapon: formatWeaponName(row.weapon) }),
     ...(qualifiers.length === 0 ? {} : { description: qualifiers.join(' · ') }),
   };
 }

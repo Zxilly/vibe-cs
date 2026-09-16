@@ -93,12 +93,30 @@ describe('EvidenceRow', () => {
     expect(html).toContain('aria-pressed="false"');
   });
 
+  it('says on hover that a selectable row can be selected, the way DataTable rows do', () => {
+    const selectable = renderMarkup(<EvidenceRow evidence={EVIDENCE} onSelect={() => {}} />);
+    const inert = renderMarkup(<EvidenceRow evidence={EVIDENCE} />);
+
+    expect(selectable).toContain('hover:bg-surface');
+    expect(inert).not.toContain('hover:bg-surface');
+  });
+
   it('marks the current row with aria-current and the accent plate', () => {
     const html = renderMarkup(<EvidenceRow evidence={EVIDENCE} selected onSelect={() => {}} />);
 
     expect(html).toContain('aria-current="true"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('bg-accent-100');
+    // The selected plate replaces the hover plate rather than fighting it.
+    expect(html).not.toContain('hover:bg-surface');
+  });
+
+  it('puts the full-page row on the page gutter and the Inspector row on the panel inset', () => {
+    const page = renderMarkup(<EvidenceRow evidence={EVIDENCE} density="comfortable" />);
+    const panel = renderMarkup(<EvidenceRow evidence={EVIDENCE} density="default" />);
+
+    expect(page).toMatch(/data-evidence-row="ev-148920"[^>]*class="[^"]*px-6/u);
+    expect(panel).toMatch(/data-evidence-row="ev-148920"[^>]*class="[^"]*px-3\.5/u);
   });
 
   it('offers 定位 — the action that makes evidence deep-linkable', () => {
@@ -127,11 +145,23 @@ describe('EvidenceRow', () => {
     expect(html).toContain('加入视频');
   });
 
-  it('renders a row that has only a tick and a kind', () => {
+  it('renders a row that has only a tick and a kind, naming the kind in the first line', () => {
     const html = renderMarkup(<EvidenceRow evidence={{ id: 'bare', tick: 0, kind: 'round' }} />);
 
     expect(html).toContain('data-evidence-row="bare"');
     expect(html).toContain('00:00.000');
+    // Not only the sr-only label: with no duel to print, a sighted reader
+    // would otherwise see nothing but the round number.
+    expect(html).toMatch(/<span class="truncate">回合<\/span>/u);
+  });
+
+  it('starts the first line without a separator when there is no subject', () => {
+    const html = renderMarkup(
+      <EvidenceRow evidence={{ id: 'bare', tick: 0, kind: 'round', description: '回合开始', round: 1 }} />,
+    );
+
+    expect(html).not.toContain('· 回合开始');
+    expect(html).toContain('回合开始');
   });
 
   it('renders with no backend, no store and no query', () => {

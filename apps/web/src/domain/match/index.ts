@@ -68,6 +68,8 @@ export {
   TICK_RANGE_DASH,
 } from './matchTime';
 
+export { formatWeaponName, weaponSearchId } from './weaponNames';
+
 export {
   planRoundStrip,
   ROUND_CELL_GAP_PX,

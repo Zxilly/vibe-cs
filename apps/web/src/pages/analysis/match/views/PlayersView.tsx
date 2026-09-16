@@ -40,7 +40,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useMatchAnalysis } from '../../../../data/match';
 import { DataTable, Empty, type DataTableColumn, type SortState } from '../../../../design/data';
 import { Button } from '../../../../design/primitives';
-import { HighlightRow, type HighlightCandidate } from '../../../../domain/match';
+import { HighlightRow, formatWeaponName, type HighlightCandidate } from '../../../../domain/match';
 import type { AnalysisWorkspace, Highlight } from '../../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchVideoAction, MatchViewModule, MatchViewProps } from '../viewContract';
@@ -346,7 +346,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
             {weapons.entries.map((entry) => (
               <WeaponBar
                 key={entry.weapon}
-                name={entry.weapon}
+                name={formatWeaponName(entry.weapon)}
                 kills={entry.kills}
                 total={weapons.total}
               />

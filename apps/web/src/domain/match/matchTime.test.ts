@@ -143,7 +143,7 @@ describe('formatTickTimecode', () => {
 });
 
 describe('formatTickCount', () => {
-  it('groups by three with a thin space, as the reference writes it', () => {
+  it('groups by three with a no-break space, as the reference writes it', () => {
     expect(formatTickCount(148_920)).toBe(`148${TICK_GROUP_SEPARATOR}920`);
     expect(formatTickCount(1_284_632)).toBe(
       `1${TICK_GROUP_SEPARATOR}284${TICK_GROUP_SEPARATOR}632`,

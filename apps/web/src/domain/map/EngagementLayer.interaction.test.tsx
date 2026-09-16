@@ -142,7 +142,7 @@ describe('EngagementLayer keyboard', () => {
   it('says which duel is selected in words, not only in paint', () => {
     const { getAllByRole } = setup({ selectedEngagementId: 'ev-2' });
     const selected = getAllByRole('option').find((element) => element.getAttribute('aria-selected') === 'true');
-    expect(selected?.getAttribute('aria-label')).toContain('Kael → Corvin · ak47');
+    expect(selected?.getAttribute('aria-label')).toContain('Kael → Corvin · AK-47');
   });
 
   it('emphasises the duel under the pointer without selecting it', () => {

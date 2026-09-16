@@ -129,9 +129,9 @@ describe('one player’s detail', () => {
     expect(html).toContain('首杀 / 首死');
   });
 
-  it('lists the weapons by the demo’s own spelling', () => {
+  it('lists the weapons by their product names', () => {
     expect(html).toContain('data-player-weapons');
-    expect(html).toContain('ak47');
+    expect(html).toContain('AK-47');
   });
 
   it('lists this match’s highlights with the detector’s own phrasing', () => {

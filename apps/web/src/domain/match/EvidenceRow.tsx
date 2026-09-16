@@ -68,14 +68,21 @@ const HEIGHT_CLASS: Readonly<Record<EvidenceDensity, string>> = {
   inline: 'min-h-[var(--h-row-compact)]',
 };
 
+/* comfortable is a full-page row, so its first column sits on the page gutter
+   the title, the condition strip and the pagination share (`px-6`, the same
+   inset `design/data/TableCell` gives a page-level first cell). default lives
+   inside an Inspector and takes that panel's inset. */
 const PADDING_CLASS: Readonly<Record<EvidenceDensity, string>> = {
-  comfortable: 'px-3.5 py-2',
+  comfortable: 'px-6 py-2',
   default: 'px-3.5 py-2',
   inline: 'py-1',
 };
 
 /** The reference's selected row: accent plate plus a 2px rule down its edge. */
 const SELECTED_CLASS = 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]';
+/** A row that can be selected says so on hover — the same plate
+    `design/data/DataTable` gives its clickable rows. */
+const SELECTABLE_CLASS = 'hover:bg-surface';
 
 const TICK_LABEL = msg`tick`;
 const LOCATE_LABEL = msg`定位`;
@@ -95,6 +102,11 @@ export function EvidenceRow({
   const rate = evidence.tickRate ?? tickRate ?? CS2_TICK_RATE;
   const kind = EVIDENCE_KIND[evidence.kind];
   const KindIcon = kind.icon;
+  const hasSubject = evidence.actor !== undefined || evidence.target !== undefined;
+  /* A row with no duel and no description — a bare round boundary — would
+     print only 「第 1 回合」 and leave the reader guessing what it records, so
+     the kind's own label steps in as the first line. */
+  const headline = hasSubject || evidence.description !== undefined ? null : i18n._(kind.label);
 
   const body = (
     <>
@@ -116,6 +128,7 @@ export function EvidenceRow({
 
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {headline === null ? null : <span className="truncate">{headline}</span>}
           {evidence.actor === undefined ? null : <span className="truncate">{evidence.actor}</span>}
           {evidence.target === undefined ? null : (
             <>
@@ -128,9 +141,17 @@ export function EvidenceRow({
               <span className="truncate">{evidence.target}</span>
             </>
           )}
-          {evidence.weapon === undefined ? null : <span className="text-neutral-700">· {evidence.weapon}</span>}
+          {evidence.weapon === undefined ? null : (
+            <span className="text-neutral-700">
+              {hasSubject ? '· ' : null}
+              {evidence.weapon}
+            </span>
+          )}
           {evidence.description === undefined ? null : (
-            <span className="text-neutral-700">· {evidence.description}</span>
+            <span className="text-neutral-700">
+              {hasSubject || evidence.weapon !== undefined ? '· ' : null}
+              {evidence.description}
+            </span>
           )}
           {evidence.round === undefined ? null : (
             <span className="flex-none text-xs text-neutral-600">
@@ -160,7 +181,7 @@ export function EvidenceRow({
         HEIGHT_CLASS[density],
         PADDING_CLASS[density],
         density === 'inline' ? null : 'border-b border-divider',
-        selected ? SELECTED_CLASS : null,
+        selected ? SELECTED_CLASS : onSelect === undefined ? null : SELECTABLE_CLASS,
         className,
       )}
     >

@@ -61,7 +61,7 @@ export function formatPercent(fraction: number | null | undefined): string {
 }
 
 /**
- * 「1 246」 — a thin space every three digits, matching the artboard's tiles.
+ * 「1 246」 — a no-break space every three digits, matching the artboard's tiles.
  *
  * The separator is `domain/match`'s `TICK_GROUP_SEPARATOR` rather than a space
  * typed here: `formatTickCount` already groups digits for the mono tick column,

@@ -31,6 +31,7 @@ import {
   Flag,
   Flame,
   ShieldCheck,
+  ShoppingCart,
   Skull,
   Star,
   Timer,
@@ -133,11 +134,21 @@ export function normaliseRoundEndReason(reason: string | null | undefined): Roun
 /**
  * What a row of evidence is a record of. The five the 「05 证据检索」 segmented
  * control offers (击杀 / 死亡 / 回合 / 目标事件 / 道具), which is also the set
- * `TimelineEvent.kind` collapses onto for display purposes.
+ * `TimelineEvent.kind` collapses onto for display purposes, plus 购买: the
+ * index carries one purchase row per item bought and they outnumber every
+ * other kind, so a row about the economy needs its own glyph rather than
+ * borrowing the round flag.
  */
-export type EvidenceKind = 'kill' | 'death' | 'round' | 'objective' | 'utility';
+export type EvidenceKind = 'kill' | 'death' | 'round' | 'objective' | 'utility' | 'purchase';
 
-export const EVIDENCE_KINDS: readonly EvidenceKind[] = ['kill', 'death', 'round', 'objective', 'utility'];
+export const EVIDENCE_KINDS: readonly EvidenceKind[] = [
+  'kill',
+  'death',
+  'round',
+  'objective',
+  'utility',
+  'purchase',
+];
 
 export interface EvidenceKindMeta {
   readonly label: MessageDescriptor;
@@ -161,6 +172,7 @@ export const EVIDENCE_KIND: Readonly<Record<EvidenceKind, EvidenceKindMeta>> = {
   round: { label: msg({ message: '回合', context: 'evidence-kind' }), icon: Flag },
   objective: { label: msg({ message: '目标事件', context: 'evidence-kind' }), icon: Bomb },
   utility: { label: msg({ message: '道具', context: 'evidence-kind' }), icon: Flame },
+  purchase: { label: msg({ message: '购买', context: 'evidence-kind' }), icon: ShoppingCart },
 };
 
 /* ── highlight ───────────────────────────────────────────────────────────── */

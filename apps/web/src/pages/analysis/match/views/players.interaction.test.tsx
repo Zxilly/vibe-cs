@@ -78,7 +78,7 @@ describe('picking a player', () => {
     const detail = document.querySelector('[data-player-detail="kael"]');
     expect(detail).not.toBeNull();
     expect(detail?.textContent).toContain('27 / 14 / 5');
-    expect(detail?.textContent).toContain('ak47');
+    expect(detail?.textContent).toContain('AK-47');
     expect(detail?.textContent).toContain('1v3 残局');
   });
 

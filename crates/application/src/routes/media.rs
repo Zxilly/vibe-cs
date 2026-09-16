@@ -570,7 +570,12 @@ async fn get_asset(
     Ok(Json(project_media_availability(asset).await))
 }
 
-async fn project_media_availability(mut asset: MediaAsset) -> MediaAsset {
+/// Overlay the file system on a stored media row: a source that is gone from
+/// disk reads as `Unavailable` (the state 「重新定位」 recovers from) without
+/// mutating storage. The media list, the media detail and the project's
+/// delivery gate all go through this, so one asset never reads 「不可用」 in
+/// the panel and 「素材就绪」 in the header at the same time.
+pub(super) async fn project_media_availability(mut asset: MediaAsset) -> MediaAsset {
     let unavailable = match tokio::fs::metadata(&asset.path).await {
         Ok(metadata) if metadata.is_file() => None,
         Ok(_) => Some("source media path is not a regular file".to_owned()),

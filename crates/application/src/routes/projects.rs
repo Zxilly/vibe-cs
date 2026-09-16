@@ -16,6 +16,7 @@ use vibe_cs_domain::{
 };
 use vibe_cs_storage::ExportJobRecord;
 
+use super::media::project_media_availability;
 use crate::{ApiError, ApiJson, ApiResult, AppState};
 
 const PROJECT_RESOURCE: &str = "project";
@@ -223,10 +224,14 @@ async fn get_project(
 /// The domain answers for capture identity and placement coverage; this adds
 /// the two checks that need storage: a nested sequence must have a completed
 /// preview render of its current revision, and a Take or imported Asset whose
-/// media row says the file is gone (`MediaMetadataStatus::Unavailable`, the
-/// state 「重新定位」 recovers from) cannot be rendered. The delivery gate,
-/// the final export and the preview render all read the same list, so
-/// 「素材就绪」 in the header means exactly what the export route will accept.
+/// source file is gone (`MediaMetadataStatus::Unavailable`, the state
+/// 「重新定位」 recovers from) cannot be rendered. Availability is read the way
+/// the media panel reads it — `project_media_availability` overlays the file
+/// system on the stored row — rather than from the persisted status alone,
+/// which still says `Ready` after the file is deleted underneath it. The
+/// delivery gate, the final export and the preview render all read the same
+/// list, so 「素材就绪」 in the header means exactly what the export route will
+/// accept.
 async fn delivery_blockers(
     state: &AppState,
     project: &Project,
@@ -271,16 +276,15 @@ async fn delivery_blockers(
                         })
             }
             TimelineClipMaterial::Take { asset_id, .. }
-            | TimelineClipMaterial::Asset { asset_id, .. } => state
-                .storage
-                .get_asset(asset_id)
-                .await?
-                .is_none_or(|asset| {
-                    !matches!(
-                        asset.metadata_status,
+            | TimelineClipMaterial::Asset { asset_id, .. } => {
+                match state.storage.get_asset(asset_id).await? {
+                    None => true,
+                    Some(asset) => !matches!(
+                        project_media_availability(asset).await.metadata_status,
                         MediaMetadataStatus::Unavailable { .. }
-                    )
-                }),
+                    ),
+                }
+            }
         };
         if !ready {
             blockers.push(ProjectDeliveryBlocker {
@@ -1228,15 +1232,15 @@ mod tests {
         assert_eq!(gate["blockers"], json!([]));
     }
 
-    #[tokio::test]
-    async fn an_unavailable_imported_asset_blocks_delivery_and_export() {
-        let storage = Storage::open_in_memory().await.expect("storage");
+    /// A stored audio row that still says `Ready`; whether the file behind it
+    /// exists is up to the test.
+    async fn put_ready_audio_asset(storage: &Storage, path: &std::path::Path) -> Uuid {
         let asset_id = Uuid::new_v4();
         storage
             .put_asset(MediaAsset {
                 id: asset_id,
                 project_id: None,
-                path: "C:/missing/music.wav".to_owned(),
+                path: path.to_string_lossy().into_owned(),
                 name: "music.wav".to_owned(),
                 kind: "audio".to_owned(),
                 duration_seconds: Some(5.0),
@@ -1247,23 +1251,26 @@ mod tests {
                 proxy_path: None,
                 proxy_status: MediaProxyStatus::NotRequested,
                 waveform: None,
-                metadata_status: MediaMetadataStatus::Unavailable {
-                    message: "file missing".to_owned(),
-                },
+                metadata_status: MediaMetadataStatus::Ready,
                 markers: Vec::new(),
                 created_at: Utc::now(),
             })
             .await
             .expect("asset");
-        let (router, _directory) = dispatcher(storage);
+        asset_id
+    }
+
+    /// Creates a project whose story track holds one clip over `asset_id`;
+    /// the project is left at revision 2.
+    async fn project_with_asset_clip(router: &Router, asset_id: Uuid) -> (String, Uuid) {
         let (_, created) = call(
-            &router,
+            router,
             Method::POST,
             "/api/projects",
             Some(json!({"name":"Music","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
         )
         .await;
-        let project_id = created["id"].as_str().expect("project id");
+        let project_id = created["id"].as_str().expect("project id").to_owned();
         let story_id = created["document"]["story_track_id"]
             .as_str()
             .expect("story id");
@@ -1271,7 +1278,7 @@ mod tests {
         let mut clip = clip_json(clip_id, "Music", 0.0);
         clip["material"]["asset_id"] = json!(asset_id);
         let (status, _) = call(
-            &router,
+            router,
             Method::PATCH,
             &format!("/api/projects/{project_id}"),
             Some(json!({
@@ -1286,6 +1293,40 @@ mod tests {
         )
         .await;
         assert_eq!(status, 200);
+        (project_id, clip_id)
+    }
+
+    #[tokio::test]
+    async fn an_imported_asset_whose_file_exists_is_ready_to_deliver() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let media = tempfile::tempdir().expect("media directory");
+        let path = media.path().join("music.wav");
+        std::fs::write(&path, b"RIFF").expect("fixture");
+        let asset_id = put_ready_audio_asset(&storage, &path).await;
+        let (router, _directory) = dispatcher(storage);
+        let (project_id, _) = project_with_asset_clip(&router, asset_id).await;
+
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], true);
+        assert_eq!(gate["blockers"], json!([]));
+    }
+
+    /// The media panel reads availability from the file system, not from the
+    /// stored status: a row that still says `Ready` after its file was
+    /// deleted shows 「不可用」. The gate and the export route must agree.
+    #[tokio::test]
+    async fn an_imported_asset_whose_file_is_missing_blocks_delivery_and_export() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let media = tempfile::tempdir().expect("media directory");
+        let asset_id = put_ready_audio_asset(&storage, &media.path().join("music.wav")).await;
+        let (router, _directory) = dispatcher(storage);
+        let (project_id, clip_id) = project_with_asset_clip(&router, asset_id).await;
 
         let (_, gate) = call(
             &router,

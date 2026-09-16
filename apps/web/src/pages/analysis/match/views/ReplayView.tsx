@@ -55,7 +55,7 @@ import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOvervi
 import { dataErrorMessage } from '../../../../data/errors';
 import { useNativeShell } from '../../../../data/nativeShell';
 import { Empty, Skeleton } from '../../../../design/data';
-import { Alert, StatusDot } from '../../../../design/feedback';
+import { StatusDot } from '../../../../design/feedback';
 import { Button, Checkbox, NativeSelect, cn } from '../../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
@@ -69,7 +69,7 @@ import {
 import { EvidenceRow, formatTickCount, type EvidenceItem } from '../../../../domain/match';
 import { DEFAULT_PLAYBACK_RATES, Transport } from '../../../../domain/media';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import { NotAnalysedState } from './viewChrome';
+import { AnalysisFailedState, NotAnalysedState } from './viewChrome';
 import { mapDisplayName } from '../matchModel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import { ReplayCanvas, type ReplayLayerVisibility } from '../../../../domain/map/ReplayCanvas';
@@ -257,19 +257,14 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     );
   }
 
-  const analysisError = dataErrorMessage(analysis.error);
-  if (analysisError !== null) {
+  if (dataErrorMessage(analysis.error) !== null) {
     return (
       <ViewFrame state="error">
-        <div className="p-3.5">
-          <Alert
-            variant="danger"
-            action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
-            detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
-          >
-            <Trans>打不开这场比赛的分析结果：{analysisError}</Trans>
-          </Alert>
-        </div>
+        <AnalysisFailedState
+          demoId={demoId}
+          error={analysis.error}
+          onRetry={() => void analysis.refetch()}
+        />
       </ViewFrame>
     );
   }

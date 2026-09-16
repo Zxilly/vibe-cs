@@ -56,7 +56,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { dataErrorMessage } from '../../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../../data/match';
 import { Empty, Pagination } from '../../../../design/data';
-import { Alert } from '../../../../design/feedback';
 import { Button, Seg, Badge } from '../../../../design/primitives';
 import { SelectionBar } from '../../../../design/layout';
 import {
@@ -68,7 +67,7 @@ import {
   type HighlightKind,
 } from '../../../../domain/match';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import { NotAnalysedState } from './viewChrome';
+import { AnalysisFailedState, NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
   currentHighlightId,
@@ -136,19 +135,14 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     );
   }
 
-  const failure = dataErrorMessage(analysis.error);
-  if (failure !== null) {
+  if (dataErrorMessage(analysis.error) !== null) {
     return (
       <Frame state="error">
-        <div className="p-3.5">
-          <Alert
-            variant="danger"
-            action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
-            detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
-          >
-            <Trans>读不到这场比赛的高光：{failure}</Trans>
-          </Alert>
-        </div>
+        <AnalysisFailedState
+          demoId={demoId}
+          error={analysis.error}
+          onRetry={() => void analysis.refetch()}
+        />
       </Frame>
     );
   }

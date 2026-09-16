@@ -25,13 +25,14 @@
  * by the mutation beside this recovery action.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Empty, Skeleton } from '../../../../design/data';
 import { Alert } from '../../../../design/feedback';
 import { Button, cn } from '../../../../design/primitives';
-import { useStartDemoAnalysis } from '../../../../data/demos';
+import { useDemo, useStartDemoAnalysis } from '../../../../data/demos';
 import { dataErrorMessage } from '../../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../../data/match';
 import { CS2_TICK_RATE } from '../../../../domain/match';
@@ -206,6 +207,110 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
   );
 }
 
+/* ── the failure recovery ────────────────────────────────────────────────── */
+
+/** How often the demo record is re-read while a run started here is on. */
+const REANALYSIS_POLL_MS = 2_000;
+
+/**
+ * 「这场比赛的分析结果没能打开」 and the two ways out of it.
+ *
+ * The analysis read failed for a reason other than 404. The one that happens
+ * in practice is a stored result the current version cannot read — the record
+ * says 「已就绪」, the document does not decode, and 「重试」 gives the same
+ * answer every time. The service reports that as a generic storage failure in
+ * its own English, which is not a sentence a user can act on; this state says
+ * in Chinese which step failed, what was not touched, and offers the action
+ * that actually fixes it — 「重新分析」 writes a fresh result over the old one —
+ * beside 「重试」 for the transient case. The service's own line is kept as a
+ * diagnostic, small and mono, so a bug report still has it.
+ *
+ * Once a run has been started from here the demo record is polled, and the
+ * moment it is 「已就绪」 again the analysis is re-read — the user asked for a
+ * new result and gets it in place, without knowing to press 「重试」 later.
+ *
+ * One component for the same reason as `NotAnalysedState`: the gate and the
+ * three full-bleed views (回放 / 高光 / Review) render this state in four
+ * places, and four copies of an error box are four ways for its recovery to
+ * drift.
+ */
+export function AnalysisFailedState({
+  demoId,
+  error,
+  onRetry,
+}: {
+  readonly demoId: string;
+  readonly error: unknown;
+  readonly onRetry: () => void;
+}) {
+  const start = useStartDemoAnalysis();
+  const demo = useDemo(demoId, { pollMs: start.isSuccess ? REANALYSIS_POLL_MS : false });
+  const lifecycle = demo.data?.lifecycle_status;
+  const running = lifecycle === 'analyzing' || lifecycle === 'indexing';
+  const diagnostic = dataErrorMessage(error);
+  const startError = dataErrorMessage(start.error);
+
+  // Re-read once per arrival at 「已就绪」, not once per render: `onRetry` is a
+  // fresh closure every time and the poll re-renders this every two seconds.
+  const rereadFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!start.isSuccess || lifecycle === undefined) return;
+    if (lifecycle !== 'ready') {
+      rereadFor.current = undefined;
+      return;
+    }
+    if (rereadFor.current === lifecycle) return;
+    rereadFor.current = lifecycle;
+    onRetry();
+  }, [lifecycle, onRetry, start.isSuccess]);
+
+  return (
+    <div className="flex flex-col gap-3 p-3.5">
+      <Empty
+        preset="error"
+        headingLevel={4}
+        title={<Trans>这场比赛的分析结果没能打开</Trans>}
+        description={
+          <>
+            <Trans>
+              Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。
+            </Trans>
+            {diagnostic === null ? null : (
+              <span className="mt-2 block font-mono text-neutral-600">{diagnostic}</span>
+            )}
+          </>
+        }
+        actions={
+          <>
+            <Button
+              variant="primary"
+              disabled={start.isPending || running}
+              {...(running ? { disabledReason: t`正在重新分析，完成后这里会自动刷新` } : {})}
+              onClick={() => start.mutate([demoId])}
+            >
+              <Trans>重新分析</Trans>
+            </Button>
+            <Button onClick={onRetry}>
+              <Trans>重试</Trans>
+            </Button>
+            <RouteLink to={running ? '/tasks' : '/library'}>
+              {running ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
+            </RouteLink>
+          </>
+        }
+      />
+      {startError === null ? null : (
+        <Alert
+          variant="danger"
+          action={{ label: <Trans>重试</Trans>, onAction: () => start.mutate([demoId]) }}
+        >
+          <Trans>没能开始重新分析：{startError}</Trans>
+        </Alert>
+      )}
+    </div>
+  );
+}
+
 /* ── the shared read ─────────────────────────────────────────────────────── */
 
 export interface AnalysisGate {
@@ -251,15 +356,7 @@ export function useAnalysisGate(demoId: string): AnalysisGate {
     state: 'error',
     tickRate,
     fallback: (
-      <div className="p-3.5">
-        <Alert
-          variant="danger"
-          action={{ label: <Trans>重试</Trans>, onAction: () => void query.refetch() }}
-          detail={<Trans>分析结果没有被改动，重试是安全的。</Trans>}
-        >
-          <Trans>这场比赛的分析没能打开：{dataErrorMessage(query.error) ?? ''}</Trans>
-        </Alert>
-      </div>
+      <AnalysisFailedState demoId={demoId} error={query.error} onRetry={() => void query.refetch()} />
     ),
   };
 }

@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditingDocument, EditingDocumentSettings, JobStatus, Project, ProjectChangeAuthor,
-    ProjectChangeGroup, ProjectEditLease, ProjectEditOperation, ProjectPatch, ProjectPatchScope,
-    TimelineClip, TimelineClipMaterial, TimelineClipMaterializationState, TimelineClipTransitions,
-    TimelinePlacement, TimelineTrack, TrackKind, Transform,
+    EditingDocument, EditingDocumentSettings, JobStatus, MediaMetadataStatus, Project,
+    ProjectChangeAuthor, ProjectChangeGroup, ProjectEditLease, ProjectEditOperation, ProjectPatch,
+    ProjectPatchScope, TimelineClip, TimelineClipMaterial, TimelineClipMaterializationState,
+    TimelineClipTransitions, TimelinePlacement, TimelineTrack, TrackKind, Transform,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -218,15 +218,19 @@ async fn get_project(
         .ok_or_else(|| ApiError::not_found("project"))
 }
 
-async fn get_delivery_gate(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> ApiResult<Json<ProjectDeliveryGate>> {
-    let project = state
-        .storage
-        .get_project(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found("project"))?;
+/// Every enabled media clip that cannot be delivered as it stands.
+///
+/// The domain answers for capture identity and placement coverage; this adds
+/// the two checks that need storage: a nested sequence must have a completed
+/// preview render of its current revision, and a Take or imported Asset whose
+/// media row says the file is gone (`MediaMetadataStatus::Unavailable`, the
+/// state 「重新定位」 recovers from) cannot be rendered. The delivery gate,
+/// the final export and the preview render all read the same list, so
+/// 「素材就绪」 in the header means exactly what the export route will accept.
+async fn delivery_blockers(
+    state: &AppState,
+    project: &Project,
+) -> ApiResult<Vec<ProjectDeliveryBlocker>> {
     let mut blockers = project
         .delivery_blockers()?
         .into_iter()
@@ -237,32 +241,47 @@ async fn get_delivery_gate(
         .tracks
         .iter()
         .flat_map(|track| &track.clips)
-        .filter(|clip| clip.placement.enabled)
+        .filter(|clip| clip.placement.enabled && clip.text.is_none())
     {
-        let TimelineClipMaterial::Sequence {
-            project_id,
-            project_revision,
-            media_duration_seconds,
-        } = clip.material
-        else {
+        if blockers.iter().any(|blocker| blocker.clip_id == clip.id) {
             continue;
-        };
-        let nested = state.storage.get_project(project_id).await?;
-        let ready = nested
-            .as_ref()
-            .is_some_and(|nested| nested.revision == project_revision)
-            && state
+        }
+        let ready = match clip.material {
+            TimelineClipMaterial::Planned => continue,
+            TimelineClipMaterial::Sequence {
+                project_id,
+                project_revision,
+                media_duration_seconds,
+            } => {
+                let nested = state.storage.get_project(project_id).await?;
+                nested
+                    .as_ref()
+                    .is_some_and(|nested| nested.revision == project_revision)
+                    && state
+                        .storage
+                        .list_export_jobs(Some(project_id))
+                        .await?
+                        .into_iter()
+                        .any(|record| {
+                            record.kind == "project_preview"
+                                && record.job.project_revision == project_revision
+                                && record.job.status == JobStatus::Completed
+                                && record.job.range_start_seconds <= 0.001
+                                && record.job.range_end_seconds + 0.001 >= media_duration_seconds
+                        })
+            }
+            TimelineClipMaterial::Take { asset_id, .. }
+            | TimelineClipMaterial::Asset { asset_id, .. } => state
                 .storage
-                .list_export_jobs(Some(project_id))
+                .get_asset(asset_id)
                 .await?
-                .into_iter()
-                .any(|record| {
-                    record.kind == "project_preview"
-                        && record.job.project_revision == project_revision
-                        && record.job.status == JobStatus::Completed
-                        && record.job.range_start_seconds <= 0.001
-                        && record.job.range_end_seconds + 0.001 >= media_duration_seconds
-                });
+                .is_none_or(|asset| {
+                    !matches!(
+                        asset.metadata_status,
+                        MediaMetadataStatus::Unavailable { .. }
+                    )
+                }),
+        };
         if !ready {
             blockers.push(ProjectDeliveryBlocker {
                 clip_id: clip.id,
@@ -270,10 +289,46 @@ async fn get_delivery_gate(
             });
         }
     }
+    Ok(blockers)
+}
+
+fn require_deliverable(blockers: &[ProjectDeliveryBlocker], code: &'static str) -> ApiResult<()> {
+    if blockers.is_empty() {
+        return Ok(());
+    }
+    Err(ApiError::new(
+        StatusCode::PRECONDITION_FAILED,
+        code,
+        format!(
+            "{} enabled clips do not have compatible media",
+            blockers.len()
+        ),
+    ))
+}
+
+async fn get_delivery_gate(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<ProjectDeliveryGate>> {
+    let project = state
+        .storage
+        .get_project(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("project"))?;
+    let blockers = delivery_blockers(&state, &project).await?;
+    // An empty sequence has nothing to block and nothing to deliver either:
+    // the export route rejects a zero-length range, so the gate must not
+    // report it as ready.
+    let has_media = project
+        .document
+        .tracks
+        .iter()
+        .flat_map(|track| &track.clips)
+        .any(|clip| clip.placement.enabled && clip.text.is_none());
     Ok(Json(ProjectDeliveryGate {
         project_id: project.id,
         revision: project.revision,
-        ready: blockers.is_empty(),
+        ready: has_media && blockers.is_empty(),
         blockers,
     }))
 }
@@ -425,17 +480,10 @@ async fn export_project(
         .ok_or_else(|| ApiError::not_found("project"))?;
     require_project_revision(&project, request.expected_revision, "export confirmation")?;
     validate_project_export_request(&request, project.document.duration_seconds)?;
-    let unresolved = project.unresolved_delivery_clips()?;
-    if !unresolved.is_empty() {
-        return Err(ApiError::new(
-            StatusCode::PRECONDITION_FAILED,
-            "project_delivery_gate_failed",
-            format!(
-                "{} enabled clips do not have compatible media",
-                unresolved.len()
-            ),
-        ));
-    }
+    require_deliverable(
+        &delivery_blockers(&state, &project).await?,
+        "project_delivery_gate_failed",
+    )?;
     let job = state
         .exports
         .start(
@@ -489,17 +537,10 @@ async fn render_project_preview(
         range_end_seconds: Some(request.range_end_seconds),
     };
     validate_project_export_request(&export_request, project.document.duration_seconds)?;
-    let unresolved = project.unresolved_delivery_clips()?;
-    if !unresolved.is_empty() {
-        return Err(ApiError::new(
-            StatusCode::PRECONDITION_FAILED,
-            "project_preview_delivery_gate_failed",
-            format!(
-                "{} enabled clips do not have compatible media",
-                unresolved.len()
-            ),
-        ));
-    }
+    require_deliverable(
+        &delivery_blockers(&state, &project).await?,
+        "project_preview_delivery_gate_failed",
+    )?;
     let job = state
         .exports
         .start(
@@ -1017,7 +1058,7 @@ mod tests {
     };
     use serde_json::{Value, json};
     use tower::ServiceExt as _;
-    use vibe_cs_domain::{ExportJob, JobStatus};
+    use vibe_cs_domain::{ExportJob, JobStatus, MediaAsset, MediaMetadataStatus, MediaProxyStatus};
     use vibe_cs_storage::{ExportJobRecord, Storage};
 
     use super::*;
@@ -1162,6 +1203,112 @@ mod tests {
         )
         .await;
         assert_eq!(export_status, 409);
+    }
+
+    #[tokio::test]
+    async fn an_empty_sequence_is_not_ready_to_deliver() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({"name":"Empty","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+        )
+        .await;
+        let project_id = created["id"].as_str().expect("project id");
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], false);
+        assert_eq!(gate["blockers"], json!([]));
+    }
+
+    #[tokio::test]
+    async fn an_unavailable_imported_asset_blocks_delivery_and_export() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let asset_id = Uuid::new_v4();
+        storage
+            .put_asset(MediaAsset {
+                id: asset_id,
+                project_id: None,
+                path: "C:/missing/music.wav".to_owned(),
+                name: "music.wav".to_owned(),
+                kind: "audio".to_owned(),
+                duration_seconds: Some(5.0),
+                width: None,
+                height: None,
+                file_size: 4,
+                has_audio: true,
+                proxy_path: None,
+                proxy_status: MediaProxyStatus::NotRequested,
+                waveform: None,
+                metadata_status: MediaMetadataStatus::Unavailable {
+                    message: "file missing".to_owned(),
+                },
+                markers: Vec::new(),
+                created_at: Utc::now(),
+            })
+            .await
+            .expect("asset");
+        let (router, _directory) = dispatcher(storage);
+        let (_, created) = call(
+            &router,
+            Method::POST,
+            "/api/projects",
+            Some(json!({"name":"Music","width":1920,"height":1080,"fps":60,"source_demo_ids":[]})),
+        )
+        .await;
+        let project_id = created["id"].as_str().expect("project id");
+        let story_id = created["document"]["story_track_id"]
+            .as_str()
+            .expect("story id");
+        let clip_id = Uuid::new_v4();
+        let mut clip = clip_json(clip_id, "Music", 0.0);
+        clip["material"]["asset_id"] = json!(asset_id);
+        let (status, _) = call(
+            &router,
+            Method::PATCH,
+            &format!("/api/projects/{project_id}"),
+            Some(json!({
+                "project_id":project_id,
+                "base_revision":1,
+                "scope":{"kind":"project"},
+                "author":{"kind":"human"},
+                "reverts_change_group_id":null,
+                "summary":"Add music",
+                "operations":[{"op":"replace_track_clips","track_id":story_id,"clips":[clip]}]
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{project_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], false);
+        assert_eq!(
+            gate["blockers"],
+            json!([{"clip_id":clip_id,"state":"stale"}])
+        );
+
+        let (status, body) = call(
+            &router,
+            Method::POST,
+            &format!("/api/projects/{project_id}/export"),
+            Some(json!({"expected_revision":2,"confirm":true,"encoder":"auto","quality":80})),
+        )
+        .await;
+        assert_eq!(status, 412);
+        assert_eq!(body["code"], "project_delivery_gate_failed");
     }
 
     #[tokio::test]

@@ -55,10 +55,10 @@ describe('utility and round economy', () => {
     await waitFor(() => expect(address()).toContain('round=2'));
     expect(screen.getByRole('button', { name: '第 2 回合装备' }).getAttribute('aria-pressed')).toBe('true');
     const panel = screen.getByRole('region', { name: '回合经济' });
-    // 「$7 000」 — the artboard's thin-space grouping, the one money spelling
-    // every table and tile in the workspace prints.
-    expect(panel.textContent).toContain('$7\u2009000 / $20\u2009000');
-    expect(panel.textContent).toContain('$13\u2009000');
+    // 「$7 000」 — the artboard's grouping on a narrow no-break space, the one
+    // money spelling every table and tile in the workspace prints.
+    expect(panel.textContent).toContain('$7\u202f000 / $20\u202f000');
+    expect(panel.textContent).toContain('$13\u202f000');
     expect(panel.textContent).toContain('购买类型强起 / 全起');
     expect(panel.textContent).not.toContain('两队合计');
   });

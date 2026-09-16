@@ -171,7 +171,7 @@ impl From<DemoRecord> for DemoSummaryDto {
         Self {
             id: demo.id,
             file_name: demo.file_name,
-            path: demo.path,
+            path: catalog_path(&demo.path).to_string_lossy().into_owned(),
             display_name: demo.display_name,
             map_name: demo.map_name,
             match_date: demo.match_date,
@@ -1200,9 +1200,9 @@ async fn reconcile_missing_demos(state: &AppState, roots: &[String]) -> ApiResul
         if demo.status == DemoStatus::Missing {
             continue;
         }
-        let path = Path::new(&demo.path);
-        if scopes.iter().any(|scope| scope.contains(path)) {
-            match tokio::fs::try_exists(path).await {
+        let path = catalog_path(&demo.path);
+        if scopes.iter().any(|scope| scope.contains(&path)) {
+            match tokio::fs::try_exists(&path).await {
                 Ok(false) => {
                     state
                         .storage
@@ -1235,12 +1235,15 @@ impl ScanScope {
     }
 }
 
-/// The form a path takes in the catalogue: canonical, but without Windows'
-/// `\\?\` verbatim prefix, which `canonicalize` adds and the Inspector's 「位置」
-/// row would otherwise print. `dunce` keeps the prefix only where dropping it
-/// would change what the path names (over 260 characters, reserved names).
-fn catalog_path(canonical: PathBuf) -> PathBuf {
-    dunce::simplified(&canonical).to_path_buf()
+/// The form a path takes in the catalogue and on the wire: canonical, but
+/// without Windows' `\\?\` verbatim prefix, which `canonicalize` adds and the
+/// Inspector's 「位置」 row would otherwise print. Applied where a path is
+/// catalogued and again where a record becomes a [`DemoSummaryDto`], so the
+/// API never exposes the prefix whatever form a row was stored in. `dunce`
+/// keeps the prefix only where dropping it would change what the path names
+/// (over 260 characters, reserved names).
+fn catalog_path(path: impl AsRef<Path>) -> PathBuf {
+    dunce::simplified(path.as_ref()).to_path_buf()
 }
 
 async fn build_demo_record(path: &str, source: &str) -> Result<DemoRecord, String> {
@@ -2298,6 +2301,42 @@ mod tests {
         assert_eq!(
             std::fs::canonicalize(&demo.path).expect("catalogued path resolves"),
             std::fs::canonicalize(&path).expect("fixture path resolves")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn summary_dto_strips_the_verbatim_prefix_from_a_stored_path() {
+        let now = Utc::now();
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: r"\\?\C:\Users\kael\Desktop\iem-cologne\m3-inferno.dem".to_owned(),
+            file_name: "m3-inferno.dem".to_owned(),
+            display_name: "m3-inferno".to_owned(),
+            source: "local".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: Some("de_inferno".to_owned()),
+            match_date: Some(now),
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: vec![],
+            remark: String::new(),
+            content_sha256: None,
+            file_size: 42,
+            created_at: now,
+            updated_at: now,
+        };
+
+        // A row catalogued straight from `canonicalize` still reaches the
+        // Inspector as a path the user recognises.
+        let summary = DemoSummaryDto::from(demo);
+        assert_eq!(
+            summary.path,
+            r"C:\Users\kael\Desktop\iem-cologne\m3-inferno.dem"
         );
     }
 

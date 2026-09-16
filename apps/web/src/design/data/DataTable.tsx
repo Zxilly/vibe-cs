@@ -95,7 +95,20 @@ export interface DataTableColumn<Row> {
  *
  * `width: 100%` on a `<col>` in an auto table does not mean 「be the whole
  * table」; it means 「take everything the other columns do not need」, which is
- * exactly what the identity column is for. Columns that name a width keep it.
+ * exactly what the identity column is for.
+ *
+ * What the other columns *need* is the catch. Against a percentage column the
+ * browser squeezes every other column down to its min-content and treats the
+ * `<col>` width as a suggestion it is free to ignore — so a column sized by a
+ * `<col>` alone still shrank to whatever its rows happened to hold, shifted
+ * every header with each search, and on an empty page collapsed to the width
+ * of its own label. A named width is therefore written twice: on the `<col>`,
+ * and as `min-width` on the header cell, which the auto algorithm does honour.
+ * That makes `width` a floor the column keeps whether the page has twenty rows
+ * or none; content wider than the floor still widens the column (there is no
+ * clipping outside `truncate`). A `ch` width resolves in the header's own
+ * type, so a column that must sit at the same pixel on an empty page names a
+ * `px` width.
  *
  * A table with two `truncate` columns splits the slack between them, which is
  * also right: 资料库 clips both 比赛 and 文件名 and neither is subordinate.
@@ -240,7 +253,7 @@ export function DataTable<Row>({
           <thead className="sticky top-0 z-10 bg-bg">
             <tr>
               {selectable ? (
-                <TableHeaderCell edge="leading">
+                <TableHeaderCell edge="leading" className="min-w-13">
                   {showSelectAll ? (
                     <Checkbox
                       size="sm"
@@ -263,6 +276,8 @@ export function DataTable<Row>({
                     align={column.align}
                     variant={column.variant}
                     aria-sort={column.sortable === true ? sortState : undefined}
+                    /* The floor — see `FLEXIBLE_WIDTH`. */
+                    style={column.width === undefined ? undefined : { minWidth: column.width }}
                   >
                     {sortable ? (
                       <button

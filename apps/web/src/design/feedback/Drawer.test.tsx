@@ -56,7 +56,9 @@ describe('Drawer', () => {
       </Drawer>,
     );
 
-    expect(wide).toContain('inset-y-0 right-0');
+    // Below the window title bar, never over its self-drawn window controls.
+    expect(wide).toContain('bottom-0 right-0 top-[var(--h-titlebar)]');
+    expect(wide).not.toContain('inset-y-0');
     expect(wide).toContain('data-width="wide"');
     expect(wide).toContain('w-[var(--w-inspector-wide)]');
     expect(standard).toContain('w-[var(--w-inspector)]');

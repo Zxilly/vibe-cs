@@ -19,7 +19,10 @@
  * There is no tick glyph in either: the reference marks a checked box with a
  * solid accent fill and nothing inside it. Square, too — `.radio .dot` is the
  * one place in the system that keeps a radius (§3.6), and no artboard draws a
- * round checkbox.
+ * round checkbox. Radix renders the box as a `<button>`, and `base.css` gives
+ * every button `--radius-md`; at 13px that reset turns the box into a circle a
+ * user reads as a radio, so `rounded-none` is stated here rather than left to
+ * the element default.
  *
  * Indeterminate is not in the reference, because no artboard draws a partially
  * selected table. It is here anyway — a select-all header cell over a partial
@@ -68,7 +71,7 @@ const BOX_SIZE_CLASS: Readonly<Record<CheckboxSize, string>> = {
 };
 
 const BOX_CLASS =
-  'grid flex-none place-items-center border border-neutral-400 ' +
+  'grid flex-none place-items-center rounded-none border border-neutral-400 ' +
   'data-[state=checked]:border-accent data-[state=checked]:bg-accent ' +
   'data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent ' +
   'disabled:cursor-not-allowed disabled:opacity-45';

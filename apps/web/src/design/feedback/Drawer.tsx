@@ -35,6 +35,13 @@
  * drawer at 470px. Both land on §3.5's `--w-inspector-wide` (440); the
  * narrower `standard` step (380) is offered for drawers docked beside an
  * Inspector that is already open.
+ *
+ * Height: from the bottom of the window title bar down, not from the window's
+ * own top edge. The desktop window draws its title bar itself (`decorations:
+ * false`), so the minimize / maximize / close buttons and the drag region are
+ * DOM under `--h-titlebar`; a panel starting at `top: 0` would cover the
+ * window controls — and, for the activity drawer, the very bell that opened it.
+ * The command palette makes the same choice for the same reason.
  */
 
 import { Dialog as DialogPrimitive } from 'radix-ui';
@@ -71,7 +78,7 @@ const WIDTH_CLASS: Record<DrawerWidth, string> = {
 };
 
 const PANEL_CLASS =
-  'fixed inset-y-0 right-0 z-40 flex max-w-full flex-col border-l border-neutral-500 bg-bg ' +
+  'fixed bottom-0 right-0 top-[var(--h-titlebar)] z-40 flex max-w-full flex-col border-l border-neutral-500 bg-bg ' +
   'shadow-[var(--shadow-lg)]';
 
 export function Drawer({

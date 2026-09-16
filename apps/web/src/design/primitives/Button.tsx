@@ -150,6 +150,10 @@ export function Button({
         content={disabledReason}
         wrap
         wrapFocusable={disabled}
+        /* Below the control: a reason reads as a footnote to the button, and a
+           box above a toolbar button lands on the toolbar's neighbours. Radix
+           flips it back up when there is no room underneath. */
+        side="bottom"
         /* The wrapper is the flex item now, so it inherits the modifiers that
            only mean anything to a flex item. */
         wrapClassName={cn(block && 'w-full', grow && 'flex-1', icon && 'flex-none')}

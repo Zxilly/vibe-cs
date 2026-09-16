@@ -118,7 +118,16 @@ export function Tooltip({
           )}
         </TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
-          <TooltipPrimitive.Content side={side} sideOffset={4} className={cn(CONTENT_CLASS, className)}>
+          {/* `collisionPadding`: Radix's default is 0, which lets a tooltip on
+              a control at the window's edge sit flush against it with its own
+              border clipped. 8px keeps the box inside the page like every other
+              floating layer. */}
+          <TooltipPrimitive.Content
+            side={side}
+            sideOffset={4}
+            collisionPadding={8}
+            className={cn(CONTENT_CLASS, className)}
+          >
             {content}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>

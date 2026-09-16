@@ -27,7 +27,10 @@ describe('Checkbox markup', () => {
 
   it('is square — `.radio .dot` is the only round thing in the system', () => {
     const html = renderMarkup(<Checkbox aria-label="选择该行" />);
-    expect(html).not.toContain('rounded');
+    // The box is a `<button>`, and base.css rounds every button; the box has
+    // to say `rounded-none` out loud or it renders as a radio at 13px.
+    expect(html).toMatch(/role="checkbox"[^>]*class="[^"]*\brounded-none\b/u);
+    expect(html).not.toContain('rounded-full');
     expect(html).not.toContain('50%');
   });
 

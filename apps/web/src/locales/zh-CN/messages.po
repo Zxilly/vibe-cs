@@ -14,12 +14,12 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. placeholder {0}: cleanupStaged.data.failed
-#: src/pages/shared/settings/RecoveryPage.tsx:200
+#: src/pages/shared/settings/RecoveryPage.tsx:240
 msgid " 另有 {0} 个删不掉，可能正被占用。"
 msgstr " 另有 {0} 个删不掉，可能正被占用。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:203
-#: src/pages/shared/settings/RecoveryPage.tsx:245
+#: src/pages/shared/settings/RecoveryPage.tsx:243
+#: src/pages/shared/settings/RecoveryPage.tsx:307
 msgid " 这次只扫描了一部分，可能还有剩余。"
 msgstr " 这次只扫描了一部分，可能还有剩余。"
 
@@ -27,17 +27,22 @@ msgstr " 这次只扫描了一部分，可能还有剩余。"
 msgid "。放宽时间范围通常最有效。"
 msgstr "。放宽时间范围通常最有效。"
 
+#: src/pages/shared/settings/RecoveryPage.tsx:209
+#: src/pages/shared/settings/RecoveryPage.tsx:273
+msgid "· 只扫描了一部分"
+msgstr "· 只扫描了一部分"
+
 #: src/domain/task/ActivityDrawer.tsx:69
 msgid "‹ 返回后台任务"
 msgstr "‹ 返回后台任务"
 
 #. placeholder {0}: cleanupMissing.data.deleted
-#: src/pages/shared/settings/RecoveryPage.tsx:239
+#: src/pages/shared/settings/RecoveryPage.tsx:301
 msgid "{0, plural, =0 {没有失效记录。} other {已移除 # 条失效记录。}}"
 msgstr "{0, plural, =0 {没有失效记录。} other {已移除 # 条失效记录。}}"
 
 #. placeholder {0}: cleanupStaged.data.deleted
-#: src/pages/shared/settings/RecoveryPage.tsx:192
+#: src/pages/shared/settings/RecoveryPage.tsx:232
 msgid "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
 msgstr "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
 
@@ -50,6 +55,11 @@ msgstr "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个
 #: src/pages/editing/projects/ProjectsPage.tsx:43
 msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, other {# 个作品}}"
+
+#. placeholder {0}: scan.data.staged.files
+#: src/pages/shared/settings/RecoveryPage.tsx:205
+msgid "{0, plural, other {# 个未完成的文件}}"
+msgstr "{0, plural, other {# 个未完成的文件}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
 #: src/pages/shared/library/LibraryPage.tsx:373
@@ -80,6 +90,11 @@ msgstr "{0, plural, other {# 天}}"
 #: src/pages/shared/library/DeleteDemosDialog.tsx:71
 msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 msgstr "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
+
+#. placeholder {0}: scan.data.missing.records
+#: src/pages/shared/settings/RecoveryPage.tsx:270
+msgid "{0, plural, other {# 条记录找不到文件}}"
+msgstr "{0, plural, other {# 条记录找不到文件}}"
 
 #. placeholder {0}: clips.length
 #: src/pages/editing/projects/ProjectsPage.tsx:105
@@ -1175,15 +1190,15 @@ msgstr "下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到�
 msgid "下载选中的 {0} 场"
 msgstr "下载选中的 {0} 场"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:130
+#: src/pages/shared/settings/RecoveryPage.tsx:150
 msgid "不会删除 Demo、录制结果、成片、作品或对话记录。"
 msgstr "不会删除 Demo、录制结果、成片、作品或对话记录。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:176
+#: src/pages/shared/settings/RecoveryPage.tsx:216
 msgid "不会删除已完成的录制结果、成片或资料库记录。"
 msgstr "不会删除已完成的录制结果、成片或资料库记录。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:222
+#: src/pages/shared/settings/RecoveryPage.tsx:284
 msgid "不会删除磁盘上的现有文件，只移除失效记录。"
 msgstr "不会删除磁盘上的现有文件，只移除失效记录。"
 
@@ -1297,7 +1312,7 @@ msgstr "二进制回放炸弹标记无效"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "二进制回放超过 128 MiB 上限"
 
-#: src/shared/desktop/client.ts:231
+#: src/shared/desktop/client.ts:232
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
@@ -2196,7 +2211,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:353
+#: src/shared/desktop/client.ts:354
 msgid "分析响应包含未知阵营：{0}"
 msgstr "分析响应包含未知阵营：{0}"
 
@@ -2689,7 +2704,7 @@ msgstr "反恐精英"
 msgid "发布"
 msgstr "发布"
 
-#: src/shared/desktop/client.ts:1251
+#: src/shared/desktop/client.ts:1254
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
@@ -3362,7 +3377,7 @@ msgstr "失败"
 msgid "失败可恢复"
 msgstr "失败可恢复"
 
-#: src/shared/desktop/client.ts:170
+#: src/shared/desktop/client.ts:171
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
 
@@ -3660,14 +3675,6 @@ msgstr "导出资料库元数据"
 msgid "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 msgstr "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:175
-msgid "将删除暂存目录里未完成的成片文件。"
-msgstr "将删除暂存目录里未完成的成片文件。"
-
-#: src/pages/shared/settings/RecoveryPage.tsx:217
-msgid "将删除这些失效记录。"
-msgstr "将删除这些失效记录。"
-
 #. placeholder {0}: externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1670
 msgid "将启动 CS2 和采集组件，录制 {0} 个还没有素材的片段。"
@@ -3679,7 +3686,7 @@ msgstr "将启动 CS2 和采集组件，录制 {0} 个还没有素材的片段�
 msgid "将挂在第 {0} 回合 tick {1} 的证据上。"
 msgstr "将挂在第 {0} 回合 tick {1} 的证据上。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:128
+#: src/pages/shared/settings/RecoveryPage.tsx:148
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 msgstr "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 
@@ -3752,7 +3759,7 @@ msgstr "工具已返回结果。"
 msgid "左对齐"
 msgstr "左对齐"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:160
+#: src/pages/shared/settings/RecoveryPage.tsx:180
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "已从备份恢复配置，重新读取后生效。"
 
@@ -4142,7 +4149,7 @@ msgstr "当前条件下没有采样点，因此没有密度可比。"
 msgid "当前查看 {0} · 尚未加入比较"
 msgstr "当前查看 {0} · 尚未加入比较"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:266
+#: src/pages/shared/settings/RecoveryPage.tsx:328
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 
@@ -4168,7 +4175,7 @@ msgstr "当前轨道自动化值 {label}"
 msgid "当前运行状态"
 msgstr "当前运行状态"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:150
+#: src/pages/shared/settings/RecoveryPage.tsx:170
 msgid "当前配置完整，备份恢复保持关闭"
 msgstr "当前配置完整，备份恢复保持关闭"
 
@@ -4217,9 +4224,9 @@ msgstr "录制完成后会自动抽帧；也可以先在时间轴上按时间预
 msgid "录制已取消"
 msgstr "录制已取消"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:172
-msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。"
-msgstr "录制或导出中断时会留下暂存文件，它们不会自己消失。"
+#: src/pages/shared/settings/RecoveryPage.tsx:215
+msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
+msgstr "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
 
 #: src/pages/shared/settings/GameSection.tsx:161
 msgid "录制文件目录"
@@ -4355,7 +4362,7 @@ msgstr "恢复与引导"
 #: src/app/command/commandRegistry.ts:222
 #: src/app/routeCrumb.ts:73
 #: src/pages/shared/settings/AdvancedSection.tsx:320
-#: src/pages/shared/settings/RecoveryPage.tsx:76
+#: src/pages/shared/settings/RecoveryPage.tsx:91
 msgid "恢复中心"
 msgstr "恢复中心"
 
@@ -4451,6 +4458,10 @@ msgstr "战术回放缓存元数据超过上限"
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1983
 msgid "战术示意"
 msgstr "战术示意"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:262
+msgid "所有记录都能找到文件"
+msgstr "所有记录都能找到文件"
 
 #: src/domain/editing/TimelineProgramMonitor.tsx:646
 msgid "所选 In"
@@ -4762,11 +4773,11 @@ msgstr "持续时间"
 msgid "持续时间（秒）"
 msgstr "持续时间（秒）"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:211
+#: src/pages/shared/settings/RecoveryPage.tsx:251
 msgid "指向不存在文件的记录"
 msgstr "指向不存在文件的记录"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:303
+#: src/pages/shared/settings/RecoveryPage.tsx:365
 msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 msgstr "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 
@@ -5080,9 +5091,9 @@ msgstr "文件已删除。"
 msgid "文件缺失"
 msgstr "文件缺失"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:214
-msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
-msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
+#: src/pages/shared/settings/RecoveryPage.tsx:279
+msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。"
+msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。"
 
 #: src/domain/task/TaskDetailBody.tsx:145
 #: src/pages/editing/delivery/OutputsView.tsx:224
@@ -5198,10 +5209,10 @@ msgstr "无法读取作品任务。"
 msgid "无法读取目标作品。"
 msgstr "无法读取目标作品。"
 
-#: src/shared/desktop/client.ts:184
-#: src/shared/desktop/client.ts:211
-#: src/shared/desktop/client.ts:291
-#: src/shared/desktop/client.ts:482
+#: src/shared/desktop/client.ts:185
+#: src/shared/desktop/client.ts:212
+#: src/shared/desktop/client.ts:292
+#: src/shared/desktop/client.ts:483
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "无法连接到本地服务，请确认服务正在运行。"
 
@@ -5390,9 +5401,13 @@ msgstr "暂停"
 msgid "暂停源素材"
 msgstr "暂停源素材"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:283
+#: src/pages/shared/settings/RecoveryPage.tsx:345
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 msgstr "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:197
+msgid "暂存目录里没有未完成的文件"
+msgstr "暂存目录里没有未完成的文件"
 
 #: src/pages/analysis/match/views/EquipmentChart.tsx:38
 msgid "暂无装备价值数据"
@@ -5488,7 +5503,7 @@ msgstr "未下载"
 msgid "未启用源声道"
 msgstr "未启用源声道"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:166
+#: src/pages/shared/settings/RecoveryPage.tsx:186
 msgid "未完成的暂存成品文件"
 msgstr "未完成的暂存成品文件"
 
@@ -5561,7 +5576,7 @@ msgstr "未知原因"
 msgid "未知地图"
 msgstr "未知地图"
 
-#: src/shared/desktop/client.ts:424
+#: src/shared/desktop/client.ts:425
 msgid "未知玩家"
 msgstr "未知玩家"
 
@@ -5598,7 +5613,7 @@ msgstr "未选中高光"
 msgid "未选择选手"
 msgstr "未选择选手"
 
-#: src/shared/desktop/client.ts:265
+#: src/shared/desktop/client.ts:266
 msgid "本地数据库读写失败"
 msgstr "本地数据库读写失败"
 
@@ -5606,7 +5621,7 @@ msgstr "本地数据库读写失败"
 msgid "本地文件"
 msgstr "本地文件"
 
-#: src/shared/desktop/client.ts:267
+#: src/shared/desktop/client.ts:268
 msgid "本地文件读写失败"
 msgstr "本地文件读写失败"
 
@@ -5918,7 +5933,7 @@ msgstr "正在启动回放"
 
 #: src/pages/shared/settings/FilesSection.tsx:68
 #: src/pages/shared/settings/GameSection.tsx:97
-#: src/pages/shared/settings/RecoveryPage.tsx:70
+#: src/pages/shared/settings/RecoveryPage.tsx:82
 msgid "正在处理"
 msgstr "正在处理"
 
@@ -6412,6 +6427,10 @@ msgstr "没有命中的证据"
 msgid "没有回合记录"
 msgstr "没有回合记录"
 
+#: src/pages/shared/settings/RecoveryPage.tsx:292
+msgid "没有失效记录"
+msgstr "没有失效记录"
+
 #: src/domain/task/TaskActivityList.tsx:23
 msgid "没有失败的任务"
 msgstr "没有失败的任务"
@@ -6423,6 +6442,10 @@ msgstr "没有已取消的任务"
 #: src/domain/task/TaskActivityList.tsx:24
 msgid "没有已完成的任务"
 msgstr "没有已完成的任务"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:103
+msgid "没有扫描到清理范围：{scanError}"
+msgstr "没有扫描到清理范围：{scanError}"
 
 #: src/domain/map/MapCanvas.tsx:232
 msgid "没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。"
@@ -6449,6 +6472,10 @@ msgstr "没有进行中的任务"
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:674
 msgid "没有需要录制的片段"
 msgstr "没有需要录制的片段"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:223
+msgid "没有需要清理的暂存文件"
+msgstr "没有需要清理的暂存文件"
 
 #: src/data/nativeShell.ts:321
 #: src/data/nativeShell.ts:324
@@ -6640,8 +6667,8 @@ msgstr "添加轨道关键帧"
 msgid "添加音频轨道"
 msgstr "添加音频轨道"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:275
-#: src/pages/shared/settings/RecoveryPage.tsx:292
+#: src/pages/shared/settings/RecoveryPage.tsx:337
+#: src/pages/shared/settings/RecoveryPage.tsx:354
 msgid "清理"
 msgstr "清理"
 
@@ -6649,11 +6676,11 @@ msgstr "清理"
 msgid "清理代理媒体"
 msgstr "清理代理媒体"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:233
+#: src/pages/shared/settings/RecoveryPage.tsx:295
 msgid "清理失效记录"
 msgstr "清理失效记录"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:291
+#: src/pages/shared/settings/RecoveryPage.tsx:353
 msgid "清理失效记录？"
 msgstr "清理失效记录？"
 
@@ -6662,11 +6689,11 @@ msgstr "清理失效记录？"
 msgid "清理无效记录"
 msgstr "清理无效记录"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:186
+#: src/pages/shared/settings/RecoveryPage.tsx:226
 msgid "清理暂存成片"
 msgstr "清理暂存成片"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:274
+#: src/pages/shared/settings/RecoveryPage.tsx:336
 msgid "清理未完成的暂存成品文件？"
 msgstr "清理未完成的暂存成品文件？"
 
@@ -7109,11 +7136,11 @@ msgstr "用 Agent 制作"
 msgid "用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。"
 msgstr "用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:155
+#: src/pages/shared/settings/RecoveryPage.tsx:175
 msgid "用备份恢复"
 msgstr "用备份恢复"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:257
+#: src/pages/shared/settings/RecoveryPage.tsx:319
 msgid "用备份覆盖当前配置？"
 msgstr "用备份覆盖当前配置？"
 
@@ -7260,7 +7287,7 @@ msgstr "看道具与经济"
 #: src/pages/shared/settings/AppSection.tsx:77
 #: src/pages/shared/settings/FilesSection.tsx:96
 #: src/pages/shared/settings/GameSection.tsx:116
-#: src/pages/shared/settings/RecoveryPage.tsx:90
+#: src/pages/shared/settings/RecoveryPage.tsx:110
 msgid "知道了"
 msgstr "知道了"
 
@@ -7849,7 +7876,7 @@ msgstr "装备差额"
 msgid "覆盖"
 msgstr "覆盖"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:258
+#: src/pages/shared/settings/RecoveryPage.tsx:320
 msgid "覆盖并恢复"
 msgstr "覆盖并恢复"
 
@@ -8041,9 +8068,9 @@ msgstr "请求导出"
 msgid "请求录制片段"
 msgstr "请求录制片段"
 
-#: src/shared/desktop/client.ts:181
-#: src/shared/desktop/client.ts:204
-#: src/shared/desktop/client.ts:227
+#: src/shared/desktop/client.ts:182
+#: src/shared/desktop/client.ts:205
+#: src/shared/desktop/client.ts:228
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
@@ -8079,7 +8106,7 @@ msgstr "读不到占用统计"
 msgid "读不到对话占用：{error}"
 msgstr "读不到对话占用：{error}"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:83
+#: src/pages/shared/settings/RecoveryPage.tsx:98
 msgid "读不到恢复状态：{statusError}"
 msgstr "读不到恢复状态：{statusError}"
 
@@ -8091,7 +8118,9 @@ msgstr "读不到模型配置：{error}"
 msgid "读不到注释：{error}"
 msgstr "读不到注释：{error}"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:110
+#: src/pages/shared/settings/RecoveryPage.tsx:130
+#: src/pages/shared/settings/RecoveryPage.tsx:192
+#: src/pages/shared/settings/RecoveryPage.tsx:257
 msgid "读不到状态"
 msgstr "读不到状态"
 
@@ -8746,7 +8775,7 @@ msgstr "这次分析没有检出高光候选。回合时间线仍然可以逐回
 msgid "这次导出不会生成成片。作品和素材不受影响，可以重新导出。"
 msgstr "这次导出不会生成成片。作品和素材不受影响，可以重新导出。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:98
+#: src/pages/shared/settings/RecoveryPage.tsx:118
 msgid "这次恢复没有完成：{actionError}"
 msgstr "这次恢复没有完成：{actionError}"
 
@@ -9136,7 +9165,7 @@ msgstr "道具投掷统计不可用"
 msgid "都由这次分析的回合与事件推出"
 msgstr "都由这次分析的回合与事件推出"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:104
+#: src/pages/shared/settings/RecoveryPage.tsx:124
 msgid "配置恢复"
 msgstr "配置恢复"
 
@@ -9144,11 +9173,11 @@ msgstr "配置恢复"
 msgid "配置提供方、模型、API 地址和密钥后即可在这里继续。"
 msgstr "配置提供方、模型、API 地址和密钥后即可在这里继续。"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:123
+#: src/pages/shared/settings/RecoveryPage.tsx:143
 msgid "配置文件状态正常"
 msgstr "配置文件状态正常"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:115
+#: src/pages/shared/settings/RecoveryPage.tsx:135
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
@@ -9332,7 +9361,8 @@ msgstr "重置工作区布局"
 #: src/pages/shared/settings/AppSection.tsx:72
 #: src/pages/shared/settings/FilesSection.tsx:88
 #: src/pages/shared/settings/GameSection.tsx:111
-#: src/pages/shared/settings/RecoveryPage.tsx:82
+#: src/pages/shared/settings/RecoveryPage.tsx:97
+#: src/pages/shared/settings/RecoveryPage.tsx:102
 msgid "重试"
 msgstr "重试"
 

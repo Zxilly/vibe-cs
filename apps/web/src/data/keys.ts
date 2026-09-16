@@ -277,6 +277,9 @@ export const qk = {
     all: [QUERY_NAMESPACE.outputs] as const,
     list: (query: OutputQuery) => [QUERY_NAMESPACE.outputs, LIST, query] as const,
     recordedClips: () => [QUERY_NAMESPACE.outputs, 'recorded-clips'] as const,
+    /** 恢复中心's pre-cleanup counts; under `outputs` so every cleanup and
+     *  every finished job refreshes them with the list. */
+    recoveryScan: () => [QUERY_NAMESPACE.outputs, 'recovery-scan'] as const,
   },
 
   projects: {

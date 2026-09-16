@@ -11,11 +11,23 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { RecoveryStatus } from '../../../shared/desktop/dto';
+import type { RecoveryScan, RecoveryStatus } from '../../../shared/desktop/dto';
 import { renderPage } from '../../../test/renderPage';
 import { RecoveryPage } from './RecoveryPage';
 
 const CLEAN: RecoveryStatus = { recovery_required: false, affected_files: [] };
+
+/** Something to clean on both cards: the default, so the confirmation tests
+ *  below find their buttons open. */
+const SCAN: RecoveryScan = {
+  staged: { files: 3, bytes: 1_262_000_000, scan_limited: false },
+  missing: { records: 2, scan_limited: false },
+};
+
+const NOTHING_TO_CLEAN: RecoveryScan = {
+  staged: { files: 0, bytes: 0, scan_limited: false },
+  missing: { records: 0, scan_limited: false },
+};
 
 const DAMAGED: RecoveryStatus = {
   recovery_required: true,
@@ -27,6 +39,7 @@ const DAMAGED: RecoveryStatus = {
 function render(overrides: Record<string, unknown> = {}) {
   const client: Record<string, unknown> = {
     recoveryStatus: () => Promise.resolve(CLEAN),
+    scanRecoveryOutputs: () => Promise.resolve(SCAN),
     recoverConfiguration: () => Promise.resolve(CLEAN),
     cleanupStagedOutputs: () =>
       Promise.resolve({ inspected: 4, deleted: 3, failed: 0, scan_limited: false }),
@@ -59,6 +72,44 @@ describe('what the page says before anything is pressed', () => {
     });
     expect(document.body.textContent).toContain('配置文件解析失败');
     expect(document.body.textContent).toContain('D:\\CS2\\config.json');
+  });
+
+  it('prints what each cleanup would remove before offering the button', async () => {
+    render();
+    await waitFor(() => {
+      expect(document.querySelector('[data-recovery-staged="3"]')).not.toBeNull();
+    });
+    const staged = document.querySelector('[data-recovery-staged="3"]');
+    expect(staged?.textContent).toContain('3 个未完成的文件');
+    expect(staged?.textContent).toContain('1.3 GB');
+    expect(document.querySelector('[data-recovery-missing="2"]')?.textContent).toContain('2 条记录找不到文件');
+    expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(false);
+    expect(document.querySelector('[data-recovery-action="missing"]')?.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('says nothing needs cleaning and keeps the buttons closed when the scan is empty', async () => {
+    render({ scanRecoveryOutputs: () => Promise.resolve(NOTHING_TO_CLEAN) });
+    await waitFor(() => {
+      expect(document.querySelector('[data-recovery-staged="0"]')).not.toBeNull();
+    });
+    expect(document.body.textContent).toContain('暂存目录里没有未完成的文件');
+    expect(document.body.textContent).toContain('所有记录都能找到文件');
+    expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(true);
+    expect(document.querySelector('[data-recovery-action="missing"]')?.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('says the scan was partial rather than passing the count off as complete', async () => {
+    render({
+      scanRecoveryOutputs: () =>
+        Promise.resolve({
+          staged: { files: 200, bytes: 10, scan_limited: true },
+          missing: { records: 0, scan_limited: false },
+        } satisfies RecoveryScan),
+    });
+    await waitFor(() => {
+      expect(document.querySelector('[data-recovery-staged="200"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-recovery-staged="200"]')?.textContent).toContain('只扫描了一部分');
   });
 
   it('states what each action will not touch', async () => {
@@ -165,6 +216,28 @@ describe('what a cleanup reports', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain('只扫描了一部分');
     });
+  });
+
+  it('rescans after a cleanup so the count and the button follow the result', async () => {
+    let scans = 0;
+    render({
+      scanRecoveryOutputs: () => {
+        scans += 1;
+        return Promise.resolve(scans === 1 ? SCAN : NOTHING_TO_CLEAN);
+      },
+    });
+    await waitFor(() => {
+      expect(document.querySelector('[data-recovery-staged="3"]')).not.toBeNull();
+    });
+
+    fireEvent.click(document.querySelector('[data-recovery-action="staged"]') as HTMLElement);
+    fireEvent.click(confirm());
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-recovery-staged="0"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(true);
+    expect(document.querySelector('[data-recovery-result]')?.textContent).toContain('已清理 3 个暂存文件');
   });
 
   it('says nothing needed cleaning rather than nothing at all', async () => {

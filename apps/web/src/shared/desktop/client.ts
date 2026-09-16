@@ -48,6 +48,7 @@ import type {
   BeatAlignmentRequest,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
+  RecoveryScan,
   CreateNestedSequenceRequest,
   CreateNestedSequenceResponse,
   CreateMulticamRequest,
@@ -1195,6 +1196,8 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
+  scanRecoveryOutputs: (signal?: AbortSignal) =>
+    request<RecoveryScan>('/outputs/recovery-scan', { signal }),
   getConfig: (signal?: AbortSignal) => request<AppConfig>('/config', { signal }),
   detectPaths: () => request<DetectedPaths>('/config/detect-paths', { method: 'POST', body: {} }),
   getHlaeStatus: (signal?: AbortSignal) => request<HlaeStatus>('/hlae/status', { signal }),

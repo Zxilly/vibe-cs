@@ -26,7 +26,8 @@ import { invalidateTasks } from './tasks';
  * 「文件缺失」 honestly rather than pretending the list is complete.
  *
  * Invalidated by: `renameOutput`, `deleteOutput`, `batchDeleteOutputs`,
- * `cleanupMissingOutputs`, `cleanupStagedOutputs` → `invalidateOutputs`, and by
+ * `cleanupMissingOutputs`, `cleanupStagedOutputs` → `invalidateOutputs` (which
+ * also refreshes `useRecoveryScan`), and by
  * any export or recording job reaching a terminal state — a finished job is
  * what *creates* an output, so `invalidateTasks` at a terminal transition has
  * to be paired with `invalidateOutputs`. That pairing is the one cross-domain
@@ -52,6 +53,26 @@ export function useRecordedClips(tuning: DataQueryTuning = {}) {
   return useQuery({
     queryKey: qk.outputs.recordedClips(),
     queryFn: ({ signal }) => client.listRecordedClips(signal),
+    ...resolveQueryTuning(tuning),
+  });
+}
+
+/**
+ * 恢复中心's read before its two cleanups: how many staged files (and bytes)
+ * 「清理暂存成片」 would delete and how many records 「清理失效记录」 would
+ * drop. The service runs the same scans the cleanups run, so the number the
+ * card prints is the number the button acts on — and a card that finds
+ * nothing can say so and keep its button closed instead of asking the user
+ * to press it to find out.
+ *
+ * Keyed under `qk.outputs`, so it is refreshed by every cleanup and by any
+ * finished job along with the list (see `useOutputList`).
+ */
+export function useRecoveryScan(tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.outputs.recoveryScan(),
+    queryFn: ({ signal }) => client.scanRecoveryOutputs(signal),
     ...resolveQueryTuning(tuning),
   });
 }
@@ -159,7 +180,7 @@ export function useRevealOutput() {
 
 /* ── invalidation ────────────────────────────────────────────────────────── */
 
-/** Output lists and recorded clips. */
+/** Output lists, recorded clips and 恢复中心's scan. */
 export function invalidateOutputs(client: QueryClient): Promise<void> {
   return client.invalidateQueries({ queryKey: qk.outputs.all });
 }

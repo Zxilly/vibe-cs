@@ -36,6 +36,15 @@
  * (`/media/proxies/cleanup`) is deliberately **not** here: a proxy is a
  * regenerable cache, its cleanup breaks nothing, and it belongs with the
  * editor that creates them rather than on a page about damage.
+ *
+ * ── The count comes before the button ─────────────────────────────────────
+ *
+ * `/outputs/recovery-scan` runs the same two scans the cleanups run and
+ * reports what they would remove: files and bytes for the staging directory,
+ * records for the dangling ones. Each card prints that as its state line, so
+ * the user knows whether pressing is worth it, and a card that found nothing
+ * says so and keeps its button closed — "press to find out" is not an answer
+ * on a page about deleting things.
  */
 
 import { t } from '@lingui/core/macro';
@@ -48,18 +57,21 @@ import { Page, Toolbar } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import { useRecoverConfiguration, useRecoveryStatus } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
-import { useCleanupMissingOutputs, useCleanupStagedOutputs } from '../../../data/outputs';
+import { useCleanupMissingOutputs, useCleanupStagedOutputs, useRecoveryScan } from '../../../data/outputs';
+import { formatBytes } from '../../../domain/media/outputModel';
 
 type Pending = 'config' | 'staged' | 'missing';
 
 export function RecoveryPage() {
   const status = useRecoveryStatus();
+  const scan = useRecoveryScan();
   const recoverConfig = useRecoverConfiguration();
   const cleanupStaged = useCleanupStagedOutputs();
   const cleanupMissing = useCleanupMissingOutputs();
   const [confirming, setConfirming] = useState<Pending | null>(null);
 
   const statusError = dataErrorMessage(status.error);
+  const scanError = dataErrorMessage(scan.error);
   const actionError =
     dataErrorMessage(recoverConfig.error) ??
     dataErrorMessage(cleanupStaged.error) ??
@@ -68,6 +80,9 @@ export function RecoveryPage() {
   const busy = recoverConfig.isPending || cleanupStaged.isPending || cleanupMissing.isPending;
   const blocked = busy;
   const blockedReason = t`正在处理`;
+  const stagedFiles = scan.data?.staged.files;
+  const stagedBytes = scan.data === undefined ? null : formatBytes(scan.data.staged.bytes);
+  const missingRecords = scan.data?.missing.records;
 
   return (
     <Page
@@ -81,6 +96,11 @@ export function RecoveryPage() {
         {statusError === null ? null : (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
             <Trans>读不到恢复状态：{statusError}</Trans>
+          </Alert>
+        )}
+        {scanError === null ? null : (
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void scan.refetch() }}>
+            <Trans>没有扫描到清理范围：{scanError}</Trans>
           </Alert>
         )}
         {actionError === null ? null : (
@@ -148,7 +168,7 @@ export function RecoveryPage() {
               disabledReason={
                 status.data?.recovery_required === false
                   ? t`当前配置完整，备份恢复保持关闭`
-                  : (blockedReason ?? '')
+                  : blockedReason
               }
               onClick={() => setConfirming('config')}
             >
@@ -165,22 +185,42 @@ export function RecoveryPage() {
           <RecoveryCard
           title={<Trans>未完成的暂存成品文件</Trans>}
           state={
-            <span className="text-sm text-neutral-800">
-              {/* No route reports the count *before* the cleanup, so the card
-                  does not print one. Guessing it from the outputs list would
-                  mean guessing which of them are staged. */}
-              <Trans>录制或导出中断时会留下暂存文件，它们不会自己消失。</Trans>
-            </span>
+            scan.isPending ? (
+              <Skeleton width="12rem" />
+            ) : scan.data === undefined ? (
+              <span className="text-xs text-neutral-600">
+                <Trans>读不到状态</Trans>
+              </span>
+            ) : stagedFiles === 0 ? (
+              <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-staged="0">
+                <StatusDot status="ok" />
+                <Trans>暂存目录里没有未完成的文件</Trans>
+              </span>
+            ) : (
+              <span
+                className="flex items-center gap-2 text-sm text-neutral-800"
+                data-recovery-staged={String(scan.data.staged.files)}
+              >
+                <StatusDot status="warn" />
+                <Plural value={scan.data.staged.files} other="# 个未完成的文件" />
+                {stagedBytes === null ? null : <span className="text-neutral-600">· {stagedBytes}</span>}
+                {scan.data.staged.scan_limited ? (
+                  <span className="text-neutral-600">
+                    <Trans>· 只扫描了一部分</Trans>
+                  </span>
+                ) : null}
+              </span>
+            )
           }
-          effect={<Trans>将删除暂存目录里未完成的成片文件。</Trans>}
+          effect={<Trans>录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。</Trans>}
           untouched={<Trans>不会删除已完成的录制结果、成片或资料库记录。</Trans>}
           action={
             <Button
               variant="secondary"
               size="md"
               data-recovery-action="staged"
-              disabled={blocked}
-              disabledReason={blockedReason ?? ''}
+              disabled={blocked || stagedFiles === 0}
+              disabledReason={stagedFiles === 0 ? t`没有需要清理的暂存文件` : blockedReason}
               onClick={() => setConfirming('staged')}
             >
               <Trans>清理暂存成片</Trans>
@@ -210,11 +250,33 @@ export function RecoveryPage() {
           <RecoveryCard
           title={<Trans>指向不存在文件的记录</Trans>}
           state={
-            <span className="text-sm text-neutral-800">
-              <Trans>文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。</Trans>
-            </span>
+            scan.isPending ? (
+              <Skeleton width="12rem" />
+            ) : scan.data === undefined ? (
+              <span className="text-xs text-neutral-600">
+                <Trans>读不到状态</Trans>
+              </span>
+            ) : missingRecords === 0 ? (
+              <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-missing="0">
+                <StatusDot status="ok" />
+                <Trans>所有记录都能找到文件</Trans>
+              </span>
+            ) : (
+              <span
+                className="flex items-center gap-2 text-sm text-neutral-800"
+                data-recovery-missing={String(scan.data.missing.records)}
+              >
+                <StatusDot status="warn" />
+                <Plural value={scan.data.missing.records} other="# 条记录找不到文件" />
+                {scan.data.missing.scan_limited ? (
+                  <span className="text-neutral-600">
+                    <Trans>· 只扫描了一部分</Trans>
+                  </span>
+                ) : null}
+              </span>
+            )
           }
-          effect={<Trans>将删除这些失效记录。</Trans>}
+          effect={<Trans>文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。</Trans>}
           untouched={
             /* The distinction that matters: this removes *records*, and the
                files it removes records for are already gone. It cannot delete
@@ -226,8 +288,8 @@ export function RecoveryPage() {
               variant="secondary"
               size="md"
               data-recovery-action="missing"
-              disabled={blocked}
-              disabledReason={blockedReason ?? ''}
+              disabled={blocked || missingRecords === 0}
+              disabledReason={missingRecords === 0 ? t`没有失效记录` : blockedReason}
               onClick={() => setConfirming('missing')}
             >
               <Trans>清理失效记录</Trans>

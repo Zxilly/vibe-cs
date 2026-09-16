@@ -420,6 +420,7 @@ export type { BatchDeleteItemResult } from './generated/BatchDeleteItemResult';
 export type { BatchDeleteResponse as BatchDeleteOutputResult } from './generated/BatchDeleteResponse';
 export type { CleanupMissingResponse as CleanupMissingOutputsResult } from './generated/CleanupMissingResponse';
 export type { CleanupStagedResponse as CleanupStagedOutputsResult } from './generated/CleanupStagedResponse';
+export type { RecoveryScanResponse as RecoveryScan } from './generated/RecoveryScanResponse';
 
 export type { Transform } from './generated/Transform';
 export type { TextStyle } from './generated/TextStyle';

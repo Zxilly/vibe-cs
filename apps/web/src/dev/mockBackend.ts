@@ -64,6 +64,9 @@ import type {
   QuickCheckResponse,
   RecordedClipRecord,
   RecordingJob,
+  CleanupMissingOutputsResult,
+  CleanupStagedOutputsResult,
+  RecoveryScan,
   RecoveryStatus,
   ReplayCacheStatus,
   ReviewTag,
@@ -639,6 +642,9 @@ const OUTPUTS: OutputPage = {
   page_size: 20,
   scan_limited: false,
 };
+
+/** What a failed export left in the quarantine directory. */
+const STAGED = { files: 3, bytes: 1_262_000_000 };
 
 /* ── players ──────────────────────────────────────────────────────────────── */
 
@@ -1254,6 +1260,29 @@ const ROUTES: Array<[string, string, Handler]> = [
       file_action: fileDeleted ? 'managed_file_deleted' : deleteFile ? 'external_file_preserved' : 'record_only',
       warning: null,
     } satisfies DeleteOutputResult;
+  }],
+  /* 恢复中心 reads the counts before offering either cleanup, and the two
+     cleanups answer with what they removed so the page's report and the next
+     scan agree: the staged files are gone, the missing records are gone. */
+  ['GET', '/outputs/recovery-scan', () => ({
+    staged: { files: STAGED.files, bytes: STAGED.bytes, scan_limited: false },
+    missing: {
+      records: OUTPUTS.items.filter((item) => item.availability === 'missing').length,
+      scan_limited: false,
+    },
+  } satisfies RecoveryScan)],
+  ['POST', '/outputs/cleanup-staged', () => {
+    const deleted = STAGED.files;
+    STAGED.files = 0;
+    STAGED.bytes = 0;
+    return { inspected: deleted, deleted, failed: 0, scan_limited: false } satisfies CleanupStagedOutputsResult;
+  }],
+  ['POST', '/outputs/cleanup-missing', () => {
+    const inspected = OUTPUTS.items.length;
+    const kept = OUTPUTS.items.filter((item) => item.availability !== 'missing');
+    const deleted = inspected - kept.length;
+    OUTPUTS.items.splice(0, OUTPUTS.items.length, ...kept);
+    return { inspected, deleted, scan_limited: false } satisfies CleanupMissingOutputsResult;
   }],
   ['GET', '/outputs', ({ query }) => {
     const items = OUTPUTS.items.filter((item) =>

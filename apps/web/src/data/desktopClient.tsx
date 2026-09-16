@@ -97,6 +97,7 @@ export type DesktopClient = Pick<
   | 'deleteOutput'
   | 'cleanupMissingOutputs'
   | 'cleanupStagedOutputs'
+  | 'scanRecoveryOutputs'
   /* 恢复中心 (phase 3g). `recoveryStatus` was already read by
      `useRecoveryStatus`; the restore that acts on it was not reachable. */
   | 'recoverConfiguration'

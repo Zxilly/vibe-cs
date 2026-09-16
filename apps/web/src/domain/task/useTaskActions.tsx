@@ -3,8 +3,11 @@
  * card takes: a summary, a cancel handler, a recovery action, and the links
  * back to whatever produced it.
  *
- * `ActivityItem.available_actions` is authoritative for cancel and retry. The
- * UI does not reconstruct a second lifecycle from the returned status.
+ * `ActivityItem.available_actions` is authoritative for cancel, retry and the
+ * `open_*` destinations. The UI does not reconstruct a second lifecycle from
+ * the returned status, and it does not invent a destination the record did
+ * not offer: a finished export links to 成品文件 because the service said
+ * `open_outputs`, not because exports usually have one.
  *
  * ── Every failure gets a real recovery action ─────────────────────────────
  *
@@ -24,10 +27,12 @@
  */
 
 import { Trans } from '@lingui/react/macro';
+import type { ReactNode } from 'react';
 import { useHref, useNavigate } from 'react-router-dom';
 
 import { useCancelTask, useRetryTask } from '../../data/tasks';
 import type { TaskLink, TaskSummary } from '.';
+import type { ActivityAction } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskStatusOfActivity, toTaskSummary } from './taskModel';
 
@@ -41,6 +46,8 @@ export interface TaskCardBindings {
   readonly links: readonly TaskLink[];
   /** 「取消」, present only when the returned record offers it. */
   readonly onCancel: (() => void) | undefined;
+  /** The cancel request for *this* record is still in flight. */
+  readonly cancelPending: boolean;
   /** Present only when the returned record offers a supported retry action. */
   readonly restart:
     | {
@@ -108,6 +115,7 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
         cancellable && jobId !== null
           ? () => cancel.mutate({ kind: item.kind, jobId })
           : undefined,
+      cancelPending: cancel.isPending && cancel.variables.jobId === jobId,
       restart:
         restartable
           ? {
@@ -164,7 +172,30 @@ function projectPathOf(item: ActivityItem): string | null {
   return `/projects/${id}`;
 }
 
-/** 「查看阶段」 and, for an export, 「打开工程」 beside it. */
+/**
+ * The `open_*` members of `available_actions`, as destinations. `open_analysis`
+ * needs the demo behind the run, which is `context_id`
+ * (`crates/application/src/routes/activity.rs`); a record without one has
+ * nowhere to go and gets no link.
+ */
+function destinationLink(action: ActivityAction, item: ActivityItem): { id: string; label: ReactNode; path: string } | null {
+  switch (action) {
+    case 'open_outputs':
+      return { id: 'outputs', label: <Trans>查看成品</Trans>, path: '/delivery?view=outputs' };
+    case 'open_library':
+      return { id: 'library', label: <Trans>打开资料库</Trans>, path: '/library' };
+    case 'open_match_history':
+      return { id: 'match-history', label: <Trans>打开比赛历史</Trans>, path: '/library?view=steam' };
+    case 'open_analysis':
+      return item.context_id === null
+        ? null
+        : { id: 'analysis', label: <Trans>打开分析</Trans>, path: `/match/${encodeURIComponent(item.context_id)}` };
+    default:
+      return null;
+  }
+}
+
+/** 「查看阶段」, then 「打开作品」 beside a failed export, then the record's `open_*` destinations. */
 function linksFor(
   item: ActivityItem,
   failedWithRetry: boolean,
@@ -177,6 +208,12 @@ function linksFor(
   const project = projectPathOf(item);
   if (project !== null && failedWithRetry) {
     links.push({ id: 'project', label: <Trans>打开作品</Trans>, href: routeHref(project) });
+  }
+  for (const action of item.available_actions) {
+    const destination = destinationLink(action, item);
+    if (destination !== null) {
+      links.push({ id: destination.id, label: destination.label, href: routeHref(destination.path) });
+    }
   }
   return links;
 }

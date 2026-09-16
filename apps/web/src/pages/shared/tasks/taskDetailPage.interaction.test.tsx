@@ -186,6 +186,7 @@ describe('重试 / 取消', () => {
     render('recording:job-1', client);
 
     fireEvent.click(await screen.findByRole('button', { name: '取消' }));
+    fireEvent.click(await screen.findByRole('button', { name: '停止录制' }));
     await waitFor(() => {
       expect(cancelled).toEqual(['job-1']);
     });

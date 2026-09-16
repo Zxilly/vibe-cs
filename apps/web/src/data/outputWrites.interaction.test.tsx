@@ -7,6 +7,7 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { DeleteOutputResult, OutputItem, OutputPage } from '../shared/desktop/dto';
+import type { ActivityFeed } from '../shared/desktop/viewModels';
 import {
   useCleanupMissingOutputs,
   useDeleteOutput,
@@ -15,6 +16,7 @@ import {
   useRevealOutput,
 } from './outputs';
 import type { DesktopClientStub } from './desktopClient';
+import { useTaskFeed } from './tasks';
 import { countingStub, renderDataHook } from './test/renderDataHook';
 
 const OUTPUT: OutputItem = {
@@ -48,6 +50,11 @@ const DELETED: DeleteOutputResult = {
   file_deleted: false,
   file_action: 'external_file_preserved',
   warning: null,
+};
+
+const EMPTY_FEED: ActivityFeed = {
+  items: [], total: 0, page: 1, page_size: 50,
+  summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
 };
 
 describe('useDeleteOutput', () => {
@@ -99,6 +106,30 @@ describe('useDeleteOutput', () => {
 
     await waitFor(() => {
       expect(clips.calls()).toBeGreaterThan(before);
+    });
+  });
+
+  it('re-runs the task feed — an export record is its export job, and the shell drawer lists it', async () => {
+    const feed = countingStub(EMPTY_FEED);
+    const remove = countingStub({ ...DELETED, output_kind: 'export' as const });
+    const client: DesktopClientStub = { listActivities: feed.call, deleteOutput: remove.call };
+
+    const { result } = renderDataHook(
+      () => ({ feed: useTaskFeed({ page: 1, page_size: 50 }), remove: useDeleteOutput() }),
+      { client },
+    );
+
+    await waitFor(() => {
+      expect(result.current.feed.isSuccess).toBe(true);
+    });
+    const before = feed.calls();
+
+    await act(async () => {
+      await result.current.remove.mutateAsync({ kind: 'export', id: 'out-1' });
+    });
+
+    await waitFor(() => {
+      expect(feed.calls()).toBeGreaterThan(before);
     });
   });
 });

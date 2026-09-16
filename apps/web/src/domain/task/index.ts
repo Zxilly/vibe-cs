@@ -15,6 +15,7 @@ export {
   type StageTimelineProps,
   type TaskStageEntry,
 } from './StageTimeline';
+export { TaskCancelButton, type TaskCancelButtonProps } from './TaskCancelButton';
 export { TaskCard, TaskCardSkeleton, type TaskCardProps } from './TaskCard';
 export { TaskDetail, type TaskDetailProps, type TaskLogState } from './TaskDetail';
 export { TaskDuration, type TaskDurationProps } from './TaskDuration';
@@ -30,6 +31,7 @@ export {
   type TaskDurationValue,
 } from './duration';
 export { formatTaskClock, formatTaskTime, type TaskClockOptions } from './taskClock';
+export { formatTaskProgress } from './taskProgress';
 export {
   ANALYSIS_STAGE_IDS,
   TASK_STAGE_IDS,

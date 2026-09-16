@@ -244,6 +244,7 @@ describe('成品 › 后台任务', () => {
     const cancel = await screen.findByRole('button', { name: '取消' });
     const before = feedCalls();
     fireEvent.click(cancel);
+    fireEvent.click(await screen.findByRole('button', { name: '停止录制' }));
 
     await waitFor(() => {
       expect(cancelled).toEqual(['job-1']);

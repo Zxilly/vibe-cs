@@ -19,6 +19,7 @@ import type { DeleteOutputResult, OutputKind, OutputQuery } from '../shared/desk
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
+import { invalidateTasks } from './tasks';
 
 /**
  * One page of outputs, plus the `scan_limited` flag the page needs to say
@@ -74,9 +75,10 @@ export interface DeleteOutputInput {
  *
  * Invalidates `qk.outputs.all` — the list and the recorded-clip list both, since
  * a recording output and a recorded clip are two views of one file (see
- * `useRecordedClips`). The task feed is **not** invalidated: deleting an output
- * does not change any task record, and the source-task link on the card points
- * at a record that still exists.
+ * `useRecordedClips`) — and `qk.tasks.all`: an export output *is* its export
+ * job's row (`crates/application/src/routes/outputs.rs` deletes the job with
+ * the record), so the shell's task drawer would otherwise keep listing a task
+ * the task center can no longer find.
  *
  * The result is returned rather than swallowed: `DeleteOutputResult.file_action`
  * distinguishes 「外部文件已保留」 from 「受管文件已进入暂存」, which is the
@@ -90,7 +92,7 @@ export function useDeleteOutput() {
   return useMutation({
     mutationFn: ({ kind, id, deleteFile }: DeleteOutputInput): Promise<DeleteOutputResult> =>
       client.deleteOutput(kind, id, deleteFile ?? false),
-    onSuccess: () => invalidateOutputs(queryClient),
+    onSuccess: () => invalidateOutputsAndTasks(queryClient),
   });
 }
 
@@ -98,9 +100,10 @@ export function useDeleteOutput() {
  * 「清理无效记录」 — the topbar action of 「11 输出与任务记录」.
  *
  * Drops the records whose file is gone. Invalidates `qk.outputs.all`, which is
- * the whole point of the button; `CleanupMissingOutputsResult.scan_limited`
- * comes back so the page can say the sweep was partial instead of implying the
- * list is now clean.
+ * the whole point of the button, and `qk.tasks.all` for the same reason
+ * `useDeleteOutput` does; `CleanupMissingOutputsResult.scan_limited` comes
+ * back so the page can say the sweep was partial instead of implying the list
+ * is now clean.
  */
 export function useCleanupMissingOutputs() {
   const client = useDesktopClient();
@@ -108,7 +111,7 @@ export function useCleanupMissingOutputs() {
 
   return useMutation({
     mutationFn: (kind?: OutputKind) => client.cleanupMissingOutputs(kind),
-    onSuccess: () => invalidateOutputs(queryClient),
+    onSuccess: () => invalidateOutputsAndTasks(queryClient),
   });
 }
 
@@ -159,4 +162,10 @@ export function useRevealOutput() {
 /** Output lists and recorded clips. */
 export function invalidateOutputs(client: QueryClient): Promise<void> {
   return client.invalidateQueries({ queryKey: qk.outputs.all });
+}
+
+/** A removed export record takes its task row with it. */
+async function invalidateOutputsAndTasks(client: QueryClient): Promise<void> {
+  await invalidateOutputs(client);
+  await invalidateTasks(client);
 }

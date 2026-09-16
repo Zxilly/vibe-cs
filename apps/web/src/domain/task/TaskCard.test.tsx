@@ -146,6 +146,45 @@ describe('TaskCard · the progress rule', () => {
     expect(markup).toContain('2/6');
     expect(markup).toContain('片段');
   });
+
+  it('reads bytes out in the units the delivery page prints, never as a raw count', () => {
+    const download: TaskSummary = {
+      ...RUNNING,
+      kind: 'download',
+      progress: { completed: 63_963_136, total: 187_301_888, unit: 'bytes' },
+    };
+    const markup = renderMarkup(<TaskCard task={download} {...UTC} />);
+
+    expect(markup).toContain('64 MB / 187 MB');
+    expect(markup).toContain('aria-valuetext="64 MB / 187 MB"');
+    // The raw count survives only where a screen reader computes from it.
+    expect(markup).not.toContain('63963136/187301888');
+    expect(markup).toContain('aria-valuenow="63963136"');
+  });
+
+  it('drops the bar once the task has succeeded — 100% under 已完成 says nothing', () => {
+    const exported: TaskSummary = {
+      ...DONE,
+      kind: 'export',
+      progress: { completed: 100, total: 100, unit: 'percent' },
+    };
+    const markup = renderMarkup(<TaskCard task={exported} {...UTC} />);
+
+    expect(markup).not.toContain('role="progressbar"');
+    expect(markup).not.toContain('100%');
+  });
+
+  it('keeps the bar on a failed task — how far it got is part of the record', () => {
+    const failedDownload: TaskSummary = {
+      ...FAILED,
+      kind: 'download',
+      progress: { completed: 63_963_136, total: 187_301_888, unit: 'bytes' },
+    };
+    const markup = renderMarkup(<TaskCard task={failedDownload} {...UTC} />);
+
+    expect(markup).toContain('role="progressbar"');
+    expect(markup).toContain('64 MB / 187 MB');
+  });
 });
 
 describe('TaskCard · failure', () => {

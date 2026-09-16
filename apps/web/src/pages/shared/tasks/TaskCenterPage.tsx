@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { useTaskFeed } from '../../../data/tasks';
+import { Drawer } from '../../../design/feedback';
 import { Page, useCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
 import { TaskActivityList } from '../../../domain/task/TaskActivityList';
@@ -11,10 +12,16 @@ import { TaskDetailBody } from '../../../domain/task/TaskDetailBody';
 import { TASK_POLL_FEED_MS } from '../../../domain/task/taskPolling';
 import { useTaskActions } from '../../../domain/task/useTaskActions';
 import type { ActivityStateFilter } from '../../../shared/desktop/dto';
-import { RouteLink } from '../navigation/RouteLink';
 
 type TaskFilter = 'all' | ActivityStateFilter;
 
+/**
+ * Two layouts, one detail body. Wide: the list beside a resident inspector,
+ * which falls back to the first failed task so the panel is never blank.
+ * Narrow (the ≤1100px fold): there is no room beside the list, so 查看详情
+ * opens the same body in a right-hand overlay — the fold the workspace uses for
+ * its Agent panel — and nothing opens until the reader asks.
+ */
 export function TaskCenterPage() {
   const [state, setState] = useState<TaskFilter>('all');
   const [page, setPage] = useState(1);
@@ -25,7 +32,9 @@ export function TaskCenterPage() {
   });
   const bind = useTaskActions();
   const items = feed.data?.items ?? [];
-  const selected = items.find((item) => item.id === selectedId) ?? items.find((item) => item.status === 'failed') ?? null;
+  const chosen = items.find((item) => item.id === selectedId) ?? null;
+  const selected = chosen ?? (collapsed ? null : items.find((item) => item.status === 'failed') ?? null);
+  const showAll = () => { setState('all'); setPage(1); setSelectedId(null); };
 
   return (
     <Page scroll={false} bar={
@@ -64,10 +73,19 @@ export function TaskCenterPage() {
             onReload={() => void feed.refetch()}
             bind={bind}
             onSelect={setSelectedId}
+            {...(state === 'all' ? {} : { filter: { state, onClear: showAll } })}
           />
-          {collapsed && selected !== null ? <RouteLink className="mt-3" to={`/tasks/${encodeURIComponent(selected.id)}`}><Trans>打开任务详情</Trans></RouteLink> : null}
         </main>
-        {collapsed || selected === null ? null : (
+        {collapsed ? (
+          <Drawer
+            open={chosen !== null}
+            title={<Trans>任务详情</Trans>}
+            onClose={() => setSelectedId(null)}
+            width="wide"
+          >
+            {chosen === null ? null : <TaskDetailBody item={chosen} compact />}
+          </Drawer>
+        ) : selected === null ? null : (
           <aside className="w-[var(--w-inspector)] flex-none overflow-y-auto rounded-lg border border-divider bg-bg" aria-label={t`任务详情`}>
             <TaskDetailBody item={selected} compact />
           </aside>

@@ -45,6 +45,7 @@ import { Alert } from '../../design/feedback';
 import { Button, Link, Badge, cn } from '../../design/primitives';
 
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
+import { TaskCancelButton } from './TaskCancelButton';
 import { TaskDuration } from './TaskDuration';
 import { taskDurationFor } from './duration';
 import { formatTaskTime } from './taskClock';
@@ -78,6 +79,8 @@ export interface TaskDetailProps {
   readonly technicalDetailsExpanded?: boolean | undefined;
   readonly onRetry?: (() => void) | undefined;
   readonly onCancel?: (() => void) | undefined;
+  /** The cancel request is in flight; 取消 waits instead of firing twice. */
+  readonly cancelPending?: boolean | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
   readonly compact?: boolean | undefined;
@@ -96,6 +99,7 @@ export function TaskDetail({
   technicalDetailsExpanded = false,
   onRetry,
   onCancel,
+  cancelPending = false,
   timeZone,
   className,
   compact = false,
@@ -114,7 +118,14 @@ export function TaskDetail({
           holds a 19px title and a 32px button, so it takes the panel-head token
           and lets the padding carry the difference. */}
       <header className="flex flex-none flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
-        <h2 className="min-w-0 truncate text-xl leading-tight">
+        {/* The compact panel is 380px wide and a recording's subject carries
+            its clip count at the end (「录制 · Mirage 残局集锦 · 6 镜头」), so
+            it wraps to a second line rather than losing its tail; the wide
+            page has the room and clips with the subject as its tooltip. */}
+        <h2
+          className={cn('min-w-0 text-xl leading-tight', compact ? 'line-clamp-2 break-words' : 'truncate')}
+          {...(compact || title !== undefined ? {} : { title: task.subject })}
+        >
           {title ?? (
             <>
               {kindLabel}
@@ -143,9 +154,7 @@ export function TaskDetail({
             </Link>
           ))}
           {onCancel !== undefined ? (
-            <Button variant="secondary" size="sm" onClick={onCancel}>
-              <Trans>取消</Trans>
-            </Button>
+            <TaskCancelButton task={task} onConfirm={onCancel} pending={cancelPending} variant="secondary" />
           ) : null}
           {onRetry !== undefined ? (
             <Button variant="primary" size="sm" onClick={onRetry}>
@@ -216,10 +225,15 @@ export function TaskDetail({
           {technicalDetails === undefined || technicalDetails.length === 0 ? null : (
             <details
               open={technicalDetailsExpanded || undefined}
-              className="mt-auto border border-divider bg-neutral-100"
+              className="group mt-auto border border-divider bg-neutral-100"
             >
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
-                <ChevronRight size={14} strokeWidth={1.5} aria-hidden className="flex-none" />
+                <ChevronRight
+                  size={14}
+                  strokeWidth={1.5}
+                  aria-hidden
+                  className="flex-none transition-transform group-open:rotate-90"
+                />
                 <Trans>技术细节</Trans>
                 <span className="text-xs text-neutral-600">
                   <Trans>进程、tick、编码参数</Trans>

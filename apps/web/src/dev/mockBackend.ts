@@ -274,7 +274,7 @@ const ACTIVITIES: ActivityFeed = {
       subtype: 'montage',
       job_id: EXPORT_JOB,
       context_id: 'proj-highlights',
-      subject: '八月集锦 v3',
+      subject: '八月集锦 · r3',
       status: 'completed',
       stage: null,
       progress_percent: 100,
@@ -313,6 +313,24 @@ const ACTIVITIES: ActivityFeed = {
   page: 1,
   page_size: 20,
   summary: { total: 4, active: 2, failed: 1, completed: 1, cancelled: 0 },
+};
+
+const EXPORT_JOB_DETAIL: ExportJobRecord = {
+  kind: 'montage',
+  job: {
+    id: EXPORT_JOB,
+    project_id: 'proj-highlights',
+    project_revision: 3,
+    range_start_seconds: 0,
+    range_end_seconds: 184,
+    status: 'completed',
+    progress: 1,
+    output_path: `${DATA_DIR}\\outputs\\august-highlights-v3.mp4`,
+    error: null,
+    error_code: null,
+    created_at: '2026-08-14T22:02:00Z',
+    updated_at: '2026-08-14T22:19:00Z',
+  },
 };
 
 const RECORDING_JOB_DETAIL: RecordingJob = {
@@ -1139,6 +1157,7 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['GET', '/media/assets', () => ({ items: MEDIA_ASSETS })],
   ['GET', '/recorded-clips', () => paged(RECORDED_CLIPS)],
   ['GET', '/exports', () => ({ items: [] as ExportJobRecord[] })],
+  ['GET', '/exports/:id', () => EXPORT_JOB_DETAIL],
 
   /* caches */
   ['GET', '/avatar-cache', () => ({

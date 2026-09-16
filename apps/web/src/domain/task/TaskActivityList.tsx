@@ -3,6 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button } from '../../design/primitives';
+import type { ActivityStateFilter } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { TaskCard } from './TaskCard';
 import { TaskCardSkeleton } from './TaskCard';
@@ -15,6 +16,16 @@ const GROUPS = [
   { id: 'cancelled', label: <Trans>已取消</Trans>, includes: (item: ActivityItem) => item.status === 'cancelled' },
 ] as const;
 
+/** 「没有进行中的任务」 — the empty state names the filter that emptied it. */
+function filteredEmptyTitle(filter: ActivityStateFilter) {
+  switch (filter) {
+    case 'active': return <Trans>没有进行中的任务</Trans>;
+    case 'failed': return <Trans>没有失败的任务</Trans>;
+    case 'completed': return <Trans>没有已完成的任务</Trans>;
+    case 'cancelled': return <Trans>没有已取消的任务</Trans>;
+  }
+}
+
 interface TaskActivityListProps {
   readonly items: readonly ActivityItem[];
   readonly total: number;
@@ -25,9 +36,14 @@ interface TaskActivityListProps {
   readonly onReload: () => void;
   readonly bind: ReturnType<typeof useTaskActions>;
   readonly onSelect: (id: string) => void;
+  /**
+   * The state filter the list was fetched under, with the way back to 全部.
+   * Absent on a surface that always shows everything (the shell drawer).
+   */
+  readonly filter?: { readonly state: ActivityStateFilter; readonly onClear: () => void } | undefined;
 }
 
-export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect }: TaskActivityListProps) {
+export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter }: TaskActivityListProps) {
   if (error !== null) {
     return <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>{error}</Alert>;
   }
@@ -35,7 +51,25 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
     return <div className="flex flex-col gap-5">{[0, 1, 2, 3].map((index) => <TaskCardSkeleton key={index} />)}</div>;
   }
   if (items.length === 0) {
-    return <Empty title={<Trans>还没有后台任务</Trans>} actions={null} />;
+    return filter === undefined ? (
+      <Empty
+        title={<Trans>还没有后台任务</Trans>}
+        description={<Trans>录制、导出、下载和分析开始后会出现在这里。</Trans>}
+        /* Nothing to recover from: a task is started from its own workspace,
+           not from the list that will later show it. */
+        actions={null}
+      />
+    ) : (
+      <Empty
+        title={filteredEmptyTitle(filter.state)}
+        description={<Trans>当前只显示这一状态的后台任务。</Trans>}
+        actions={
+          <Button variant="secondary" size="sm" onClick={filter.onClear}>
+            <Trans>查看全部</Trans>
+          </Button>
+        }
+      />
+    );
   }
 
   return (
@@ -57,7 +91,7 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
                     key={item.id}
                     data-activity-focused={focused ? 'true' : undefined}
                     className={focused
-                      ? 'border-b border-divider bg-accent-100 p-3 shadow-[inset_2px_0_0_var(--color-fail)] last:border-b-0'
+                      ? 'border-b border-divider bg-accent-100 p-3 shadow-[inset_2px_0_0_var(--color-accent)] last:border-b-0'
                       : 'border-b border-divider p-3 last:border-b-0'}
                   >
                     <TaskCard
@@ -66,12 +100,9 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
                       showId={false}
                       links={bound.links.filter((link) => link.id !== 'detail')}
                       {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })}
+                      cancelPending={bound.cancelPending}
+                      onOpenDetail={() => onSelect(item.id)}
                     />
-                    <div className="mt-2 flex justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => onSelect(item.id)}>
-                        <Trans>查看详情</Trans>
-                      </Button>
-                    </div>
                   </li>
                 );
               })}

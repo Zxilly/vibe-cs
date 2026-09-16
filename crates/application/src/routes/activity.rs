@@ -292,7 +292,10 @@ fn parse_activity_kind(value: &str) -> ApiResult<StoredActivityKind> {
 fn activity_item(source: ActivitySource, retry_account: Option<&str>) -> ActivityItem {
     match source {
         ActivitySource::Recording { job, retryable } => recording_activity(&job, retryable),
-        ActivitySource::Export(record) => export_activity(record),
+        ActivitySource::Export {
+            record,
+            project_name,
+        } => export_activity(record, project_name),
         ActivitySource::Download {
             job,
             retryable,
@@ -413,7 +416,10 @@ fn recording_stage_ordinal(stage: &str) -> Option<u64> {
     }
 }
 
-fn export_activity(record: ExportJobRecord) -> ActivityItem {
+/// An export is titled by the work it belongs to — 「作品名 · r12」 — never by
+/// its output path: the path is a detail the export job record still carries,
+/// and every export of one Project would otherwise share one truncated title.
+fn export_activity(record: ExportJobRecord, project_name: String) -> ActivityItem {
     let kind = record.kind;
     let job = record.job;
     let mut available_actions = Vec::with_capacity(2);
@@ -429,7 +435,7 @@ fn export_activity(record: ExportJobRecord) -> ActivityItem {
         subtype: Some(kind),
         job_id: Some(job.id.to_string()),
         context_id: Some(job.project_id.to_string()),
-        subject: (!job.output_path.trim().is_empty()).then(|| job.output_path.clone()),
+        subject: Some(format!("{project_name} · r{}", job.project_revision)),
         status: job_status(job.status),
         stage: None,
         progress_percent: trustworthy_percent(job.progress),
@@ -671,6 +677,7 @@ mod tests {
         .0;
         assert_eq!(exact.id, format!("export:{job_id}"));
         assert_eq!(exact.job_id.as_deref(), Some(job_id.to_string().as_str()));
+        assert_eq!(exact.subject.as_deref(), Some("Export owner · r1"));
 
         let missing = get_activity(
             State(state),

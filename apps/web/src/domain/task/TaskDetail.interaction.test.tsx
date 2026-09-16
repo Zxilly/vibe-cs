@@ -31,13 +31,15 @@ const CANCELLED: TaskSummary = { ...RUNNING, status: 'cancelled' };
 const STAGES = recordingTaskStages([{ state: 'done' }, { state: 'active' }]);
 
 describe('TaskDetail interaction · actions', () => {
-  it('offers 取消 while the task can still be stopped', () => {
+  it('offers 取消 while the task can still be stopped, behind the same confirmation as the card', () => {
     const onCancel = vi.fn();
     const { getByRole } = renderInteractive(
       <TaskDetail task={RUNNING} stages={STAGES} onCancel={onCancel} timeZone="UTC" />,
     );
 
     fireEvent.click(getByRole('button', { name: '取消' }));
+    expect(onCancel).not.toHaveBeenCalled();
+    fireEvent.click(getByRole('button', { name: '停止录制' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

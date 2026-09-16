@@ -15,14 +15,27 @@
  * 「有真实分母时才用进度条，否则只给阶段名」 (「补齐 · 规范与状态」). `progress` is
  * therefore optional and its absence is a real branch, not a degraded one:
  *
- *   progress present   ProgressBar plus its readout (「62%」「2/6」)
+ *   progress present   ProgressBar plus its readout (「62%」「2/6」「64 MB / 187 MB」)
  *   stages present     StageBar — the stage names, no number
  *   neither            nothing. A card with no denominator and no drawn stage
  *                      sequence (an export, a download) says the stage in its
  *                      status line and draws no graphic at all.
  *
+ * A task that succeeded draws no bar either: the service keeps reporting the
+ * final 100 (an export's ffmpeg progress, a download's byte count), but a full
+ * bar under 「已完成」 says nothing the status word has not, and the cards of
+ * one 已完成 group would otherwise differ in height by kind. A failed or
+ * cancelled task keeps its bar — how far it got is part of the record.
+ *
  * Nothing here computes a percentage from a stage index. That would be the
  * front end simulating progress, which §4.3 forbids in as many words.
+ *
+ * ── Actions ────────────────────────────────────────────────────────────────
+ *
+ * One action row, right-aligned on one baseline: navigation links first,
+ * then 取消 (through `TaskCancelButton`, which confirms before it fires) and
+ * the caller's 查看详情. The failed card's 重试 stays inside its Notice — that
+ * is where 「每条都带一个主要恢复动作」 puts it.
  *
  * ── Failure ────────────────────────────────────────────────────────────────
  *
@@ -45,9 +58,11 @@ import { Alert, ProgressBar, StageBar, StatusDot, type Stage } from '../../desig
 import { Button, Link, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 
+import { TaskCancelButton } from './TaskCancelButton';
 import { TaskDuration } from './TaskDuration';
 import { taskDurationFor } from './duration';
 import { formatTaskClock } from './taskClock';
+import { formatTaskProgress } from './taskProgress';
 import {
   TASK_STATUS_DOT,
   taskFailureLabels,
@@ -55,20 +70,9 @@ import {
   taskProgressUnitLabels,
   taskStatusLabels,
 } from './taskVocabulary';
-import type { TaskLink, TaskProgress, TaskProgressUnit, TaskSummary } from './types';
+import type { TaskLink, TaskProgress, TaskSummary } from './types';
 
 const HEADING_TAG = { 3: 'h3', 4: 'h4' } as const;
-
-/**
- * The readout beside the bar. 「62%」 for a percentage, 「2/6」 for anything
- * counted — both drawn on 「01 工作台首页」, in the mono face, right aligned.
- */
-const PROGRESS_READOUT: Readonly<Record<TaskProgressUnit, (progress: TaskProgress) => string>> = {
-  percent: (progress) => `${String(progress.completed)}%`,
-  stages: (progress) => `${String(progress.completed)}/${String(progress.total)}`,
-  clips: (progress) => `${String(progress.completed)}/${String(progress.total)}`,
-  bytes: (progress) => `${String(progress.completed)}/${String(progress.total)}`,
-};
 
 export interface TaskCardProps {
   readonly task: TaskSummary;
@@ -82,6 +86,10 @@ export interface TaskCardProps {
   readonly links?: readonly TaskLink[] | undefined;
   /** 「取消」/「停止」. Rendered only while the task can still be stopped. */
   readonly onCancel?: (() => void) | undefined;
+  /** The cancel request is in flight; 取消 waits instead of firing twice. */
+  readonly cancelPending?: boolean | undefined;
+  /** 「查看详情」 — selects this task in the surface that lists it. */
+  readonly onOpenDetail?: (() => void) | undefined;
   /** Lets a stamp from today drop its date. See `taskClock.ts`. */
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
@@ -98,6 +106,8 @@ export function TaskCard({
   stages,
   links,
   onCancel,
+  cancelPending = false,
+  onOpenDetail,
   now,
   timeZone,
   headingLevel = 3,
@@ -149,7 +159,7 @@ export function TaskCard({
           <Separated items={facts} />
         </p>
 
-        {task.progress === undefined
+        {task.progress === undefined || task.status === 'succeeded'
           ? stages === undefined || stages.length === 0
             ? null
             : <StageBar label={t`任务阶段`} stages={stages} />
@@ -180,7 +190,8 @@ export function TaskCard({
 
         {(task.artifacts !== undefined && task.artifacts.length > 0)
           || (links !== undefined && links.length > 0)
-          || onCancel !== undefined ? (
+          || onCancel !== undefined
+          || onOpenDetail !== undefined ? (
             <div className="flex flex-wrap items-center gap-3">
               {task.artifacts?.map((artifact) => (
                 // A missing artifact keeps its link — 「文件不在原位」 is a record
@@ -200,10 +211,17 @@ export function TaskCard({
                   {link.label}
                 </Link>
               ))}
-              {onCancel !== undefined ? (
-                <Button variant="ghost" size="sm" onClick={onCancel} className="ml-auto">
-                  <Trans>取消</Trans>
-                </Button>
+              {onCancel !== undefined || onOpenDetail !== undefined ? (
+                <span className="ml-auto flex items-center gap-2">
+                  {onCancel !== undefined ? (
+                    <TaskCancelButton task={task} onConfirm={onCancel} pending={cancelPending} />
+                  ) : null}
+                  {onOpenDetail !== undefined ? (
+                    <Button variant="ghost" size="sm" onClick={onOpenDetail}>
+                      <Trans>查看详情</Trans>
+                    </Button>
+                  ) : null}
+                </span>
               ) : null}
             </div>
           ) : null}
@@ -225,7 +243,7 @@ function TaskStageText({ stage }: { stage: NonNullable<TaskSummary['stage']> }) 
 
 /** The bar plus its right-aligned mono readout, as drawn on the home artboard. */
 function TaskProgressRow({ progress }: { progress: TaskProgress }) {
-  const readout = PROGRESS_READOUT[progress.unit](progress);
+  const readout = formatTaskProgress(progress);
   const unitLabel = taskProgressUnitLabels()[progress.unit];
 
   return (

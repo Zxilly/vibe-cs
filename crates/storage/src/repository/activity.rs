@@ -53,7 +53,13 @@ pub enum ActivitySource {
         job: RecordingJob,
         retryable: bool,
     },
-    Export(ExportJobRecord),
+    Export {
+        record: ExportJobRecord,
+        /// The owning Project's current name, joined at read time so the feed
+        /// can title an export by the work it belongs to rather than by its
+        /// output path.
+        project_name: String,
+    },
     Download {
         job: MatchDownloadJob,
         retryable: bool,
@@ -101,13 +107,24 @@ struct AnalysisActivityDocument {
     demo: DemoRecord,
 }
 
+#[derive(serde::Deserialize)]
+struct ExportActivityDocument {
+    record: ExportJobRecord,
+    project_name: String,
+}
+
 fn decode_persisted_activity(persisted: PersistedActivity) -> Result<ActivitySource> {
     match persisted.source_kind.as_str() {
         "recording" => decode(&persisted.document).map(|job: RecordingJob| {
             let retryable = persisted.retryable && job.retryable_suffix().is_ok();
             ActivitySource::Recording { job, retryable }
         }),
-        "export" => decode(&persisted.document).map(ActivitySource::Export),
+        "export" => decode::<ExportActivityDocument>(&persisted.document).map(|document| {
+            ActivitySource::Export {
+                record: document.record,
+                project_name: document.project_name,
+            }
+        }),
         "download" => decode(&persisted.document).map(|job| ActivitySource::Download {
             job,
             retryable: persisted.retryable,
@@ -162,16 +179,18 @@ const RECORDING_ACTIVITY_SQL: &str = "
 
 const EXPORT_ACTIVITY_SQL: &str = "
     SELECT
-        'export:' || id AS activity_id,
+        'export:' || export.id AS activity_id,
         'export' AS source_kind,
-        id AS source_id,
-        status,
-        updated_at,
-        document_json,
-        'export:' || id || ' export ' || id || ' ' || status || ' ' || kind || ' ' || project_id || ' ' ||
-            COALESCE(json_extract(document_json, '$.job.output_path'), '') || ' ' ||
-            COALESCE(json_extract(document_json, '$.job.error'), '') AS search_text
-    FROM export_jobs";
+        export.id AS source_id,
+        export.status,
+        export.updated_at,
+        json_object('record', json(export.document_json), 'project_name', project.name) AS document_json,
+        'export:' || export.id || ' export ' || export.id || ' ' || export.status || ' ' || export.kind || ' ' ||
+            export.project_id || ' ' || project.name || ' ' ||
+            COALESCE(json_extract(export.document_json, '$.job.output_path'), '') || ' ' ||
+            COALESCE(json_extract(export.document_json, '$.job.error'), '') AS search_text
+    FROM export_jobs AS export
+    INNER JOIN projects AS project ON project.id = export.project_id";
 
 const DOWNLOAD_ACTIVITY_SQL: &str = "
     SELECT
@@ -1098,7 +1117,7 @@ mod tests {
                         if job.id == recording_id
                 ) || matches!(
                     (expected_kind, page.items.as_slice()),
-                    (ActivityKind::Export, [ActivitySource::Export(record)])
+                    (ActivityKind::Export, [ActivitySource::Export { record, .. }])
                         if record.job.id == export_id
                 ) || matches!(
                     (expected_kind, page.items.as_slice()),
@@ -1146,7 +1165,8 @@ mod tests {
                 .get_activity(ActivityKind::Export, export_id)
                 .await
                 .expect("exact export activity"),
-            Some(ActivitySource::Export(record)) if record.job.id == export_id
+            Some(ActivitySource::Export { record, project_name })
+                if record.job.id == export_id && project_name == "Export owner"
         ));
         assert!(
             storage

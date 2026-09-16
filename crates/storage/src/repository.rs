@@ -1313,18 +1313,20 @@ impl Storage {
         self.run(move |connection| {
             let locator = connection
                 .query_row(
-                    "SELECT demo_id, round, tick FROM evidence_search_items WHERE evidence_id = ?1",
+                    "SELECT i.demo_id, i.round, i.tick, d.display_name, i.map_name                      FROM evidence_search_items AS i                      INNER JOIN demos AS d ON d.id = i.demo_id                      WHERE i.evidence_id = ?1",
                     [draft.evidence_id.as_str()],
                     |row| {
                         Ok((
                             row.get::<_, String>(0)?,
                             row.get::<_, u32>(1)?,
                             row_u64(row, 2)?,
+                            row.get::<_, String>(3)?,
+                            row.get::<_, String>(4)?,
                         ))
                     },
                 )
                 .optional()?;
-            let Some((demo_id, round, tick)) = locator else {
+            let Some((demo_id, round, tick, demo_display_name, map_name)) = locator else {
                 return Ok(EvidenceAnnotationCreate::EvidenceNotFound);
             };
             if demo_id != draft.demo_id.to_string() || round != draft.round || tick != draft.tick {
@@ -1335,6 +1337,8 @@ impl Storage {
             let annotation = EvidenceAnnotation {
                 id: Uuid::new_v4(),
                 demo_id: draft.demo_id,
+                demo_display_name,
+                map_name,
                 evidence_id: draft.evidence_id,
                 round: draft.round,
                 tick: draft.tick,

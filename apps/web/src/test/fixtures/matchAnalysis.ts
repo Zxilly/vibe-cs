@@ -332,6 +332,8 @@ function annotation(
   return {
     id,
     demo_id: DEMO_ID,
+    demo_display_name: 'Aurora vs Meridian',
+    map_name: 'de_mirage',
     evidence_id: 'e-kill-sable',
     round: 21,
     tick: 149_128,

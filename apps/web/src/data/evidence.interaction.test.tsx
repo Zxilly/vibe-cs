@@ -43,6 +43,8 @@ const ANNOTATIONS: Paginated<EvidenceAnnotation> = {
     {
       id: 'note-1',
       demo_id: 'demo-a',
+      demo_display_name: 'Aurora vs Meridian',
+      map_name: 'de_mirage',
       evidence_id: 'ev-1',
       round: 12,
       tick: 100_000,

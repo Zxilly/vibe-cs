@@ -4,6 +4,12 @@ import type { EvidenceAnnotationReviewState } from "./EvidenceAnnotationReviewSt
 export type EvidenceAnnotation = {
   id: string;
   demo_id: string;
+  /**
+   * The match the note belongs to, as the library names it. Carried on the
+   * annotation itself so a cross-match index can say where each row is from.
+   */
+  demo_display_name: string;
+  map_name: string;
   evidence_id: string;
   round: number;
   tick: number;

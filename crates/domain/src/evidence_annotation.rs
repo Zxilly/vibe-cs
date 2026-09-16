@@ -25,6 +25,10 @@ pub enum EvidenceAnnotationReviewState {
 pub struct EvidenceAnnotation {
     pub id: Uuid,
     pub demo_id: Uuid,
+    /// The match the note belongs to, as the library names it. Carried on the
+    /// annotation itself so a cross-match index can say where each row is from.
+    pub demo_display_name: String,
+    pub map_name: String,
     pub evidence_id: String,
     pub round: u32,
     pub tick: u64,

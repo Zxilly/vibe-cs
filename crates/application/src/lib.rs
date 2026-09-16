@@ -838,6 +838,8 @@ mod tests {
             .expect("created annotation body");
         let created: EvidenceAnnotation =
             serde_json::from_slice(&body).expect("created annotation");
+        assert_eq!(created.demo_display_name, "Annotated match");
+        assert_eq!(created.map_name, "de_mirage");
 
         let update_response = dispatcher
             .clone()
@@ -927,6 +929,8 @@ mod tests {
             serde_json::from_slice(&body).expect("annotation page");
         assert_eq!(page.total, 1);
         assert_eq!(page.items[0].evidence_id, evidence_id);
+        assert_eq!(page.items[0].demo_display_name, "Annotated match");
+        assert_eq!(page.items[0].map_name, "de_mirage");
         assert_eq!(page.items[0].body, updated.body);
         assert_eq!(page.items[0].tags, updated.tags);
         assert_eq!(

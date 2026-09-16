@@ -6,11 +6,14 @@ import { describe, expect, it } from 'vitest';
 
 import type { OutputItem } from '../../shared/desktop/dto';
 import {
+  displayOutputPath,
   formatBytes,
   formatOutputMedia,
+  outputDeletionOutcome,
   outputDeletionRemovesFile,
   outputFamilyOf,
   outputFileIsUsable,
+  splitDisplayOutputPath,
 } from './outputModel';
 
 const OUTPUT: OutputItem = {
@@ -93,5 +96,33 @@ describe('formatOutputMedia', () => {
       video_codec: 'h264',
       audio_codec: 'aac',
     })).toEqual(['8.75 s', '1920×1080', '59.94 fps', 'H264 / AAC']);
+  });
+});
+
+describe('displayOutputPath', () => {
+  it('drops the extended-length prefix a canonical Windows path carries', () => {
+    expect(displayOutputPath('\\\\?\\C:\\Users\\demo\\recordings\\take.mp4')).toBe('C:\\Users\\demo\\recordings\\take.mp4');
+    expect(displayOutputPath('\\\\?\\UNC\\nas\\share\\take.mp4')).toBe('\\\\nas\\share\\take.mp4');
+    expect(displayOutputPath('D:\\vibe\\outputs\\take.mp4')).toBe('D:\\vibe\\outputs\\take.mp4');
+  });
+
+  it('keeps the file name whole and leaves the directory to be cut', () => {
+    expect(splitDisplayOutputPath('\\\\?\\C:\\Users\\demo\\recordings\\take.mp4')).toEqual({
+      directory: 'C:\\Users\\demo\\recordings\\',
+      fileName: 'take.mp4',
+    });
+    expect(splitDisplayOutputPath('/srv/media/take.mp4')).toEqual({ directory: '/srv/media/', fileName: 'take.mp4' });
+    expect(splitDisplayOutputPath('take.mp4')).toEqual({ directory: '', fileName: 'take.mp4' });
+  });
+});
+
+describe('outputDeletionOutcome', () => {
+  const result = { id: 'out-1', output_kind: 'recording' as const, record_deleted: true, warning: null };
+
+  it('tells a deleted file from one still parked in staging from a record-only removal', () => {
+    expect(outputDeletionOutcome({ ...result, file_deleted: true, file_action: 'managed_file_deleted' })).toBe('file-deleted');
+    expect(outputDeletionOutcome({ ...result, file_deleted: false, file_action: 'managed_file_pending_cleanup' })).toBe('file-staged');
+    expect(outputDeletionOutcome({ ...result, file_deleted: false, file_action: 'external_file_preserved' })).toBe('record-only');
+    expect(outputDeletionOutcome({ ...result, file_deleted: false, file_action: 'record_only' })).toBe('record-only');
   });
 });

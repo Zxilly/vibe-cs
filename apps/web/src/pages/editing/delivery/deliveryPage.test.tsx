@@ -35,7 +35,7 @@ describe('/delivery', () => {
     expect(outputs).toContain('data-page-toolbar');
     expect(outputs).toContain('data-page-body');
     expect(outputs).toContain('data-toolbar-title="true"');
-    expect(outputs).toContain('成品');
+    expect(outputs).toContain('成品文件');
   });
 
   it('removes the retired task-record switcher from the topbar', () => {

@@ -122,7 +122,7 @@ const PAGES: readonly PageCase[] = [
     pattern: '/delivery',
     at: '/delivery',
     Component: DeliveryPage,
-    title: '成品',
+    title: '成品文件',
   },
   {
     pattern: '/tasks/:taskId',

@@ -1,5 +1,5 @@
 /*
- * pages/delivery — 交付 › 输出, the `?view=outputs` face of §7's `/delivery`.
+ * pages/delivery — 交付 › 成品文件, the `?view=outputs` face of §7's `/delivery`.
  *
  * 「11 输出与任务记录」 lays it out as: a 46px filter strip (全部 · 录制结果 ·
  * 导出成片 · 文件缺失, sort on the right), a two-column grid of cards, and a
@@ -13,17 +13,26 @@
  * library of 34 outputs (the artboard's own count) is paged rather than
  * silently cut.
  *
- * ── The footer sentence is the service's, not ours ────────────────────────
+ * ── One deletion, one confirmation ────────────────────────────────────────
  *
- * 「删除受管文件会先进入可回滚暂存，24 小时后清除。」 is drawn on the artboard and
- * matches `DeleteOutputResult.file_action`'s `managed_file_pending_cleanup`. It
- * is printed as standing policy; what actually happened to a particular file is
- * reported per deletion, from the result the mutation returns.
+ * The row button names what it does — 删除文件 for a managed file that is
+ * still there, 移除记录 for everything else — and both go through
+ * `DeleteOutputDialog`, which spells out the blast radius before the mutation
+ * runs. What actually happened to the file is then reported from the result the
+ * service returns, not from the standing policy line in the footer.
+ *
+ * ── Scoped to one Project ─────────────────────────────────────────────────
+ *
+ * `?project=` narrows the list to one Project's files. The scope is drawn as a
+ * chip on the filter strip with its own clear action, and an empty scoped list
+ * says whose it is — an unscoped 「还没有成片」 under a hidden filter would read
+ * as the whole library being gone.
  */
 
 import { t } from '@lingui/core/macro';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
+import { X } from 'lucide-react';
 import { useState } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
@@ -32,12 +41,13 @@ import { useProjects } from '../../../data/projects';
 import { Empty, Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Toolbar } from '../../../design/layout';
-import { Seg } from '../../../design/primitives';
-import type { OutputItem, OutputQuery } from '../../../shared/desktop/dto';
+import { Badge, Seg } from '../../../design/primitives';
+import type { DeleteOutputResult, OutputItem, OutputQuery } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../shared/navigation/RouteLink';
+import { DeleteOutputDialog } from './DeleteOutputDialog';
 import { OUTPUT_ROW_COLUMNS, OutputCard, OutputCardSkeleton } from './OutputCard';
 import { cn } from '../../../design/cn';
-import { outputDeletionRemovesFile } from '../../../domain/media/outputModel';
+import { outputDeletionOutcome, outputDeletionRemovesFile } from '../../../domain/media/outputModel';
 
 /** Two rows of two on a 1100px window; the artboard draws four cards. */
 export const OUTPUT_PAGE_SIZE = 12;
@@ -68,17 +78,30 @@ function filterQuery(filter: OutputFilter): OutputQuery {
   }
 }
 
+function deletionNotice(result: DeleteOutputResult): string {
+  switch (outputDeletionOutcome(result)) {
+    case 'file-deleted':
+      return t`文件已删除。`;
+    case 'file-staged':
+      return t`记录已移除，文件还留在暂存目录里。到恢复中心清理暂存成片可以释放空间。`;
+    case 'record-only':
+      return t`记录已移除，磁盘上的文件没有变化。`;
+  }
+}
+
 export interface OutputsViewProps {
   readonly now?: Date | undefined;
 }
 
 export function OutputsView({ now }: OutputsViewProps) {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const projectId = params.get('project');
   const projects = useProjects();
   const [filter, setFilter] = useState<OutputFilter>('all');
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<OutputItem | null>(null);
 
   const outputs = useOutputList({ page, page_size: OUTPUT_PAGE_SIZE, ...filterQuery(filter), ...(projectId === null ? {} : { project_id: projectId }) });
   const reveal = useRevealOutput();
@@ -88,6 +111,8 @@ export function OutputsView({ now }: OutputsViewProps) {
   const errorMessage = outputs.isError
     ? dataErrorMessage(outputs.error) ?? t`读取成片列表失败。`
     : undefined;
+  const scopedProject = projectId === null ? null : projects.data?.find((project) => project.id === projectId) ?? null;
+  const scopeLabel = projectId === null ? null : scopedProject?.name ?? t`已删除的作品`;
 
   const onReveal = (output: OutputItem): void => {
     reveal.mutate(output.path, {
@@ -98,28 +123,11 @@ export function OutputsView({ now }: OutputsViewProps) {
     });
   };
 
-  const onDelete = (output: OutputItem): void => {
-    /*
-     * `deleteFile` stays false: 「移除记录不会删除文件」 is what the artboard
-     * promises beside an external file, and the destructive form belongs behind
-     * the confirmation dialog phase 3b owns. A managed file therefore keeps its
-     * bytes until 清理 runs, which is the safe direction to be wrong in.
-     */
-    remove.mutate(
-      { kind: output.output_kind, id: output.id },
-      {
-        onSuccess: (result) => {
-          setNotice(
-            result.warning
-            ?? (outputDeletionRemovesFile(output)
-              ? t`记录已移除，文件仍在原处。`
-              : t`记录已移除，外部文件未被删除。`),
-          );
-        },
-        onError: (error) => setNotice(dataErrorMessage(error) ?? t`移除记录失败。`),
-      },
+  const confirmDelete = (output: OutputItem): Promise<unknown> =>
+    remove.mutateAsync(
+      { kind: output.output_kind, id: output.id, deleteFile: outputDeletionRemovesFile(output) },
+      { onSuccess: (result) => setNotice(deletionNotice(result)) },
     );
-  };
 
   const labels = filterLabels();
 
@@ -141,6 +149,20 @@ export function OutputsView({ now }: OutputsViewProps) {
             setPage(1);
           }}
         />
+        {scopeLabel === null ? null : (
+          <Badge variant="accent" asChild>
+            <button
+              type="button"
+              data-output-scope={projectId}
+              className="gap-1.5 hover:bg-accent-200"
+              aria-label={t`清除作品筛选：${scopeLabel}`}
+              onClick={() => void navigate('/delivery')}
+            >
+              <Trans>作品：{scopeLabel}</Trans>
+              <X className="size-3" strokeWidth={2} aria-hidden="true" />
+            </button>
+          </Badge>
+        )}
       </Toolbar>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
@@ -169,22 +191,34 @@ export function OutputsView({ now }: OutputsViewProps) {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <Empty
-            preset="no-outputs"
-            actions={
-              <RouteLink to="/projects/new?step=shotlist">
-                <Trans>新建作品</Trans>
-              </RouteLink>
-            }
-          />
+          scopeLabel === null ? (
+            <Empty
+              preset="no-outputs"
+              actions={
+                <RouteLink to="/projects/new?step=shotlist">
+                  <Trans>新建作品</Trans>
+                </RouteLink>
+              }
+            />
+          ) : (
+            <Empty
+              title={<Trans>「{scopeLabel}」还没有成品文件</Trans>}
+              description={<Trans>导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。</Trans>}
+              actions={
+                <RouteLink to="/delivery">
+                  <Trans>查看全部成品文件</Trans>
+                </RouteLink>
+              }
+            />
+          )
         ) : (
-          <div className="min-w-[68rem] border-t border-divider">
+          <div className="overflow-x-auto border-t border-divider">
             <div
               className={cn('grid h-10 border-x border-b border-divider bg-neutral-50 text-xs font-medium text-neutral-700', OUTPUT_ROW_COLUMNS)}
               aria-hidden="true"
             >
               <span className="flex items-center px-4"><Trans>预览</Trans></span>
-              <span className="flex items-center border-l border-divider px-4"><Trans>文件名</Trans></span>
+              <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>文件路径</Trans></span>
@@ -197,7 +231,7 @@ export function OutputsView({ now }: OutputsViewProps) {
                 project={projects.data?.find((project) => project.id === output.project_id)}
                 emphasized={page === 1 && filter === 'all' && index === 0}
                 onReveal={onReveal}
-                onDelete={onDelete}
+                onDelete={setPendingDelete}
                 {...(now === undefined ? {} : { now })}
               />
             ))}
@@ -213,8 +247,19 @@ export function OutputsView({ now }: OutputsViewProps) {
       />
 
       <p className="flex-none border-t border-divider px-6 py-3 text-xs text-neutral-700">
-        <Trans>删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。</Trans>
+        <Trans>删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。</Trans>
       </p>
+
+      <DeleteOutputDialog
+        output={pendingDelete}
+        onClose={() => {
+          setPendingDelete(null);
+          remove.reset();
+        }}
+        onDelete={confirmDelete}
+        deleting={remove.isPending}
+        error={remove.isError ? dataErrorMessage(remove.error) ?? t`没有删除，记录和文件都还在。` : null}
+      />
     </>
   );
 }

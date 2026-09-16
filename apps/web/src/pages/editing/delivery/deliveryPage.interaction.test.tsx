@@ -11,7 +11,7 @@
  *      link both keep working.
  */
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { OutputItem, OutputPage } from '../../../shared/desktop/dto';
@@ -175,6 +175,95 @@ describe('成品 › 成品文件', () => {
     expect(screen.getByText('文件大小')).toBeTruthy();
     expect(screen.getByText('时长 · 分辨率 · 帧率 · 编码')).toBeTruthy();
     expect(container.querySelector('[data-output-emphasized="true"]')?.getAttribute('data-output')).toBe('out-1');
+  });
+
+  it('keeps the file name whole in the path column and hides the canonical prefix', async () => {
+    const { client } = stubs();
+    renderPage({
+      element: <DeliveryPage />,
+      client: { ...client, listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{ ...OUTPUT, path: '\\\\?\\D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4' }] }) },
+      route: '/delivery',
+    });
+
+    const path = await screen.findByRole('button', { name: '查看 Kael 1v3 的完整路径' });
+    expect(path.getAttribute('title')).toBe('D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4');
+    expect(path.lastElementChild?.textContent).toBe('Kael_Mirage_1v3.mp4');
+    expect(path.firstElementChild?.textContent).toBe('D:\\vibe\\outputs\\');
+  });
+
+  it('asks before deleting a managed file, then reports what the service did', async () => {
+    const { client } = stubs();
+    const deleted: Array<[string, string, boolean]> = [];
+    renderPage({
+      element: <DeliveryPage />,
+      client: {
+        ...client,
+        deleteOutput: (kind: string, id: string, deleteFile: boolean) => {
+          deleted.push([kind, id, deleteFile]);
+          return Promise.resolve({ id, output_kind: kind, record_deleted: true, file_deleted: true, file_action: 'managed_file_deleted', warning: null });
+        },
+      },
+      route: '/delivery',
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '删除文件' }));
+    expect(deleted).toEqual([]);
+    const dialog = await screen.findByRole('dialog', { name: '删除这个成品文件？' });
+    expect(dialog.textContent).toContain('不能恢复');
+    expect(dialog.getAttribute('data-tone')).toBe('destructive');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '删除文件' }));
+    await waitFor(() => expect(deleted).toEqual([['recording', 'out-1', true]]));
+    expect(await screen.findByText('文件已删除。')).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('only removes the record of an external file, and says so before and after', async () => {
+    const { client } = stubs();
+    const deleted: Array<[string, string, boolean]> = [];
+    renderPage({
+      element: <DeliveryPage />,
+      client: {
+        ...client,
+        listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{ ...OUTPUT, managed: false }] }),
+        deleteOutput: (kind: string, id: string, deleteFile: boolean) => {
+          deleted.push([kind, id, deleteFile]);
+          return Promise.resolve({ id, output_kind: kind, record_deleted: true, file_deleted: false, file_action: 'record_only', warning: null });
+        },
+      },
+      route: '/delivery',
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '移除记录' }));
+    const dialog = await screen.findByRole('dialog', { name: '移除这条记录？' });
+    expect(dialog.textContent).toContain('磁盘上的文件不会被删除');
+    expect(dialog.getAttribute('data-tone')).toBe('default');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '移除记录' }));
+    await waitFor(() => expect(deleted).toEqual([['recording', 'out-1', false]]));
+    expect(await screen.findByText('记录已移除，磁盘上的文件没有变化。')).toBeTruthy();
+  });
+
+  it('shows which Project the list is scoped to, and lets that scope be cleared', async () => {
+    const { client } = stubs();
+    renderPage({
+      element: <DeliveryPage />,
+      client: {
+        ...client,
+        listProjects: () => Promise.resolve([{ id: 'p-1', name: 'Mirage 残局', revision: 3, document: { tracks: [] }, created_at: '', updated_at: '' }]),
+        listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [], total: 0 }),
+      },
+      route: '/delivery?project=p-1',
+    });
+
+    expect(await screen.findByRole('heading', { name: '「Mirage 残局」还没有成品文件' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '查看全部成品文件' }).getAttribute('href')).toBe('/delivery');
+    const chip = screen.getByRole('button', { name: '清除作品筛选：Mirage 残局' });
+    expect(chip.textContent).toContain('作品：Mirage 残局');
+
+    fireEvent.click(chip);
+    await waitFor(() => expect(screen.queryByRole('button', { name: /清除作品筛选/u })).toBeNull());
+    expect(await screen.findByRole('heading', { name: '还没有成片' })).toBeTruthy();
   });
 });
 

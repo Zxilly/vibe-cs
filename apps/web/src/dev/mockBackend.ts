@@ -43,6 +43,7 @@ import type {
   AgentWorkspaceSettings,
   AppConfig,
   AvatarCacheStatus,
+  DeleteOutputResult,
   DemoRecord,
   DemoPlaybackStatus,
   DemoWatchStatus,
@@ -1069,6 +1070,22 @@ const ROUTES: Array<[string, string, Handler]> = [
   }],
   ['GET', '/activities/:kind/:id', ({ params }) =>
     ACTIVITIES.items.find((item) => item.id === `${params.kind}:${params.id}`) ?? ACTIVITIES.items[0]],
+  /* Deleting answers with the service's own result shape, so the page prints
+     what happened to the file rather than reading `null` as a warning. */
+  ['DELETE', '/outputs/:kind/:id', ({ params, query }) => {
+    const index = OUTPUTS.items.findIndex((item) => item.output_kind === params.kind && item.id === params.id);
+    const [removed] = index === -1 ? [] : OUTPUTS.items.splice(index, 1);
+    const deleteFile = query.get('delete_file') === 'true';
+    const fileDeleted = deleteFile && removed?.managed === true && removed.availability === 'present';
+    return {
+      id: params.id ?? '',
+      output_kind: (params.kind === 'recording' ? 'recording' : 'export'),
+      record_deleted: removed !== undefined,
+      file_deleted: fileDeleted,
+      file_action: fileDeleted ? 'managed_file_deleted' : deleteFile ? 'external_file_preserved' : 'record_only',
+      warning: null,
+    } satisfies DeleteOutputResult;
+  }],
   ['GET', '/outputs', ({ query }) => {
     const items = OUTPUTS.items.filter((item) =>
       (!query.has('project_id') || item.project_id === query.get('project_id'))

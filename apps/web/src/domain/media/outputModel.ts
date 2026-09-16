@@ -7,7 +7,7 @@
  * from a design or requested capture settings. Missing probe fields stay absent.
  */
 
-import type { OutputAvailability, OutputItem, OutputMediaInfo } from '../../shared/desktop/dto';
+import type { DeleteOutputResult, OutputAvailability, OutputItem, OutputMediaInfo } from '../../shared/desktop/dto';
 
 /**
  * Bytes as the artboard writes them: 「186 MB」, 「4.2 GB」, 「218 GB 可用」.
@@ -51,6 +51,48 @@ export function outputFileIsUsable(availability: OutputAvailability): boolean {
 /** Whether deleting the record could also delete a file the app owns. */
 export function outputDeletionRemovesFile(item: OutputItem): boolean {
   return item.managed && outputFileIsUsable(item.availability);
+}
+
+/**
+ * What one deletion did to the file, from `DeleteOutputResult.file_action`.
+ *
+ * The service names five outcomes; the page prints three sentences. A managed
+ * file that could not leave its staging slot is the only one that needs a
+ * follow-up (恢复中心's 清理暂存), so it is kept apart from a clean delete.
+ */
+export type OutputDeletionOutcome = 'file-deleted' | 'file-staged' | 'record-only';
+
+export function outputDeletionOutcome(result: DeleteOutputResult): OutputDeletionOutcome {
+  if (result.file_deleted) return 'file-deleted';
+  return result.file_action === 'managed_file_pending_cleanup' ? 'file-staged' : 'record-only';
+}
+
+/**
+ * A stored path as a person reads it.
+ *
+ * Managed recordings are stored under their canonical identity, which on
+ * Windows carries the `\\?\` extended-length prefix (and `\\?\UNC\` for a
+ * share). The prefix is the runtime's business and never the user's, so it is
+ * removed everywhere a path is shown or copied; 定位文件 keeps the stored value.
+ */
+export function displayOutputPath(path: string): string {
+  if (path.startsWith('\\\\?\\UNC\\')) return `\\\\${path.slice(8)}`;
+  if (path.startsWith('\\\\?\\')) return path.slice(4);
+  return path;
+}
+
+/**
+ * The same path split for a one-line row: the directory, which may be cut
+ * from the end, and the file name, which never is. Cutting a path from the end
+ * leaves 「C:\Users\demo\AppData\Roam…」 on every row; the name is the half
+ * that tells rows apart.
+ */
+export function splitDisplayOutputPath(path: string): { readonly directory: string; readonly fileName: string } {
+  const shown = displayOutputPath(path);
+  const cut = Math.max(shown.lastIndexOf('\\'), shown.lastIndexOf('/'));
+  return cut === -1
+    ? { directory: '', fileName: shown }
+    : { directory: shown.slice(0, cut + 1), fileName: shown.slice(cut + 1) };
 }
 
 /**

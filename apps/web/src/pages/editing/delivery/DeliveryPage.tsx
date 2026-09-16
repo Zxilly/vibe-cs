@@ -31,7 +31,7 @@ export function DeliveryPage() {
       scroll={false}
       toolbar={
         <Toolbar
-          title={<Trans>成品</Trans>}
+          title={<Trans>成品文件</Trans>}
           meta={
             total === undefined ? undefined : available === null ? (
               <Trans>{total} 个成品文件</Trans>

@@ -10,9 +10,15 @@ import { Button, cn } from '../../../design/primitives';
 import { formatTaskClock } from '../../../domain/task';
 import type { OutputItem, Project } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../shared/navigation/RouteLink';
-import { formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable } from '../../../domain/media/outputModel';
+import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(15rem,1.35fr)_8rem_14rem_minmax(12rem,1fr)_6rem]';
+/**
+ * Six tracks whose fixed sum stays under the content width of a 1100px window
+ * (DESIGN.md's Shell breakpoint: 1100 − 56 icon rail − 48 page inset ≈ 996px),
+ * so the 操作 column is never pushed past the viewport. The two `minmax`
+ * columns take whatever a wider window adds.
+ */
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(11rem,1.35fr)_7rem_14rem_minmax(9rem,1fr)_6rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -42,6 +48,9 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
   const streamUrl = usable ? shell.mediaSrc(`/api/outputs/${output.output_kind}/${output.id}/stream`) : null;
   const version = output.project_revision;
   const currentVersion = project !== undefined && version === project.revision;
+  const shownPath = displayOutputPath(output.path);
+  const pathParts = splitDisplayOutputPath(output.path);
+  const removesFile = outputDeletionRemovesFile(output);
   const openDetails = () => { setPreviewOpen(false); setCopyNotice(null); setDetailsOpen(true); };
 
   return (
@@ -63,7 +72,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
         <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
           <h3 className="min-w-0 truncate text-base font-normal"><button type="button" className="block max-w-full truncate text-left hover:underline" onClick={openDetails}>{title}</button></h3>
           {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
-            r{version}{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
+            <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
@@ -78,27 +87,31 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
         </div>
         <div className="flex min-w-0 items-center border-l border-divider px-4 py-2">
-          <button type="button" className="min-w-0 truncate text-left font-mono text-xs text-neutral-600 hover:underline" title={output.path} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>{output.path}</button>
+          {/* The directory gives way first (zero basis), the file name only once it alone overflows: rows differ by name, not by prefix. */}
+          <button type="button" className="flex w-full min-w-0 text-left font-mono text-xs text-neutral-600 hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
+            <span className="min-w-[4ch] flex-1 truncate">{pathParts.directory}</span>
+            <span className="min-w-0 flex-initial truncate">{pathParts.fileName}</span>
+          </button>
         </div>
         <div className="flex items-center justify-center border-l border-divider px-2 py-2">
-          <Button variant="ghost" size="sm" onClick={() => onDelete(output)}>{outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}</Button>
+          <Button variant="ghost" size="sm" className={cn(removesFile && 'text-fail-text')} onClick={() => onDelete(output)}>{removesFile ? <Trans>删除文件</Trans> : <Trans>移除记录</Trans>}</Button>
         </div>
       </Blueprint>
-      <Drawer open={detailsOpen} title={title} description={version === null ? undefined : `r${version}`} width="wide" onClose={() => setDetailsOpen(false)}>
+      <Drawer open={detailsOpen} title={title} description={version === null ? undefined : t`第 ${version} 版`} width="wide" onClose={() => setDetailsOpen(false)}>
         <div className="space-y-4">
           {previewOpen && streamUrl !== null ? <video className="aspect-video w-full bg-media object-contain" src={streamUrl} controls autoPlay aria-label={t`成品播放 ${title}`} /> : null}
           <dl className="space-y-2 text-sm">
             <dt className="text-neutral-600">{output.status === 'completed' ? <Trans>完成时间</Trans> : <Trans>更新时间</Trans>}</dt><dd>{stamp}</dd>
             <dt className="text-neutral-600"><Trans>文件名</Trans></dt><dd className="break-all font-mono text-xs">{output.file_name}</dd>
             <dt className="text-neutral-600"><Trans>文件参数</Trans></dt><dd>{facts.join(' · ') || t`参数不可读取`}</dd>
-            <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{output.path}</dd>
+            <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{shownPath}</dd>
           </dl>
           {usable ? null : <p className="text-sm text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
             <Button size="sm" variant="secondary" onClick={async () => {
               try {
-                await navigator.clipboard.writeText(output.path);
+                await navigator.clipboard.writeText(shownPath);
                 setCopyNotice(t`已复制完整路径`);
               } catch {
                 setCopyNotice(t`无法访问剪贴板，请选择上方完整路径手动复制。`);

@@ -69,7 +69,7 @@ import {
 import { EvidenceRow, formatTickCount, type EvidenceItem } from '../../../../domain/match';
 import { DEFAULT_PLAYBACK_RATES, Transport } from '../../../../domain/media';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import { AnalysisFailedState, NotAnalysedState } from './viewChrome';
+import { NotAnalysedState } from './viewChrome';
 import { mapDisplayName } from '../matchModel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import { ReplayCanvas, type ReplayLayerVisibility } from '../../../../domain/map/ReplayCanvas';
@@ -79,6 +79,7 @@ import {
   buildPlayerTracks,
   clampTick,
   currentEventId,
+  defaultFocusPlayerId,
   frameIndexAtTick,
   heatFloors,
   heatSamplesOf,
@@ -169,13 +170,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     () => buildEngagements(events, slice?.frames ?? []),
     [events, slice],
   );
-  // Prefer a player who actually has a route at the current playhead. The
-  // roster's first entry may have no position sample yet, which would turn the
-  // default focus into a blank canvas.
-  const effectivePlayerId = context.player
-    ?? tracks.paths[0]?.playerId
-    ?? analysis.data?.players[0]?.id
-    ?? null;
+  /* The same default the Inspector resolves — see `defaultFocusPlayerId`. */
+  const effectivePlayerId = context.player ?? defaultFocusPlayerId(slice, analysis.data?.players ?? []);
   const focusedEngagements = useMemo(
     () => effectivePlayerId === null
       ? duels.engagements
@@ -253,18 +249,6 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     return (
       <ViewFrame state="empty">
         <NotAnalysedState demoId={demoId} />
-      </ViewFrame>
-    );
-  }
-
-  if (dataErrorMessage(analysis.error) !== null) {
-    return (
-      <ViewFrame state="error">
-        <AnalysisFailedState
-          demoId={demoId}
-          error={analysis.error}
-          onRetry={() => void analysis.refetch()}
-        />
       </ViewFrame>
     );
   }
@@ -548,20 +532,25 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 if (slice !== null) seekTo(slice.startTick + Math.round(seconds * slice.tickRate));
               }}
               onRateChange={setRate}
-            >
-              <p className="font-mono text-xs text-neutral-600" data-replay-tick={effectiveTick ?? ''}>
-                {effectiveTick === null ? (
-                  <Trans>tick 未定位</Trans>
-                ) : (
-                  <Trans>tick {formatTickCount(effectiveTick)}</Trans>
-                )}
-              </p>
-            </Transport>
+            />
+            {/* The playhead in ticks leads the mono line under the transport
+                rather than riding the transport's trailing slot: with a docked
+                Inspector that slot is ~70px, and 「tick 149 128」 folded onto
+                two lines there. This line is one truncating run, so it never
+                breaks mid-label. */}
             <div
               className="flex min-w-0 items-center gap-2 border-t border-divider pt-2"
               data-replay-clip-range=""
             >
               <p className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-600">
+                <span data-replay-tick={effectiveTick ?? ''}>
+                  {effectiveTick === null ? (
+                    <Trans>tick 未定位</Trans>
+                  ) : (
+                    <Trans>tick {formatTickCount(effectiveTick)}</Trans>
+                  )}
+                </span>
+                {' · '}
                 <Trans>
                   入点 {clipInTick === null ? '—' : formatTickCount(clipInTick)}
                   {' · '}
@@ -619,6 +608,12 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
 function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed }: MatchViewProps) {
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
+  /* The same read the body holds — TanStack dedupes it by key — so the panel
+     can resolve the same default focus the rail paints as selected. */
+  const replay = useMatchReplay(id, { enabled: true });
+  const bounds = useMemo(() => roundBounds(analysis.data, context.round), [analysis.data, context.round]);
+  const slice = useMemo(() => sliceReplay(replay.data, bounds), [replay.data, bounds]);
+  const focusedPlayerId = context.player ?? defaultFocusPlayerId(slice, analysis.data?.players ?? []);
   const events = useMemo(() => roundEvents(analysis.data, context.round), [analysis.data, context.round]);
   const rows = useMemo(() => replayEventRows(events), [events]);
   const current = currentEventId(rows, context.tick);
@@ -638,7 +633,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
       addLabel={highlight !== null ? <Trans>加入当前高光</Trans> : context.round === null ? <Trans>加入作品</Trans> : <Trans>把这个回合加入作品</Trans>}
       selection={highlight !== null ? highlightSelection(highlight) : {
         ...(context.round === null ? {} : { round: context.round }),
-        ...(context.player === null ? {} : { playerId: context.player }),
+        ...(focusedPlayerId === null ? {} : { playerId: focusedPlayerId }),
         ...(context.tick === null ? {} : { startTick: context.tick }),
       }}
       collapsed={collapsed}

@@ -12,12 +12,14 @@ import { describe, expect, it } from 'vitest';
 import { MATCH_ROSTER_SIZE, OVERTIME_ROUNDS } from '../../../../domain/densityFixtures';
 import { renderMarkup } from '../../../../test/render';
 import { markupAt } from '../test/renderWorkspace';
+import type { MatchVideoAction } from '../viewContract';
 import { MatchScoreboard, PlayerMatchDetail } from './PlayersView';
 import { scoreboardRows } from './playersModel';
 import { ANALYSIS, BARE_ANALYSIS, densityAnalysis } from './test/rosterFixtures';
 
 const ROWS = scoreboardRows(ANALYSIS);
 const BARE_ROWS = scoreboardRows(BARE_ANALYSIS);
+const DISABLED_ADD: MatchVideoAction = { disabled: true, disabledReason: '录制队列尚未接通' };
 
 function scoreboard(options: { rows?: typeof ROWS; showOpeningDuels?: boolean; active?: string | null } = {}) {
   return renderMarkup(
@@ -105,7 +107,7 @@ describe('what is omitted rather than zeroed', () => {
 
   it('never prints a hit rate — there is no weapon-fire event to divide by', () => {
     const html = renderMarkup(
-      <PlayerMatchDetail analysis={ANALYSIS} row={ROWS[0]!} addDisabledReason="录制队列尚未接通" />,
+      <PlayerMatchDetail analysis={ANALYSIS} row={ROWS[0]!} addToVideo={DISABLED_ADD} />,
     );
     expect(html).not.toContain('命中');
   });
@@ -113,7 +115,7 @@ describe('what is omitted rather than zeroed', () => {
 
 describe('one player’s detail', () => {
   const html = renderMarkup(
-    <PlayerMatchDetail analysis={ANALYSIS} row={ROWS[0]!} addDisabledReason="录制队列尚未接通" />,
+    <PlayerMatchDetail analysis={ANALYSIS} row={ROWS[0]!} addToVideo={DISABLED_ADD} />,
   );
 
   it('is addressed by the player it describes', () => {
@@ -145,7 +147,7 @@ describe('one player’s detail', () => {
 
   it('says why the weapon panel is empty when there is no event stream', () => {
     const bare = renderMarkup(
-      <PlayerMatchDetail analysis={BARE_ANALYSIS} row={BARE_ROWS[0]!} />,
+      <PlayerMatchDetail analysis={BARE_ANALYSIS} row={BARE_ROWS[0]!} addToVideo={DISABLED_ADD} />,
     );
     expect(bare).toContain('这份分析没有逐条击杀事件');
     expect(bare).toContain('检测器没有在这一场里给他标出高光');
@@ -162,7 +164,7 @@ describe('density — the real volumes of `domain/densityFixtures`', () => {
   });
 
   it('keeps the weapon panel to its stated limit plus 其他, over 30 rounds', () => {
-    const html = renderMarkup(<PlayerMatchDetail analysis={analysis} row={rows[0]!} />);
+    const html = renderMarkup(<PlayerMatchDetail analysis={analysis} row={rows[0]!} addToVideo={DISABLED_ADD} />);
     // Two weapons in the fixture, so 其他 never appears — the point is that the
     // panel is bounded by the limit and not by the number of kills.
     expect(html.match(/<li>/gu)?.length ?? 0).toBeLessThanOrEqual(5);

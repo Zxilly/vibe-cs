@@ -219,8 +219,12 @@ export function OverviewPanels({
                         variant="ghost"
                         size="sm"
                         data-match-open-highlight={highlight.id}
+                        /* The highlight's own identity travels, not only its
+                           round: a round can hold several, and 高光 resolves
+                           its selection from `?highlight=` first (DESIGN.md
+                           选材确认 — 高光身份独立于回放播放头保存在工作区 URL). */
                         onClick={() =>
-                          onUpdateContext({ view: 'highlights', round: highlight.round })
+                          onUpdateContext({ view: 'highlights', highlight: highlight.id, round: highlight.round })
                         }
                       >
                         <Trans>查看</Trans>
@@ -332,6 +336,7 @@ function OverviewInspector({
           onClick={() =>
             updateContext({
               view: 'highlights',
+              highlight: candidate.id,
               round: candidate.round,
               tick: candidate.startTick,
             })

@@ -26,8 +26,11 @@
  * ── Density ───────────────────────────────────────────────────────────────
  *
  * Ten rows, bounded by `MATCH_ROSTER_SIZE`; there is nothing to page. The
- * horizontal overflow of ten columns happens inside `DataTable`'s own scroller,
- * so the shell never grows a second scrollbar at the 1100px fold.
+ * scoreboard is the whole body, so its panel fills the column and the table
+ * scrolls inside it — a fixed cap showed eight of the ten under a head that
+ * said 「共 10 名选手」, over 300px of blank column. The horizontal overflow of
+ * ten columns still happens inside `DataTable`'s own scroller, so the shell
+ * never grows a second scrollbar at the 1100px fold.
  */
 
 import { t } from '@lingui/core/macro';
@@ -40,8 +43,9 @@ import { Button } from '../../../../design/primitives';
 import { HighlightRow, type HighlightCandidate } from '../../../../domain/match';
 import type { AnalysisWorkspace, Highlight } from '../../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import type { MatchViewModule, MatchViewProps } from '../viewContract';
+import type { MatchVideoAction, MatchViewModule, MatchViewProps } from '../viewContract';
 import { rosterIndex } from './duelsModel';
+import { highlightSelection } from './highlightModel';
 import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './viewChrome';
 import {
   formatFixed,
@@ -105,8 +109,9 @@ export function MatchScoreboard({
     <DataTable
       /* The scroll — both axes of it — happens in the table's own container,
          so a ten-column scoreboard never puts a second scrollbar on the shell
-         (`base.css` sets `overflow: hidden` on `body`; it would simply clip). */
-      className="max-h-96"
+         (`base.css` sets `overflow: hidden` on `body`; it would simply clip).
+         The container is the panel, which fills the column. */
+      className="min-h-0 flex-1"
       caption={<Trans>这一场的记分板</Trans>}
       columns={columns}
       rows={rows}
@@ -135,8 +140,11 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
       id: 'team',
       header: <Trans>队伍</Trans>,
       headerLabel: t`队伍`,
-      truncate: true,
-      /* An unnamed team prints the dash rather than 「队伍 A」 — the context bar
+      /* Not `truncate`: the name column already takes the table's slack, and a
+         second clipping column was the one the browser starved — 「NAVI」 came
+         out as 「N…」 in a 41px column beside 300px of blank 选手. A team name
+         is short and is what tells two rows apart; it takes its own width.
+         An unnamed team prints the dash rather than 「队伍 A」 — the context bar
          above already carries whatever name the demo record knows. */
       cell: (row) => (row.teamName === '' ? NO_VALUE : row.teamName),
     },
@@ -234,6 +242,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
       <ViewPanel
         id="scoreboard"
         title={<Trans>玩家</Trans>}
+        fill
         {...(gate.analysis === undefined || empty
           ? {}
           : { hint: <Trans>共 {rows.length} 名选手</Trans> })}
@@ -281,8 +290,8 @@ const WEAPON_LIMIT = 4;
 export interface PlayerMatchDetailProps {
   readonly analysis: AnalysisWorkspace;
   readonly row: ScoreboardRow;
-  /** Set when 加入视频 is disabled; the reason travels onto every row's button. */
-  readonly addDisabledReason?: string | undefined;
+  /** The workspace action, for every highlight row's own 「加入作品」. */
+  readonly addToVideo: MatchVideoAction;
 }
 
 /**
@@ -291,13 +300,16 @@ export interface PlayerMatchDetailProps {
  * Exported for the same reason `MatchScoreboard` is: it is the only way a
  * markup test gets to see it with real numbers.
  */
-export function PlayerMatchDetail({ analysis, row, addDisabledReason }: PlayerMatchDetailProps) {
+export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDetailProps) {
   const weapons = weaponBreakdown(analysis.rounds, row.id, WEAPON_LIMIT);
   const highlights = playerHighlights(analysis, row.id);
 
   return (
     <div data-player-detail={row.id} className="flex flex-col gap-3.5">
-      <div className="flex border border-divider">
+      {/* The tiles wrap rather than split the width evenly: 「16 / 19 / 4」 is
+          wider than 「68.8」, and an even third of a 380px panel folded it onto
+          two lines. Each tile takes its content and a share of the rest. */}
+      <div className="flex flex-wrap border border-divider">
         <StatCell label={<Trans>K / D / A</Trans>}>
           {`${formatFixed(row.kills, 0)} / ${formatFixed(row.deaths, 0)} / ${formatFixed(row.assists, 0)}`}
         </StatCell>
@@ -356,26 +368,30 @@ export function PlayerMatchDetail({ analysis, row, addDisabledReason }: PlayerMa
           </p>
         ) : (
           <ul className="list-none">
-            {highlights.map((highlight) => (
-              <li key={highlight.id}>
-                <HighlightRow
-                  highlight={toCandidate(highlight, row.name)}
-                  density="compact"
-                  tickRate={analysis.tick_rate}
-                  action={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      {...(addDisabledReason === undefined
-                        ? {}
-                        : { disabled: true, disabledReason: addDisabledReason })}
-                    >
-                      <Trans>加入作品</Trans>
-                    </Button>
-                  }
-                />
-              </li>
-            ))}
+            {highlights.map((highlight) => {
+              const candidate = toCandidate(highlight, row.name, analysis.tick_rate);
+              return (
+                <li key={highlight.id}>
+                  <HighlightRow
+                    highlight={candidate}
+                    density="compact"
+                    action={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={addToVideo.disabled}
+                        {...(addToVideo.disabledReason === undefined
+                          ? {}
+                          : { disabledReason: addToVideo.disabledReason })}
+                        onClick={() => addToVideo.onAdd?.(highlightSelection(candidate))}
+                      >
+                        <Trans>加入作品</Trans>
+                      </Button>
+                    }
+                  />
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -383,11 +399,12 @@ export function PlayerMatchDetail({ analysis, row, addDisabledReason }: PlayerMa
   );
 }
 
-function toCandidate(highlight: Highlight, subject: string): HighlightCandidate {
+function toCandidate(highlight: Highlight, subject: string, tickRate: number): HighlightCandidate {
   return {
     id: highlight.id,
     kind: highlightKindOf(highlight.kind),
     playerId: highlight.player_id,
+    tickRate,
     /* The detector's own phrasing wins over the kind table's generic word —
        「1v3 残局」 says more than 「残局」 — and falls back to it when absent. */
     ...(highlight.label.trim() === '' ? {} : { label: highlight.label }),
@@ -409,9 +426,9 @@ function StatCell({
   readonly children: ReactNode;
 }) {
   return (
-    <div className={last ? 'flex-1 px-3 py-2.5' : 'flex-1 border-r border-divider px-3 py-2.5'}>
+    <div className={last ? 'flex-auto px-3 py-2.5' : 'flex-auto border-r border-divider px-3 py-2.5'}>
       <div className="text-xs text-neutral-600">{label}</div>
-      <div className="font-mono text-lg">{children}</div>
+      <div className="whitespace-nowrap font-mono text-lg">{children}</div>
     </div>
   );
 }
@@ -507,13 +524,7 @@ function PlayersInspector({
         </>
       }
     >
-      <PlayerMatchDetail
-        analysis={analysis.data}
-        row={row}
-        {...(addToVideo.disabledReason === undefined
-          ? {}
-          : { addDisabledReason: addToVideo.disabledReason })}
-      />
+      <PlayerMatchDetail analysis={analysis.data} row={row} addToVideo={addToVideo} />
     </MatchInspectorPanel>
   );
 }

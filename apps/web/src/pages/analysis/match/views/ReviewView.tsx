@@ -60,7 +60,7 @@ import { formatTickCount } from '../../../../domain/match';
 import type { EvidenceAnnotation } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import { AnalysisFailedState, NotAnalysedState } from './viewChrome';
+import { NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
   annotationTally,
@@ -102,18 +102,6 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
     return (
       <Frame state="empty">
         <NotAnalysedState demoId={demoId} />
-      </Frame>
-    );
-  }
-
-  if (dataErrorMessage(analysis.error) !== null) {
-    return (
-      <Frame state="error">
-        <AnalysisFailedState
-          demoId={demoId}
-          error={analysis.error}
-          onRetry={() => void analysis.refetch()}
-        />
       </Frame>
     );
   }

@@ -104,15 +104,6 @@ describe('the list', () => {
     expect(html).toContain('逐回合看');
   });
 
-  it('puts a failed read in place with 重新分析 and 重试', () => {
-    analysis({ error: { message: '索引坏了' } });
-    const html = markupView(<HighlightsView.Body {...viewProps()} />);
-    expect(html).toContain('这场比赛的分析结果没能打开');
-    expect(html).toContain('重新分析');
-    expect(html).toContain('重试');
-    expect(html).toContain('索引坏了');
-  });
-
   it('sends an unanalysed demo back to the library', () => {
     analysis({ error: { status: 404, message: 'not analysed' } });
     const html = markupView(<HighlightsView.Body {...viewProps()} />);

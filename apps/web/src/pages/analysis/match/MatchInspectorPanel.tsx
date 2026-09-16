@@ -38,6 +38,8 @@ export interface MatchInspectorPanelProps {
   readonly addLabel?: ReactNode | undefined;
   /** What the view is proposing to add. */
   readonly selection?: MatchVideoSelection | undefined;
+  /** Several at once — the checked rows of 高光. Takes precedence over `selection`. */
+  readonly batch?: readonly MatchVideoSelection[] | undefined;
   /** The row of seconds under the main action. */
   readonly secondaryActions?: ReactNode | undefined;
   /** The §8 fold, as the shell observed it. */
@@ -51,11 +53,13 @@ export function MatchInspectorPanel({
   addToVideo,
   addLabel,
   selection,
+  batch,
   secondaryActions,
   collapsed,
 }: MatchInspectorPanelProps) {
   const label = t`选中项详情`;
-  const hasSelection = selection !== undefined && Object.keys(selection).length > 0;
+  const hasBatch = batch !== undefined && batch.length > 0;
+  const hasSelection = hasBatch || (selection !== undefined && Object.keys(selection).length > 0);
   const addDisabled = addToVideo.disabled || !hasSelection;
   const addDisabledReason = addToVideo.disabledReason ?? (hasSelection ? undefined : t`先选择一个回合、选手或片段`);
   const add = (
@@ -68,7 +72,10 @@ export function MatchInspectorPanel({
       {...(addDisabledReason === undefined
         ? {}
         : { disabledReason: addDisabledReason })}
-      onClick={() => addToVideo.onAdd?.(selection ?? {})}
+      onClick={() => {
+        if (hasBatch) addToVideo.onAddMany?.(batch);
+        else addToVideo.onAdd?.(selection ?? {});
+      }}
     >
       {addLabel ?? <Trans>加入作品</Trans>}
     </Button>

@@ -23,6 +23,7 @@ import { economyRows, utilityRows } from './utilityModel';
 import { ANALYSIS, densityAnalysis, INSIGHTS } from './test/rosterFixtures';
 
 const INDEX = rosterIndex(ANALYSIS);
+const AVAILABLE = { available: true, reason: null };
 const ROWS = utilityRows(INSIGHTS, INDEX);
 const ECONOMY = economyRows(INSIGHTS, ANALYSIS.rounds);
 
@@ -53,6 +54,7 @@ describe('the per-player table', () => {
       onSelect={() => undefined}
       damageAvailable
       flashAvailable
+      utility={AVAILABLE}
     />,
   );
 
@@ -84,6 +86,7 @@ describe('the per-player table', () => {
         onSelect={() => undefined}
         damageAvailable={false}
         flashAvailable={false}
+        utility={AVAILABLE}
       />,
     );
     expect(degraded).not.toContain('致盲人次');
@@ -185,6 +188,7 @@ describe('density — the real volumes of `domain/densityFixtures`', () => {
         onSelect={() => undefined}
         damageAvailable
         flashAvailable
+        utility={AVAILABLE}
       />,
     );
     expect(html.match(/data-row-id="/gu)).toHaveLength(MATCH_ROSTER_SIZE);

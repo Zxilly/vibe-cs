@@ -207,9 +207,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     return await Promise.race([invocation, cancellation]);
   } catch (error) {
     if (error instanceof DesktopError) throw error;
-    if (isDesktopCommandFailure(error)) {
-      throw new DesktopError(error.message, error.status, error.code);
-    }
+    if (isDesktopCommandFailure(error)) throw commandFailure(error);
     throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'DESKTOP_COMMAND_FAILED');
   } finally {
     if (timer !== null) globalThis.clearTimeout(timer);
@@ -252,6 +250,25 @@ function isDesktopCommandFailure(value: unknown): value is DesktopCommandFailure
     && typeof candidate.message === 'string';
 }
 
+/**
+ * The service's failure, as a `DesktopError` a Notice can print.
+ *
+ * Two codes carry a fixed English sentence rather than a message about the
+ * request (`crates/application/src/error.rs`: 「The local database operation
+ * failed」, 「The local filesystem operation failed」). They are said here in
+ * product copy — this is the one seam every service reply crosses — and the
+ * code travels on the error unchanged, so a bug report still names it. Every
+ * other message describes the caller's own input and is kept as sent.
+ */
+function commandFailure(failure: DesktopCommandFailure): DesktopError {
+  const message = failure.code === 'storage_error'
+    ? t`本地数据库读写失败`
+    : failure.code === 'filesystem_error'
+      ? t`本地文件读写失败`
+      : failure.message;
+  return new DesktopError(message, failure.status, failure.code);
+}
+
 function utf8Hex(value: string): string {
   return Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -270,7 +287,7 @@ async function uploadNativeFile<T>(path: string, file: File, projectId?: string)
       },
     );
   } catch (error) {
-    if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
+    if (isDesktopCommandFailure(error)) throw commandFailure(error);
     throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'DESKTOP_UPLOAD_FAILED');
   }
 }
@@ -461,7 +478,7 @@ export const commands = {
     try {
       return await invoke<AgentChatResult>('agent_chat', { input, onEvent: channel });
     } catch (error) {
-      if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
+      if (isDesktopCommandFailure(error)) throw commandFailure(error);
       throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'AGENT_COMMAND_FAILED');
     }
   },

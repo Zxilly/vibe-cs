@@ -60,11 +60,10 @@ import {
 } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
 import { useNativeShell, useNativeShellAction, useRevealPath } from '../../../data/nativeShell';
-import { useApplyProjectPatch, useCreateProject } from '../../../data/projects';
 import { Alert, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
-import { collectedClipsPatch, type ProjectCollectedClip } from '../../../domain/project/collectedClip';
+import { useCreateDemoProject } from '../../../domain/project/createDemoProject';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { AddWatchDirectoryDialog } from './AddWatchDirectoryDialog';
 import { ColumnConfigDialog } from './ColumnConfigDialog';
@@ -118,8 +117,7 @@ function DemoLibraryPage() {
   const [preferredProjectId] = useState(() => params.get('project'));
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
-  const create = useCreateProject();
-  const applyProject = useApplyProjectPatch();
+  const demoProject = useCreateDemoProject();
   const nativeShell = useNativeShell();
   const shellAction = useNativeShellAction();
   const revealPath = useRevealPath();
@@ -215,37 +213,10 @@ function DemoLibraryPage() {
     startAnalysis.mutate(demoIds);
   };
 
-  const createProject = (demo: DemoSummary) => {
-    void create.mutateAsync({
-      name: demo.display_name,
-      width: 1920,
-      height: 1080,
-      fps: 60,
-      source_demo_ids: [demo.id],
-    })
-      .then(async (project) => {
-        await applyProject.mutateAsync(collectedClipsPatch(project, [wholeMatchClip(demo)]));
-        void navigate(`/projects/${encodeURIComponent(project.id)}`);
-      })
-      .catch(() => undefined);
-  };
-
-  const createSeriesProject = (demos: readonly DemoSummary[]) => {
+  const createProject = (demos: readonly DemoSummary[]) => {
     if (demos.length === 0) return;
-    const title = demos.length === 1
-      ? demos[0]!.display_name
-      : `${demos[0]!.display_name} +${String(demos.length - 1)}`;
-    void create.mutateAsync({
-      name: title,
-      width: 1920,
-      height: 1080,
-      fps: 60,
-      source_demo_ids: demos.map((demo) => demo.id),
-    })
-      .then(async (project) => {
-        await applyProject.mutateAsync(collectedClipsPatch(project, demos.map(wholeMatchClip)));
-        void navigate(`/projects/${encodeURIComponent(project.id)}`);
-      })
+    void demoProject.create(demos)
+      .then((project) => void navigate(`/projects/${encodeURIComponent(project.id)}`))
       .catch(() => undefined);
   };
 
@@ -264,10 +235,10 @@ function DemoLibraryPage() {
           analyse([demo.id]);
         },
         analyseButtonProps: { disabled: startAnalysis.isPending },
-        onCreateProject: createProject,
-        createButtonProps: { disabled: create.isPending || applyProject.isPending },
+        onCreateProject: (demo: DemoSummary) => createProject([demo]),
+        createButtonProps: { disabled: demoProject.pending },
       }),
-    [applyProject.isPending, create.isPending, startAnalysis.isPending],
+    [demoProject.pending, startAnalysis.isPending],
   );
 
   const importAction = (
@@ -310,8 +281,8 @@ function DemoLibraryPage() {
     >
       <Button
         size="sm"
-        disabled={create.isPending || applyProject.isPending}
-        onClick={() => createSeriesProject(selectedDemos)}
+        disabled={demoProject.pending}
+        onClick={() => createProject(selectedDemos)}
       >
         <Trans>用 Agent 创作</Trans>
       </Button>
@@ -635,24 +606,4 @@ function DemoLibraryPage() {
       />
     </Page>
   );
-}
-
-function wholeMatchClip(demo: DemoSummary): ProjectCollectedClip {
-  return {
-    id: `${demo.id}:selection:match`,
-    demoId: demo.id,
-    matchLabel: demo.display_name,
-    kind: 'selection',
-    label: t`整场比赛`,
-    round: null,
-    playerId: null,
-    playerName: null,
-    tickRate: null,
-    highlightId: null,
-    evidenceId: null,
-    startTick: null,
-    endTick: null,
-    durationSeconds: demo.duration_seconds > 0 ? demo.duration_seconds : null,
-    addedAt: new Date().toISOString(),
-  };
 }

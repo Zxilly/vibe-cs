@@ -1,6 +1,6 @@
 /*
- * `interaction` project — `AnalysisFailedState`, the way out of an analysis
- * that will not open.
+ * `interaction` project — `AnalysisFailure`, the way out of an analysis that
+ * will not open.
  *
  * The case this guards: a stored result the running version cannot read. The
  * record says 「已就绪」, the read fails the same way on every 「重试」, and the
@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDemo, useStartDemoAnalysis } from '../../../../data/demos';
 import { DEMO_ID } from '../../../../test/fixtures/matchAnalysis';
-import { AnalysisFailedState } from './viewChrome';
+import { AnalysisFailure } from './viewChrome';
 import { mutationResult, queryResult, renderView } from './test/renderView';
 
 vi.mock('../../../../data/demos', async (importOriginal) => {
@@ -33,21 +33,23 @@ beforeEach(() => {
   vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ isSuccess: false }) as never);
 });
 
-describe('AnalysisFailedState', () => {
+describe('AnalysisFailure', () => {
   it('says which step failed in its own words, and keeps the service line as a diagnostic', () => {
-    renderView(<AnalysisFailedState demoId={DEMO_ID} error={READ_ERROR} onRetry={vi.fn()} />);
+    renderView(<AnalysisFailure view="rounds" title="回合" demoId={DEMO_ID} error={READ_ERROR} onRetry={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: '这场比赛的分析结果没能打开' })).toBeTruthy();
     expect(document.body.textContent).toContain('Demo 文件和资料库记录没有改动');
     expect(document.body.textContent).toContain('The local database operation failed');
     expect(screen.getByRole('link', { name: '回到资料库' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '设置与诊断' })).toBeTruthy();
+    expect(document.querySelector('[data-match-panel="analysis-failure"]')).not.toBeNull();
   });
 
   it('starts a new run for this demo, and retries in place', () => {
     const mutate = vi.fn();
     const onRetry = vi.fn();
     vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ mutate }) as never);
-    renderView(<AnalysisFailedState demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />);
+    renderView(<AnalysisFailure view="rounds" title="回合" demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />);
 
     fireEvent.click(screen.getByRole('button', { name: '重新分析' }));
     expect(mutate).toHaveBeenCalledWith([DEMO_ID]);
@@ -61,7 +63,7 @@ describe('AnalysisFailedState', () => {
     vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ isSuccess: true }) as never);
     vi.mocked(useDemo).mockReturnValue(demo('analyzing') as never);
     const view = renderView(
-      <AnalysisFailedState demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />,
+      <AnalysisFailure view="rounds" title="回合" demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />,
     );
 
     const again = screen.getByRole('button', { name: '重新分析' }) as HTMLButtonElement;
@@ -75,7 +77,7 @@ describe('AnalysisFailedState', () => {
     vi.mocked(useDemo).mockReturnValue(demo('ready') as never);
     view.rerender(
       <MemoryRouter>
-        <AnalysisFailedState demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />
+        <AnalysisFailure view="rounds" title="回合" demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />
       </MemoryRouter>,
     );
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -83,7 +85,7 @@ describe('AnalysisFailedState', () => {
     // A re-render at the same state is not a second arrival.
     view.rerender(
       <MemoryRouter>
-        <AnalysisFailedState demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />
+        <AnalysisFailure view="rounds" title="回合" demoId={DEMO_ID} error={READ_ERROR} onRetry={onRetry} />
       </MemoryRouter>,
     );
     expect(onRetry).toHaveBeenCalledTimes(1);

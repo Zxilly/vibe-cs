@@ -253,6 +253,30 @@ export interface PlayerMarker {
   readonly weapon: string;
 }
 
+/**
+ * The player the view follows when the address names none.
+ *
+ * The first one with a position in the slice, so the default focus has a route
+ * to draw; the roster's first entry when the slice has no positions at all (an
+ * empty stream, a failed read). Pure and shared so the body's rail and the
+ * Inspector's 「加入作品」 name the *same* player: a default the list painted as
+ * selected but the Inspector did not know about was a selection that existed
+ * on one side of the screen only.
+ */
+export function defaultFocusPlayerId(
+  slice: ReplaySlice | null,
+  roster: readonly { readonly id: string }[],
+): string | null {
+  if (slice !== null) {
+    for (const frame of slice.frames) {
+      for (const player of frame.players) {
+        if (worldPoint(player) !== null) return player.id;
+      }
+    }
+  }
+  return roster[0]?.id ?? null;
+}
+
 /** Living players only: a corpse is not a position, and the kill is drawn. */
 export function playerMarkers(frame: ReplayFrameRecord | null): readonly PlayerMarker[] {
   if (frame === null) return [];

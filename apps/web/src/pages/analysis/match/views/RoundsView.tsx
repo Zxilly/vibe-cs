@@ -147,6 +147,12 @@ export interface SurvivorAxisProps {
  * The chart is `aria-hidden`: it restates the event table underneath it, and a
  * screen reader reading a polyline's point list learns nothing. The table is the
  * accessible form, and the counts are in every row of it.
+ *
+ * The box is padded on the inside (`py-2`, on the `<svg>` itself, so the unit
+ * viewBox maps onto the content box): a full roster sits at y = 0, and without
+ * the inset the 5v5 opening of every round — the whole of a round with no
+ * kills — lay exactly on the top border and could not be told from an empty
+ * box. A round with nothing on its axis says so in words instead.
  */
 export function SurvivorAxis({ detail, tickRate, teamAName, teamBName }: SurvivorAxisProps) {
   const points = survivorCurve(detail);
@@ -160,7 +166,7 @@ export function SurvivorAxis({ detail, tickRate, teamAName, teamBName }: Survivo
           viewBox="0 0 1 1"
           preserveAspectRatio="none"
           aria-hidden="true"
-          className="h-24 w-full border border-divider"
+          className="h-24 w-full border border-divider py-2"
         >
           <polyline
             points={lines.a}
@@ -187,6 +193,16 @@ export function SurvivorAxis({ detail, tickRate, teamAName, teamBName }: Survivo
             style={{ left: `${(moment.offsetTick / span) * 100}%` }}
           />
         ))}
+        {detail.moments.length === 0 ? (
+          <p
+            data-match-survivor-axis-empty=""
+            className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-neutral-600"
+          >
+            <Trans>
+              没有击杀或目标事件，全程 {detail.rosterA} v {detail.rosterB}
+            </Trans>
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-neutral-700">
@@ -708,4 +724,8 @@ export const RoundsView: MatchViewModule = {
   id: 'rounds',
   Body: RoundsBody,
   Inspector: RoundsInspector,
+  /* The body opens on the first round (252b9ef: 「focus the first round」) and
+     paints it selected; the Inspector shows the same round from the start, so
+     the two halves agree about what is selected before the address says. */
+  inspectorMode: 'persistent',
 };

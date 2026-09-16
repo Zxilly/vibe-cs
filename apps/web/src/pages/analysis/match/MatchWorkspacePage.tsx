@@ -1,21 +1,30 @@
 /** Match identity, view navigation and URL-owned selection.
- * Evidence collection writes through the shared AddToProjectDialog. */
+ * Evidence collection writes through the shared AddToProjectDialog.
+ *
+ * A failed analysis read is rendered here, once, in place of the view body and
+ * without an Inspector: nine views each drawing their own red box drifted into
+ * four wordings and three left edges, and an Inspector that still offered
+ * 「这一段没有可列出的事件」 beside a failure was calling a broken read an empty
+ * one. The 404 stays with the views — three of them are full-bleed and place
+ * the 「开始分析」 recovery inside their own frame. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useDemo } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
-import { useMatchAnalysis } from '../../../data/match';
+import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { collectedClipRange, type ProjectCollectedClip } from '../../../domain/project/collectedClip';
+import { useCreateDemoProject } from '../../../domain/project/createDemoProject';
 import { Alert } from '../../../design/feedback';
 import { Page, SubNav, useCollapsed, type SubNavItem } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import { MatchContextBar } from '../../../domain/match';
 import { focusedPlayers, matchIdentity, matchTeams, roundLabel } from './matchModel';
+import { AnalysisFailure } from './views/viewChrome';
 import {
   MATCH_VIEW,
   MATCH_VIEW_IDS,
@@ -49,6 +58,7 @@ export function MatchWorkspacePage() {
   const id = demoId === '' ? null : demoId;
   const demo = useDemo(id);
   const analysis = useMatchAnalysis(id);
+  const demoProject = useCreateDemoProject();
 
   const updateContext = (patch: MatchContextPatch, options?: MatchContextUpdateOptions) => {
     setParams(writeWorkspaceContext(patchWorkspaceContext(context, patch)), {
@@ -99,14 +109,35 @@ export function MatchWorkspacePage() {
     if (target !== undefined) updateContext({ view: target });
   };
 
+  /* A rejection other than 「还没分析」, with nothing to draw in its place. A
+     refetch that failed over a document already read is not this: the views
+     keep drawing what they have. */
+  const failure = analysis.data === undefined && analysis.error !== null && !analysisIsMissing(analysis.error)
+    ? analysis.error
+    : null;
   const hasSelection = context.round !== null || context.player !== null
     || context.tick !== null || context.evidence !== null || context.highlight !== null;
   const inspector =
-    view.Inspector === undefined || (view.inspectorMode !== 'persistent' && !hasSelection) ? null : (
-      <view.Inspector {...viewProps} />
-    );
+    failure !== null || view.Inspector === undefined || (view.inspectorMode !== 'persistent' && !hasSelection)
+      ? null
+      : <view.Inspector {...viewProps} />;
+  /* Transient state a view's two halves share — the 高光 batch selection — is
+     scoped by the view's own Provider, wrapped around both halves here because
+     the shell is the one component that renders both. */
+  const Provider = view.Provider ?? Fragment;
+
+  const createProject = () => {
+    if (demo.data === undefined) return;
+    void demoProject.create([demo.data])
+      .then((project) => void navigate(`/projects/${encodeURIComponent(project.id)}`))
+      .catch(() => undefined);
+  };
+  const createDisabledReason = demo.data === undefined
+    ? t`比赛信息还没读出来`
+    : demoProject.pending ? t`正在新建作品` : undefined;
 
   return (
+    <Provider>
     <Page
       scroll={false}
       toolbar={
@@ -136,9 +167,18 @@ export function MatchWorkspacePage() {
               </Button>
               {/* §8's non-negotiable line: the primary action is visible at
                   every width and never enters an overflow menu. `MatchContextBar`
-                  keeps its `actions` slot out of the fold for that reason. */}
-              <Button variant="primary" size="sm" onClick={() => void navigate('/projects/new?step=shotlist')}>
-                <Trans>新建作品</Trans>
+                  keeps its `actions` slot out of the fold for that reason.
+                  The project it creates starts from *this* match — named after
+                  it, listing the Demo as its source, the whole match on the
+                  Story track — the same project a 资料库 row creates. */}
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={createDisabledReason !== undefined}
+                {...(createDisabledReason === undefined ? {} : { disabledReason: createDisabledReason })}
+                onClick={createProject}
+              >
+                <Trans>用这场比赛新建作品</Trans>
               </Button>
             </>
           }
@@ -160,6 +200,16 @@ export function MatchWorkspacePage() {
       footer={collapsed ? inspector : null}
     >
       <>
+      {dataErrorMessage(demoProject.error) === null ? null : (
+        <Alert
+          className="mx-4 mt-4"
+          variant="danger"
+          action={{ label: <Trans>重试</Trans>, onAction: createProject }}
+          detail={<Trans>没有创建任何作品。</Trans>}
+        >
+          <Trans>作品没能新建：{dataErrorMessage(demoProject.error)}</Trans>
+        </Alert>
+      )}
       {addedProject === null ? null : (
         <Alert
           className="mx-4 mt-4"
@@ -181,7 +231,17 @@ export function MatchWorkspacePage() {
           data-match-demo={demoId}
           className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
         >
-          <view.Body {...viewProps} />
+          {failure === null ? (
+            <view.Body {...viewProps} />
+          ) : (
+            <AnalysisFailure
+              view={context.view}
+              title={i18n._(MATCH_VIEW[context.view].label)}
+              demoId={demoId}
+              error={failure}
+              onRetry={() => void analysis.refetch()}
+            />
+          )}
         </main>
         {collapsed ? null : inspector}
       </div>
@@ -194,6 +254,7 @@ export function MatchWorkspacePage() {
       />
       </>
     </Page>
+    </Provider>
   );
 }
 
@@ -215,11 +276,16 @@ function collectedClip(
     ?? (selection.round === undefined ? undefined : `round-${String(selection.round)}`)
     ?? selection.playerId
     ?? `${String(selection.startTick ?? 'start')}-${String(selection.endTick ?? 'end')}`;
+  /* The label is the clip's name on the timeline and the undo summary, so it
+     says what a person would: the player's name, and the id only when the
+     analysis knows no name for it. */
   const label = selection.label
     ?? (kind === 'highlight' ? `高光 ${identity}`
       : kind === 'evidence' ? `证据 ${identity}`
         : kind === 'round' ? `第 ${String(selection.round)} 回合`
-          : kind === 'player' ? `选手 ${String(selection.playerId)}` : '比赛片段');
+          : kind === 'player'
+            ? (playerName === null ? `选手 ${String(selection.playerId)}` : `${playerName} · POV`)
+            : '比赛片段');
   const range = collectedClipRange({ startTick: selection.startTick ?? null, endTick: selection.endTick ?? null, tickRate: selection.tickRate ?? null });
   const durationSeconds = range === null ? null : range.recordingEnd - range.recordingStart;
   return {

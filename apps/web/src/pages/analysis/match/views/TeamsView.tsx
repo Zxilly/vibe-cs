@@ -71,6 +71,7 @@ import {
   type TeamKey,
 } from './matchAggregates';
 import { economyAvailability, economyTotals, sideEconomyRows, type SideEconomyRow } from './economyModel';
+import { formatMoney, formatReason } from './playersModel';
 import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './viewChrome';
 
 /* ── formatting ──────────────────────────────────────────────────────────── */
@@ -90,10 +91,6 @@ function percent(fraction: number): string {
   return Number.isFinite(fraction) ? `${Math.round(fraction * 100)}%` : '—';
 }
 
-/** 「$12 350」, or 「—」 when one of the rounds in the sum carried no price. */
-function money(value: number | null): string {
-  return value === null ? '—' : `$${value.toLocaleString('en-US')}`;
-}
 
 /* ── one team ────────────────────────────────────────────────────────────── */
 
@@ -106,6 +103,8 @@ export interface TeamRosterPanelProps {
   readonly players: readonly PlayerAnalysis[];
   /** Highlight candidates per player id — the one artboard column that survives. */
   readonly highlightsByPlayer: ReadonlyMap<string, number>;
+  /** Whether the highlight pass found anything in this *match*; see `TeamsPanels`. */
+  readonly showHighlights: boolean;
   readonly selectedPlayer: string | null;
   readonly onUpdateContext: (patch: MatchContextPatch) => void;
 }
@@ -117,11 +116,11 @@ export function TeamRosterPanel({
   score,
   players,
   highlightsByPlayer,
+  showHighlights,
   selectedPlayer,
   onUpdateContext,
 }: TeamRosterPanelProps) {
   const { i18n } = useLingui();
-  const anyHighlights = players.some((player) => (highlightsByPlayer.get(player.id) ?? 0) > 0);
 
   const columns: DataTableColumn<PlayerAnalysis>[] = [
     {
@@ -151,10 +150,14 @@ export function TeamRosterPanel({
     },
   ];
 
-  /* The column only exists when the highlight pass produced something for this
-     team. A column of zeros beside a real scoreboard reads as a claim that
-     nobody had a highlight, which is not the same as 「没有跑高光检出」. */
-  if (anyHighlights) {
+  /* The column only exists when the highlight pass produced something for the
+     match. A column of zeros beside a real scoreboard reads as a claim that
+     nobody had a highlight, which is not the same as 「没有跑高光检出」 — but
+     the pass runs once for the whole match, so the decision is the match's,
+     not each team's: two stacked tables with different columns put K/D/A on
+     different x, and a team whose column is missing while the other team's
+     is there reads as a team the detector skipped. */
+  if (showHighlights) {
     columns.push({
       id: 'highlights',
       header: <Trans>高光</Trans>,
@@ -263,7 +266,7 @@ export function EconomyPanel({
       header: <Trans>CT 花费</Trans>,
       variant: 'numeric',
       width: '7rem',
-      cell: (row) => money(row.ct.spend),
+      cell: (row) => formatMoney(row.ct.spend),
     },
     {
       id: 't-purchases',
@@ -277,7 +280,7 @@ export function EconomyPanel({
       header: <Trans>T 花费</Trans>,
       variant: 'numeric',
       width: '7rem',
-      cell: (row) => money(row.t.spend),
+      cell: (row) => formatMoney(row.t.spend),
     },
   ];
 
@@ -326,12 +329,12 @@ export function EconomyPanel({
             </span>
             <span className="font-mono">
               <Trans>
-                CT {totals.ct.purchases} 次 · {money(totals.ct.spend)}
+                CT {totals.ct.purchases} 次 · {formatMoney(totals.ct.spend)}
               </Trans>
             </span>
             <span className="font-mono">
               <Trans>
-                T {totals.t.purchases} 次 · {money(totals.t.spend)}
+                T {totals.t.purchases} 次 · {formatMoney(totals.t.spend)}
               </Trans>
             </span>
             {totals.unattributed > 0 ? (
@@ -349,11 +352,6 @@ export function EconomyPanel({
       )}
     </ViewPanel>
   );
-}
-
-/** The service's sentence, appended only when it sent one. */
-function formatReason(reason: string | null): string {
-  return reason === null || reason.trim() === '' ? '。' : `：${reason.trim()}`;
 }
 
 /* ── how the rounds ended ────────────────────────────────────────────────── */
@@ -437,6 +435,8 @@ export function TeamsPanels({
       (highlightsByPlayer.get(highlight.player_id) ?? 0) + 1,
     );
   }
+  /* Decided once for both tables, so their columns share one axis. */
+  const showHighlights = analysis.highlights.length > 0;
 
   return (
     <>
@@ -447,6 +447,7 @@ export function TeamsPanels({
         score={wireA?.score ?? null}
         players={roster.a}
         highlightsByPlayer={highlightsByPlayer}
+        showHighlights={showHighlights}
         selectedPlayer={selectedPlayer}
         onUpdateContext={onUpdateContext}
       />
@@ -457,6 +458,7 @@ export function TeamsPanels({
         score={wireB?.score ?? null}
         players={roster.b}
         highlightsByPlayer={highlightsByPlayer}
+        showHighlights={showHighlights}
         selectedPlayer={selectedPlayer}
         onUpdateContext={onUpdateContext}
       />
@@ -535,7 +537,9 @@ function TeamsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        {null}
+        <p className="text-sm text-neutral-700">
+          <Trans>点任一阵容表的一行，这里会显示这名选手的本场数据。</Trans>
+        </p>
       </MatchInspectorPanel>
     );
   }

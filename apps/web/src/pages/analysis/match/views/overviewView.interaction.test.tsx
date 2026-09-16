@@ -68,7 +68,7 @@ describe('the round strip is the door to 回合', () => {
 });
 
 describe('关键时刻 is the door to 高光', () => {
-  it('walks a single moment into 高光 with its round selected', async () => {
+  it('walks a single moment into 高光 with that highlight, not only its round, selected', async () => {
     await openOverview();
 
     // `h-0` is the highest-confidence candidate in the fixture, on round 24.
@@ -77,6 +77,9 @@ describe('关键时刻 is the door to 高光', () => {
       expect(address()).toContain('view=highlights');
     });
     expect(address()).toContain('round=24');
+    // A round can hold several highlights; the address names the one clicked,
+    // so 高光's list and Inspector open on it rather than on the first row.
+    expect(address()).toContain('highlight=h-0');
   });
 
   it('walks the whole list into 高光 without inventing a selection', async () => {

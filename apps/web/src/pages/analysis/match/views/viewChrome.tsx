@@ -18,8 +18,15 @@
  *             `DesktopError`, and a demo that was never analysed gets
  *             `Empty preset="not-analysed"` with 「开始分析」 — the one
  *             action that fixes it — rather than a red box that hides it.
- *   failure   an in-place `Notice` with 重试. §4.1 sets `throwOnError: false`
- *             precisely so the error lands next to the thing that failed.
+ *   failure   **never reaches a view.** A read that failed for any other
+ *             reason is one fact about the whole workspace, and the shell
+ *             (`MatchWorkspacePage`) renders `AnalysisFailure` in place of the
+ *             body — one sentence, one frame, no Inspector, 「重新分析」 beside
+ *             「重试」 — before any of the nine bodies mounts. Nine views each
+ *             drawing their own red box drifted into four wordings and three
+ *             left edges; the frame is the shell's so that cannot happen
+ *             again. §4.1's `throwOnError: false` still holds: the recovery
+ *             lands in the content column, next to the thing that failed.
  *
  * 「开始分析」 invokes the local Tauri host directly; an IPC error is rendered
  * by the mutation beside this recovery action.
@@ -34,7 +41,7 @@ import { Alert } from '../../../../design/feedback';
 import { Button, cn } from '../../../../design/primitives';
 import { useDemo, useStartDemoAnalysis } from '../../../../data/demos';
 import { dataErrorMessage } from '../../../../data/errors';
-import { analysisIsMissing, useMatchAnalysis } from '../../../../data/match';
+import { useMatchAnalysis } from '../../../../data/match';
 import { CS2_TICK_RATE } from '../../../../domain/match';
 import type { AnalysisWorkspace } from '../../../../shared/desktop/viewModels';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
@@ -55,13 +62,17 @@ export interface ViewFrameProps {
  * `min-h-0` all the way down and the scroll on the shell's `<main>`: §10.3's
  * rule is that a page never grows a second scrollbar on `body`, which
  * `base.css` has set to `overflow: hidden` — it would simply clip.
+ *
+ * `flex-1`, so the frame is the column's full height and a panel that asks to
+ * `fill` (the 玩家 scoreboard — a view whose body is one table) gets the whole
+ * column to scroll in rather than a cap it does not need.
  */
 export function ViewFrame({ view, state = 'ready', children }: ViewFrameProps) {
   return (
     <section
       data-match-view={view}
       data-match-view-state={state}
-      className="flex min-h-0 min-w-0 flex-col gap-4 p-6"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-6"
     >
       {children}
     </section>
@@ -76,12 +87,22 @@ export interface ViewPanelProps {
   /** Right-aligned head slot: 「查看全部 18 条」. */
   readonly actions?: ReactNode | undefined;
   readonly children: ReactNode;
+  /**
+   * Take the rest of the column and scroll inside it. For a view whose body is
+   * one table: a fixed cap under a 「共 10 名选手」 head showed eight rows above
+   * 300px of blank column, which reads as missing data — §10.4's 永远空的列和
+   * 静默截断是同一个谎. Panels stacked with others keep their own caps.
+   */
+  readonly fill?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
-export function ViewPanel({ id, title, hint, actions, children, className }: ViewPanelProps) {
+export function ViewPanel({ id, title, hint, actions, children, fill = false, className }: ViewPanelProps) {
   return (
-    <section data-match-panel={id} className={cn('flex min-w-0 flex-col border border-divider', className)}>
+    <section
+      data-match-panel={id}
+      className={cn('flex min-w-0 flex-col border border-divider', fill && 'min-h-0 flex-1', className)}
+    >
       <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3 py-1">
         <h3 className="min-w-0 truncate text-sm font-medium">
           {title}
@@ -207,110 +228,6 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
   );
 }
 
-/* ── the failure recovery ────────────────────────────────────────────────── */
-
-/** How often the demo record is re-read while a run started here is on. */
-const REANALYSIS_POLL_MS = 2_000;
-
-/**
- * 「这场比赛的分析结果没能打开」 and the two ways out of it.
- *
- * The analysis read failed for a reason other than 404. The one that happens
- * in practice is a stored result the current version cannot read — the record
- * says 「已就绪」, the document does not decode, and 「重试」 gives the same
- * answer every time. The service reports that as a generic storage failure in
- * its own English, which is not a sentence a user can act on; this state says
- * in Chinese which step failed, what was not touched, and offers the action
- * that actually fixes it — 「重新分析」 writes a fresh result over the old one —
- * beside 「重试」 for the transient case. The service's own line is kept as a
- * diagnostic, small and mono, so a bug report still has it.
- *
- * Once a run has been started from here the demo record is polled, and the
- * moment it is 「已就绪」 again the analysis is re-read — the user asked for a
- * new result and gets it in place, without knowing to press 「重试」 later.
- *
- * One component for the same reason as `NotAnalysedState`: the gate and the
- * three full-bleed views (回放 / 高光 / Review) render this state in four
- * places, and four copies of an error box are four ways for its recovery to
- * drift.
- */
-export function AnalysisFailedState({
-  demoId,
-  error,
-  onRetry,
-}: {
-  readonly demoId: string;
-  readonly error: unknown;
-  readonly onRetry: () => void;
-}) {
-  const start = useStartDemoAnalysis();
-  const demo = useDemo(demoId, { pollMs: start.isSuccess ? REANALYSIS_POLL_MS : false });
-  const lifecycle = demo.data?.lifecycle_status;
-  const running = lifecycle === 'analyzing' || lifecycle === 'indexing';
-  const diagnostic = dataErrorMessage(error);
-  const startError = dataErrorMessage(start.error);
-
-  // Re-read once per arrival at 「已就绪」, not once per render: `onRetry` is a
-  // fresh closure every time and the poll re-renders this every two seconds.
-  const rereadFor = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!start.isSuccess || lifecycle === undefined) return;
-    if (lifecycle !== 'ready') {
-      rereadFor.current = undefined;
-      return;
-    }
-    if (rereadFor.current === lifecycle) return;
-    rereadFor.current = lifecycle;
-    onRetry();
-  }, [lifecycle, onRetry, start.isSuccess]);
-
-  return (
-    <div className="flex flex-col gap-3 p-3.5">
-      <Empty
-        preset="error"
-        headingLevel={4}
-        title={<Trans>这场比赛的分析结果没能打开</Trans>}
-        description={
-          <>
-            <Trans>
-              Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。
-            </Trans>
-            {diagnostic === null ? null : (
-              <span className="mt-2 block font-mono text-neutral-600">{diagnostic}</span>
-            )}
-          </>
-        }
-        actions={
-          <>
-            <Button
-              variant="primary"
-              disabled={start.isPending || running}
-              {...(running ? { disabledReason: t`正在重新分析，完成后这里会自动刷新` } : {})}
-              onClick={() => start.mutate([demoId])}
-            >
-              <Trans>重新分析</Trans>
-            </Button>
-            <Button onClick={onRetry}>
-              <Trans>重试</Trans>
-            </Button>
-            <RouteLink to={running ? '/tasks' : '/library'}>
-              {running ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
-            </RouteLink>
-          </>
-        }
-      />
-      {startError === null ? null : (
-        <Alert
-          variant="danger"
-          action={{ label: <Trans>重试</Trans>, onAction: () => start.mutate([demoId]) }}
-        >
-          <Trans>没能开始重新分析：{startError}</Trans>
-        </Alert>
-      )}
-    </div>
-  );
-}
-
 /* ── the shared read ─────────────────────────────────────────────────────── */
 
 export interface AnalysisGate {
@@ -318,7 +235,7 @@ export interface AnalysisGate {
   readonly analysis: AnalysisWorkspace | undefined;
   /** Non-null when it cannot: render this instead of the view's body. */
   readonly fallback: ReactNode | null;
-  /** `loading` / `empty` / `error` / `ready`, for `ViewFrame`'s `state`. */
+  /** `loading` / `empty` / `ready`, for `ViewFrame`'s `state`. */
   readonly state: string;
   /** The match's own rate, or the CS2 default — stated, never assumed silently. */
   readonly tickRate: number;
@@ -342,21 +259,124 @@ export function useAnalysisGate(demoId: string): AnalysisGate {
     return { analysis: undefined, fallback: <ViewSkeleton />, state: 'loading', tickRate };
   }
 
-  if (analysisIsMissing(query.error)) {
-    return {
-      analysis: undefined,
-      state: 'empty',
-      tickRate,
-      fallback: <NotAnalysedState demoId={demoId} />,
-    };
-  }
-
+  /* Any other rejection was rendered by the shell before this body mounted
+     (`AnalysisFailure`), so what remains here is the 404. */
   return {
     analysis: undefined,
-    state: 'error',
+    state: 'empty',
     tickRate,
-    fallback: (
-      <AnalysisFailedState demoId={demoId} error={query.error} onRetry={() => void query.refetch()} />
-    ),
+    fallback: <NotAnalysedState demoId={demoId} />,
   };
+}
+
+/* ── the failed read ─────────────────────────────────────────────────────── */
+
+/** How often the demo record is re-read while a run started here is on. */
+const REANALYSIS_POLL_MS = 2_000;
+
+export interface AnalysisFailureProps {
+  /** The view the address selected; the frame is drawn under its name. */
+  readonly view: MatchViewId;
+  readonly title: ReactNode;
+  readonly demoId: string;
+  /** The rejection `useMatchAnalysis` settled on. Never a 404 — see the gate. */
+  readonly error: unknown;
+  readonly onRetry: () => void;
+}
+
+/**
+ * 「这场比赛的分析结果没能打开」 and the two ways out of it, in the frame the
+ * panel views draw.
+ *
+ * The shell renders it for every view, so the sentence, the frame and the left
+ * edge are the same nine times. The message is the IPC client's: the service's
+ * fixed infrastructure sentences (`storage_error`, `filesystem_error`) are
+ * already product copy by the time they reach a query, and the code stays on
+ * the error for a bug report.
+ *
+ * The failure that happens in practice is a stored result the current version
+ * cannot read — the record says 「已就绪」, the document does not decode, and
+ * 「重试」 gives the same answer every time. So this state says which step
+ * failed, what was not touched, and offers the action that actually fixes it —
+ * 「重新分析」 writes a fresh result over the old one — beside 「重试」 for the
+ * transient case. The service's own line is kept as a diagnostic, small and
+ * mono, and the diagnostics link is the way out when neither helps.
+ *
+ * Once a run has been started from here the demo record is polled, and the
+ * moment it is 「已就绪」 again the analysis is re-read — the user asked for a
+ * new result and gets it in place, without knowing to press 「重试」 later.
+ */
+export function AnalysisFailure({ view, title, demoId, error, onRetry }: AnalysisFailureProps) {
+  const start = useStartDemoAnalysis();
+  const demo = useDemo(demoId, { pollMs: start.isSuccess ? REANALYSIS_POLL_MS : false });
+  const lifecycle = demo.data?.lifecycle_status;
+  const running = lifecycle === 'analyzing' || lifecycle === 'indexing';
+  const diagnostic = dataErrorMessage(error);
+  const startError = dataErrorMessage(start.error);
+
+  // Re-read once per arrival at 「已就绪」, not once per render: `onRetry` is a
+  // fresh closure every time and the poll re-renders this every two seconds.
+  const rereadFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!start.isSuccess || lifecycle === undefined) return;
+    if (lifecycle !== 'ready') {
+      rereadFor.current = undefined;
+      return;
+    }
+    if (rereadFor.current === lifecycle) return;
+    rereadFor.current = lifecycle;
+    onRetry();
+  }, [lifecycle, onRetry, start.isSuccess]);
+
+  return (
+    <ViewFrame view={view} state="error">
+      <ViewPanel id="analysis-failure" title={title}>
+        <div className="flex flex-col gap-3 p-3.5">
+          <Empty
+            preset="error"
+            headingLevel={4}
+            title={<Trans>这场比赛的分析结果没能打开</Trans>}
+            description={
+              <>
+                <Trans>
+                  Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。反复失败时，到
+                  <RouteLink to="/settings?section=advanced&item=diagnostics">设置与诊断</RouteLink>
+                  导出诊断包。
+                </Trans>
+                {diagnostic === null ? null : (
+                  <span className="mt-2 block font-mono text-neutral-600">{diagnostic}</span>
+                )}
+              </>
+            }
+            actions={
+              <>
+                <Button
+                  variant="primary"
+                  disabled={start.isPending || running}
+                  {...(running ? { disabledReason: t`正在重新分析，完成后这里会自动刷新` } : {})}
+                  onClick={() => start.mutate([demoId])}
+                >
+                  <Trans>重新分析</Trans>
+                </Button>
+                <Button onClick={onRetry}>
+                  <Trans>重试</Trans>
+                </Button>
+                <RouteLink to={running ? '/tasks' : '/library'}>
+                  {running ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
+                </RouteLink>
+              </>
+            }
+          />
+          {startError === null ? null : (
+            <Alert
+              variant="danger"
+              action={{ label: <Trans>重试</Trans>, onAction: () => start.mutate([demoId]) }}
+            >
+              <Trans>没能开始重新分析：{startError}</Trans>
+            </Alert>
+          )}
+        </div>
+      </ViewPanel>
+    </ViewFrame>
+  );
 }

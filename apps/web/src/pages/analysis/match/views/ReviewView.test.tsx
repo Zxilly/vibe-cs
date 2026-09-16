@@ -196,13 +196,4 @@ describe('three states', () => {
     expect(html).toContain('开始分析');
     expect(html).toContain('回到资料库');
   });
-
-  it('puts a failed read in place with 重新分析 and 重试', () => {
-    scene({ analysisError: { message: '解析结果损坏' } });
-    const html = markupView(<ReviewView.Body {...viewProps()} />);
-    expect(html).toContain('这场比赛的分析结果没能打开');
-    expect(html).toContain('重新分析');
-    expect(html).toContain('重试');
-    expect(html).toContain('解析结果损坏');
-  });
 });

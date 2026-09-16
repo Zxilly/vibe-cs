@@ -4,10 +4,10 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, Empty, type DataTableColumn } from '../../../../design/data';
-import type { CountedItemRecord } from '../../../../shared/desktop/dto';
+import type { CountedItemRecord, InsightCapabilityRecord } from '../../../../shared/desktop/dto';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import { rosterIndex } from './duelsModel';
-import { formatCount, formatFixed, NO_VALUE, teamNames } from './playersModel';
+import { formatFixed, formatMoney, formatReason, NO_VALUE, teamNames } from './playersModel';
 import {
   economyRows,
   economySide,
@@ -50,6 +50,8 @@ export interface UtilityTableProps {
   readonly onSelect: (playerId: string) => void;
   readonly damageAvailable: boolean;
   readonly flashAvailable: boolean;
+  /** `insights.availability.utility_events` — why the table may have no rows. */
+  readonly utility: InsightCapabilityRecord;
 }
 
 /** One row per player who has a utility record. Exported for the markup tests. */
@@ -59,6 +61,7 @@ export function UtilityTable({
   onSelect,
   damageAvailable,
   flashAvailable,
+  utility,
 }: UtilityTableProps) {
   const { i18n } = useLingui();
 
@@ -152,6 +155,22 @@ export function UtilityTable({
       rowLabel={(row) => row.name}
       activeRowId={activePlayerId}
       onRowActivate={(rowId) => onSelect(rowId)}
+      /* A header over nothing says nothing. The two reasons a table is empty
+         are different sentences: the service could not decode the events, or
+         it decoded them and nobody threw anything. */
+      empty={
+        <Empty
+          headingLevel={4}
+          className="border-0"
+          title={utility.available ? <Trans>这一场没有记到任何投掷物</Trans> : <Trans>这批 Demo 没有可用的投掷物事件</Trans>}
+          description={
+            utility.available
+              ? <Trans>解析出的事件里没有一次投掷，明细因此是空的。</Trans>
+              : <Trans>没有解出投掷物事件{formatReason(utility.reason)}</Trans>
+          }
+          actions={null}
+        />
+      }
     />
   );
 }
@@ -244,10 +263,7 @@ export function EconomyTable({
           header: <Trans>{side} 花费</Trans>,
           headerLabel: `${side} 花费`,
           variant: 'numeric',
-          cell: (row) => {
-            const spend = economySide(row, side)?.spend ?? null;
-            return spend === null ? NO_VALUE : formatCount(spend);
-          },
+          cell: (row) => formatMoney(economySide(row, side)?.spend ?? null),
         });
       }
     }
@@ -300,7 +316,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
   const damageAvailable = insights?.availability.utility_damage.available ?? false;
   const flashAvailable = insights?.availability.flash_effects.available ?? false;
   const spendAvailable = insights?.availability.purchase_spend.available ?? false;
-  const utilityAvailable = insights?.availability.utility_events.available ?? false;
+  const utility = insights?.availability.utility_events ?? { available: false, reason: null };
   const counts = new Map<UtilityItemKind, number>();
   for (const row of rows) for (const item of row.items) {
     const kind = utilityItemKind(item.name) ?? 'other';
@@ -308,7 +324,6 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
   }
   const kinds: UtilityItemKind[] = ['smoke', 'flash', 'fire', 'he', 'decoy'];
   if (counts.has('other')) kinds.push('other');
-  const money = (value: number | null) => value === null ? NO_VALUE : `$${new Intl.NumberFormat(i18n.locale).format(value)}`;
   const difference = selected?.a == null || selected.b === null ? null : selected.a - selected.b;
 
   return <ViewFrame view="utility" state={gate.state}>
@@ -319,9 +334,16 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           <dl className="divide-y divide-divider">
             {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
               <dt className="text-neutral-700">{i18n._(UTILITY_ITEM_LABEL[kind])}</dt>
-              <dd className="font-mono">{utilityAvailable ? <Trans>{counts.get(kind) ?? 0} 次</Trans> : NO_VALUE}</dd>
+              <dd className="font-mono">{utility.available ? <Trans>{counts.get(kind) ?? 0} 次</Trans> : NO_VALUE}</dd>
             </div>)}
           </dl>
+          {utility.available ? null : (
+            /* Five dashes are not a statement. The service's own reason is,
+               and it is the same sentence 对位 and 队伍 print for theirs. */
+            <p data-utility-unavailable="" className="border-t border-divider px-5 py-3 text-xs text-neutral-600">
+              <Trans>没有解出投掷物事件{formatReason(utility.reason)}</Trans>
+            </p>
+          )}
           {damageAvailable || flashAvailable ? <dl className="flex flex-wrap gap-4 border-t border-divider px-5 py-3 text-xs">
             {damageAvailable ? <div><dt className="text-neutral-600"><Trans>道具伤害</Trans></dt><dd className="font-mono">{totals.damage}</dd></div> : null}
             {flashAvailable ? <div><dt className="text-neutral-600"><Trans>致盲人次</Trans></dt><dd className="font-mono">{totals.flashEvents}</dd></div> : null}
@@ -337,16 +359,16 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
               <span>{names.A} / {names.B}</span>
             </div>
             <dl className="divide-y divide-divider border-t border-divider text-sm">
-              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备价值</Trans></dt><dd className="font-mono">{money(selected.a)} / {money(selected.b)}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备价值</Trans></dt><dd className="font-mono">{formatMoney(selected.a)} / {formatMoney(selected.b)}</dd></div>
               <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>购买类型</Trans></dt><dd>{selected.aBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.aBuyType])} / {selected.bBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.bBuyType])}</dd></div>
-              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备差额</Trans></dt><dd>{difference === null ? NO_VALUE : difference === 0 ? t`持平` : `${difference > 0 ? names.A : names.B} +${money(Math.abs(difference))}`}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备差额</Trans></dt><dd className="font-mono">{difference === null ? NO_VALUE : difference === 0 ? t`持平` : `${difference > 0 ? names.A : names.B} +${formatMoney(Math.abs(difference))}`}</dd></div>
             </dl>
           </>}
         </section>
       </div>
       <details className="rounded-lg border border-divider" open={context.player !== null}>
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium"><Trans>选手道具明细</Trans></summary>
-        <UtilityTable rows={rows} activePlayerId={context.player} onSelect={(player) => updateContext({ player })} damageAvailable={damageAvailable} flashAvailable={flashAvailable} />
+        <UtilityTable rows={rows} activePlayerId={context.player} onSelect={(player) => updateContext({ player })} damageAvailable={damageAvailable} flashAvailable={flashAvailable} utility={utility} />
         {selectedPlayer === undefined ? null : <div className="border-t border-divider p-4"><PlayerUtilityDetail row={selectedPlayer} damageAvailable={damageAvailable} flashAvailable={flashAvailable} /></div>}
       </details>
       <details className="rounded-lg border border-divider">
@@ -440,10 +462,7 @@ export function RoundEconomyDetail({ row, spendAvailable }: RoundEconomyDetailPr
           <dl className="grid grid-cols-2 gap-px bg-divider">
             <DetailCell label={<Trans>购买条数</Trans>} value={formatFixed(side.purchaseCount, 0)} />
             {spendAvailable ? (
-              <DetailCell
-                label={<Trans>花费</Trans>}
-                value={side.spend === null ? NO_VALUE : formatCount(side.spend)}
-              />
+              <DetailCell label={<Trans>花费</Trans>} value={formatMoney(side.spend)} />
             ) : null}
           </dl>
           {side.items.length === 0 ? null : (

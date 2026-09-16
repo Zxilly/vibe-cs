@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useMatchAnalysis } from '../../../../data/match';
 import type { MatchContextPatch } from '../workspaceContext';
+import type { MatchViewProps } from '../viewContract';
 import { HighlightsView } from './HighlightsView';
 import { ANALYSIS } from '../../../../test/fixtures/matchAnalysis';
 import { queryResult, renderView, viewProps } from './test/renderView';
@@ -25,6 +26,17 @@ beforeEach(() => {
   vi.mocked(useMatchAnalysis).mockReturnValue(queryResult(ANALYSIS) as never);
 });
 
+/* Both halves under the module's own Provider, as the shell mounts them: the
+   batch selection is scoped there, and a body rendered bare has none. */
+function renderHighlights(props: MatchViewProps) {
+  const Provider = HighlightsView.Provider!;
+  return renderView(
+    <Provider>
+      <HighlightsView.Body {...props} />
+    </Provider>,
+  );
+}
+
 function rows(): readonly string[] {
   return [...document.querySelectorAll('[data-highlight-row]')].map(
     (node) => node.getAttribute('data-highlight-row') ?? '',
@@ -33,7 +45,7 @@ function rows(): readonly string[] {
 
 describe('the type filter', () => {
   it('narrows the list and keeps the total visible', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     expect(rows()).toHaveLength(4);
 
     fireEvent.click(screen.getByRole('radio', { name: /残局/u }));
@@ -45,7 +57,7 @@ describe('the type filter', () => {
   });
 
   it('offers a way back when a filter empties the list', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     fireEvent.click(screen.getByRole('radio', { name: /盲狙/u }));
     expect(rows()).toEqual(['h-7-noscope']);
 
@@ -56,7 +68,7 @@ describe('the type filter', () => {
 
 describe('the batch selection', () => {
   it('counts the checked rows on the strip', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     expect(document.querySelector('[data-selection-bar]')).toBeNull();
 
     const boxes = screen.getAllByRole('checkbox', { name: '选择这条高光' });
@@ -68,7 +80,7 @@ describe('the batch selection', () => {
   });
 
   it('counts only what the current filter is showing', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     const boxes = screen.getAllByRole('checkbox', { name: '选择这条高光' });
     // Rows 0 and 2 are 残局 and 多杀.
     fireEvent.click(boxes[0] as HTMLElement);
@@ -81,7 +93,7 @@ describe('the batch selection', () => {
   });
 
   it('keeps 加入作品 visible and carries the supplied disabled reason', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     fireEvent.click(screen.getAllByRole('checkbox', { name: '选择这条高光' })[0] as HTMLElement);
 
     const queue = within(document.querySelector('[data-selection-bar]') as HTMLElement)
@@ -90,8 +102,45 @@ describe('the batch selection', () => {
     expect(document.body.textContent).toContain('录制队列尚未接通');
   });
 
+  it('moves the primary action for a checked set into the Inspector, once', () => {
+    const onAddMany = vi.fn();
+    const props = { ...viewProps(), addToVideo: { disabled: false, onAddMany } };
+    const Provider = HighlightsView.Provider!;
+    const Inspector = HighlightsView.Inspector!;
+    renderView(
+      <Provider>
+        <HighlightsView.Body {...props} />
+        <Inspector {...props} />
+      </Provider>,
+    );
+    expect(screen.getByRole('button', { name: '把这条高光加入作品' })).toBeTruthy();
+
+    const boxes = screen.getAllByRole('checkbox', { name: '选择这条高光' });
+    fireEvent.click(boxes[0] as HTMLElement);
+    fireEvent.click(boxes[1] as HTMLElement);
+
+    // The Inspector now describes the set, and its main action is the set's.
+    expect(screen.getByText('已选 2 条高光')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '把这条高光加入作品' })).toBeNull();
+    const primary = screen.getByRole('button', { name: '把已选 2 条加入作品' });
+    expect(primary.className).toContain('bg-accent');
+    // The strip keeps an entry point, but not a second blue one.
+    const strip = within(document.querySelector('[data-selection-bar]') as HTMLElement)
+      .getByRole('button', { name: '加入作品' });
+    expect(strip.className).not.toContain('bg-accent');
+
+    fireEvent.click(primary);
+    expect(onAddMany).toHaveBeenCalledTimes(1);
+    expect(onAddMany.mock.calls[0]?.[0]).toHaveLength(2);
+
+    // Clearing from the Inspector clears the list's boxes too — one set.
+    fireEvent.click(within(document.querySelector('[data-inspector]') as HTMLElement).getByRole('button', { name: '清空选择' }));
+    expect(document.querySelector('[data-selection-bar]')).toBeNull();
+    expect(screen.getByRole('button', { name: '把这条高光加入作品' })).toBeTruthy();
+  });
+
   it('clears the selection and takes the strip away with it', () => {
-    renderView(<HighlightsView.Body {...viewProps()} />);
+    renderHighlights(viewProps());
     fireEvent.click(screen.getAllByRole('checkbox', { name: '选择这条高光' })[0] as HTMLElement);
     expect(document.querySelector('[data-selection-bar]')).not.toBeNull();
 

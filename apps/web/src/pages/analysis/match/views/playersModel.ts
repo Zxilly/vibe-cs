@@ -75,6 +75,27 @@ export function formatCount(value: number | null | undefined): string {
 /** Every position where a thousands separator belongs. */
 const GROUP_BOUNDARY = /\B(?=(?:\d{3})+(?!\d))/gu;
 
+/**
+ * 「$12 350」 — the artboard's money: a dollar sign on `formatCount`'s grouping.
+ *
+ * One spelling for every dollar figure the workspace prints (回合经济, 购买明细,
+ * 队伍 › 经济): three views had drifted into 「$4,200」, 「15 000」 and
+ * 「$15,000」 for the same kind of number on one screen.
+ */
+export function formatMoney(value: number | null | undefined): string {
+  const count = formatCount(value);
+  return count === NO_VALUE ? NO_VALUE : `$${count}`;
+}
+
+/**
+ * The service's own sentence for a capability it could not provide, as the
+ * tail of an authored sentence — 「：浏览器模式没有采样这份数据。」 — or a full
+ * stop when it sent none.
+ */
+export function formatReason(reason: string | null | undefined): string {
+  return reason === null || reason === undefined || reason.trim() === '' ? '。' : `：${reason.trim()}`;
+}
+
 /* ── the scoreboard ──────────────────────────────────────────────────────── */
 
 export interface ScoreboardRow {

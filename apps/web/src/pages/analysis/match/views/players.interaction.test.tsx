@@ -7,7 +7,7 @@
  * one table, not a selection the rest of the workspace shares.
  */
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DesktopClient } from '../../../../data/desktopClient';
@@ -142,6 +142,21 @@ describe('the Inspector’s actions', () => {
       expect(address()).toContain('view=replay');
     });
     expect(address()).toContain('player=kael');
+  });
+});
+
+describe('the Inspector’s highlight rows', () => {
+  it('collect that highlight, with its ticks, from the row’s own 加入作品', async () => {
+    open('&player=kael');
+    await screen.findByText('1v3 残局');
+
+    const row = document.querySelector('[data-highlight-row="h-3-clutch"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: '加入作品' }));
+
+    // The workspace's project picker opens on that one highlight.
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).toContain('第 3 回合');
+    expect(screen.getByRole('dialog').textContent).toContain('1v3 残局');
   });
 });
 

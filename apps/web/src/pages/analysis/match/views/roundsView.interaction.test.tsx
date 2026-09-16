@@ -66,7 +66,9 @@ describe('nothing selected', () => {
   it('focuses the first round without writing it behind the address’s back', async () => {
     await openRounds();
 
-    expect(screen.queryByText('选中：第 1 回合')).toBeNull();
+    // Both halves say the same thing: the body paints R1 selected and the
+    // Inspector describes it — but the address stays as the user left it.
+    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
     expect(address()).not.toContain('round=');
   });
 
@@ -196,11 +198,11 @@ describe('the Inspector is the same round', () => {
     expect(screen.getByText('教学素材')).toBeTruthy();
   });
 
-  it('keeps the Inspector closed until a round is explicitly selected', async () => {
+  it('opens the Inspector on the same first round the body focuses', async () => {
     await openRounds();
 
-    expect(screen.queryByText('选中：第 1 回合')).toBeNull();
-    expect(document.querySelector('[data-inspector="docked"]')).toBeNull();
+    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
+    expect(document.querySelector('[data-inspector="docked"]')).not.toBeNull();
   });
 
   it('keeps 加入作品 visible and enabled for the selected round', async () => {

@@ -30,7 +30,14 @@
  *   default  「高光列表」 sub-view — checkbox / 回合 / 类型 / 选手 / 说明 /
  *            tick 区间 / 加入视频, at 40px, which §3.4 folds onto `--h-row` (42)
  *   compact  「玩家单场分析 · 这一场的高光」 — 类型标签 + R21 + 加入视频 at 38px
- *            (`--h-row-compact`), no description column
+ *            (`--h-row-compact`), no description column. It lives in a 380px
+ *            Inspector whose head already names the player, so the subject is
+ *            not repeated and the interval is stated as seconds only — the
+ *            tick range, all fixed-width, pushed 「加入作品」 past the panel.
+ *
+ * Nothing in the row refuses to shrink except the round, the badge, the range
+ * and the action: the subject and the description clip with an ellipsis (and
+ * carry a title) when the row is narrower than their text.
  */
 
 import { msg } from '@lingui/core/macro';
@@ -122,8 +129,12 @@ export function HighlightRow({
         <Badge variant={current ? 'accent' : 'neutral'}>{highlight.label ?? i18n._(kind.label)}</Badge>
       </span>
 
-      {highlight.subject === undefined ? null : (
-        <span data-highlight-subject="" className="min-w-0 flex-none truncate">
+      {highlight.subject === undefined || density === 'compact' ? null : (
+        <span
+          data-highlight-subject=""
+          className="min-w-0 shrink truncate"
+          {...(typeof highlight.subject === 'string' ? { title: highlight.subject } : {})}
+        >
           {highlight.subject}
         </span>
       )}
@@ -145,17 +156,16 @@ export function HighlightRow({
       )}
 
       {/* The interval, in both readings: the ticks are what the recorder is
-          handed, the seconds are what a person can judge a clip length by. */}
+          handed, the seconds are what a person can judge a clip length by.
+          Compact keeps the reading a person uses. */}
       <span
         data-highlight-range=""
         className="flex flex-none flex-col items-end font-mono text-xs text-neutral-600"
       >
-        <span>{formatTickRange(highlight.startTick, highlight.endTick)}</span>
-        {density === 'compact' ? null : (
-          <span>
-            <Trans>{seconds} 秒</Trans>
-          </span>
-        )}
+        {density === 'compact' ? null : <span>{formatTickRange(highlight.startTick, highlight.endTick)}</span>}
+        <span>
+          <Trans>{seconds} 秒</Trans>
+        </span>
       </span>
 
       {action === undefined ? null : (

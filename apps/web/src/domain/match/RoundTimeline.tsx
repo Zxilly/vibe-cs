@@ -71,10 +71,15 @@ export interface RoundTimelineProps {
 }
 
 /* Cell geometry. The reference draws 44px tall; `--h-row` (42) is the §3.4 step
-   it folds onto, and the strip is a row of cells like any other row. */
+   it folds onto, and the strip is a row of cells like any other row.
+
+   Hover is the neutral `action-hover` wash every other control gets, laid over
+   the winner fill through a pseudo-element rather than replacing it — the fill
+   is the A/B channel and must stay under the pointer. */
 const CELL_CLASS =
   'relative flex h-[var(--h-row)] min-w-0 flex-col items-stretch justify-center overflow-hidden ' +
-  'border border-transparent text-xs focus-visible:z-10';
+  'border border-transparent text-xs focus-visible:z-10 ' +
+  "after:pointer-events-none after:absolute after:inset-0 after:content-[''] hover:after:bg-action-hover";
 
 const WINNER_FILL = {
   a: 'bg-accent-100 text-accent-900',

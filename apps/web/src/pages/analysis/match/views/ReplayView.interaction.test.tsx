@@ -249,6 +249,21 @@ describe('selection', () => {
     }));
   });
 
+  it('lets the Inspector add the player the rail already paints as followed', () => {
+    const onAdd = vi.fn();
+    const props = viewProps({ onAdd, addDisabled: false });
+    const Inspector = ReplayView.Inspector!;
+    renderView(<><ReplayView.Body {...props} /><Inspector {...props} /></>);
+
+    // No `?player=`: the rail follows Kael by default, and the Inspector's
+    // 「加入作品」 must mean the same person rather than 「先选择一个选手」.
+    expect(document.querySelector('[data-replay-player="kael"]')?.getAttribute('aria-pressed')).toBe('true');
+    const add = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
+    expect(add.disabled).toBe(false);
+    fireEvent.click(add);
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ playerId: 'kael' }));
+  });
+
   it('focuses a player through the address, not through local state', () => {
     const updateContext = vi.fn<(patch: MatchContextPatch, options?: MatchContextUpdateOptions) => void>();
     renderView(<ReplayView.Body {...viewProps({ updateContext })} />);

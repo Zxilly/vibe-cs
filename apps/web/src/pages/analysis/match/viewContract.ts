@@ -329,6 +329,13 @@ export interface MatchViewModule {
   readonly Inspector?: MatchViewComponent | undefined;
   /** Evidence browsing keeps a detail panel; data tables open it after selection. */
   readonly inspectorMode?: 'persistent' | 'selection';
+  /**
+   * Scope for transient state both halves read — the 高光 batch selection,
+   * which is not an address (§4.4 fixes the parameters) yet has to be one set
+   * for the list and the Inspector. The shell wraps both halves in it; a view
+   * without one leaves it out.
+   */
+  readonly Provider?: ((props: { readonly children: ReactNode }) => ReactNode) | undefined;
 }
 
 /**

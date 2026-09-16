@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/collapse.testing';
 import type { DesktopClient } from '../../../data/desktopClient';
+import { MATCH_VIEW_IDS } from './viewContract';
 import { ANALYSIS, DEMO, DEMO_ID } from './test/fixtures';
 import { renderWorkspace } from './test/renderWorkspace';
 import { reasonOf } from '../../../test/reason';
@@ -221,6 +222,102 @@ describe('what the shell reads', () => {
     expect(await screen.findByText('索引里没有这场比赛')).toBeTruthy();
     expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: '资料库' })).toBeNull();
+  });
+});
+
+describe('a failed analysis read', () => {
+  const failing = (): Partial<DesktopClient> => ({
+    getDemo: vi.fn(() => Promise.resolve(DEMO)),
+    // The shape `shared/desktop/client` rejects with, after it has said the
+    // service's `storage_error` in product copy.
+    getAnalysis: vi.fn(() => Promise.reject(Object.assign(new Error('本地数据库读写失败'), { status: 500, code: 'storage_error' }))),
+  });
+
+  it.each(MATCH_VIEW_IDS)('renders one shared panel for ?view=%s, and no Inspector', async (view) => {
+    media = stubMatchMedia(1400);
+    renderWorkspace({ url: `/match/${DEMO_ID}?view=${view}`, client: failing() });
+
+    expect(await screen.findByRole('heading', { name: '这场比赛的分析结果没能打开' })).toBeTruthy();
+    expect(document.body.textContent).toContain('本地数据库读写失败');
+    const frame = document.querySelector('[data-match-view]');
+    expect(frame?.getAttribute('data-match-view')).toBe(view);
+    expect(frame?.getAttribute('data-match-view-state')).toBe('error');
+    expect(document.querySelector('[data-match-panel="analysis-failure"]')).not.toBeNull();
+    // The failure is the whole workspace's: no panel beside it offers an
+    // empty list or 「加入作品」 for a document that could not be read.
+    expect(document.querySelector('[data-inspector]')).toBeNull();
+    expect(screen.queryByText('这一段没有可列出的事件')).toBeNull();
+    expect(screen.getByRole('button', { name: '重新分析' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '设置与诊断' })).toBeTruthy();
+  });
+
+  it('retries the read from the panel', async () => {
+    media = stubMatchMedia(1400);
+    const client = failing();
+    renderWorkspace({ url: `/match/${DEMO_ID}?view=rounds`, client });
+    await screen.findByRole('button', { name: '重试' });
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    await waitFor(() => {
+      expect(client.getAnalysis).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe('用这场比赛新建作品', () => {
+  it('names the project after the match, lists the Demo as its source and opens it', async () => {
+    media = stubMatchMedia(1700);
+    const createProject = vi.fn((request: { name: string; source_demo_ids: string[] }) => Promise.resolve({
+      id: '00000000-0000-4000-8000-000000000009',
+      name: request.name, revision: 1,
+      document: {
+        width: 1920, height: 1080, fps: 60, duration_seconds: 0,
+        story_track_id: '00000000-0000-4000-8000-000000000002',
+        tracks: [{
+          id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
+          order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [],
+        }],
+        markers: [], settings: { source_demo_ids: request.source_demo_ids, ripple_sequence_markers: false, use_media_proxies: false },
+      },
+      created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+    }));
+    const applyProjectPatch = vi.fn((patch: { project_id: string }) => Promise.resolve({
+      project: { id: patch.project_id, name: DEMO.display_name, revision: 2 },
+      change_group: { id: 'cg-1' },
+    }));
+    renderWorkspace({
+      url: `/match/${DEMO_ID}?view=overview`,
+      // The stubs answer with the fields this flow reads; the cast keeps the
+      // fixture to those rather than a full change group.
+      client: { ...loaded(), createProject, applyProjectPatch } as unknown as Partial<DesktopClient>,
+    });
+
+    // Disabled with a reason until the demo record is read; the reason's
+    // tooltip wrapper comes and goes with it, so the button is re-queried.
+    await screen.findByRole('button', { name: '用这场比赛新建作品' });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '用这场比赛新建作品' }).hasAttribute('disabled')).toBe(false);
+    });
+    fireEvent.click(screen.getByRole('button', { name: '用这场比赛新建作品' }));
+
+    await waitFor(() => {
+      expect(createProject).toHaveBeenCalledTimes(1);
+    });
+    expect(createProject.mock.calls[0]?.[0]).toMatchObject({
+      name: DEMO.display_name,
+      source_demo_ids: [DEMO_ID],
+    });
+    await waitFor(() => {
+      expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    });
+    // The whole match is the first Story clip, so the editor opens on something.
+    expect(JSON.stringify(applyProjectPatch.mock.calls[0]?.[0])).toContain('整场比赛');
+    // The harness only routes `/match/:demoId`, so leaving for the project is
+    // observed as the workspace (and its address probe) unmounting.
+    await waitFor(() => {
+      expect(document.querySelector('[data-match-content]')).toBeNull();
+    });
   });
 });
 

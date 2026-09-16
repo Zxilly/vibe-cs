@@ -46,14 +46,24 @@
  * some way other than a SteamID64, a zero-length window — **disables the action
  * and says which**, rather than creating a plan the recording page could only
  * refuse.
+ *
+ * ── One selection, two halves ─────────────────────────────────────────────
+ *
+ * The checked rows are not an address, so they live in React state — but the
+ * Inspector is a sibling of the list, rendered by the shell, and an Inspector
+ * that keeps offering 「把这条高光加入作品」 for one row while the strip under
+ * the list offers 「加入作品」 for two is two primary actions with two scopes on
+ * one screen. So the set is held in `HighlightBatch`, which the module's
+ * `Provider` scopes around both halves: while rows are checked the Inspector
+ * describes *that* set and carries the one primary action for it, and the
+ * strip's own button steps down to a secondary.
  */
 
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { dataErrorMessage } from '../../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../../data/match';
 import { Empty, Pagination } from '../../../../design/data';
 import { Button, Seg, Badge } from '../../../../design/primitives';
@@ -67,7 +77,7 @@ import {
   type HighlightKind,
 } from '../../../../domain/match';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
-import { AnalysisFailedState, NotAnalysedState } from './viewChrome';
+import { NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
   currentHighlightId,
@@ -83,6 +93,22 @@ import {
 
 type FilterValue = 'all' | HighlightKind;
 
+/* ── the batch selection ─────────────────────────────────────────────────── */
+
+interface HighlightBatch {
+  readonly selected: ReadonlySet<string>;
+  readonly setSelected: (next: ReadonlySet<string> | ((current: ReadonlySet<string>) => ReadonlySet<string>)) => void;
+}
+
+const NO_BATCH: HighlightBatch = { selected: new Set(), setSelected: () => undefined };
+const HighlightBatchContext = createContext<HighlightBatch>(NO_BATCH);
+
+function HighlightBatchProvider({ children }: { readonly children: ReactNode }) {
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const batch = useMemo<HighlightBatch>(() => ({ selected, setSelected }), [selected]);
+  return <HighlightBatchContext.Provider value={batch}>{children}</HighlightBatchContext.Provider>;
+}
+
 /* ── the body ────────────────────────────────────────────────────────────── */
 
 function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
@@ -92,7 +118,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
 
   const [filter, setFilter] = useState<FilterValue>('all');
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const { selected, setSelected } = useContext(HighlightBatchContext);
   const listRef = useRef<HTMLUListElement>(null);
 
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
@@ -131,18 +157,6 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     return (
       <Frame state="empty">
         <NotAnalysedState demoId={demoId} />
-      </Frame>
-    );
-  }
-
-  if (dataErrorMessage(analysis.error) !== null) {
-    return (
-      <Frame state="error">
-        <AnalysisFailedState
-          demoId={demoId}
-          error={analysis.error}
-          onRetry={() => void analysis.refetch()}
-        />
       </Frame>
     );
   }
@@ -279,9 +293,12 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
         {batch.length === 0 ? null : (
           <SelectionBar
             summary={<Trans>已选 {batch.length} 条</Trans>}
+            /* Secondary, not primary: the Inspector carries the one primary
+               action for this set (see the header), and two blue buttons for
+               one set on one screen is the thing being avoided. */
             primary={
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
                 disabled={addToVideo.disabled}
                 {...(addToVideo.disabledReason === undefined
@@ -315,10 +332,42 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
+  const { selected, setSelected } = useContext(HighlightBatchContext);
+  const batch = useMemo(() => visibleSelection(selected, highlights), [selected, highlights]);
   const currentId = context.highlight ?? currentHighlightId(highlights, context.round, context.tick, context.player)
     ?? highlights[0]?.id
     ?? null;
   const highlight = highlights.find((entry) => entry.id === currentId) ?? null;
+
+  if (batch.length > 0) {
+    return (
+      <MatchInspectorPanel
+        title={<Trans>已选 {batch.length} 条高光</Trans>}
+        summary={<Trans>勾选的 {batch.length} 条会一起加入</Trans>}
+        addToVideo={addToVideo}
+        addLabel={<Trans>把已选 {batch.length} 条加入作品</Trans>}
+        batch={batch.map(highlightSelection)}
+        collapsed={collapsed}
+        secondaryActions={
+          <Button variant="secondary" size="sm" grow onClick={() => setSelected(new Set())}>
+            <Trans>清空选择</Trans>
+          </Button>
+        }
+      >
+        <ul data-highlights-batch="" className="flex list-none flex-col gap-2 text-sm">
+          {batch.map((entry) => (
+            <li key={entry.id} className="flex items-baseline gap-2">
+              <span className="flex-none font-mono text-xs text-neutral-700">R{entry.round}</span>
+              <span className="min-w-0 truncate">
+                {entry.subject === undefined ? null : <>{entry.subject} · </>}
+                {entry.label ?? i18n._(HIGHLIGHT_KIND[entry.kind].label)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </MatchInspectorPanel>
+    );
+  }
 
   if (highlight === null) {
     return (
@@ -328,7 +377,13 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        {null}
+        <p className="text-sm text-neutral-700">
+          {highlights.length === 0 ? (
+            <Trans>这场比赛没有检出高光，这里没有可以加入作品的片段。</Trans>
+          ) : (
+            <Trans>点左侧一行的「定位」，这里会显示那条高光的类型、选手、tick 区间和时长。</Trans>
+          )}
+        </p>
       </MatchInspectorPanel>
     );
   }
@@ -403,4 +458,5 @@ export const HighlightsView: MatchViewModule = {
   id: 'highlights',
   Body: HighlightsBody,
   Inspector: HighlightsInspector,
+  Provider: HighlightBatchProvider,
 };

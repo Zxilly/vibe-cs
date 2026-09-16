@@ -51,8 +51,8 @@ describe('RoundTimeline', () => {
     const second = html.slice(html.indexOf('data-round-cell="2"'));
     expect(first).toContain('data-winner="a"');
     expect(first).toContain('order-1');
-    expect(second.slice(0, 400)).toContain('data-winner="b"');
-    expect(second.slice(0, 400)).toContain('order-3');
+    expect(second.slice(0, 600)).toContain('data-winner="b"');
+    expect(second.slice(0, 600)).toContain('order-3');
   });
 
   it('says who won and how, in words, on every cell', () => {

@@ -99,11 +99,12 @@ describe('PAGE_COMMANDS', () => {
 });
 
 describe('COMMAND_GROUP_ORDER', () => {
-  it('is the footer hint order — 比赛、选手、证据、页面和动作', () => {
+  it('is the footer hint order — 比赛、选手、作品、(证据)、页面和动作', () => {
     activateSourceLocale();
     expect(COMMAND_GROUP_ORDER.map((group) => translate(COMMAND_GROUP_LABEL[group]))).toEqual([
       '比赛',
       '选手',
+      '作品',
       '证据',
       '页面',
       '动作',

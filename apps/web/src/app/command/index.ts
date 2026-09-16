@@ -38,3 +38,4 @@ export {
   useCommandPalette,
   type CommandPaletteController,
 } from './useCommandPalette';
+export { useObjectCommands } from './useObjectCommands';

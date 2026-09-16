@@ -21,6 +21,7 @@
  *   row       40px, 14px title, muted hint on the right; the selected row takes
  *             `accent-100` with `inset 2px 0 0 accent` and an ↵ chip
  *   footer    36px: ↑↓ 选择 · ↵ 打开 · TAB 切换分组 · 搜索比赛、选手、证据、页面和动作
+ *             (the footer now names 作品 and not 证据; see the registry)
  *
  * Three of those sizes are not §3 tokens and are folded, not copied:
  *   52 → `--h-topbar` (56). A 4px fold, the same magnitude §3.4 already signs
@@ -109,6 +110,12 @@ export interface CommandPaletteProps {
   readonly navigate: (to: string) => void;
   /** Defaults to `buildCommandList()`. Pass extensions through that helper. */
   readonly commands?: readonly CommandDefinition[] | undefined;
+  /**
+   * Every change of the typed query, so the host can produce the object rows
+   * (`useObjectCommands`) for it and pass them back through `commands`.
+   * Reported as `''` on each opening, when the field is cleared.
+   */
+  readonly onQueryChange?: ((query: string) => void) | undefined;
   /** 「每组最多 4 条」. Overridable for a host that has more room. */
   readonly limitPerGroup?: number | undefined;
 }
@@ -118,6 +125,7 @@ export function CommandPalette({
   onClose,
   navigate,
   commands,
+  onQueryChange,
   limitPerGroup = DEFAULT_GROUP_LIMIT,
 }: CommandPaletteProps) {
   const { i18n } = useLingui();
@@ -133,7 +141,8 @@ export function CommandPalette({
     if (!open) return;
     setQuery('');
     setSelected(0);
-  }, [open]);
+    onQueryChange?.('');
+  }, [open, onQueryChange]);
 
   // Deliberately not memoized. The list is a dozen commands, resolving is a
   // dozen catalog lookups, and a `useMemo` keyed on the i18n context is the
@@ -218,6 +227,7 @@ export function CommandPalette({
             onChange={(event) => {
               setQuery(event.target.value);
               setSelected(0);
+              onQueryChange?.(event.target.value);
             }}
             onKeyDown={onKeyDown}
             role="combobox"
@@ -225,7 +235,7 @@ export function CommandPalette({
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={activeIndex === -1 ? undefined : optionId(activeIndex)}
-            aria-label={t`搜索比赛、选手、证据、页面和动作`}
+            aria-label={t`搜索比赛、选手、作品、页面和动作`}
             placeholder={t`跳转、搜索比赛或证据`}
             className="min-w-0 flex-1 bg-transparent text-md placeholder:text-neutral-600"
           />
@@ -326,7 +336,7 @@ export function CommandPalette({
           </span>
           <span className="flex-1" />
           <span className="min-w-0 truncate">
-            <Trans>搜索比赛、选手、证据、页面和动作</Trans>
+            <Trans>搜索比赛、选手、作品、页面和动作</Trans>
           </span>
         </div>
         </DialogPrimitive.Content>

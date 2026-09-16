@@ -10,7 +10,7 @@ import { useShellCollapsed } from '../design/layout';
 import {
   RouteBoundary,
 } from './boundary';
-import { CommandPalette, useCommandPalette } from './command';
+import { buildCommandList, CommandPalette, useCommandPalette, useObjectCommands } from './command';
 import { routeCrumb } from './routeCrumb';
 import {
   MODE_LANDING_PATH,
@@ -56,6 +56,8 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
   const completeOnboarding = useShellStore((state) => state.completeOnboarding);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityUnread, setActivityUnread] = useState(0);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const objectCommands = useObjectCommands(paletteQuery, palette.open);
 
   const folded = collapsed ?? viewportFolded;
   /* §8 rule 1: below the breakpoint the rail is an icon rail whatever the
@@ -72,6 +74,12 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
     if (routeMode === null) return;
     setMode(routeMode);
   }, [routeMode, setMode]);
+
+  /* A link inside the task drawer (查看成品, 打开作品) is a way out of it:
+     the drawer closes when the page underneath changes. */
+  useEffect(() => {
+    setActivityOpen(false);
+  }, [location.pathname, location.search]);
 
   const goTo = (to: string) => {
     void navigate(to);
@@ -131,7 +139,13 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
 
       </div>
 
-      <CommandPalette open={palette.open} onClose={palette.closePalette} navigate={goTo} />
+      <CommandPalette
+        open={palette.open}
+        onClose={palette.closePalette}
+        navigate={goTo}
+        commands={buildCommandList(objectCommands)}
+        onQueryChange={setPaletteQuery}
+      />
 
       <ActivityDrawer
         open={activityOpen}

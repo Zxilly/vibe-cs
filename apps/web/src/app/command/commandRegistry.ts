@@ -35,9 +35,10 @@
  *      When they land, build them where their dependencies live and pass them
  *      in: `buildCommandList([importDemoCommand(dialog), agentVideoCommand()])`.
  *      Note `shortcut` is display-only — see the field's doc comment.
- *   2. Object commands — 比赛 / 选手 / 证据 rows come from server data, so they
- *      are produced per keystroke by the palette's host from a TanStack Query
- *      result and passed in the same way. `CommandDefinition.title` is a
+ *   2. Object commands — 比赛 / 选手 / 作品 / 证据 rows come from server data,
+ *      so they are produced per keystroke by the palette's host from TanStack
+ *      Query results and passed in the same way; `useObjectCommands.ts` is that
+ *      producer and `AppShell` the host. `CommandDefinition.title` is a
  *      `MessageDescriptor`, but a match title ("Aurora vs Meridian · Mirage")
  *      is data, not copy — wrap it with `msg` at the call site only if it is
  *      really translatable, otherwise pass `{ id: value, message: value }`.
@@ -62,15 +63,20 @@ import { UI_TERMINOLOGY } from '../../terminology';
 
 /**
  * The 壳层规格 artboard groups results by object type — 比赛 / 选手 / 证据 /
- * 动作 — and the palette's own footer names the full set in display order:
- * 「搜索比赛、选手、证据、页面和动作」.
+ * 动作 — and the palette's own footer names the set it can actually answer,
+ * in display order: 「搜索比赛、选手、作品、页面和动作」. 作品 is the one group
+ * the artboard did not draw: it predates the editing rewrite, and the
+ * workbench's 继续 list now names projects the reader will type into the
+ * palette. 证据 keeps its group id for the day the index answers by name;
+ * until then 证据检索 is reached as a page and searched there.
  */
-export type CommandGroupId = 'match' | 'player' | 'evidence' | 'page' | 'action';
+export type CommandGroupId = 'match' | 'player' | 'project' | 'evidence' | 'page' | 'action';
 
 /** Display order. Fixed, so 「回车执行首条」 is predictable across keystrokes. */
 export const COMMAND_GROUP_ORDER: readonly CommandGroupId[] = [
   'match',
   'player',
+  'project',
   'evidence',
   'page',
   'action',
@@ -88,6 +94,7 @@ export const COMMAND_GROUP_ORDER: readonly CommandGroupId[] = [
 export const COMMAND_GROUP_LABEL: Record<CommandGroupId, MessageDescriptor> = {
   match: msg({ message: '比赛', context: 'palette-group' }),
   player: msg({ message: '选手', context: 'palette-group' }),
+  project: msg({ message: '作品', context: 'palette-group' }),
   evidence: msg({ message: '证据', context: 'palette-group' }),
   page: msg({ message: '页面', context: 'palette-group' }),
   action: msg({ message: '动作', context: 'palette-group' }),

@@ -392,7 +392,7 @@ msgstr "{duelsSkipped} 次击杀在这一段没有位置样本，交战轴画不
 msgid "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 msgstr "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 
-#: src/app/command/CommandPalette.tsx:308
+#: src/app/command/CommandPalette.tsx:318
 msgid "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
 msgstr "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
 
@@ -539,11 +539,11 @@ msgstr "「{0}」没有匹配到选手或别名。目录只按名字和别名做
 msgid "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
 msgstr "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
 
-#: src/app/command/CommandPalette.tsx:319
+#: src/app/command/CommandPalette.tsx:329
 msgid "↑↓ 选择"
 msgstr "↑↓ 选择"
 
-#: src/app/command/CommandPalette.tsx:322
+#: src/app/command/CommandPalette.tsx:332
 msgid "↵ 打开"
 msgstr "↵ 打开"
 
@@ -709,7 +709,7 @@ msgstr "D:\\CS2\\demos\\"
 msgid "Demo tick: {0}"
 msgstr "Demo tick: {0}"
 
-#: src/app/command/commandRegistry.ts:168
+#: src/app/command/commandRegistry.ts:175
 #: src/app/shell/navigation.tsx:55
 #: src/app/shell/navigation.tsx:78
 #: src/pages/shared/library/LibraryPage.tsx:356
@@ -887,7 +887,7 @@ msgstr "T 花费"
 msgid "T 购买"
 msgstr "T 购买"
 
-#: src/app/command/CommandPalette.tsx:325
+#: src/app/command/CommandPalette.tsx:335
 msgid "TAB 切换分组"
 msgstr "TAB 切换分组"
 
@@ -975,7 +975,7 @@ msgid "上一帧"
 msgstr "上一帧"
 
 #: src/design/data/Pagination.tsx:77
-#: src/pages/shared/tasks/TaskCenterPage.tsx:50
+#: src/pages/shared/tasks/TaskCenterPage.tsx:59
 msgid "上一页"
 msgstr "上一页"
 
@@ -1041,7 +1041,7 @@ msgid "下一帧"
 msgstr "下一帧"
 
 #: src/design/data/Pagination.tsx:108
-#: src/pages/shared/tasks/TaskCenterPage.tsx:52
+#: src/pages/shared/tasks/TaskCenterPage.tsx:61
 msgid "下一页"
 msgstr "下一页"
 
@@ -1322,30 +1322,31 @@ msgstr "以剪辑点为中心"
 msgid "任务中心"
 msgstr "任务中心"
 
-#: src/domain/task/TaskDetail.tsx:192
+#: src/domain/task/TaskDetail.tsx:201
 msgid "任务概览"
 msgstr "任务概览"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:35
+#: src/pages/shared/tasks/TaskCenterPage.tsx:44
 msgid "任务状态"
 msgstr "任务状态"
 
-#: src/domain/task/TaskDetailBody.tsx:126
+#: src/domain/task/TaskDetailBody.tsx:131
 msgid "任务编号"
 msgstr "任务编号"
 
 #: src/app/routeCrumb.ts:106
-#: src/domain/task/TaskDetail.tsx:110
-#: src/pages/shared/tasks/TaskCenterPage.tsx:71
+#: src/domain/task/TaskDetail.tsx:114
+#: src/pages/shared/tasks/TaskCenterPage.tsx:82
+#: src/pages/shared/tasks/TaskCenterPage.tsx:89
 msgid "任务详情"
 msgstr "任务详情"
 
-#: src/domain/task/TaskCard.tsx:236
+#: src/domain/task/TaskCard.tsx:254
 msgid "任务进度"
 msgstr "任务进度"
 
-#: src/domain/task/TaskCard.tsx:155
-#: src/domain/task/TaskDetail.tsx:164
+#: src/domain/task/TaskCard.tsx:165
+#: src/domain/task/TaskDetail.tsx:173
 msgid "任务阶段"
 msgstr "任务阶段"
 
@@ -1378,7 +1379,7 @@ msgstr "位置采样"
 msgid "低 {0}"
 msgstr "低 {0}"
 
-#: src/domain/task/TaskDetailBody.tsx:134
+#: src/domain/task/TaskDetailBody.tsx:139
 msgid "作业编号"
 msgstr "作业编号"
 
@@ -1387,7 +1388,12 @@ msgstr "作业编号"
 msgid "作品"
 msgstr "作品"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:75
+#: src/app/command/commandRegistry.ts:97
+msgctxt "palette-group"
+msgid "作品"
+msgstr "作品"
+
+#: src/app/shell/WorkspaceModeMenu.tsx:79
 msgid "作品、剪辑单、录制与成品"
 msgstr "作品、剪辑单、录制与成品"
 
@@ -1434,7 +1440,7 @@ msgstr "你 · 交付审阅"
 msgid "你仍可查看预览和时间轴。Agent 完成后即可继续编辑。"
 msgstr "你仍可查看预览和时间轴。Agent 完成后即可继续编辑。"
 
-#: src/app/command/commandRegistry.ts:221
+#: src/app/command/commandRegistry.ts:228
 #: src/pages/shared/onboarding/GuidePage.tsx:25
 msgid "使用引导"
 msgstr "使用引导"
@@ -1559,9 +1565,26 @@ msgstr "停止 Agent"
 msgid "停止 Agent 时发生错误：{detail}"
 msgstr "停止 Agent 时发生错误：{detail}"
 
+#: src/domain/task/TaskCancelButton.tsx:67
+msgid "停止下载"
+msgstr "停止下载"
+
+#: src/domain/task/TaskCancelButton.tsx:62
+msgid "停止分析"
+msgstr "停止分析"
+
+#: src/domain/task/TaskCancelButton.tsx:52
+#: src/domain/task/TaskCancelButton.tsx:57
+msgid "停止导出"
+msgstr "停止导出"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:742
 msgid "停止序列"
 msgstr "停止序列"
+
+#: src/domain/task/TaskCancelButton.tsx:47
+msgid "停止录制"
+msgstr "停止录制"
 
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:124
 msgid "停止监听"
@@ -1571,6 +1594,23 @@ msgstr "停止监听"
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:118
 msgid "停止监听 {0}"
 msgstr "停止监听 {0}"
+
+#: src/domain/task/TaskCancelButton.tsx:65
+msgid "停止这次下载？"
+msgstr "停止这次下载？"
+
+#: src/domain/task/TaskCancelButton.tsx:60
+msgid "停止这次分析？"
+msgstr "停止这次分析？"
+
+#: src/domain/task/TaskCancelButton.tsx:50
+#: src/domain/task/TaskCancelButton.tsx:55
+msgid "停止这次导出？"
+msgstr "停止这次导出？"
+
+#: src/domain/task/TaskCancelButton.tsx:45
+msgid "停止这次录制？"
+msgstr "停止这次录制？"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1409
 msgid "允许 Agent 请求的导出操作。"
@@ -1666,7 +1706,7 @@ msgstr "全选本页"
 #: src/pages/shared/library/LibraryFilters.tsx:139
 #: src/pages/shared/library/LibraryFilters.tsx:231
 #: src/pages/shared/library/LibraryFilters.tsx:249
-#: src/pages/shared/tasks/TaskCenterPage.tsx:39
+#: src/pages/shared/tasks/TaskCenterPage.tsx:48
 msgid "全部"
 msgstr "全部"
 
@@ -1747,7 +1787,7 @@ msgid "共 {total} 场对局"
 msgstr "共 {total} 场对局"
 
 #. placeholder {0}: firstItem + items.length - 1
-#: src/domain/task/TaskActivityList.tsx:83
+#: src/domain/task/TaskActivityList.tsx:114
 msgid "共 {total} 条 · 第 {firstItem}–{0} 条"
 msgstr "共 {total} 条 · 第 {firstItem}–{0} 条"
 
@@ -1804,7 +1844,7 @@ msgstr "关键词 {0}"
 msgid "关键词：{0}"
 msgstr "关键词：{0}"
 
-#: src/app/command/CommandPalette.tsx:235
+#: src/app/command/CommandPalette.tsx:245
 #: src/design/layout/Inspector.tsx:267
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1775
 msgid "关闭"
@@ -1836,8 +1876,8 @@ msgstr "关闭提示"
 msgid "关闭目标轨全部间隙"
 msgstr "关闭目标轨全部间隙"
 
-#: src/app/shell/WindowTitleBar.tsx:355
-#: src/app/shell/WindowTitleBar.tsx:356
+#: src/app/shell/WindowTitleBar.tsx:359
+#: src/app/shell/WindowTitleBar.tsx:360
 msgid "关闭窗口"
 msgstr "关闭窗口"
 
@@ -1868,8 +1908,8 @@ msgstr "其余类型仍然有 {0} 条。"
 msgid "再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。"
 msgstr "再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。"
 
-#: src/app/shell/WindowTitleBar.tsx:343
-#: src/app/shell/WindowTitleBar.tsx:344
+#: src/app/shell/WindowTitleBar.tsx:347
+#: src/app/shell/WindowTitleBar.tsx:348
 msgid "最大化窗口"
 msgstr "最大化窗口"
 
@@ -1877,8 +1917,8 @@ msgstr "最大化窗口"
 msgid "最大化面板"
 msgstr "最大化面板"
 
-#: src/app/shell/WindowTitleBar.tsx:332
-#: src/app/shell/WindowTitleBar.tsx:333
+#: src/app/shell/WindowTitleBar.tsx:336
+#: src/app/shell/WindowTitleBar.tsx:337
 msgid "最小化窗口"
 msgstr "最小化窗口"
 
@@ -1896,7 +1936,7 @@ msgstr "最近出场"
 msgid "最近分享代码"
 msgstr "最近分享代码"
 
-#: src/domain/task/TaskDetailBody.tsx:103
+#: src/domain/task/TaskDetailBody.tsx:111
 msgid "最近更新"
 msgstr "最近更新"
 
@@ -2038,8 +2078,8 @@ msgid "分析已取消"
 msgstr "分析已取消"
 
 #: src/app/shell/FirstRunGuide.tsx:63
-#: src/app/shell/WorkspaceModeMenu.tsx:31
-#: src/app/shell/WorkspaceModeMenu.tsx:80
+#: src/app/shell/WorkspaceModeMenu.tsx:35
+#: src/app/shell/WorkspaceModeMenu.tsx:84
 msgid "分析模式"
 msgstr "分析模式"
 
@@ -2089,7 +2129,7 @@ msgstr "切换到摄像机 {angle} {name}"
 msgid "切换同步锁定 {label}"
 msgstr "切换同步锁定 {label}"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:37
+#: src/app/shell/WorkspaceModeMenu.tsx:41
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "切换工作模式，当前：{currentModeLabel}"
 
@@ -2240,7 +2280,7 @@ msgstr "到剪辑点结束"
 msgid "制作"
 msgstr "制作"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:46
+#: src/pages/shared/tasks/TaskCenterPage.tsx:55
 msgid "刷新"
 msgstr "刷新"
 
@@ -2286,8 +2326,8 @@ msgid "剪辑操作"
 msgstr "剪辑操作"
 
 #: src/app/shell/FirstRunGuide.tsx:49
-#: src/app/shell/WorkspaceModeMenu.tsx:31
-#: src/app/shell/WorkspaceModeMenu.tsx:74
+#: src/app/shell/WorkspaceModeMenu.tsx:35
+#: src/app/shell/WorkspaceModeMenu.tsx:78
 msgid "剪辑模式"
 msgstr "剪辑模式"
 
@@ -2335,11 +2375,11 @@ msgstr "加入当前高光"
 msgid "加载中"
 msgstr "加载中"
 
-#: src/domain/task/TaskCard.tsx:275
+#: src/domain/task/TaskCard.tsx:293
 msgid "加载后台任务"
 msgstr "加载后台任务"
 
-#: src/app/command/commandRegistry.ts:93
+#: src/app/command/commandRegistry.ts:100
 msgctxt "palette-group"
 msgid "动作"
 msgstr "动作"
@@ -2519,8 +2559,7 @@ msgstr "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批�
 #: src/domain/editing/ProjectAgentPanel.tsx:243
 #: src/domain/editing/ProjectExecutionCard.tsx:47
 #: src/domain/editing/ProjectTimeline.tsx:2995
-#: src/domain/task/TaskCard.tsx:205
-#: src/domain/task/TaskDetail.tsx:147
+#: src/domain/task/TaskCancelButton.tsx:93
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:172
 msgid "取消"
 msgstr "取消"
@@ -2620,7 +2659,7 @@ msgstr "可用"
 msgid "可用性"
 msgstr "可用性"
 
-#: src/domain/task/useTaskActions.tsx:101
+#: src/domain/task/useTaskActions.tsx:108
 msgid "可重新发起"
 msgstr "可重新发起"
 
@@ -2671,13 +2710,13 @@ msgstr "名称"
 msgid "后 In"
 msgstr "后 In"
 
-#: src/app/shell/WindowTitleBar.tsx:299
+#: src/app/shell/WindowTitleBar.tsx:305
 #: src/domain/task/ActivityDrawer.tsx:53
 #: src/terminology.ts:34
 msgid "后台任务"
 msgstr "后台任务"
 
-#: src/app/shell/WindowTitleBar.tsx:298
+#: src/app/shell/WindowTitleBar.tsx:304
 msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "后台任务，{activityUnreadCount} 条未读"
 
@@ -2780,11 +2819,11 @@ msgstr "命中 {total} 条"
 msgid "命中方式"
 msgstr "命中方式"
 
-#: src/app/command/CommandPalette.tsx:251
+#: src/app/command/CommandPalette.tsx:261
 msgid "命令"
 msgstr "命令"
 
-#: src/app/command/CommandPalette.tsx:203
+#: src/app/command/CommandPalette.tsx:212
 msgid "命令面板"
 msgstr "命令面板"
 
@@ -3113,9 +3152,9 @@ msgid "多杀"
 msgstr "多杀"
 
 #: src/design/feedback/StageBar.tsx:73
-#: src/domain/task/TaskActivityList.tsx:13
+#: src/domain/task/TaskActivityList.tsx:14
 #: src/domain/task/taskVocabulary.tsx:47
-#: src/pages/shared/tasks/TaskCenterPage.tsx:41
+#: src/pages/shared/tasks/TaskCenterPage.tsx:50
 msgid "失败"
 msgstr "失败"
 
@@ -3481,15 +3520,15 @@ msgstr "嵌套序列 {0}"
 msgid "工作区"
 msgstr "工作区"
 
-#: src/app/command/commandRegistry.ts:165
+#: src/app/command/commandRegistry.ts:172
 #: src/app/shell/navigation.tsx:49
 #: src/pages/editing/workspace/HomePage.tsx:22
 msgid "工作台"
 msgstr "工作台"
 
 #: src/app/shell/FirstRunGuide.tsx:37
-#: src/app/shell/WorkspaceModeMenu.tsx:58
-#: src/app/shell/WorkspaceModeMenu.tsx:63
+#: src/app/shell/WorkspaceModeMenu.tsx:62
+#: src/app/shell/WorkspaceModeMenu.tsx:67
 msgid "工作模式"
 msgstr "工作模式"
 
@@ -3523,9 +3562,9 @@ msgstr "已分析 {totalAnalyses} 场，但证据索引还没准备好，所以�
 msgid "已加入「{0}」"
 msgstr "已加入「{0}」"
 
-#: src/domain/task/TaskActivityList.tsx:15
+#: src/domain/task/TaskActivityList.tsx:16
 #: src/domain/task/taskVocabulary.tsx:48
-#: src/pages/shared/tasks/TaskCenterPage.tsx:43
+#: src/pages/shared/tasks/TaskCenterPage.tsx:52
 msgid "已取消"
 msgstr "已取消"
 
@@ -3545,9 +3584,9 @@ msgstr "已复制完整路径"
 
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/editing/ProjectAgentPanel.tsx:487
-#: src/domain/task/TaskActivityList.tsx:14
+#: src/domain/task/TaskActivityList.tsx:15
 #: src/domain/task/taskVocabulary.tsx:46
-#: src/pages/shared/tasks/TaskCenterPage.tsx:42
+#: src/pages/shared/tasks/TaskCenterPage.tsx:51
 msgid "已完成"
 msgstr "已完成"
 
@@ -3585,6 +3624,10 @@ msgstr "已录制"
 #: src/domain/editing/ProjectTimeline.tsx:2895
 msgid "已录制 {recordedCount}"
 msgstr "已录制 {recordedCount}"
+
+#: src/domain/task/TaskCancelButton.tsx:46
+msgid "已录完的片段会保留在成品文件里，没录完的片段不会生成。作品和剪辑单不受影响，可以重新发起录制。"
+msgstr "已录完的片段会保留在成品文件里，没录完的片段不会生成。作品和剪辑单不受影响，可以重新发起录制。"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:483
 msgid "已拒绝"
@@ -3771,7 +3814,7 @@ msgstr "应用默认音频转场"
 msgid "延伸所选剪辑点到播放头"
 msgstr "延伸所选剪辑点到播放头"
 
-#: src/domain/task/TaskDetailBody.tsx:102
+#: src/domain/task/TaskDetailBody.tsx:110
 msgid "开始"
 msgstr "开始"
 
@@ -3838,6 +3881,10 @@ msgstr "当前使用相对坐标绘制，路线与交战关系可比较；接入
 msgid "当前占用 {conversation}"
 msgstr "当前占用 {conversation}"
 
+#: src/domain/task/TaskActivityList.tsx:65
+msgid "当前只显示这一状态的后台任务。"
+msgstr "当前只显示这一状态的后台任务。"
+
 #: src/data/replayBinary.ts:88
 #: src/data/replayBinary.ts:95
 msgid "当前回放缓存字段无效"
@@ -3901,6 +3948,10 @@ msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注
 #: src/domain/task/taskVocabulary.tsx:28
 msgid "录制"
 msgstr "录制"
+
+#: src/domain/task/TaskActivityList.tsx:57
+msgid "录制、导出、下载和分析开始后会出现在这里。"
+msgstr "录制、导出、下载和分析开始后会出现在这里。"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:85
 msgid "录制与回放是互斥的，这个编号说明为什么某个动作现在不可用。"
@@ -4072,7 +4123,7 @@ msgstr "恐怖分子"
 msgid "恒定功率"
 msgstr "恒定功率"
 
-#: src/app/command/commandRegistry.ts:215
+#: src/app/command/commandRegistry.ts:222
 #: src/app/routeCrumb.ts:73
 #: src/pages/shared/settings/RecoveryPage.tsx:76
 msgid "恢复中心"
@@ -4124,7 +4175,7 @@ msgstr "成品生成能力"
 msgid "成片"
 msgstr "成片"
 
-#: src/domain/task/TaskDetailBody.tsx:62
+#: src/domain/task/TaskDetailBody.tsx:66
 msgid "成片导出"
 msgstr "成片导出"
 
@@ -4227,23 +4278,37 @@ msgstr "打开 {0} 的详情"
 msgid "打开 Steam 设置"
 msgstr "打开 Steam 设置"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:68
-msgid "打开任务详情"
-msgstr "打开任务详情"
+#: src/domain/task/TaskDetailBody.tsx:73
+msgid "打开任务页"
+msgstr "打开任务页"
 
-#: src/domain/task/useTaskActions.tsx:140
-#: src/domain/task/useTaskActions.tsx:147
-#: src/domain/task/useTaskActions.tsx:179
+#: src/domain/task/useTaskActions.tsx:148
+#: src/domain/task/useTaskActions.tsx:155
+#: src/domain/task/useTaskActions.tsx:210
 #: src/pages/analysis/evidence/EvidencePage.tsx:251
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:168
 msgid "打开作品"
 msgstr "打开作品"
+
+#: src/app/command/useObjectCommands.ts:87
+msgctxt "palette-hint"
+msgid "打开作品"
+msgstr "打开作品"
+
+#: src/domain/task/useTaskActions.tsx:192
+msgid "打开分析"
+msgstr "打开分析"
 
 #: src/pages/analysis/match/views/OverviewView.tsx:184
 msgid "打开回合视图"
 msgstr "打开回合视图"
 
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:159
+msgid "打开工作区"
+msgstr "打开工作区"
+
+#: src/app/command/useObjectCommands.ts:57
+msgctxt "palette-hint"
 msgid "打开工作区"
 msgstr "打开工作区"
 
@@ -4254,6 +4319,10 @@ msgstr "打开档案"
 #: src/domain/editing/ProjectAgentPanel.tsx:168
 msgid "打开模型设置"
 msgstr "打开模型设置"
+
+#: src/domain/task/useTaskActions.tsx:188
+msgid "打开比赛历史"
+msgstr "打开比赛历史"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1794
 msgid "打开的序列"
@@ -4268,6 +4337,10 @@ msgstr "打开目录"
 #: src/pages/analysis/match/views/RoundsView.tsx:492
 msgid "打开第 {0} 回合"
 msgstr "打开第 {0} 回合"
+
+#: src/domain/task/useTaskActions.tsx:186
+msgid "打开资料库"
+msgstr "打开资料库"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:487
 msgid "执行中"
@@ -4306,7 +4379,7 @@ msgstr "找不到这份作品"
 msgid "找不到这条任务"
 msgstr "找不到这条任务"
 
-#: src/domain/task/TaskDetail.tsx:223
+#: src/domain/task/TaskDetail.tsx:237
 msgid "技术细节"
 msgstr "技术细节"
 
@@ -4462,7 +4535,7 @@ msgstr "按类型筛选成品文件"
 msgid "按高光类型统计，胜负未记录"
 msgstr "按高光类型统计，胜负未记录"
 
-#: src/app/command/CommandPalette.tsx:247
+#: src/app/command/CommandPalette.tsx:257
 msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 msgstr "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 
@@ -4541,10 +4614,10 @@ msgstr "搜索作品"
 msgid "搜索作品…"
 msgstr "搜索作品…"
 
-#: src/app/command/CommandPalette.tsx:228
-#: src/app/command/CommandPalette.tsx:329
-msgid "搜索比赛、选手、证据、页面和动作"
-msgstr "搜索比赛、选手、证据、页面和动作"
+#: src/app/command/CommandPalette.tsx:238
+#: src/app/command/CommandPalette.tsx:339
+msgid "搜索比赛、选手、作品、页面和动作"
+msgstr "搜索比赛、选手、作品、页面和动作"
 
 #: src/pages/shared/library/LibraryFilters.tsx:160
 #: src/pages/shared/library/LibraryFilters.tsx:161
@@ -4740,7 +4813,7 @@ msgstr "文件缺失"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 
-#: src/domain/task/TaskDetailBody.tsx:140
+#: src/domain/task/TaskDetailBody.tsx:145
 #: src/pages/editing/delivery/OutputsView.tsx:190
 msgid "文件路径"
 msgstr "文件路径"
@@ -4773,7 +4846,7 @@ msgstr "文字颜色"
 msgid "新建作品"
 msgstr "新建作品"
 
-#: src/app/command/commandRegistry.ts:188
+#: src/app/command/commandRegistry.ts:195
 msgid "新建作品 · Agent 模式"
 msgstr "新建作品 · Agent 模式"
 
@@ -5261,7 +5334,7 @@ msgstr "来源"
 msgid "来源任务"
 msgstr "来源任务"
 
-#: src/domain/task/TaskDetailBody.tsx:137
+#: src/domain/task/TaskDetailBody.tsx:142
 msgid "来源对象"
 msgstr "来源对象"
 
@@ -5284,6 +5357,10 @@ msgstr "查看 {title} 的完整路径"
 msgid "查看修改 {0}"
 msgstr "查看修改 {0}"
 
+#: src/domain/task/TaskActivityList.tsx:68
+msgid "查看全部"
+msgstr "查看全部"
+
 #. placeholder {0}: facts.highlights
 #. placeholder {0}: rows.length
 #: src/pages/analysis/match/views/OverviewView.tsx:196
@@ -5300,6 +5377,7 @@ msgid "查看工具详情"
 msgstr "查看工具详情"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
+#: src/domain/task/useTaskActions.tsx:184
 msgid "查看成品"
 msgstr "查看成品"
 
@@ -5308,15 +5386,15 @@ msgstr "查看成品"
 msgid "查看此处 {0} 项修改"
 msgstr "查看此处 {0} 项修改"
 
-#: src/domain/task/TaskActivityList.tsx:72
+#: src/domain/task/TaskCard.tsx:221
 msgid "查看详情"
 msgstr "查看详情"
 
-#: src/domain/task/useTaskActions.tsx:174
+#: src/domain/task/useTaskActions.tsx:205
 msgid "查看阶段"
 msgstr "查看阶段"
 
-#: src/domain/task/useTaskActions.tsx:151
+#: src/domain/task/useTaskActions.tsx:159
 msgid "查看阶段日志"
 msgstr "查看阶段日志"
 
@@ -5501,6 +5579,10 @@ msgstr "正在刷新嵌套序列…"
 #: src/domain/editing/ProjectExecutionCard.tsx:14
 msgid "正在取消"
 msgstr "正在取消"
+
+#: src/domain/task/TaskCancelButton.tsx:89
+msgid "正在取消这条任务"
+msgstr "正在取消这条任务"
 
 #: src/pages/shared/library/history/HistoryPage.tsx:152
 msgid "正在同步…"
@@ -5785,12 +5867,12 @@ msgstr "比率伸缩工具 (R)"
 msgid "比赛"
 msgstr "比赛"
 
-#: src/app/command/commandRegistry.ts:89
+#: src/app/command/commandRegistry.ts:95
 msgctxt "palette-group"
 msgid "比赛"
 msgstr "比赛"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:81
+#: src/app/shell/WorkspaceModeMenu.tsx:85
 msgid "比赛、玩家、证据与回放"
 msgstr "比赛、玩家、证据与回放"
 
@@ -5798,7 +5880,7 @@ msgstr "比赛、玩家、证据与回放"
 msgid "比赛信息"
 msgstr "比赛信息"
 
-#: src/app/command/commandRegistry.ts:174
+#: src/app/command/commandRegistry.ts:181
 #: src/pages/shared/library/history/HistoryPage.tsx:128
 msgid "比赛历史"
 msgstr "比赛历史"
@@ -5899,7 +5981,7 @@ msgstr "没有匹配的作品"
 msgid "没有匹配的素材"
 msgstr "没有匹配的素材"
 
-#: src/app/command/CommandPalette.tsx:242
+#: src/app/command/CommandPalette.tsx:252
 msgid "没有匹配的结果"
 msgstr "没有匹配的结果"
 
@@ -5939,6 +6021,18 @@ msgstr "没有命中的证据"
 msgid "没有回合记录"
 msgstr "没有回合记录"
 
+#: src/domain/task/TaskActivityList.tsx:23
+msgid "没有失败的任务"
+msgstr "没有失败的任务"
+
+#: src/domain/task/TaskActivityList.tsx:25
+msgid "没有已取消的任务"
+msgstr "没有已取消的任务"
+
+#: src/domain/task/TaskActivityList.tsx:24
+msgid "没有已完成的任务"
+msgstr "没有已完成的任务"
+
 #: src/domain/map/MapCanvas.tsx:232
 msgid "没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。"
 msgstr "没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。"
@@ -5950,6 +6044,10 @@ msgstr "没有把素材加入作品：{failure}"
 #: src/pages/shared/settings/AdvancedSection.tsx:104
 msgid "没有数据目录"
 msgstr "没有数据目录"
+
+#: src/domain/task/TaskActivityList.tsx:22
+msgid "没有进行中的任务"
+msgstr "没有进行中的任务"
 
 #: src/data/nativeShell.ts:321
 #: src/data/nativeShell.ts:324
@@ -6486,7 +6584,12 @@ msgstr "玩家"
 msgid "玩家档案"
 msgstr "玩家档案"
 
-#: src/app/command/commandRegistry.ts:178
+#: src/app/command/useObjectCommands.ts:72
+msgctxt "palette-hint"
+msgid "玩家档案"
+msgstr "玩家档案"
+
+#: src/app/command/commandRegistry.ts:185
 #: src/app/shell/navigation.tsx:84
 #: src/pages/analysis/players/PlayersPage.tsx:227
 #: src/pages/analysis/players/PlayersPage.tsx:301
@@ -6831,7 +6934,7 @@ msgstr "穿墙"
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "窗口宽度不足 1100px，侧栏保持为图标条"
 
-#: src/app/shell/WindowTitleBar.tsx:326
+#: src/app/shell/WindowTitleBar.tsx:330
 msgid "窗口操作失败"
 msgstr "窗口操作失败"
 
@@ -6930,7 +7033,7 @@ msgid "筛选素材状态"
 msgstr "筛选素材状态"
 
 #: src/domain/editing/MarkerEditorFields.tsx:27
-#: src/domain/task/TaskDetailBody.tsx:129
+#: src/domain/task/TaskDetailBody.tsx:134
 #: src/pages/analysis/match/views/HighlightsView.tsx:354
 msgid "类型"
 msgstr "类型"
@@ -7287,7 +7390,7 @@ msgstr "设入点"
 msgid "设出点"
 msgstr "设出点"
 
-#: src/app/command/commandRegistry.ts:209
+#: src/app/command/commandRegistry.ts:216
 #: src/app/shell/navigation.tsx:105
 #: src/pages/shared/settings/SettingsPage.tsx:128
 msgid "设置与诊断"
@@ -7305,12 +7408,12 @@ msgstr "设置没有保存成功"
 msgid "证据"
 msgstr "证据"
 
-#: src/app/command/commandRegistry.ts:91
+#: src/app/command/commandRegistry.ts:98
 msgctxt "palette-group"
 msgid "证据"
 msgstr "证据"
 
-#: src/app/command/commandRegistry.ts:181
+#: src/app/command/commandRegistry.ts:188
 #: src/app/shell/navigation.tsx:85
 #: src/pages/analysis/evidence/EvidencePage.tsx:159
 msgid "证据检索"
@@ -7494,7 +7597,7 @@ msgstr "读不到这场比赛的高光：{failure}"
 msgid "读不到采集组件状态：{hlaeError}"
 msgstr "读不到采集组件状态：{hlaeError}"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:63
+#: src/pages/shared/tasks/TaskCenterPage.tsx:72
 msgid "读取任务失败"
 msgstr "读取任务失败"
 
@@ -7530,7 +7633,7 @@ msgstr "读取编辑参考"
 msgid "读取镜头上下文"
 msgstr "读取镜头上下文"
 
-#: src/domain/task/TaskDetailBody.tsx:77
+#: src/domain/task/TaskDetailBody.tsx:84
 msgid "读取阶段日志失败。"
 msgstr "读取阶段日志失败。"
 
@@ -7641,7 +7744,7 @@ msgstr "跳到入点"
 msgid "跳到出点"
 msgstr "跳到出点"
 
-#: src/app/command/commandRegistry.ts:148
+#: src/app/command/commandRegistry.ts:155
 msgctxt "palette-hint"
 msgid "跳转"
 msgstr "跳转"
@@ -7652,8 +7755,11 @@ msgctxt "recording-stage"
 msgid "跳转"
 msgstr "跳转"
 
-#: src/app/command/CommandPalette.tsx:229
-#: src/app/shell/WindowTitleBar.tsx:284
+#: src/app/shell/WindowTitleBar.tsx:291
+msgid "跳转、搜索比赛或作品"
+msgstr "跳转、搜索比赛或作品"
+
+#: src/app/command/CommandPalette.tsx:239
 msgid "跳转、搜索比赛或证据"
 msgstr "跳转、搜索比赛或证据"
 
@@ -7725,8 +7831,8 @@ msgstr "返回导出设置"
 msgid "返回工作台"
 msgstr "返回工作台"
 
-#: src/app/shell/WindowTitleBar.tsx:343
-#: src/app/shell/WindowTitleBar.tsx:344
+#: src/app/shell/WindowTitleBar.tsx:347
+#: src/app/shell/WindowTitleBar.tsx:348
 msgid "还原窗口"
 msgstr "还原窗口"
 
@@ -7759,7 +7865,7 @@ msgstr "还没有可检索的证据"
 msgid "还没有可画的趋势"
 msgstr "还没有可画的趋势"
 
-#: src/domain/task/TaskActivityList.tsx:38
+#: src/domain/task/TaskActivityList.tsx:56
 msgid "还没有后台任务"
 msgstr "还没有后台任务"
 
@@ -7842,7 +7948,7 @@ msgstr "还没有选中选手"
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "还没有配置 Steam 比赛历史。"
 
-#: src/domain/task/TaskDetail.tsx:274
+#: src/domain/task/TaskDetail.tsx:288
 msgid "还没有阶段日志"
 msgstr "还没有阶段日志"
 
@@ -7993,6 +8099,10 @@ msgstr "这场共记录了 {0} 组对位。"
 msgid "这场分析里没有属于这一队的选手。"
 msgstr "这场分析里没有属于这一队的选手。"
 
+#: src/domain/task/TaskCancelButton.tsx:61
+msgid "这场比赛会回到未分析状态，Demo 文件不受影响，可以重新分析。"
+msgstr "这场比赛会回到未分析状态，Demo 文件不受影响，可以重新分析。"
+
 #: src/pages/analysis/match/views/ReviewView.tsx:292
 msgid "这场比赛既没有解析出击杀，也没有道具与对位数据。"
 msgstr "这场比赛既没有解析出击杀，也没有道具与对位数据。"
@@ -8051,6 +8161,10 @@ msgstr "这批证据没有比赛日期，无法按时间筛选"
 msgid "这条任务没能打开"
 msgstr "这条任务没能打开"
 
+#: src/domain/task/TaskCancelButton.tsx:66
+msgid "这条比赛不会导入资料库，可以稍后重新下载。"
+msgstr "这条比赛不会导入资料库，可以稍后重新下载。"
+
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:158
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
 msgstr "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
@@ -8058,6 +8172,11 @@ msgstr "这条证据还没有注释。注释是跨比赛复用的，写在这里
 #: src/pages/analysis/match/views/OverviewView.tsx:203
 msgid "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
 msgstr "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
+
+#: src/domain/task/TaskCancelButton.tsx:51
+#: src/domain/task/TaskCancelButton.tsx:56
+msgid "这次导出不会生成成片。作品和素材不受影响，可以重新导出。"
+msgstr "这次导出不会生成成片。作品和素材不受影响，可以重新导出。"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:98
 msgid "这次恢复没有完成：{actionError}"
@@ -8121,17 +8240,17 @@ msgstr "进入分析模式"
 msgid "进入剪辑模式"
 msgstr "进入剪辑模式"
 
-#: src/domain/task/TaskDetailBody.tsx:109
+#: src/domain/task/TaskDetailBody.tsx:116
 msgid "进度"
 msgstr "进度"
 
-#: src/domain/task/TaskDetail.tsx:225
+#: src/domain/task/TaskDetail.tsx:239
 msgid "进程、tick、编码参数"
 msgstr "进程、tick、编码参数"
 
 #: src/design/feedback/StageBar.tsx:69
-#: src/domain/task/TaskActivityList.tsx:12
-#: src/pages/shared/tasks/TaskCenterPage.tsx:40
+#: src/domain/task/TaskActivityList.tsx:13
+#: src/pages/shared/tasks/TaskCenterPage.tsx:49
 msgid "进行中"
 msgstr "进行中"
 
@@ -8237,7 +8356,7 @@ msgstr "选中项详情"
 msgid "选手"
 msgstr "选手"
 
-#: src/app/command/commandRegistry.ts:90
+#: src/app/command/commandRegistry.ts:96
 msgctxt "palette-group"
 msgid "选手"
 msgstr "选手"
@@ -8476,8 +8595,8 @@ msgid "重排时间线"
 msgstr "重排时间线"
 
 #: src/domain/project/AddToProjectDialog.tsx:119
-#: src/domain/task/TaskActivityList.tsx:32
-#: src/domain/task/TaskDetail.tsx:257
+#: src/domain/task/TaskActivityList.tsx:48
+#: src/domain/task/TaskDetail.tsx:271
 #: src/pages/editing/delivery/OutputsView.tsx:159
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1736
 #: src/pages/editing/projects/ProjectsPage.tsx:49
@@ -8485,7 +8604,7 @@ msgstr "重排时间线"
 msgid "重新加载"
 msgstr "重新加载"
 
-#: src/domain/task/TaskDetail.tsx:152
+#: src/domain/task/TaskDetail.tsx:161
 msgid "重新发起"
 msgstr "重新发起"
 
@@ -8560,8 +8679,8 @@ msgstr "重置工作区布局"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/project/AddToProjectDialog.tsx:121
-#: src/domain/task/TaskDetail.tsx:152
-#: src/domain/task/useTaskActions.tsx:140
+#: src/domain/task/TaskDetail.tsx:161
+#: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/analysis/evidence/EvidenceResults.tsx:125
 #: src/pages/analysis/match/views/HighlightsView.tsx:146
@@ -8686,11 +8805,11 @@ msgctxt "task-progress"
 msgid "阶段"
 msgstr "阶段"
 
-#: src/domain/task/TaskCard.tsx:223
+#: src/domain/task/TaskCard.tsx:241
 msgid "阶段 {index}/{count} {label}"
 msgstr "阶段 {index}/{count} {label}"
 
-#: src/domain/task/TaskDetail.tsx:269
+#: src/domain/task/TaskDetail.tsx:283
 msgid "阶段日志"
 msgstr "阶段日志"
 
@@ -8821,7 +8940,7 @@ msgstr "音频随摄像机切换；关闭时固定使用角度 1 音频"
 msgid "章节"
 msgstr "章节"
 
-#: src/app/command/commandRegistry.ts:92
+#: src/app/command/commandRegistry.ts:99
 msgctxt "palette-group"
 msgid "页面"
 msgstr "页面"

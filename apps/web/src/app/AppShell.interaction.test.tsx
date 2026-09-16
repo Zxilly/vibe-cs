@@ -15,18 +15,37 @@ import { act, fireEvent, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { DesktopClientProvider, type DesktopClient, type DesktopClientStub } from '../data/desktopClient';
 import { COLLAPSE_BREAKPOINT_PX, COLLAPSE_MEDIA_QUERY } from '../design/layout';
 import { stubMatchMedia, type MatchMediaStub } from '../design/layout/collapse.testing';
+import type { Project } from '../shared/desktop/dto';
 import { renderInteractive } from '../test/render';
 import { AppShell } from './AppShell';
 import { resetShellStore, useShellStore } from './shell';
 
-function shellRouter(initial = '/library') {
+/** The reader's own work, as the palette's 作品 group will list it. */
+const COLOGNE: Project = {
+  id: '80000000-0000-4000-8000-000000000042',
+  name: 'NiKo · Cologne BO5 · 3分钟',
+  revision: 12,
+  document: {
+    width: 1920, height: 1080, fps: 60, duration_seconds: 0, story_track_id: 'track-1',
+    tracks: [], markers: [],
+    settings: { source_demo_ids: [], ripple_sequence_markers: true, use_media_proxies: false },
+  },
+  created_at: '2026-09-01T00:00:00Z',
+  updated_at: '2026-09-10T00:00:00Z',
+};
+
+function shellRouter(initial = '/library', client?: DesktopClientStub) {
+  const shell = <AppShell adapter={null} />;
   return createMemoryRouter(
     [
       {
         path: '/',
-        element: <AppShell adapter={null} />,
+        element: client === undefined
+          ? shell
+          : <DesktopClientProvider client={client as DesktopClient}>{shell}</DesktopClientProvider>,
         children: [
           { index: true, element: <span data-page="home">工作台内容</span> },
           { path: 'library', element: <span data-page="library">资料库内容</span> },
@@ -179,6 +198,38 @@ describe('AppShell — Ctrl K', () => {
     expect(router.state.location.pathname).toBe('/projects/new');
     expect(router.state.location.search).toBe('?step=shotlist');
     expect(document.querySelector('[data-overlay="command-palette"]')).toBeNull();
+  });
+
+  it('finds the reader’s own objects — a project typed by name opens its workspace', async () => {
+    media = stubMatchMedia(false);
+    const empty = { items: [], total: 0, page: 1, page_size: 8 };
+    const router = shellRouter('/library', {
+      listProjects: () => Promise.resolve([COLOGNE]),
+      listDemos: () => Promise.resolve(empty),
+      listPlayers: () => Promise.resolve({
+        ...empty,
+        coverage: { projected_demos: 0, total_analyses: 0, projection_complete: true },
+      }),
+      listActivities: () => Promise.resolve({
+        items: [], total: 0, page: 1, page_size: 50,
+        summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
+      }),
+    });
+    const { container } = renderInteractive(<RouterProvider router={router} />);
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-titlebar-command]') as HTMLElement);
+    const search = document.querySelector('input[role="combobox"]') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'Cologne' } });
+
+    const row = await waitFor(() => {
+      const found = document.querySelector(`[data-command-id="project.${COLOGNE.id}"]`);
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    expect(row.textContent).toContain('NiKo · Cologne BO5 · 3分钟');
+
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(router.state.location.pathname).toBe(`/projects/${COLOGNE.id}`);
   });
 });
 

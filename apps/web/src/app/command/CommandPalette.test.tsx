@@ -96,7 +96,7 @@ describe('CommandPalette markup', () => {
     expect(html).toContain('↑↓ 选择');
     expect(html).toContain('↵ 打开');
     expect(html).toContain('TAB 切换分组');
-    expect(html).toContain('搜索比赛、选手、证据、页面和动作');
+    expect(html).toContain('搜索比赛、选手、作品、页面和动作');
   });
 
   it('shows a shortcut chip when a command advertises one', () => {

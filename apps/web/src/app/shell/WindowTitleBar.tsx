@@ -1,22 +1,29 @@
 /*
  * App shell — the self-drawn Windows tall title bar (`--h-titlebar`, 48px).
  *
- * The shell draws it as three stretches across one 48px bar:
+ * The shell draws it as three columns across one 48px bar:
  *
- *   ┌ 216px ────────┬ flex:1 ─────────────────────────────┬ 3 × 46px ┐
- *   │ V  VIBE CS    │ crumb   ⌕ 跳转、搜索…  CTRL K   │ ─ ▢ ✕ │
- *   └───────────────┴─────────────────────────────────────┴──────────┘
+ *   ┌ 1fr ──────────────────────┬ 380px ─────────────────┬ 1fr ─────────────┐
+ *   │ V  VIBE CS │ crumb        │ ⌕ 跳转、搜索…  CTRL K │      🔔 │ ─ ▢ ✕ │
+ *   └────────────┴──────────────┴────────────────────────┴─────────┴───────┘
  *
- * The left block is exactly `--w-nav` wide and carries the same right-hand
+ * The brand block is exactly `--w-nav` wide and carries the same right-hand
  * hairline as the rail below it, so brand and rail share one vertical edge;
  * when the rail collapses the block follows it to `--w-nav-collapsed`.
  * Window controls sit on the right — this is a Windows-first desktop app and
  * Frame draws them there.
  *
+ * The search field sits on the window's own centre line, not in whatever is
+ * left between the crumb and the bell: the outer columns are equal `1fr`
+ * tracks, so the field stays put across routes and rail states instead of
+ * drifting with the crumb's length. Each outer track is at least its content
+ * (`minmax(max-content, 1fr)`), so a long crumb in a narrow window pushes the
+ * field aside rather than overlapping it, and the field itself is
+ * `minmax(0, …)` so it is what shrinks first.
+ *
  * Two folds against the reference, both required by §3:
  *   · the Ctrl K field is drawn 400px wide; §3.5 folds 400 into `--w-inspector`
- *     (380). It is `max-w-full` so a narrow window shrinks it rather than
- *     pushing the status out of the bar.
+ *     (380).
  *   · the same field is drawn 28px tall; §3.3 sets a 32px floor with no
  *     exceptions, so it is `--h-ctl-sm`.
  *
@@ -244,50 +251,49 @@ export function WindowTitleBar({
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'flex flex-none items-stretch border-b border-divider bg-surface-chrome',
+        'grid flex-none grid-cols-[minmax(max-content,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)] items-stretch',
+        'border-b border-divider bg-surface-chrome',
         'h-[var(--h-titlebar)]',
         className,
       )}
     >
-      <div
-        data-titlebar-mode={currentMode}
-        className={cn(
-          'flex flex-none items-stretch border-r border-divider',
-          collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
-        )}
-      >
-        <WorkspaceModeMenu
-          mode={currentMode}
-          collapsed={collapsed}
-          onModeChange={onModeChange}
-        />
+      <div className="flex min-w-0 items-stretch">
+        <div
+          data-titlebar-mode={currentMode}
+          className={cn(
+            'flex flex-none items-stretch border-r border-divider',
+            collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
+          )}
+        >
+          <WorkspaceModeMenu
+            mode={currentMode}
+            collapsed={collapsed}
+            onModeChange={onModeChange}
+          />
+        </div>
+        {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
+        <div className="flex min-w-0 items-center px-4">{crumb}</div>
       </div>
 
-      <div className="flex min-w-0 flex-1 items-center gap-3 px-4">
-        {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
-        <div className="flex min-w-0 items-center">{crumb}</div>
-        <span className="flex-1" />
+      <button
+        type="button"
+        data-window-no-drag
+        data-titlebar-command
+        onClick={onOpenCommandPalette}
+        className={
+          'flex h-[var(--h-ctl-sm)] w-full min-w-0 items-center gap-2 self-center ' +
+          'border border-divider bg-bg px-3 text-sm text-neutral-600 ' +
+          'hover:border-neutral-500 hover:text-text'
+        }
+      >
+        <Search size={14} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
+        <span className="min-w-0 flex-1 truncate text-left">
+          <Trans>跳转、搜索比赛或作品</Trans>
+        </span>
+        <Kbd className="tracking-wide">CTRL K</Kbd>
+      </button>
 
-        <button
-          type="button"
-          data-window-no-drag
-          data-titlebar-command
-          onClick={onOpenCommandPalette}
-          className={
-            'flex h-[var(--h-ctl-sm)] w-[var(--w-inspector)] max-w-full min-w-0 items-center gap-2 ' +
-            'border border-divider bg-bg px-3 text-sm text-neutral-600 ' +
-            'hover:border-neutral-500 hover:text-text'
-          }
-        >
-          <Search size={14} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            <Trans>跳转、搜索比赛或证据</Trans>
-          </span>
-          <Kbd className="tracking-wide">CTRL K</Kbd>
-        </button>
-
-        <span className="flex-1" />
-
+      <div className="flex min-w-0 items-stretch justify-end">
         {onOpenActivity === undefined ? null : (
           <button
             type="button"
@@ -299,7 +305,7 @@ export function WindowTitleBar({
                 : t`后台任务`
             }
             onClick={onOpenActivity}
-            className="relative grid size-[var(--h-ctl-sm)] flex-none place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
+            className="relative mx-4 grid size-[var(--h-ctl-sm)] flex-none self-center place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
           >
             <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
             {activityUnreadCount > 0 ? (
@@ -314,51 +320,50 @@ export function WindowTitleBar({
           </button>
         )}
 
-      </div>
-
-      <div data-window-no-drag className="flex flex-none items-stretch">
-        {actionFailed ? (
-          <span
-            role="status"
-            data-window-action-failed
-            className="self-center whitespace-nowrap px-2.5 text-xs text-fail-text"
+        <div data-window-no-drag className="flex flex-none items-stretch">
+          {actionFailed ? (
+            <span
+              role="status"
+              data-window-action-failed
+              className="self-center whitespace-nowrap px-2.5 text-xs text-fail-text"
+            >
+              <Trans>窗口操作失败</Trans>
+            </span>
+          ) : null}
+          <button
+            type="button"
+            data-window-control="minimize"
+            aria-label={t`最小化窗口`}
+            title={t`最小化窗口`}
+            onClick={() => void controller.minimize()}
+            className={controlClass}
           >
-            <Trans>窗口操作失败</Trans>
-          </span>
-        ) : null}
-        <button
-          type="button"
-          data-window-control="minimize"
-          aria-label={t`最小化窗口`}
-          title={t`最小化窗口`}
-          onClick={() => void controller.minimize()}
-          className={controlClass}
-        >
-          <SubtractRegular className="size-4" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          data-window-control="maximize"
-          data-window-state={maximized ? 'restore' : 'maximize'}
-          aria-label={maximized ? t`还原窗口` : t`最大化窗口`}
-          title={maximized ? t`还原窗口` : t`最大化窗口`}
-          onClick={() => void toggleWindowMaximize()}
-          className={controlClass}
-        >
-          {maximized
-            ? <CopyRegular className="size-3.5" aria-hidden="true" />
-            : <SquareRegular className="size-3.5" aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          data-window-control="close"
-          aria-label={t`关闭窗口`}
-          title={t`关闭窗口`}
-          onClick={() => void controller.close()}
-          className={cn(controlClass, 'hover:bg-fail hover:text-bg')}
-        >
-          <DismissRegular className="size-4" aria-hidden="true" />
-        </button>
+            <SubtractRegular className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            data-window-control="maximize"
+            data-window-state={maximized ? 'restore' : 'maximize'}
+            aria-label={maximized ? t`还原窗口` : t`最大化窗口`}
+            title={maximized ? t`还原窗口` : t`最大化窗口`}
+            onClick={() => void toggleWindowMaximize()}
+            className={controlClass}
+          >
+            {maximized
+              ? <CopyRegular className="size-3.5" aria-hidden="true" />
+              : <SquareRegular className="size-3.5" aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
+            data-window-control="close"
+            aria-label={t`关闭窗口`}
+            title={t`关闭窗口`}
+            onClick={() => void controller.close()}
+            className={cn(controlClass, 'hover:bg-fail hover:text-bg')}
+          >
+            <DismissRegular className="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </header>
   );

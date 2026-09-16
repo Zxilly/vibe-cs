@@ -58,11 +58,12 @@ describe('WindowTitleBar', () => {
     );
 
     expect(html).toContain('资料库 › Aurora vs Meridian › 概览');
-    expect(html).toContain('跳转、搜索比赛或证据');
+    expect(html).toContain('跳转、搜索比赛或作品');
     expect(html).toContain('CTRL K');
-    // §3.5 folds the artboard's 400px field into --w-inspector; §3.3 lifts its
-    // 28px height to the 32px floor.
-    expect(html).toContain('w-[var(--w-inspector)]');
+    // §3.5 folds the artboard's 400px field into --w-inspector — the width of
+    // the bar's centre column, which is what keeps the field on the window's
+    // centre line across routes; §3.3 lifts its 28px height to the 32px floor.
+    expect(html).toContain('grid-cols-[minmax(max-content,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)]');
     expect(html).toContain('h-[var(--h-ctl-sm)]');
   });
 

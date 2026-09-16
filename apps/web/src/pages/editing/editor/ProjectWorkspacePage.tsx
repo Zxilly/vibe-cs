@@ -1485,7 +1485,7 @@ export function ProjectWorkspacePage() {
             <Trans>作品</Trans>
           </Button>
           <h1 className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
-          <span className="whitespace-nowrap font-mono text-xs text-neutral-600">r{current.revision}</span>
+          <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>第 {current.revision} 版</Trans></span>
           {pendingAgentReviewGroup === null ? null : (
             <>
               <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-700">

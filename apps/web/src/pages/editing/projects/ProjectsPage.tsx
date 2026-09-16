@@ -7,7 +7,7 @@ import { useCreateProject, useProjects, useProjectDeliveryGate } from '../../../
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
-import { Button, Input } from '../../../design/primitives';
+import { Badge, Button, Input } from '../../../design/primitives';
 import type { Project } from '../../../shared/desktop/dto';
 import { ProjectOutputLink } from '../../../domain/project/ProjectOutputLink';
 import { formatTaskClock } from '../../../domain/task';
@@ -32,11 +32,14 @@ export function ProjectsPage() {
     </Button>
   );
 
+  const search = query.trim();
+  const searching = search !== '';
+
   return (
     <Page
       toolbar={
         <Toolbar
-          title={<Trans>作品库</Trans>}
+          title={<Trans>作品</Trans>}
           meta={projects.isPending ? undefined : <Plural value={rows.length} other="# 个作品" />}
           primary={newProject}
         >
@@ -60,11 +63,20 @@ export function ProjectsPage() {
           <div role="status" aria-busy="true" className="flex flex-col gap-px border border-divider bg-divider">
             {[0, 1, 2].map((index) => <Skeleton key={index} className="h-[var(--h-row-task)] bg-bg" />)}
           </div>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 ? searching ? (
+          /* A miss is the search's, not the library's: the way out is clearing
+             it, and the toolbar already holds the one primary 新建作品. */
           <Empty
-            title={query.trim() === '' ? <Trans>还没有作品</Trans> : <Trans>没有匹配的作品</Trans>}
-            actions={newProject}
+            title={<Trans>没有匹配的作品</Trans>}
+            description={<Trans>没有名字包含「{search}」的作品。</Trans>}
+            actions={
+              <Button variant="secondary" onClick={() => setQuery('')}>
+                <Trans>清空搜索</Trans>
+              </Button>
+            }
           />
+        ) : (
+          <Empty title={<Trans>还没有作品</Trans>} actions={newProject} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{rows.map((project) => <ProjectCard key={project.id} project={project} />)}</div>
         )}
@@ -77,14 +89,23 @@ function ProjectCard({ project }: { readonly project: Project }) {
   const gate = useProjectDeliveryGate(project.id);
   const clips = project.document.tracks.flatMap((track) => track.clips).filter((clip) => clip.placement.enabled);
   const ready = gate.data === undefined ? null : Math.max(0, clips.length - gate.data.blockers.length);
-  return <article className="flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-5" data-project-card={project.id}>
+  /*
+   * The whole card is the title link's hit area — `after:` stretches the one
+   * real anchor over the card, so middle-click, the status bar and the focus
+   * ring all stay the anchor's, and nothing is nested inside it. The 成片 link
+   * is lifted above that layer so it still takes its own click.
+   */
+  return <article className="relative flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-5 hover:bg-action-hover" data-project-card={project.id}>
     <div className="flex min-w-0 items-start gap-3">
-      <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1 truncate text-base font-medium">{project.name}</RouteLink>
-      <span className="rounded-full bg-accent-100 px-2 py-0.5 font-mono text-xs text-accent-700">r{project.revision}</span>
+      <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1 truncate text-base font-medium after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
+      <Badge variant="accent"><Trans>第 {project.revision} 版</Trans></Badge>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-600">
-      <span><Trans>素材</Trans> · <span className="font-mono">{ready === null ? '—' : `${ready}/${clips.length}`}</span></span>
-      <ProjectOutputLink projectId={project.id} inline />
+      <span>
+        {clips.length === 0 ? <Trans>还没有素材</Trans> : <Plural value={clips.length} other="# 段素材" />}
+        {ready === null || clips.length === 0 ? null : <> · {ready === clips.length ? <Trans>全部就绪</Trans> : <Trans>{ready} 段就绪</Trans>}</>}
+      </span>
+      <ProjectOutputLink projectId={project.id} inline className="relative z-10" />
     </div>
     <p className="text-xs text-neutral-600"><Trans>更新于 {formatTaskClock(project.updated_at, { now: new Date() })}</Trans></p>
   </article>;

@@ -47,7 +47,7 @@ msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个�
 msgstr "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个目录里的新 Demo 会自动进入资料库。}}"
 
 #. placeholder {0}: rows.length
-#: src/pages/editing/projects/ProjectsPage.tsx:40
+#: src/pages/editing/projects/ProjectsPage.tsx:43
 msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, other {# 个作品}}"
 
@@ -80,6 +80,11 @@ msgstr "{0, plural, other {# 天}}"
 #: src/pages/shared/library/DeleteDemosDialog.tsx:71
 msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 msgstr "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
+
+#. placeholder {0}: clips.length
+#: src/pages/editing/projects/ProjectsPage.tsx:105
+msgid "{0, plural, other {# 段素材}}"
+msgstr "{0, plural, other {# 段素材}}"
 
 #. placeholder {0}: managed.length
 #: src/pages/shared/library/DeleteDemosDialog.tsx:65
@@ -376,7 +381,7 @@ msgstr "{0}任务已完成。请重新读取作品和交付状态，然后继续
 msgid "{attacker} → {victim} · {weapon}"
 msgstr "{attacker} → {victim} · {weapon}"
 
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:46
+#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:48
 msgid "{clipCount, plural, other {# 段素材}}"
 msgstr "{clipCount, plural, other {# 段素材}}"
 
@@ -428,6 +433,10 @@ msgstr "{minWeight} 次"
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:149
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "{playerName} 在 {mapName} 的位置热图"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:106
+msgid "{ready} 段就绪"
+msgstr "{ready} 段就绪"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:182
 msgid "{removed, plural, other {已删除 # 条对话，剪辑单、后台任务和成片都还在}}"
@@ -534,6 +543,18 @@ msgstr "{winnerName} 胜"
 #: src/pages/analysis/players/PlayersPage.tsx:328
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
+
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:56
+msgid "「{fileName}」会从磁盘删除，不能恢复。指向它的记录一起移除。"
+msgstr "「{fileName}」会从磁盘删除，不能恢复。指向它的记录一起移除。"
+
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:58
+msgid "「{fileName}」已不在原位，只移除这条记录。"
+msgstr "「{fileName}」已不在原位，只移除这条记录。"
+
+#: src/pages/editing/delivery/OutputsView.tsx:205
+msgid "「{scopeLabel}」还没有成品文件"
+msgstr "「{scopeLabel}」还没有成品文件"
 
 #: src/domain/editing/ProjectTimeline.tsx:2191
 msgid "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
@@ -984,7 +1005,7 @@ msgid "上次代理生成失败；点击重试"
 msgstr "上次代理生成失败；点击重试"
 
 #. placeholder {0}: formatTaskClock(project.updated_at, { now: new Date() })
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:47
+#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:49
 msgid "上次保存 {0}"
 msgstr "上次保存 {0}"
 
@@ -1384,6 +1405,7 @@ msgid "作业编号"
 msgstr "作业编号"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1485
+#: src/pages/editing/projects/ProjectsPage.tsx:42
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "作品"
@@ -1397,12 +1419,16 @@ msgstr "作品"
 msgid "作品、剪辑单、录制与成品"
 msgstr "作品、剪辑单、录制与成品"
 
+#: src/pages/editing/delivery/OutputsView.tsx:161
+msgid "作品：{scopeLabel}"
+msgstr "作品：{scopeLabel}"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1478
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1726
 msgid "作品任务"
 msgstr "作品任务"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:50
+#: src/pages/editing/projects/ProjectsPage.tsx:53
 msgid "作品列表暂时读不到。"
 msgstr "作品列表暂时读不到。"
 
@@ -1419,10 +1445,6 @@ msgstr "作品工作区"
 #: src/domain/editing/ProjectWorkspaceDock.tsx:65
 msgid "作品工作区面板"
 msgstr "作品工作区面板"
-
-#: src/pages/editing/projects/ProjectsPage.tsx:39
-msgid "作品库"
-msgstr "作品库"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:504
 msgid "作品版本已变化，这次请求已经过期。请拒绝后让 Agent 重新请求。"
@@ -1702,7 +1724,7 @@ msgstr "全选本页"
 #: src/pages/analysis/match/views/HighlightsView.tsx:200
 #: src/pages/analysis/match/views/ReplayView.tsx:388
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:69
-#: src/pages/editing/delivery/OutputsView.tsx:50
+#: src/pages/editing/delivery/OutputsView.tsx:60
 #: src/pages/shared/library/LibraryFilters.tsx:139
 #: src/pages/shared/library/LibraryFilters.tsx:231
 #: src/pages/shared/library/LibraryFilters.tsx:249
@@ -1726,6 +1748,10 @@ msgstr "全部修改"
 #: src/pages/shared/settings/AiAgentSection.tsx:1045
 msgid "全部存在本机，不上传。"
 msgstr "全部存在本机，不上传。"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:106
+msgid "全部就绪"
+msgstr "全部就绪"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:423
 msgid "全部状态"
@@ -2212,7 +2238,6 @@ msgid "创建并打开"
 msgstr "创建并打开"
 
 #: src/pages/analysis/match/views/ReviewView.tsx:765
-#: src/pages/editing/delivery/OutputCard.tsx:84
 #: src/pages/shared/library/DeleteDemosDialog.tsx:58
 msgid "删除"
 msgstr "删除"
@@ -2221,10 +2246,6 @@ msgstr "删除"
 #: src/domain/editing/ClipInspector.tsx:243
 msgid "删除区间 {0} 前的速度关键帧"
 msgstr "删除区间 {0} 前的速度关键帧"
-
-#: src/pages/editing/delivery/OutputsView.tsx:216
-msgid "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
-msgstr "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
 
 #: src/domain/editing/ProjectTimeline.tsx:2327
 msgid "删除所选标记"
@@ -2248,6 +2269,15 @@ msgstr "删除播放头的轨道关键帧"
 msgid "删除效果 {0}"
 msgstr "删除效果 {0}"
 
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
+#: src/pages/editing/delivery/OutputCard.tsx:97
+msgid "删除文件"
+msgstr "删除文件"
+
+#: src/pages/editing/delivery/OutputsView.tsx:250
+msgid "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
+msgstr "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
+
 #: src/domain/editing/ProjectTimeline.tsx:3057
 msgid "删除标记"
 msgstr "删除标记"
@@ -2267,6 +2297,10 @@ msgstr "删除轨道"
 #: src/domain/editing/ProjectTimeline.tsx:5746
 msgid "删除轨道关键帧"
 msgstr "删除轨道关键帧"
+
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:47
+msgid "删除这个成品文件？"
+msgstr "删除这个成品文件？"
 
 #: src/domain/editing/ProjectTimeline.tsx:2386
 msgid "删除预览文件"
@@ -2313,7 +2347,7 @@ msgstr "剪切所选片段"
 msgid "剪辑"
 msgstr "剪辑"
 
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:45
+#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:47
 msgid "剪辑中"
 msgstr "剪辑中"
 
@@ -2515,7 +2549,7 @@ msgstr "去证据检索看全部注释"
 msgid "去资料库分析一场"
 msgstr "去资料库分析一场"
 
-#: src/pages/editing/delivery/OutputCard.tsx:93
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "参数不可读取"
 msgstr "参数不可读取"
 
@@ -2600,7 +2634,7 @@ msgstr "受害者被闪"
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "受管 HLAE 的安装状态与安全边界。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:75
+#: src/pages/editing/delivery/OutputCard.tsx:84
 msgid "受管文件"
 msgstr "受管文件"
 
@@ -2631,13 +2665,17 @@ msgstr "只列击杀与目标事件，共 {0} 条。"
 msgid "只接受 https:// 开头的地址。"
 msgstr "只接受 https:// 开头的地址。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:95
+#: src/pages/editing/delivery/OutputsView.tsx:120
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "只有桌面端能在文件管理器里定位文件。"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:938
 msgid "只有视频素材可生成代理"
 msgstr "只有视频素材可生成代理"
+
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:60
+msgid "只移除「{fileName}」的记录，磁盘上的文件不会被删除。"
+msgstr "只移除「{fileName}」的记录，磁盘上的文件不会被删除。"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:796
 msgid "只移除项目中的素材记录；磁盘上的源文件不会删除。"
@@ -3113,7 +3151,7 @@ msgstr "声像"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/editing/delivery/OutputCard.tsx:106
+#: src/pages/editing/delivery/OutputCard.tsx:119
 msgid "复制完整路径"
 msgstr "复制完整路径"
 
@@ -3138,7 +3176,7 @@ msgstr "复盘笔记"
 msgid "外观与语言"
 msgstr "外观与语言"
 
-#: src/pages/editing/delivery/OutputCard.tsx:75
+#: src/pages/editing/delivery/OutputCard.tsx:84
 msgid "外部文件"
 msgstr "外部文件"
 
@@ -3197,7 +3235,7 @@ msgstr "字节"
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:91
+#: src/pages/editing/delivery/OutputCard.tsx:104
 msgid "完成时间"
 msgstr "完成时间"
 
@@ -3209,7 +3247,7 @@ msgstr "完整参数 JSON"
 msgid "完整序列"
 msgstr "完整序列"
 
-#: src/pages/editing/delivery/OutputCard.tsx:94
+#: src/pages/editing/delivery/OutputCard.tsx:107
 msgid "完整路径"
 msgstr "完整路径"
 
@@ -3230,8 +3268,8 @@ msgstr "定位"
 msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
-#: src/pages/editing/delivery/OutputCard.tsx:69
-#: src/pages/editing/delivery/OutputCard.tsx:98
+#: src/pages/editing/delivery/OutputCard.tsx:78
+#: src/pages/editing/delivery/OutputCard.tsx:111
 #: src/pages/shared/library/LibraryInspector.tsx:169
 #: src/pages/shared/settings/AdvancedSection.tsx:261
 msgid "定位文件"
@@ -3403,7 +3441,7 @@ msgstr "导出完成"
 msgid "导出已取消"
 msgstr "导出已取消"
 
-#: src/pages/editing/delivery/OutputsView.tsx:52
+#: src/pages/editing/delivery/OutputsView.tsx:62
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1554
 msgid "导出成片"
 msgstr "导出成片"
@@ -3452,6 +3490,10 @@ msgstr "导出诊断包"
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1693
 msgid "导出质量"
 msgstr "导出质量"
+
+#: src/pages/editing/delivery/OutputsView.tsx:206
+msgid "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
+msgstr "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:175
 msgid "将删除暂存目录里未完成的成片文件。"
@@ -3556,6 +3598,10 @@ msgstr "已入库"
 msgid "已分析 {totalAnalyses} 场，但证据索引还没准备好，所以暂时没有结果。"
 msgstr "已分析 {totalAnalyses} 场，但证据索引还没准备好，所以暂时没有结果。"
 
+#: src/pages/editing/delivery/OutputsView.tsx:115
+msgid "已删除的作品"
+msgstr "已删除的作品"
+
 #. placeholder {0}: addedProject.name
 #: src/pages/analysis/evidence/EvidencePage.tsx:253
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:172
@@ -3578,7 +3624,7 @@ msgstr "已启用 {enabledEffectCount} 个效果"
 msgid "已处理"
 msgstr "已处理"
 
-#: src/pages/editing/delivery/OutputCard.tsx:102
+#: src/pages/editing/delivery/OutputCard.tsx:115
 msgid "已复制完整路径"
 msgstr "已复制完整路径"
 
@@ -3869,7 +3915,7 @@ msgstr "当前 {round}"
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
-#: src/pages/editing/delivery/OutputCard.tsx:66
+#: src/pages/editing/delivery/OutputCard.tsx:75
 msgid "当前作品版本"
 msgstr "当前作品版本"
 
@@ -4020,7 +4066,7 @@ msgstr "录制用它接管画面。"
 msgid "录制视角"
 msgstr "录制视角"
 
-#: src/pages/editing/delivery/OutputsView.tsx:51
+#: src/pages/editing/delivery/OutputsView.tsx:61
 msgid "录制结果"
 msgstr "录制结果"
 
@@ -4155,14 +4201,15 @@ msgstr "恢复默认"
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/editing/delivery/DeliveryPage.tsx:34
+#: src/pages/editing/delivery/OutputsView.tsx:221
 msgid "成品"
 msgstr "成品"
 
-#: src/pages/editing/delivery/OutputCard.tsx:89
+#: src/pages/editing/delivery/OutputCard.tsx:102
 msgid "成品播放 {title}"
 msgstr "成品播放 {title}"
 
+#: src/pages/editing/delivery/DeliveryPage.tsx:34
 #: src/terminology.ts:33
 msgid "成品文件"
 msgstr "成品文件"
@@ -4171,7 +4218,7 @@ msgstr "成品文件"
 msgid "成品生成能力"
 msgstr "成品生成能力"
 
-#: src/domain/project/ProjectOutputLink.tsx:16
+#: src/domain/project/ProjectOutputLink.tsx:18
 msgid "成片"
 msgstr "成片"
 
@@ -4527,7 +4574,7 @@ msgstr "按地图的成绩"
 msgid "按检出置信度排序"
 msgstr "按检出置信度排序"
 
-#: src/pages/editing/delivery/OutputsView.tsx:135
+#: src/pages/editing/delivery/OutputsView.tsx:143
 msgid "按类型筛选成品文件"
 msgstr "按类型筛选成品文件"
 
@@ -4606,11 +4653,11 @@ msgstr "插入"
 msgid "插入编辑"
 msgstr "插入编辑"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:43
+#: src/pages/editing/projects/ProjectsPage.tsx:46
 msgid "搜索作品"
 msgstr "搜索作品"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:43
+#: src/pages/editing/projects/ProjectsPage.tsx:46
 msgid "搜索作品…"
 msgstr "搜索作品…"
 
@@ -4681,7 +4728,7 @@ msgstr "播放源素材"
 msgid "播放速率"
 msgstr "播放速率"
 
-#: src/pages/editing/delivery/OutputsView.tsx:191
+#: src/pages/editing/delivery/OutputsView.tsx:225
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:151
 msgid "操作"
 msgstr "操作"
@@ -4769,7 +4816,7 @@ msgstr "整条 Story 轨道已替换。"
 msgid "文件"
 msgstr "文件"
 
-#: src/pages/editing/delivery/OutputCard.tsx:60
+#: src/pages/editing/delivery/OutputCard.tsx:69
 msgid "文件不在原位"
 msgstr "文件不在原位"
 
@@ -4785,25 +4832,28 @@ msgstr "文件信息"
 msgid "文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。"
 msgstr "文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:93
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "文件参数"
 msgstr "文件参数"
 
-#: src/pages/editing/delivery/OutputCard.tsx:92
-#: src/pages/editing/delivery/OutputsView.tsx:187
+#: src/pages/editing/delivery/OutputCard.tsx:105
 msgid "文件名"
 msgstr "文件名"
 
-#: src/pages/editing/delivery/OutputsView.tsx:188
+#: src/pages/editing/delivery/OutputsView.tsx:222
 msgid "文件大小"
 msgstr "文件大小"
 
-#: src/pages/editing/delivery/OutputCard.tsx:96
+#: src/pages/editing/delivery/OutputCard.tsx:109
 msgid "文件已不在原位，记录仍然保留。"
 msgstr "文件已不在原位，记录仍然保留。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:74
-#: src/pages/editing/delivery/OutputsView.tsx:53
+#: src/pages/editing/delivery/OutputsView.tsx:84
+msgid "文件已删除。"
+msgstr "文件已删除。"
+
+#: src/pages/editing/delivery/OutputCard.tsx:83
+#: src/pages/editing/delivery/OutputsView.tsx:63
 #: src/pages/shared/library/LibraryFilters.tsx:50
 #: src/pages/shared/library/libraryFormat.ts:128
 msgid "文件缺失"
@@ -4814,7 +4864,7 @@ msgid "文件被手动移动或删除后，资料库里的记录会指向一个�
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 
 #: src/domain/task/TaskDetailBody.tsx:145
-#: src/pages/editing/delivery/OutputsView.tsx:190
+#: src/pages/editing/delivery/OutputsView.tsx:224
 msgid "文件路径"
 msgstr "文件路径"
 
@@ -4840,7 +4890,7 @@ msgid "文字颜色"
 msgstr "文字颜色"
 
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:141
-#: src/pages/editing/delivery/OutputsView.tsx:176
+#: src/pages/editing/delivery/OutputsView.tsx:199
 #: src/pages/editing/projects/ProjectsPage.tsx:31
 #: src/pages/editing/workspace/HomePage.tsx:25
 msgid "新建作品"
@@ -4892,7 +4942,7 @@ msgstr "无"
 msgid "无法安全打开这个链接"
 msgstr "无法安全打开这个链接"
 
-#: src/pages/editing/delivery/OutputsView.tsx:97
+#: src/pages/editing/delivery/OutputsView.tsx:122
 msgid "无法定位这个文件。"
 msgstr "无法定位这个文件。"
 
@@ -4908,7 +4958,7 @@ msgstr "无法打开这个链接"
 msgid "无法接收拖入的文件，请使用“选择文件”。"
 msgstr "无法接收拖入的文件，请使用“选择文件”。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:104
+#: src/pages/editing/delivery/OutputCard.tsx:117
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "无法访问剪贴板，请选择上方完整路径手动复制。"
 
@@ -4944,7 +4994,7 @@ msgstr "日志与诊断包"
 msgid "日期"
 msgstr "日期"
 
-#: src/pages/editing/delivery/OutputCard.tsx:66
+#: src/pages/editing/delivery/OutputCard.tsx:75
 msgid "旧版本"
 msgstr "旧版本"
 
@@ -4954,7 +5004,7 @@ msgstr "旧版本"
 msgid "时长"
 msgstr "时长"
 
-#: src/pages/editing/delivery/OutputsView.tsx:189
+#: src/pages/editing/delivery/OutputsView.tsx:223
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "时长 · 分辨率 · 帧率 · 编码"
 
@@ -5161,11 +5211,11 @@ msgid "更新"
 msgstr "更新"
 
 #. placeholder {0}: formatTaskClock(project.updated_at, { now: new Date() })
-#: src/pages/editing/projects/ProjectsPage.tsx:89
+#: src/pages/editing/projects/ProjectsPage.tsx:110
 msgid "更新于 {0}"
 msgstr "更新于 {0}"
 
-#: src/pages/editing/delivery/OutputCard.tsx:91
+#: src/pages/editing/delivery/OutputCard.tsx:104
 msgid "更新时间"
 msgstr "更新时间"
 
@@ -5330,7 +5380,7 @@ msgstr "条件"
 msgid "来源"
 msgstr "来源"
 
-#: src/pages/editing/delivery/OutputCard.tsx:70
+#: src/pages/editing/delivery/OutputCard.tsx:79
 msgid "来源任务"
 msgstr "来源任务"
 
@@ -5348,7 +5398,7 @@ msgstr "查看"
 msgid "查看 {0} 的档案"
 msgstr "查看 {0} 的档案"
 
-#: src/pages/editing/delivery/OutputCard.tsx:81
+#: src/pages/editing/delivery/OutputCard.tsx:91
 msgid "查看 {title} 的完整路径"
 msgstr "查看 {title} 的完整路径"
 
@@ -5367,6 +5417,10 @@ msgstr "查看全部"
 #: src/pages/analysis/match/views/ReviewView.tsx:583
 msgid "查看全部 {0} 条"
 msgstr "查看全部 {0} 条"
+
+#: src/pages/editing/delivery/OutputsView.tsx:209
+msgid "查看全部成品文件"
+msgstr "查看全部成品文件"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:322
 msgid "查看完整回复"
@@ -5969,11 +6023,15 @@ msgstr "没有具备可编辑相邻片段的未锁定 Story 片段"
 msgid "没有写入任何东西；自动洞察不受影响。"
 msgstr "没有写入任何东西；自动洞察不受影响。"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:55
+#: src/pages/editing/projects/ProjectsPage.tsx:58
 msgid "没有创建作品。"
 msgstr "没有创建作品。"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:65
+#: src/pages/editing/delivery/OutputsView.tsx:261
+msgid "没有删除，记录和文件都还在。"
+msgstr "没有删除，记录和文件都还在。"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:70
 msgid "没有匹配的作品"
 msgstr "没有匹配的作品"
 
@@ -6012,6 +6070,10 @@ msgstr "没有可滚动编辑的未锁定相邻片段"
 #: src/pages/analysis/match/views/DuelsView.tsx:570
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:71
+msgid "没有名字包含「{search}」的作品。"
+msgstr "没有名字包含「{search}」的作品。"
 
 #: src/design/data/Empty.tsx:144
 msgid "没有命中的证据"
@@ -6253,6 +6315,7 @@ msgid "清空对话"
 msgstr "清空对话"
 
 #: src/pages/analysis/players/PlayersPage.tsx:343
+#: src/pages/editing/projects/ProjectsPage.tsx:74
 msgid "清空搜索"
 msgstr "清空搜索"
 
@@ -6271,6 +6334,10 @@ msgstr "清空没有成功"
 #: src/pages/analysis/players/PlayersPage.tsx:281
 msgid "清空选择"
 msgstr "清空选择"
+
+#: src/pages/editing/delivery/OutputsView.tsx:158
+msgid "清除作品筛选：{scopeLabel}"
+msgstr "清除作品筛选：{scopeLabel}"
 
 #: src/domain/editing/ProjectTimeline.tsx:2322
 #: src/domain/editing/ProjectTimeline.tsx:2442
@@ -6718,7 +6785,7 @@ msgstr "目录"
 msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
 msgstr "目录太大，这次只统计了一部分，实际占用比上面多。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:131
+#: src/pages/editing/delivery/OutputsView.tsx:139
 msgid "目录很大，只扫描了一部分"
 msgstr "目录很大，只扫描了一部分"
 
@@ -6786,7 +6853,7 @@ msgid "看道具与经济"
 msgstr "看道具与经济"
 
 #: src/pages/analysis/match/views/ReviewView.tsx:691
-#: src/pages/editing/delivery/OutputsView.tsx:150
+#: src/pages/editing/delivery/OutputsView.tsx:172
 #: src/pages/shared/settings/AiAgentSection.tsx:162
 #: src/pages/shared/settings/AiAgentSection.tsx:176
 #: src/pages/shared/settings/AiAgentSection.tsx:588
@@ -6902,13 +6969,14 @@ msgstr "移除条件"
 msgid "移除素材"
 msgstr "移除素材"
 
-#: src/pages/editing/delivery/OutputCard.tsx:84
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
+#: src/pages/editing/delivery/OutputCard.tsx:97
 msgid "移除记录"
 msgstr "移除记录"
 
-#: src/pages/editing/delivery/OutputsView.tsx:119
-msgid "移除记录失败。"
-msgstr "移除记录失败。"
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:47
+msgid "移除这条记录？"
+msgstr "移除这条记录？"
 
 #: src/design/feedback/StageBar.tsx:122
 #: src/domain/task/taskModel.tsx:221
@@ -6990,6 +7058,13 @@ msgstr "第 {0} 回合落在回放流的范围之外。"
 msgid "第 {0} 回合装备"
 msgstr "第 {0} 回合装备"
 
+#. placeholder {0}: current.revision
+#. placeholder {0}: project.revision
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1488
+#: src/pages/editing/projects/ProjectsPage.tsx:101
+msgid "第 {0} 版"
+msgstr "第 {0} 版"
+
 #: src/pages/analysis/match/views/ReplayView.tsx:761
 msgid "第 {floor} 层"
 msgstr "第 {floor} 层"
@@ -7003,9 +7078,18 @@ msgstr "第 {from}–{to} 条"
 msgid "第 {position} 段：{0}，{seconds} 秒"
 msgstr "第 {position} 段：{0}，{seconds} 秒"
 
+#: src/domain/project/ProjectOutputLink.tsx:18
+msgid "第 {revision} 版成片"
+msgstr "第 {revision} 版成片"
+
 #: src/design/data/Pagination.tsx:93
 msgid "第 {slot} 页"
 msgstr "第 {slot} 页"
+
+#: src/pages/editing/delivery/OutputCard.tsx:75
+#: src/pages/editing/delivery/OutputCard.tsx:100
+msgid "第 {version} 版"
+msgstr "第 {version} 版"
 
 #: src/domain/editing/ClipInspector.tsx:271
 #: src/pages/shared/settings/AiAgentSection.tsx:93
@@ -7055,7 +7139,6 @@ msgid "系统"
 msgstr "系统"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:672
-#: src/pages/editing/projects/ProjectsPage.tsx:86
 msgid "素材"
 msgstr "素材"
 
@@ -7366,17 +7449,17 @@ msgstr "解析比赛数据"
 msgid "让 Agent 做一条视频"
 msgstr "让 Agent 做一条视频"
 
-#: src/pages/editing/delivery/OutputCard.tsx:78
+#: src/pages/editing/delivery/OutputCard.tsx:87
 msgid "记录仍在，文件已被移动或删除"
 msgstr "记录仍在，文件已被移动或删除"
 
-#: src/pages/editing/delivery/OutputsView.tsx:116
-msgid "记录已移除，外部文件未被删除。"
-msgstr "记录已移除，外部文件未被删除。"
+#: src/pages/editing/delivery/OutputsView.tsx:86
+msgid "记录已移除，文件还留在暂存目录里。到恢复中心清理暂存成片可以释放空间。"
+msgstr "记录已移除，文件还留在暂存目录里。到恢复中心清理暂存成片可以释放空间。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:115
-msgid "记录已移除，文件仍在原处。"
-msgstr "记录已移除，文件仍在原处。"
+#: src/pages/editing/delivery/OutputsView.tsx:88
+msgid "记录已移除，磁盘上的文件没有变化。"
+msgstr "记录已移除，磁盘上的文件没有变化。"
 
 #: src/domain/editing/ProjectTimeline.tsx:5918
 msgid "设为目标轨道 {label}"
@@ -7609,7 +7692,7 @@ msgstr "读取作品摘要"
 msgid "读取后台任务失败。"
 msgstr "读取后台任务失败。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:89
+#: src/pages/editing/delivery/OutputsView.tsx:112
 msgid "读取成片列表失败。"
 msgstr "读取成片列表失败。"
 
@@ -7841,7 +7924,7 @@ msgstr "还原窗口"
 msgid "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 msgstr "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:65
+#: src/pages/editing/projects/ProjectsPage.tsx:79
 msgid "还没有作品"
 msgstr "还没有作品"
 
@@ -7925,6 +8008,10 @@ msgstr "还没有监听目录。加一个之后，新的 Demo 会自己进来。
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:96
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:105
+msgid "还没有素材"
+msgstr "还没有素材"
 
 #: src/domain/media/FilmStrip.tsx:99
 msgid "还没有缩略图"
@@ -8469,7 +8556,7 @@ msgstr "选择这条高光"
 msgid "选择顺序"
 msgstr "选择顺序"
 
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:45
+#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:47
 msgid "选材中"
 msgstr "选材中"
 
@@ -8597,9 +8684,9 @@ msgstr "重排时间线"
 #: src/domain/project/AddToProjectDialog.tsx:119
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
-#: src/pages/editing/delivery/OutputsView.tsx:159
+#: src/pages/editing/delivery/OutputsView.tsx:181
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1736
-#: src/pages/editing/projects/ProjectsPage.tsx:49
+#: src/pages/editing/projects/ProjectsPage.tsx:52
 #: src/pages/shared/tasks/TaskDetailPage.tsx:56
 msgid "重新加载"
 msgstr "重新加载"
@@ -8693,7 +8780,8 @@ msgstr "重置工作区布局"
 #: src/pages/analysis/players/PlayerProfilePage.tsx:148
 #: src/pages/analysis/players/PlayerProfilePage.tsx:212
 #: src/pages/analysis/players/PlayersPage.tsx:293
-#: src/pages/editing/projects/ProjectsPage.tsx:54
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:67
+#: src/pages/editing/projects/ProjectsPage.tsx:57
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:23
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:116
 #: src/pages/shared/library/DeleteDemosDialog.tsx:88
@@ -8975,11 +9063,11 @@ msgstr "项目素材顺序"
 msgid "项目还没有素材"
 msgstr "项目还没有素材"
 
-#: src/pages/editing/delivery/OutputsView.tsx:186
+#: src/pages/editing/delivery/OutputsView.tsx:220
 msgid "预览"
 msgstr "预览"
 
-#: src/pages/editing/delivery/OutputCard.tsx:55
+#: src/pages/editing/delivery/OutputCard.tsx:64
 msgid "预览 {title}"
 msgstr "预览 {title}"
 

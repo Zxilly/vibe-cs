@@ -46,7 +46,27 @@ describe('/projects', () => {
 
     const link = await screen.findByRole('link', { name: 'Mirage 残局' });
     expect(link.getAttribute('href')).toBe(`/projects/${PROJECT.id}`);
-    expect(screen.getByText('r2')).toBeTruthy();
+    expect(screen.getByText('第 2 版')).toBeTruthy();
+    expect(screen.getByText('还没有素材')).toBeTruthy();
+    // The title stays the only anchor; its box is stretched over the card.
+    expect(link.className).toContain('after:inset-0');
+    expect(link.closest('[data-project-card]')?.className).toContain('relative');
+  });
+
+  it('offers to clear a search that matched nothing instead of a second 新建作品', async () => {
+    renderPage({
+      element: <ProjectsPage />,
+      client: { listProjects: () => Promise.resolve([PROJECT]) },
+      route: '/projects',
+    });
+
+    await screen.findByRole('link', { name: 'Mirage 残局' });
+    fireEvent.change(screen.getByRole('searchbox', { name: '搜索作品' }), { target: { value: 'zzzz' } });
+    expect(await screen.findByRole('heading', { name: '没有匹配的作品' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '新建作品' })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
+    expect(await screen.findByRole('link', { name: 'Mirage 残局' })).toBeTruthy();
   });
 
   it('creates one canonical project without a Plan/Montage/Editor source kind', async () => {

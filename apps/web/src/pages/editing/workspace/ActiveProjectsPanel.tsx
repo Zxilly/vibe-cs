@@ -36,11 +36,13 @@ export function ActiveProjectsPanel() {
               (total, track) => total + track.clips.length,
               0,
             );
+            /* The row is the link's hit area: `after:` stretches the one real
+               anchor over the `li`, so the accessible name stays the title. */
             return (
-              <li key={project.id} className="flex min-h-row-task items-center gap-3 border-b border-divider px-3 py-2 text-sm last:border-b-0">
+              <li key={project.id} className="relative flex min-h-row-task items-center gap-3 border-b border-divider px-3 py-2 text-sm last:border-b-0 hover:bg-action-hover">
                 <FileVideo2 className="size-5 flex-none text-accent-700" strokeWidth={1.5} aria-hidden="true" />
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} className="truncate">{project.name}</RouteLink>
+                  <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} className="truncate after:absolute after:inset-0">{project.name}</RouteLink>
                   <span className="text-xs text-neutral-600">
                     {clipCount === 0 ? <Trans>选材中</Trans> : <Trans>剪辑中</Trans>}{' · '}
                     <Plural value={clipCount} other="# 段素材" />{' · '}

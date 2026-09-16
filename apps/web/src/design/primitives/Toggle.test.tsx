@@ -14,12 +14,13 @@ describe('Toggle markup', () => {
     expect(html).toContain('aria-label="预填上下文"');
   });
 
-  it('is the reference 34×18 square, not a pill', () => {
+  it('is the reference 34×18 geometry with a matching round track and knob', () => {
     const html = renderMarkup(<Toggle checked={false} aria-label="x" />);
     expect(html).toContain('w-[34px]');
     expect(html).toContain('h-[18px]');
-    // --radius-* is 0 system-wide; a rounded track would be an invention.
-    expect(html).not.toContain('rounded');
+    // base.css rounds every button, so the track is rounded whether or not
+    // the class says so; the knob has to say so or it stays square inside it.
+    expect(html.match(/rounded-full/gu)).toHaveLength(2);
   });
 
   it('fills the track with the accent when on and the neutral step when off', () => {

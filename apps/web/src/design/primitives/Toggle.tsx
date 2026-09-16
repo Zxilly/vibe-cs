@@ -26,6 +26,11 @@
  * no token for them and inventing one would imply a family that does not
  * exist. Every colour is a token.
  *
+ * Track and knob both take `rounded-full`. The theme's radius scale is no
+ * longer zero — base.css already rounds every `button`, which the track is —
+ * so a square knob would sit inside a rounded track as a mismatched pair.
+ * DESIGN.md names the pill radius for round sliders, and a switch is one.
+ *
  * ── locked is not disabled ────────────────────────────────────────────────
  *
  * A disabled switch is dimmed and drops out of the tab order, and this one
@@ -61,12 +66,12 @@ export interface ToggleProps
 }
 
 const TRACK_CLASS =
-  'relative block h-[18px] w-[34px] flex-none transition-colors ' +
+  'relative block h-[18px] w-[34px] flex-none rounded-full transition-colors ' +
   'data-[state=checked]:bg-accent data-[state=unchecked]:bg-neutral-300 ' +
   'disabled:opacity-45';
 
 const KNOB_CLASS =
-  'absolute top-[1px] size-[16px] bg-bg ' +
+  'absolute top-[1px] size-[16px] rounded-full bg-bg ' +
   'data-[state=checked]:right-[1px] data-[state=unchecked]:left-[1px]';
 
 export function Toggle({ checked, onChange, locked = false, className, ...rest }: ToggleProps) {
@@ -82,7 +87,7 @@ export function Toggle({ checked, onChange, locked = false, className, ...rest }
       }}
     >
       <SwitchPrimitive.Thumb className={KNOB_CLASS} />
-      {locked ? <span className="pointer-events-none absolute inset-0 border border-accent-700" /> : null}
+      {locked ? <span className="pointer-events-none absolute inset-0 rounded-full border border-accent-700" /> : null}
     </SwitchPrimitive.Root>
   );
 }

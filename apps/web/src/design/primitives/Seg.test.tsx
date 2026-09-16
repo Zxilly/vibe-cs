@@ -93,6 +93,15 @@ describe('Seg markup', () => {
     expect(html.match(/data-disabled=""/gu)?.length).toBe(1);
   });
 
+  it('keeps the keyboard ring visible on the checked option', () => {
+    /* Tab enters the group on the selection, whose fill is the accent — the
+       same colour as the inset ring. The checked option therefore draws the
+       ring in the fill's foreground colour, or the entry focus is invisible. */
+    const html = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
+    expect(html).toContain('focus-visible:-outline-offset-2');
+    expect(html).toContain('data-[state=checked]:focus-visible:outline-bg');
+  });
+
   it('carries no bare hex and no literal type size', () => {
     const html = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
     expect(html).not.toMatch(/#[0-9a-f]{3,8}/iu);

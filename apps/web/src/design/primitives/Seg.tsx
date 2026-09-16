@@ -68,7 +68,11 @@ const GROUP_CLASS = 'inline-flex overflow-hidden rounded-md border border-divide
  *
  * The focus ring is inset here rather than taking base.css's 2px offset: the
  * group clips its options (`overflow-hidden`), so an outset ring on the first
- * or last option would be cut in half by the box it sits in.
+ * or last option would be cut in half by the box it sits in. An inset accent
+ * ring is invisible on the checked option, whose fill is the same accent — and
+ * the checked option is exactly where Tab lands, because the radio group's
+ * roving tabindex always enters on the selection. So the checked option draws
+ * the ring in the fill's foreground colour instead.
  */
 const OPTION_CLASS =
   'inline-flex h-full items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
@@ -76,7 +80,8 @@ const OPTION_CLASS =
   'data-[state=checked]:bg-accent data-[state=checked]:text-bg ' +
   'data-[state=unchecked]:hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] ' +
   'disabled:cursor-not-allowed disabled:opacity-45 ' +
-  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2';
+  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 ' +
+  'data-[state=checked]:focus-visible:outline-bg';
 
 export function Seg<Value extends string>({
   name,

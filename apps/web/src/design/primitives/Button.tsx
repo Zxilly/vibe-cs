@@ -85,7 +85,7 @@ export interface ButtonProps
   /** Render the child element instead of a `<button>`, keeping these classes. */
   asChild?: boolean;
   /** Why the action is unavailable. Rendered for assistive technology and as a tooltip. */
-  disabledReason?: string;
+  disabledReason?: string | undefined;
   type?: 'button' | 'submit' | 'reset';
   className?: string;
   children?: ReactNode;

@@ -85,6 +85,20 @@ describe('CommandPalette keyboard entry', () => {
     expect(queryByRole('dialog')).toBeNull();
   });
 
+  it('stays closed when a focused editor already claimed Ctrl K', () => {
+    // The Timeline binds Ctrl K to Add Edit and prevents the default; the
+    // palette must not open on top of a clip that was just cut.
+    const claim = (event: KeyboardEvent) => event.preventDefault();
+    document.body.addEventListener('keydown', claim);
+    try {
+      const { queryByRole } = renderInteractive(<Harness />);
+      fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
+      expect(queryByRole('dialog')).toBeNull();
+    } finally {
+      document.body.removeEventListener('keydown', claim);
+    }
+  });
+
   it('puts focus in the search box when it opens', () => {
     const { getByRole } = renderInteractive(<Harness />);
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });

@@ -22,7 +22,11 @@
  *     scrolls its overflow (`Toolbar`, `SubNav`). A menu longer than the bar
  *     was cut off at the bar's edge with no scroll of its own. Radix portals
  *     it to the body and positions it against the viewport, so it also flips
- *     and shifts near an edge instead of running off screen.
+ *     and shifts near an edge instead of running off screen. A list taller
+ *     than the space on either side of the trigger (the Timeline's 28-item
+ *     「剪辑」 menu in a 900px window) is capped at Radix's measured
+ *     `--radix-dropdown-menu-content-available-height` and scrolls inside,
+ *     so no item is ever positioned outside the viewport.
  *   · **No typeahead.** Ten folded views and no way to jump to 「阵容」 by
  *     typing it — the one menu affordance users reach for without being told.
  *
@@ -65,7 +69,8 @@ const TRIGGER_CLASS =
   'flex h-[var(--h-row-compact)] items-center gap-2 px-3 text-sm text-neutral-600 hover:text-text';
 
 const LIST_CLASS =
-  'z-30 flex min-w-[var(--w-subnav)] flex-col border border-divider bg-bg py-2 shadow-[var(--shadow-md)]';
+  'z-30 flex max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[var(--w-subnav)] flex-col ' +
+  'overflow-y-auto border border-divider bg-bg py-2 shadow-[var(--shadow-md)]';
 
 /**
  * `data-highlighted` is Radix's own attribute for the item the keyboard or the
@@ -103,6 +108,7 @@ export function OverflowMenu({
         <DropdownMenuPrimitive.Content
           align={align}
           sideOffset={1}
+          collisionPadding={8}
           /* The hand-rolled menu wrapped at both ends and spec §6.2 tests it.
              Radix does not loop by default. */
           loop

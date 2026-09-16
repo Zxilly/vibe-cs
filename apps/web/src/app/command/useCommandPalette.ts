@@ -55,6 +55,10 @@ export function useCommandPalette(): CommandPaletteController {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isCommandPaletteHotkey(event)) return;
+      // A focused editor may already own Ctrl K: the Timeline binds it to
+      // Premiere's Add Edit and calls preventDefault. That claim wins — a
+      // navigation shortcut must never also cut a clip underneath the palette.
+      if (event.defaultPrevented) return;
       // Chrome and Firefox both bind Ctrl K to their address bar's search mode.
       // The desktop build has no address bar, but `pnpm dev` in a browser does.
       event.preventDefault();

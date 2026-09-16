@@ -132,7 +132,6 @@ export function DuelMatrixTable({
         /* `TableCellAlign` is start / end only — the design layer has no centre
            because no artboard column is centred except this matrix, and the
            cell button spans the column anyway. */
-        align: 'end',
         variant: 'numeric',
         cell: (row) => {
           const cell = row.cells.find((entry) => entry.opponent.id === opponent.id);
@@ -155,7 +154,6 @@ export function DuelMatrixTable({
       id: 'total',
       header: <Trans>合计</Trans>,
       headerLabel: t`合计`,
-      align: 'end',
       variant: 'numeric',
       hideable: false,
       cell: (row) => formatFixed(row.kills, 0),

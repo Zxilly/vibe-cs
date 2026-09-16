@@ -12,7 +12,11 @@
  *   numeric       mono 13px — 日期 / 时长 / 回合 / tick / K/D / ADR, every column
  *                 the reference sets `font-family:ui-monospace` on. `tabular-nums`
  *                 is added on top so a proportional CJK fallback still lines the
- *                 digits up ("等宽数字列").
+ *                 digits up ("等宽数字列") — and the column is end-aligned, header
+ *                 and cells alike, because equal-width digits only line up when
+ *                 the ones place is on a shared edge: 「8」 under 「24」 flush
+ *                 left has its 8 under the 2. A column may still ask for
+ *                 `align="start"`; the default is what a number wants.
  *   meta          12px neutral-600 — the "· Aurora" team suffix, 监听中 captions
  *   numeric-meta  mono 12px neutral-600 — the 片段 index column of 「09 快速合辑」
  *
@@ -79,6 +83,7 @@ export const TABLE_BODY_CELL_CLASS = 'whitespace-nowrap border-b border-divider/
 
 export interface TableCellOwnProps {
   readonly variant?: TableCellVariant | undefined;
+  /** Defaults to `end` for the numeric variants, `start` otherwise. */
   readonly align?: TableCellAlign | undefined;
   readonly edge?: TableCellEdge | undefined;
   /** Clips overflow to one line. Pass `title` too, or the text becomes unreadable. */
@@ -88,10 +93,14 @@ export interface TableCellOwnProps {
 
 export type TableCellProps = TableCellOwnProps & Omit<TdHTMLAttributes<HTMLTableCellElement>, 'align'>;
 
+function defaultAlign(variant: TableCellVariant): TableCellAlign {
+  return variant === 'numeric' || variant === 'numeric-meta' ? 'end' : 'start';
+}
+
 /** A body cell. */
 export function TableCell({
   variant = 'text',
-  align = 'start',
+  align = defaultAlign(variant),
   edge = 'none',
   truncate = false,
   className,
@@ -120,7 +129,7 @@ export type TableHeaderCellProps = TableCellOwnProps & Omit<ThHTMLAttributes<HTM
 /** A header cell. `scope="col"` is the default because every table here is column-headed. */
 export function TableHeaderCell({
   variant = 'text',
-  align = 'start',
+  align = defaultAlign(variant),
   edge = 'none',
   truncate = false,
   className,

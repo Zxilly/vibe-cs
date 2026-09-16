@@ -140,6 +140,9 @@ export const qk = {
   demos: {
     all: [QUERY_NAMESPACE.demos] as const,
     list: (query: DemoQuery) => [QUERY_NAMESPACE.demos, LIST, query] as const,
+    /** The distinct map names of the whole catalogue — a facet, so it lives
+     *  under `all` and refreshes with every import and scan. */
+    maps: () => [QUERY_NAMESPACE.demos, 'maps'] as const,
     detail: (demoId: string) => [QUERY_NAMESPACE.demos, DETAIL, demoId] as const,
     metadata: (demoId: string) => [QUERY_NAMESPACE.demos, DETAIL, demoId, 'metadata'] as const,
     watch: () => [QUERY_NAMESPACE.demos, 'watch'] as const,

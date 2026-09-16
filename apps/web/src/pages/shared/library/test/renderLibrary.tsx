@@ -26,6 +26,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../../data/desktopClient';
+import { NativeShellProvider, unavailableNativeShell, type NativeShell } from '../../../../data/nativeShell';
 import { qk } from '../../../../data/keys';
 import type {
   AppConfig,
@@ -123,6 +124,8 @@ export interface LibrarySeed {
   readonly metadata?: DemoMetadata | undefined;
   readonly watch?: DemoWatchStatus | undefined;
   readonly tags?: readonly ReviewTag[] | undefined;
+  /** The map catalogue the 地图 chip lists — every map, not this page's. */
+  readonly maps?: readonly string[] | undefined;
   readonly config?: AppConfig | undefined;
 }
 
@@ -131,6 +134,8 @@ export interface LibraryHarnessOptions {
   readonly at?: string;
   readonly seed?: LibrarySeed;
   readonly client?: Partial<DesktopClient> & Record<string, unknown>;
+  /** The desktop shell. Defaults to the unavailable one, as under vitest. */
+  readonly shell?: Partial<NativeShell>;
   readonly queryClient?: QueryClient;
 }
 
@@ -167,21 +172,30 @@ function seedCache(queryClient: QueryClient, at: string, seed: LibrarySeed): voi
   }
   if (seed.watch !== undefined) queryClient.setQueryData(qk.demos.watch(), seed.watch);
   if (seed.tags !== undefined) queryClient.setQueryData(qk.demos.reviewTags(), [...seed.tags]);
+  if (seed.maps !== undefined) queryClient.setQueryData(qk.demos.maps(), [...seed.maps]);
   if (seed.config !== undefined) queryClient.setQueryData(qk.config.app(), seed.config);
 }
 
-function tree(queryClient: QueryClient, at: string, client: DesktopClient): ReactElement {
+function tree(
+  queryClient: QueryClient,
+  at: string,
+  client: DesktopClient,
+  shell: Partial<NativeShell>,
+): ReactElement {
   return (
     <I18nProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
         <DesktopClientProvider client={client}>
-          <MemoryRouter initialEntries={[at]}>
-            <Routes>
-              <Route path="/library" element={<LibraryPage />} />
-              <Route path="/match/:demoId" element={<span data-workspace />} />
-              <Route path="/projects/:projectId" element={<span data-project-workspace />} />
-            </Routes>
-          </MemoryRouter>
+          <NativeShellProvider shell={{ ...unavailableNativeShell, ...shell }}>
+            <MemoryRouter initialEntries={[at]}>
+              <Routes>
+                <Route path="/library" element={<LibraryPage />} />
+                <Route path="/match/:demoId" element={<span data-workspace />} />
+                <Route path="/projects/:projectId" element={<span data-project-workspace />} />
+                <Route path="/tasks" element={<span data-tasks />} />
+              </Routes>
+            </MemoryRouter>
+          </NativeShellProvider>
         </DesktopClientProvider>
       </QueryClientProvider>
     </I18nProvider>
@@ -199,7 +213,7 @@ export function renderLibraryMarkup(options: LibraryHarnessOptions = {}): string
   const at = options.at ?? '/library';
   seedCache(queryClient, at, options.seed ?? {});
   return renderToStaticMarkup(
-    tree(queryClient, at, (options.client ?? {}) as unknown as DesktopClient),
+    tree(queryClient, at, (options.client ?? {}) as unknown as DesktopClient, options.shell ?? {}),
   );
 }
 
@@ -213,7 +227,9 @@ export function renderLibrary(options: LibraryHarnessOptions = {}): LibraryRende
   const queryClient = options.queryClient ?? createLibraryQueryClient();
   const at = options.at ?? '/library';
   seedCache(queryClient, at, options.seed ?? {});
-  const rendered = render(tree(queryClient, at, (options.client ?? {}) as unknown as DesktopClient));
+  const rendered = render(
+    tree(queryClient, at, (options.client ?? {}) as unknown as DesktopClient, options.shell ?? {}),
+  );
   return Object.assign(rendered, { queryClient });
 }
 

@@ -18,6 +18,7 @@ import {
   formatDuration,
   formatFileLocation,
   formatMatchDate,
+  formatMatchup,
   formatRounds,
   formatScore,
   isDemoAnalysable,
@@ -96,6 +97,18 @@ describe('formatScore / formatRounds', () => {
   it('reads a zero round count as 「not known yet」', () => {
     expect(formatRounds(24)).toBe('24');
     expect(formatRounds(0)).toBe(EMPTY_CELL);
+  });
+});
+
+describe('formatMatchup', () => {
+  it('puts the score between its teams', () => {
+    expect(formatMatchup(DEMO)).toBe('Aurora 13 : 11 Meridian');
+  });
+
+  it('is null without both team names or without a score, so the caller can label a bare score', () => {
+    expect(formatMatchup({ ...DEMO, team_b_name: null })).toBeNull();
+    expect(formatMatchup({ ...DEMO, team_a_name: '' })).toBeNull();
+    expect(formatMatchup({ ...DEMO, score_team_a: null })).toBeNull();
   });
 });
 

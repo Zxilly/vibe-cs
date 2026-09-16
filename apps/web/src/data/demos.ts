@@ -58,6 +58,22 @@ export function useDemoList(query: DemoQuery, tuning: DataQueryTuning = {}) {
 }
 
 /**
+ * Every distinct map name in the catalogue, for the library's 地图 filter.
+ *
+ * A facet over the whole catalogue rather than over the page on screen, so the
+ * menu still offers the other maps after one has been picked. Lives under
+ * `qk.demos.all`, so the same imports and scans that add rows refresh it.
+ */
+export function useDemoMapNames(tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.demos.maps(),
+    queryFn: ({ signal }) => client.listDemoMapNames(signal),
+    ...resolveQueryTuning(tuning),
+  });
+}
+
+/**
  * One demo, for the library Inspector and for `/match/:demoId`'s context bar.
  *
  * `demoId: null` is the "nothing selected" state — `skipToken` keeps the entry
@@ -389,6 +405,24 @@ export function useLaunchDemoPlayback() {
   return useMutation({
     mutationFn: (demoId: string) => client.playDemo(demoId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.config.runtime() }),
+  });
+}
+
+export type DemoExportFormat = 'json' | 'xlsx';
+
+/**
+ * 「导出元数据」 — the rows a query matches, as one file's bytes.
+ *
+ * A read shaped as a mutation because it is user-initiated and its result is
+ * handed straight to the shell's save dialog, not cached. Invalidates nothing:
+ * the service writes no record for an export.
+ */
+export function useExportDemoMetadata() {
+  const client = useDesktopClient();
+
+  return useMutation({
+    mutationFn: ({ format, query }: { format: DemoExportFormat; query: DemoQuery }) =>
+      client.exportDemos(format, query),
   });
 }
 

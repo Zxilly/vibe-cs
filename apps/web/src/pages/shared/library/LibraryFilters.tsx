@@ -2,9 +2,15 @@
  * pages/library — the 52px strip under the toolbar of 「02 Demo 资料库」.
  *
  * The artboard draws, left to right: a search box, four dropdown chips (地图 /
- * 状态 / 来源 / 标签), a hairline, the saved-view tags, then 列配置 and
+ * 状态 / 平台 / 标签), a hairline, the saved-view tags, then 列配置 and
  * 导出元数据 flush right. `design/layout/Page`'s `bar` slot is the strip;
  * `--h-bar` is its height (§3.4 merges the drawn 50 / 52 into 46).
+ *
+ * The search box is the one flexible item: it grows to `--w-panel` and never
+ * shrinks below `--w-subnav`, so a saved-view chip or a narrow window pushes
+ * the strip into its own horizontal scroll rather than squeezing the search
+ * field to a few characters. The right-hand buttons sit on `ml-auto`; a second
+ * `flex-1` spacer would split the slack with the search box.
  *
  * ## The dropdowns are `OverflowMenu`
  *
@@ -16,14 +22,14 @@
  * ## Where each dropdown's options come from
  *
  *   状态   `DemoLifecycleStatus`, a closed enum on the wire
- *   来源   `DemoMatchSource`, likewise
+ *   平台   `DemoMatchSource`, likewise. The chip is named 平台 rather than the
+ *          artboard's 来源 because the table's 来源 column is a different field
+ *          — how the file arrived (本地文件 / 监听目录 / 已导入) — and one word
+ *          for two facts made a FACEIT filter look broken next to a column of
+ *          「本地文件」.
  *   标签   `useReviewTags()`, a real catalogue endpoint
- *   地图   **derived from the rows on screen**, plus whatever is selected. The
- *          bridge has no map-catalogue command (`getRadarOverview` takes a name
- *          and gives a picture), so this is the only list that exists. Keeping
- *          the selected value in it means a filter can always be cleared even
- *          after it has narrowed its own menu down to one entry. Reported as a
- *          gap rather than hidden.
+ *   地图   `useDemoMapNames()` — every distinct map in the catalogue, so the
+ *          menu keeps offering the other maps after one is picked.
  *
  * 「近 7 天」, the second tag the artboard draws, is absent: `DemoQuery` has no
  * date range, so the chip would filter nothing.
@@ -38,6 +44,7 @@ import { Search } from 'lucide-react';
 import { OverflowMenu, type OverflowMenuItem } from '../../../design/layout';
 import { Badge, Button, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../../shared/desktop/dto';
+import type { ActionAvailability } from './libraryColumns';
 import type { LibraryAddress } from './libraryQuery';
 
 /** The wire's six record states, in the order `DemoRecord.status` declares. */
@@ -81,13 +88,16 @@ export interface SavedLibraryView {
 export interface LibraryFiltersProps {
   readonly address: LibraryAddress;
   readonly onChange: (change: Partial<LibraryAddress>) => void;
-  /** Map names on the current page — the only catalogue that exists. */
+  /** Every distinct map in the catalogue, from `useDemoMapNames()`. */
   readonly mapNames: readonly string[];
   readonly tags: readonly ReviewTag[];
   readonly savedViews: readonly SavedLibraryView[];
   readonly onApplySavedView: (view: SavedLibraryView) => void;
   readonly onSaveView: () => void;
   readonly onConfigureColumns: () => void;
+  /** 「导出元数据」 — writes the current query's rows to a file the user picks. */
+  readonly onExport: () => void;
+  readonly exportButtonProps: ActionAvailability;
 }
 
 export function LibraryFilters({
@@ -99,9 +109,13 @@ export function LibraryFilters({
   onApplySavedView,
   onSaveView,
   onConfigureColumns,
+  onExport,
+  exportButtonProps,
 }: LibraryFiltersProps) {
   const { i18n } = useLingui();
 
+  // The selected map stays listed while the catalogue is still loading, so a
+  // pasted `?map=` address can be cleared before the list arrives.
   const maps = [...new Set([...mapNames, ...(address.map === '' ? [] : [address.map])])].sort();
 
   const mapItems = withAll(
@@ -152,7 +166,11 @@ export function LibraryFilters({
       data-library-filters
       className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
     >
-      <InputGroup size="sm" ground="bg" className="min-w-0 max-w-[var(--w-panel)] flex-1">
+      <InputGroup
+        size="sm"
+        ground="bg"
+        className="min-w-[var(--w-subnav)] max-w-[var(--w-panel)] flex-1"
+      >
         <InputGroupAddon>
           <Search strokeWidth={1.5} />
         </InputGroupAddon>
@@ -168,7 +186,7 @@ export function LibraryFilters({
 
       <FilterMenu name={t`地图`} current={currentMap} items={mapItems} />
       <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} />
-      <FilterMenu name={t`来源`} current={currentSource} items={sourceItems} />
+      <FilterMenu name={t`平台`} current={currentSource} items={sourceItems} />
       <FilterMenu name={t`标签`} current={currentTag} items={tagItems} />
 
       <span className="h-5 w-px flex-none bg-divider" aria-hidden="true" />
@@ -192,18 +210,10 @@ export function LibraryFilters({
         <Trans>保存为视图</Trans>
       </Button>
 
-      <div className="flex-1" aria-hidden="true" />
-
-      <Button size="sm" variant="ghost" className="flex-none" onClick={onConfigureColumns}>
+      <Button size="sm" variant="ghost" className="ml-auto flex-none" onClick={onConfigureColumns}>
         <Trans>列配置</Trans>
       </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="flex-none"
-        disabled
-        disabledReason={t`暂不支持把导出的文件保存到磁盘`}
-      >
+      <Button size="sm" variant="ghost" className="flex-none" {...exportButtonProps} onClick={onExport}>
         <Trans>导出元数据</Trans>
       </Button>
     </div>

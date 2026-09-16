@@ -29,6 +29,8 @@ import { commands } from '../shared/desktop/client';
 export type DesktopClient = Pick<
   typeof commands,
   | 'listDemos'
+  | 'listDemoMapNames'
+  | 'exportDemos'
   | 'getDemo'
   | 'getDemoMetadata'
   | 'getDemoWatchStatus'

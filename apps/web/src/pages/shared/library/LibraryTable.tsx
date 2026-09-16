@@ -5,7 +5,7 @@
  * the three states the brief requires of every page:
  *
  *   loading  `TableSkeleton` — bars, no invented percentage
- *   empty    `Empty`, preset `no-matches` or `no-hits` depending on
+ *   empty    `LibraryEmpty` — 「还没有比赛」 or 「没有匹配的比赛」 depending on
  *            whether a filter is what emptied it. Both carry a real recovery
  *            action, which is why `Empty.actions` is a required prop.
  *   error    a `Notice` in place, with 重试 — never a Toast (「补齐 · 规范与
@@ -30,16 +30,15 @@ import type { ReactNode } from 'react';
 
 import {
   DataTable,
-  Empty,
   Pagination,
   TableSkeleton,
   type DataTableColumn,
   type SortState,
 } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
-import { Button } from '../../../design/primitives';
 import type { Paginated } from '../../../shared/desktop/dto';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
+import { LibraryEmpty } from './LibraryEmpty';
 import { DEMO_SELECTION_LIMIT, LIBRARY_PAGE_SIZE } from './libraryQuery';
 
 export interface LibraryTableProps {
@@ -128,18 +127,11 @@ export function LibraryTable({
         skeleton={<TableSkeleton rows={8} stage={<Trans>正在读取资料库</Trans>} />}
         empty={
           error !== null ? null : (
-            <Empty
+            <LibraryEmpty
               className="m-7"
-              preset={filtered ? 'no-hits' : 'no-matches'}
-              actions={
-                filtered ? (
-                  <Button size="sm" onClick={onClearFilters}>
-                    <Trans>清空条件</Trans>
-                  </Button>
-                ) : (
-                  emptyActions
-                )
-              }
+              filtered={filtered}
+              onClearFilters={onClearFilters}
+              emptyActions={emptyActions}
             />
           )
         }

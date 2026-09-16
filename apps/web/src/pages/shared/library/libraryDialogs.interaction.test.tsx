@@ -160,6 +160,40 @@ describe('添加监听目录', () => {
     expect(sent.demo_watch_paths).toEqual([...CONFIG_FIXTURE.demo_watch_paths, 'G:\\new\\demos']);
   });
 
+  it('fills the field from the shell’s directory picker, and keeps it editable', async () => {
+    const choose = recorder(['G:\\picked\\demos']);
+    renderLibrary({
+      seed: ONLINE,
+      shell: { available: true, chooseDirectories: choose.call as never },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '监听目录' }));
+    fireEvent.click(await screen.findByRole('button', { name: /添加目录/u }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: '浏览…' }));
+
+    const field = within(dialog()).getByLabelText('目录') as HTMLInputElement;
+    await waitFor(() => {
+      expect(field.value).toBe('G:\\picked\\demos');
+    });
+    expect(choose.lastArgs()[0]).toMatchObject({ multiple: false });
+    expect(field.disabled).toBe(false);
+    expect(
+      (within(dialog()).getByRole('button', { name: '开始监听' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('disables 浏览… with its reason outside the desktop shell, leaving typing', async () => {
+    renderLibrary({ seed: ONLINE });
+
+    fireEvent.click(screen.getByRole('button', { name: '监听目录' }));
+    fireEvent.click(await screen.findByRole('button', { name: /添加目录/u }));
+
+    const browse = within(dialog()).getByRole('button', { name: '浏览…' }) as HTMLButtonElement;
+    expect(browse.disabled).toBe(true);
+    expect(dialog().textContent).toContain('这个动作需要桌面应用');
+    expect((within(dialog()).getByLabelText('目录') as HTMLInputElement).disabled).toBe(false);
+  });
+
   it('states the recursion rule instead of offering a toggle with no wire', async () => {
     renderLibrary({ seed: ONLINE });
 

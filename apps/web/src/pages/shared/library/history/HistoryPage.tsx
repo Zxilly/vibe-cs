@@ -156,7 +156,10 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
       }
       bar={
         <div className="flex flex-wrap items-center gap-2.5 border-b border-divider bg-surface px-6 py-2.5">
-          <Badge variant="accent">
+          {/* Tallies, so every one is `neutral`: an accent chip in the bar
+              slot reads as the selected item of a filter row. Only 「下载中」
+              below is a live state and keeps the accent. */}
+          <Badge variant="neutral">
             <Trans>全部 {total}</Trans>
           </Badge>
           <Badge variant="neutral">

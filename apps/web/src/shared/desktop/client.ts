@@ -610,6 +610,8 @@ export const commands = {
     );
     return { ...page, items: page.items.map(normalizeDemo) };
   },
+  /** Every distinct map in the catalogue, sorted — the library's 地图 filter. */
+  listDemoMapNames: (signal?: AbortSignal) => request<string[]>('/demos/maps', { signal }),
   getDemo: async (id: string, signal?: AbortSignal) => {
     const record = await request<DemoRecord>(`/demos/${encodeURIComponent(id)}`, { signal });
     return normalizeDemo(record);

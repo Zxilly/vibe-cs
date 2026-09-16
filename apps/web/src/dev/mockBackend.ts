@@ -1032,6 +1032,8 @@ const ROUTES: Array<[string, string, Handler]> = [
     });
     return paged(items);
   }],
+  ['GET', '/demos/maps', () =>
+    [...new Set(DEMOS.map((demo) => demo.map_name).filter((name): name is string => name !== null))].sort()],
   ['GET', '/demos/watch/status', () => ({
     running: true,
     roots: [{ path: 'D:\\CS2\\demos', state: 'watching', message: null }],

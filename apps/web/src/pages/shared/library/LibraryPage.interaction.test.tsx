@@ -171,6 +171,61 @@ describe('the Inspector', () => {
     );
   });
 
+  it('labels the score and the duration so two clocks do not sit side by side', async () => {
+    renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
+
+    const inspector = () => document.querySelector('[data-inspector="docked"]')?.textContent ?? '';
+    await waitFor(() => {
+      expect(inspector()).toContain('Aurora 13 : 11 Meridian');
+    });
+    expect(inspector()).toContain('时长 41:02');
+    expect(inspector()).toContain('24 回合');
+  });
+
+  it('names the primary action for the job — the workspace, by default', async () => {
+    renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
+    expect(await screen.findByRole('button', { name: '打开比赛工作区' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '从 Demo 创建剪辑' })).toBeNull();
+  });
+
+  it('names the primary action for the job — clips, when a project sent the user here', async () => {
+    renderLibrary({ at: '/library?project=project-1', seed: { ...ONLINE, detail: DEMO_FIXTURE } });
+    expect(await screen.findByRole('button', { name: '从 Demo 创建剪辑' })).toBeTruthy();
+  });
+
+  it('offers 查看分析进度 while a run is on, where a disabled 开始分析 used to stand', async () => {
+    const analysing = { ...DEMO_FIXTURE, lifecycle_status: 'analyzing' as const };
+    renderLibrary({ seed: { ...ONLINE, demos: demoPage([analysing]), detail: analysing } });
+
+    const view = await screen.findByRole('button', { name: '查看分析进度' });
+    expect(screen.queryByRole('button', { name: '开始分析' })).toBeNull();
+    fireEvent.click(view);
+    await waitFor(() => {
+      expect(document.querySelector('[data-tasks]')).not.toBeNull();
+    });
+  });
+
+  it('says why 定位文件 cannot run without the desktop shell', async () => {
+    renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
+    const locate = await screen.findByRole('button', { name: '定位文件' });
+    expect((locate as HTMLButtonElement).disabled).toBe(true);
+    expect(locate.getAttribute('aria-describedby')).not.toBeNull();
+    expect(document.body.textContent).toContain('这个动作需要桌面应用');
+  });
+
+  it('reveals the file through the shell', async () => {
+    const reveal = recorder(true);
+    renderLibrary({
+      seed: { ...ONLINE, detail: DEMO_FIXTURE },
+      shell: { available: true, reveal: reveal.call as (path: string) => Promise<boolean> },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: '定位文件' }));
+    await waitFor(() => {
+      expect(reveal.calls()).toBe(1);
+    });
+    expect(reveal.lastArgs()[0]).toBe(DEMO_FIXTURE.path);
+  });
+
   it('folds into the summary strip below the §8 breakpoint, keeping its main action', async () => {
     media = stubMatchMedia(COLLAPSE_BREAKPOINT_PX + 200);
     renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
@@ -194,7 +249,7 @@ describe('the Inspector', () => {
     expect(strip?.textContent).toContain('选中 Aurora vs Meridian');
     // The main action stays on the strip — 主动作不进溢出菜单, at any width.
     expect(document.querySelector('[data-inspector-summary-actions]')?.textContent).toContain(
-      '从 Demo 创建剪辑',
+      '打开比赛工作区',
     );
 
     fireEvent.click(screen.getByRole('button', { name: '详情' }));
@@ -253,5 +308,53 @@ describe('the filter strip', () => {
       expect(list.calls()).toBeGreaterThan(0);
     });
     expect(list.lastArgs()[0]).toMatchObject({ tag_id: 'tag-1', page: 1 });
+  });
+
+  it('keeps every map of the catalogue in the 地图 menu after one is picked', async () => {
+    renderLibrary({
+      at: '/library?map=de_mirage',
+      seed: { ...ONLINE, maps: ['de_ancient', 'de_inferno', 'de_mirage'] },
+      client: { listDemos: () => Promise.resolve(demoPage([])) },
+    });
+
+    // The table's sort header is also a button named 地图; the chip is the one
+    // on the filter strip.
+    const strip = document.querySelector('[data-library-filters]') as HTMLElement;
+    fireEvent.pointerDown(within(strip).getByRole('button', { name: '地图' }), { button: 0, ctrlKey: false });
+    const menu = await screen.findByRole('menu', { name: '地图' });
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      '全部',
+      'de_ancient',
+      'de_inferno',
+      'de_mirage',
+    ]);
+  });
+
+  it('exports the current query through the shell’s save dialog', async () => {
+    const exportDemos = recorder(new TextEncoder().encode('{"demos":[]}').buffer as ArrayBuffer);
+    const saveBytes = recorder('D:\\exports\\demo-library.json');
+    renderLibrary({
+      at: '/library?map=de_mirage',
+      seed: ONLINE,
+      client: { exportDemos: exportDemos.call, listDemos: () => Promise.resolve(demoPage([])) },
+      shell: { available: true, saveBytes: saveBytes.call as never },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '导出元数据' }));
+
+    await waitFor(() => {
+      expect(saveBytes.calls()).toBe(1);
+    });
+    expect(exportDemos.lastArgs()[0]).toBe('json');
+    expect(exportDemos.lastArgs()[1]).toMatchObject({ map_name: 'de_mirage' });
+    expect(saveBytes.lastArgs()[0]).toMatchObject({ filters: [{ extensions: ['json'] }] });
+  });
+
+  it('disables 导出元数据 with its reason where there is no shell to save a file', () => {
+    renderLibrary({ seed: ONLINE });
+    const button = screen.getByRole('button', { name: '导出元数据' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(document.body.textContent).toContain('这个动作需要桌面应用');
+    expect(document.body.textContent).not.toContain('暂不支持');
   });
 });

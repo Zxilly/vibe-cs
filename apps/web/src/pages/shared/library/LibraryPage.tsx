@@ -46,8 +46,10 @@ import {
   useDeleteDemos,
   useDemo,
   useDemoList,
+  useDemoMapNames,
   useDemoMetadata,
   useDemoWatchStatus,
+  useExportDemoMetadata,
   useImportDemoPaths,
   useLaunchDemoPlayback,
   useRescanDemoWatch,
@@ -57,8 +59,9 @@ import {
   useUpdateDemoMetadataBatch,
 } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
+import { useNativeShell, useNativeShellAction, useRevealPath } from '../../../data/nativeShell';
 import { useApplyProjectPatch, useCreateProject } from '../../../data/projects';
-import { Alert } from '../../../design/feedback';
+import { Alert, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
 import { collectedClipsPatch, type ProjectCollectedClip } from '../../../domain/project/collectedClip';
@@ -117,6 +120,9 @@ function DemoLibraryPage() {
   const collapsed = useShellCollapsed();
   const create = useCreateProject();
   const applyProject = useApplyProjectPatch();
+  const nativeShell = useNativeShell();
+  const shellAction = useNativeShellAction();
+  const revealPath = useRevealPath();
 
   const address = readLibraryAddress(params);
   const query = useMemo(() => libraryDemoQuery(address), [
@@ -127,6 +133,7 @@ function DemoLibraryPage() {
   /* ── reads ─────────────────────────────────────────────────────────────── */
 
   const list = useDemoList(query);
+  const mapNames = useDemoMapNames();
   const tags = useReviewTags();
   const watch = useDemoWatchStatus();
   const config = useAppConfig();
@@ -169,12 +176,38 @@ function DemoLibraryPage() {
   const tagBatch = useUpdateDemoMetadataBatch();
   const setWatchPaths = useSetDemoWatchPaths();
   const rescan = useRescanDemoWatch();
+  const exportMetadata = useExportDemoMetadata();
 
   const watchPaths = config.data?.demo_watch_paths ?? [];
   const watchBusy = setWatchPaths.isPending || rescan.isPending;
 
   const setAddress = (change: Partial<LibraryAddress>) => {
     setParams(writeLibraryAddress(changeLibraryAddress(address, change)));
+  };
+
+  /*
+   * 「导出元数据」: the rows the current filters match, as one JSON file the
+   * user places with the shell's save dialog. A toast rather than a Notice for
+   * the outcome, as `useRevealPath` does: the retry is the same click, and a
+   * box that outlives the question would say nothing more.
+   */
+  const exportToFile = () => {
+    void exportMetadata
+      .mutateAsync({ format: 'json', query })
+      .then((bytes) =>
+        nativeShell.saveBytes({
+          title: t`导出资料库元数据`,
+          defaultFileName: `demo-library-${new Date().toISOString().slice(0, 10)}.json`,
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+          bytes: new Uint8Array(bytes),
+        }),
+      )
+      .then((path) => {
+        if (path !== null) toast.success(t`元数据已导出`, { description: path });
+      })
+      .catch((error: unknown) => {
+        toast.error(t`元数据没能导出`, { description: dataErrorMessage(error) ?? undefined });
+      });
   };
 
   const analyse = (demoIds: readonly string[]) => {
@@ -302,13 +335,9 @@ function DemoLibraryPage() {
           },
         })) ?? []}
       />
-      <Button
-        size="sm"
-        disabled
-        disabledReason={t`导出会返回一份文件，桌面端还没有保存到磁盘的命令`}
-      >
-        <Trans>导出元数据</Trans>
-      </Button>
+      {/* No 「导出元数据」 here: the export is query-shaped (`/demos/export`
+          takes the filters, not ids), so it lives on the filter strip where
+          the filters are. A per-selection export would be a second wire. */}
       <Button size="sm" variant="danger" onClick={() => { setOverlay('delete'); }}>
         <Trans>删除记录</Trans>
       </Button>
@@ -325,7 +354,12 @@ function DemoLibraryPage() {
         void activeDetail.refetch();
       }}
       analysing={activeDemo?.lifecycle_status === 'analyzing'}
-      onCreateClip={() => {
+      // A project sent the user here to collect clips (`?project=`), or they
+      // came on their own: the same match workspace, named for the job.
+      workspaceLabel={
+        preferredProjectId === null ? <Trans>打开比赛工作区</Trans> : <Trans>从 Demo 创建剪辑</Trans>
+      }
+      onOpenWorkspace={() => {
         if (activeDemo === undefined) return;
         const target = new URLSearchParams({ view: 'replay' });
         if (preferredProjectId !== null) target.set('project', preferredProjectId);
@@ -334,9 +368,16 @@ function DemoLibraryPage() {
       onAnalyse={() => {
         if (activeDemo !== undefined) analyse([activeDemo.id]);
       }}
+      onViewAnalysis={() => {
+        void navigate('/tasks');
+      }}
       onPlay={() => {
         if (activeDemo !== undefined) launchPlayback.mutate(activeDemo.id);
       }}
+      onReveal={() => {
+        if (activeDemo !== undefined) revealPath(activeDemo.path);
+      }}
+      revealButtonProps={shellAction.buttonProps}
       onSaveRemark={(remark) =>
         activeDemo === undefined
           ? Promise.resolve()
@@ -414,7 +455,7 @@ function DemoLibraryPage() {
         <LibraryFilters
           address={address}
           onChange={setAddress}
-          mapNames={rows.map((demo) => demo.map_name)}
+          mapNames={mapNames.data ?? []}
           tags={tags.data ?? []}
           savedViews={savedViews}
           onApplySavedView={(view) => {
@@ -426,6 +467,10 @@ function DemoLibraryPage() {
           onConfigureColumns={() => {
             setOverlay('columns');
           }}
+          onExport={exportToFile}
+          exportButtonProps={
+            exportMetadata.isPending ? { disabled: true } : shellAction.buttonProps
+          }
         />
       }
       footer={collapsed ? inspector : undefined}

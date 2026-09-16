@@ -4,9 +4,21 @@
  * `design/layout/Inspector` is the shell, and it already carries the §8 rule 2
  * behaviour: docked at `--w-inspector` above the 1100px breakpoint, and below it
  * a 46px summary strip plus a召-out drawer. **No media query is written here** —
- * the component observes the breakpoint itself, and 「从 Demo 创建剪辑」 is passed
- * as `summaryActions` so that the main action stays on the strip when the panel
+ * the component observes the breakpoint itself, and the primary action is
+ * passed as `summaryActions` so that it stays on the strip when the panel
  * folds (§8: 主动作在任何宽度下保持可见).
+ *
+ * ## The primary action, by state
+ *
+ *   ready       `workspaceLabel` → `onOpenWorkspace`. The page names the
+ *               action, because what the match workspace is *for* depends on
+ *               where the user came from — 「从 Demo 创建剪辑」 when a project
+ *               sent them here to collect clips, 「打开比赛工作区」 otherwise —
+ *               and this shared page does not know which mode is on.
+ *   analysing   「查看分析进度」 → `onViewAnalysis`, the same place the table
+ *               row's 「查看」 goes. A disabled 「开始分析」 with no reason was
+ *               what stood here before.
+ *   otherwise   「开始分析」 → `onAnalyse`.
  *
  * ## What the artboard draws and the wire cannot answer
  *
@@ -15,8 +27,9 @@
  * `content_sha256`, so 大小 and 校验 are **not rendered as empty rows** — an
  * always-blank field claims a value exists. 分析历史 needs the run list for one
  * demo, which is `data/tasks.ts` territory (phase 3a) and has no per-demo query
- * on the bridge; the panel shows the one run state that *is* addressable,
- * 「正在分析」, and nothing more. Both gaps are reported.
+ * on the bridge; the panel shows the one run state that *is* addressable — the
+ * record's own 「分析中」, drawn by `DemoStatusMark` exactly as the table draws
+ * it — and nothing more. Both gaps are reported.
  *
  * 备注 is editable in place, because it is the one field of the drawn panel the
  * wire accepts a write for (`DemoUpdate.remark`). A save is explicit: an
@@ -30,17 +43,20 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { Inspector } from '../../../design/layout';
-import { Alert, StatusDot } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, Badge, Input } from '../../../design/primitives';
 import type { DemoMetadata } from '../../../shared/desktop/dto';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
+import { DemoStatusMark } from './DemoStatusMark';
+import type { ActionAvailability } from './libraryColumns';
 import {
   demoSourceLabel,
-  demoStatusMeta,
+  EMPTY_CELL,
   formatDateTime,
   formatDuration,
   formatFileLocation,
   formatMatchDate,
+  formatMatchup,
   formatRounds,
   formatScore,
   isDemoAnalysable,
@@ -52,12 +68,19 @@ export interface LibraryInspectorProps {
   readonly loading: boolean;
   readonly error: string | null;
   readonly onRetry: () => void;
-  /** 「正在分析」 — `data/tasks.ts`'s per-demo run query answered true. */
+  /** The record's lifecycle is `analyzing` — picks 「查看分析进度」. */
   readonly analysing: boolean;
 
-  readonly onCreateClip: () => void;
+  /** What the primary action is called while the workspace can be opened. */
+  readonly workspaceLabel: ReactNode;
+  readonly onOpenWorkspace: () => void;
   readonly onAnalyse: () => void;
+  /** 「查看分析进度」 — where the running analysis can be watched. */
+  readonly onViewAnalysis: () => void;
   readonly onPlay: () => void;
+  /** 「定位文件」 — reveal the demo in the file manager. */
+  readonly onReveal: () => void;
+  readonly revealButtonProps: ActionAvailability;
   readonly onSaveRemark: (remark: string) => Promise<unknown>;
   readonly savingRemark: boolean;
 
@@ -72,9 +95,13 @@ export function LibraryInspector({
   error,
   onRetry,
   analysing,
-  onCreateClip,
+  workspaceLabel,
+  onOpenWorkspace,
   onAnalyse,
+  onViewAnalysis,
   onPlay,
+  onReveal,
+  revealButtonProps,
   onSaveRemark,
   savingRemark,
   collapsed,
@@ -115,8 +142,32 @@ export function LibraryInspector({
     );
   }
 
-  const status = demoStatusMeta(demo.lifecycle_status);
   const canOpenWorkspace = isDemoAnalysable(demo);
+  const matchup = formatMatchup(demo);
+  const score = formatScore(demo);
+  const duration = formatDuration(demo.duration_seconds);
+
+  const primaryAction = (size: 'sm' | 'lg') => {
+    if (canOpenWorkspace) {
+      return (
+        <Button size={size} variant="primary" block={size === 'lg'} onClick={onOpenWorkspace}>
+          {workspaceLabel}
+        </Button>
+      );
+    }
+    if (analysing) {
+      return (
+        <Button size={size} variant="primary" block={size === 'lg'} onClick={onViewAnalysis}>
+          <Trans>查看分析进度</Trans>
+        </Button>
+      );
+    }
+    return (
+      <Button size={size} variant="primary" block={size === 'lg'} onClick={onAnalyse}>
+        <Trans>开始分析</Trans>
+      </Button>
+    );
+  };
 
   return (
     <Inspector
@@ -128,44 +179,15 @@ export function LibraryInspector({
         </Trans>
       }
       {...(collapsed === undefined ? {} : { collapsed })}
-      summaryActions={
-        canOpenWorkspace ? (
-          <Button size="sm" variant="primary" onClick={onCreateClip}>
-            <Trans>从 Demo 创建剪辑</Trans>
-          </Button>
-        ) : (
-          <Button size="sm" variant="primary" disabled={analysing} onClick={onAnalyse}>
-            <Trans>开始分析</Trans>
-          </Button>
-        )
-      }
+      summaryActions={primaryAction('sm')}
       footer={
         <>
-          {canOpenWorkspace ? (
-            <Button size="lg" variant="primary" block onClick={onCreateClip}>
-              <Trans>从 Demo 创建剪辑</Trans>
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              variant="primary"
-              block
-              disabled={analysing}
-              onClick={onAnalyse}
-            >
-              <Trans>开始分析</Trans>
-            </Button>
-          )}
+          {primaryAction('lg')}
           <div className="flex gap-2">
             <Button size="sm" grow onClick={onPlay}>
               <Trans>游戏内回放</Trans>
             </Button>
-            <Button
-              size="sm"
-              grow
-              disabled
-              disabledReason={t`暂不支持在文件管理器中显示`}
-            >
+            <Button size="sm" grow {...revealButtonProps} onClick={onReveal}>
               <Trans>定位文件</Trans>
             </Button>
           </div>
@@ -180,37 +202,41 @@ export function LibraryInspector({
 
       <div>
         <h3 className="font-heading text-xl">{demo.display_name}</h3>
+        {/* Each number says what it is: 「FURIA 8 : 13 Falcons」 and 「时长 56:19」
+            are both colon-separated digits, and side by side without a label
+            the score read as a second clock. */}
         <p className="mt-px text-sm text-neutral-700">
           {demo.map_name}
-          {' · '}
-          {formatScore(demo)}
+          {matchup !== null ? (
+            <>
+              {' · '}
+              {matchup}
+            </>
+          ) : score !== EMPTY_CELL ? (
+            <>
+              {' · '}
+              <Trans>比分 {score}</Trans>
+            </>
+          ) : null}
           {demo.total_rounds > 0 ? (
             <>
               {' · '}
               <Trans>{formatRounds(demo.total_rounds)} 回合</Trans>
             </>
           ) : null}
-          {' · '}
-          {formatDuration(demo.duration_seconds)}
+          {duration !== EMPTY_CELL ? (
+            <>
+              {' · '}
+              <Trans>时长 {duration}</Trans>
+            </>
+          ) : null}
         </p>
       </div>
 
+      {/* 「分析中」 with its running dot is the whole of what is known: no
+          percentage, because `AnalysisRun` reports a stage and no denominator. */}
       <div className="flex items-center gap-2">
-        {status.tone === 'accent' || status.tone === 'neutral' ? (
-          <Badge variant={status.tone}>{i18n._(status.label)}</Badge>
-        ) : (
-          <span className="inline-flex items-center gap-2 text-xs">
-            <StatusDot status={status.tone === 'fail' ? 'fail' : 'running'} size="sm" />
-            {i18n._(status.label)}
-          </span>
-        )}
-        {analysing ? (
-          <span className="inline-flex items-center gap-2 text-xs">
-            <StatusDot status="running" size="sm" />
-            {/* No percentage: `AnalysisRun` reports a stage and no denominator. */}
-            <Trans>正在分析</Trans>
-          </span>
-        ) : null}
+        <DemoStatusMark demo={demo} />
       </div>
 
       <dl className="flex flex-col gap-2 text-sm">

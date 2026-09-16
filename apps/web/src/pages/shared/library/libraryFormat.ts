@@ -83,6 +83,20 @@ export function formatScore(demo: DemoSummary): string {
   return `${String(a)} : ${String(b)}`;
 }
 
+/**
+ * 「FURIA 13 : 11 Falcons」 — the score between the two teams, for the
+ * Inspector's subtitle where a bare 「13 : 11」 next to a 「45:44」 duration reads
+ * as a second clock. `null` when the score or either team name is unknown; the
+ * caller falls back to a labelled 「比分 13 : 11」 or drops the score.
+ */
+export function formatMatchup(demo: DemoSummary): string | null {
+  const { team_a_name: a, team_b_name: b } = demo;
+  if (a === null || b === null || a === '' || b === '') return null;
+  const score = formatScore(demo);
+  if (score === EMPTY_CELL) return null;
+  return `${a} ${score} ${b}`;
+}
+
 /** 「24」, or 「—」 — a round count of zero is 「not known yet」, not zero rounds. */
 export function formatRounds(rounds: number): string {
   return rounds > 0 ? String(rounds) : EMPTY_CELL;

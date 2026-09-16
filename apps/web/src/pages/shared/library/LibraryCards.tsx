@@ -21,16 +21,16 @@
  */
 
 import { t } from '@lingui/core/macro';
-import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 
-import { Empty, Pagination } from '../../../design/data';
-import { Alert, StatusDot } from '../../../design/feedback';
-import { Button, cn, Badge } from '../../../design/primitives';
+import { Pagination } from '../../../design/data';
+import { Alert } from '../../../design/feedback';
+import { cn } from '../../../design/primitives';
 import type { Paginated } from '../../../shared/desktop/dto';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
+import { DemoStatusMark } from './DemoStatusMark';
+import { LibraryEmpty } from './LibraryEmpty';
 import {
-  demoStatusMeta,
   formatMatchDate,
   formatRounds,
   formatScore,
@@ -94,18 +94,7 @@ export function LibraryCards({
         ) : null}
 
         {!loading && error === null && rows.length === 0 ? (
-          <Empty
-            preset={filtered ? 'no-hits' : 'no-matches'}
-            actions={
-              filtered ? (
-                <Button size="sm" onClick={onClearFilters}>
-                  <Trans>清空条件</Trans>
-                </Button>
-              ) : (
-                emptyActions
-              )
-            }
-          />
+          <LibraryEmpty filtered={filtered} onClearFilters={onClearFilters} emptyActions={emptyActions} />
         ) : null}
 
         {/* The grid's accessible name is what tells a screen-reader user which
@@ -148,8 +137,6 @@ function DemoCard({
   active: boolean;
   onActivate: () => void;
 }) {
-  const { i18n } = useLingui();
-  const status = demoStatusMeta(demo.lifecycle_status);
   const score = formatScore(demo);
 
   return (
@@ -189,19 +176,7 @@ function DemoCard({
       </span>
 
       <span className="flex items-center gap-2">
-        {status.tone === 'accent' || status.tone === 'neutral' ? (
-          <Badge variant={status.tone}>{i18n._(status.label)}</Badge>
-        ) : (
-          <span
-            className={cn(
-              'inline-flex items-center gap-2 text-xs',
-              status.tone === 'fail' && 'text-fail-text',
-            )}
-          >
-            <StatusDot status={status.tone === 'fail' ? 'fail' : 'running'} size="sm" />
-            {i18n._(status.label)}
-          </span>
-        )}
+        <DemoStatusMark demo={demo} />
       </span>
     </Blueprint>
   );

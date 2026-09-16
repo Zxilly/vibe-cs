@@ -13,9 +13,11 @@
  * calls silent truncation a bug, and a column that can never have a value is
  * the same lie with more whitespace. The gap is reported instead.
  *
- * Column widths are `<col>` values, not utilities, so a width survives an empty
- * page (`DataTable` puts them in a `<colgroup>`). They are the artboard's own:
- * a 90px action column, and the mono fields sized to their content.
+ * Column widths are `DataTableColumn.width` values, not utilities, so a width
+ * survives an empty page (`DataTable` writes them on the `<colgroup>` and as
+ * the header cell's floor). Every column but the truncating 比赛 names one, so
+ * the headers sit at the same pixel whether the page holds twenty rows, one
+ * or none, and 比赛 alone takes the slack.
  */
 
 import { t } from '@lingui/core/macro';
@@ -24,22 +26,21 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import type { DataTableColumn } from '../../../design/data';
-import { Button, cn, Badge } from '../../../design/primitives';
-import { StatusDot } from '../../../design/feedback';
+import { Button } from '../../../design/primitives';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { RouteLink } from '../navigation/RouteLink';
+import { DemoStatusMark } from './DemoStatusMark';
 import {
   demoSourceLabel,
-  demoStatusMeta,
   formatDuration,
   formatMatchDate,
   formatRounds,
   isDemoAnalysable,
   isDemoFileMissing,
-  type DemoStatusTone,
 } from './libraryFormat';
 
-interface ActionAvailability {
+/** Spreadable onto `Button`: `disabled` plus the reason when there is one. */
+export interface ActionAvailability {
   readonly disabled: boolean;
   readonly disabledReason?: string;
 }
@@ -60,13 +61,6 @@ export interface LibraryColumnHandlers {
 /** The one column 列配置 may not hide, and the id the sort map keys on. */
 export const LIBRARY_PRIMARY_COLUMN = 'match';
 
-const STATUS_DOT = {
-  accent: 'ok',
-  neutral: 'idle',
-  running: 'running',
-  fail: 'fail',
-} as const satisfies Record<DemoStatusTone, 'ok' | 'idle' | 'running' | 'fail'>;
-
 export function libraryColumns(
   handlers: LibraryColumnHandlers,
 ): readonly DataTableColumn<DemoSummary>[] {
@@ -81,18 +75,29 @@ export function libraryColumns(
       hideable: false,
       truncate: true,
       sortable: true,
-      cell: (demo) => <span className="text-base">{demo.display_name}</span>,
+      // `TableCell`'s contract: a truncated cell carries the full text as its
+      // `title`, or a clipped 「Vitality vs G2 · I…」 has no way to be read.
+      cell: (demo) => (
+        <span className="text-base" title={demo.display_name}>
+          {demo.display_name}
+        </span>
+      ),
     },
     {
       id: 'map',
       header: <Trans>地图</Trans>,
       configLabel: t`地图`,
-      /* No width and no `truncate`. Both were here, and together they clipped
-         「de_mirage」 to 「de_mira…」: `9ch` is nine *Latin digits* of border box,
-         which the cell's own inline padding eats into, and `truncate` let the
-         column be squeezed to it instead of ignoring a width too small for the
-         content. Map names are a closed vocabulary of ten short strings — the
-         column sizes to the longest one and nothing is lost. */
+      /* A width and no `truncate`. In the auto table a column without a width
+         is sized by whatever rows happen to be on the page, so the headers
+         shifted with every search and collapsed to their own labels on an
+         empty result. The width is a floor, not a clip: without `truncate` a
+         longer map name still widens the column, so 「de_mirage」 can never
+         become 「de_mira…」 the way an earlier `9ch` + `truncate` pair made it.
+         In px rather than `ch` because the floor also lives on the header
+         cell, whose type differs from the body's — `DataTable` explains — and
+         this column has to sit at the same pixel on an empty page. 92px is
+         「de_ancient」 plus the cell's inline padding; a longer name widens it. */
+      width: '92px',
       sortable: true,
       cell: (demo) => demo.map_name,
     },
@@ -101,7 +106,10 @@ export function libraryColumns(
       header: <Trans>日期</Trans>,
       configLabel: t`日期`,
       variant: 'numeric',
-      width: '12ch',
+      /* px, like 地图: 「08-14 20:11」 is eleven mono characters at the body
+         size, and a `ch` floor on the header would resolve smaller and let
+         the column narrow on an empty page. */
+      width: '102px',
       cell: (demo) => formatMatchDate(demo.match_date),
     },
     {
@@ -133,7 +141,8 @@ export function libraryColumns(
       header: <Trans>来源</Trans>,
       configLabel: t`来源`,
       /* Three fixed words (本地文件 / 监听目录 / 已导入), so the same reasoning as
-         地图: sized by its content, never clipped. */
+         地图: a floor wide enough for the longest, never clipped. */
+      width: '72px',
       cell: (demo) => <DemoSourceCell demo={demo} />,
     },
     {
@@ -142,49 +151,24 @@ export function libraryColumns(
       configLabel: t`状态`,
       width: '11ch',
       sortable: true,
-      cell: (demo) => <DemoStatusCell demo={demo} />,
+      cell: (demo) => <DemoStatusMark demo={demo} />,
     },
     {
       id: 'actions',
       headerLabel: t`行操作`,
       configLabel: t`行操作`,
       hideable: false,
-      width: '190px',
+      /* 「工作区 · 用 Agent 制作」 at its widest, so the column does not grow by
+         a few pixels on the pages that hold that pair and shift the headers. */
+      width: '200px',
       cell: (demo) => <RowAction demo={demo} handlers={handlers} />,
     },
   ];
 }
 
-/**
- * 「已分析」 is a `Tag`, everything else a dot plus a word — which is what the
- * artboard draws, and it is not decoration: a tag reads as a terminal state and
- * a dot as a live one. No percentage accompanies 「分析中」: `AnalysisRun` has a
- * stage and no denominator, and §4.3 forbids simulating one.
- */
 function DemoSourceCell({ demo }: { demo: DemoSummary }) {
   const { i18n } = useLingui();
   return <>{i18n._(demoSourceLabel(demo.source))}</>;
-}
-
-function DemoStatusCell({ demo }: { demo: DemoSummary }) {
-  const { i18n } = useLingui();
-  const meta = demoStatusMeta(demo.lifecycle_status);
-  const label = i18n._(meta.label);
-
-  if (meta.tone === 'accent') {
-    return <span className="text-xs text-neutral-600">{label}</span>;
-  }
-  if (meta.tone === 'neutral') {
-    return <Badge variant="neutral">{label}</Badge>;
-  }
-  return (
-    <span
-      className={cn('inline-flex items-center gap-2 text-xs', meta.tone === 'fail' && 'text-fail-text')}
-    >
-      <StatusDot status={STATUS_DOT[meta.tone]} size="sm" />
-      {label}
-    </span>
-  );
 }
 
 /**

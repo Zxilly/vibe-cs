@@ -71,10 +71,33 @@ describe('the frame', () => {
     expect(html).toContain('data-library-filters');
     expect(html).toContain('地图');
     expect(html).toContain('状态');
-    expect(html).toContain('来源');
+    // The platform chip is 平台, not the table column's 来源: one is
+    // `match_source`, the other is how the file arrived.
+    expect(html).toContain('平台：全部');
+    expect(html).not.toContain('来源：全部');
     expect(html).toContain('标签');
     expect(html).toContain('列配置');
     expect(html).toContain('导出元数据');
+  });
+
+  it('keeps the search box from being squeezed by the right-hand buttons', () => {
+    const strip = html.slice(html.indexOf('data-library-filters'), html.indexOf('data-page-body'));
+    // A floor and a ceiling on the search box, and no second `flex-1` spacer
+    // to split the slack with it — the right-hand buttons sit on `ml-auto`.
+    expect(strip).toContain('min-w-[var(--w-subnav)]');
+    expect(strip).toContain('max-w-[var(--w-panel)]');
+    expect(strip).not.toContain('<div class="flex-1" aria-hidden="true"></div>');
+    expect(strip).toContain('ml-auto');
+  });
+
+  it('lists the whole map catalogue in the 地图 chip, not the maps of this page', () => {
+    const catalogue = renderLibraryMarkup({
+      at: '/library?map=de_mirage',
+      seed: { ...ONLINE, maps: ['de_ancient', 'de_inferno', 'de_mirage'] },
+    });
+    // The chip names the current map; the menu itself only opens on a press,
+    // so the catalogue is asserted through the interaction test.
+    expect(catalogue).toContain('地图：de_mirage');
   });
 
   it('docks the Inspector rather than re-implementing one', () => {
@@ -117,6 +140,28 @@ describe('the table', () => {
     expect(html).toContain('href="/match/demo-a"');
     expect(html).toContain('工作区');
   });
+
+  it('names the full match on the truncated identity cell', () => {
+    // `TableCell`'s contract for `truncate`: the clipped text is readable on
+    // hover through `title`.
+    expect(html).toContain('title="Aurora vs Meridian"');
+  });
+
+  it('gives 地图 and 来源 a column width, so headers stay put across result sets', () => {
+    const empty = renderLibraryMarkup({ seed: { ...ONLINE, demos: demoPage([]) } });
+    for (const page of [html, empty]) {
+      expect(page).toContain('<col style="width:92px"');
+      expect(page).toContain('<col style="width:72px"');
+      expect(page).toContain('min-width:92px');
+    }
+  });
+
+  it('paints 「已就绪」 as the same accent badge the card and the Inspector use', () => {
+    const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'));
+    const cell = table.slice(table.lastIndexOf('<span', table.indexOf('已就绪')), table.indexOf('已就绪'));
+    expect(cell).toContain('bg-accent-100');
+    expect(cell).not.toContain('text-neutral-600');
+  });
 });
 
 describe('the states', () => {
@@ -136,12 +181,17 @@ describe('the states', () => {
     expect(html).toContain('添加目录');
   });
 
-  it('says 「没有命中」 — not 「还没有比赛」 — when a filter is what emptied it', () => {
+  it('says 「没有匹配的比赛」 — not 「还没有比赛」 — when a filter is what emptied it', () => {
     const html = renderLibraryMarkup({
       at: '/library?q=nothing',
       seed: { ...ONLINE, demos: demoPage([]) },
     });
-    expect(html).toContain('没有命中的证据');
+    expect(html).toContain('没有匹配的比赛');
+    // The library's own words: its rows are matches, and it has no time range
+    // to widen — the 证据检索 preset copy must not leak in.
+    expect(html).not.toContain('没有命中的证据');
+    expect(html).not.toContain('放宽时间范围');
+    expect(html).toContain('清空地图、状态、平台、标签筛选');
     expect(html).toContain('清空条件');
   });
 });

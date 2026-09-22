@@ -75,6 +75,8 @@ export interface DataTableColumn<Row> {
   readonly align?: TableCellAlign | undefined;
   /** Any CSS length; lands on a `<col>` so the width survives an empty page. */
   readonly width?: string | undefined;
+  /** A readable floor independent of the column's flexible share of space. */
+  readonly minWidth?: string | undefined;
   readonly sortable?: boolean | undefined;
   /** `false` pins the column visible and keeps it out of 列配置. */
   readonly hideable?: boolean | undefined;
@@ -291,7 +293,9 @@ export function DataTable<Row>({
                     variant={column.variant}
                     aria-sort={column.sortable === true ? sortState : undefined}
                     /* The floor — see `FLEXIBLE_WIDTH`. */
-                    style={column.width === undefined ? undefined : { minWidth: column.width }}
+                    style={column.minWidth === undefined && column.width === undefined
+                      ? undefined
+                      : { minWidth: column.minWidth ?? column.width }}
                   >
                     {sortable ? (
                       <button

@@ -23,9 +23,11 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
+import { MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import type { DataTableColumn } from '../../../design/data';
+import { OverflowMenu } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { RouteLink } from '../navigation/RouteLink';
@@ -75,6 +77,7 @@ export function libraryColumns(
       // match name would otherwise push 状态 out of a 616px pane.
       hideable: false,
       truncate: true,
+      minWidth: 'var(--w-subnav)',
       sortable: true,
       // `TableCell`'s contract: a truncated cell carries the full text as its
       // `title`, or a clipped 「Vitality vs G2 · I…」 has no way to be read.
@@ -159,9 +162,9 @@ export function libraryColumns(
       headerLabel: t`行操作`,
       configLabel: t`行操作`,
       hideable: false,
-      /* 「工作区 · 用 Agent 制作」 at its widest, so the column does not grow by
-         a few pixels on the pages that hold that pair and shift the headers. */
-      width: '200px',
+      // Keep the contextual action visible; the secondary action shares a
+      // compact menu so ordinary match names get the remaining table width.
+      width: '112px',
       cell: (demo) => <RowAction demo={demo} handlers={handlers} />,
     },
   ];
@@ -188,17 +191,6 @@ function RowAction({
   demo: DemoSummary;
   handlers: LibraryColumnHandlers;
 }) {
-  const create = (
-    <Button
-      size="sm"
-      variant="ghost"
-      {...handlers.createButtonProps}
-      onClick={() => handlers.onCreateProject(demo)}
-    >
-      <Trans>用 Agent 制作</Trans>
-    </Button>
-  );
-
   let existing: ReactNode;
   if (isDemoFileMissing(demo)) {
     existing = (
@@ -242,5 +234,27 @@ function RowAction({
     );
   }
 
-  return <span className="flex items-center justify-end gap-2">{existing}{create}</span>;
+  return (
+    <span
+      className="flex items-center justify-end gap-2"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {existing}
+      <OverflowMenu
+        label={t`更多操作：${demo.display_name}`}
+        iconOnly
+        triggerLabel={<MoreHorizontal className="size-4" aria-hidden="true" />}
+        triggerClassName="rounded-md hover:bg-action-hover"
+        items={[{
+          id: 'create-project',
+          label: handlers.createButtonProps.disabledReason === undefined
+            ? t`用 Agent 制作`
+            : t`用 Agent 制作（${handlers.createButtonProps.disabledReason}）`,
+          disabled: handlers.createButtonProps.disabled,
+          onSelect: () => handlers.onCreateProject(demo),
+        }]}
+      />
+    </span>
+  );
 }

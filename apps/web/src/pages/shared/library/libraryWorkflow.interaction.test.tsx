@@ -118,7 +118,8 @@ describe('library action recovery', () => {
       : Promise.resolve(PROJECT));
     const applyProjectPatch = vi.fn(() => Promise.reject(new Error('素材加入失败')));
     renderLibrary({ seed: ONLINE, client: { createProject, applyProjectPatch } });
-    fireEvent.click(screen.getByRole('button', { name: '用 Agent 制作' }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: `更多操作：${DEMO_FIXTURE.display_name}` }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole('menuitem', { name: '用 Agent 制作' }));
     expect(await screen.findByText(failedStep === 'create' ? '作品创建失败' : '素材加入失败')).toBeTruthy();
     const alert = screen.getByRole('alert');
     expect(within(alert).queryByRole('button', { name: /重试/u })).toBeNull();

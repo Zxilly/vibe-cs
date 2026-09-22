@@ -692,7 +692,7 @@ msgstr "How long Agent conversations are kept, and how much space they take."
 msgid "Agent 撰写点评和片段说明时使用的语气。"
 msgstr "The tone the Agent uses for reviews and clip descriptions."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:298
+#: src/domain/editing/ProjectMediaPanel.tsx:307
 msgid "Agent 操作期间项目素材为只读"
 msgstr "Project media is read-only while the Agent is working"
 
@@ -789,6 +789,10 @@ msgstr "D"
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
+#: src/domain/editing/ProjectMediaPanel.tsx:958
+msgid "Demo tick {startTick}–{endTick}"
+msgstr "Demo ticks {startTick}–{endTick}"
+
 #. placeholder {0}: currentTick ?? displayed.tick
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:2040
 msgid "Demo tick: {0}"
@@ -813,7 +817,7 @@ msgstr "Demo library · card view"
 msgid "Demo 资料库 · 表格视图"
 msgstr "Demo library · table view"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:303
+#: src/domain/editing/ProjectMediaPanel.tsx:312
 msgid "Demo 选材"
 msgstr "Demo source"
 
@@ -869,11 +873,11 @@ msgstr "L Play forward"
 msgid "OpenAI 兼容接口，填写到 /v1。"
 msgstr "OpenAI-compatible endpoint, including /v1."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:355
+#: src/domain/editing/ProjectMediaPanel.tsx:364
 msgid "Program 优先使用已就绪代理；不可用时自动回退原片"
 msgstr "Program prefers ready proxies; falls back to the original media when unavailable"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:355
+#: src/domain/editing/ProjectMediaPanel.tsx:364
 msgid "Program 始终使用原始素材"
 msgstr "Program always uses original media"
 
@@ -1077,7 +1081,7 @@ msgstr "Previous frame"
 msgid "上一页"
 msgstr "Previous page"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:935
+#: src/domain/editing/ProjectMediaPanel.tsx:977
 msgid "上次代理生成失败；点击重试"
 msgstr "Last proxy generation failed; click to retry"
 
@@ -1203,7 +1207,7 @@ msgstr "This won't delete finished recordings, finished files, or library entrie
 msgid "不会删除磁盘上的现有文件，只移除失效记录。"
 msgstr "This won't delete existing files on disk; it only removes stale records."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:909
+#: src/domain/editing/ProjectMediaPanel.tsx:930
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:177
 #: src/pages/shared/settings/AdvancedSection.tsx:196
 msgid "不可用"
@@ -1354,8 +1358,8 @@ msgstr "Headshots only"
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:296
-#: src/domain/editing/ProjectMediaPanel.tsx:302
+#: src/domain/editing/ProjectMediaPanel.tsx:305
+#: src/domain/editing/ProjectMediaPanel.tsx:311
 #: src/pages/shared/library/LibraryPage.tsx:376
 msgid "从 Demo 创建剪辑"
 msgstr "Create clip from Demo"
@@ -1395,28 +1399,28 @@ msgid "从起点比率伸缩 {0}"
 msgstr "Rate Stretch from Start {0}"
 
 #. placeholder {0}: selectedSourceAsset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:591
+#: src/domain/editing/ProjectMediaPanel.tsx:605
 msgid "从项目移除素材 {0}"
 msgstr "Remove Media {0} from Project"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:784
+#: src/domain/editing/ProjectMediaPanel.tsx:799
 msgid "从项目移除素材？"
 msgstr "Remove media from project?"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:913
+#: src/domain/editing/ProjectMediaPanel.tsx:934
 msgid "代理失败"
 msgstr "Proxy Failed"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:911
-#: src/domain/editing/ProjectMediaPanel.tsx:951
+#: src/domain/editing/ProjectMediaPanel.tsx:932
+#: src/domain/editing/ProjectMediaPanel.tsx:993
 msgid "代理就绪"
 msgstr "Proxy Ready"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:933
+#: src/domain/editing/ProjectMediaPanel.tsx:975
 msgid "代理已就绪；重新生成会替换现有代理文件"
 msgstr "A proxy is ready; regenerating will replace the existing proxy file"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:912
+#: src/domain/editing/ProjectMediaPanel.tsx:933
 msgid "代理生成中"
 msgstr "Generating Proxy"
 
@@ -1612,7 +1616,7 @@ msgstr "Save Marker"
 msgid "保存模型设置"
 msgstr "Save model settings"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1313
+#: src/domain/editing/ProjectMediaPanel.tsx:1352
 msgid "保存片段标记"
 msgstr "Save clip markers"
 
@@ -1641,7 +1645,7 @@ msgstr "Include {CAPTURE_PRE_ROLL_SECONDS}s before and {CAPTURE_POST_ROLL_SECOND
 msgid "保留多久"
 msgstr "How long to keep"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:629
+#: src/domain/editing/ProjectMediaPanel.tsx:643
 msgid "保留所选片段的时间位置、时长、效果和关键帧，只替换源素材"
 msgstr "Keep the selected clip's position, duration, effects, and keyframes, and replace only the source media"
 
@@ -1859,7 +1863,7 @@ msgstr "All of it stays on this machine; nothing is uploaded."
 msgid "全部就绪"
 msgstr "all ready"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:423
+#: src/domain/editing/ProjectMediaPanel.tsx:432
 msgid "全部状态"
 msgstr "All statuses"
 
@@ -2269,7 +2273,7 @@ msgstr "Switch to HH:MM:SS:FF timecode"
 msgid "切换为总帧计数"
 msgstr "Switch to total frame count"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:360
+#: src/domain/editing/ProjectMediaPanel.tsx:369
 msgid "切换代理预览"
 msgstr "Toggle proxy preview"
 
@@ -2326,7 +2330,7 @@ msgstr "Toggle linked selection"
 msgid "列表只收击杀与目标事件；伤害、购买与投掷物在证据检索里。"
 msgstr "The list holds kill and objective events only; damage, purchases and grenades live in the evidence search."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:346
+#: src/domain/editing/ProjectMediaPanel.tsx:355
 msgid "列表视图"
 msgstr "List view"
 
@@ -2339,7 +2343,7 @@ msgstr "Columns"
 msgid "创建剪辑"
 msgstr "Create clip"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:778
+#: src/domain/editing/ProjectMediaPanel.tsx:793
 msgid "创建后，同步好的多机位轨道会替换当前时间轴。整个操作可以一次撤销。"
 msgstr "Once created, the synced multicam track replaces the current timeline. The entire operation can be undone in one step."
 
@@ -2347,11 +2351,11 @@ msgstr "Once created, the synced multicam track replaces the current timeline. T
 msgid "创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。"
 msgstr "After creating it, double-click the text clip on the timeline to adjust font, color, position, and keyframes."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:391
+#: src/domain/editing/ProjectMediaPanel.tsx:400
 msgid "创建多机位序列"
 msgstr "Create multi-camera source sequence"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:724
+#: src/domain/editing/ProjectMediaPanel.tsx:739
 msgid "创建多机位源序列"
 msgstr "Create Multicam Source Sequence"
 
@@ -2408,7 +2412,7 @@ msgstr "Delete file removes a managed file from disk and cannot be undone. Remov
 msgid "删除标记"
 msgstr "Delete Marker"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1299
+#: src/domain/editing/ProjectMediaPanel.tsx:1338
 msgid "删除片段标记"
 msgstr "Delete Clip Markers"
 
@@ -2571,11 +2575,11 @@ msgstr "The {0} checked rows are added together"
 msgid "包含子目录"
 msgstr "Include subfolders"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:551
+#: src/domain/editing/ProjectMediaPanel.tsx:565
 msgid "包含源视频"
 msgstr "Include Source Video"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:563
+#: src/domain/editing/ProjectMediaPanel.tsx:577
 msgid "包含源音频"
 msgstr "Include Source Audio"
 
@@ -2817,7 +2821,7 @@ msgstr "Only https:// addresses are accepted."
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "Only the desktop build can locate a file in the file manager."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:938
+#: src/domain/editing/ProjectMediaPanel.tsx:980
 msgid "只有视频素材可生成代理"
 msgstr "Only video assets can generate proxies"
 
@@ -2825,7 +2829,7 @@ msgstr "Only video assets can generate proxies"
 msgid "只移除「{fileName}」的记录，磁盘上的文件不会被删除。"
 msgstr "Only the record of \"{fileName}\" is removed; the file on disk is not deleted."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:796
+#: src/domain/editing/ProjectMediaPanel.tsx:811
 msgid "只移除项目中的素材记录；磁盘上的源文件不会删除。"
 msgstr "Only removes the media record from the project; the source file on disk is not deleted."
 
@@ -2862,7 +2866,7 @@ msgstr "Align Right"
 msgid "合计"
 msgstr "Total"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:765
+#: src/domain/editing/ProjectMediaPanel.tsx:780
 msgid "同名片段标记"
 msgstr "Duplicate Clip Markers"
 
@@ -2878,11 +2882,11 @@ msgstr "Sync recent matches"
 msgid "同步后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放； 过期对局仍会显示，但不能再下载。"
 msgstr "After syncing, your recent competitive matches will appear here. Valve only keeps replays for about {DEMO_RETENTION_DAYS} days; expired matches still show up, but can no longer be downloaded."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:725
+#: src/domain/editing/ProjectMediaPanel.tsx:740
 msgid "同步并创建"
 msgstr "Sync and Create"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:761
+#: src/domain/editing/ProjectMediaPanel.tsx:776
 msgid "同步点"
 msgstr "Sync Point"
 
@@ -3156,7 +3160,7 @@ msgstr "Locked camera"
 msgid "图层"
 msgstr "Layers"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:350
+#: src/domain/editing/ProjectMediaPanel.tsx:359
 msgid "图标视图"
 msgstr "Icon view"
 
@@ -3181,7 +3185,7 @@ msgid "在播放头复制所选片段"
 msgstr "Duplicate selected clip at playhead"
 
 #. placeholder {0}: selectedSourceAsset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:611
+#: src/domain/editing/ProjectMediaPanel.tsx:625
 msgid "在播放头插入 {0}"
 msgstr "Insert {0} at playhead"
 
@@ -3231,7 +3235,7 @@ msgid "在播放头粘贴覆盖"
 msgstr "Paste overwrite at playhead"
 
 #. placeholder {0}: selectedSourceAsset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:622
+#: src/domain/editing/ProjectMediaPanel.tsx:636
 msgid "在播放头覆盖 {0}"
 msgstr "Overwrite {0} at playhead"
 
@@ -3242,7 +3246,7 @@ msgstr "Overwrite {0} at playhead"
 msgid "在比赛工作区打开"
 msgstr "Open in the match workspace"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1224
+#: src/domain/editing/ProjectMediaPanel.tsx:1263
 msgid "在源播放头添加或编辑片段标记"
 msgstr "Add or edit a clip marker at the source playhead"
 
@@ -3533,8 +3537,8 @@ msgstr "How long to keep conversations"
 msgid "对齐"
 msgstr "Align"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:313
-#: src/domain/editing/ProjectMediaPanel.tsx:1394
+#: src/domain/editing/ProjectMediaPanel.tsx:322
+#: src/domain/editing/ProjectMediaPanel.tsx:1433
 msgid "导入"
 msgstr "Import"
 
@@ -3554,7 +3558,7 @@ msgstr "Import OTIO / XML / EDL…"
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
 msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:474
+#: src/domain/editing/ProjectMediaPanel.tsx:487
 msgid "导入文件"
 msgstr "Import Files"
 
@@ -3566,12 +3570,12 @@ msgstr "Import Timeline Interchange File"
 msgid "导入未全部完成，成功的文件已保留。"
 msgstr "Some files could not be imported. Successfully imported files have been kept."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:426
-#: src/domain/editing/ProjectMediaPanel.tsx:458
+#: src/domain/editing/ProjectMediaPanel.tsx:435
+#: src/domain/editing/ProjectMediaPanel.tsx:470
 msgid "导入素材"
 msgstr "Imported media"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:309
+#: src/domain/editing/ProjectMediaPanel.tsx:318
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1014
 msgid "导入项目素材"
 msgstr "Import Project Media"
@@ -3728,7 +3732,7 @@ msgstr "Peak"
 msgid "峰值 {0} {1}%"
 msgstr "Peak {0} {1}%"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:763
+#: src/domain/editing/ProjectMediaPanel.tsx:778
 msgid "嵌入源时间码"
 msgstr "Embed Source Timecode"
 
@@ -3839,17 +3843,17 @@ msgstr "Ready"
 msgid "已应用到时间线"
 msgstr "Applied to Timeline"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:425
-#: src/domain/editing/ProjectMediaPanel.tsx:446
-#: src/domain/editing/ProjectMediaPanel.tsx:1393
-#: src/domain/editing/ProjectTimeline.tsx:4685
-#: src/domain/editing/ProjectTimeline.tsx:4690
+#: src/domain/editing/ProjectMediaPanel.tsx:434
+#: src/domain/editing/ProjectMediaPanel.tsx:457
+#: src/domain/editing/ProjectMediaPanel.tsx:1432
+#: src/domain/editing/ProjectTimeline.tsx:4724
+#: src/domain/editing/ProjectTimeline.tsx:4729
 #: src/domain/editing/TimelineProgramMonitor.tsx:1768
 msgid "已录制"
 msgstr "Recorded"
 
 #. placeholder {0}: recordedItems.length
-#: src/domain/editing/ProjectMediaPanel.tsx:336
+#: src/domain/editing/ProjectMediaPanel.tsx:345
 msgid "已录制 {0}"
 msgstr "Recorded {0}"
 
@@ -4026,7 +4030,7 @@ msgstr "Sequence name"
 msgid "序列时长："
 msgstr "Sequence duration:"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:702
+#: src/domain/editing/ProjectMediaPanel.tsx:717
 msgid "序列标记位置"
 msgstr "Sequence marker position"
 
@@ -4051,7 +4055,7 @@ msgstr "Apply four-point edit"
 msgid "应用默认视频转场"
 msgstr "Apply default video transition"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:714
+#: src/domain/editing/ProjectMediaPanel.tsx:729
 msgid "应用默认视频转场（重叠 0.5 秒）"
 msgstr "Apply default video transition (0.5s overlap)"
 
@@ -4246,12 +4250,12 @@ msgstr "The HLAE program launched for recording."
 msgid "录制时是否由本应用拉起游戏。"
 msgstr "Whether this app starts the game for a recording."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:513
+#: src/domain/editing/ProjectMediaPanel.tsx:527
 msgid "录制此片段"
 msgstr "Record this clip"
 
 #. placeholder {0}: selected.name
-#: src/domain/editing/ProjectMediaPanel.tsx:508
+#: src/domain/editing/ProjectMediaPanel.tsx:522
 msgid "录制片段 {0}"
 msgstr "Recorded clip {0}"
 
@@ -4618,8 +4622,8 @@ msgstr "Run this action"
 msgid "批量注释"
 msgstr "Annotate in bulk"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:382
-#: src/domain/editing/ProjectMediaPanel.tsx:652
+#: src/domain/editing/ProjectMediaPanel.tsx:391
+#: src/domain/editing/ProjectMediaPanel.tsx:667
 msgid "批量组接到序列"
 msgstr "Automate to Sequence"
 
@@ -4763,9 +4767,9 @@ msgstr "Equal"
 
 #. placeholder {0}: formatMillisecondTimecode(marker.duration)
 #. placeholder {0}: formatSourceTime(marker.duration)
-#: src/domain/editing/ProjectMediaPanel.tsx:1259
-#: src/domain/editing/ProjectTimeline.tsx:4865
-#: src/domain/editing/ProjectTimeline.tsx:6198
+#: src/domain/editing/ProjectMediaPanel.tsx:1298
+#: src/domain/editing/ProjectTimeline.tsx:4904
+#: src/domain/editing/ProjectTimeline.tsx:6237
 msgid "持续 {0}"
 msgstr "Lasts {0}"
 
@@ -4827,7 +4831,7 @@ msgstr "Switch map"
 msgid "换个关键词，或清空地图、状态、平台、标签筛选。"
 msgstr "Try another keyword, or clear the map, status, platform and tag filters."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:692
+#: src/domain/editing/ProjectMediaPanel.tsx:707
 msgid "排序"
 msgstr "Sort"
 
@@ -4881,12 +4885,12 @@ msgstr "Info"
 msgid "提高轨道音量"
 msgstr "Increase Track Volume"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:614
-#: src/domain/editing/ProjectTimeline.tsx:3684
+#: src/domain/editing/ProjectMediaPanel.tsx:628
+#: src/domain/editing/ProjectTimeline.tsx:3723
 msgid "插入"
 msgstr "Insert"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:708
+#: src/domain/editing/ProjectMediaPanel.tsx:723
 msgid "插入编辑"
 msgstr "Insert Edit"
 
@@ -4908,7 +4912,7 @@ msgstr "Search matches, players, projects, pages and actions"
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:413
+#: src/domain/editing/ProjectMediaPanel.tsx:422
 msgid "搜索素材"
 msgstr "Search Media"
 
@@ -4917,11 +4921,11 @@ msgstr "Search Media"
 msgid "搜索选手或别名"
 msgstr "Search players or aliases"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:412
+#: src/domain/editing/ProjectMediaPanel.tsx:421
 msgid "搜索项目素材"
 msgstr "Search Project Media"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:743
+#: src/domain/editing/ProjectMediaPanel.tsx:758
 msgid "摄像机角度（2–9）"
 msgstr "Camera Angle (2–9)"
 
@@ -4957,7 +4961,7 @@ msgstr "Transport controls"
 msgid "播放时间轴"
 msgstr "Play Timeline"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1220
+#: src/domain/editing/ProjectMediaPanel.tsx:1259
 msgid "播放源素材"
 msgstr "Play source"
 
@@ -5011,7 +5015,7 @@ msgstr "Zoom in timeline"
 msgid "放宽时间范围通常最有效。"
 msgstr "Widening the time range usually helps most."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:699
+#: src/domain/editing/ProjectMediaPanel.tsx:714
 msgid "放置"
 msgstr "Placement"
 
@@ -5166,7 +5170,7 @@ msgstr "New files will be written to {movingTo}. Recordings, finished files, and
 msgid "新策略不会立即清理旧对话。现在清理会按上面的策略删除超出范围的对话。"
 msgstr "A new policy does not clean up old conversations by itself. Cleaning up now deletes the conversations outside the policy above."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:706
+#: src/domain/editing/ProjectMediaPanel.tsx:721
 msgid "方法"
 msgstr "Method"
 
@@ -5227,11 +5231,11 @@ msgstr "Unable to load target projects."
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "Cannot reach the local service. Check that it is running."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:569
+#: src/domain/editing/ProjectMediaPanel.tsx:583
 msgid "无视频目标"
 msgstr "No video target"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:571
+#: src/domain/editing/ProjectMediaPanel.tsx:585
 msgid "无音频目标"
 msgstr "No audio target"
 
@@ -5267,7 +5271,7 @@ msgstr "Duration {duration}"
 msgid "时长待解析"
 msgstr "Duration pending analysis"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1378
+#: src/domain/editing/ProjectMediaPanel.tsx:1417
 msgid "时长未知"
 msgstr "Duration unknown"
 
@@ -5283,7 +5287,7 @@ msgstr "Time"
 msgid "时间码"
 msgstr "Timecode"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:470
+#: src/domain/editing/ProjectMediaPanel.tsx:483
 msgid "时间线上未录制的片段、已录制的片段和导入素材都会显示在这里。"
 msgstr "Unrecorded clips, recorded clips and imported media on the timeline all appear here."
 
@@ -5409,7 +5413,7 @@ msgstr "Relocating a demo file is not supported yet"
 msgid "暂停"
 msgstr "Pause"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1220
+#: src/domain/editing/ProjectMediaPanel.tsx:1259
 msgid "暂停源素材"
 msgstr "Pause source media"
 
@@ -5454,7 +5458,7 @@ msgstr "More actions for {0}"
 msgid "更多视图"
 msgstr "More views"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:369
+#: src/domain/editing/ProjectMediaPanel.tsx:378
 msgid "更多素材操作"
 msgstr "More media actions"
 
@@ -5487,7 +5491,7 @@ msgstr "Update source"
 msgid "更新源地址"
 msgstr "Update source address"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:640
+#: src/domain/editing/ProjectMediaPanel.tsx:654
 msgid "替换"
 msgstr "Replace"
 
@@ -5515,7 +5519,7 @@ msgstr "The service did not return this background task."
 msgid "未下载"
 msgstr "Not downloaded"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:572
+#: src/domain/editing/ProjectMediaPanel.tsx:586
 msgid "未启用源声道"
 msgstr "Source audio channel not enabled"
 
@@ -5549,26 +5553,26 @@ msgstr "Unattributed player"
 msgid "未归队"
 msgstr "No team"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:424
-#: src/domain/editing/ProjectMediaPanel.tsx:434
-#: src/domain/editing/ProjectMediaPanel.tsx:1192
-#: src/domain/editing/ProjectMediaPanel.tsx:1391
-#: src/domain/editing/ProjectTimeline.tsx:4685
-#: src/domain/editing/ProjectTimeline.tsx:4690
-#: src/domain/editing/ProjectTimeline.tsx:4732
+#: src/domain/editing/ProjectMediaPanel.tsx:433
+#: src/domain/editing/ProjectMediaPanel.tsx:444
+#: src/domain/editing/ProjectMediaPanel.tsx:1232
+#: src/domain/editing/ProjectMediaPanel.tsx:1430
+#: src/domain/editing/ProjectTimeline.tsx:4724
+#: src/domain/editing/ProjectTimeline.tsx:4729
+#: src/domain/editing/ProjectTimeline.tsx:4771
 #: src/domain/editing/TimelineProgramMonitor.tsx:1765
 #: src/domain/editing/TimelineProgramMonitor.tsx:1768
 msgid "未录制"
 msgstr "Unrecorded"
 
 #. placeholder {0}: plannedItems.length
-#: src/domain/editing/ProjectMediaPanel.tsx:336
+#: src/domain/editing/ProjectMediaPanel.tsx:345
 msgid "未录制 {0}"
 msgstr "Unrecorded {0}"
 
 #. placeholder {0}: items.filter((item) => item.state === 'planned' || item.state === 'stale').length
 #. placeholder {1}: items.filter((item) => item.state === 'recorded').length
-#: src/domain/editing/ProjectMediaPanel.tsx:329
+#: src/domain/editing/ProjectMediaPanel.tsx:338
 msgid "未录制 {0} · 已录制 {1}"
 msgstr "Unrecorded {0} · Recorded {1}"
 
@@ -5576,7 +5580,7 @@ msgstr "Unrecorded {0} · Recorded {1}"
 msgid "未录制 {plannedCount}"
 msgstr "Unrecorded {plannedCount}"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1087
+#: src/domain/editing/ProjectMediaPanel.tsx:1129
 msgid "未录制，暂不能播放"
 msgstr "Not recorded yet, so it cannot play"
 
@@ -5617,7 +5621,7 @@ msgstr "No player selected"
 msgid "未选中比赛"
 msgstr "No match selected"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:484
+#: src/domain/editing/ProjectMediaPanel.tsx:497
 msgid "未选中素材"
 msgstr "No media selected"
 
@@ -5775,7 +5779,7 @@ msgstr "Marker {0} {1}"
 msgid "标记 {number}"
 msgstr "Marker {number}"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:770
+#: src/domain/editing/ProjectMediaPanel.tsx:785
 msgid "标记名称"
 msgstr "Marker name"
 
@@ -5789,11 +5793,11 @@ msgstr "Mark handled"
 msgid "标记操作"
 msgstr "Markers"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1225
+#: src/domain/editing/ProjectMediaPanel.tsx:1264
 msgid "标记源入点"
 msgstr "Mark source In point"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1226
+#: src/domain/editing/ProjectMediaPanel.tsx:1265
 msgid "标记源出点"
 msgstr "Mark source Out point"
 
@@ -5923,7 +5927,7 @@ msgid "正在准备"
 msgstr "Preparing"
 
 #. placeholder {0}: item.name
-#: src/domain/editing/ProjectMediaPanel.tsx:1206
+#: src/domain/editing/ProjectMediaPanel.tsx:1245
 msgid "正在准备 {0}"
 msgstr "Preparing {0}"
 
@@ -6067,7 +6071,7 @@ msgstr "Rendering preview…"
 msgid "正在生成…"
 msgstr "Generating…"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:937
+#: src/domain/editing/ProjectMediaPanel.tsx:979
 msgid "正在生成可拖动预览使用的低分辨率代理"
 msgstr "Generating a low-resolution proxy for the draggable preview"
 
@@ -6415,7 +6419,7 @@ msgstr "No matching projects"
 msgid "没有匹配的比赛"
 msgstr "No matching matches"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:468
+#: src/domain/editing/ProjectMediaPanel.tsx:481
 msgid "没有匹配的素材"
 msgstr "No matching media"
 
@@ -6708,7 +6712,7 @@ msgstr "Add Audio Track"
 msgid "清理"
 msgstr "Clean up"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:376
+#: src/domain/editing/ProjectMediaPanel.tsx:385
 msgid "清理代理媒体"
 msgstr "Clean up proxy media"
 
@@ -6790,7 +6794,7 @@ msgstr "Clear All Markers"
 msgid "清除出点"
 msgstr "Clear Out Point"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1227
+#: src/domain/editing/ProjectMediaPanel.tsx:1266
 msgid "清除源入出点"
 msgstr "Clear Source In/Out"
 
@@ -6810,19 +6814,23 @@ msgstr "Game & recording"
 msgid "游戏内回放"
 msgstr "In-game replay"
 
+#: src/domain/editing/ProjectMediaPanel.tsx:962
+msgid "源 {sourceIn}–{sourceOut}"
+msgstr "Source {sourceIn}–{sourceOut}"
+
 #: src/domain/editing/ProjectTimeline.tsx:2871
 msgid "源："
 msgstr "Source:"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1184
+#: src/domain/editing/ProjectMediaPanel.tsx:1226
 msgid "源文件不可用"
 msgstr "Source file unavailable"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:522
+#: src/domain/editing/ProjectMediaPanel.tsx:536
 msgid "源文件不可用，请重新定位。"
 msgstr "Source file unavailable. Relink it to continue."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1085
+#: src/domain/editing/ProjectMediaPanel.tsx:1127
 msgid "源文件不可用，重新定位后才能播放"
 msgstr "Source file unavailable; relocate it to play"
 
@@ -6830,19 +6838,19 @@ msgstr "Source file unavailable; relocate it to play"
 msgid "源文件不在原位"
 msgstr "Source file moved"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1218
+#: src/domain/editing/ProjectMediaPanel.tsx:1257
 msgid "源素材上一帧"
 msgstr "Previous source frame"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1222
+#: src/domain/editing/ProjectMediaPanel.tsx:1261
 msgid "源素材下一帧"
 msgstr "Next source frame"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1276
+#: src/domain/editing/ProjectMediaPanel.tsx:1315
 msgid "源素材播放头"
 msgstr "Source playhead"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1097
+#: src/domain/editing/ProjectMediaPanel.tsx:1139
 msgid "源素材预览"
 msgstr "Source preview"
 
@@ -6850,11 +6858,11 @@ msgstr "Source preview"
 msgid "源范围"
 msgstr "Source range"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:483
+#: src/domain/editing/ProjectMediaPanel.tsx:496
 msgid "源预览"
 msgstr "Source preview"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:481
+#: src/domain/editing/ProjectMediaPanel.tsx:494
 msgid "源预览与片段信息"
 msgstr "Source preview and clip details"
 
@@ -7056,15 +7064,15 @@ msgid "片段属性"
 msgstr "Clip properties"
 
 #. placeholder {0}: sourceMarkers.length + 1
-#: src/domain/editing/ProjectMediaPanel.tsx:1060
+#: src/domain/editing/ProjectMediaPanel.tsx:1102
 msgid "片段标记 {0}"
 msgstr "Clip marker {0}"
 
 #. placeholder {0}: marker.label
 #. placeholder {1}: formatMillisecondTimecode(marker.time)
 #. placeholder {1}: formatSourceTime(marker.time)
-#: src/domain/editing/ProjectMediaPanel.tsx:1255
-#: src/domain/editing/ProjectTimeline.tsx:4861
+#: src/domain/editing/ProjectMediaPanel.tsx:1294
+#: src/domain/editing/ProjectTimeline.tsx:4900
 msgid "片段标记 {0} {1}"
 msgstr "Clip marker {0} {1}"
 
@@ -7132,16 +7140,16 @@ msgstr "Batch annotation isn't available yet"
 msgid "生成 AI 点评"
 msgstr "Generate AI commentary"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:951
+#: src/domain/editing/ProjectMediaPanel.tsx:993
 msgid "生成代理"
 msgstr "Generate proxy"
 
 #. placeholder {0}: asset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:931
+#: src/domain/editing/ProjectMediaPanel.tsx:973
 msgid "生成代理 {0}"
 msgstr "Generate proxy {0}"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:938
+#: src/domain/editing/ProjectMediaPanel.tsx:980
 msgid "生成低分辨率代理；导出仍使用原始素材"
 msgstr "Generate a low-resolution proxy; exports still use the original media"
 
@@ -7157,7 +7165,7 @@ msgid "生效"
 msgstr "Detonated"
 
 #. placeholder {0}: selectedSourceAsset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:637
+#: src/domain/editing/ProjectMediaPanel.tsx:651
 msgid "用 {0} 替换所选片段"
 msgstr "Replace selected clip with {0}"
 
@@ -7438,7 +7446,7 @@ msgstr "Remove"
 msgid "移除条件"
 msgstr "Remove condition"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:785
+#: src/domain/editing/ProjectMediaPanel.tsx:800
 msgid "移除素材"
 msgstr "Remove media"
 
@@ -7598,7 +7606,7 @@ msgstr "Awaiting confirmation"
 msgid "等待超时"
 msgstr "Timed out"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:420
+#: src/domain/editing/ProjectMediaPanel.tsx:429
 msgid "筛选素材状态"
 msgstr "Filter media by status"
 
@@ -7624,7 +7632,7 @@ msgstr "Exact source and identities"
 msgid "系统"
 msgstr "System"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:672
+#: src/domain/editing/ProjectMediaPanel.tsx:687
 msgid "素材"
 msgstr "Media"
 
@@ -7680,7 +7688,7 @@ msgstr "Linear fade"
 msgid "组合所选片段"
 msgstr "Group selected clips"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:653
+#: src/domain/editing/ProjectMediaPanel.tsx:668
 msgid "组接"
 msgstr "Assemble"
 
@@ -7750,7 +7758,7 @@ msgstr "Edit selected marker"
 msgid "编辑标记"
 msgstr "Edit marker"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1285
+#: src/domain/editing/ProjectMediaPanel.tsx:1324
 msgid "编辑片段标记"
 msgstr "Edit clip markers"
 
@@ -7925,8 +7933,8 @@ msgstr "Equipment value"
 msgid "装备差额"
 msgstr "Equipment difference"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:625
-#: src/domain/editing/ProjectTimeline.tsx:3684
+#: src/domain/editing/ProjectMediaPanel.tsx:639
+#: src/domain/editing/ProjectTimeline.tsx:3723
 msgid "覆盖"
 msgstr "Overwrite"
 
@@ -7934,12 +7942,12 @@ msgstr "Overwrite"
 msgid "覆盖并恢复"
 msgstr "Overwrite and restore"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:709
+#: src/domain/editing/ProjectMediaPanel.tsx:724
 msgid "覆盖编辑"
 msgstr "Overwrite edit"
 
 #. placeholder {0}: index + 1
-#: src/domain/editing/ProjectMediaPanel.tsx:756
+#: src/domain/editing/ProjectMediaPanel.tsx:771
 msgid "角度 {0}"
 msgstr "Angle {0}"
 
@@ -8056,7 +8064,7 @@ msgstr "Comment"
 msgid "该效果不受当前渲染器支持，请禁用或删除。"
 msgstr "This effect isn't supported by the current renderer. Disable or delete it."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:517
+#: src/domain/editing/ProjectMediaPanel.tsx:531
 msgid "该片段缺少可解析的素材记录。"
 msgstr "This clip has no media record that can be resolved."
 
@@ -8248,7 +8256,7 @@ msgstr "Reading the stage log failed."
 msgid "调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段将在保存时波纹移动。"
 msgstr "Changing a range's speed changes the range and clip duration but keeps the source In/Out unchanged; later clips in the Story will ripple when you save."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:471
+#: src/domain/editing/ProjectMediaPanel.tsx:484
 msgid "调整搜索词或素材状态筛选。"
 msgstr "Adjust the search term or media status filter."
 
@@ -8669,7 +8677,7 @@ msgstr "This folder is already being watched"
 msgid "这个类型下没有高光"
 msgstr "No highlight of this kind"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1091
+#: src/domain/editing/ProjectMediaPanel.tsx:1133
 msgid "这个素材还没有可预览的媒体"
 msgstr "This clip has no media to preview yet"
 
@@ -8927,7 +8935,7 @@ msgstr "Connection"
 msgid "连接正常：{testResult}，支持 Agent 工具调用。"
 msgstr "Connection succeeded: {testResult}. Agent tool calling is supported."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:701
+#: src/domain/editing/ProjectMediaPanel.tsx:716
 msgid "连续放置"
 msgstr "Place Sequentially"
 
@@ -9087,7 +9095,7 @@ msgstr "Select a round, player, or highlight to see real context that can be loc
 msgid "选择一条片段后再加入作品。"
 msgstr "Select a clip before adding it to a project."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:517
+#: src/domain/editing/ProjectMediaPanel.tsx:531
 msgid "选择导入素材可插入或覆盖。"
 msgstr "Select imported media to insert or overwrite."
 
@@ -9126,15 +9134,15 @@ msgid "选择片段后编辑"
 msgstr "Select a clip to edit"
 
 #. placeholder {0}: item.name
-#: src/domain/editing/ProjectMediaPanel.tsx:845
+#: src/domain/editing/ProjectMediaPanel.tsx:864
 msgid "选择素材 {0}"
 msgstr "Select media {0}"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1178
+#: src/domain/editing/ProjectMediaPanel.tsx:1220
 msgid "选择素材以预览源画面"
 msgstr "Select media to preview the source"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1083
+#: src/domain/editing/ProjectMediaPanel.tsx:1125
 msgid "选择素材后才能播放"
 msgstr "Select a clip to play"
 
@@ -9155,7 +9163,7 @@ msgstr "Choose folders to watch"
 msgid "选择这条高光"
 msgstr "Select this highlight"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:695
+#: src/domain/editing/ProjectMediaPanel.tsx:710
 msgid "选择顺序"
 msgstr "Selection order"
 
@@ -9316,13 +9324,13 @@ msgstr "Relink"
 msgid "重新定位 {0}"
 msgstr "Relocate {0}"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1185
+#: src/domain/editing/ProjectMediaPanel.tsx:1227
 msgid "重新定位后可继续预览和编辑。"
 msgstr "After relocating, you can continue previewing and editing."
 
 #. placeholder {0}: selectedSourceAsset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:528
-#: src/domain/editing/ProjectMediaPanel.tsx:579
+#: src/domain/editing/ProjectMediaPanel.tsx:542
+#: src/domain/editing/ProjectMediaPanel.tsx:593
 msgid "重新定位素材 {0}"
 msgstr "Relocate media {0}"
 
@@ -9357,7 +9365,7 @@ msgid "重新检索"
 msgstr "Search again"
 
 #. placeholder {0}: asset.name
-#: src/domain/editing/ProjectMediaPanel.tsx:931
+#: src/domain/editing/ProjectMediaPanel.tsx:973
 msgid "重新生成代理 {0}"
 msgstr "Regenerate proxy {0}"
 
@@ -9535,7 +9543,7 @@ msgstr "Lower track volume"
 msgid "隐藏的面板"
 msgstr "Hidden panels"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:320
+#: src/domain/editing/ProjectMediaPanel.tsx:329
 msgid "隐藏项目素材"
 msgstr "Hide project media"
 
@@ -9552,7 +9560,7 @@ msgstr "The radar image failed to load"
 msgid "需要你的确认"
 msgstr "Your confirmation is required"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:630
+#: src/domain/editing/ProjectMediaPanel.tsx:644
 msgid "需要先选择兼容片段，并确保源入点之后有足够素材"
 msgstr "Select a compatible clip first and make sure there is enough media after the source In point"
 
@@ -9561,13 +9569,13 @@ msgid "需要桌面应用才能导出 SRT"
 msgstr "Exporting SRT requires the desktop app"
 
 #. placeholder {0}: automateSelection.length
-#: src/domain/editing/ProjectMediaPanel.tsx:717
+#: src/domain/editing/ProjectMediaPanel.tsx:732
 msgid "需要至少 {0} 个序列标记；当前只有 {sequenceMarkerCount} 个。"
 msgstr "At least {0} sequence markers are required; there are only {sequenceMarkerCount}."
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1392
-#: src/domain/editing/ProjectTimeline.tsx:4685
-#: src/domain/editing/ProjectTimeline.tsx:4690
+#: src/domain/editing/ProjectMediaPanel.tsx:1431
+#: src/domain/editing/ProjectTimeline.tsx:4724
+#: src/domain/editing/ProjectTimeline.tsx:4729
 #: src/domain/editing/TimelineProgramMonitor.tsx:1764
 #: src/domain/editing/TimelineProgramMonitor.tsx:1767
 msgid "需要重录"
@@ -9577,7 +9585,7 @@ msgstr "Re-record needed"
 msgid "需要重新定位"
 msgstr "Needs relinking"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:1089
+#: src/domain/editing/ProjectMediaPanel.tsx:1131
 msgid "静态图片没有可播放的画面"
 msgstr "A still image has nothing to play"
 
@@ -9628,8 +9636,8 @@ msgstr "Audio Fade In"
 msgid "音频出场转场"
 msgstr "Audio Fade Out"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:764
-#: src/domain/editing/ProjectTimeline.tsx:2363
+#: src/domain/editing/ProjectMediaPanel.tsx:779
+#: src/domain/editing/ProjectTimeline.tsx:2372
 msgid "音频波形"
 msgstr "Audio Waveform"
 
@@ -9654,7 +9662,7 @@ msgstr "Audio Track {0}"
 msgid "音频转场"
 msgstr "Audio Transition"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:776
+#: src/domain/editing/ProjectMediaPanel.tsx:791
 msgid "音频随摄像机切换；关闭时固定使用角度 1 音频"
 msgstr "Audio follows camera switching; when off, always uses angle 1 audio"
 
@@ -9676,25 +9684,25 @@ msgstr "The page root node #root is missing, so the app cannot start"
 msgid "项目互换"
 msgstr "Interchange"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:289
-#: src/domain/editing/ProjectMediaPanel.tsx:327
+#: src/domain/editing/ProjectMediaPanel.tsx:298
+#: src/domain/editing/ProjectMediaPanel.tsx:336
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1608
 msgid "项目素材"
 msgstr "Project Media"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:432
+#: src/domain/editing/ProjectMediaPanel.tsx:442
 msgid "项目素材列表"
 msgstr "Project Media list"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:341
+#: src/domain/editing/ProjectMediaPanel.tsx:350
 msgid "项目素材视图"
 msgstr "Project Media view"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:694
+#: src/domain/editing/ProjectMediaPanel.tsx:709
 msgid "项目素材顺序"
 msgstr "Project Media Order"
 
-#: src/domain/editing/ProjectMediaPanel.tsx:468
+#: src/domain/editing/ProjectMediaPanel.tsx:481
 msgid "项目还没有素材"
 msgstr "No media in this project yet"
 

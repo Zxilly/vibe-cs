@@ -23,7 +23,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, type RenderResult } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../../data/desktopClient';
 import { NativeShellProvider, unavailableNativeShell, type NativeShell } from '../../../../data/nativeShell';
@@ -188,10 +188,12 @@ function tree(
         <DesktopClientProvider client={client}>
           <NativeShellProvider shell={{ ...unavailableNativeShell, ...shell }}>
             <MemoryRouter initialEntries={[at]}>
+              <LibraryLocation />
               <Routes>
                 <Route path="/library" element={<LibraryPage />} />
                 <Route path="/match/:demoId" element={<span data-workspace />} />
                 <Route path="/projects/:projectId" element={<span data-project-workspace />} />
+                <Route path="/projects" element={<span data-projects />} />
                 <Route path="/tasks" element={<span data-tasks />} />
               </Routes>
             </MemoryRouter>
@@ -200,6 +202,11 @@ function tree(
       </QueryClientProvider>
     </I18nProvider>
   );
+}
+
+function LibraryLocation() {
+  const location = useLocation();
+  return <output data-library-location>{location.pathname}{location.search}</output>;
 }
 
 function activate(): void {

@@ -62,7 +62,7 @@ msgid "{0, plural, other {# 个未完成的文件}}"
 msgstr "{0, plural, other {# 个未完成的文件}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:373
+#: src/pages/shared/library/LibraryPage.tsx:418
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
@@ -77,7 +77,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:371
+#: src/pages/shared/library/LibraryPage.tsx:416
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
@@ -112,7 +112,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:278
+#: src/pages/shared/library/LibraryPage.tsx:315
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, other {分析选中的 # 场}}"
 
@@ -800,7 +800,7 @@ msgstr "Demo 文件和资料库记录没有改动。重新分析会用当前版�
 #: src/app/command/commandRegistry.ts:175
 #: src/app/shell/navigation.tsx:55
 #: src/app/shell/navigation.tsx:78
-#: src/pages/shared/library/LibraryPage.tsx:368
+#: src/pages/shared/library/LibraryPage.tsx:413
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
@@ -933,9 +933,9 @@ msgid "Steam Web API 密钥"
 msgstr "Steam Web API 密钥"
 
 #: src/app/routeCrumb.ts:116
-#: src/pages/shared/library/LibraryPage.tsx:105
-#: src/pages/shared/library/LibraryPage.tsx:383
-#: src/pages/shared/library/LibraryPage.tsx:386
+#: src/pages/shared/library/LibraryPage.tsx:111
+#: src/pages/shared/library/LibraryPage.tsx:428
+#: src/pages/shared/library/LibraryPage.tsx:431
 #: src/pages/shared/settings/FilesSection.tsx:272
 msgid "Steam 下载"
 msgstr "Steam 下载"
@@ -1355,11 +1355,11 @@ msgstr "从 CS2 最近比赛复制一条分享代码，服务会从它继续同�
 
 #: src/domain/editing/ProjectMediaPanel.tsx:296
 #: src/domain/editing/ProjectMediaPanel.tsx:302
-#: src/pages/shared/library/LibraryPage.tsx:331
+#: src/pages/shared/library/LibraryPage.tsx:376
 msgid "从 Demo 创建剪辑"
 msgstr "从 Demo 创建剪辑"
 
-#: src/pages/shared/library/LibraryPage.tsx:106
+#: src/pages/shared/library/LibraryPage.tsx:112
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "从 Steam 同步最近比赛并下载回放"
 
@@ -1747,11 +1747,11 @@ msgstr "允许导出"
 msgid "允许录制"
 msgstr "允许录制"
 
-#: src/pages/shared/library/LibraryPage.tsx:204
+#: src/pages/shared/library/LibraryPage.tsx:233
 msgid "元数据已导出"
 msgstr "元数据已导出"
 
-#: src/pages/shared/library/LibraryPage.tsx:207
+#: src/pages/shared/library/LibraryPage.tsx:236
 msgid "元数据没能导出"
 msgstr "元数据没能导出"
 
@@ -2188,7 +2188,7 @@ msgstr "刀杀"
 msgid "分析"
 msgstr "分析"
 
-#: src/pages/shared/library/libraryColumns.tsx:239
+#: src/pages/shared/library/libraryColumns.tsx:240
 msgctxt "row-action"
 msgid "分析"
 msgstr "分析"
@@ -2295,7 +2295,7 @@ msgstr "切换时间显示模式"
 msgid "切换时间轴吸附"
 msgstr "切换时间轴吸附"
 
-#: src/pages/shared/library/LibraryPage.tsx:393
+#: src/pages/shared/library/LibraryPage.tsx:438
 msgid "切换视图"
 msgstr "切换视图"
 
@@ -2410,7 +2410,7 @@ msgstr "删除标记"
 msgid "删除片段标记"
 msgstr "删除片段标记"
 
-#: src/pages/shared/library/LibraryPage.tsx:313
+#: src/pages/shared/library/LibraryPage.tsx:358
 msgid "删除记录"
 msgstr "删除记录"
 
@@ -2631,7 +2631,7 @@ msgstr "单帧道具效果数量超过上限"
 msgid "占用"
 msgstr "占用"
 
-#: src/pages/shared/library/LibraryPage.tsx:401
+#: src/pages/shared/library/LibraryPage.tsx:446
 msgid "卡片"
 msgstr "卡片"
 
@@ -2751,6 +2751,10 @@ msgstr "取消录制任务"
 #: src/domain/editing/ProjectTimeline.tsx:2285
 msgid "取消组合所选片段"
 msgstr "取消组合所选片段"
+
+#: src/pages/shared/library/LibraryPage.tsx:325
+msgid "取消选择"
+msgstr "取消选择"
 
 #: src/domain/editing/ProjectTimeline.tsx:2438
 msgid "取消链接"
@@ -3038,8 +3042,8 @@ msgstr "回到资料库"
 #: src/pages/analysis/match/views/TeamsView.tsx:238
 #: src/pages/analysis/match/views/UtilityView.tsx:232
 #: src/pages/analysis/match/views/UtilityView.tsx:233
-#: src/pages/shared/library/libraryColumns.tsx:126
 #: src/pages/shared/library/libraryColumns.tsx:127
+#: src/pages/shared/library/libraryColumns.tsx:128
 msgid "回合"
 msgstr "回合"
 
@@ -3255,9 +3259,9 @@ msgstr "在证据视图里选一条结果，在右侧「注释」栏写下为什
 #: src/pages/analysis/players/PlayerMapTable.tsx:35
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:125
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:126
-#: src/pages/shared/library/libraryColumns.tsx:88
 #: src/pages/shared/library/libraryColumns.tsx:89
-#: src/pages/shared/library/LibraryFilters.tsx:187
+#: src/pages/shared/library/libraryColumns.tsx:90
+#: src/pages/shared/library/LibraryFilters.tsx:204
 msgid "地图"
 msgstr "地图"
 
@@ -3534,7 +3538,7 @@ msgstr "导入"
 
 #: src/pages/editing/workspace/HomePage.tsx:42
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
-#: src/pages/shared/library/LibraryPage.tsx:246
+#: src/pages/shared/library/LibraryPage.tsx:281
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
 #: src/pages/shared/onboarding/FirstRunStrip.tsx:67
 msgid "导入 Demo"
@@ -3667,7 +3671,7 @@ msgstr "导出诊断包"
 msgid "导出质量"
 msgstr "导出质量"
 
-#: src/pages/shared/library/LibraryPage.tsx:197
+#: src/pages/shared/library/LibraryPage.tsx:226
 msgid "导出资料库元数据"
 msgstr "导出资料库元数据"
 
@@ -3735,7 +3739,7 @@ msgstr "嵌套序列"
 msgid "嵌套序列 {0}"
 msgstr "嵌套序列 {0}"
 
-#: src/pages/shared/library/libraryColumns.tsx:224
+#: src/pages/shared/library/libraryColumns.tsx:225
 msgid "工作区"
 msgstr "工作区"
 
@@ -3964,7 +3968,7 @@ msgid "已选 {0} 场"
 msgstr "已选 {0} 场"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:265
+#: src/pages/shared/library/LibraryPage.tsx:302
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
@@ -4574,7 +4578,7 @@ msgstr "打开模型设置"
 msgid "打开比赛历史"
 msgstr "打开比赛历史"
 
-#: src/pages/shared/library/LibraryPage.tsx:331
+#: src/pages/shared/library/LibraryPage.tsx:376
 msgid "打开比赛工作区"
 msgstr "打开比赛工作区"
 
@@ -5228,8 +5232,8 @@ msgstr "无音频目标"
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
-#: src/pages/shared/library/libraryColumns.tsx:106
 #: src/pages/shared/library/libraryColumns.tsx:107
+#: src/pages/shared/library/libraryColumns.tsx:108
 msgid "日期"
 msgstr "日期"
 
@@ -5238,8 +5242,9 @@ msgid "旧版本"
 msgstr "旧版本"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:417
-#: src/pages/shared/library/libraryColumns.tsx:117
+#: src/pages/editing/projects/ProjectsPage.tsx:117
 #: src/pages/shared/library/libraryColumns.tsx:118
+#: src/pages/shared/library/libraryColumns.tsx:119
 msgid "时长"
 msgstr "时长"
 
@@ -5388,7 +5393,7 @@ msgstr "暂不支持下载后自动分析，下载完成可在资料库里开始
 msgid "暂不支持导出复盘网页"
 msgstr "暂不支持导出复盘网页"
 
-#: src/pages/shared/library/libraryColumns.tsx:208
+#: src/pages/shared/library/libraryColumns.tsx:209
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
@@ -5654,8 +5659,8 @@ msgstr "条件"
 
 #: src/domain/project/AddToProjectDialog.tsx:96
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:168
-#: src/pages/shared/library/libraryColumns.tsx:141
 #: src/pages/shared/library/libraryColumns.tsx:142
+#: src/pages/shared/library/libraryColumns.tsx:143
 #: src/pages/shared/library/LibraryInspector.tsx:245
 msgid "来源"
 msgstr "来源"
@@ -5669,13 +5674,17 @@ msgid "来源对象"
 msgstr "来源对象"
 
 #: src/pages/analysis/match/views/OverviewView.tsx:230
-#: src/pages/shared/library/libraryColumns.tsx:218
+#: src/pages/shared/library/libraryColumns.tsx:219
 msgid "查看"
 msgstr "查看"
 
 #: src/pages/editing/delivery/OutputCard.tsx:91
 msgid "查看 {title} 的完整路径"
 msgstr "查看 {title} 的完整路径"
+
+#: src/pages/shared/library/LibraryPage.tsx:532
+msgid "查看作品"
+msgstr "查看作品"
 
 #. placeholder {0}: change.number
 #: src/domain/editing/ProjectTimeline.tsx:5529
@@ -6247,8 +6256,8 @@ msgstr "比率伸缩工具 (R)"
 #: src/pages/analysis/players/PlayersPage.tsx:116
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:117
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:118
-#: src/pages/shared/library/libraryColumns.tsx:70
 #: src/pages/shared/library/libraryColumns.tsx:71
+#: src/pages/shared/library/libraryColumns.tsx:72
 msgid "比赛"
 msgstr "比赛"
 
@@ -6634,8 +6643,8 @@ msgstr "添加文字"
 msgid "添加文字轨道"
 msgstr "添加文字轨道"
 
-#: src/pages/shared/library/LibraryPage.tsx:290
-#: src/pages/shared/library/LibraryPage.tsx:291
+#: src/pages/shared/library/LibraryPage.tsx:335
+#: src/pages/shared/library/LibraryPage.tsx:336
 msgid "添加标签"
 msgstr "添加标签"
 
@@ -6653,7 +6662,7 @@ msgstr "添加片段"
 msgid "添加监听目录"
 msgstr "添加监听目录"
 
-#: src/pages/shared/library/LibraryPage.tsx:254
+#: src/pages/shared/library/LibraryPage.tsx:289
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:76
 #: src/pages/shared/settings/FilesSection.tsx:256
 msgid "添加目录"
@@ -7050,9 +7059,9 @@ msgstr "版本、数据目录和当前录制占用。"
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:104
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:145
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:146
-#: src/pages/shared/library/libraryColumns.tsx:150
 #: src/pages/shared/library/libraryColumns.tsx:151
-#: src/pages/shared/library/LibraryFilters.tsx:188
+#: src/pages/shared/library/libraryColumns.tsx:152
+#: src/pages/shared/library/LibraryFilters.tsx:205
 msgid "状态"
 msgstr "状态"
 
@@ -7128,11 +7137,11 @@ msgstr "生效"
 msgid "用 {0} 替换所选片段"
 msgstr "用 {0} 替换所选片段"
 
-#: src/pages/shared/library/LibraryPage.tsx:287
+#: src/pages/shared/library/LibraryPage.tsx:332
 msgid "用 Agent 创作"
 msgstr "用 Agent 创作"
 
-#: src/pages/shared/library/libraryColumns.tsx:197
+#: src/pages/shared/library/libraryColumns.tsx:198
 msgid "用 Agent 制作"
 msgstr "用 Agent 制作"
 
@@ -7194,8 +7203,8 @@ msgid "百分比"
 msgstr "百分比"
 
 #: src/pages/shared/library/libraryFormat.ts:170
-#: src/pages/shared/library/LibraryPage.tsx:411
-#: src/pages/shared/library/LibraryPage.tsx:417
+#: src/pages/shared/library/LibraryPage.tsx:456
+#: src/pages/shared/library/LibraryPage.tsx:462
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:68
 #: src/pages/shared/settings/FilesSection.tsx:190
 msgid "监听目录"
@@ -7299,7 +7308,7 @@ msgstr "知道了"
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
 
-#: src/pages/shared/library/LibraryPage.tsx:397
+#: src/pages/shared/library/LibraryPage.tsx:442
 msgid "视图"
 msgstr "视图"
 
@@ -7821,12 +7830,16 @@ msgstr "节目画布"
 msgid "花费"
 msgstr "花费"
 
+#: src/pages/shared/library/LibraryPage.tsx:533
+msgid "若作品已创建，可从作品列表打开并继续添加素材。"
+msgstr "若作品已创建，可从作品列表打开并继续添加素材。"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:284
 msgid "行为边界"
 msgstr "行为边界"
 
-#: src/pages/shared/library/libraryColumns.tsx:158
 #: src/pages/shared/library/libraryColumns.tsx:159
+#: src/pages/shared/library/libraryColumns.tsx:160
 msgid "行操作"
 msgstr "行操作"
 
@@ -7838,7 +7851,7 @@ msgstr "行方 ＼ 列方"
 msgid "行方与列方"
 msgstr "行方与列方"
 
-#: src/pages/shared/library/LibraryPage.tsx:400
+#: src/pages/shared/library/LibraryPage.tsx:445
 msgid "表格"
 msgstr "表格"
 
@@ -8388,6 +8401,11 @@ msgstr "运行中"
 #: src/pages/shared/settings/AdvancedSection.tsx:74
 msgid "运行时"
 msgstr "运行时"
+
+#: src/pages/shared/library/LibraryPage.tsx:115
+#: src/pages/shared/library/LibraryPage.tsx:117
+msgid "返回 Demo 资料库"
+msgstr "返回 Demo 资料库"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:597
 msgid "返回作品列表"
@@ -9189,7 +9207,7 @@ msgstr "配置文件读不出来"
 msgid "配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。"
 msgstr "配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。"
 
-#: src/pages/shared/library/LibraryPage.tsx:225
+#: src/pages/shared/library/LibraryPage.tsx:254
 msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
@@ -9252,7 +9270,7 @@ msgid "重新发起"
 msgstr "重新发起"
 
 #: src/domain/editing/ProjectMediaPanel.tsx:532
-#: src/pages/shared/library/libraryColumns.tsx:210
+#: src/pages/shared/library/libraryColumns.tsx:211
 msgid "重新定位"
 msgstr "重新定位"
 
@@ -9339,7 +9357,7 @@ msgstr "重置工作区布局"
 #: src/pages/analysis/players/PlayerProfilePage.tsx:244
 #: src/pages/analysis/players/PlayersPage.tsx:320
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:67
-#: src/pages/editing/projects/ProjectsPage.tsx:57
+#: src/pages/editing/projects/ProjectsPage.tsx:58
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:23
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:147
 #: src/pages/shared/library/DeleteDemosDialog.tsx:88
@@ -9348,7 +9366,7 @@ msgstr "重置工作区布局"
 #: src/pages/shared/library/LibraryCards.tsx:84
 #: src/pages/shared/library/LibraryInspector.tsx:137
 #: src/pages/shared/library/LibraryInspector.tsx:198
-#: src/pages/shared/library/LibraryPage.tsx:456
+#: src/pages/shared/library/LibraryPage.tsx:501
 #: src/pages/shared/library/LibraryTable.tsx:101
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:83
 #: src/pages/shared/onboarding/GuidePage.tsx:114
@@ -9369,6 +9387,10 @@ msgstr "重置工作区布局"
 #: src/pages/shared/settings/RecoveryPage.tsx:102
 msgid "重试"
 msgstr "重试"
+
+#: src/pages/shared/library/LibraryPage.tsx:517
+msgid "重试回放"
+msgstr "重试回放"
 
 #: src/domain/editing/ProjectTimeline.tsx:2434
 msgid "链接所选片段"

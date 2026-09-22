@@ -95,8 +95,14 @@ import { HistoryWorkspace } from './history/HistoryPage';
 type LibraryOverlay = 'import' | 'watch' | 'watch-add' | 'columns' | 'save-view' | 'delete' | null;
 
 export function LibraryPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   if (params.get('view') !== 'steam') return <DemoLibraryPage />;
+  const returnToLibrary = () => {
+    const next = new URLSearchParams();
+    const projectId = params.get('project');
+    if (projectId !== null) next.set('project', projectId);
+    setParams(next);
+  };
   return (
     <Page
       scroll={false}
@@ -104,6 +110,12 @@ export function LibraryPage() {
         <Toolbar
           title={<Trans>Steam 下载</Trans>}
           meta={<Trans>从 Steam 同步最近比赛并下载回放</Trans>}
+          actions={[{
+            id: 'library',
+            label: <Trans>返回 Demo 资料库</Trans>,
+            onSelect: returnToLibrary,
+            control: <Button onClick={returnToLibrary}><Trans>返回 Demo 资料库</Trans></Button>,
+          }]}
         />
       }
     >
@@ -114,7 +126,7 @@ export function LibraryPage() {
 
 function DemoLibraryPage() {
   const [params, setParams] = useSearchParams();
-  const [preferredProjectId] = useState(() => params.get('project'));
+  const preferredProjectId = params.get('project');
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
   const demoProject = useCreateDemoProject();
@@ -138,7 +150,7 @@ function DemoLibraryPage() {
 
   /* ── page state ────────────────────────────────────────────────────────── */
 
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set<string>());
+  const [selectedIds, setSelected] = useState<ReadonlySet<string>>(new Set<string>());
   const [activeDemoId, setActiveDemoId] = useState<string | null>(null);
   const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set<string>());
   // §4.2 wants saved views in the persisted store; that store is `shared/**`
@@ -152,7 +164,14 @@ function DemoLibraryPage() {
   const rows = list.data?.items ?? [];
   const activeRow = rows.find((demo) => demo.id === activeDemoId);
   const activeDemo = activeDetail.data ?? activeRow;
-  const selectedDemos = rows.filter((demo) => selected.has(demo.id));
+  const selectedDemos = rows.filter((demo) => selectedIds.has(demo.id));
+  const selected = new Set(selectedDemos.map((demo) => demo.id));
+
+  // Batch actions belong to this query. A new filter or page must not keep
+  // invisible records selected, including when the user later returns.
+  useEffect(() => {
+    setSelected(new Set<string>());
+  }, [query]);
 
   // The inspector is part of the library's scanning workflow, not an empty
   // decoration. Keep it on the first visible match until the user activates a
@@ -179,8 +198,18 @@ function DemoLibraryPage() {
   const watchPaths = config.data?.demo_watch_paths ?? [];
   const watchBusy = setWatchPaths.isPending || rescan.isPending;
 
+  const setLibraryAddress = (nextAddress: LibraryAddress) => {
+    const next = writeLibraryAddress(nextAddress);
+    if (preferredProjectId !== null) next.set('project', preferredProjectId);
+    setParams(next);
+  };
   const setAddress = (change: Partial<LibraryAddress>) => {
-    setParams(writeLibraryAddress(changeLibraryAddress(address, change)));
+    setLibraryAddress(changeLibraryAddress(address, change));
+  };
+  const openSteam = () => {
+    const next = new URLSearchParams({ view: 'steam' });
+    if (preferredProjectId !== null) next.set('project', preferredProjectId);
+    setParams(next);
   };
 
   /*
@@ -237,8 +266,14 @@ function DemoLibraryPage() {
         analyseButtonProps: { disabled: startAnalysis.isPending },
         onCreateProject: (demo: DemoSummary) => createProject([demo]),
         createButtonProps: { disabled: demoProject.pending },
+        workspaceHref: (demo: DemoSummary) => {
+          const target = `/match/${encodeURIComponent(demo.id)}`;
+          return preferredProjectId === null
+            ? target
+            : `${target}?${new URLSearchParams({ view: 'replay', project: preferredProjectId }).toString()}`;
+        },
       }),
-    [demoProject.pending, startAnalysis.isPending],
+    [demoProject.pending, preferredProjectId, startAnalysis.isPending],
   );
 
   const importAction = (
@@ -257,7 +292,9 @@ function DemoLibraryPage() {
   );
 
   const listError = dataErrorMessage(list.error);
-  const actionError = dataErrorMessage(startAnalysis.error) ?? dataErrorMessage(launchPlayback.error);
+  const analysisError = dataErrorMessage(startAnalysis.error);
+  const playbackError = dataErrorMessage(launchPlayback.error);
+  const createProjectError = dataErrorMessage(demoProject.error);
 
   const selectionBar = (
     <SelectionBar
@@ -279,6 +316,14 @@ function DemoLibraryPage() {
         </Button>
       }
     >
+      <Button size="sm" variant="ghost" onClick={(event) => {
+        // Return to the table's keyboard tab stop before this footer unmounts.
+        event.currentTarget.closest('[data-library-table]')
+          ?.querySelector<HTMLElement>('tbody tr[tabindex="0"]')?.focus();
+        setSelected(new Set<string>());
+      }}>
+        <Trans>取消选择</Trans>
+      </Button>
       <Button
         size="sm"
         disabled={demoProject.pending}
@@ -382,11 +427,11 @@ function DemoLibraryPage() {
               id: 'steam',
               label: <Trans>Steam 下载</Trans>,
               control: (
-                <Button variant="secondary" onClick={() => setParams({ view: 'steam' })}>
+                <Button variant="secondary" onClick={openSteam}>
                   <Trans>Steam 下载</Trans>
                 </Button>
               ),
-              onSelect: () => setParams({ view: 'steam' }),
+              onSelect: openSteam,
             },
             {
               id: 'view',
@@ -430,7 +475,7 @@ function DemoLibraryPage() {
           tags={tags.data ?? []}
           savedViews={savedViews}
           onApplySavedView={(view) => {
-            setParams(writeLibraryAddress(view.address));
+            setLibraryAddress(view.address);
           }}
           onSaveView={() => {
             setOverlay('save-view');
@@ -448,19 +493,46 @@ function DemoLibraryPage() {
     >
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {actionError === null ? null : (
+          {analysisError === null ? null : (
             <Alert
               className="m-4"
               variant="danger"
               action={{
                 label: <Trans>重试</Trans>,
+                disabled: startAnalysis.isPending,
                 onAction: () => {
                   const ids = startAnalysis.variables;
                   if (ids !== undefined) startAnalysis.mutate(ids);
                 },
               }}
             >
-              {actionError}
+              {analysisError}
+            </Alert>
+          )}
+          {playbackError === null ? null : (
+            <Alert
+              className="m-4"
+              variant="danger"
+              action={{
+                label: <Trans>重试回放</Trans>,
+                disabled: launchPlayback.isPending,
+                onAction: () => {
+                  const demoId = launchPlayback.variables;
+                  if (demoId !== undefined) launchPlayback.mutate(demoId);
+                },
+              }}
+            >
+              {playbackError}
+            </Alert>
+          )}
+          {createProjectError === null ? null : (
+            <Alert
+              className="m-4"
+              variant="danger"
+              action={{ label: <Trans>查看作品</Trans>, onAction: () => void navigate('/projects') }}
+              detail={<Trans>若作品已创建，可从作品列表打开并继续添加素材。</Trans>}
+            >
+              {createProjectError}
             </Alert>
           )}
 
@@ -490,7 +562,7 @@ function DemoLibraryPage() {
               }}
               filtered={hasActiveFilter(address)}
               onClearFilters={() => {
-                setParams(writeLibraryAddress(clearLibraryFilters(address)));
+                setLibraryAddress(clearLibraryFilters(address));
               }}
               emptyActions={emptyActions}
               selectionBar={selectionBar}
@@ -513,7 +585,7 @@ function DemoLibraryPage() {
               }}
               filtered={hasActiveFilter(address)}
               onClearFilters={() => {
-                setParams(writeLibraryAddress(clearLibraryFilters(address)));
+                setLibraryAddress(clearLibraryFilters(address));
               }}
               emptyActions={emptyActions}
             />

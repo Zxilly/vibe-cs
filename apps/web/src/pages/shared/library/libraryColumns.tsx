@@ -56,6 +56,7 @@ export interface LibraryColumnHandlers {
   readonly onCreateProject: (demo: DemoSummary) => void;
   readonly analyseButtonProps: ActionAvailability;
   readonly createButtonProps: ActionAvailability;
+  readonly workspaceHref: (demo: DemoSummary) => string;
 }
 
 /** The one column 列配置 may not hide, and the id the sort map keys on. */
@@ -220,7 +221,7 @@ function RowAction({
     );
   } else if (isDemoAnalysable(demo)) {
     existing = (
-      <RouteLink to={`/match/${encodeURIComponent(demo.id)}`}>
+      <RouteLink to={handlers.workspaceHref(demo)}>
         <Trans>工作区</Trans>
       </RouteLink>
     );

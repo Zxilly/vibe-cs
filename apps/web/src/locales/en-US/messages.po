@@ -53,7 +53,7 @@ msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个�
 msgstr "{0, plural, =0 {Nothing is discovered automatically right now.} other {New Demos in these # folders join the library automatically.}}"
 
 #. placeholder {0}: rows.length
-#: src/pages/editing/projects/ProjectsPage.tsx:43
+#: src/pages/editing/projects/ProjectsPage.tsx:44
 msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
@@ -98,7 +98,7 @@ msgid "{0, plural, other {# 条记录找不到文件}}"
 msgstr "{0, plural, one {# record cannot find its file} other {# records cannot find their files}}"
 
 #. placeholder {0}: clips.length
-#: src/pages/editing/projects/ProjectsPage.tsx:105
+#: src/pages/editing/projects/ProjectsPage.tsx:110
 msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, one {# clip} other {# clips}}"
 
@@ -466,7 +466,7 @@ msgstr "{minWeight} hits"
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "Position heatmap for {playerName} on {mapName}"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:106
+#: src/pages/editing/projects/ProjectsPage.tsx:111
 msgid "{ready} 段就绪"
 msgstr "{ready} ready"
 
@@ -1496,7 +1496,7 @@ msgid "作业编号"
 msgstr "Job ID"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1516
-#: src/pages/editing/projects/ProjectsPage.tsx:42
+#: src/pages/editing/projects/ProjectsPage.tsx:43
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "Projects"
@@ -1519,7 +1519,7 @@ msgstr "Project: {scopeLabel}"
 msgid "作品任务"
 msgstr "Project tasks"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:53
+#: src/pages/editing/projects/ProjectsPage.tsx:54
 msgid "作品列表暂时读不到。"
 msgstr "The project list is temporarily unavailable."
 
@@ -1855,7 +1855,7 @@ msgstr "All changes"
 msgid "全部存在本机，不上传。"
 msgstr "All of it stays on this machine; nothing is uploaded."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:106
+#: src/pages/editing/projects/ProjectsPage.tsx:111
 msgid "全部就绪"
 msgstr "all ready"
 
@@ -2086,6 +2086,7 @@ msgid "最近改动"
 msgstr "Last changed"
 
 #: src/domain/task/TaskDetailBody.tsx:111
+#: src/pages/editing/projects/ProjectsPage.tsx:121
 msgid "最近更新"
 msgstr "Last update"
 
@@ -4889,11 +4890,11 @@ msgstr "Insert"
 msgid "插入编辑"
 msgstr "Insert Edit"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:46
+#: src/pages/editing/projects/ProjectsPage.tsx:47
 msgid "搜索作品"
 msgstr "Search projects"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:46
+#: src/pages/editing/projects/ProjectsPage.tsx:47
 msgid "搜索作品…"
 msgstr "Search projects…"
 
@@ -5127,11 +5128,12 @@ msgid "文字颜色"
 msgstr "Text color"
 
 #: src/domain/project/createDemoProject.ts:58
+#: src/pages/editing/projects/ProjectsPage.tsx:26
 msgid "新作品"
 msgstr "New project"
 
 #: src/pages/editing/delivery/OutputsView.tsx:199
-#: src/pages/editing/projects/ProjectsPage.tsx:31
+#: src/pages/editing/projects/ProjectsPage.tsx:32
 #: src/pages/editing/workspace/HomePage.tsx:25
 msgid "新建作品"
 msgstr "New project"
@@ -5139,6 +5141,10 @@ msgstr "New project"
 #: src/app/command/commandRegistry.ts:195
 msgid "新建作品 · Agent 模式"
 msgstr "New project · Agent mode"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:83
+msgid "新建作品后，添加素材开始剪辑。"
+msgstr "Create a project, then add media to start editing."
 
 #: src/domain/project/AddToProjectDialog.tsx:84
 msgid "新建并加入"
@@ -5463,11 +5469,6 @@ msgstr "Change clip speed (Fit to Fill)"
 #: src/pages/shared/settings/AppSection.tsx:127
 msgid "更新"
 msgstr "Updates"
-
-#. placeholder {0}: formatTaskClock(project.updated_at, { now: new Date() })
-#: src/pages/editing/projects/ProjectsPage.tsx:110
-msgid "更新于 {0}"
-msgstr "Updated {0}"
 
 #: src/pages/editing/delivery/OutputCard.tsx:104
 msgid "更新时间"
@@ -5921,6 +5922,10 @@ msgstr "Preparing"
 msgid "正在准备 {0}"
 msgstr "Preparing {0}"
 
+#: src/pages/editing/projects/ProjectsPage.tsx:32
+msgid "正在创建…"
+msgstr "Creating…"
+
 #: src/domain/editing/ProjectAgentPanel.tsx:136
 msgid "正在创建对话"
 msgstr "Creating the conversation"
@@ -5928,6 +5933,14 @@ msgstr "Creating the conversation"
 #: src/domain/editing/ProjectTimeline.tsx:2297
 msgid "正在刷新嵌套序列…"
 msgstr "Refreshing nested sequence…"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:53
+msgid "正在加载…"
+msgstr "Loading…"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:65
+msgid "正在加载作品…"
+msgstr "Loading projects…"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:14
 msgid "正在取消"
@@ -6027,6 +6040,10 @@ msgstr "Checking whether the current project is ready to deliver."
 #: src/domain/editing/ProjectAgentPanel.tsx:694
 msgid "正在检查整条 Story 轨道…"
 msgstr "Checking the entire Story track…"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:111
+msgid "正在检查素材…"
+msgstr "Checking media…"
 
 #: src/pages/analysis/evidence/EvidenceResults.tsx:155
 msgid "正在检索证据"
@@ -6377,7 +6394,7 @@ msgstr "No kill or objective events; {0} v {1} throughout"
 msgid "没有创建任何作品。"
 msgstr "No project was created."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:58
+#: src/pages/editing/projects/ProjectsPage.tsx:59
 msgid "没有创建作品。"
 msgstr "The project was not created."
 
@@ -6385,7 +6402,7 @@ msgstr "The project was not created."
 msgid "没有删除，记录和文件都还在。"
 msgstr "Nothing was deleted; the record and the file are still there."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:70
+#: src/pages/editing/projects/ProjectsPage.tsx:74
 msgid "没有匹配的作品"
 msgstr "No matching projects"
 
@@ -6429,7 +6446,7 @@ msgstr "No unlocked adjacent clips to roll edit"
 msgid "没有可用的对位数据"
 msgstr "No matchup data available"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:71
+#: src/pages/editing/projects/ProjectsPage.tsx:75
 msgid "没有名字包含「{search}」的作品。"
 msgstr "No project name contains \"{search}\"."
 
@@ -7520,7 +7537,7 @@ msgstr "Round {0} equipment"
 #. placeholder {0}: current.revision
 #. placeholder {0}: project.revision
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1519
-#: src/pages/editing/projects/ProjectsPage.tsx:101
+#: src/pages/editing/projects/ProjectsPage.tsx:106
 msgid "第 {0} 版"
 msgstr "Version {0}"
 
@@ -7617,6 +7634,14 @@ msgstr "Media time: {0}s"
 #: src/domain/editing/TimelineProgramMonitor.tsx:640
 msgid "素材未就绪 · 当前显示可用帧"
 msgstr "Media not ready · showing available frames"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:111
+msgid "素材状态待更新"
+msgstr "Media status needs updating"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:111
+msgid "素材状态暂时不可用"
+msgstr "Media status is unavailable"
 
 #. placeholder {0}: track.label
 #: src/domain/editing/ProjectTimeline.tsx:3681
@@ -8432,7 +8457,7 @@ msgstr "Restore window"
 msgid "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 msgstr "{0} more purchase events carry no side and cannot be attributed to either team."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:79
+#: src/pages/editing/projects/ProjectsPage.tsx:83
 msgid "还没有作品"
 msgstr "No projects yet"
 
@@ -8521,7 +8546,7 @@ msgstr "No watched folders yet. Add one and new Demos arrive on their own."
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:105
+#: src/pages/editing/projects/ProjectsPage.tsx:110
 msgid "还没有素材"
 msgstr "No clips yet"
 
@@ -9262,7 +9287,7 @@ msgstr "Re-analyse"
 #: src/domain/task/TaskDetail.tsx:271
 #: src/pages/editing/delivery/OutputsView.tsx:181
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1771
-#: src/pages/editing/projects/ProjectsPage.tsx:52
+#: src/pages/editing/projects/ProjectsPage.tsx:53
 #: src/pages/shared/tasks/TaskDetailPage.tsx:56
 msgid "重新加载"
 msgstr "Reload"

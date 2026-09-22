@@ -1587,7 +1587,7 @@ msgstr "Save Steam settings"
 
 #: src/pages/analysis/evidence/EvidencePage.tsx:263
 #: src/pages/analysis/evidence/EvidencePage.tsx:266
-#: src/pages/shared/library/LibraryFilters.tsx:210
+#: src/pages/shared/library/LibraryFilters.tsx:235
 #: src/pages/shared/library/SaveViewDialog.tsx:52
 msgid "保存为视图"
 msgstr "Save as view"
@@ -1617,7 +1617,7 @@ msgid "保存片段标记"
 msgstr "Save clip markers"
 
 #. placeholder {0}: view.name
-#: src/pages/shared/library/LibraryFilters.tsx:205
+#: src/pages/shared/library/LibraryFilters.tsx:229
 msgid "保存的视图 · {0}"
 msgstr "Saved view · {0}"
 
@@ -1832,8 +1832,8 @@ msgstr "Select all on this page"
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
 #: src/pages/editing/delivery/OutputsView.tsx:60
 #: src/pages/shared/library/LibraryFilters.tsx:153
-#: src/pages/shared/library/LibraryFilters.tsx:241
-#: src/pages/shared/library/LibraryFilters.tsx:259
+#: src/pages/shared/library/LibraryFilters.tsx:266
+#: src/pages/shared/library/LibraryFilters.tsx:284
 #: src/pages/shared/tasks/TaskCenterPage.tsx:48
 msgid "全部"
 msgstr "All"
@@ -2202,7 +2202,7 @@ msgstr "Analyze Demo"
 msgid "分析一场比赛"
 msgstr "Analyse a match"
 
-#: src/pages/shared/library/LibraryFilters.tsx:55
+#: src/pages/shared/library/LibraryFilters.tsx:54
 #: src/pages/shared/library/libraryFormat.ts:140
 msgid "分析中"
 msgstr "Analyzing"
@@ -2330,7 +2330,7 @@ msgid "列表视图"
 msgstr "List view"
 
 #: src/pages/shared/library/ColumnConfigDialog.tsx:66
-#: src/pages/shared/library/LibraryFilters.tsx:214
+#: src/pages/shared/library/LibraryFilters.tsx:238
 msgid "列配置"
 msgstr "Columns"
 
@@ -3602,7 +3602,7 @@ msgstr "Export OpenTimelineIO…"
 msgid "导出 SRT 字幕"
 msgstr "Export SRT subtitles"
 
-#: src/pages/shared/library/LibraryFilters.tsx:217
+#: src/pages/shared/library/LibraryFilters.tsx:241
 msgid "导出元数据"
 msgstr "Export metadata"
 
@@ -3829,7 +3829,7 @@ msgstr "Imported"
 msgid "已导入的比赛仍在本地，重试通常就能恢复列表。"
 msgstr "Imported matches are still on disk; a retry usually brings the list back."
 
-#: src/pages/shared/library/LibraryFilters.tsx:54
+#: src/pages/shared/library/LibraryFilters.tsx:53
 #: src/pages/shared/library/libraryFormat.ts:139
 msgid "已就绪"
 msgstr "Ready"
@@ -4005,7 +4005,7 @@ msgstr "The limit of {selectionLimit} is reached; untick one before ticking anot
 msgid "带坐标证据"
 msgstr "Evidence with coordinates"
 
-#: src/pages/shared/library/LibraryFilters.tsx:189
+#: src/pages/shared/library/LibraryFilters.tsx:206
 msgid "平台"
 msgstr "Platform"
 
@@ -4318,7 +4318,7 @@ msgstr "Footage to cut"
 msgid "待处理"
 msgstr "Pending"
 
-#: src/pages/shared/library/LibraryFilters.tsx:52
+#: src/pages/shared/library/LibraryFilters.tsx:51
 #: src/pages/shared/library/libraryFormat.ts:137
 msgid "待索引"
 msgstr "Awaiting indexing"
@@ -4902,8 +4902,8 @@ msgstr "Search projects…"
 msgid "搜索比赛、选手、作品、页面和动作"
 msgstr "Search matches, players, projects, pages and actions"
 
-#: src/pages/shared/library/LibraryFilters.tsx:178
 #: src/pages/shared/library/LibraryFilters.tsx:179
+#: src/pages/shared/library/LibraryFilters.tsx:180
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
 
@@ -5091,7 +5091,7 @@ msgstr "File deleted."
 
 #: src/pages/editing/delivery/OutputCard.tsx:83
 #: src/pages/editing/delivery/OutputsView.tsx:63
-#: src/pages/shared/library/LibraryFilters.tsx:57
+#: src/pages/shared/library/LibraryFilters.tsx:56
 #: src/pages/shared/library/libraryFormat.ts:142
 msgid "文件缺失"
 msgstr "File missing"
@@ -5746,7 +5746,7 @@ msgstr "View the stage log"
 msgid "查看高光"
 msgstr "View highlight"
 
-#: src/pages/shared/library/LibraryFilters.tsx:190
+#: src/pages/shared/library/LibraryFilters.tsx:207
 #: src/pages/shared/library/LibraryInspector.tsx:253
 msgid "标签"
 msgstr "Tags"
@@ -6725,7 +6725,8 @@ msgid "清空对话"
 msgstr "Clear conversations"
 
 #: src/pages/analysis/players/PlayersPage.tsx:370
-#: src/pages/editing/projects/ProjectsPage.tsx:74
+#: src/pages/editing/projects/ProjectsPage.tsx:78
+#: src/pages/shared/library/LibraryFilters.tsx:192
 msgid "清空搜索"
 msgstr "Clear the search"
 
@@ -7622,12 +7623,12 @@ msgstr "Media not ready · showing available frames"
 msgid "素材落点 {0}"
 msgstr "Drop point {0}"
 
-#: src/pages/shared/library/LibraryFilters.tsx:53
+#: src/pages/shared/library/LibraryFilters.tsx:52
 #: src/pages/shared/library/libraryFormat.ts:138
 msgid "索引中"
 msgstr "Indexing"
 
-#: src/pages/shared/library/LibraryFilters.tsx:56
+#: src/pages/shared/library/LibraryFilters.tsx:55
 #: src/pages/shared/library/libraryFormat.ts:141
 msgid "索引失败"
 msgstr "Indexing failed"
@@ -9338,6 +9339,10 @@ msgstr "Choose again"
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1544
 msgid "重置工作区布局"
 msgstr "Reset workspace layout"
+
+#: src/pages/shared/library/LibraryFilters.tsx:214
+msgid "重置筛选"
+msgstr "Reset filters"
 
 #: src/app/boundary/RouteBoundary.tsx:130
 #: src/domain/editing/ProjectWorkspaceDock.tsx:124

@@ -8,9 +8,8 @@
  * flush right at `--h-ctl-sm`. The same strip recurs on 05 证据检索 and in the
  * 暗色 artboard.
  *
- * Height is `--h-bar`: the reference draws this strip at 50px in most places
- * and 56px on 02, and `tokens.data.ts` BAR_HEIGHT_MERGE raw 50 settles it —
- * 「底部选择条 …；按次级栏归到 46」.
+ * `--h-bar` is the minimum height. Summary and actions wrap in narrow panels,
+ * keeping both the selection count and the primary action visible.
  *
  * The count is a live region. Selection changes come from clicks far away
  * (a header checkbox, shift-range, 「全选」), and a screen reader user needs to
@@ -38,21 +37,20 @@ export function SelectionBar({ summary, children, primary, className }: Selectio
     <div
       data-selection-bar
       className={cn(
-        'flex h-[var(--h-bar)] flex-none items-center gap-3.5 border-t border-divider bg-accent-100 px-6',
+        'flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-divider bg-accent-100 px-6 py-2',
         className,
       )}
     >
-      <output data-selection-summary className="min-w-0 truncate text-base text-accent-800">
+      <output data-selection-summary className="mr-auto text-sm font-medium text-accent-800">
         {summary}
       </output>
-      <div className="flex-1" aria-hidden="true" />
       {children !== undefined && children !== null ? (
-        <div data-selection-actions className="flex flex-none items-center gap-2.5">
+        <div data-selection-actions className="flex flex-wrap items-center gap-2">
           {children}
         </div>
       ) : null}
       {primary !== undefined && primary !== null ? (
-        <div data-selection-primary className="flex flex-none items-center gap-2.5">
+        <div data-selection-primary className="ml-auto flex flex-none items-center gap-2">
           {primary}
         </div>
       ) : null}

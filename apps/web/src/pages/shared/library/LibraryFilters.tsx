@@ -1,16 +1,14 @@
 /*
- * pages/library — the 52px strip under the toolbar of 「02 Demo 资料库」.
+ * Search, active filters and saved views under the library toolbar.
  *
  * The artboard draws, left to right: a search box, four dropdown chips (地图 /
- * 状态 / 平台 / 标签), a hairline, the saved-view tags, then 列配置 and
+ * 状态 / 平台 / 标签), the saved-view tags, then 列配置 and
  * 导出元数据 flush right. `design/layout/Page`'s `bar` slot is the strip;
- * `--h-bar` is its height (§3.4 merges the drawn 50 / 52 into 46).
+ * `--h-bar` is its minimum height.
  *
  * The search box is the one flexible item: it grows to `--w-panel` and never
- * shrinks below `--w-subnav`, so a saved-view chip or a narrow window pushes
- * the strip into its own horizontal scroll rather than squeezing the search
- * field to a few characters. The right-hand buttons sit on `ml-auto`; a second
- * `flex-1` spacer would split the slack with the search box.
+ * shrinks below `--w-subnav`. Controls wrap in narrow desktop windows so
+ * reset and library actions remain visible without horizontal scrolling.
  *
  * ## The dropdowns are `OverflowMenu`
  *
@@ -39,13 +37,14 @@ import type { MessageDescriptor } from '@lingui/core';
 import { msg, t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { useRef } from 'react';
 
 import { OverflowMenu, type OverflowMenuItem } from '../../../design/layout';
-import { Badge, Button, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
+import { Badge, Button, cn, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../../shared/desktop/dto';
 import type { ActionAvailability } from './libraryColumns';
-import type { LibraryAddress } from './libraryQuery';
+import { clearLibraryFilters, hasActiveFilter, type LibraryAddress } from './libraryQuery';
 
 /** The wire's six record states, in the order `DemoRecord.status` declares. */
 const STATUS_OPTIONS: readonly { value: DemoLifecycleStatus; label: MessageDescriptor }[] = [
@@ -113,6 +112,7 @@ export function LibraryFilters({
   exportButtonProps,
 }: LibraryFiltersProps) {
   const { i18n } = useLingui();
+  const searchInput = useRef<HTMLInputElement>(null);
 
   // The selected map stays listed while the catalogue is still loading, so a
   // pasted `?map=` address can be cleared before the list arrives.
@@ -164,17 +164,18 @@ export function LibraryFilters({
   return (
     <div
       data-library-filters
-      className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
+      className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2 border-b border-divider bg-surface-chrome px-6 py-2"
     >
       <InputGroup
         size="sm"
         ground="bg"
-        className="min-w-[var(--w-subnav)] max-w-[var(--w-panel)] flex-1"
+        className="min-w-[var(--w-subnav)] max-w-[var(--w-panel)] flex-1 basis-[var(--w-subnav)]"
       >
         <InputGroupAddon>
           <Search strokeWidth={1.5} />
         </InputGroupAddon>
         <InputGroupInput
+          ref={searchInput}
           aria-label={t`搜索比赛、选手或文件名`}
           placeholder={t`搜索比赛、选手或文件名`}
           value={address.search}
@@ -182,14 +183,37 @@ export function LibraryFilters({
             onChange({ search: event.target.value });
           }}
         />
+        {address.search === '' ? null : (
+          <InputGroupAddon align="inline-end" aria-hidden={false}>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon
+              aria-label={t`清空搜索`}
+              onClick={() => {
+                onChange({ search: '' });
+                searchInput.current?.focus();
+              }}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </InputGroupAddon>
+        )}
       </InputGroup>
 
-      <FilterMenu name={t`地图`} current={currentMap} items={mapItems} />
-      <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} />
-      <FilterMenu name={t`平台`} current={currentSource} items={sourceItems} />
-      <FilterMenu name={t`标签`} current={currentTag} items={tagItems} />
+      <FilterMenu name={t`地图`} current={currentMap} items={mapItems} active={address.map !== ''} />
+      <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} active={address.status !== ''} />
+      <FilterMenu name={t`平台`} current={currentSource} items={sourceItems} active={address.source !== ''} />
+      <FilterMenu name={t`标签`} current={currentTag} items={tagItems} active={address.tagId !== ''} />
 
-      <span className="h-5 w-px flex-none bg-divider" aria-hidden="true" />
+      {hasActiveFilter(address) ? (
+        <Button size="sm" variant="ghost" onClick={() => {
+          onChange(clearLibraryFilters(address));
+          searchInput.current?.focus();
+        }}>
+          <Trans>重置筛选</Trans>
+        </Button>
+      ) : null}
 
       {savedViews.map((view) => (
         <Badge
@@ -206,16 +230,17 @@ export function LibraryFilters({
           </button>
         </Badge>
       ))}
-      <Button size="sm" variant="ghost" className="flex-none" onClick={onSaveView}>
-        <Trans>保存为视图</Trans>
-      </Button>
-
-      <Button size="sm" variant="ghost" className="ml-auto flex-none" onClick={onConfigureColumns}>
-        <Trans>列配置</Trans>
-      </Button>
-      <Button size="sm" variant="ghost" className="flex-none" {...exportButtonProps} onClick={onExport}>
-        <Trans>导出元数据</Trans>
-      </Button>
+      <div className="ml-auto flex flex-wrap items-center gap-1">
+        <Button size="sm" variant="ghost" onClick={onSaveView}>
+          <Trans>保存为视图</Trans>
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onConfigureColumns}>
+          <Trans>列配置</Trans>
+        </Button>
+        <Button size="sm" variant="ghost" {...exportButtonProps} onClick={onExport}>
+          <Trans>导出元数据</Trans>
+        </Button>
+      </div>
     </div>
   );
 }
@@ -265,10 +290,12 @@ function FilterMenu({
   name,
   current,
   items,
+  active,
 }: {
   name: string;
   current: string;
   items: readonly OverflowMenuItem[];
+  active: boolean;
 }) {
   return (
     <OverflowMenu
@@ -282,7 +309,10 @@ function FilterMenu({
           {current}
         </span>
       }
-      triggerClassName="h-[var(--h-ctl-sm)] max-w-[var(--w-subnav)] border border-divider text-text"
+      triggerClassName={cn(
+        'h-[var(--h-ctl-sm)] max-w-[var(--w-subnav)] border',
+        active ? 'border-accent bg-accent-100 text-accent-800' : 'border-divider text-text',
+      )}
       items={items}
     />
   );

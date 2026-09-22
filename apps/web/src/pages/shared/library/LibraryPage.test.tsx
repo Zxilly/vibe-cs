@@ -266,7 +266,7 @@ describe('density (§10.3)', () => {
     // 容器内部.
     expect(html).toContain('overflow-auto');
     expect(html).toContain('data-library-filters');
-    expect(html.slice(html.indexOf('data-library-filters'))).toContain('overflow-x-auto');
+    expect(html.slice(html.indexOf('data-library-filters'))).toContain('flex-wrap');
   });
 
   it('truncates the identity column instead of letting a long name push 状态 out', () => {

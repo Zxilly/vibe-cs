@@ -704,9 +704,10 @@ export function ProjectTimeline({
       );
     }
   };
-  const changeZoomMultiplier = (requested: number, requestedAnchorPx?: number) => {
+  const changeZoomMultiplier = (requested: number, requestedAnchorPx?: number, focusTimeSeconds?: number) => {
     const nextMultiplier = Math.min(maximumZoomMultiplier, Math.max(1, requested));
-    if (Math.abs(nextMultiplier - effectiveZoomMultiplier) <= 1e-6) return;
+    const unchanged = Math.abs(nextMultiplier - effectiveZoomMultiplier) <= 1e-6;
+    if (unchanged && focusTimeSeconds === undefined) return;
     const viewport = viewportRef.current;
     if (viewport !== null) {
       const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
@@ -721,14 +722,20 @@ export function ProjectTimeline({
       const nextScale = createFittedTimeScale(viewportWidth, document.duration_seconds, nextMultiplier);
       const nextContentWidth = Math.max(viewportWidth, timeToPx(nextScale, displayedDuration));
       const maximumScroll = Math.max(0, trackHead + nextContentWidth - viewport.clientWidth);
-      pendingZoomScrollRef.current = Math.min(maximumScroll, zoomAtAnchor({
-        from: scale,
-        to: nextScale,
-        scrollPx: viewport.scrollLeft,
-        anchorPx,
-      }));
+      const nextScroll = Math.min(maximumScroll, focusTimeSeconds === undefined
+        ? zoomAtAnchor({ from: scale, to: nextScale, scrollPx: viewport.scrollLeft, anchorPx })
+        : Math.max(0, timeToPx(nextScale, focusTimeSeconds) - anchorPx));
+      if (unchanged) setTimelineScroll(nextScroll);
+      else pendingZoomScrollRef.current = nextScroll;
     }
     setZoomMultiplier(nextMultiplier);
+  };
+  const zoomToSelection = () => {
+    if (selectedClips.length === 0) return;
+    const start = Math.min(...selectedClips.map((clip) => clip.placement.start));
+    const end = Math.max(...selectedClips.map((clip) => clip.placement.start + clip.placement.duration));
+    const selectionScale = createFittedTimeScale(viewportWidth, (end - start) * 1.25);
+    changeZoomMultiplier(selectionScale.zoom / fitZoom, viewportWidth / 2, (start + end) / 2);
   };
   const scrollTimelinePage = (direction: -1 | 1) => {
     const viewport = viewportRef.current;
@@ -2194,7 +2201,7 @@ export function ProjectTimeline({
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴</Trans></h2>}
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
-            <span className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status">
+            <span className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status" aria-label={t`修剪模式`}>
               <strong><Trans>修剪模式</Trans> · {activeTrimModeEdits.length}</strong>
               <span className="font-mono">{formatMillisecondTimecode(trimModeEdit.editTime)}</span>
               <button type="button" className="rounded-sm px-1 hover:bg-accent-200" aria-label={t`退出修剪模式`} onClick={exitTrimMode}>×</button>
@@ -2348,6 +2355,8 @@ export function ProjectTimeline({
           align="start"
           triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
           items={[
+            { id: 'zoom-selection', label: t`缩放至所选片段`, disabled: selectedClips.length === 0, onSelect: zoomToSelection },
+            { id: 'fit-sequence', label: t`适应整个序列`, onSelect: () => changeZoomMultiplier(1) },
             ...([
               ['head', t`视频缩略图：仅片头`],
               ['head_tail', t`视频缩略图：片头和片尾`],
@@ -2505,7 +2514,16 @@ export function ProjectTimeline({
       />
 
       <div className="grid h-8 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-xs text-neutral-500">
-        <span />
+        <div className="min-w-0 pl-10">
+          <TimelineTimecodeControl
+            seconds={rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds}
+            durationSeconds={document.duration_seconds}
+            fps={document.fps}
+            mode={timeDisplayMode}
+            onModeChange={onTimeDisplayModeChange}
+            onSeek={onSeek}
+          />
+        </div>
         <div
           aria-label={t`时间轴标尺`}
           className="relative min-w-0 cursor-col-resize overflow-hidden"
@@ -2518,7 +2536,13 @@ export function ProjectTimeline({
         >
           <div className="relative h-full" style={{ width: contentWidth, transform: `translateX(${-scrollLeft}px)` }}>
             {ticks.filter((tick) => tick.major).map((tick) => (
-              <span key={tick.time} className="absolute inset-y-0 -translate-x-1/2 border-l border-divider px-1 py-1" style={{ left: tick.px }}>{tick.label}</span>
+              <span key={tick.time} className="absolute inset-y-0" style={{ left: tick.px }}>
+                <span className="absolute inset-y-0 border-l border-divider" aria-hidden="true" />
+                <span
+                  className="absolute bottom-0 left-0 whitespace-nowrap px-1 pb-0.5"
+                  style={{ transform: `translateX(clamp(${-tick.px}px, -50%, calc(${contentWidth - tick.px}px - 100%)))` }}
+                >{tick.label}</span>
+              </span>
             ))}
             {renderPreviewSegments.map((segment) => (
               <span
@@ -2893,20 +2917,39 @@ export function ProjectTimeline({
       </Dialog>
 
       <footer className="flex h-10 flex-none items-center gap-2 overflow-x-auto whitespace-nowrap border-t border-divider bg-surface-chrome px-2 text-xs text-neutral-600">
-        <span><Trans>序列时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>
-        {selectedChange !== null && changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
-          <span className="text-neutral-500"><Trans>原</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
-        ) : null}
-        <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
-        {plannedCount === 0 ? null : <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>}
-        <TimelineTimecodeControl
-          seconds={playheadSeconds}
-          durationSeconds={document.duration_seconds}
-          fps={document.fps}
-          mode={timeDisplayMode}
-          onModeChange={onTimeDisplayModeChange}
-          onSeek={onSeek}
-        />
+        {selectedClip === null ? (
+          <>
+            <span><Trans>序列时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(displayedDuration)}</strong></span>
+            <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
+            {plannedCount === 0 ? null : <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>}
+          </>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-2" role="status" aria-label={t`所选片段信息`}>
+            <div className="min-w-0 flex-1 leading-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <strong className="truncate font-medium text-text" title={selectedClip.name}>{selectedClip.name}</strong>
+                {selectedClips.length > 1 ? <span className="flex-none"><Trans>已选 {selectedClips.length} 个</Trans></span> : null}
+                {ratePreviewDuration === null ? null : <span className="flex-none"><Trans>序列时长：</Trans><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span></span>}
+                {selectedChange !== null && changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
+                  <span className="flex-none text-neutral-500"><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span> · <Trans>原序列</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
+                ) : null}
+              </div>
+              <div className="flex gap-3 overflow-x-auto font-mono" tabIndex={0} aria-label={t`序列范围与源范围`}>
+                <span><Trans>序列</Trans> {formatMillisecondTimecode(selectedClip.placement.start)}–{formatMillisecondTimecode(selectedClip.placement.start + selectedClip.placement.duration)}</span>
+                <span><Trans>源</Trans> {formatMillisecondTimecode(selectedClip.placement.source_in)}–{formatMillisecondTimecode(selectedClip.placement.source_out)}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100"
+              aria-label={t`缩放至所选片段`}
+              onClick={zoomToSelection}
+            >
+              <ZoomIn className="size-3.5" aria-hidden="true" />
+              <Trans>缩放所选</Trans>
+            </button>
+          </div>
+        )}
         <TimelineZoomNavigator
           multiplier={effectiveZoomMultiplier}
           maximumMultiplier={maximumZoomMultiplier}
@@ -2915,6 +2958,7 @@ export function ProjectTimeline({
           viewportWidth={viewportWidth}
           contentWidth={contentWidth}
           scrollLeft={scrollLeft}
+          compact={selectedClip !== null}
           onZoom={changeZoomMultiplier}
           onScroll={setTimelineScroll}
         />
@@ -2923,19 +2967,12 @@ export function ProjectTimeline({
       {/* Everything drawn across the track content — playhead, snap guide, In/Out range —
           lives in one clipped overlay so a position scrolled past the left edge is cut
           off at the track head instead of being painted over it. */}
-      <div className="pointer-events-none absolute bottom-10 left-[var(--w-track-head)] right-0 top-[var(--h-panel-head)] z-20 overflow-hidden">
+      <div className="pointer-events-none absolute bottom-10 left-[var(--w-track-head)] right-0 top-[var(--h-timeline-toolbar)] z-20 overflow-hidden">
       <div
         className="pointer-events-auto absolute inset-y-0 z-20 w-px bg-accent-600"
         style={{ left: playheadViewportPx }}
       >
-        {/* The bubble is centred on the line, except at the left edge where it would be
-            cut by the overlay clip; there it hangs to the right instead. */}
-        <span className={cn(
-          'absolute top-1 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-xs text-bg',
-          playheadViewportPx < 48 ? 'left-0' : 'left-1/2 -translate-x-1/2',
-        )}>
-          {formatTimelinePosition(rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds, document.fps, timeDisplayMode)}
-        </span>
+        <span className="absolute -left-1 top-0 h-2 w-2 rounded-b-sm bg-accent-600" aria-hidden="true" />
         <button
           type="button"
           role="slider"
@@ -3144,7 +3181,7 @@ function TimelineTimecodeControl({ seconds, durationSeconds, fps, mode, onModeCh
         >{mode === 'timecode' ? 'TC' : 'F'}</button>
       </Tooltip>
       <input
-        className="h-full w-24 bg-transparent px-2 text-center font-mono text-xs text-text outline-none focus:bg-accent-100"
+        className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-center font-mono text-xs text-text outline-none focus:bg-accent-100"
         aria-label={mode === 'timecode' ? t`播放头时间码` : t`播放头帧计数`}
         inputMode="numeric"
         value={draft}
@@ -3218,6 +3255,7 @@ function TimelineZoomNavigator({
   viewportWidth,
   contentWidth,
   scrollLeft,
+  compact,
   onZoom,
   onScroll,
 }: {
@@ -3228,6 +3266,7 @@ function TimelineZoomNavigator({
   readonly viewportWidth: number;
   readonly contentWidth: number;
   readonly scrollLeft: number;
+  readonly compact: boolean;
   readonly onZoom: (multiplier: number, anchorPx?: number) => void;
   readonly onScroll: (scrollLeft: number) => void;
 }) {
@@ -3287,7 +3326,7 @@ function TimelineZoomNavigator({
   };
 
   return (
-    <span className="ml-auto flex min-w-56 max-w-[720px] flex-1 items-center gap-1.5 text-neutral-500">
+    <span className={cn('ml-auto flex items-center text-neutral-500', compact ? 'w-52 flex-none gap-1' : 'min-w-56 max-w-[720px] flex-1 gap-1.5')}>
       <button
         type="button"
         className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
@@ -3304,7 +3343,7 @@ function TimelineZoomNavigator({
         max={Math.log2(maximumMultiplier)}
         step="any"
         value={Math.log2(multiplier)}
-        className="timeline-zoom w-14"
+        className={cn('timeline-zoom', compact ? 'w-10' : 'w-14')}
         data-timeline-pixels-per-second={pixelsPerSecond}
         data-timeline-pixels-per-frame={pixelsPerFrame}
         onChange={(event) => onZoom(2 ** Number(event.currentTarget.value))}
@@ -3327,7 +3366,7 @@ function TimelineZoomNavigator({
         aria-valuemin={0}
         aria-valuemax={maximumScroll}
         aria-valuenow={Math.min(maximumScroll, scrollLeft)}
-        className="relative h-3 min-w-28 flex-1 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        className={cn('relative h-3 flex-1 rounded-sm border border-divider bg-neutral-100 outline-none focus-visible:ring-2 focus-visible:ring-accent-500', compact ? 'min-w-10' : 'min-w-28')}
         onPointerDown={(event) => {
           if (event.target !== event.currentTarget || event.button !== 0) return;
           const bounds = event.currentTarget.getBoundingClientRect();

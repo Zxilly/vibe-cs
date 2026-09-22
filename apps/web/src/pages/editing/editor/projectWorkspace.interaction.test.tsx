@@ -876,10 +876,11 @@ describe('unified project workspace', () => {
   it('shows recorded and unrecorded state on the unified timeline', async () => {
     renderWorkspace();
 
+    const unrecordedClip = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u })).toBeTruthy();
+    fireEvent.click(unrecordedClip, { ctrlKey: true });
     expect(await screen.findByText('已录制 1')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: '时间轴' })).getByText('未录制 1')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
   });
 
   it('projects a recorded file that cannot cover source-out as needing another recording', async () => {
@@ -3599,7 +3600,7 @@ describe('unified project workspace', () => {
   });
 
 
-  it('prints the Program readout and playhead bubble in the footer time display mode', async () => {
+  it('keeps the Program readout in the Timeline time display mode', async () => {
     renderWorkspace({ project: RECORDED_PROJECT });
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     const timecode = screen.getByRole('textbox', { name: '播放头时间码' });
@@ -3611,13 +3612,12 @@ describe('unified project workspace', () => {
     const monitor = screen.getByRole('region', { name: '视频预览' });
     expect(monitor.textContent).toContain('00:00:04:30');
     expect(monitor.textContent).not.toContain('00:04.500');
-    expect(playhead.parentElement?.textContent).toContain('00:00:04:30');
+    expect((timecode as HTMLInputElement).value).toBe('00:00:04:30');
 
     fireEvent.click(screen.getByRole('button', { name: '切换时间显示模式' }));
     expect((screen.getByRole('textbox', { name: '播放头帧计数' }) as HTMLInputElement).value).toBe('270');
     expect(monitor.textContent).toContain('270');
     expect(monitor.textContent).not.toContain('00:00:04:30');
-    expect(playhead.parentElement?.textContent).toContain('270');
   });
   it('navigates target-track edits by default and every track with Shift', async () => {
     renderWorkspace({ project: navigationProject() });
@@ -3868,6 +3868,79 @@ describe('unified project workspace', () => {
     const beforeWheel = Number(zoom.value);
     fireEvent.wheel(navigator, { deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
     await waitFor(() => expect(Number(zoom.value)).toBeGreaterThan(beforeWheel));
+    clientWidth.mockRestore();
+  });
+
+  it('keeps a short selected clip identifiable and focuses it without editing or seeking the Timeline', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
+    const applyProjectPatch = vi.fn();
+    const shortClips = Array.from({ length: 30 }, (_, index): TimelineClip => ({
+      ...clip(`80000000-0000-4000-8000-${String(index).padStart(12, '0')}`, `Moment ${index + 1}`),
+      placement: {
+        ...clip(CLIP_A, '').placement,
+        start: index * 6,
+        duration: 6,
+        source_in: 12,
+        source_out: 18,
+      },
+    }));
+    renderWorkspace({
+      applyProjectPatch,
+      project: {
+        ...PROJECT,
+        document: {
+          ...PROJECT.document,
+          duration_seconds: 180,
+          tracks: [{ ...PROJECT.document.tracks[0]!, clips: shortClips }],
+        },
+      },
+    });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    const storyRow = screen.getByRole('row', { name: 'Story' });
+    const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
+    const firstSelection = within(storyRow).getByRole('button', { name: 'Moment 15 6.0s · 未录制' });
+    expect(Number.parseFloat(firstSelection.style.width)).toBeCloseTo(20);
+    fireEvent.click(firstSelection);
+
+    const context = screen.getByRole('status', { name: '所选片段信息' });
+    expect(within(context).getByText('Moment 15')).toBeTruthy();
+    expect(context.textContent).toContain('01:24.000–01:30.000');
+    expect(context.textContent).toContain('00:12.000–00:18.000');
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    const selectedTime = playhead.getAttribute('aria-valuenow');
+
+    fireEvent.click(within(context).getByRole('button', { name: '缩放至所选片段' }));
+    await waitFor(() => expect(Number(zoom.value)).toBeGreaterThan(0));
+    expect(Number.parseFloat(firstSelection.style.left) - viewport.scrollLeft).toBeCloseTo(60);
+    expect(Number.parseFloat(firstSelection.style.width)).toBeCloseTo(480);
+    expect(playhead.getAttribute('aria-valuenow')).toBe(selectedTime);
+
+    const nextSelection = within(storyRow).getByRole('button', { name: 'Moment 21 6.0s · 未录制' });
+    fireEvent.click(nextSelection);
+    const nextTime = playhead.getAttribute('aria-valuenow');
+    const detailZoom = zoom.value;
+    fireEvent.click(screen.getByRole('button', { name: '缩放至所选片段' }));
+    expect(zoom.value).toBe(detailZoom);
+    expect(Number.parseFloat(nextSelection.style.left) - viewport.scrollLeft).toBeCloseTo(60);
+    expect(playhead.getAttribute('aria-valuenow')).toBe(nextTime);
+
+    fireEvent.click(firstSelection, { ctrlKey: true });
+    expect(context.textContent).toContain('已选 2 个');
+    const multiSelectionTime = playhead.getAttribute('aria-valuenow');
+    fireEvent.click(screen.getByRole('button', { name: '缩放至所选片段' }));
+    expect(Number.parseFloat(firstSelection.style.left) - viewport.scrollLeft).toBeGreaterThanOrEqual(0);
+    expect(Number.parseFloat(nextSelection.style.left) + Number.parseFloat(nextSelection.style.width) - viewport.scrollLeft).toBeLessThanOrEqual(600);
+    expect(playhead.getAttribute('aria-valuenow')).toBe(multiSelectionTime);
+
+    fireEvent.click(screen.getByRole('button', { name: '适应' }));
+    expect(Number(zoom.value)).toBe(0);
+    expect(viewport.scrollLeft).toBe(0);
+    expect(Number.parseFloat(firstSelection.style.width)).toBeCloseTo(20);
+    expect(context.textContent).toContain('Moment 15');
+    expect(context.textContent).toContain('01:24.000–01:30.000');
+    expect(playhead.getAttribute('aria-valuenow')).toBe(multiSelectionTime);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
     clientWidth.mockRestore();
   });
 
@@ -4567,6 +4640,7 @@ describe('unified project workspace', () => {
     expect(Number(clipA.dataset.sourceOut)).toBeCloseTo(4.5);
     expect(Number(clipB.dataset.sourceIn)).toBeCloseTo(0.5);
     expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBeCloseTo(4.5);
+    expect((screen.getByRole('textbox', { name: '播放头时间码' }) as HTMLInputElement).value).toBe('00:00:04:30');
     expect(applyProjectPatch).not.toHaveBeenCalled();
 
     const monitor = screen.getByRole('region', { name: '视频预览' });
@@ -4606,8 +4680,8 @@ describe('unified project workspace', () => {
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     fireEvent.keyDown(timeline, { key: 'T', shiftKey: true });
-    expect(screen.getByRole('status').textContent).toContain('修剪模式');
-    expect(screen.getByRole('status').textContent).toContain('00:05.000');
+    expect(screen.getByRole('status', { name: '修剪模式' }).textContent).toContain('修剪模式');
+    expect(screen.getByRole('status', { name: '修剪模式' }).textContent).toContain('00:05.000');
     const monitor = screen.getByRole('region', { name: '视频预览' });
     expect(monitor.dataset.monitorMode).toBe('rolling');
     expect(monitor.dataset.monitorPlaybackRange).toBe('3.5:6.5');
@@ -4642,7 +4716,7 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'T', shiftKey: true });
     const secondCut = screen.getByRole('separator', { name: '滚动编辑 B / C' });
     fireEvent.pointerDown(secondCut, { pointerId: 207, button: 0, clientX: 600, ctrlKey: true });
-    expect(screen.getByRole('status').textContent).toContain('修剪模式 · 2');
+    expect(screen.getByRole('status', { name: '修剪模式' }).textContent).toContain('修剪模式 · 2');
     expect(secondCut.getAttribute('aria-current')).toBe('true');
 
     fireEvent.keyDown(timeline, { key: 'ArrowRight' });

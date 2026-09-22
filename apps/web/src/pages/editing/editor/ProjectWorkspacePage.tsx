@@ -5,9 +5,9 @@ import {
   ChevronLeft,
   CircleAlert,
   Download,
-  FileOutput,
+  MoreHorizontal,
   LoaderCircle,
-  PanelsTopLeft,
+  Sparkles,
   Star,
   Video,
 } from 'lucide-react';
@@ -58,7 +58,7 @@ import {
 } from '../../../data/sessions';
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, Dialog, Drawer, toast } from '../../../design/feedback';
-import { OverflowMenu, Page, Toolbar, useCollapsed } from '../../../design/layout';
+import { OverflowMenu, Page, Toolbar } from '../../../design/layout';
 import { Button, cn } from '../../../design/primitives';
 import { formatMillisecondTimecode } from '../../../design/timeline/timeScale';
 import type { TimelineTimeDisplayMode } from '../../../design/timeline';
@@ -66,11 +66,12 @@ import { ClipInspector } from '../../../domain/editing/ClipInspector';
 import { AgentPanel, pendingDeliveryGroup } from '../../../domain/editing/ProjectAgentPanel';
 import { AudioTrackMixer } from '../../../domain/editing/AudioTrackMixer';
 import {
-  ProjectMediaPanel,
+  ProjectMediaWorkspace,
+  type ProjectMediaWorkspaceProps,
   type ProjectSourcePatch,
   type ProjectSourcePatchTargets,
   type ProjectSourceRange,
-} from '../../../domain/editing/ProjectMediaPanel';
+} from '../../../domain/editing/ProjectMediaWorkspace';
 import { ProjectTimeline } from '../../../domain/editing/ProjectTimeline';
 import { ProjectWorkspaceDock, type ProjectWorkspaceDockHandle } from '../../../domain/editing/ProjectWorkspaceDock';
 import { TimelineProgramMonitor } from '../../../domain/editing/TimelineProgramMonitor';
@@ -78,7 +79,8 @@ import { planAutomateToSequence } from '../../../domain/editing/automateSequence
 import { clipLocalTimeAtTimeline } from '../../../domain/editing/keyframeEditing';
 import { mediaAssetEditDuration, projectMediaAssetKind } from '../../../domain/editing/mediaDrag';
 import { projectHistoryCommands } from '../../../domain/editing/projectHistory';
-import { resetProjectWorkspaceLayout } from '../../../domain/editing/projectWorkspaceLayout';
+import type { ProjectWorkspacePanel } from '../../../domain/editing/projectWorkspaceLayout';
+import { ProjectWorkspaceLayoutMenu, ProjectWorkspaceLayoutProvider } from '../../../domain/editing/ProjectWorkspaceManager';
 import {
   closeSequenceTab,
   openSequenceTab,
@@ -117,7 +119,6 @@ import {
   writeTimelineWorkspaceSession,
 } from '../../../domain/editing/timelineWorkspaceSession';
 import { MapCanvas, PathLayer, type MapProjection } from '../../../domain/map';
-import { ProjectOutputLink } from '../../../domain/project/ProjectOutputLink';
 import type {
   EditorMarker,
   Project,
@@ -240,8 +241,8 @@ export function ProjectWorkspacePage() {
     [nestedSequenceMedia.data],
   );
   const cancelTask = useCancelTask();
-  const compactWorkspace = useCollapsed(undefined);
   const workspaceDock = useRef<ProjectWorkspaceDockHandle>(null);
+  const showSourcePanel = useCallback(() => workspaceDock.current?.showPanel('source'), []);
   const [agentDraft, setAgentDraft] = useState('');
   const lens: EditingLens = 'multitrack';
   const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
@@ -273,8 +274,10 @@ export function ProjectWorkspacePage() {
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
   const [trimPlaybackRange, setTrimPlaybackRange] = useState<{ readonly start: number; readonly end: number } | null>(null);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [workspaceLayoutEpoch, setWorkspaceLayoutEpoch] = useState(0);
+  const [sourceActive, setSourceActive] = useState(false);
+  const handlePanelVisibilityChange = useCallback((visible: ReadonlySet<ProjectWorkspacePanel>) => {
+    setSourceActive(visible.has('source'));
+  }, []);
   const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
   const [matchedSourceFrame, setMatchedSourceFrame] = useState<{ readonly clipId: string; readonly sourceTime: number } | null>(null);
   const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
@@ -291,6 +294,11 @@ export function ProjectWorkspacePage() {
     : readTimelineWorkspaceSession(canonicalId, globalThis.localStorage)?.agentSessionId ?? null,
   [canonicalId, explicitAgentSessionId]);
   const agentSessionId = explicitAgentSessionId ?? restoredAgentSessionId;
+  useEffect(() => {
+    if (project.data !== undefined && explicitAgentSessionId !== null) {
+      workspaceDock.current?.showPanel('agent');
+    }
+  }, [explicitAgentSessionId, project.data?.id]);
   const persistedAgentSessionRef = useRef<{ readonly projectId: string; readonly sessionId: string } | null>(null);
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
@@ -1069,10 +1077,11 @@ export function ProjectWorkspacePage() {
     cleanupMediaProxies.error,
   ].find((error) => error !== null) ?? null;
   const mutationErrorDetail = dataErrorMessage(mutationError);
-  const projectPanel = (
-    <ProjectMediaPanel
+  const renderMediaWorkspace = (children: ProjectMediaWorkspaceProps['children']) => (
+    <ProjectMediaWorkspace
       previewEpoch={mediaPanelEpoch}
-      docked
+      sourceActive={sourceActive}
+      onShowSource={showSourcePanel}
       assets={mediaAssets.data?.items ?? []}
       timelineTracks={current.document.tracks}
       deliveryStateByClipId={deliveryStateByClipId}
@@ -1142,7 +1151,7 @@ export function ProjectWorkspacePage() {
         marker_label: request.markerLabel,
         switch_audio: request.switchAudio,
       })}
-    />
+    >{children}</ProjectMediaWorkspace>
   );
   const programPanel = (
     <TimelineProgramMonitor
@@ -1248,7 +1257,7 @@ export function ProjectWorkspacePage() {
         onToggleLinkedSelection: () => setLinkedSelectionEnabled((value) => !value),
         onInspectClip: (clipId) => {
           setSelectedClipIds([clipId]);
-          setInspectorOpen(true);
+          workspaceDock.current?.showPanel('inspector');
         },
         onMatchFrame: (clipId, sourceTime) => {
           setPlaying(false);
@@ -1466,7 +1475,7 @@ export function ProjectWorkspacePage() {
         );
         const clipId = agentSelectedClipId ?? allClips[0]?.id ?? null;
         setSelectedClipIds(clipId === null ? [] : [clipId]);
-        setInspectorOpen(clipId !== null);
+        if (clipId !== null) workspaceDock.current?.showPanel('inspector');
       }}
     />
   );
@@ -1487,28 +1496,56 @@ export function ProjectWorkspacePage() {
       )}
     />
   );
+  const inspectorPanel = (
+    <section className="h-full min-h-0 overflow-y-auto p-3" aria-label={t`片段属性`}>
+        <ClipInspector
+          selected={selected}
+          readOnly={readOnly || selected?.track.locked === true}
+          timelineTimeSeconds={transportTimeSeconds}
+          fps={current.document.fps}
+          onSeek={seekTimeline}
+          onReplace={(clip) => {
+            const track = selected?.track ?? null;
+            const currentClip = track?.clips.find((candidate) => candidate.id === clip.id);
+            if (track === null || track.locked || currentClip === undefined || sameTimelineClip(currentClip, clip)) return;
+            if (track.id === current.document.story_track_id) {
+              mutateTrackClipUpdates([{ trackId: track.id, clips: trimRippleClip(track.clips, clip) }]);
+            } else {
+              mutate(
+                `修改 ${clip.name}`,
+                { kind: 'track', track_id: track?.id ?? current.document.story_track_id },
+                [{ op: 'replace_clip', clip_id: clip.id, clip }],
+              );
+            }
+          }}
+        />
+    </section>
+  );
+  const panelLabels: Readonly<Record<ProjectWorkspacePanel, string>> = {
+    project: t`项目素材`,
+    program: t`成片预览`,
+    source: t`源预览`,
+    tactical: t`战术示意`,
+    timeline: t`时间轴`,
+    inspector: t`片段属性`,
+    agent: t`Agent`,
+    mixer: t`音轨混音器`,
+  };
   const dockPanels = {
-    project: projectPanel,
+    inspector: inspectorPanel,
     program: programPanel,
     tactical: tacticalPanel,
     timeline: timelinePanel,
     agent: agentPanel,
     mixer: mixerPanel,
   } as const;
+  const activeExecutions = externalExecutions.filter(activityIsActive);
 
   return (
+    <ProjectWorkspaceLayoutProvider key={current.id} projectId={current.id}>
     <Page
       className="review-workbench"
       scroll={false}
-      footer={
-        <div data-project-workspace-status className="flex h-[var(--h-workspace-status)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-3 text-xs">
-          <span className="min-w-0 truncate">
-            {readOnly ? <Trans>Agent 正在编辑 · 只读</Trans> : <Trans>{current.document.tracks.reduce((count, track) => count + track.clips.length, 0)} 个片段</Trans>}
-          </span>
-          <span className="font-mono text-neutral-600">{formatMillisecondTimecode(current.document.duration_seconds)}</span>
-          <button type="button" className="rounded-sm px-2 py-1 text-accent-700 hover:bg-accent-100" onClick={() => setTaskDetailsOpen(true)}><Trans>作品任务</Trans></button>
-        </div>
-      }
       toolbar={(
         <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-bg px-3 py-2">
           <Button size="sm" variant="ghost" type="button" data-window-no-drag className="gap-2" onClick={() => void navigate('/projects')}>
@@ -1518,15 +1555,19 @@ export function ProjectWorkspacePage() {
           <h1 className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
           <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>第 {current.revision} 版</Trans></span>
           {pendingAgentReviewGroup === null ? null : (
-            <>
-              <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-700">
-                <Trans>Agent 修改待审阅</Trans>
-              </span>
-              <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {pendingAgentReviewGroup.operations.length} 处修改</Trans></span>
-            </>
+            <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}>
+              <Trans>审阅 Agent 修改</Trans>
+            </Button>
           )}
-          {deliveryGatePending ? (
+          {activeExecutions.length > 0 ? (
+            <Button size="sm" variant="ghost" onClick={() => setTaskDetailsOpen(true)}>
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+              <Trans>作品任务 {activeExecutions.length}</Trans>
+            </Button>
+          ) : deliveryGatePending ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查交付状态</Trans></span>
+          ) : deliveryGate.error !== null ? (
+            <span className="text-xs text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
           ) : currentDeliveryGate?.ready === true ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
           ) : timelineEmpty ? (
@@ -1535,27 +1576,21 @@ export function ProjectWorkspacePage() {
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
           )}
           {readOnly ? <span className="text-xs text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
-          {!compactWorkspace ? <ProjectOutputLink projectId={current.id} /> : null}
-          <Button size="sm" variant="ghost" icon
-            type="button"
-            data-window-no-drag
-            className="gap-2"
-            aria-label={t`重置工作区布局`}
-            title={t`重置工作区布局`}
-            onClick={() => {
-              resetProjectWorkspaceLayout(current.id, globalThis.localStorage);
-              setWorkspaceLayoutEpoch((epoch) => epoch + 1);
-            }}
-          >
-            <PanelsTopLeft className="size-4" aria-hidden="true" />
+          <ProjectWorkspaceLayoutMenu labels={panelLabels} />
+          <Button size="sm" variant="ghost" onClick={() => workspaceDock.current?.showPanel('agent')}>
+            <Sparkles className="size-4" aria-hidden="true" />
+            <Trans>Agent</Trans>
           </Button>
           <span data-window-no-drag>
             <OverflowMenu
-              label={t`项目互换`}
-              triggerLabel={<><FileOutput className="size-3.5" aria-hidden="true" /><Trans>互换</Trans></>}
+              label={t`更多作品操作`}
+              triggerLabel={<MoreHorizontal className="size-4" aria-hidden="true" />}
+              iconOnly
               align="end"
-              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-3 text-sm font-medium disabled:text-neutral-300"
+              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm hover:bg-action-hover"
               items={[
+                { id: 'tasks', label: t`作品任务`, onSelect: () => setTaskDetailsOpen(true) },
+                { id: 'outputs', label: t`查看成品`, onSelect: () => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`) },
                 { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? String(error) })) },
                 { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
                 { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
@@ -1563,7 +1598,7 @@ export function ProjectWorkspacePage() {
               ]}
             />
           </span>
-          <Button size="sm" variant="secondary"
+          <Button size="sm" variant={recordableClipIds.length > 0 ? 'primary' : 'secondary'}
             type="button"
             data-window-no-drag
             className="gap-2"
@@ -1574,7 +1609,7 @@ export function ProjectWorkspacePage() {
             <Video className="size-4" aria-hidden="true" />
             <Trans>录制缺失片段</Trans>
           </Button>
-          <Button size="sm" variant="primary"
+          <Button size="sm" variant={currentDeliveryGate?.ready === true ? 'primary' : 'secondary'}
             type="button"
             data-window-no-drag
             className="gap-2"
@@ -1588,7 +1623,6 @@ export function ProjectWorkspacePage() {
             <Download className="size-4" aria-hidden="true" />
             <Trans>导出成片</Trans>
           </Button>
-          {compactWorkspace ? <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}><Trans>Agent</Trans></Button> : null}
         </header>
       )}
     >
@@ -1599,20 +1633,15 @@ export function ProjectWorkspacePage() {
         onOpen={openSequenceWorkspace}
         onClose={closeSequenceWorkspace}
       />
-      <ProjectWorkspaceDock
-        ref={workspaceDock}
-        key={`${current.id}:${workspaceLayoutEpoch}`}
-        projectId={current.id}
-        panels={dockPanels}
-        labels={{
-          project: t`项目素材`,
-          program: t`视频预览`,
-          tactical: t`战术示意`,
-          timeline: t`时间轴`,
-          agent: t`Agent`,
-          mixer: t`音轨混音器`,
-        }}
-      />
+      {renderMediaWorkspace((mediaPanels) => (
+        <ProjectWorkspaceDock
+          ref={workspaceDock}
+          projectId={current.id}
+          panels={{ ...dockPanels, ...mediaPanels }}
+          labels={panelLabels}
+          onPanelVisibilityChange={handlePanelVisibilityChange}
+        />
+      ))}
       <Dialog
         open={pendingFitEdit !== null}
         title={<Trans>Fit Clip：范围时长不同</Trans>}
@@ -1772,36 +1801,6 @@ export function ProjectWorkspacePage() {
             : externalExecutions.length === 0 ? <p className="text-sm text-neutral-600">{projectTasks.isPending ? <Trans>正在读取任务…</Trans> : <Trans>此作品尚无录制或导出任务。</Trans>}</p> : null}
         </div>
       </Drawer>
-      <Drawer
-        open={inspectorOpen && selected !== null}
-        title={<Trans>片段属性</Trans>}
-        {...(selected === null ? {} : { description: selected.clip.name })}
-        width="standard"
-        onClose={() => setInspectorOpen(false)}
-      >
-        <ClipInspector
-          selected={selected}
-          readOnly={readOnly || selected?.track.locked === true}
-          timelineTimeSeconds={transportTimeSeconds}
-          fps={current.document.fps}
-          onSeek={seekTimeline}
-          onReplace={(clip) => {
-            const track = selected?.track ?? null;
-            const currentClip = track?.clips.find((candidate) => candidate.id === clip.id);
-            if (track === null || track.locked || currentClip === undefined || sameTimelineClip(currentClip, clip)) return;
-            if (track.id === current.document.story_track_id) {
-              mutateTrackClipUpdates([{ trackId: track.id, clips: trimRippleClip(track.clips, clip) }]);
-            } else {
-              mutate(
-                `修改 ${clip.name}`,
-                { kind: 'track', track_id: track?.id ?? current.document.story_track_id },
-                [{ op: 'replace_clip', clip_id: clip.id, clip }],
-              );
-            }
-            setInspectorOpen(false);
-          }}
-        />
-      </Drawer>
       {mutationError === null ? null : (
         <Alert
           className="m-4"
@@ -1813,6 +1812,7 @@ export function ProjectWorkspacePage() {
         </Alert>
       )}
     </Page>
+    </ProjectWorkspaceLayoutProvider>
   );
 }
 

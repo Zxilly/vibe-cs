@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
   Clapperboard,
   Diamond,
   Download,
@@ -18,12 +17,17 @@ import {
   Magnet,
   MoveHorizontal,
   MoveRight,
+  Pause,
+  Play,
   Repeat2,
   SquarePlus,
   Star,
   Type,
   Scissors,
+  SlidersHorizontal,
+  Undo2,
   Volume2,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -428,6 +432,7 @@ export function ProjectTimeline({
     throughEdits: true,
   });
   const [smoothScrollEnabled, setSmoothScrollEnabled] = useState(false);
+  const [advancedOperationsOpen, setAdvancedOperationsOpen] = useState(false);
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
@@ -2197,8 +2202,60 @@ export function ProjectTimeline({
         }
       }}
     >
-      <header data-timeline-toolbar className="flex min-h-[var(--h-timeline-toolbar)] flex-none items-center gap-2 overflow-x-auto border-b border-divider bg-surface-chrome px-2 py-1.5">
+      <header data-timeline-toolbar className="flex h-[var(--h-timeline-toolbar)] flex-none items-center gap-2 overflow-x-auto border-b border-divider bg-surface-chrome px-2">
         {docked ? null : <h2 className="text-base font-semibold"><Trans>时间轴</Trans></h2>}
+        <Tooltip content={transportPlaying ? t`暂停序列 (Space)` : t`播放序列 (Space)`} side="bottom">
+          <button
+            type="button"
+            className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
+            aria-label={transportPlaying ? t`暂停序列` : t`播放序列`}
+            onClick={onTogglePlayback}
+          >
+            {transportPlaying ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
+          </button>
+        </Tooltip>
+        <Tooltip content={readOnly ? t`时间轴当前只读` : canAddEdit ? t`在播放头分割 (Ctrl/Cmd+K)` : t`将播放头移至未锁定的目标轨片段内部`} side="bottom" wrap wrapFocusable={!canAddEdit}>
+          <button
+            type="button"
+            className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
+            aria-label={t`在播放头分割 (Ctrl/Cmd+K)`}
+            disabled={!canAddEdit}
+            onClick={addEdit}
+          ><Scissors className="size-3.5" aria-hidden="true" /><Trans>分割</Trans></button>
+        </Tooltip>
+        <Tooltip content={readOnly ? t`时间轴当前只读` : canUndo ? t`撤销上一次剪辑` : t`当前没有可撤销的剪辑`} side="bottom" wrap wrapFocusable={!canUndo || readOnly}>
+          <button
+            type="button"
+            className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
+            aria-label={t`撤销上一次剪辑`}
+            disabled={!canUndo || readOnly}
+            onClick={onUndo}
+          ><Undo2 className="size-3.5" aria-hidden="true" /></button>
+        </Tooltip>
+        <Tooltip content={snapEnabled ? t`吸附已开启 (S)` : t`吸附已关闭 (S)`} side="bottom">
+          <button
+            type="button"
+            className={cn('grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100', snapEnabled && 'bg-accent-100 text-accent-700')}
+            aria-label={t`切换时间轴吸附`}
+            aria-pressed={snapEnabled}
+            onClick={() => {
+              setSnapEnabled((enabled) => !enabled);
+              setSnapGuideTime(null);
+            }}
+          ><Magnet className="size-3.5" aria-hidden="true" /></button>
+        </Tooltip>
+        <button
+          type="button"
+          className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm px-2 text-xs text-neutral-600 hover:bg-neutral-100"
+          aria-label={t`高级时间轴操作`}
+          aria-expanded={advancedOperationsOpen}
+          aria-controls={`timeline-advanced-${projectId}`}
+          onClick={() => setAdvancedOperationsOpen((open) => !open)}
+        >
+          <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+          <Trans>高级操作</Trans>
+          <ChevronDown className={cn('size-3', advancedOperationsOpen && 'rotate-180')} aria-hidden="true" />
+        </button>
         {trimModeEdit === null ? null : (
           <Tooltip content={t`←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览`} side="bottom">
             <span className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 rounded-sm border border-accent-300 bg-accent-100 px-2 text-xs text-accent-700" role="status" aria-label={t`修剪模式`}>
@@ -2229,247 +2286,214 @@ export function ProjectTimeline({
             ))}
           </span>
         )}
-        <OverflowMenu
-          label={t`添加到时间轴`}
-          triggerLabel={<SquarePlus className="size-3.5" aria-hidden="true" />}
-          align="start"
-          triggerClassName="h-[var(--h-ctl-sm)] gap-1 rounded-sm border border-divider px-1.5 text-xs disabled:text-neutral-300"
-          items={[
-            { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
-            { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
-            { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
-            { id: 'caption', label: t`添加字幕轨道`, disabled: readOnly, onSelect: () => addTrack('caption') },
-            { id: 'text-clip', label: t`在播放头添加文字`, disabled: readOnly, onSelect: () => openTextClipDraft('text') },
-            { id: 'caption-clip', label: t`在播放头添加字幕`, disabled: readOnly, onSelect: () => openTextClipDraft('caption') },
-          ]}
-        />
-        {captions.length === 0 ? null : <span className="flex h-[var(--h-ctl-sm)] items-center overflow-hidden rounded-sm border border-divider">
-          <Tooltip content={t`上一个字幕`} side="bottom">
-            <button
-              type="button"
-              className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
-              aria-label={t`上一个字幕`}
-              disabled={adjacentCaptionClip(captions, playheadSeconds, -1) === null}
-              onClick={() => navigateCaption(-1)}
-            ><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
-          </Tooltip>
-          <Tooltip content={t`下一个字幕`} side="bottom">
-            <button
-              type="button"
-              className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
-              aria-label={t`下一个字幕`}
-              disabled={adjacentCaptionClip(captions, playheadSeconds, 1) === null}
-              onClick={() => navigateCaption(1)}
-            ><ChevronRight className="size-3.5" aria-hidden="true" /></button>
-          </Tooltip>
-          <Tooltip content={nativeShell.available ? t`导出 SRT 字幕` : t`需要桌面应用才能导出 SRT`} side="bottom">
-            <button
-              type="button"
-              className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
-              aria-label={t`导出 SRT 字幕`}
-              disabled={captions.length === 0 || !nativeShell.available}
-              onClick={exportCaptions}
-            ><Download className="size-3.5" aria-hidden="true" /></button>
-          </Tooltip>
-        </span>}
-        <OverflowMenu
-          label={t`剪辑操作`}
-          triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
-          align="start"
-          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
-          items={[
-            { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
-            { id: 'video-transition', label: t`应用默认视频转场`, disabled: readOnly || defaultTransitionUpdates('video', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('video') },
-            { id: 'audio-transition', label: t`应用默认音频转场`, disabled: readOnly || defaultTransitionUpdates('audio', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('audio') },
-            { id: 'selection-transitions', label: t`向所选切口应用默认转场`, disabled: readOnly || selectedClipIds.length < 2, onSelect: applyDefaultTransitionsToSelection },
-            { id: 'lift', label: t`提升入出点范围`, disabled: !canLiftRange, onSelect: liftRange },
-            { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
-            { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
-            { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
-            { id: 'match-frame', label: t`匹配播放头源帧`, disabled: matchFrameClip === null, onSelect: matchFrame },
-            { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
-            { id: 'group', label: t`组合所选片段`, disabled: !canGroup, onSelect: groupSelectedClips },
-            { id: 'ungroup', label: t`取消组合所选片段`, disabled: !canUngroup, onSelect: ungroupSelectedClips },
-            {
-              id: 'create-nested-sequence',
-              label: <span title={t`请选择连续、启用且未锁定的 Story 片段`}>{t`从所选片段创建嵌套序列…`}</span>,
-              disabled: !canCreateNestedSequence,
-              onSelect: () => globalThis.setTimeout(
-                () => setNestedSequenceName(t`嵌套序列 ${document.tracks.filter((track) => track.clips.some((clip) => clip.material.kind === 'sequence')).length + 1}`),
-                0,
-              ),
-            },
-            {
-              id: 'refresh-nested-sequence',
-              label: nestedSequencePending ? t`正在刷新嵌套序列…` : t`刷新所选嵌套序列`,
-              disabled: readOnly || nestedSequencePending || selectedNestedClip === null || selectedNestedMedia?.status === 'rendering',
-              onSelect: () => selectedNestedClip === null ? undefined : onRefreshNestedSequence?.(selectedNestedClip.id),
-            },
-            { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
-            { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
-            { id: 'duplicate', label: t`在播放头复制所选片段`, disabled: !canDuplicate, onSelect: duplicateSelected },
-            { id: 'copy-transition', label: t`复制所选转场`, disabled: !canCopyTransition, onSelect: copySelectedTransition },
-            { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
-            { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
-            { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
-            { id: 'paste-transition', label: t`粘贴转场到所选剪辑点`, disabled: !canPasteTransition, onSelect: pasteSelectedTransition },
-            { id: 'paste-attributes', label: t`选择性粘贴属性`, disabled: !canPasteAttributes, onSelect: () => setPasteAttributesOpen(true) },
-            { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
-            { id: 'close-gap', label: t`波纹删除所选间隙`, disabled: !canCloseSelectedGap, onSelect: closeSelectedGap },
-            { id: 'close-all-gaps', label: t`关闭目标轨全部间隙`, disabled: !canCloseAllGaps, onSelect: closeAllTargetGaps },
-            { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
-            { id: 'redo', label: t`重做上一次剪辑`, disabled: !canRedo || readOnly, onSelect: onRedo },
-          ]}
-        />
-        <OverflowMenu
-          label={t`标记操作`}
-          triggerLabel={<><Bookmark className="size-3.5" aria-hidden="true" /><Trans>标记</Trans></>}
-          align="start"
-          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
-          items={[
-            { id: 'go-in', label: t`跳转到入点`, disabled: rangeInSeconds === null, onSelect: () => rangeInSeconds === null ? undefined : onSeek(rangeInSeconds) },
-            { id: 'go-out', label: t`跳转到出点`, disabled: rangeOutSeconds === null, onSelect: () => rangeOutSeconds === null ? undefined : onSeek(rangeOutSeconds) },
-            { id: 'clear-in', label: t`清除入点`, disabled: rangeInSeconds === null, onSelect: () => onRangeChange(null, rangeOutSeconds) },
-            { id: 'clear-out', label: t`清除出点`, disabled: rangeOutSeconds === null, onSelect: () => onRangeChange(rangeInSeconds, null) },
-            { id: 'clear-range', label: t`清除入出点`, disabled: rangeInSeconds === null && rangeOutSeconds === null, onSelect: () => onRangeChange(null, null) },
-            { id: 'add', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
-            { id: 'previous', label: t`上一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, -1, document.fps) === null, onSelect: () => navigateMarker(-1) },
-            { id: 'next', label: t`下一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, 1, document.fps) === null, onSelect: () => navigateMarker(1) },
-            { id: 'edit', label: t`编辑所选标记`, disabled: selectedMarker === null, onSelect: editSelectedMarker },
-            { id: 'delete', label: t`删除所选标记`, disabled: readOnly || selectedMarker === null, onSelect: deleteSelectedMarker },
-            { id: 'clear', label: t`清除全部标记`, disabled: readOnly || document.markers.length === 0, onSelect: clearMarkers },
-            {
-              id: 'ripple-sequence-markers',
-              label: `${document.settings.ripple_sequence_markers ? '✓ ' : ''}${t`波纹移动序列标记`}`,
-              disabled: readOnly,
-              onSelect: () => onReplaceSettings({
-                ...document.settings,
-                ripple_sequence_markers: !document.settings.ripple_sequence_markers,
-              }),
-            },
-          ]}
-        />
-        <OverflowMenu
-          label={t`时间轴显示设置`}
-          triggerLabel={<><Eye className="size-3.5" aria-hidden="true" /><Trans>显示</Trans></>}
-          align="start"
-          triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
-          items={[
-            { id: 'zoom-selection', label: t`缩放至所选片段`, disabled: selectedClips.length === 0, onSelect: zoomToSelection },
-            { id: 'fit-sequence', label: t`适应整个序列`, onSelect: () => changeZoomMultiplier(1) },
-            ...([
-              ['head', t`视频缩略图：仅片头`],
-              ['head_tail', t`视频缩略图：片头和片尾`],
-              ['frames', t`视频缩略图：连续帧`],
-              ['none', t`视频缩略图：不显示`],
-            ] as const).map(([mode, label]) => ({
-              id: `thumbnail-${mode}`,
-              label: `${displaySettings.thumbnailMode === mode ? '✓ ' : ''}${label}`,
-              onSelect: () => setDisplaySettings((current) => ({ ...current, thumbnailMode: mode })),
-            })),
-            ...([
-            ['names', t`片段名称`],
-            ['waveforms', t`音频波形`],
-            ['keyframes', t`关键帧`],
-            ['repeatedFrames', t`重复帧标记`],
-            ['throughEdits', t`Through Edit 标记`],
-            ] as const).map(([key, label]) => ({
-            id: key,
-            label: `${displaySettings[key] ? '✓ ' : ''}${label}`,
-            onSelect: () => toggleDisplaySetting(key),
-            })),
-            {
-              id: 'smooth-scroll',
-              label: `${smoothScrollEnabled ? '✓ ' : ''}${t`播放头居中连续滚动`}`,
-              onSelect: () => setSmoothScrollEnabled((enabled) => !enabled),
-            },
-            {
-              id: 'render-preview',
-              label: renderPreviewPending ? t`正在渲染预览…` : t`渲染入点到出点`,
-              disabled: readOnly
-                || renderPreviewPending
-                || previewRangeStart === null
-                || previewRangeEnd === null
-                || previewRangeEnd <= previewRangeStart,
-              onSelect: () => previewRangeStart === null || previewRangeEnd === null
-                ? undefined
-                : onRenderPreview?.(previewRangeStart, previewRangeEnd),
-            },
-            {
-              id: 'clear-render-previews',
-              label: t`删除预览文件`,
-              disabled: readOnly || renderPreviewPending || renderPreviews.length === 0,
-              onSelect: () => onClearRenderPreviews?.(),
-            },
-          ]}
-        />
+        {advancedOperationsOpen ? (
+          <div id={`timeline-advanced-${projectId}`} role="group" aria-label={t`高级时间轴操作`} className="flex items-center gap-1 border-l border-divider pl-2">
+          <OverflowMenu
+            label={t`添加到时间轴`}
+            triggerLabel={<SquarePlus className="size-3.5" aria-hidden="true" />}
+            align="start"
+            triggerClassName="h-[var(--h-ctl-sm)] gap-1 rounded-sm border border-divider px-1.5 text-xs disabled:text-neutral-300"
+            items={[
+              { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
+              { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
+              { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
+              { id: 'caption', label: t`添加字幕轨道`, disabled: readOnly, onSelect: () => addTrack('caption') },
+              { id: 'text-clip', label: t`在播放头添加文字`, disabled: readOnly, onSelect: () => openTextClipDraft('text') },
+              { id: 'caption-clip', label: t`在播放头添加字幕`, disabled: readOnly, onSelect: () => openTextClipDraft('caption') },
+            ]}
+          />
+          {captions.length === 0 ? null : <span className="flex h-[var(--h-ctl-sm)] items-center overflow-hidden rounded-sm border border-divider">
+            <Tooltip content={t`上一个字幕`} side="bottom">
+              <button
+                type="button"
+                className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
+                aria-label={t`上一个字幕`}
+                disabled={adjacentCaptionClip(captions, playheadSeconds, -1) === null}
+                onClick={() => navigateCaption(-1)}
+              ><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
+            </Tooltip>
+            <Tooltip content={t`下一个字幕`} side="bottom">
+              <button
+                type="button"
+                className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+                aria-label={t`下一个字幕`}
+                disabled={adjacentCaptionClip(captions, playheadSeconds, 1) === null}
+                onClick={() => navigateCaption(1)}
+              ><ChevronRight className="size-3.5" aria-hidden="true" /></button>
+            </Tooltip>
+            <Tooltip content={nativeShell.available ? t`导出 SRT 字幕` : t`需要桌面应用才能导出 SRT`} side="bottom">
+              <button
+                type="button"
+                className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+                aria-label={t`导出 SRT 字幕`}
+                disabled={captions.length === 0 || !nativeShell.available}
+                onClick={exportCaptions}
+              ><Download className="size-3.5" aria-hidden="true" /></button>
+            </Tooltip>
+          </span>}
+          <OverflowMenu
+            label={t`剪辑操作`}
+            triggerLabel={<><Scissors className="size-3.5" aria-hidden="true" /><Trans>剪辑</Trans></>}
+            align="start"
+            triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
+            items={[
+              { id: 'previous-edit', label: t`上一个目标轨编辑点`, onSelect: () => navigateEditPoint(-1) },
+              { id: 'next-edit', label: t`下一个目标轨编辑点`, onSelect: () => navigateEditPoint(1) },
+              { id: 'linked-selection', label: t`切换链接选择`, current: linkedSelectionEnabled, onSelect: onToggleLinkedSelection },
+              { id: 'link', label: sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`, disabled: !canChangeLinks, onSelect: toggleSelectedClipLinks },
+              { id: 'add-edit', label: t`在播放头添加剪辑点`, disabled: !canAddEdit, onSelect: addEdit },
+              { id: 'video-transition', label: t`应用默认视频转场`, disabled: readOnly || defaultTransitionUpdates('video', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('video') },
+              { id: 'audio-transition', label: t`应用默认音频转场`, disabled: readOnly || defaultTransitionUpdates('audio', 'at_playhead').length === 0, onSelect: () => applyDefaultTransition('audio') },
+              { id: 'selection-transitions', label: t`向所选切口应用默认转场`, disabled: readOnly || selectedClipIds.length < 2, onSelect: applyDefaultTransitionsToSelection },
+              { id: 'lift', label: t`提升入出点范围`, disabled: !canLiftRange, onSelect: liftRange },
+              { id: 'extract', label: t`提取入出点范围`, disabled: !canExtractRange, onSelect: extractRange },
+              { id: 'ripple-start', label: t`波纹裁切片段起点到播放头`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('start') },
+              { id: 'ripple-end', label: t`波纹裁切播放头到片段终点`, disabled: !canRippleTrimToPlayhead, onSelect: () => rippleTrimToPlayhead('end') },
+              { id: 'match-frame', label: t`匹配播放头源帧`, disabled: matchFrameClip === null, onSelect: matchFrame },
+              { id: 'toggle-enabled', label: selectedClips.some((clip) => !clip.placement.enabled) ? t`启用所选片段` : t`禁用所选片段`, disabled: !canToggleClipEnabled, onSelect: toggleSelectedClipEnabled },
+              { id: 'group', label: t`组合所选片段`, disabled: !canGroup, onSelect: groupSelectedClips },
+              { id: 'ungroup', label: t`取消组合所选片段`, disabled: !canUngroup, onSelect: ungroupSelectedClips },
+              {
+                id: 'create-nested-sequence',
+                label: <span title={t`请选择连续、启用且未锁定的 Story 片段`}>{t`从所选片段创建嵌套序列…`}</span>,
+                disabled: !canCreateNestedSequence,
+                onSelect: () => globalThis.setTimeout(
+                  () => setNestedSequenceName(t`嵌套序列 ${document.tracks.filter((track) => track.clips.some((clip) => clip.material.kind === 'sequence')).length + 1}`),
+                  0,
+                ),
+              },
+              {
+                id: 'refresh-nested-sequence',
+                label: nestedSequencePending ? t`正在刷新嵌套序列…` : t`刷新所选嵌套序列`,
+                disabled: readOnly || nestedSequencePending || selectedNestedClip === null || selectedNestedMedia?.status === 'rendering',
+                onSelect: () => selectedNestedClip === null ? undefined : onRefreshNestedSequence?.(selectedNestedClip.id),
+              },
+              { id: 'extend-edit', label: t`延伸所选剪辑点到播放头`, disabled: readOnly || selectedEditPoint === null, onSelect: extendSelectedEditToPlayhead },
+              { id: 'copy', label: t`复制所选片段`, disabled: !canCopy, onSelect: copySelected },
+              { id: 'duplicate', label: t`在播放头复制所选片段`, disabled: !canDuplicate, onSelect: duplicateSelected },
+              { id: 'copy-transition', label: t`复制所选转场`, disabled: !canCopyTransition, onSelect: copySelectedTransition },
+              { id: 'cut', label: t`剪切所选片段`, disabled: !canCopy || !canDelete, onSelect: cutSelected },
+              { id: 'paste', label: t`在播放头粘贴覆盖`, disabled: !canPaste, onSelect: () => pasteClipboard('overwrite') },
+              { id: 'paste-insert', label: t`在播放头插入粘贴`, disabled: !canPaste, onSelect: () => pasteClipboard('insert') },
+              { id: 'paste-transition', label: t`粘贴转场到所选剪辑点`, disabled: !canPasteTransition, onSelect: pasteSelectedTransition },
+              { id: 'paste-attributes', label: t`选择性粘贴属性`, disabled: !canPasteAttributes, onSelect: () => setPasteAttributesOpen(true) },
+              { id: 'delete', label: t`删除所选片段并闭合间隙`, disabled: !canDelete, onSelect: deleteSelected },
+              { id: 'close-gap', label: t`波纹删除所选间隙`, disabled: !canCloseSelectedGap, onSelect: closeSelectedGap },
+              { id: 'close-all-gaps', label: t`关闭目标轨全部间隙`, disabled: !canCloseAllGaps, onSelect: closeAllTargetGaps },
+              { id: 'undo', label: t`撤销上一次剪辑`, disabled: !canUndo || readOnly, onSelect: onUndo },
+              { id: 'redo', label: t`重做上一次剪辑`, disabled: !canRedo || readOnly, onSelect: onRedo },
+            ]}
+          />
+          <OverflowMenu
+            label={t`标记操作`}
+            triggerLabel={<><Bookmark className="size-3.5" aria-hidden="true" /><Trans>标记</Trans></>}
+            align="start"
+            triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
+            items={[
+              { id: 'mark-in', label: t`在播放头标记入点`, onSelect: () => onRangeChange(editPlayheadSeconds, rangeOutSeconds) },
+              { id: 'mark-out', label: t`在播放头标记出点`, onSelect: () => onRangeChange(rangeInSeconds, editPlayheadSeconds) },
+              { id: 'loop', label: t`切换循环播放`, current: loopPlaybackEnabled, onSelect: onToggleLoopPlayback },
+              { id: 'go-in', label: t`跳转到入点`, disabled: rangeInSeconds === null, onSelect: () => rangeInSeconds === null ? undefined : onSeek(rangeInSeconds) },
+              { id: 'go-out', label: t`跳转到出点`, disabled: rangeOutSeconds === null, onSelect: () => rangeOutSeconds === null ? undefined : onSeek(rangeOutSeconds) },
+              { id: 'clear-in', label: t`清除入点`, disabled: rangeInSeconds === null, onSelect: () => onRangeChange(null, rangeOutSeconds) },
+              { id: 'clear-out', label: t`清除出点`, disabled: rangeOutSeconds === null, onSelect: () => onRangeChange(rangeInSeconds, null) },
+              { id: 'clear-range', label: t`清除入出点`, disabled: rangeInSeconds === null && rangeOutSeconds === null, onSelect: () => onRangeChange(null, null) },
+              { id: 'add', label: t`在播放头添加标记`, disabled: readOnly, onSelect: addMarker },
+              { id: 'previous', label: t`上一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, -1, document.fps) === null, onSelect: () => navigateMarker(-1) },
+              { id: 'next', label: t`下一个标记`, disabled: adjacentMarker(document.markers, playheadSeconds, 1, document.fps) === null, onSelect: () => navigateMarker(1) },
+              { id: 'edit', label: t`编辑所选标记`, disabled: selectedMarker === null, onSelect: editSelectedMarker },
+              { id: 'delete', label: t`删除所选标记`, disabled: readOnly || selectedMarker === null, onSelect: deleteSelectedMarker },
+              { id: 'clear', label: t`清除全部标记`, disabled: readOnly || document.markers.length === 0, onSelect: clearMarkers },
+              {
+                id: 'ripple-sequence-markers',
+                label: `${document.settings.ripple_sequence_markers ? '✓ ' : ''}${t`波纹移动序列标记`}`,
+                disabled: readOnly,
+                onSelect: () => onReplaceSettings({
+                  ...document.settings,
+                  ripple_sequence_markers: !document.settings.ripple_sequence_markers,
+                }),
+              },
+            ]}
+          />
+          <OverflowMenu
+            label={t`时间轴显示设置`}
+            triggerLabel={<><Eye className="size-3.5" aria-hidden="true" /><Trans>显示</Trans></>}
+            align="start"
+            triggerClassName="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs"
+            items={[
+              { id: 'zoom-selection', label: t`缩放至所选片段`, disabled: selectedClips.length === 0, onSelect: zoomToSelection },
+              { id: 'fit-sequence', label: t`适应整个序列`, onSelect: () => changeZoomMultiplier(1) },
+              ...([
+                ['head', t`视频缩略图：仅片头`],
+                ['head_tail', t`视频缩略图：片头和片尾`],
+                ['frames', t`视频缩略图：连续帧`],
+                ['none', t`视频缩略图：不显示`],
+              ] as const).map(([mode, label]) => ({
+                id: `thumbnail-${mode}`,
+                label: `${displaySettings.thumbnailMode === mode ? '✓ ' : ''}${label}`,
+                onSelect: () => setDisplaySettings((current) => ({ ...current, thumbnailMode: mode })),
+              })),
+              ...([
+              ['names', t`片段名称`],
+              ['waveforms', t`音频波形`],
+              ['keyframes', t`关键帧`],
+              ['repeatedFrames', t`重复帧标记`],
+              ['throughEdits', t`Through Edit 标记`],
+              ] as const).map(([key, label]) => ({
+              id: key,
+              label: `${displaySettings[key] ? '✓ ' : ''}${label}`,
+              onSelect: () => toggleDisplaySetting(key),
+              })),
+              {
+                id: 'smooth-scroll',
+                label: `${smoothScrollEnabled ? '✓ ' : ''}${t`播放头居中连续滚动`}`,
+                onSelect: () => setSmoothScrollEnabled((enabled) => !enabled),
+              },
+              {
+                id: 'render-preview',
+                label: renderPreviewPending ? t`正在渲染预览…` : t`渲染入点到出点`,
+                disabled: readOnly
+                  || renderPreviewPending
+                  || previewRangeStart === null
+                  || previewRangeEnd === null
+                  || previewRangeEnd <= previewRangeStart,
+                onSelect: () => previewRangeStart === null || previewRangeEnd === null
+                  ? undefined
+                  : onRenderPreview?.(previewRangeStart, previewRangeEnd),
+              },
+              {
+                id: 'clear-render-previews',
+                label: t`删除预览文件`,
+                disabled: readOnly || renderPreviewPending || renderPreviews.length === 0,
+                onSelect: () => onClearRenderPreviews?.(),
+              },
+            ]}
+          />
+          </div>
+        ) : null}
         <span className="sr-only">
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
         </span>
-        <span className="flex items-center overflow-hidden rounded-sm border border-divider">
-          <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100" aria-label={t`上一个目标轨编辑点`} onClick={() => navigateEditPoint(-1)}><ChevronUp className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个目标轨编辑点`} onClick={() => navigateEditPoint(1)}><ChevronDown className="size-3.5" aria-hidden="true" /></button>
-        </span>
-        <button
-          type="button"
-          className={cn(
-            'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
-            linkedSelectionEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
-          )}
-          aria-label={t`切换链接选择`}
-          aria-pressed={linkedSelectionEnabled}
-          onClick={onToggleLinkedSelection}
-        >
-          <Link2 className="size-3.5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className={cn(
-            'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
-            snapEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
-          )}
-          aria-label={t`切换时间轴吸附`}
-          aria-pressed={snapEnabled}
-          onClick={() => {
-            setSnapEnabled((enabled) => !enabled);
-            setSnapGuideTime(null);
-          }}
-        >
-          <Magnet className="size-3.5" aria-hidden="true" />
-        </button>
-        {!canChangeLinks && sharedLinkGroupId === null ? null : <button
-          type="button"
-          className="h-[var(--h-ctl-sm)] rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`}
-          disabled={!canChangeLinks}
-          onClick={toggleSelectedClipLinks}
-        >
-          {sharedLinkGroupId === null ? <Trans>链接片段</Trans> : <Trans>取消链接</Trans>}
-        </button>}
-        <span className="flex items-center overflow-hidden rounded-sm border border-divider text-xs">
-          <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => onRangeChange(editPlayheadSeconds, rangeOutSeconds)}>I</button>
-          <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => onRangeChange(rangeInSeconds, editPlayheadSeconds)}>O</button>
-          {rangeStart === null || rangeEnd === null ? null : (
-            <span className="border-l border-divider px-2 font-mono text-accent-700">{formatMillisecondTimecode(rangeStart)}–{formatMillisecondTimecode(rangeEnd)}</span>
-          )}
-          {rangeInSeconds === null && rangeOutSeconds === null ? null : (
-            <button type="button" className="h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>×</button>
-          )}
-        </span>
-        <Tooltip content={loopPlaybackEnabled ? t`关闭循环播放` : t`循环播放：有完整入出点时循环范围，否则循环整个序列`} side="bottom">
-          <button
-            type="button"
-            className={cn(
-              'grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider hover:bg-neutral-100',
-              loopPlaybackEnabled && 'border-accent-300 bg-accent-100 text-accent-700',
-            )}
-            aria-label={t`切换循环播放`}
-            aria-pressed={loopPlaybackEnabled}
-            onClick={onToggleLoopPlayback}
-          >
-            <Repeat2 className="size-3.5" aria-hidden="true" />
-          </button>
-        </Tooltip>
+        {linkedSelectionEnabled ? null : (
+          <Tooltip content={t`链接片段当前可独立选择；点击恢复链接选择`} side="bottom">
+            <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm px-2 text-xs text-neutral-600 hover:bg-neutral-100" aria-label={t`切换链接选择`} onClick={onToggleLinkedSelection}><Trans>独立选择</Trans></button>
+          </Tooltip>
+        )}
+        {rangeInSeconds === null && rangeOutSeconds === null ? null : (
+          <Tooltip content={rangeStart !== null && rangeEnd !== null ? `${formatMillisecondTimecode(rangeStart)}–${formatMillisecondTimecode(rangeEnd)}` : formatMillisecondTimecode(rangeInSeconds ?? rangeOutSeconds ?? 0)} side="bottom">
+            <button type="button" className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm bg-accent-100 px-2 text-xs text-accent-700 hover:bg-accent-200" aria-label={t`清除入出点`} onClick={() => onRangeChange(null, null)}>
+              {rangeInSeconds === null ? <Trans>出点已设置</Trans> : rangeOutSeconds === null ? <Trans>入点已设置</Trans> : <Trans>播放范围已设置</Trans>}
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          </Tooltip>
+        )}
+        {loopPlaybackEnabled ? (
+          <Tooltip content={t`关闭循环播放`} side="bottom">
+            <button type="button" className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm bg-accent-100 px-2 text-xs text-accent-700 hover:bg-accent-200" aria-label={t`关闭循环播放`} aria-pressed onClick={onToggleLoopPlayback}>
+              <Repeat2 className="size-3.5" aria-hidden="true" /><Trans>循环</Trans>
+            </button>
+          </Tooltip>
+        ) : null}
         {reviewChangeCount === 0 ? null : (
           <>
             <span className="ml-auto whitespace-nowrap border-l border-divider pl-2 text-xs text-neutral-600"><Trans>{reviewChangeCount} 处修改</Trans></span>
@@ -2492,6 +2516,7 @@ export function ProjectTimeline({
 
       <TimelineToolStrip
         editTool={editTool}
+        canRazorTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.length > 0)}
         canRippleTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.length > 0)}
         canSlipTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some((clip) => canSlipTimelineClip(clip, document.fps)))}
         canRollTool={!readOnly && document.tracks.some((track) => !track.locked && rollingEditPoints(track.clips, document.fps).length > 0)}
@@ -2925,20 +2950,15 @@ export function ProjectTimeline({
           </>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2" role="status" aria-label={t`所选片段信息`}>
-            <div className="min-w-0 flex-1 leading-4">
-              <div className="flex min-w-0 items-center gap-2">
-                <strong className="truncate font-medium text-text" title={selectedClip.name}>{selectedClip.name}</strong>
-                {selectedClips.length > 1 ? <span className="flex-none"><Trans>已选 {selectedClips.length} 个</Trans></span> : null}
-                {ratePreviewDuration === null ? null : <span className="flex-none"><Trans>序列时长：</Trans><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span></span>}
-                {selectedChange !== null && changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
-                  <span className="flex-none text-neutral-500"><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span> · <Trans>原序列</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
-                ) : null}
-              </div>
-              <div className="flex gap-3 overflow-x-auto font-mono" tabIndex={0} aria-label={t`序列范围与源范围`}>
-                <span><Trans>序列</Trans> {formatMillisecondTimecode(selectedClip.placement.start)}–{formatMillisecondTimecode(selectedClip.placement.start + selectedClip.placement.duration)}</span>
-                <span><Trans>源</Trans> {formatMillisecondTimecode(selectedClip.placement.source_in)}–{formatMillisecondTimecode(selectedClip.placement.source_out)}</span>
-              </div>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <strong className="truncate font-medium text-text" title={selectedClip.name}>{selectedClip.name}</strong>
+              {selectedClips.length > 1 ? <span className="flex-none"><Trans>已选 {selectedClips.length} 个</Trans></span> : null}
+              {ratePreviewDuration === null ? null : <span className="flex-none"><Trans>序列时长：</Trans><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span></span>}
+              {selectedChange !== null && changeProjection.previousDuration !== null && changeProjection.previousDuration > 0 && hasTimelineDelta(changeProjection.currentDuration - changeProjection.previousDuration) ? (
+                <span className="flex-none text-neutral-500"><span className="font-mono">{formatMillisecondTimecode(displayedDuration)}</span> · <Trans>原序列</Trans> <span className="font-mono">{formatMillisecondTimecode(changeProjection.previousDuration)}</span></span>
+              ) : null}
             </div>
+            <button type="button" className="h-[var(--h-ctl-sm)] flex-none rounded-sm px-2 text-xs text-neutral-600 hover:bg-neutral-100" aria-label={t`查看片段详情 ${selectedClip.name}`} onClick={() => onInspectClip(selectedClip.id)}><Trans>片段详情</Trans></button>
             <button
               type="button"
               className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100"

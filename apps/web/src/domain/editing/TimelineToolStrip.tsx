@@ -32,17 +32,9 @@ export type TimelineEditTool =
   | 'hand'
   | 'zoom';
 
-/*
- * The rail is as tall as the track area, which the Dock lets the user shrink
- * well below the eleven 32px slots the tools need (304px in the default
- * 1440 × 900 layout, 190px at 700px). Rather than scroll a 40px-wide rail,
- * the tools that do not fit fold into a 「更多工具」 disclosure in the last
- * slot — the same fold `Toolbar` applies to secondary actions past its width.
- *
- * Slots are counted from the rail's own box (`--h-ctl-sm` per button plus the
- * column gap). Until a real measurement arrives every tool is shown, which is
- * also what a layout-less test renderer sees.
- */
+/* Selection and canvas navigation stay at hand. Specialized editing tools are
+ * disclosed on demand; once chosen, the active tool stays visible. The Dock
+ * may shrink the rail, so its measured slots still govern the final fold. */
 function useToolSlots(rail: RefObject<HTMLElement | null>): number | null {
   const [slots, setSlots] = useState<number | null>(null);
   useLayoutEffect(() => {
@@ -70,6 +62,7 @@ const TOOL_PRESSED_CLASS = 'bg-accent-100 text-accent-700';
 
 export function TimelineToolStrip({
   editTool,
+  canRazorTool,
   canRippleTool,
   canSlipTool,
   canRollTool,
@@ -78,6 +71,7 @@ export function TimelineToolStrip({
   onChangeTool,
 }: {
   readonly editTool: TimelineEditTool;
+  readonly canRazorTool: boolean;
   readonly canRippleTool: boolean;
   readonly canSlipTool: boolean;
   readonly canRollTool: boolean;
@@ -143,9 +137,9 @@ export function TimelineToolStrip({
     {
       label: t`剃刀工具 (C)`,
       description: t`点击切开片段；按 Shift 切开所有轨道，按 Alt 仅切开当前声道`,
-      unavailable: '',
+      unavailable: t`没有可分割的未锁定片段`,
       icon: <Scissors className="size-4" aria-hidden="true" />,
-      enabled: true,
+      enabled: canRazorTool,
       pressed: editTool === 'razor',
       action: () => onChangeTool('razor'),
     },
@@ -188,13 +182,16 @@ export function TimelineToolStrip({
   ] as const;
   const railRef = useRef<HTMLElement>(null);
   const slots = useToolSlots(railRef);
-  const fits = slots === null || slots >= tools.length;
-  const shown = fits ? tools : tools.slice(0, slots - 1);
-  const folded = fits ? [] : tools.slice(slots - 1);
+  const activeAdvanced = tools.slice(3).find((tool) => tool.pressed);
+  const preferred = activeAdvanced === undefined
+    ? tools.slice(0, 3)
+    : [tools[0], activeAdvanced, ...tools.slice(1, 3)];
+  const shown = slots === null ? preferred : preferred.slice(0, Math.max(0, slots - 1));
+  const folded = tools.filter((tool) => !shown.includes(tool));
   return (
     <aside
       ref={railRef}
-      className="absolute bottom-10 left-0 top-[var(--h-panel-head)] z-50 flex min-h-0 w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1"
+      className="absolute bottom-10 left-0 top-[var(--h-timeline-toolbar)] z-50 flex min-h-0 w-10 flex-col items-center gap-1 border-r border-divider bg-bg pt-1"
       aria-label={t`时间轴工具`}
     >
       {shown.map((tool) => {
@@ -223,7 +220,7 @@ export function TimelineToolStrip({
       })}
       {folded.length === 0 ? null : (
         <OverflowMenu
-          label={t`更多工具`}
+          label={t`高级工具`}
           triggerLabel={<Ellipsis className="size-4" aria-hidden="true" />}
           iconOnly
           side="right"
@@ -237,7 +234,10 @@ export function TimelineToolStrip({
             label: (
               <>
                 {tool.icon}
-                <span>{tool.label}</span>
+                <span title={tool.enabled ? tool.description : tool.unavailable}>
+                  {tool.label}
+                  {tool.enabled ? null : <span className="ml-2 text-xs text-neutral-600">{tool.unavailable}</span>}
+                </span>
               </>
             ),
             disabled: !tool.enabled,

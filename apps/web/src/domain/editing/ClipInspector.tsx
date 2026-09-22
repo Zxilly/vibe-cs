@@ -114,9 +114,14 @@ export function ClipInspector({
         <Trans>名称</Trans>
         <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
-      {(['duration', 'source_in', 'source_out', 'speed'] as const).map((field) => (
+      {([
+        ['duration', t`时长（秒）`],
+        ['source_in', t`源入点（秒）`],
+        ['source_out', t`源出点（秒）`],
+        ['speed', t`播放速度（倍）`],
+      ] as const).map(([field, label]) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
-          {field}
+          {label}
           <input
             type="number"
             step="0.1"

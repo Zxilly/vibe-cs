@@ -595,15 +595,6 @@ msgstr "↑↓ Select"
 msgid "↵ 打开"
 msgstr "↵ Open"
 
-#. placeholder {0}: textFieldLabel(field)
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:291
-msgid "＋ {0}"
-msgstr "＋ {0}"
-
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:305
-msgid "＋ 仅爆头"
-msgstr "＋ Headshots only"
-
 #: src/domain/project/AddToProjectDialog.tsx:110
 msgid "＋ 新建作品"
 msgstr "+ New project"
@@ -611,10 +602,6 @@ msgstr "+ New project"
 #: src/domain/match/MatchContextBar.tsx:243
 msgid "＋ 添加选手"
 msgstr "＋ Add player"
-
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:325
-msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
-msgstr "＋ Last {RECENT_WINDOW_DAYS} days"
 
 #: src/pages/analysis/match/views/DuelsView.tsx:774
 #: src/pages/analysis/match/views/PlayersView.tsx:519
@@ -625,6 +612,10 @@ msgstr "2D replay"
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:128
 msgid "2D 回放定位"
 msgstr "Locate in the 2D replay"
+
+#: src/pages/shared/settings/FilesSection.tsx:303
+msgid "32 位十六进制密钥"
+msgstr "32-character hexadecimal key"
 
 #: src/pages/analysis/match/views/TeamsView.tsx:135
 msgid "A"
@@ -852,10 +843,6 @@ msgstr "K Pause timeline"
 msgid "K/D"
 msgstr "K/D"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:221
-msgid "Kael 的穿墙击杀"
-msgstr "Kael wallbang kills"
-
 #: src/domain/editing/TimelineProgramMonitor.tsx:914
 msgid "L 正向播放"
 msgstr "L Play forward"
@@ -1017,10 +1004,6 @@ msgctxt "evidence-event"
 msgid "一枪"
 msgstr "One tap"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:51
-msgid "三步"
-msgstr "Three steps"
-
 #: src/pages/shared/onboarding/GuidePage.tsx:41
 msgid "三步做出第一条视频，以及这台机器现在能做什么"
 msgstr "Three steps to your first video, and what this machine can do right now"
@@ -1060,7 +1043,6 @@ msgid "上一帧"
 msgstr "Previous frame"
 
 #: src/design/data/Pagination.tsx:77
-#: src/pages/shared/tasks/TaskCenterPage.tsx:59
 msgid "上一页"
 msgstr "Previous page"
 
@@ -1125,8 +1107,11 @@ msgstr "Next round"
 msgid "下一帧"
 msgstr "Next frame"
 
+#: src/pages/shared/onboarding/GuidePage.tsx:89
+msgid "下一步"
+msgstr "Next"
+
 #: src/design/data/Pagination.tsx:108
-#: src/pages/shared/tasks/TaskCenterPage.tsx:61
 msgid "下一页"
 msgstr "Next page"
 
@@ -1338,11 +1323,19 @@ msgstr "Headshots only"
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
 
+#: src/pages/editing/workspace/HomePage.tsx:45
+msgid "从 Demo 中找到精彩片段，加入作品后录制并导出成片。"
+msgstr "Find highlights in a Demo, add them to a project, then record and export your video."
+
 #: src/domain/editing/ProjectMediaWorkspace.tsx:308
 #: src/domain/editing/ProjectMediaWorkspace.tsx:314
 #: src/pages/shared/library/LibraryPage.tsx:376
 msgid "从 Demo 创建剪辑"
 msgstr "Create clip from Demo"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:51
+msgid "从 Demo 到第一条视频"
+msgstr "From Demo to your first video"
 
 #: src/pages/shared/library/LibraryPage.tsx:112
 msgid "从 Steam 同步最近比赛并下载回放"
@@ -1486,15 +1479,14 @@ msgstr "Job ID"
 msgid "作品"
 msgstr "Projects"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1554
-#: src/pages/editing/projects/ProjectsPage.tsx:43
-#: src/terminology.ts:32
+#: src/app/command/commandRegistry.ts:97
+msgctxt "palette-group"
 msgid "作品"
 msgstr "Projects"
 
 #: src/app/shell/WorkspaceModeMenu.tsx:79
-msgid "作品、剪辑单、录制与成品"
-msgstr "Projects, shot lists, recording, and finished files"
+msgid "作品、时间轴、录制与成品"
+msgstr "Projects, timeline, recording and outputs"
 
 #: src/pages/editing/delivery/OutputsView.tsx:162
 msgid "作品：{scopeLabel}"
@@ -1781,6 +1773,10 @@ msgstr "Write down what to adjust first"
 msgid "先在回放中设置不同的入点和出点"
 msgstr "Set different In and Out points in the replay first"
 
+#: src/pages/shared/settings/RecoveryPage.tsx:94
+msgid "先检查范围，再按需恢复或清理"
+msgstr "Review what is affected, then restore or clean up as needed"
+
 #: src/app/shell/FirstRunGuide.tsx:31
 msgid "先用当前模式"
 msgstr "Use current mode"
@@ -1864,6 +1860,10 @@ msgstr "All"
 #: src/pages/shared/library/history/HistoryPage.tsx:163
 msgid "全部 {total}"
 msgstr "All {total}"
+
+#: src/pages/editing/workspace/HomePage.tsx:38
+msgid "全部作品"
+msgstr "All projects"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:848
 #: src/pages/shared/settings/GameSection.tsx:303
@@ -2045,6 +2045,10 @@ msgstr "Other utility"
 msgid "其他页面仍可使用。返回工作台，或导出这次错误的诊断信息。"
 msgstr "Other pages still work. Return to the workspace, or export diagnostic info for this error."
 
+#: src/app/boundary/RouteBoundary.tsx:123
+msgid "其他页面仍可使用。返回工作台继续操作。"
+msgstr "Other pages are still available. Return to the workbench to continue."
+
 #: src/design/data/Empty.tsx:153
 msgid "其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。"
 msgstr "Everything else keeps working. Go back to the dashboard, or export this error for the developers."
@@ -2177,16 +2181,10 @@ msgstr "The out point must follow the in point. Cancel and adjust the source ran
 msgid "击杀"
 msgstr "Kills"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:51
-#: src/pages/analysis/match/views/PlayersView.tsx:153
-#: src/pages/analysis/match/views/PlayersView.tsx:154
-#: src/pages/analysis/match/views/RoundsView.tsx:86
-#: src/pages/analysis/players/PlayerComparePanel.tsx:168
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
-#: src/pages/analysis/players/PlayersPage.tsx:148
-#: src/pages/analysis/players/PlayersPage.tsx:149
+#: src/domain/match/matchEnums.ts:170
+msgctxt "evidence-kind"
 msgid "击杀"
-msgstr "Kills"
+msgstr "Kill"
 
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:81
 msgid "击杀与死亡位置"
@@ -2242,6 +2240,10 @@ msgstr "Analyse a match"
 msgid "分析中"
 msgstr "Analyzing"
 
+#: src/pages/analysis/match/views/viewChrome.tsx:231
+msgid "分析任务已提交，可在后台任务中查看进度。"
+msgstr "Analysis submitted. View its progress in background tasks."
+
 #: src/design/data/Empty.tsx:141
 msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 msgstr "Rounds, evidence, and highlights only exist after analysis. A 40-minute match takes about 3 minutes."
@@ -2266,6 +2268,10 @@ msgstr "Position samples, facing and kill-verified engagement axes only exist on
 #: src/domain/task/taskDetailModel.tsx:137
 msgid "分析已取消"
 msgstr "Analysis cancelled"
+
+#: src/pages/analysis/match/views/viewChrome.tsx:222
+msgid "分析已提交"
+msgstr "Analysis submitted"
 
 #: src/app/shell/FirstRunGuide.tsx:67
 #: src/app/shell/WorkspaceModeMenu.tsx:35
@@ -2616,6 +2622,10 @@ msgstr "Assists"
 msgid "勾选 {0}，再勾选另一名选手，即可并排比较。最多 {limit} 名。"
 msgstr "Check {0}, then check one more player to compare them side by side. Up to {limit} players."
 
+#: src/pages/analysis/players/PlayersPage.tsx:295
+msgid "勾选两名选手进行比较，点击行查看详情。"
+msgstr "Select two players to compare. Click a row for details."
+
 #: src/pages/analysis/players/PlayerComparePanel.tsx:213
 msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
 msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are placed side by side here."
@@ -2869,9 +2879,9 @@ msgstr "Kill and objective events only, {0} in total."
 msgid "只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒。"
 msgstr "Only whole seconds between {VIDEO_LENGTH_MIN} and {VIDEO_LENGTH_MAX} are accepted."
 
-#: src/pages/shared/settings/AppSection.tsx:166
-msgid "只接受 https:// 开头的地址。"
-msgstr "Only https:// addresses are accepted."
+#: src/pages/shared/settings/AppSection.tsx:164
+msgid "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
+msgstr "Enter a full HTTPS URL, such as https://example.com/manifest.json."
 
 #: src/pages/editing/delivery/OutputsView.tsx:121
 msgid "只有桌面端能在文件管理器里定位文件。"
@@ -3149,7 +3159,8 @@ msgstr "Evidence in this round"
 msgid "回合开始"
 msgstr "Round start"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:59
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:28
+msgctxt "evidence-event"
 msgid "回合开始"
 msgstr "Round start"
 
@@ -3363,6 +3374,10 @@ msgstr "Map: {0}"
 msgid "地图与最近比赛"
 msgstr "Maps and recent matches"
 
+#: src/pages/analysis/players/PlayerProfilePage.tsx:200
+msgid "地图统计没能读出来：{mapsError}"
+msgstr "Could not load map statistics: {mapsError}"
+
 #: src/pages/analysis/match/views/ReplayView.tsx:749
 msgid "地面"
 msgstr "Ground"
@@ -3440,8 +3455,8 @@ msgstr "Multicam view"
 msgid "多杀"
 msgstr "Multi-kill"
 
-#: src/domain/match/matchEnums.ts:222
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:53
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:36
+msgctxt "evidence-event"
 msgid "多杀"
 msgstr "Multi-kill"
 
@@ -3992,6 +4007,12 @@ msgstr "There are {indexedItems} pieces of evidence, but nothing matched this se
 msgid "已有同名布局，请换一个名称。"
 msgstr "A layout with this name already exists. Choose another name."
 
+#. placeholder {0}: cleanup.data.inspected
+#. placeholder {1}: cleanup.data.deleted
+#: src/pages/editing/delivery/DeliveryPage.tsx:75
+msgid "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没有变化。"
+msgstr "Checked {0} records and removed {1} invalid records. Files on disk were unchanged."
+
 #: src/domain/editing/ProjectAgentPanel.tsx:702
 msgid "已检查片段使用范围和录制边界，实际画面仍需录制后检查。"
 msgstr "Source ranges and recording limits checked. Recorded footage still needs review."
@@ -4163,9 +4184,10 @@ msgstr "Sequence marker position"
 msgid "应用"
 msgstr "App"
 
-#: src/pages/shared/settings/SettingsPage.tsx:59
+#: src/pages/shared/library/ColumnConfigDialog.tsx:70
+msgctxt "dialog-confirm"
 msgid "应用"
-msgstr "App"
+msgstr "Apply"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:114
 msgid "应用写出的所有文件都在这里。要改请到「文件与资料库」。"
@@ -4228,6 +4250,10 @@ msgstr "Start watching"
 msgid "开始解析比赛数据"
 msgstr "Match data parsing started"
 
+#: src/pages/editing/workspace/HomePage.tsx:44
+msgid "开始选材"
+msgstr "Choose footage"
+
 #. placeholder {0}: citations.length
 #: src/pages/analysis/match/views/ReviewView.tsx:468
 msgid "引用了 {0} 条证据，全部属于发送给模型的集合："
@@ -4287,9 +4313,18 @@ msgstr "Viewing {0} · not added to comparison"
 msgid "当前没有可撤销的剪辑"
 msgstr "No edit to undo"
 
+#: src/domain/editing/ClipInspector.tsx:116
+msgid "当前片段只读，请先结束 Agent 编辑或解锁轨道。"
+msgstr "This clip is read-only. End the Agent editing session or unlock the track first."
+
 #: src/pages/shared/settings/RecoveryPage.tsx:340
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
+
+#. placeholder {0}: labels[filter]
+#: src/pages/editing/delivery/OutputsView.tsx:198
+msgid "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
+msgstr "Filtered by {0}. Show all types to see other output files."
 
 #. placeholder {0}: distribution.sampleCount
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:183
@@ -4940,6 +4975,10 @@ msgstr "Records pointing at files that are gone"
 msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 msgstr "Records pointing at a file that is gone will be removed. If a file was only moved, put it back before cleaning, or its record goes with it."
 
+#: src/pages/editing/delivery/OutputsView.tsx:116
+msgid "指定作品"
+msgstr "Selected project"
+
 #: src/domain/media/ClipStrip.tsx:234
 msgid "按住 Ctrl 与左右方向键可以调整片段顺序。"
 msgstr "Hold Ctrl and use the left and right arrow keys to reorder clips."
@@ -4967,6 +5006,10 @@ msgstr "Filter finished files by type"
 #: src/pages/analysis/match/views/OverviewView.tsx:146
 msgid "按高光类型统计，胜负未记录"
 msgstr "Counted by highlight kind; the outcome is not recorded"
+
+#: src/app/shell/FirstRunGuide.tsx:53
+msgid "挑选精彩片段，编排时间轴，录制并导出成片。"
+msgstr "Choose highlights, arrange your timeline, then record and export a video."
 
 #: src/app/command/CommandPalette.tsx:268
 msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
@@ -5064,6 +5107,10 @@ msgstr "Search matches, players, projects, pages and actions"
 #: src/pages/shared/library/LibraryFilters.tsx:180
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
+
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:222
+msgid "搜索选手、武器或事件"
+msgstr "Search players, weapons or events"
 
 #: src/pages/analysis/players/PlayersPage.tsx:285
 #: src/pages/analysis/players/PlayersPage.tsx:286
@@ -5181,6 +5228,10 @@ msgstr "Zoom in timeline"
 #: src/design/data/Empty.tsx:145
 msgid "放宽时间范围通常最有效。"
 msgstr "Widening the time range usually helps most."
+
+#: src/domain/editing/ClipInspector.tsx:118
+msgid "放弃修改"
+msgstr "Discard changes"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:708
 msgid "放置"
@@ -5587,6 +5638,10 @@ msgstr "Show and hide panels…"
 msgid "显示全部"
 msgstr "Show all"
 
+#: src/pages/editing/delivery/OutputsView.tsx:199
+msgid "显示全部类型"
+msgstr "Show all types"
+
 #: src/pages/shared/library/history/HistoryPage.tsx:207
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
@@ -5701,6 +5756,10 @@ msgstr "Replace"
 #: src/pages/analysis/match/views/TeamsView.tsx:347
 msgid "有回合缺少价格，花费合计以「—」表示而不是少算"
 msgstr "Some rounds carry no prices, so the spend total shows “—” instead of undercounting"
+
+#: src/domain/editing/ClipInspector.tsx:120
+msgid "有未保存的修改，保存后会更新到时间轴。"
+msgstr "You have unsaved changes. Save to update the timeline."
 
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:134
 msgid "服务当前按目录递归监听，子目录会一同纳入"
@@ -5837,6 +5896,10 @@ msgstr "The local file could not be read or written"
 msgid "本场结果"
 msgstr "Match result"
 
+#: src/pages/editing/delivery/DeliveryPage.tsx:76
+msgid "本次只扫描了部分目录，仍可能有未检查的记录。"
+msgstr "Only some directories were scanned. Some records may remain unchecked."
+
 #. placeholder {0}: counts.downloaded
 #: src/pages/shared/library/history/HistoryPage.tsx:169
 msgid "本页已入库 {0}"
@@ -5905,6 +5968,10 @@ msgstr "View all {0}"
 msgid "查看全部成品文件"
 msgstr "Show all finished files"
 
+#: src/pages/shared/tasks/TaskCenterPage.tsx:41
+msgid "查看分析、录制与导出的进度，继续处理失败任务"
+msgstr "Track analysis, recording and export progress, and recover failed tasks"
+
 #: src/pages/analysis/match/views/viewChrome.tsx:225
 #: src/pages/analysis/match/views/viewChrome.tsx:370
 #: src/pages/shared/library/LibraryInspector.tsx:161
@@ -5929,6 +5996,10 @@ msgstr "View finished file"
 #: src/domain/editing/ProjectTimeline.tsx:5574
 msgid "查看此处 {0} 项修改"
 msgstr "View {0} changes here"
+
+#: src/app/shell/FirstRunGuide.tsx:68
+msgid "查看比赛数据、回合事件与战术回放。"
+msgstr "Explore match statistics, round events and tactical replays."
 
 #. placeholder {0}: selectedClip.name
 #: src/domain/editing/ProjectTimeline.tsx:2961
@@ -6141,6 +6212,10 @@ msgstr "Creating…"
 msgid "正在创建对话"
 msgstr "Creating the conversation"
 
+#: src/pages/shared/tasks/TaskCenterPage.tsx:57
+msgid "正在刷新"
+msgstr "Refreshing"
+
 #: src/domain/editing/ProjectTimeline.tsx:2367
 msgid "正在刷新嵌套序列…"
 msgstr "Refreshing nested sequence…"
@@ -6210,9 +6285,17 @@ msgstr "Opening this page"
 msgid "正在执行工具…"
 msgstr "Running tool…"
 
+#: src/pages/shared/settings/RecoveryPage.tsx:87
+msgid "正在扫描清理范围"
+msgstr "Checking what can be cleaned up"
+
 #: src/domain/editing/ProjectAgentPanel.tsx:688
 msgid "正在按目标身份读取可编辑时间线字段…"
 msgstr "Reading editable timeline fields as the target identity…"
+
+#: src/pages/analysis/match/views/viewChrome.tsx:222
+msgid "正在提交…"
+msgstr "Submitting…"
 
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:137
 msgid "正在新建作品"
@@ -6266,6 +6349,11 @@ msgstr "Searching evidence"
 msgid "正在测试"
 msgstr "Testing"
 
+#: src/pages/editing/delivery/DeliveryPage.tsx:48
+#: src/pages/editing/delivery/DeliveryPage.tsx:58
+msgid "正在清理…"
+msgstr "Cleaning up…"
+
 #: src/domain/editing/ProjectTimeline.tsx:2454
 msgid "正在渲染预览…"
 msgstr "Rendering preview…"
@@ -6298,6 +6386,14 @@ msgstr "Reading the task detail"
 msgid "正在读取作品版本和素材概况…"
 msgstr "Reading project version and media summary…"
 
+#: src/pages/analysis/players/PlayerProfilePage.tsx:252
+msgid "正在读取最近比赛"
+msgstr "Loading recent matches"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:181
+msgid "正在读取恢复状态"
+msgstr "Loading recovery status"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:2016
 msgid "正在读取战术图"
 msgstr "Loading tactical view"
@@ -6310,9 +6406,17 @@ msgstr "Reading the match analysis"
 msgid "正在读取比赛历史"
 msgstr "Reading the match history"
 
+#: src/pages/analysis/players/PlayerTrend.tsx:132
+msgid "正在读取比赛趋势"
+msgstr "Loading match trends"
+
 #: src/domain/media/Waveform.tsx:141
 msgid "正在读取波形"
 msgstr "Reading the waveform"
+
+#: src/pages/analysis/evidence/EvidenceAnnotations.tsx:87
+msgid "正在读取注释"
+msgstr "Loading annotations"
 
 #: src/domain/media/ClipStrip.tsx:196
 msgid "正在读取片段"
@@ -6395,14 +6499,10 @@ msgstr "Weapon: {0}"
 msgid "死亡"
 msgstr "Deaths"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:161
-#: src/pages/analysis/match/views/PlayersView.tsx:162
-#: src/pages/analysis/players/PlayerComparePanel.tsx:169
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
-#: src/pages/analysis/players/PlayersPage.tsx:156
-#: src/pages/analysis/players/PlayersPage.tsx:157
+#: src/domain/match/matchEnums.ts:171
+msgctxt "evidence-kind"
 msgid "死亡"
-msgstr "Deaths"
+msgstr "Death"
 
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:85
 msgid "死亡位置"
@@ -6499,15 +6599,10 @@ msgstr "Rate Stretch Tool (R)"
 msgid "比赛"
 msgstr "Match"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:164
-#: src/pages/analysis/players/PlayersPage.tsx:116
-#: src/pages/analysis/players/PlayersPage.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:118
-#: src/pages/shared/library/libraryColumns.tsx:73
-#: src/pages/shared/library/libraryColumns.tsx:74
+#: src/app/command/commandRegistry.ts:95
+msgctxt "palette-group"
 msgid "比赛"
-msgstr "Match"
+msgstr "Matches"
 
 #: src/app/shell/WorkspaceModeMenu.tsx:85
 msgid "比赛、选手、证据与回放"
@@ -6562,6 +6657,11 @@ msgstr "Match time"
 #: src/pages/shared/library/LibraryInspector.tsx:175
 msgid "比赛详情"
 msgstr "Match detail"
+
+#. placeholder {0}: error.message
+#: src/pages/analysis/players/PlayerTrend.tsx:136
+msgid "比赛趋势没能读出来：{0}"
+msgstr "Could not load match trends: {0}"
 
 #: src/pages/analysis/players/PlayerComparePanel.tsx:173
 #: src/pages/analysis/players/PlayerComparePanel.tsx:174
@@ -6715,9 +6815,21 @@ msgstr "No radar calibration found for {mapName}, so positions can't be shown. I
 msgid "没有把素材加入作品：{failure}"
 msgstr "The media was not added to the project: {failure}"
 
+#: src/pages/shared/onboarding/GuidePage.tsx:152
+msgid "没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。"
+msgstr "No environment check results were received. Run the check again to verify replay, recording and export availability."
+
 #: src/pages/shared/settings/AdvancedSection.tsx:116
 msgid "没有数据目录"
 msgstr "No data directory"
+
+#: src/pages/editing/delivery/OutputsView.tsx:197
+msgid "没有符合筛选条件的成品文件"
+msgstr "No output files match these filters"
+
+#: src/pages/editing/delivery/OutputsView.tsx:197
+msgid "没有缺失的文件"
+msgstr "No missing files"
 
 #. placeholder {0}: formatReason(utility.reason)
 #: src/pages/analysis/match/views/UtilityView.tsx:169
@@ -6741,6 +6853,10 @@ msgstr "Nothing staged to clean"
 #: src/data/nativeShell.ts:324
 msgid "没能定位这个文件"
 msgstr "Could not reveal this file"
+
+#: src/pages/analysis/match/views/viewChrome.tsx:230
+msgid "没能开始分析：{startError}"
+msgstr "Could not start analysis: {startError}"
 
 #: src/pages/analysis/match/views/viewChrome.tsx:380
 msgid "没能开始重新分析：{startError}"
@@ -6956,6 +7072,10 @@ msgstr "Clean Up Temporary Finished Files"
 #: src/pages/shared/settings/RecoveryPage.tsx:348
 msgid "清理未完成的暂存成品文件？"
 msgstr "Clean unfinished staged files?"
+
+#: src/pages/editing/delivery/DeliveryPage.tsx:69
+msgid "清理没有完成，请重试。"
+msgstr "Cleanup did not finish. Try again."
 
 #: src/pages/shared/settings/AiAgentSection.tsx:391
 msgid "清空会删除全部对话记录。剪辑单、录制任务和成片继续保留。"
@@ -7514,8 +7634,8 @@ msgstr "Target:"
 msgid "目标事件"
 msgstr "Objective"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:55
-#: src/pages/analysis/match/views/RoundsView.tsx:588
+#: src/domain/match/matchEnums.ts:173
+msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
@@ -7631,6 +7751,10 @@ msgstr "Video preview"
 #: src/domain/editing/ProjectTimeline.tsx:2353
 msgid "禁用所选片段"
 msgstr "Disable selected clip"
+
+#: src/pages/shared/settings/AppSection.tsx:169
+msgid "离开输入框或按 Enter 保存。"
+msgstr "Leave the field or press Enter to save."
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/conditionSummary.tsx:24
@@ -8185,6 +8309,10 @@ msgstr "Equipment value"
 msgid "装备差额"
 msgstr "Equipment difference"
 
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1787
+msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
+msgstr "To export part of the sequence, set In and Out points on the timeline using I and O."
+
 #: src/domain/editing/ProjectMediaWorkspace.tsx:630
 #: src/domain/editing/ProjectTimeline.tsx:3743
 msgid "覆盖"
@@ -8264,6 +8392,10 @@ msgstr "Settings & diagnostics"
 #: src/pages/shared/settings/SettingsPage.tsx:120
 msgid "设置分节"
 msgstr "Settings sections"
+
+#: src/pages/shared/settings/AppSection.tsx:177
+msgid "设置已保存。"
+msgstr "Settings saved."
 
 #: src/pages/shared/settings/AiAgentSection.tsx:140
 msgid "设置没有保存成功"
@@ -8357,6 +8489,18 @@ msgstr "Describe what you want the Agent to change"
 #: src/pages/shared/onboarding/firstRunSteps.ts:50
 msgid "说清你想要什么，Agent 会准备剪辑单和片段；开始录制前还会等你确认。"
 msgstr "Tell the Agent what you want. It will prepare a shot list and clips, then wait for your confirmation before recording."
+
+#: src/domain/editing/ClipInspector.tsx:116
+msgid "请先停用不支持的效果，再保存修改。"
+msgstr "Disable unsupported effects before saving changes."
+
+#: src/pages/shared/settings/RecoveryPage.tsx:87
+msgid "请先重试扫描，确认需要清理的内容"
+msgstr "Retry the scan to confirm what will be cleaned up"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:181
+msgid "请先重试读取恢复状态"
+msgstr "Retry loading the recovery status first"
 
 #: src/pages/shared/settings/FilesSection.tsx:369
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
@@ -8617,6 +8761,10 @@ msgstr "Per-item checks of paths, processes and encoders."
 msgid "跳到 {stamp}"
 msgstr "Jump to {stamp}"
 
+#: src/app/AppShell.tsx:116
+msgid "跳到主要内容"
+msgstr "Skip to main content"
+
 #: src/domain/media/Transport.tsx:166
 msgid "跳到入点"
 msgstr "Jump to in point"
@@ -8640,10 +8788,6 @@ msgstr "Seek"
 #: src/app/shell/WindowTitleBar.tsx:291
 msgid "跳转、搜索比赛或作品"
 msgstr "Go to, search matches or projects"
-
-#: src/app/command/CommandPalette.tsx:239
-msgid "跳转、搜索比赛或证据"
-msgstr "Jump to a page, search matches or evidence"
 
 #: src/domain/editing/ProjectTimeline.tsx:2396
 msgid "跳转到入点"
@@ -8696,6 +8840,10 @@ msgstr "Running"
 msgid "运行时"
 msgstr "Runtime"
 
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:328
+msgid "近 {RECENT_WINDOW_DAYS} 天"
+msgstr "Last {RECENT_WINDOW_DAYS} days"
+
 #: src/pages/shared/library/LibraryPage.tsx:115
 #: src/pages/shared/library/LibraryPage.tsx:117
 msgid "返回 Demo 资料库"
@@ -8729,8 +8877,8 @@ msgid "还没有作品"
 msgstr "No projects yet"
 
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:31
-msgid "还没有作品。"
-msgstr "No projects yet."
+msgid "还没有作品。点击「新建作品」开始剪辑，或先到 Demo 资料库选材。"
+msgstr "No projects yet. Choose New project to start editing, or browse the Demo library for footage."
 
 #: src/domain/media/Transport.tsx:104
 msgid "还没有可播放的素材"
@@ -9277,19 +9425,10 @@ msgstr "Selection detail"
 msgid "选手"
 msgstr "Player"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:71
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:82
-#: src/pages/analysis/match/views/HighlightsView.tsx:407
-#: src/pages/analysis/match/views/PlayersView.tsx:132
-#: src/pages/analysis/match/views/PlayersView.tsx:133
-#: src/pages/analysis/match/views/ReplayView.tsx:380
-#: src/pages/analysis/match/views/TeamsView.tsx:128
-#: src/pages/analysis/match/views/UtilityView.tsx:72
-#: src/pages/analysis/match/views/UtilityView.tsx:73
-#: src/pages/analysis/players/PlayersPage.tsx:99
-#: src/pages/analysis/players/PlayersPage.tsx:100
+#: src/app/command/commandRegistry.ts:96
+msgctxt "palette-group"
 msgid "选手"
-msgstr "Player"
+msgstr "Players"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/conditionSummary.tsx:28
@@ -9316,8 +9455,8 @@ msgstr "Player name, Enter to apply"
 msgid "选手档案"
 msgstr "Player profile"
 
-#: src/app/routeCrumb.ts:69
-#: src/pages/analysis/players/PlayerProfilePage.tsx:136
+#: src/app/command/useObjectCommands.ts:72
+msgctxt "palette-hint"
 msgid "选手档案"
 msgstr "Player profile"
 
@@ -9428,6 +9567,10 @@ msgstr "Choose folders to watch"
 #: src/domain/match/HighlightRow.tsx:81
 msgid "选择这条高光"
 msgstr "Select this highlight"
+
+#: src/app/shell/FirstRunGuide.tsx:38
+msgid "选择这次要做的事。之后可以随时从左上角切换模式。"
+msgstr "Choose what you want to do. You can switch modes anytime from the top left."
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:704
 msgid "选择顺序"
@@ -9865,6 +10008,10 @@ msgstr "Exporting SRT requires the desktop app"
 msgid "需要至少 {0} 个序列标记；当前只有 {sequenceMarkerCount} 个。"
 msgstr "At least {0} sequence markers are required; there are only {sequenceMarkerCount}."
 
+#: src/pages/shared/onboarding/GuidePage.tsx:136
+msgid "需要配置"
+msgstr "Setup required"
+
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1418
 #: src/domain/editing/ProjectTimeline.tsx:4744
 #: src/domain/editing/ProjectTimeline.tsx:4749
@@ -10138,212 +10285,3 @@ msgstr "Default cut length"
 #: src/pages/shared/settings/AiAgentSection.tsx:325
 msgid "默认视角"
 msgstr "Default view"
-
-#: src/app/shell/WorkspaceModeMenu.tsx:79
-msgid "作品、时间轴、录制与成品"
-msgstr "Projects, timeline, recording and outputs"
-
-#: src/app/boundary/RouteBoundary.tsx:123
-msgid "其他页面仍可使用。返回工作台继续操作。"
-msgstr "Other pages are still available. Return to the workbench to continue."
-
-#: src/app/shell/FirstRunGuide.tsx:53
-msgid "挑选精彩片段，编排时间轴，录制并导出成片。"
-msgstr "Choose highlights, arrange your timeline, then record and export a video."
-
-#: src/app/shell/FirstRunGuide.tsx:68
-msgid "查看比赛数据、回合事件与战术回放。"
-msgstr "Explore match statistics, round events and tactical replays."
-
-#: src/app/AppShell.tsx:116
-msgid "跳到主要内容"
-msgstr "Skip to main content"
-
-#: src/app/shell/FirstRunGuide.tsx:38
-msgid "选择这次要做的事。之后可以随时从左上角切换模式。"
-msgstr "Choose what you want to do. You can switch modes anytime from the top left."
-
-#: src/pages/shared/settings/FilesSection.tsx:303
-msgid "32 位十六进制密钥"
-msgstr "32-character hexadecimal key"
-
-#: src/pages/shared/onboarding/GuidePage.tsx:89
-msgid "下一步"
-msgstr "Next"
-
-#: src/pages/shared/onboarding/GuidePage.tsx:51
-msgid "从 Demo 到第一条视频"
-msgstr "From Demo to your first video"
-
-#: src/pages/shared/settings/RecoveryPage.tsx:94
-msgid "先检查范围，再按需恢复或清理"
-msgstr "Review what is affected, then restore or clean up as needed"
-
-#: src/pages/shared/settings/AppSection.tsx:164
-msgid "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
-msgstr "Enter a full HTTPS URL, such as https://example.com/manifest.json."
-
-#: src/pages/shared/settings/RecoveryPage.tsx:87
-msgid "正在扫描清理范围"
-msgstr "Checking what can be cleaned up"
-
-#: src/pages/shared/settings/RecoveryPage.tsx:181
-msgid "正在读取恢复状态"
-msgstr "Loading recovery status"
-
-#: src/pages/shared/onboarding/GuidePage.tsx:152
-msgid "没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。"
-msgstr "No environment check results were received. Run the check again to verify replay, recording and export availability."
-
-#: src/pages/shared/settings/AppSection.tsx:169
-msgid "离开输入框或按 Enter 保存。"
-msgstr "Leave the field or press Enter to save."
-
-#: src/pages/shared/settings/AppSection.tsx:177
-msgid "设置已保存。"
-msgstr "Settings saved."
-
-#: src/pages/shared/settings/RecoveryPage.tsx:87
-msgid "请先重试扫描，确认需要清理的内容"
-msgstr "Retry the scan to confirm what will be cleaned up"
-
-#: src/pages/shared/settings/RecoveryPage.tsx:181
-msgid "请先重试读取恢复状态"
-msgstr "Retry loading the recovery status first"
-
-#: src/pages/shared/onboarding/GuidePage.tsx:136
-msgid "需要配置"
-msgstr "Setup required"
-
-#: src/pages/shared/tasks/TaskCenterPage.tsx:41
-msgid "查看分析、录制与导出的进度，继续处理失败任务"
-msgstr "Track analysis, recording and export progress, and recover failed tasks"
-
-#: src/pages/shared/tasks/TaskCenterPage.tsx:57
-msgid "正在刷新"
-msgstr "Refreshing"
-
-#: src/pages/analysis/match/views/viewChrome.tsx:231
-msgid "分析任务已提交，可在后台任务中查看进度。"
-msgstr "Analysis submitted. View its progress in background tasks."
-
-#: src/pages/analysis/match/views/viewChrome.tsx:222
-msgid "分析已提交"
-msgstr "Analysis submitted"
-
-#: src/pages/analysis/players/PlayersPage.tsx:295
-msgid "勾选两名选手进行比较，点击行查看详情。"
-msgstr "Select two players to compare. Click a row for details."
-
-#: src/pages/analysis/players/PlayerProfilePage.tsx:200
-msgid "地图统计没能读出来：{mapsError}"
-msgstr "Could not load map statistics: {mapsError}"
-
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:222
-msgid "搜索选手、武器或事件"
-msgstr "Search players, weapons or events"
-
-#: src/pages/analysis/match/views/viewChrome.tsx:222
-msgid "正在提交…"
-msgstr "Submitting…"
-
-#: src/pages/analysis/players/PlayerProfilePage.tsx:252
-msgid "正在读取最近比赛"
-msgstr "Loading recent matches"
-
-#: src/pages/analysis/players/PlayerTrend.tsx:132
-msgid "正在读取比赛趋势"
-msgstr "Loading match trends"
-
-#: src/pages/analysis/evidence/EvidenceAnnotations.tsx:87
-msgid "正在读取注释"
-msgstr "Loading annotations"
-
-#. placeholder {0}: error.message
-#: src/pages/analysis/players/PlayerTrend.tsx:136
-msgid "比赛趋势没能读出来：{0}"
-msgstr "Could not load match trends: {0}"
-
-#: src/pages/analysis/match/views/viewChrome.tsx:230
-msgid "没能开始分析：{startError}"
-msgstr "Could not start analysis: {startError}"
-
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:328
-msgid "近 {RECENT_WINDOW_DAYS} 天"
-msgstr "Last {RECENT_WINDOW_DAYS} days"
-
-#: src/pages/editing/workspace/HomePage.tsx:45
-msgid "从 Demo 中找到精彩片段，加入作品后录制并导出成片。"
-msgstr "Find highlights in a Demo, add them to a project, then record and export your video."
-
-#: src/pages/editing/workspace/HomePage.tsx:38
-msgid "全部作品"
-msgstr "All projects"
-
-#: src/pages/editing/workspace/HomePage.tsx:44
-msgid "开始选材"
-msgstr "Choose footage"
-
-#: src/domain/editing/ClipInspector.tsx:116
-msgid "当前片段只读，请先结束 Agent 编辑或解锁轨道。"
-msgstr "This clip is read-only. End the Agent editing session or unlock the track first."
-
-#: src/domain/editing/ClipInspector.tsx:118
-msgid "放弃修改"
-msgstr "Discard changes"
-
-#: src/domain/editing/ClipInspector.tsx:120
-msgid "有未保存的修改，保存后会更新到时间轴。"
-msgstr "You have unsaved changes. Save to update the timeline."
-
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1787
-msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
-msgstr "To export part of the sequence, set In and Out points on the timeline using I and O."
-
-#: src/domain/editing/ClipInspector.tsx:116
-msgid "请先停用不支持的效果，再保存修改。"
-msgstr "Disable unsupported effects before saving changes."
-
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:31
-msgid "还没有作品。点击「新建作品」开始剪辑，或先到 Demo 资料库选材。"
-msgstr "No projects yet. Choose New project to start editing, or browse the Demo library for footage."
-
-#. placeholder {0}: cleanup.data.inspected
-#. placeholder {1}: cleanup.data.deleted
-#: src/pages/editing/delivery/DeliveryPage.tsx:75
-msgid "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没有变化。"
-msgstr "Checked {0} records and removed {1} invalid records. Files on disk were unchanged."
-
-#. placeholder {0}: labels[filter]
-#: src/pages/editing/delivery/OutputsView.tsx:198
-msgid "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
-msgstr "Filtered by {0}. Show all types to see other output files."
-
-#: src/pages/editing/delivery/OutputsView.tsx:116
-msgid "指定作品"
-msgstr "Selected project"
-
-#: src/pages/editing/delivery/OutputsView.tsx:199
-msgid "显示全部类型"
-msgstr "Show all types"
-
-#: src/pages/editing/delivery/DeliveryPage.tsx:76
-msgid "本次只扫描了部分目录，仍可能有未检查的记录。"
-msgstr "Only some directories were scanned. Some records may remain unchecked."
-
-#: src/pages/editing/delivery/DeliveryPage.tsx:48
-#: src/pages/editing/delivery/DeliveryPage.tsx:58
-msgid "正在清理…"
-msgstr "Cleaning up…"
-
-#: src/pages/editing/delivery/OutputsView.tsx:197
-msgid "没有符合筛选条件的成品文件"
-msgstr "No output files match these filters"
-
-#: src/pages/editing/delivery/OutputsView.tsx:197
-msgid "没有缺失的文件"
-msgstr "No missing files"
-
-#: src/pages/editing/delivery/DeliveryPage.tsx:69
-msgid "清理没有完成，请重试。"
-msgstr "Cleanup did not finish. Try again."

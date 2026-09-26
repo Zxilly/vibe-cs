@@ -133,7 +133,7 @@ describe('every condition change is a navigation', () => {
     const { container } = mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');
 
-    fireEvent.click(screen.getByText('＋ 地图'));
+    fireEvent.click(screen.getByRole('button', { name: '地图' }));
     const field = container.querySelector<HTMLInputElement>('[data-condition-input="map"]');
     expect(field).not.toBeNull();
 
@@ -172,11 +172,21 @@ describe('every condition change is a navigation', () => {
     expect(address()).not.toContain('page=');
   });
 
+  it('names each removable condition and preserves unrelated filters', async () => {
+    mount('/evidence?player=Kael&map=de_mirage');
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+    const removeMap = screen.getByRole('button', { name: '移除条件：地图：de_mirage' });
+    expect(screen.getByRole('button', { name: '移除条件：选手：Kael' })).toBeTruthy();
+    fireEvent.click(removeMap);
+    await waitFor(() => expect(address()).not.toContain('map='));
+    expect(address()).toContain('player=Kael');
+  });
+
   it('commits 近 30 天 as a concrete date, not as a relative word', async () => {
     mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');
 
-    fireEvent.click(screen.getByText('＋ 近 30 天'));
+    fireEvent.click(screen.getByRole('button', { name: '近 30 天' }));
     await waitFor(() => {
       // A shared link has to mean the same thing tomorrow.
       expect(address()).toMatch(/from=\d{4}-\d{2}-\d{2}/u);
@@ -270,14 +280,14 @@ describe('selecting a row', () => {
     const selected = address();
     expect(selected).toContain('evidence=');
 
-    fireEvent.click(screen.getByText('＋ 地图'));
+    fireEvent.click(screen.getByRole('button', { name: '地图' }));
     const field = container.querySelector<HTMLInputElement>('[data-condition-input="map"]');
     expect(field).not.toBeNull();
     fireEvent.keyDown(field as HTMLInputElement, { key: 'Escape' });
 
     // The field closed, and that is all the key did.
     expect(container.querySelector('[data-condition-input="map"]')).toBeNull();
-    expect(screen.getByText('＋ 地图')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '地图' })).toBeTruthy();
     expect(address()).toBe(selected);
     expect(screen.getByText('已选 1 条证据')).toBeTruthy();
   });

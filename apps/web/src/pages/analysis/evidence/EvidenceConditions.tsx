@@ -27,8 +27,8 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Search, X } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { Plus, Search, X } from 'lucide-react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Badge, Button, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, type SegOption } from '../../../design/primitives';
 import {
@@ -143,6 +143,7 @@ export function EvidenceConditions({
   recentFrom,
   dateDisabledReason,
 }: EvidenceConditionsProps) {
+  const conditionId = useId();
   /* The only local state on this page. The typed-but-not-submitted query is
      genuinely not shared — it has no meaning until 「检索」 — and putting every
      keystroke in the URL would fill the back stack with half-words.
@@ -194,11 +195,11 @@ export function EvidenceConditions({
   return (
     <div
       data-evidence-conditions=""
-      className="flex flex-col"
+      className="@container/conditions flex flex-col"
     >
       <form
         data-evidence-search-bar=""
-        className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
+        className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2.5 border-b border-divider bg-surface-chrome px-4 py-2 @min-[900px]/conditions:px-6"
         onSubmit={submitSearch}
       >
         <Seg
@@ -208,7 +209,7 @@ export function EvidenceConditions({
           onChange={(family) => commit({ ...state, family })}
           aria-label={t`证据种类`}
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-48 flex-1">
           <InputGroup ground="bg">
             <InputGroupAddon>
               <Search strokeWidth={1.5} />
@@ -218,7 +219,7 @@ export function EvidenceConditions({
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               aria-label={t`检索证据`}
-              placeholder={t`Kael 的穿墙击杀`}
+              placeholder={t`搜索选手、武器或事件`}
             />
           </InputGroup>
         </div>
@@ -229,7 +230,7 @@ export function EvidenceConditions({
 
       <div
         data-evidence-condition-bar=""
-        className="flex h-[var(--h-bar)] flex-none items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-6"
+        className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2 border-b border-divider bg-surface-chrome px-4 py-2 @min-[900px]/conditions:px-6"
       >
         <span className="text-xs text-neutral-600">
           <Trans>条件</Trans>
@@ -241,12 +242,12 @@ export function EvidenceConditions({
             asChild
             variant="accent"
             data-condition={condition.field}
-            aria-label={t`移除条件`}
+            aria-labelledby={`${conditionId}-${condition.field}`}
             onClick={() => onChange(withoutCondition(state, condition.field))}
-            className="gap-1.5"
+            className="min-h-8 max-w-full gap-1.5"
           >
             <button type="button">
-              {conditionLabel(condition)}
+              <span id={`${conditionId}-${condition.field}`} className="min-w-0 truncate"><span className="sr-only"><Trans>移除条件</Trans>：</span>{conditionLabel(condition)}</span>
               <X size={11} strokeWidth={1.5} aria-hidden="true" />
             </button>
           </Badge>
@@ -285,10 +286,11 @@ export function EvidenceConditions({
               asChild
               variant="outline"
               data-condition-add={field}
+              className="min-h-8 gap-1.5"
               onClick={() => openField(field)}
             >
               <button type="button">
-                <Trans>＋ {textFieldLabel(field)}</Trans>
+                <Plus size={13} strokeWidth={1.5} aria-hidden="true" />{textFieldLabel(field)}
               </button>
             </Badge>
           ),
@@ -299,10 +301,11 @@ export function EvidenceConditions({
             asChild
             variant="outline"
             data-condition-add="headshot"
+            className="min-h-8 gap-1.5"
             onClick={() => commit({ ...state, headshot: true })}
           >
             <button type="button">
-              <Trans>＋ 仅爆头</Trans>
+              <Plus size={13} strokeWidth={1.5} aria-hidden="true" /><Trans>仅爆头</Trans>
             </button>
           </Badge>
         )}
@@ -312,17 +315,17 @@ export function EvidenceConditions({
             asChild
             variant="outline"
             data-condition-add="from"
+            className="min-h-8 gap-1.5 disabled:cursor-not-allowed disabled:opacity-45"
             {...(dateDisabledReason === undefined
               ? {}
               : {
                   disabled: true,
                   title: dateDisabledReason,
-                  className: 'cursor-not-allowed opacity-45',
                 })}
             onClick={() => commit({ ...state, from: recentFrom })}
           >
             <button type="button">
-              <Trans>＋ 近 {RECENT_WINDOW_DAYS} 天</Trans>
+              <Plus size={13} strokeWidth={1.5} aria-hidden="true" /><Trans>近 {RECENT_WINDOW_DAYS} 天</Trans>
             </button>
           </Badge>
         ) : null}

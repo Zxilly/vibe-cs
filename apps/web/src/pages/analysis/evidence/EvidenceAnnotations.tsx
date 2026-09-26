@@ -84,6 +84,7 @@ export function EvidenceAnnotations({
         {Array.from({ length: 6 }, (_, index) => (
           <EvidenceRowSkeleton key={index} density="default" />
         ))}
+        <p role="status" aria-busy="true" className="sr-only"><Trans>正在读取注释</Trans></p>
       </div>
     );
   }
@@ -124,7 +125,7 @@ export function EvidenceAnnotations({
                   <span className="flex-none">·</span>
                   <span className="truncate">{annotation.map_name}</span>
                 </span>
-                <span className="flex items-baseline gap-2.5">
+                <span className="flex flex-wrap items-baseline gap-2.5">
                   <span className="whitespace-nowrap font-mono text-xs text-accent-700">
                     <Trans>tick {formatTickCount(annotation.tick)}</Trans>
                   </span>
@@ -136,7 +137,7 @@ export function EvidenceAnnotations({
                     {resolved ? <Trans>已处理</Trans> : <Trans>待处理</Trans>}
                   </Badge>
                 </span>
-                <span className="text-sm leading-normal">{annotation.body}</span>
+                <span className="max-w-full break-words text-sm leading-relaxed">{annotation.body}</span>
               </button>
               <div className="flex flex-wrap items-center gap-2">
                 {annotation.tags.map((tag) => (

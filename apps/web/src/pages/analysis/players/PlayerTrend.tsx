@@ -36,7 +36,8 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Empty } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
+import { Alert } from '../../../design/feedback';
 import { Seg, type SegOption } from '../../../design/primitives';
 import type { PlayerMatch } from '../../../shared/desktop/dto';
 import {
@@ -91,9 +92,11 @@ export interface PlayerTrendProps {
   readonly matches: readonly PlayerMatch[];
   readonly metric: TrendMetric;
   readonly onMetricChange: (metric: TrendMetric) => void;
+  readonly loading?: boolean | undefined;
+  readonly error?: { readonly message: string; readonly onRetry: () => void } | undefined;
 }
 
-export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProps) {
+export function PlayerTrend({ matches, metric, onMetricChange, loading = false, error }: PlayerTrendProps) {
   const points = trendSeries(matches, metric);
   const geometry = trendGeometry(points, CHART_WIDTH, CHART_HEIGHT);
   const average = trendAverage(points);
@@ -116,14 +119,23 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
           aria-label={t`趋势指标`}
         />
         <div className="flex-1" aria-hidden="true" />
-        <span className="text-xs text-neutral-600">
+        {loading || error !== undefined ? null : <span className="text-xs text-neutral-600">
           <Trans>
             最近 {TREND_WINDOW} 场里有 {points.length} 场有这个指标 · 虚线为个人均值
           </Trans>
-        </span>
+        </span>}
       </div>
 
-      {points.length === 0 ? (
+      {loading ? (
+        <div role="status" aria-busy="true" className="flex flex-col gap-2">
+          <Skeleton className="h-[170px]" />
+          <span className="text-xs text-neutral-600"><Trans>正在读取比赛趋势</Trans></span>
+        </div>
+      ) : error !== undefined ? (
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}>
+          <Trans>比赛趋势没能读出来：{error.message}</Trans>
+        </Alert>
+      ) : points.length === 0 ? (
         <Empty
           title={<Trans>还没有可画的趋势</Trans>}
           description={
@@ -176,7 +188,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
       {/* The time axis: which match the line starts and ends on. The 最近比赛
           list beside the chart names every match; this only anchors the two
           ends so the slope can be read as a direction in time. */}
-      {first === undefined || last === undefined || first === last ? null : (
+      {loading || error !== undefined || first === undefined || last === undefined || first === last ? null : (
         <div className="flex justify-between gap-3 text-xs text-neutral-600" data-trend-axis="">
           <span className="min-w-0 truncate">
             <Trans>最早 {first.label}</Trans>
@@ -190,7 +202,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
       {/* The axis, as text beside the box rather than inside it: a `<text>` in
           an SVG that scales with its container would scale its own type, and
           §3.2's sizes are not negotiable per container width. */}
-      <div className="flex justify-between font-mono text-xs text-neutral-600">
+      {loading || error !== undefined || points.length === 0 ? null : <div className="flex justify-between font-mono text-xs text-neutral-600">
         <span>
           <Trans>低 {printValue(metric, points.length === 0 ? null : geometry.minimum)}</Trans>
         </span>
@@ -200,7 +212,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
         <span>
           <Trans>高 {printValue(metric, points.length === 0 ? null : geometry.maximum)}</Trans>
         </span>
-      </div>
+      </div>}
     </section>
   );
 }

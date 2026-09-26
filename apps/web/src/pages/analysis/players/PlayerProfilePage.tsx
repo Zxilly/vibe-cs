@@ -57,7 +57,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { usePlayer, usePlayerHeatmap, usePlayerMaps, usePlayerMatches } from '../../../data/players';
-import { Empty } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
@@ -111,6 +111,7 @@ export function PlayerProfilePage() {
   const player = profile.data?.player;
   const profileError = dataErrorMessage(profile.error);
   const matchesError = dataErrorMessage(matches.error);
+  const mapsError = dataErrorMessage(maps.error);
   const heatmapError = dataErrorMessage(heatmap.error);
   const recentMatches = matches.data?.items ?? [];
   const latestMatch = recentMatches[0];
@@ -119,6 +120,7 @@ export function PlayerProfilePage() {
   return (
     <Page
       scroll={false}
+      className="@container/profile"
       toolbar={
         <Toolbar
           leading={
@@ -185,19 +187,24 @@ export function PlayerProfilePage() {
         </div>
       )}
 
-      <div className="flex min-h-0 min-w-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto border-r border-divider p-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto @min-[900px]/profile:flex-row @min-[900px]/profile:overflow-hidden">
+        <div className="flex min-w-0 flex-none flex-col gap-5 border-b border-divider p-4 @min-[900px]/profile:min-h-0 @min-[900px]/profile:flex-1 @min-[900px]/profile:overflow-y-auto @min-[900px]/profile:border-r @min-[900px]/profile:border-b-0 @min-[900px]/profile:p-6">
           <PlayerTrend
             matches={recentMatches}
             metric={metric}
             onMetricChange={(next: TrendMetric) => setParam('metric', next)}
+            loading={matches.isPending}
+            {...(matchesError === null ? {} : { error: { message: matchesError, onRetry: () => void matches.refetch() } })}
           />
-          <PlayerMapTable rows={maps.data?.items ?? []} loading={maps.isPending} />
+          {mapsError === null ? null : <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void maps.refetch() }}>
+            <Trans>地图统计没能读出来：{mapsError}</Trans>
+          </Alert>}
+          {mapsError === null || maps.data !== undefined ? <PlayerMapTable rows={maps.data?.items ?? []} loading={maps.isPending} /> : null}
         </div>
 
         <aside
           aria-label={t`地图与最近比赛`}
-          className="flex w-[var(--w-panel)] min-h-0 flex-none flex-col gap-4 overflow-y-auto p-5"
+          className="flex min-w-0 flex-none flex-col gap-4 p-4 @min-[900px]/profile:w-[var(--w-panel)] @min-[900px]/profile:min-h-0 @min-[900px]/profile:overflow-y-auto @min-[900px]/profile:p-5"
         >
           <PlayerHeatmapPanel
             playerName={player?.name ?? playerId}
@@ -205,7 +212,7 @@ export function PlayerProfilePage() {
             kind={kind}
             onKindChange={(next: HeatmapKind) => setParam('kind', next)}
             heatmap={heatmap.data}
-            loading={heatmap.isPending && mapName !== ''}
+            loading={maps.isPending || (heatmap.isPending && mapName !== '')}
             {...(heatmapError === null
               ? {}
               : { error: { message: heatmapError, onRetry: () => void heatmap.refetch() } })}
@@ -225,6 +232,7 @@ export function PlayerProfilePage() {
                     key={item.map_name}
                     variant={item.map_name === mapName ? 'primary' : 'secondary'}
                     size="sm"
+                    aria-pressed={item.map_name === mapName}
                     onClick={() => setParam('map', item.map_name ?? '')}
                   >
                     {item.map_name}
@@ -235,10 +243,15 @@ export function PlayerProfilePage() {
           )}
 
           <section className="flex flex-col gap-2" data-player-recent="">
-            <div className="font-heading text-xs tracking-caps text-neutral-600">
+            <h3 className="text-sm font-medium">
               <Trans>最近比赛</Trans>
-            </div>
-            {matchesError !== null ? (
+            </h3>
+            {matches.isPending ? (
+              <div role="status" aria-busy="true" className="flex flex-col gap-2">
+                <Skeleton className="h-10" /><Skeleton className="h-10" />
+                <span className="text-xs text-neutral-600"><Trans>正在读取最近比赛</Trans></span>
+              </div>
+            ) : matchesError !== null ? (
               <Alert
                 variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void matches.refetch() }}
@@ -258,12 +271,12 @@ export function PlayerProfilePage() {
             ) : (
               <ul className="flex list-none flex-col gap-2">
                 {recentMatches.map((match) => (
-                  <li key={match.demo_id} className="flex items-baseline justify-between gap-3 text-xs">
-                    <RouteLink to={`/match/${encodeURIComponent(match.demo_id)}`} className="min-w-0 truncate">
+                  <li key={match.demo_id} className="flex items-baseline justify-between gap-3 border-b border-divider pb-2 text-sm">
+                    <RouteLink to={`/match/${encodeURIComponent(match.demo_id)}`} title={match.demo_name} className="min-w-0 truncate">
                       {match.demo_name}
                     </RouteLink>
-                    <span className="flex-none font-mono text-neutral-700">
-                      {formatFixed(match.kill_death_ratio, 2)}
+                    <span className="flex-none font-mono text-xs text-neutral-700">
+                      K/D {formatFixed(match.kill_death_ratio, 2)}
                     </span>
                   </li>
                 ))}

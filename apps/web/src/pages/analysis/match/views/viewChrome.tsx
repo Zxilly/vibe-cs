@@ -72,7 +72,7 @@ export function ViewFrame({ view, state = 'ready', children }: ViewFrameProps) {
     <section
       data-match-view={view}
       data-match-view-state={state}
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-6"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-4 min-[1400px]:p-6"
     >
       {children}
     </section>
@@ -104,14 +104,14 @@ export function ViewPanel({ id, title, hint, actions, children, fill = false, cl
       className={cn('flex min-w-0 flex-col border border-divider', fill && 'min-h-0 flex-1', className)}
     >
       <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3 py-1">
-        <h3 className="min-w-0 truncate text-sm font-medium">
+        <h3 className="min-w-0 break-words text-sm font-medium">
           {title}
         </h3>
-        {hint === undefined ? null : <p className="min-w-0 truncate text-xs text-neutral-600">{hint}</p>}
+        {hint === undefined ? null : <p className="min-w-0 text-xs leading-normal text-neutral-600">{hint}</p>}
         {actions === undefined ? null : (
           <>
             <span className="flex-1" />
-            <span className="flex flex-none items-center gap-2">{actions}</span>
+            <span className="flex min-w-0 flex-wrap items-center gap-2">{actions}</span>
           </>
         )}
       </header>
@@ -208,23 +208,28 @@ export function ViewSkeleton({ rows = 5 }: { readonly rows?: number }) {
  */
 export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
   const start = useStartDemoAnalysis();
+  const startError = dataErrorMessage(start.error);
 
   return (
+    <div>
     <Empty
       preset="not-analysed"
       headingLevel={4}
       className="m-3.5"
       actions={
         <>
-          <Button variant="primary" onClick={() => start.mutate([demoId])}>
-            <Trans>开始分析</Trans>
+          <Button variant="primary" disabled={start.isPending || start.isSuccess} onClick={() => start.mutate([demoId])}>
+            {start.isPending ? <Trans>正在提交…</Trans> : start.isSuccess ? <Trans>分析已提交</Trans> : <Trans>开始分析</Trans>}
           </Button>
-          <RouteLink to="/library">
-            <Trans>回到资料库</Trans>
+          <RouteLink to={start.isSuccess ? '/tasks' : '/library'}>
+            {start.isSuccess ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
           </RouteLink>
         </>
       }
     />
+    {startError === null ? null : <Alert className="m-3.5" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => start.mutate([demoId]), disabled: start.isPending }}><Trans>没能开始分析：{startError}</Trans></Alert>}
+    {start.isSuccess ? <p role="status" className="px-3.5 pb-3.5 text-sm text-neutral-700"><Trans>分析任务已提交，可在后台任务中查看进度。</Trans></p> : null}
+    </div>
   );
 }
 

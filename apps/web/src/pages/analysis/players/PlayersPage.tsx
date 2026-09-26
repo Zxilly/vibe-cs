@@ -99,11 +99,12 @@ function directoryColumns(): readonly DataTableColumn<PlayerDirectoryItem>[] {
       header: <Trans>选手</Trans>,
       headerLabel: t`选手`,
       hideable: false,
+      minWidth: '180px',
       sortable: true,
       truncate: true,
       cell: (row) => (
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate text-base">{row.name}</span>
+        <span className="flex min-w-0 items-baseline gap-2" title={row.last_team === null ? row.name : `${row.name} · ${row.last_team}`}>
+          <span className="min-w-0 truncate text-base">{row.name}</span>
           {row.last_team === null ? null : (
             <span className="flex-none text-xs text-neutral-600">· {row.last_team}</span>
           )}
@@ -291,6 +292,7 @@ export function PlayersPage() {
               }}
             />
           </div>
+          <p className="text-xs text-neutral-600"><Trans>勾选两名选手进行比较，点击行查看详情。</Trans></p>
         </Toolbar>
       }
       footer={

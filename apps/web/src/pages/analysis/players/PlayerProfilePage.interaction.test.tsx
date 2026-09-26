@@ -7,9 +7,9 @@
  * button that can never be pressed.
  */
 
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../data/desktopClient';
 import { renderInteractive } from '../../../test/render';
@@ -79,5 +79,31 @@ describe('the page action', () => {
     await waitFor(() => {
       expect(screen.queryByRole('link', { name: '去比赛工作区做集锦' })).toBeNull();
     });
+  });
+});
+
+describe('independent profile reads', () => {
+  it('keeps pending matches out of the empty and measured trend states', async () => {
+    const client = { ...stubClient(null), listPlayerMatches: () => new Promise<never>(() => undefined) };
+    mount(client);
+    await meta();
+    expect(screen.getByText('正在读取比赛趋势')).toBeTruthy();
+    expect(screen.getByText('正在读取最近比赛')).toBeTruthy();
+    expect(screen.queryByText('还没有比赛')).toBeNull();
+    expect(screen.queryByText('还没有可画的趋势')).toBeNull();
+    expect(screen.queryByText(/最近 20 场里有 0 场/u)).toBeNull();
+  });
+
+  it('reports a failed map read and retries it without losing the profile', async () => {
+    const client = stubClient(null);
+    const listPlayerMaps = vi.fn().mockRejectedValueOnce(new Error('map statistics unavailable')).mockImplementation(client.listPlayerMaps!);
+    mount({ ...client, listPlayerMaps });
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('地图统计没能读出来');
+    expect(screen.queryByText('还没有按地图的数据')).toBeNull();
+    fireEvent.click(within(error).getByRole('button', { name: '重试' }));
+    await screen.findByRole('table', { name: '按地图的成绩' });
+    expect(listPlayerMaps).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('heading', { name: 'Kael' })).toBeTruthy();
   });
 });

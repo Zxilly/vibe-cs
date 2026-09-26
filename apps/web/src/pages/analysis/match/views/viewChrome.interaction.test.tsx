@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDemo, useStartDemoAnalysis } from '../../../../data/demos';
 import { DEMO_ID } from '../../../../test/fixtures/matchAnalysis';
-import { AnalysisFailure } from './viewChrome';
+import { AnalysisFailure, NotAnalysedState } from './viewChrome';
 import { mutationResult, queryResult, renderView } from './test/renderView';
 
 vi.mock('../../../../data/demos', async (importOriginal) => {
@@ -31,6 +31,32 @@ function demo(lifecycle: 'ready' | 'analyzing') {
 beforeEach(() => {
   vi.mocked(useDemo).mockReturnValue(demo('ready') as never);
   vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ isSuccess: false }) as never);
+});
+
+describe('starting analysis from an empty workspace', () => {
+  it('prevents duplicate submissions and reports accepted work', () => {
+    const mutate = vi.fn();
+    vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ mutate, isPending: true }) as never);
+    const view = renderView(<NotAnalysedState demoId={DEMO_ID} />);
+    expect(screen.getByRole('button', { name: '正在提交…' })).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByRole('button', { name: '正在提交…' }));
+    expect(mutate).not.toHaveBeenCalled();
+
+    vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ mutate, isSuccess: true }) as never);
+    view.rerender(<MemoryRouter><NotAnalysedState demoId={DEMO_ID} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: '分析已提交' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('link', { name: '查看分析进度' }).getAttribute('href')).toBe('/tasks');
+    expect(screen.getByRole('status').textContent).toContain('分析任务已提交');
+  });
+
+  it('shows a rejected submission and retries the same Demo', () => {
+    const mutate = vi.fn();
+    vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ mutate, error: new Error('analysis queue unavailable') }) as never);
+    renderView(<NotAnalysedState demoId={DEMO_ID} />);
+    expect(screen.getByRole('alert').textContent).toContain('analysis queue unavailable');
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(mutate).toHaveBeenCalledWith([DEMO_ID]);
+  });
 });
 
 describe('AnalysisFailure', () => {

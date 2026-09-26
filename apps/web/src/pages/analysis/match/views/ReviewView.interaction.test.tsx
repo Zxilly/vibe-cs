@@ -71,6 +71,18 @@ describe('the tabs', () => {
 });
 
 describe('生成 AI 点评', () => {
+  it('retries the failed generation with the same scope instead of only dismissing its error', () => {
+    const reset = vi.fn();
+    vi.mocked(useGenerateMatchReview).mockReturnValue(mutationResult({ mutate: generate, reset, error: new Error('model unavailable') }) as never);
+    renderView(<ReviewView.Body {...viewProps({ context: { player: 'kael' } })} />);
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(generate).toHaveBeenCalledWith({
+      demoId: DEMO_ID,
+      request: { scope: 'match', player_id: 'kael', highlight_ids: [], tone: 'analytical' },
+    });
+    expect(reset).not.toHaveBeenCalled();
+  });
+
   it('sends the whole match at the tone the tag states', () => {
     renderView(<ReviewView.Body {...viewProps({ context: { player: 'kael' } })} />);
 

@@ -97,6 +97,13 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
 
   const rows = annotations.data?.items ?? [];
   const tally = annotationTally(rows);
+  const generateReview = () => {
+    if (id === null) return;
+    review.mutate({
+      demoId: id,
+      request: { scope: 'match', player_id: context.player, highlight_ids: [], tone: 'analytical' },
+    });
+  };
 
   if (analysisIsMissing(analysis.error)) {
     return (
@@ -141,24 +148,18 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
           size="sm"
           disabled={id === null || review.isPending}
           {...(id === null ? { disabledReason: t`还没有打开一场比赛` } : {})}
-          onClick={() => {
-            if (id === null) return;
-            review.mutate({
-              demoId: id,
-              request: { scope: 'match', player_id: context.player, highlight_ids: [], tone: 'analytical' },
-            });
-          }}
+          onClick={generateReview}
         >
           {review.isPending ? <Trans>正在生成…</Trans> : <Trans>生成 AI 点评</Trans>}
         </Button>
       </header>
 
       {tab === 'conclusions' ? (
-        <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto @min-[720px]/review:flex-row @min-[720px]/review:overflow-hidden">
           <section
             data-review-insights=""
             aria-label={t`自动洞察`}
-            className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain border-r border-divider p-3.5"
+            className="flex min-w-0 flex-none flex-col gap-3 border-b border-divider p-4 @min-[720px]/review:min-h-0 @min-[720px]/review:flex-1 @min-[720px]/review:overflow-y-auto @min-[720px]/review:overscroll-y-contain @min-[720px]/review:border-r @min-[720px]/review:border-b-0"
           >
             <Heading>
               <Trans>自动洞察 · 由规则从证据推出</Trans>
@@ -177,7 +178,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
           <section
             data-review-commentary=""
             aria-label={t`AI 点评`}
-            className="flex w-[var(--w-inspector-wide)] min-h-0 flex-none flex-col gap-3 overflow-y-auto overscroll-y-contain p-3.5"
+            className="flex min-w-0 flex-none flex-col gap-3 p-4 @min-[720px]/review:min-h-0 @min-[720px]/review:flex-1 @min-[720px]/review:overflow-y-auto @min-[720px]/review:overscroll-y-contain"
           >
             <div className="flex items-center gap-2">
               <Heading>
@@ -191,7 +192,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             {review.error === null || review.error === undefined ? null : (
               <Alert
                 variant="danger"
-                action={{ label: <Trans>重试</Trans>, onAction: () => review.reset() }}
+                action={{ label: <Trans>重试</Trans>, onAction: generateReview, disabled: review.isPending }}
                 detail={<Trans>没有写入任何东西；自动洞察不受影响。</Trans>}
               >
                 <Trans>生成点评失败：{dataErrorMessage(review.error) ?? t`服务没有给出原因`}</Trans>
@@ -199,7 +200,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             )}
 
             {review.data === undefined ? (
-              <p className="text-xs leading-relaxed text-neutral-600">
+              <p className="text-sm leading-relaxed text-neutral-600">
                 <Trans>
                   还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。
                 </Trans>
@@ -384,7 +385,7 @@ function InsightCard({
       aria-current={current ? true : undefined}
       className={
         current
-          ? 'border border-accent-300 bg-accent-100 px-3.5 py-3 shadow-[inset_2px_0_0_var(--color-accent)]'
+          ? 'border border-accent-300 bg-accent-100 px-3.5 py-3'
           : 'border border-divider px-3.5 py-3'
       }
     >
@@ -795,7 +796,7 @@ function ReviewInspector({
     >
       <div className="flex flex-col gap-3 text-sm">
         {showDefaultInsight ? (
-          <section data-review-default-insight="" className="border-l-2 border-accent pl-3">
+          <section data-review-default-insight="" className="border border-accent-300 bg-accent-100 p-3">
             <h3 className="font-heading text-lg">
               <Trans>
                 {opening.leaderName} 拿下了 {opening.roundsWithOpening} 个回合里的 {opening.leaderCount} 次首杀
@@ -857,7 +858,7 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
     <section
       data-match-view="review"
       data-match-view-state={state}
-      className="m-6 flex min-h-0 min-w-0 flex-1 flex-col border border-divider"
+      className="@container/review m-4 flex min-h-0 min-w-0 flex-1 flex-col border border-divider min-[1400px]:m-6"
     >
       {children}
     </section>

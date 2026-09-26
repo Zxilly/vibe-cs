@@ -160,6 +160,33 @@ describe('应用', () => {
     await waitFor(() => expect(written).toHaveLength(1));
     expect(written[0]?.update_manifest_url).toBe('https://example.com/manifest.json');
   });
+
+  it('preserves a failed update-source draft and retries the same value with Enter', async () => {
+    const updateConfig = vi.fn()
+      .mockRejectedValueOnce(new Error('disk is full'))
+      .mockImplementation((config: AppConfig) => Promise.resolve(config));
+    render(<AppSection />, { updateConfig });
+    const input = await screen.findByLabelText('更新源地址') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'https://example.com/manifest.json' } });
+    fireEvent.blur(input);
+
+    await screen.findByText(/disk is full/u);
+    expect(input.value).toBe('https://example.com/manifest.json');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(2));
+    expect(updateConfig.mock.calls[1]?.[0]).toEqual({ ...CONFIG, update_manifest_url: 'https://example.com/manifest.json' });
+    expect((await screen.findByRole('status')).textContent).toContain('设置已保存');
+  });
+
+  it('rejects incomplete HTTPS URLs and associates the explanation with the field', async () => {
+    const { written } = render(<AppSection />);
+    const input = await screen.findByLabelText('更新源地址');
+    fireEvent.change(input, { target: { value: 'https://' } });
+    fireEvent.blur(input);
+    expect(written).toHaveLength(0);
+    expect(input.getAttribute('aria-describedby')).toBe('update-manifest-error');
+    expect(screen.getByRole('alert').textContent).toContain('完整地址');
+  });
 });
 
 describe('文件与资料库', () => {

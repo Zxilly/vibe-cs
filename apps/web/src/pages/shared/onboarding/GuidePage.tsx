@@ -46,11 +46,11 @@ export function GuidePage() {
           one is three fixed cards. Stretching it to the taller column left a
           panel with a page of empty border under its last card. */}
       <div className="grid min-h-0 grid-cols-1 items-start gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
-        <section className="flex flex-col gap-4 border border-divider p-5">
+        <section className="flex min-w-0 flex-col gap-4">
           <h2 className="text-base font-medium">
-            <Trans>三步</Trans>
+            <Trans>从 Demo 到第一条视频</Trans>
           </h2>
-          <ol className="flex flex-col gap-3">
+          <ol className="flex flex-col border border-divider bg-bg">
             {FIRST_RUN_STEPS.map((step, index) => {
               const current = progress?.current === step.id;
               const done = progress?.done.has(step.id) ?? false;
@@ -61,15 +61,15 @@ export function GuidePage() {
                   data-guide-current={current ? 'true' : undefined}
                   data-guide-done={done ? 'true' : undefined}
                   className={cn(
-                    'relative flex min-h-28 items-center gap-6 border p-5',
+                    'relative flex min-h-28 items-center gap-4 border-b border-divider p-5 last:border-b-0 focus-within:outline-2 focus-within:outline-accent focus-within:-outline-offset-2',
                     current
-                      ? 'border-accent bg-accent-100 shadow-[inset_3px_0_0_var(--color-accent)]'
-                      : 'border-divider hover:bg-action-hover',
+                      ? 'bg-accent-100'
+                      : 'hover:bg-action-hover',
                   )}
                 >
                   <span
                     className={cn(
-                      'w-16 flex-none font-heading text-3xl',
+                      'w-10 flex-none font-heading text-2xl tabular-nums',
                       current ? 'text-accent-800' : 'text-neutral-500',
                     )}
                   >
@@ -77,7 +77,8 @@ export function GuidePage() {
                   </span>
                   <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <RouteLink to={step.to} className="after:absolute after:inset-0">
+                      <RouteLink to={step.to} aria-current={current ? 'step' : undefined}
+                        className="text-base font-medium after:absolute after:inset-0">
                         {step.title()}
                       </RouteLink>
                       {done ? (
@@ -85,8 +86,9 @@ export function GuidePage() {
                           <Trans>已完成</Trans>
                         </Badge>
                       ) : null}
+                      {current ? <Badge variant="accent" size="sm"><Trans>下一步</Trans></Badge> : null}
                     </div>
-                    <p className="text-xs leading-normal text-neutral-600">{step.description()}</p>
+                    <p className={cn('max-w-prose text-sm leading-relaxed', current ? 'text-accent-800' : 'text-neutral-600')}>{step.description()}</p>
                   </div>
                 </li>
               );
@@ -95,7 +97,7 @@ export function GuidePage() {
         </section>
 
         <section className="flex min-w-0 flex-col gap-4 border border-divider p-5">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="text-base font-medium">
               <Trans>这台机器现在能做什么</Trans>
             </h2>
@@ -130,18 +132,26 @@ export function GuidePage() {
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
                     <span>{check.label}</span>
+                    <span className={cn('ml-auto flex-none text-sm', check.state === 'ready' ? 'text-ok-text' : 'text-fail-text')}>
+                      {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
+                    </span>
                   </div>
-                  <p className="ms-5 text-xs leading-normal text-neutral-600">
+                  <p className="ms-5 text-sm leading-relaxed text-neutral-600">
                     {/* What it enables, and — when it is broken — what still
                         works without it. A first-time user with no HLAE needs
                         to know they can still import and analyse today. */}
                     {enablesSentence(check)}
                   </p>
                   {check.detail === '' ? null : (
-                    <p className="ms-5 break-all text-xs leading-normal text-neutral-600">{check.detail}</p>
+                    <p className="ms-5 break-all text-sm leading-relaxed text-neutral-600">{check.detail}</p>
                   )}
                 </li>
               ))}
+              {(checks.data?.checks ?? []).length === 0 ? (
+                <li className="py-3 text-sm leading-relaxed text-neutral-600">
+                  <Trans>没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。</Trans>
+                </li>
+              ) : null}
             </ul>
           )}
 

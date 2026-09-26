@@ -83,12 +83,24 @@ export function RecoveryPage() {
   const stagedFiles = scan.data?.staged.files;
   const stagedBytes = scan.data === undefined ? null : formatBytes(scan.data.staged.bytes);
   const missingRecords = scan.data?.missing.records;
+  const scanUnavailable = scan.isPending || scan.isError;
+  const scanUnavailableReason = scan.isPending ? t`正在扫描清理范围` : t`请先重试扫描，确认需要清理的内容`;
 
   return (
     <Page
       toolbar={
         <Toolbar
           title={<Trans>恢复中心</Trans>}
+          meta={<Trans>先检查范围，再按需恢复或清理</Trans>}
+          inlineActionsWhenCollapsed={1}
+          actions={[{
+            id: 'rescan',
+            label: <Trans>重新检查</Trans>,
+            disabled: busy || scan.isFetching || status.isFetching,
+            onSelect: () => { void scan.refetch(); void status.refetch(); },
+            control: <Button disabled={busy || scan.isFetching || status.isFetching}
+              onClick={() => { void scan.refetch(); void status.refetch(); }}><Trans>重新检查</Trans></Button>,
+          }]}
         />
       }
     >
@@ -164,9 +176,9 @@ export function RecoveryPage() {
               variant="secondary"
               size="md"
               data-recovery-action="config"
-              disabled={blocked || status.data?.recovery_required !== true}
+              disabled={blocked || status.isError || status.data?.recovery_required !== true}
               disabledReason={
-                status.data?.recovery_required === false
+                status.isPending ? t`正在读取恢复状态` : status.isError ? t`请先重试读取恢复状态` : status.data?.recovery_required === false
                   ? t`当前配置完整，备份恢复保持关闭`
                   : blockedReason
               }
@@ -198,7 +210,7 @@ export function RecoveryPage() {
               </span>
             ) : (
               <span
-                className="flex items-center gap-2 text-sm text-neutral-800"
+                className="flex flex-wrap items-center gap-2 text-sm text-neutral-800"
                 data-recovery-staged={String(scan.data.staged.files)}
               >
                 <StatusDot status="warn" />
@@ -219,8 +231,8 @@ export function RecoveryPage() {
               variant="secondary"
               size="md"
               data-recovery-action="staged"
-              disabled={blocked || stagedFiles === 0}
-              disabledReason={stagedFiles === 0 ? t`没有需要清理的暂存文件` : blockedReason}
+              disabled={blocked || scanUnavailable || stagedFiles === 0}
+              disabledReason={scanUnavailable ? scanUnavailableReason : stagedFiles === 0 ? t`没有需要清理的暂存文件` : blockedReason}
               onClick={() => setConfirming('staged')}
             >
               <Trans>清理暂存成片</Trans>
@@ -263,7 +275,7 @@ export function RecoveryPage() {
               </span>
             ) : (
               <span
-                className="flex items-center gap-2 text-sm text-neutral-800"
+                className="flex flex-wrap items-center gap-2 text-sm text-neutral-800"
                 data-recovery-missing={String(scan.data.missing.records)}
               >
                 <StatusDot status="warn" />
@@ -288,8 +300,8 @@ export function RecoveryPage() {
               variant="secondary"
               size="md"
               data-recovery-action="missing"
-              disabled={blocked || missingRecords === 0}
-              disabledReason={missingRecords === 0 ? t`没有失效记录` : blockedReason}
+              disabled={blocked || scanUnavailable || missingRecords === 0}
+              disabledReason={scanUnavailable ? scanUnavailableReason : missingRecords === 0 ? t`没有失效记录` : blockedReason}
               onClick={() => setConfirming('missing')}
             >
               <Trans>清理失效记录</Trans>
@@ -385,20 +397,20 @@ interface RecoveryCardProps {
 
 function RecoveryCard({ title, state, effect, untouched, detail, action, result }: RecoveryCardProps) {
   return (
-    <section className="grid min-h-36 grid-cols-1 border-b border-divider last:border-b-0 xl:grid-cols-[minmax(18rem,1fr)_minmax(24rem,1.6fr)_13rem]">
-      <div className="flex min-w-0 flex-col gap-2 border-b border-divider p-5 xl:border-r xl:border-b-0">
+    <section className="grid min-h-36 grid-cols-1 border-b border-divider last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(18rem,1fr)_minmax(24rem,1.6fr)_13rem]">
+      <div className="flex min-w-0 flex-col gap-2 border-b border-divider p-4 sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0 xl:p-5">
         <h2 className="text-lg font-medium">{title}</h2>
         {state}
       </div>
-      <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-divider p-5 xl:border-r xl:border-b-0">
+      <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-divider p-4 sm:border-r sm:border-b-0 xl:p-5">
         {detail}
         <p className="text-sm leading-normal text-neutral-700">{effect}</p>
         <p className="text-sm leading-normal text-neutral-700">{untouched}</p>
       </div>
-      <div className="flex min-w-0 flex-col items-stretch justify-center gap-3 p-5">
+      <div className="flex min-w-0 flex-col items-stretch justify-center gap-3 p-4 xl:p-5">
         {action}
         {result === null || result === undefined ? null : (
-          <span className="text-xs text-neutral-700" data-recovery-result="">
+          <span role="status" className="text-sm leading-relaxed text-neutral-700" data-recovery-result="">
             {result}
           </span>
         )}

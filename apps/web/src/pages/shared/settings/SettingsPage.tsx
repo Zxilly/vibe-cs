@@ -101,7 +101,7 @@ export function SettingsPage() {
     target.dataset['settingTarget'] = 'true';
     target.classList.add('outline', 'outline-2', 'outline-accent', '-outline-offset-2', 'scroll-mt-3');
     target.focus({ preventScroll: true });
-    target.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    target.scrollIntoView?.({ block: 'start', behavior: 'instant' });
     return () => {
       delete target.dataset['settingTarget'];
       target.classList.remove('outline', 'outline-2', 'outline-accent', '-outline-offset-2', 'scroll-mt-3');

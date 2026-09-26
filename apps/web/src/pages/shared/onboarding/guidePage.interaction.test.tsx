@@ -107,6 +107,12 @@ describe('the first-run strip', () => {
 });
 
 describe('使用引导', () => {
+  it('reports an empty dependency check instead of implying the machine is ready', async () => {
+    render(<GuidePage />, { quickCheck: () => Promise.resolve({ checks: [], checked_at: CHECKS.checked_at }) });
+    expect(await screen.findByText(/没有收到环境检查结果/u)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重新检查' })).toBeTruthy();
+  });
+
   it('presents the pipeline beside readiness and, on an empty machine, points at the first step', async () => {
     render(<GuidePage />);
     await screen.findByText('这台机器现在能做什么');

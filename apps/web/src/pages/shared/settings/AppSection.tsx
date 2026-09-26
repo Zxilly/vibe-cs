@@ -32,7 +32,7 @@ import { useState } from 'react';
 
 import { Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
-import { Seg, Input } from '../../../design/primitives';
+import { Seg, Input, Button } from '../../../design/primitives';
 import { useAppConfig, useUpdateAppConfig } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
 import type { AppConfig } from '../../../shared/desktop/dto';
@@ -64,7 +64,14 @@ export function AppSection() {
   const writeError = dataErrorMessage(update.error);
 
   const manifest = manifestDraft ?? current?.update_manifest_url ?? '';
-  const manifestInvalid = manifest.trim() !== '' && !manifest.trim().startsWith('https://');
+  const manifestInvalid = manifest.trim() !== '' && !isHttpsUrl(manifest.trim());
+  const manifestDirty = current !== undefined && manifest.trim() !== current.update_manifest_url;
+  const saveManifest = () => {
+    if (current === undefined || manifestInvalid || !manifestDirty || blocked) return;
+    void update.mutateAsync({ ...current, update_manifest_url: manifest.trim() })
+      .then(() => setManifestDraft(null))
+      .catch(() => undefined);
+  };
 
   return (
     <div className="flex flex-col">
@@ -137,34 +144,37 @@ export function AppSection() {
             }
             {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
           >
-            <div className="flex min-w-72 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Input
                 value={manifest}
                 disabled={blocked}
                 data-setting="update-manifest"
                 aria-label={t`更新源地址`}
+                aria-describedby={manifestInvalid ? 'update-manifest-error' : 'update-manifest-hint'}
                 placeholder="https://"
+                autoComplete="url"
+                spellCheck={false}
                 invalid={manifestInvalid}
                 onChange={(event) => setManifestDraft(event.target.value)}
-                onBlur={() => {
-                  /* An invalid value *keeps* its draft: clearing it would
-                     restore the stored URL under the user's cursor and take
-                     the error message with it, so the field would appear to
-                     have accepted and then forgotten what they typed. */
-                  if (manifestInvalid) return;
-                  const next = manifest.trim();
-                  setManifestDraft(null);
-                  if (next === current.update_manifest_url) return;
-                  write({ ...current, update_manifest_url: next });
-                }}
+                onBlur={saveManifest}
+                onKeyDown={(event) => { if (event.key === 'Enter') saveManifest(); }}
               />
               {manifestInvalid ? (
-                <p className="text-xs leading-normal text-fail-text">
-                  {/* Refused here rather than at the service, because the
-                      service's message would arrive after the field lost
-                      focus and the user moved on. */}
-                  <Trans>只接受 https:// 开头的地址。</Trans>
+                <p id="update-manifest-error" role="alert" className="text-sm leading-normal text-fail-text">
+                  <Trans>只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。</Trans>
                 </p>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p id="update-manifest-hint" className="text-sm text-neutral-600">
+                  <Trans>离开输入框或按 Enter 保存。</Trans>
+                </p>
+                <Button size="sm" variant="secondary" disabled={blocked || manifestInvalid || !manifestDirty}
+                  onClick={saveManifest}>
+                  {blocked ? <Trans>正在保存</Trans> : <Trans>保存</Trans>}
+                </Button>
+              </div>
+              {update.isSuccess && manifestDraft === null ? (
+                <p role="status" className="text-sm text-ok-text"><Trans>设置已保存。</Trans></p>
               ) : null}
             </div>
           </SettingsRow>
@@ -172,4 +182,14 @@ export function AppSection() {
       </SettingsBlock>
     </div>
   );
+}
+
+function isHttpsUrl(value: string): boolean {
+  if (!value.startsWith('https://')) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname !== '';
+  } catch {
+    return false;
+  }
 }

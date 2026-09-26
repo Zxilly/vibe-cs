@@ -489,7 +489,7 @@ function ModelBlock({
           <p className="border-b border-divider pb-2 font-heading text-sm">
             <Trans>连接信息</Trans>
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={<Trans>提供方</Trans>} required>
               {(control) => (
                 <Input {...control} value={draft.provider} disabled={disabled}
@@ -698,7 +698,7 @@ function ProviderParametersEditor({
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <OptionalNumberParameter
             label={<Trans>Temperature</Trans>}
             value={parameterNumber(parameters, 'temperature')}

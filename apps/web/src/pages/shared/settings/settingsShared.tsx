@@ -61,11 +61,11 @@ export function SettingsBlock({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="text-base font-medium">{title}</h2>
         {description === undefined ? null : (
-          <p className="text-xs leading-normal text-neutral-600">{description}</p>
+          <p className="max-w-prose text-sm leading-relaxed text-neutral-600">{description}</p>
         )}
       </div>
       {actions === undefined ? null : (
-        <div className="flex flex-none items-center gap-2" data-settings-actions="">
+        <div className="flex flex-none flex-wrap items-center gap-2" data-settings-actions="">
           {actions}
         </div>
       )}
@@ -125,9 +125,9 @@ export interface SettingsRowProps {
 export function SettingsRow({ label, hint, children, disabledReason }: SettingsRowProps) {
   return (
     <div data-settings-row="" className="flex flex-wrap items-start gap-x-8 gap-y-3">
-      <div className="min-w-56 flex-[2]">
+      <div className="min-w-0 basis-64 flex-[2]">
         <p className="text-base">{label}</p>
-        <p className="mt-1 text-xs leading-normal text-neutral-600">{hint}</p>
+        <p className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">{hint}</p>
         {disabledReason === undefined ? null : (
           <p className="mt-1 text-xs leading-normal text-warn" data-disabled-reason="">
             {disabledReason}
@@ -135,7 +135,7 @@ export function SettingsRow({ label, hint, children, disabledReason }: SettingsR
         )}
       </div>
       {children === undefined ? null : (
-        <div className="flex min-w-fit max-w-full flex-1 justify-end">{children}</div>
+        <div className="flex min-w-0 max-w-full flex-1 basis-56 flex-wrap justify-end gap-2">{children}</div>
       )}
     </div>
   );
@@ -181,7 +181,7 @@ export function SettingsSwitch({
           <label htmlFor={switchId} className="block text-base">
             {label}
           </label>
-          <p id={hintId} className="mt-1 text-xs leading-normal text-neutral-600">
+          <p id={hintId} className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">
             {hint}
           </p>
         </div>

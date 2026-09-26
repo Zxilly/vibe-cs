@@ -47,14 +47,14 @@ export function FirstRunStrip() {
 
   return (
     <div
-      className="flex flex-wrap items-center gap-4 border border-accent p-4 shadow-[inset_2px_0_0_var(--color-accent)]"
+      className="flex flex-wrap items-center gap-4 border border-accent bg-accent-100 p-4"
       data-home-block="first-run"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="text-base font-medium">
           <Trans>从导入 Demo 开始</Trans>
         </h2>
-        <p className="text-xs leading-normal text-neutral-600">
+        <p className="text-sm leading-relaxed text-accent-800">
           <Trans>素材为空。导入一场 Demo 后，就可以用它新建第一份作品。</Trans>
         </p>
       </div>

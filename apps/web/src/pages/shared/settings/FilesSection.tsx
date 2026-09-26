@@ -276,7 +276,7 @@ export function FilesSection() {
           <Skeleton />
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label={<Trans>Steam ID</Trans>} required>
                 {(control) => (
                   <Input
@@ -300,7 +300,8 @@ export function FilesSection() {
                     type="password"
                     value={steam.web_api_key}
                     disabled={blocked}
-                    placeholder={current.steam_has_web_api_key ? '••••••••' : '32 位十六进制密钥'}
+                    placeholder={current.steam_has_web_api_key ? '••••••••' : t`32 位十六进制密钥`}
+                    autoComplete="new-password"
                     onChange={(event) => setSteamDraft({ ...steam, web_api_key: event.target.value })}
                   />
                 )}
@@ -315,6 +316,7 @@ export function FilesSection() {
                     {...control}
                     type="password"
                     value={steam.authentication_code}
+                    autoComplete="new-password"
                     disabled={blocked}
                     placeholder={current.steam_has_authentication_code ? '••••-•••••-••••' : 'XXXX-XXXXX-XXXX'}
                     onChange={(event) => setSteamDraft({ ...steam, authentication_code: event.target.value })}
@@ -331,6 +333,7 @@ export function FilesSection() {
                     {...control}
                     type="password"
                     value={steam.known_share_code}
+                    autoComplete="new-password"
                     disabled={blocked}
                     placeholder={current.steam_has_share_code ? 'CSGO-•••••-•••••-•••••-•••••-•••••' : 'CSGO-…'}
                     onChange={(event) => setSteamDraft({ ...steam, known_share_code: event.target.value })}

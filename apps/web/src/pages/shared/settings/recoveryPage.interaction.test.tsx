@@ -55,6 +55,29 @@ function render(overrides: Record<string, unknown> = {}) {
 const confirm = () => document.querySelector('[data-dialog-action="confirm"]') as HTMLElement;
 
 describe('what the page says before anything is pressed', () => {
+  it('keeps cleanup unavailable until the scan has established its scope', async () => {
+    let completeScan!: (value: RecoveryScan) => void;
+    render({ scanRecoveryOutputs: () => new Promise<RecoveryScan>((resolve) => { completeScan = resolve; }) });
+    const staged = screen.getByRole('button', { name: '清理暂存成片' });
+    const missing = screen.getByRole('button', { name: '清理失效记录' });
+    expect(staged.hasAttribute('disabled')).toBe(true);
+    expect(missing.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(staged);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    completeScan(SCAN);
+    await waitFor(() => expect(staged.hasAttribute('disabled')).toBe(false));
+    expect(missing.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('keeps cleanup unavailable after a failed scan and offers a retry', async () => {
+    render({ scanRecoveryOutputs: () => Promise.reject(new Error('scan unavailable')) });
+    await screen.findByText(/scan unavailable/u);
+    expect(screen.getByRole('button', { name: '清理暂存成片' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: '清理失效记录' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
+  });
+
   it('says the configuration is fine when it is, rather than staying silent', async () => {
     render();
     await waitFor(() => {
@@ -138,7 +161,7 @@ describe('every action takes a confirmation', () => {
     );
     render({ cleanupStagedOutputs });
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="staged"]')).not.toBeNull();
+      expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(false);
     });
 
     fireEvent.click(document.querySelector('[data-recovery-action="staged"]') as HTMLElement);
@@ -172,7 +195,7 @@ describe('every action takes a confirmation', () => {
     );
     render({ cleanupMissingOutputs });
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="missing"]')).not.toBeNull();
+      expect(document.querySelector('[data-recovery-action="missing"]')?.hasAttribute('disabled')).toBe(false);
     });
 
     fireEvent.click(document.querySelector('[data-recovery-action="missing"]') as HTMLElement);
@@ -191,7 +214,7 @@ describe('what a cleanup reports', () => {
         Promise.resolve({ inspected: 7, deleted: 4, failed: 3, scan_limited: false }),
     });
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="staged"]')).not.toBeNull();
+      expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(false);
     });
 
     fireEvent.click(document.querySelector('[data-recovery-action="staged"]') as HTMLElement);
@@ -207,7 +230,7 @@ describe('what a cleanup reports', () => {
       cleanupMissingOutputs: () => Promise.resolve({ inspected: 9, deleted: 2, scan_limited: true }),
     });
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="missing"]')).not.toBeNull();
+      expect(document.querySelector('[data-recovery-action="missing"]')?.hasAttribute('disabled')).toBe(false);
     });
 
     fireEvent.click(document.querySelector('[data-recovery-action="missing"]') as HTMLElement);
@@ -246,7 +269,7 @@ describe('what a cleanup reports', () => {
         Promise.resolve({ inspected: 0, deleted: 0, failed: 0, scan_limited: false }),
     });
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-action="staged"]')).not.toBeNull();
+      expect(document.querySelector('[data-recovery-action="staged"]')?.hasAttribute('disabled')).toBe(false);
     });
 
     fireEvent.click(document.querySelector('[data-recovery-action="staged"]') as HTMLElement);

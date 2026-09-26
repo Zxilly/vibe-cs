@@ -15,12 +15,12 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 
 #. placeholder {0}: cleanupStaged.data.failed
-#: src/pages/shared/settings/RecoveryPage.tsx:240
+#: src/pages/shared/settings/RecoveryPage.tsx:252
 msgid " 另有 {0} 个删不掉，可能正被占用。"
 msgstr " {0} more could not be deleted, possibly in use."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:243
-#: src/pages/shared/settings/RecoveryPage.tsx:307
+#: src/pages/shared/settings/RecoveryPage.tsx:255
+#: src/pages/shared/settings/RecoveryPage.tsx:319
 msgid " 这次只扫描了一部分，可能还有剩余。"
 msgstr " This pass scanned only part of it; some may remain."
 
@@ -28,8 +28,8 @@ msgstr " This pass scanned only part of it; some may remain."
 msgid "。放宽时间范围通常最有效。"
 msgstr ". Widening the time range usually helps most."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:209
-#: src/pages/shared/settings/RecoveryPage.tsx:273
+#: src/pages/shared/settings/RecoveryPage.tsx:221
+#: src/pages/shared/settings/RecoveryPage.tsx:285
 msgid "· 只扫描了一部分"
 msgstr "· only part of it was scanned"
 
@@ -38,12 +38,12 @@ msgid "‹ 返回后台任务"
 msgstr "‹ Back to background tasks"
 
 #. placeholder {0}: cleanupMissing.data.deleted
-#: src/pages/shared/settings/RecoveryPage.tsx:301
+#: src/pages/shared/settings/RecoveryPage.tsx:313
 msgid "{0, plural, =0 {没有失效记录。} other {已移除 # 条失效记录。}}"
 msgstr "{0, plural, =0 {No stale records.} other {Removed # stale records.}}"
 
 #. placeholder {0}: cleanupStaged.data.deleted
-#: src/pages/shared/settings/RecoveryPage.tsx:232
+#: src/pages/shared/settings/RecoveryPage.tsx:244
 msgid "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
 msgstr "{0, plural, =0 {Nothing staged to clean.} other {Cleaned # staged files.}}"
 
@@ -58,7 +58,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
 #. placeholder {0}: scan.data.staged.files
-#: src/pages/shared/settings/RecoveryPage.tsx:205
+#: src/pages/shared/settings/RecoveryPage.tsx:217
 msgid "{0, plural, other {# 个未完成的文件}}"
 msgstr "{0, plural, one {# unfinished file} other {# unfinished files}}"
 
@@ -93,7 +93,7 @@ msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的�
 msgstr "{0, plural, one {# of them is an external file: only the record is removed, and the file on disk is kept.} other {# of them are external files: only the records are removed, and the files on disk are kept.}}"
 
 #. placeholder {0}: scan.data.missing.records
-#: src/pages/shared/settings/RecoveryPage.tsx:270
+#: src/pages/shared/settings/RecoveryPage.tsx:282
 msgid "{0, plural, other {# 条记录找不到文件}}"
 msgstr "{0, plural, one {# record cannot find its file} other {# records cannot find their files}}"
 
@@ -932,7 +932,7 @@ msgstr "Steam downloads"
 msgid "Steam 比赛历史"
 msgstr "Steam match history"
 
-#: src/pages/shared/settings/FilesSection.tsx:311
+#: src/pages/shared/settings/FilesSection.tsx:312
 msgid "Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。"
 msgstr "The Steam match-history authentication code, in XXXX-XXXXX-XXXX format."
 
@@ -941,7 +941,7 @@ msgstr "The Steam match-history authentication code, in XXXX-XXXXX-XXXX format."
 msgid "Steam 设置"
 msgstr "Steam settings"
 
-#: src/pages/shared/settings/FilesSection.tsx:309
+#: src/pages/shared/settings/FilesSection.tsx:310
 msgid "Steam 验证码"
 msgstr "Steam authentication code"
 
@@ -1178,15 +1178,15 @@ msgstr "Download the official pinned HLAE build, verify its SHA-256 digest, and 
 msgid "下载选中的 {0} 场"
 msgstr "Download the {0} selected matches"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:150
+#: src/pages/shared/settings/RecoveryPage.tsx:162
 msgid "不会删除 Demo、录制结果、成片、作品或对话记录。"
 msgstr "This won't delete Demos, recordings, finished files, projects, or conversation history."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:216
+#: src/pages/shared/settings/RecoveryPage.tsx:228
 msgid "不会删除已完成的录制结果、成片或资料库记录。"
 msgstr "This won't delete finished recordings, finished files, or library entries."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:284
+#: src/pages/shared/settings/RecoveryPage.tsx:296
 msgid "不会删除磁盘上的现有文件，只移除失效记录。"
 msgstr "This won't delete existing files on disk; it only removes stale records."
 
@@ -1244,8 +1244,8 @@ msgstr "Why this one is worth cutting"
 msgid "主导航"
 msgstr "Main navigation"
 
-#: src/pages/shared/settings/AppSection.tsx:107
-#: src/pages/shared/settings/AppSection.tsx:115
+#: src/pages/shared/settings/AppSection.tsx:114
+#: src/pages/shared/settings/AppSection.tsx:122
 msgid "主题"
 msgstr "Theme"
 
@@ -1333,7 +1333,7 @@ msgstr "Alive"
 msgid "仅爆头"
 msgstr "Headshots only"
 
-#: src/pages/shared/settings/FilesSection.tsx:327
+#: src/pages/shared/settings/FilesSection.tsx:329
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
 
@@ -1566,10 +1566,11 @@ msgid "依赖检查"
 msgstr "Dependency checks"
 
 #: src/pages/shared/library/SaveViewDialog.tsx:54
+#: src/pages/shared/settings/AppSection.tsx:173
 msgid "保存"
 msgstr "Save"
 
-#: src/pages/shared/settings/FilesSection.tsx:377
+#: src/pages/shared/settings/FilesSection.tsx:380
 msgid "保存 Steam 设置"
 msgstr "Save Steam settings"
 
@@ -2093,7 +2094,7 @@ msgstr "Last seen"
 msgid "最近出场 {lastSeen}"
 msgstr "last seen {lastSeen}"
 
-#: src/pages/shared/settings/FilesSection.tsx:325
+#: src/pages/shared/settings/FilesSection.tsx:327
 msgid "最近分享代码"
 msgstr "Latest share code"
 
@@ -2646,7 +2647,7 @@ msgstr "Range {0} speed percentage"
 msgid "区间速度"
 msgstr "Range speed"
 
-#: src/domain/editing/ClipInspector.tsx:281
+#: src/domain/editing/ClipInspector.tsx:290
 #: src/pages/shared/settings/AiAgentSection.tsx:108
 msgid "升降"
 msgstr "Crane"
@@ -2882,7 +2883,7 @@ msgstr "Only removes the media record from the project; the source file on disk 
 msgid "可以画进 2D 回放的事件"
 msgstr "Events that can be drawn in the 2D replay"
 
-#: src/pages/shared/settings/FilesSection.tsx:340
+#: src/pages/shared/settings/FilesSection.tsx:343
 msgid "可填写 1 到 100 场。"
 msgstr "Enter a value from 1 to 100 matches."
 
@@ -3176,7 +3177,7 @@ msgstr "A replay tick falls outside the browser's safe integer range"
 msgid "回放与录制都从这个目录启动游戏。"
 msgstr "Replay and recording both launch the game from this directory."
 
-#: src/pages/shared/onboarding/GuidePage.tsx:187
+#: src/pages/shared/onboarding/GuidePage.tsx:197
 msgid "回放与录制都用它。"
 msgstr "Playback and recording both use it."
 
@@ -3184,7 +3185,7 @@ msgstr "Playback and recording both use it."
 msgid "回放与录制都起不来"
 msgstr "neither playback nor recording can start"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:186
+#: src/pages/shared/onboarding/GuidePage.tsx:196
 msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 msgstr "Playback and recording both need it. Importing and analysing are unaffected — those two steps can be done first."
 
@@ -3411,7 +3412,7 @@ msgctxt "match-view"
 msgid "复盘笔记"
 msgstr "Review notes"
 
-#: src/pages/shared/settings/AppSection.tsx:82
+#: src/pages/shared/settings/AppSection.tsx:89
 msgid "外观与语言"
 msgstr "Appearance and language"
 
@@ -3544,7 +3545,7 @@ msgstr "Density scale, from {minWeight} hits to {maxWeight} hits"
 msgid "密度色阶：每个格子都是 {maxWeight} 次"
 msgstr "Density scale: every cell is {maxWeight} times"
 
-#: src/pages/shared/settings/FilesSection.tsx:358
+#: src/pages/shared/settings/FilesSection.tsx:361
 msgid "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
 msgstr "Secrets are stored only in local configuration and are never echoed in the UI or diagnostic bundles."
 
@@ -3612,7 +3613,7 @@ msgstr "Align"
 msgid "导入"
 msgstr "Import"
 
-#: src/pages/editing/workspace/HomePage.tsx:42
+#: src/pages/editing/workspace/HomePage.tsx:47
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
 #: src/pages/shared/library/LibraryPage.tsx:281
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
@@ -3702,7 +3703,7 @@ msgstr "Export cancelled"
 msgid "导出成片"
 msgstr "Export"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:195
+#: src/pages/shared/onboarding/GuidePage.tsx:205
 msgid "导出成片与波形分析用它。"
 msgstr "Exporting a finished cut and analysing waveforms use it."
 
@@ -3710,7 +3711,7 @@ msgstr "Exporting a finished cut and analysing waveforms use it."
 msgid "导出成片会失败"
 msgstr "exporting a finished cut will fail"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:194
+#: src/pages/shared/onboarding/GuidePage.tsx:204
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
@@ -3779,7 +3780,7 @@ msgstr "It will hang on the evidence at round {0}, tick {1}."
 msgid "将播放头移至未锁定的目标轨片段内部"
 msgstr "Place the playhead inside an unlocked clip on a targeted track"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:148
+#: src/pages/shared/settings/RecoveryPage.tsx:160
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 msgstr "This will overwrite the current config file with the last automatic backup, then reload it."
 
@@ -3787,6 +3788,7 @@ msgstr "This will overwrite the current config file with the last automatic back
 msgid "尚未加入比较"
 msgstr "Not added to comparison"
 
+#: src/pages/shared/onboarding/GuidePage.tsx:136
 #: src/pages/shared/settings/AdvancedSection.tsx:142
 #: src/pages/shared/settings/AdvancedSection.tsx:196
 msgid "就绪"
@@ -3864,7 +3866,7 @@ msgstr "The tool returned a result."
 msgid "左对齐"
 msgstr "Align Left"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:180
+#: src/pages/shared/settings/RecoveryPage.tsx:192
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
@@ -3916,8 +3918,8 @@ msgstr "Full path copied"
 #: src/domain/editing/ProjectAgentPanel.tsx:549
 #: src/domain/task/TaskActivityList.tsx:15
 #: src/domain/task/taskVocabulary.tsx:46
-#: src/pages/shared/onboarding/GuidePage.tsx:85
-#: src/pages/shared/tasks/TaskCenterPage.tsx:51
+#: src/pages/shared/onboarding/GuidePage.tsx:86
+#: src/pages/shared/tasks/TaskCenterPage.tsx:52
 msgid "已完成"
 msgstr "Done"
 
@@ -4150,10 +4152,9 @@ msgstr "Sequence marker position"
 msgid "应用"
 msgstr "App"
 
-#: src/pages/shared/library/ColumnConfigDialog.tsx:70
-msgctxt "dialog-confirm"
+#: src/pages/shared/settings/SettingsPage.tsx:59
 msgid "应用"
-msgstr "Apply"
+msgstr "App"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:114
 msgid "应用写出的所有文件都在这里。要改请到「文件与资料库」。"
@@ -4275,7 +4276,7 @@ msgstr "Viewing {0} · not added to comparison"
 msgid "当前没有可撤销的剪辑"
 msgstr "No edit to undo"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:328
+#: src/pages/shared/settings/RecoveryPage.tsx:340
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
 
@@ -4301,7 +4302,7 @@ msgstr "Current track automation value {label}"
 msgid "当前运行状态"
 msgstr "Current runtime state"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:170
+#: src/pages/shared/settings/RecoveryPage.tsx:182
 msgid "当前配置完整，备份恢复保持关闭"
 msgstr "The current configuration is complete, so backup restore stays off"
 
@@ -4350,7 +4351,7 @@ msgstr "Frames are pulled automatically once recording finishes; until then you 
 msgid "录制已取消"
 msgstr "Recording cancelled"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:215
+#: src/pages/shared/settings/RecoveryPage.tsx:227
 msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
 msgstr "An interrupted recording or export leaves staged files behind, and they do not clear themselves. This will delete the unfinished files in the staging folder."
 
@@ -4383,7 +4384,7 @@ msgstr "Recording environment not ready"
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "The recording environment is not ready, so the jobs that need it cannot start."
 
-#: src/pages/shared/onboarding/GuidePage.tsx:191
+#: src/pages/shared/onboarding/GuidePage.tsx:201
 msgid "录制用它接管画面。"
 msgstr "Recording uses it to take over the picture."
 
@@ -4419,7 +4420,7 @@ msgstr "Recording voice"
 msgid "录制起不来，分析与编辑不受影响"
 msgstr "recording cannot start; analysis and editing are unaffected"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:190
+#: src/pages/shared/onboarding/GuidePage.tsx:200
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "Recording needs it. Importing, analysis and editing are unaffected."
 
@@ -4488,7 +4489,7 @@ msgstr "Recovery and guide"
 #: src/app/command/commandRegistry.ts:222
 #: src/app/routeCrumb.ts:73
 #: src/pages/shared/settings/AdvancedSection.tsx:320
-#: src/pages/shared/settings/RecoveryPage.tsx:91
+#: src/pages/shared/settings/RecoveryPage.tsx:93
 msgid "恢复中心"
 msgstr "Recovery center"
 
@@ -4594,7 +4595,7 @@ msgstr "The tactical replay cache metadata exceeds the limit"
 msgid "战术示意"
 msgstr "Tactical view"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:262
+#: src/pages/shared/settings/RecoveryPage.tsx:274
 msgid "所有记录都能找到文件"
 msgstr "Every record can find its file"
 
@@ -4626,7 +4627,7 @@ msgstr "Manual"
 msgid "手动指定"
 msgstr "Set manually"
 
-#: src/pages/shared/settings/AppSection.tsx:134
+#: src/pages/shared/settings/AppSection.tsx:141
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "The manifest a manual update check reads. Empty means no update check, which is the default."
 
@@ -4789,7 +4790,7 @@ msgstr "Add .dem files to the library, or set a watched folder and let them arri
 msgid "把已选 {0} 条加入作品"
 msgstr "Add the {0} selected to a project"
 
-#: src/pages/shared/settings/FilesSection.tsx:386
+#: src/pages/shared/settings/FilesSection.tsx:389
 msgid "把数据目录改到这里？"
 msgstr "Move the data directory here?"
 
@@ -4920,11 +4921,11 @@ msgstr "Duration"
 msgid "持续时间（秒）"
 msgstr "Duration (seconds)"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:251
+#: src/pages/shared/settings/RecoveryPage.tsx:263
 msgid "指向不存在文件的记录"
 msgstr "Records pointing at files that are gone"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:365
+#: src/pages/shared/settings/RecoveryPage.tsx:377
 msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 msgstr "Records pointing at a file that is gone will be removed. If a file was only moved, put it back before cleaning, or its record goes with it."
 
@@ -4992,7 +4993,7 @@ msgstr "Accept changes"
 msgid "接口格式"
 msgstr "API format"
 
-#: src/domain/editing/ClipInspector.tsx:279
+#: src/domain/editing/ClipInspector.tsx:288
 #: src/pages/shared/settings/AiAgentSection.tsx:106
 msgid "推轨"
 msgstr "Push in"
@@ -5146,7 +5147,7 @@ msgstr "Ripple Delete"
 msgid "收起侧栏"
 msgstr "Collapse sidebar"
 
-#: src/pages/shared/settings/FilesSection.tsx:387
+#: src/pages/shared/settings/FilesSection.tsx:390
 msgid "改为这个目录"
 msgstr "Use this folder"
 
@@ -5256,7 +5257,7 @@ msgstr "File deleted."
 msgid "文件缺失"
 msgstr "File missing"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:279
+#: src/pages/shared/settings/RecoveryPage.tsx:291
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。"
 msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists. This will delete these invalid records."
 
@@ -5321,7 +5322,7 @@ msgstr "New audio track"
 msgid "新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。"
 msgstr "New recordings are written here. The location follows the data directory — change it under Files and library."
 
-#: src/pages/shared/settings/FilesSection.tsx:396
+#: src/pages/shared/settings/FilesSection.tsx:399
 msgid "新文件会写到 {movingTo}。旧目录里的录制结果、成片和索引不会移动， 资料库记录仍指向原位置。"
 msgstr "New files will be written to {movingTo}. Recordings, finished files, and indexes in the old directory won't be moved, and library records will still point to the original location."
 
@@ -5603,11 +5604,11 @@ msgstr "Pause sequence (Space)"
 msgid "暂停源素材"
 msgstr "Pause source media"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:345
+#: src/pages/shared/settings/RecoveryPage.tsx:357
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 msgstr "Unfinished files in the staging directory will be deleted. If a recording or export is still worth salvaging, copy it out first."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:197
+#: src/pages/shared/settings/RecoveryPage.tsx:209
 msgid "暂存目录里没有未完成的文件"
 msgstr "No unfinished files in the staging folder"
 
@@ -5665,7 +5666,7 @@ msgstr "Change"
 msgid "更改片段速度（Fit to Fill）"
 msgstr "Change clip speed (Fit to Fill)"
 
-#: src/pages/shared/settings/AppSection.tsx:127
+#: src/pages/shared/settings/AppSection.tsx:134
 msgid "更新"
 msgstr "Updates"
 
@@ -5673,11 +5674,11 @@ msgstr "Updates"
 msgid "更新时间"
 msgstr "Updated at"
 
-#: src/pages/shared/settings/AppSection.tsx:132
+#: src/pages/shared/settings/AppSection.tsx:139
 msgid "更新源"
 msgstr "Update source"
 
-#: src/pages/shared/settings/AppSection.tsx:145
+#: src/pages/shared/settings/AppSection.tsx:152
 msgid "更新源地址"
 msgstr "Update source address"
 
@@ -5713,7 +5714,7 @@ msgstr "Not downloaded"
 msgid "未启用源声道"
 msgstr "Source audio channel not enabled"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:186
+#: src/pages/shared/settings/RecoveryPage.tsx:198
 msgid "未完成的暂存成品文件"
 msgstr "Unfinished staged files"
 
@@ -6097,6 +6098,7 @@ msgstr "Downloading and verifying the capture component"
 #: src/pages/shared/settings/AiAgentSection.tsx:338
 #: src/pages/shared/settings/AiAgentSection.tsx:471
 #: src/pages/shared/settings/AppSection.tsx:60
+#: src/pages/shared/settings/AppSection.tsx:173
 #: src/pages/shared/settings/FilesSection.tsx:210
 msgid "正在保存"
 msgstr "Saving"
@@ -6214,7 +6216,7 @@ msgstr "Finding imported assets in the project…"
 msgid "正在校验并提交增量修改…"
 msgstr "Validating and submitting incremental changes…"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:106
+#: src/pages/shared/onboarding/GuidePage.tsx:108
 #: src/pages/shared/settings/AdvancedSection.tsx:166
 #: src/pages/shared/settings/GameSection.tsx:288
 msgid "正在检查"
@@ -6437,7 +6439,7 @@ msgstr "The utility use of every player"
 msgid "每回合按阵营统计的购买事件"
 msgstr "Purchase events per round, counted by side"
 
-#: src/pages/shared/settings/FilesSection.tsx:340
+#: src/pages/shared/settings/FilesSection.tsx:343
 msgid "每次最多同步"
 msgstr "Maximum matches per sync"
 
@@ -6662,7 +6664,7 @@ msgstr "No evidence found"
 msgid "没有回合记录"
 msgstr "No rounds"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:292
+#: src/pages/shared/settings/RecoveryPage.tsx:304
 msgid "没有失效记录"
 msgstr "No invalid records"
 
@@ -6678,7 +6680,7 @@ msgstr "No cancelled tasks"
 msgid "没有已完成的任务"
 msgstr "No completed tasks"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:103
+#: src/pages/shared/settings/RecoveryPage.tsx:115
 msgid "没有扫描到清理范围：{scanError}"
 msgstr "Could not scan what there is to clean: {scanError}"
 
@@ -6708,7 +6710,7 @@ msgstr "No tasks in progress"
 msgid "没有需要录制的片段"
 msgstr "No clips need recording"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:223
+#: src/pages/shared/settings/RecoveryPage.tsx:235
 msgid "没有需要清理的暂存文件"
 msgstr "Nothing staged to clean"
 
@@ -6809,7 +6811,7 @@ msgstr "A note hangs on a specific tick: select an evidence row in the replay or
 msgid "注释详情"
 msgstr "Note detail"
 
-#: src/pages/shared/settings/AppSection.tsx:117
+#: src/pages/shared/settings/AppSection.tsx:124
 msgid "浅色"
 msgstr "Light"
 
@@ -6826,7 +6828,7 @@ msgstr "Browse…"
 msgid "淡化"
 msgstr "Fade"
 
-#: src/pages/shared/settings/AppSection.tsx:118
+#: src/pages/shared/settings/AppSection.tsx:125
 msgid "深色"
 msgstr "Dark"
 
@@ -6902,8 +6904,8 @@ msgstr "Add Track Keyframe"
 msgid "添加音频轨道"
 msgstr "Add Audio Track"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:337
-#: src/pages/shared/settings/RecoveryPage.tsx:354
+#: src/pages/shared/settings/RecoveryPage.tsx:349
+#: src/pages/shared/settings/RecoveryPage.tsx:366
 msgid "清理"
 msgstr "Clean up"
 
@@ -6911,11 +6913,11 @@ msgstr "Clean up"
 msgid "清理代理媒体"
 msgstr "Clean up proxy media"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:295
+#: src/pages/shared/settings/RecoveryPage.tsx:307
 msgid "清理失效记录"
 msgstr "Clean stale records"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:353
+#: src/pages/shared/settings/RecoveryPage.tsx:365
 msgid "清理失效记录？"
 msgstr "Clean stale records?"
 
@@ -6924,11 +6926,11 @@ msgstr "Clean stale records?"
 msgid "清理无效记录"
 msgstr "Clean up dead records"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:226
+#: src/pages/shared/settings/RecoveryPage.tsx:238
 msgid "清理暂存成片"
 msgstr "Clean Up Temporary Finished Files"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:336
+#: src/pages/shared/settings/RecoveryPage.tsx:348
 msgid "清理未完成的暂存成品文件？"
 msgstr "Clean unfinished staged files?"
 
@@ -7328,7 +7330,7 @@ msgstr "Players"
 msgid "玩家视图"
 msgstr "Players view"
 
-#: src/domain/editing/ClipInspector.tsx:280
+#: src/domain/editing/ClipInspector.tsx:289
 #: src/pages/shared/settings/AiAgentSection.tsx:105
 msgid "环绕"
 msgstr "Orbit"
@@ -7399,11 +7401,11 @@ msgstr "Create with Agent ({0})"
 msgid "用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。"
 msgstr "Describe in one sentence how to adjust this project; Agent edits the timeline directly and waits for your review."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:175
+#: src/pages/shared/settings/RecoveryPage.tsx:187
 msgid "用备份恢复"
 msgstr "Restore from backup"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:319
+#: src/pages/shared/settings/RecoveryPage.tsx:331
 msgid "用备份覆盖当前配置？"
 msgstr "Overwrite the configuration with the backup?"
 
@@ -7426,15 +7428,15 @@ msgctxt "evidence-event"
 msgid "电击枪击杀"
 msgstr "Zeus kill"
 
-#: src/pages/shared/settings/AppSection.tsx:108
+#: src/pages/shared/settings/AppSection.tsx:115
 msgid "界面使用的配色。改动会保存，下次启动应用时生效。"
 msgstr "The colours the interface uses. The change is saved and applies the next time the app starts."
 
-#: src/pages/shared/settings/AppSection.tsx:89
+#: src/pages/shared/settings/AppSection.tsx:96
 msgid "界面文案使用的语言。改动会保存，下次启动应用时生效。"
 msgstr "The language of the interface wording. The change is saved and applies the next time the app starts."
 
-#: src/pages/shared/settings/AppSection.tsx:96
+#: src/pages/shared/settings/AppSection.tsx:103
 msgid "界面语言"
 msgstr "Interface language"
 
@@ -7542,15 +7544,16 @@ msgstr "See utility & economy"
 
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:211
 #: src/pages/analysis/evidence/EvidencePage.tsx:351
-#: src/pages/analysis/match/views/ReviewView.tsx:674
-#: src/pages/editing/delivery/OutputsView.tsx:172
+#: src/pages/analysis/match/views/ReviewView.tsx:675
+#: src/pages/editing/delivery/DeliveryPage.tsx:74
+#: src/pages/editing/delivery/OutputsView.tsx:173
 #: src/pages/shared/settings/AiAgentSection.tsx:172
 #: src/pages/shared/settings/AiAgentSection.tsx:186
 #: src/pages/shared/settings/AiAgentSection.tsx:571
-#: src/pages/shared/settings/AppSection.tsx:77
+#: src/pages/shared/settings/AppSection.tsx:84
 #: src/pages/shared/settings/FilesSection.tsx:96
 #: src/pages/shared/settings/GameSection.tsx:116
-#: src/pages/shared/settings/RecoveryPage.tsx:110
+#: src/pages/shared/settings/RecoveryPage.tsx:122
 msgid "知道了"
 msgstr "Got it"
 
@@ -7801,7 +7804,7 @@ msgstr "Page {slot}"
 msgid "第 {version} 版"
 msgstr "Version {version}"
 
-#: src/domain/editing/ClipInspector.tsx:276
+#: src/domain/editing/ClipInspector.tsx:285
 #: src/pages/shared/settings/AiAgentSection.tsx:103
 msgid "第一人称"
 msgstr "First person"
@@ -8164,7 +8167,7 @@ msgstr "Equipment difference"
 msgid "覆盖"
 msgstr "Overwrite"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:320
+#: src/pages/shared/settings/RecoveryPage.tsx:332
 msgid "覆盖并恢复"
 msgstr "Overwrite and restore"
 
@@ -8303,7 +8306,7 @@ msgstr "Details"
 msgid "语气：专业"
 msgstr "Tone: analytical"
 
-#: src/pages/shared/settings/AppSection.tsx:88
+#: src/pages/shared/settings/AppSection.tsx:95
 msgid "语言"
 msgstr "Language"
 
@@ -8332,7 +8335,7 @@ msgstr "Describe what you want the Agent to change"
 msgid "说清你想要什么，Agent 会准备剪辑单和片段；开始录制前还会等你确认。"
 msgstr "Tell the Agent what you want. It will prepare a shot list and clips, then wait for your confirmation before recording."
 
-#: src/pages/shared/settings/FilesSection.tsx:366
+#: src/pages/shared/settings/FilesSection.tsx:369
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
 msgstr "Enter a valid Steam ID, API key, authentication code, and latest share code"
 
@@ -8394,7 +8397,7 @@ msgstr "Could not read the usage figures"
 msgid "读不到对话占用：{error}"
 msgstr "Couldn't read conversation usage: {error}"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:98
+#: src/pages/shared/settings/RecoveryPage.tsx:110
 msgid "读不到恢复状态：{statusError}"
 msgstr "Could not read the recovery state: {statusError}"
 
@@ -8406,17 +8409,17 @@ msgstr "The model configuration could not be read: {error}"
 msgid "读不到注释：{error}"
 msgstr "The notes could not be read: {error}"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:130
-#: src/pages/shared/settings/RecoveryPage.tsx:192
-#: src/pages/shared/settings/RecoveryPage.tsx:257
+#: src/pages/shared/settings/RecoveryPage.tsx:142
+#: src/pages/shared/settings/RecoveryPage.tsx:204
+#: src/pages/shared/settings/RecoveryPage.tsx:269
 msgid "读不到状态"
 msgstr "Could not read the state"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:115
+#: src/pages/shared/onboarding/GuidePage.tsx:117
 msgid "读不到环境自检：{error}"
 msgstr "Could not read the environment self-check: {error}"
 
-#: src/pages/shared/settings/AppSection.tsx:73
+#: src/pages/shared/settings/AppSection.tsx:80
 #: src/pages/shared/settings/FilesSection.tsx:89
 #: src/pages/shared/settings/GameSection.tsx:112
 msgid "读不到设置：{configError}"
@@ -8578,7 +8581,7 @@ msgstr "Trend metric"
 msgid "距离 {metres}m"
 msgstr "Distance {metres}m"
 
-#: src/domain/editing/ClipInspector.tsx:278
+#: src/domain/editing/ClipInspector.tsx:287
 #: src/pages/shared/settings/AiAgentSection.tsx:104
 msgid "跟随"
 msgstr "Follow"
@@ -8953,7 +8956,7 @@ msgstr "This analysis does not hold this player. The selection stays in the addr
 msgid "这份分析里没有选手"
 msgstr "No player in this analysis"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:100
+#: src/pages/shared/onboarding/GuidePage.tsx:102
 msgid "这台机器现在能做什么"
 msgstr "What this machine can do right now"
 
@@ -9065,7 +9068,7 @@ msgstr "This analysis detected no highlight candidate. The round timeline still 
 msgid "这次导出不会生成成片。作品和素材不受影响，可以重新导出。"
 msgstr "This export will not produce a video. The project and its media are unaffected, and you can export again."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:118
+#: src/pages/shared/settings/RecoveryPage.tsx:130
 msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
@@ -9073,7 +9076,7 @@ msgstr "This recovery did not finish: {actionError}"
 msgid "这次操作没有成功：{writeError}"
 msgstr "That action did not succeed: {writeError}"
 
-#: src/pages/shared/settings/AppSection.tsx:78
+#: src/pages/shared/settings/AppSection.tsx:85
 #: src/pages/shared/settings/FilesSection.tsx:103
 #: src/pages/shared/settings/GameSection.tsx:117
 msgid "这次改动没有保存：{writeError}"
@@ -9425,7 +9428,7 @@ msgstr "Look round by round"
 msgid "逐回合详情"
 msgstr "Round-by-round detail"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:149
+#: src/pages/shared/onboarding/GuidePage.tsx:159
 msgid "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
 msgstr "The raw per-item states and path checks are under <0>Settings · Advanced and diagnostics</0>."
 
@@ -9463,7 +9466,7 @@ msgstr "Utility throw statistics unavailable"
 msgid "都由这次分析的回合与事件推出"
 msgstr "All derived from the rounds and the events of this analysis"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:124
+#: src/pages/shared/settings/RecoveryPage.tsx:136
 msgid "配置恢复"
 msgstr "Configuration recovery"
 
@@ -9471,11 +9474,11 @@ msgstr "Configuration recovery"
 msgid "配置提供方、模型、API 地址和密钥后即可在这里继续。"
 msgstr "Set up a provider, model, API endpoint, and key to continue here."
 
-#: src/pages/shared/settings/RecoveryPage.tsx:143
+#: src/pages/shared/settings/RecoveryPage.tsx:155
 msgid "配置文件状态正常"
 msgstr "Configuration status is healthy"
 
-#: src/pages/shared/settings/RecoveryPage.tsx:135
+#: src/pages/shared/settings/RecoveryPage.tsx:147
 msgid "配置文件读不出来"
 msgstr "The configuration file cannot be read"
 
@@ -9595,9 +9598,11 @@ msgstr "Reopen"
 msgid "重新扫描"
 msgstr "Rescan"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:109
+#: src/pages/shared/onboarding/GuidePage.tsx:111
 #: src/pages/shared/settings/AdvancedSection.tsx:169
 #: src/pages/shared/settings/GameSection.tsx:291
+#: src/pages/shared/settings/RecoveryPage.tsx:98
+#: src/pages/shared/settings/RecoveryPage.tsx:102
 msgid "重新检查"
 msgstr "Check again"
 
@@ -10125,3 +10130,55 @@ msgstr "Skip to main content"
 #: src/app/shell/FirstRunGuide.tsx:38
 msgid "选择这次要做的事。之后可以随时从左上角切换模式。"
 msgstr "Choose what you want to do. You can switch modes anytime from the top left."
+
+#: src/pages/shared/settings/FilesSection.tsx:303
+msgid "32 位十六进制密钥"
+msgstr "32-character hexadecimal key"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:89
+msgid "下一步"
+msgstr "Next"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:51
+msgid "从 Demo 到第一条视频"
+msgstr "From Demo to your first video"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:94
+msgid "先检查范围，再按需恢复或清理"
+msgstr "Review what is affected, then restore or clean up as needed"
+
+#: src/pages/shared/settings/AppSection.tsx:164
+msgid "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
+msgstr "Enter a full HTTPS URL, such as https://example.com/manifest.json."
+
+#: src/pages/shared/settings/RecoveryPage.tsx:87
+msgid "正在扫描清理范围"
+msgstr "Checking what can be cleaned up"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:181
+msgid "正在读取恢复状态"
+msgstr "Loading recovery status"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:152
+msgid "没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。"
+msgstr "No environment check results were received. Run the check again to verify replay, recording and export availability."
+
+#: src/pages/shared/settings/AppSection.tsx:169
+msgid "离开输入框或按 Enter 保存。"
+msgstr "Leave the field or press Enter to save."
+
+#: src/pages/shared/settings/AppSection.tsx:177
+msgid "设置已保存。"
+msgstr "Settings saved."
+
+#: src/pages/shared/settings/RecoveryPage.tsx:87
+msgid "请先重试扫描，确认需要清理的内容"
+msgstr "Retry the scan to confirm what will be cleaned up"
+
+#: src/pages/shared/settings/RecoveryPage.tsx:181
+msgid "请先重试读取恢复状态"
+msgstr "Retry loading the recovery status first"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:136
+msgid "需要配置"
+msgstr "Setup required"

@@ -24,18 +24,26 @@ import { directoryItems } from './test/fixtures';
  *  route does, and what keeps 312 rows out of the DOM. */
 function stubClient(total = PLAYER_DIRECTORY_COUNT): Partial<DesktopClient> {
   const everyone = directoryItems(total);
+  const coverage = { projected_demos: 248, total_analyses: 248, projection_complete: true };
   return {
     listPlayers: (query) => {
       const page = query.page ?? 1;
       const size = query.page_size ?? PLAYER_PAGE_SIZE;
       const start = (page - 1) * size;
+      const matches = everyone.filter((player) => query.search === undefined || player.name.includes(query.search));
       return Promise.resolve({
-        items: everyone.slice(start, start + size),
-        total,
+        items: matches.slice(start, start + size),
+        total: matches.length,
         page,
         page_size: size,
-        coverage: { projected_demos: 248, total_analyses: 248, projection_complete: true },
+        coverage,
       });
+    },
+    getPlayer: (steamId) => {
+      const player = everyone.find((candidate) => candidate.steam_id === steamId);
+      return player === undefined
+        ? Promise.reject(new Error('Player not found'))
+        : Promise.resolve({ player, coverage });
     },
   };
 }
@@ -184,6 +192,29 @@ describe('the selection is in the address bar (§4.4)', () => {
 });
 
 describe('paging', () => {
+  it('compares players across pages and keeps their identities through a new search', async () => {
+    const { container } = mount();
+    fireEvent.click((await rowCheckboxes())[0] as HTMLButtonElement);
+    fireEvent.click(screen.getByLabelText('下一页'));
+    const table = screen.getByRole('table');
+    await within(table).findByText('Kael-20');
+    fireEvent.click(within(table).getByRole('checkbox', { name: 'Kael-20' }));
+    await waitFor(() => {
+      expect(container.querySelector('[data-compare-card="STEAM_0"]')).not.toBeNull();
+      expect(container.querySelector('[data-compare-card="STEAM_20"]')).not.toBeNull();
+    });
+
+    const box = screen.getByLabelText('搜索选手或别名');
+    fireEvent.change(box, { target: { value: 'Kael-25' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await within(table).findByText('Kael-25');
+    expect(within(table).queryByText('Kael-0')).toBeNull();
+    expect(within(table).queryByText('Kael-20')).toBeNull();
+    expect(container.querySelector('[data-compare-card="STEAM_0"]')).not.toBeNull();
+    expect(container.querySelector('[data-compare-card="STEAM_20"]')).not.toBeNull();
+    expect(container.querySelector('[data-compare-metric="kd"]')).not.toBeNull();
+  });
+
   it('asks the service for the next page rather than slicing on the client', async () => {
     mount();
     await rowCheckboxes();
@@ -194,6 +225,55 @@ describe('paging', () => {
     });
     // Row 21 of 312 — proof the second page came from the service.
     expect(await screen.findAllByText('Kael-20')).not.toHaveLength(0);
+  });
+});
+
+describe('comparison profile reads', () => {
+  it('keeps a resolved player visible and retries a failed selected profile', async () => {
+    const client = stubClient();
+    let failed = false;
+    const getPlayer = vi.fn((steamId: string) => {
+      if (steamId === 'STEAM_20' && !failed) {
+        failed = true;
+        return Promise.reject(new Error('selected profile unavailable'));
+      }
+      return client.getPlayer!(steamId);
+    });
+    const { container } = mount('/players?compare=STEAM_0,STEAM_20', { ...client, getPlayer });
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('selected profile unavailable');
+    expect(container.querySelector('[data-compare-card="STEAM_0"]')).not.toBeNull();
+    expect(screen.queryByText(/还差一名/u)).toBeNull();
+    expect(screen.getByRole('button', { name: '清空选择' })).toBeTruthy();
+    fireEvent.click(within(error).getByRole('button', { name: '重试' }));
+    await waitFor(() => expect(container.querySelector('[data-compare-card="STEAM_20"]')).not.toBeNull());
+    expect(getPlayer.mock.calls.filter(([id]) => id === 'STEAM_20')).toHaveLength(2);
+    expect(container.querySelector('[data-compare-metric="kd"]')).not.toBeNull();
+  });
+
+  it('lets a narrow window clear an unresolved selection directly from its summary', async () => {
+    const previous = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: (query: string) => ({
+        matches: true, media: query, addEventListener: () => undefined, removeEventListener: () => undefined,
+      }),
+    });
+    try {
+      const client = stubClient();
+      mount('/players?compare=STEAM_0,STEAM_20', {
+        ...client,
+        getPlayer: (id) => id === 'STEAM_20' ? new Promise(() => undefined) : client.getPlayer!(id),
+      });
+      await screen.findByText('已选 2 名 · 正在读取档案');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: '清空选择' }));
+      await waitFor(() => expect(address()).not.toContain('compare='));
+      expect((await rowCheckboxes()).every((box) => !box.disabled)).toBe(true);
+    } finally {
+      if (previous === undefined) Reflect.deleteProperty(window, 'matchMedia');
+      else Object.defineProperty(window, 'matchMedia', previous);
+    }
   });
 });
 
@@ -219,6 +299,30 @@ describe('search', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('waits for Chinese composition to finish before debouncing or accepting Enter', async () => {
+    mount();
+    await rowCheckboxes();
+    const box = screen.getByLabelText('搜索选手或别名');
+    fireEvent.compositionStart(box);
+    fireEvent.change(box, { target: { value: 'zhong' } });
+    await act(async () => vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 10));
+    expect(address()).toBe('/players');
+    fireEvent.keyDown(box, { key: 'Enter', isComposing: true });
+    expect(address()).toBe('/players');
+    fireEvent.compositionEnd(box, { data: '中文', target: { value: '中文' } });
+    await act(async () => vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS + 10));
+    expect(address()).toBe(`/players?q=${encodeURIComponent('中文')}`);
+  });
+
+  it('leaves a composition confirmation with keyCode 229 to the input method', async () => {
+    mount();
+    await rowCheckboxes();
+    const box = screen.getByLabelText('搜索选手或别名');
+    fireEvent.change(box, { target: { value: '中文' } });
+    fireEvent.keyDown(box, { key: 'Enter', keyCode: 229 });
+    expect(address()).toBe('/players');
   });
 
   it('filters as you type, a debounce after the last keystroke', async () => {
@@ -249,7 +353,7 @@ describe('search', () => {
 
   it('follows the address when the query is reset under it, so the box never shows a stale filter', async () => {
     mount('/players?q=abc');
-    await rowCheckboxes();
+    await screen.findByText('没有匹配的选手');
     const box = screen.getByLabelText('搜索选手或别名') as HTMLInputElement;
     expect(box.value).toBe('abc');
 

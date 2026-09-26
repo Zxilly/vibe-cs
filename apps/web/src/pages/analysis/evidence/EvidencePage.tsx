@@ -166,7 +166,7 @@ export function EvidencePage() {
   useEffect(() => {
     if (!hasExplicitSelection || pendingClip !== null) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
       setParams(writeEvidenceSearch({ ...readEvidenceSearch(params), evidenceId: '' }));
     };
     window.addEventListener('keydown', onKeyDown);
@@ -206,6 +206,7 @@ export function EvidencePage() {
   const searchError = dataErrorMessage(search.error);
   const annotationsError = dataErrorMessage(annotations.error);
   const updateError = dataErrorMessage(updateNote.error);
+  const notesReadError = dataErrorMessage(rowNotes.error);
 
   const detail =
     state.view === 'evidence' ? (
@@ -216,6 +217,9 @@ export function EvidencePage() {
         onAddToVideo={(row) => setPendingClip(collectedClip(row))}
         notes={rowNotes.data?.items ?? []}
         notesLoading={rowNotes.isPending && rowNotes.fetchStatus !== 'idle'}
+        {...(notesReadError === null ? {} : {
+          notesReadError: { message: notesReadError, onRetry: () => void rowNotes.refetch() },
+        })}
         onCreateNote={(row, body) =>
           createNote.mutateAsync({
             demo_id: row.demo_id,

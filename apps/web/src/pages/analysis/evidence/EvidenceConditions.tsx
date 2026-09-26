@@ -28,7 +28,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { Plus, Search, X } from 'lucide-react';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 
 import { Badge, Button, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, type SegOption } from '../../../design/primitives';
 import {
@@ -161,6 +161,8 @@ export function EvidenceConditions({
   }
   const [editing, setEditing] = useState<TextField | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const searchComposing = useRef(false);
+  const conditionComposing = useRef(false);
 
   const conditions = activeConditions(state);
   const familyOptions: readonly SegOption<EvidenceFamily>[] = EVIDENCE_FAMILIES.map((family) => ({
@@ -177,10 +179,12 @@ export function EvidenceConditions({
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
+    if (searchComposing.current) return;
     commit({ ...state, q: draft.trim() });
   };
 
   const openField = (field: TextField) => {
+    conditionComposing.current = false;
     setEditing(field);
     setEditingValue(state[field]);
   };
@@ -218,6 +222,11 @@ export function EvidenceConditions({
               type="search"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onCompositionStart={() => { searchComposing.current = true; }}
+              onCompositionEnd={(event) => {
+                searchComposing.current = false;
+                setDraft(event.currentTarget.value);
+              }}
               aria-label={t`检索证据`}
               placeholder={t`搜索选手、武器或事件`}
             />
@@ -264,8 +273,14 @@ export function EvidenceConditions({
                 placeholder={textFieldPlaceholder(field)}
                 data-condition-input={field}
                 onChange={(event) => setEditingValue(event.target.value)}
-                onBlur={() => commitField(field)}
+                onCompositionStart={() => { conditionComposing.current = true; }}
+                onCompositionEnd={(event) => {
+                  conditionComposing.current = false;
+                  setEditingValue(event.currentTarget.value);
+                }}
+                onBlur={() => { if (!conditionComposing.current) commitField(field); }}
                 onKeyDown={(event) => {
+                  if (conditionComposing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
                   if (event.key === 'Enter') {
                     event.preventDefault();
                     commitField(field);

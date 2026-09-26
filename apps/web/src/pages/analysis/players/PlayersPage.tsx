@@ -48,7 +48,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { usePlayerDirectory } from '../../../data/players';
+import { usePlayer, usePlayerDirectory } from '../../../data/players';
 import { dataErrorMessage } from '../../../data/errors';
 import {
   DataTable,
@@ -192,6 +192,9 @@ export function PlayersPage() {
 
   const state = readPlayerDirectory(params);
   const directory = usePlayerDirectory(toPlayerQuery(state));
+  // Selection belongs to the URL, so its profiles must survive page and search changes.
+  const firstCompared = usePlayer(state.compare[0] ?? null);
+  const secondCompared = usePlayer(state.compare[1] ?? null);
 
   const commit = (next: PlayerDirectoryState, options?: { replace: boolean }) => {
     setParams(writePlayerDirectory(next), options);
@@ -200,6 +203,7 @@ export function PlayersPage() {
   /* The search draft, re-seeded whenever the address changes `q` under it
      (React's own "adjusting state when a prop changes" shape). */
   const [draft, setDraft] = useState(state.search);
+  const [composing, setComposing] = useState(false);
   const [seededFrom, setSeededFrom] = useState(state.search);
   if (seededFrom !== state.search) {
     setSeededFrom(state.search);
@@ -211,12 +215,12 @@ export function PlayersPage() {
   };
   const pending = draft.trim();
   useEffect(() => {
-    if (pending === state.search) return undefined;
+    if (composing || pending === state.search) return undefined;
     const timer = window.setTimeout(() => commitSearch(pending), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // `commitSearch` closes over `state`, which is derived from `params` — the
     // dependency that decides what the timer would write.
-  }, [pending, params]);
+  }, [composing, pending, params]);
 
   const rows = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
@@ -224,9 +228,14 @@ export function PlayersPage() {
   const activePlayer = rows.find(
     (row) => row.steam_id === (state.activeId || rows[0]?.steam_id),
   );
-  const comparePlayers = state.compare
-    .map((id) => rows.find((row) => row.steam_id === id))
-    .filter((row): row is PlayerDirectoryItem => row !== undefined);
+  const comparisonReads = state.compare.map((id, index) => ({
+    id,
+    query: index === 0 ? firstCompared : secondCompared,
+  }));
+  const comparePlayers = comparisonReads.flatMap(({ query }) => query.data === undefined ? [] : [query.data.player]);
+  const pendingPlayers = comparisonReads
+    .filter(({ query }) => query.data === undefined)
+    .map(({ id, query }) => ({ id, error: dataErrorMessage(query.error), onRetry: () => void query.refetch() }));
 
   /*
    * `nextSortState` cycles unsorted → asc → desc → unsorted, and `listPlayers`
@@ -254,6 +263,7 @@ export function PlayersPage() {
   const panel = (
     <PlayerComparePanel
       players={comparePlayers}
+      pendingPlayers={pendingPlayers}
       focusedPlayer={activePlayer}
       limit={PLAYER_COMPARE_LIMIT}
       onClear={collapsed ? clearCompare : undefined}
@@ -285,8 +295,13 @@ export function PlayersPage() {
               aria-label={t`搜索选手或别名`}
               placeholder={t`搜索选手或别名`}
               onChange={(event) => setDraft(event.currentTarget.value)}
+              onCompositionStart={() => setComposing(true)}
+              onCompositionEnd={(event) => {
+                setDraft(event.currentTarget.value);
+                setComposing(false);
+              }}
               onKeyDown={(event) => {
-                if (event.key !== 'Enter') return;
+                if (event.key !== 'Enter' || composing || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
                 event.preventDefault();
                 commitSearch(event.currentTarget.value.trim());
               }}

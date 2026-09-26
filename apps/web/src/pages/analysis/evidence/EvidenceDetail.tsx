@@ -49,6 +49,7 @@ export interface EvidenceDetailProps {
   /** The notes already written on `row`. */
   readonly notes?: readonly EvidenceAnnotation[] | undefined;
   readonly notesLoading?: boolean | undefined;
+  readonly notesReadError?: { readonly message: string; readonly onRetry: () => void } | undefined;
   /** Writes a note on `row`. Resolves once the note is stored; the composer
    *  clears on that and leaves the text in place on a rejection. */
   readonly onCreateNote: (row: EvidenceSearchItem, body: string) => Promise<unknown>;
@@ -75,6 +76,7 @@ export function EvidenceDetail({
   onAddToVideo,
   notes = [],
   notesLoading = false,
+  notesReadError,
   onCreateNote,
   createPending = false,
   noteError = null,
@@ -183,16 +185,22 @@ export function EvidenceDetail({
         <div className="mb-2 font-heading text-xs tracking-caps text-neutral-700">
           <Trans>注释</Trans>
         </div>
+        {notesReadError === undefined ? null : (
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: notesReadError.onRetry }}>
+            <Trans>这条证据的注释没能读出来：{notesReadError.message}</Trans>
+          </Alert>
+        )}
         {notesLoading ? (
           <div className="flex flex-col gap-2">
             <Skeleton width="88%" />
             <Skeleton width="62%" />
+            <p role="status" aria-busy="true" className="sr-only"><Trans>正在读取注释</Trans></p>
           </div>
-        ) : notes.length === 0 ? (
+        ) : notes.length === 0 ? notesReadError === undefined ? (
           <p className="text-xs leading-normal text-neutral-700">
             <Trans>这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。</Trans>
           </p>
-        ) : (
+        ) : null : (
           <ul className="flex list-none flex-col gap-2">
             {notes.map((note) => (
               <li key={note.id} data-evidence-note={note.id} className="flex items-start gap-2">

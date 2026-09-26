@@ -8,7 +8,7 @@
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../data/desktopClient';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
@@ -104,6 +104,40 @@ function address(): string {
 }
 
 describe('every condition change is a navigation', () => {
+  it('keeps Enter and Escape inside Chinese composition until the condition is complete', async () => {
+    const { container } = mount();
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+    fireEvent.click(container.querySelector('[data-evidence-select]') as HTMLElement);
+    const selected = address();
+    fireEvent.click(screen.getByRole('button', { name: '选手' }));
+    const field = screen.getByRole('textbox', { name: '选手' });
+    fireEvent.compositionStart(field);
+    fireEvent.change(field, { target: { value: 'zhong' } });
+    fireEvent.keyDown(field, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(field, { key: 'Escape', isComposing: true });
+    expect(screen.getByRole('textbox', { name: '选手' })).toBe(field);
+    expect(address()).toBe(selected);
+    fireEvent.compositionEnd(field, { data: '中文', target: { value: '中文' } });
+    fireEvent.keyDown(field, { key: 'Enter', keyCode: 229 });
+    expect(address()).toBe(selected);
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => expect(address()).toContain(`player=${encodeURIComponent('中文')}`));
+    expect(screen.queryByRole('textbox', { name: '选手' })).toBeNull();
+  });
+
+  it('does not submit the free-text search while its input method is composing', async () => {
+    mount();
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+    const box = screen.getByLabelText('检索证据');
+    fireEvent.compositionStart(box);
+    fireEvent.change(box, { target: { value: 'zhong' } });
+    fireEvent.submit(box.closest('form')!);
+    expect(address()).not.toContain('q=');
+    fireEvent.compositionEnd(box, { data: '中文', target: { value: '中文' } });
+    fireEvent.submit(box.closest('form')!);
+    await waitFor(() => expect(address()).toContain(`q=${encodeURIComponent('中文')}`));
+  });
+
   it('writes the event family when the segmented control moves', async () => {
     mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');
@@ -320,6 +354,43 @@ describe('density at 248 matches and 1 284 632 rows (§10.3)', () => {
 });
 
 describe('writing a note on a hit', () => {
+  it('keeps previously read notes visible when refreshing after a write fails', async () => {
+    const saved = annotation({ evidence_id: 'demo:aurora/event:e-0', body: '已经保存的战术笔记' });
+    const { client } = stubClient([saved]);
+    const loadNotes = vi.fn()
+      .mockImplementationOnce(client.listEvidenceAnnotations!)
+      .mockRejectedValueOnce(new Error('annotation refresh unavailable'))
+      .mockImplementation(client.listEvidenceAnnotations!);
+    mount('/evidence', { ...client, listEvidenceAnnotations: loadNotes });
+    await screen.findByText('已经保存的战术笔记');
+    fireEvent.change(screen.getByLabelText('注释内容'), { target: { value: '补充第二条注释' } });
+    fireEvent.click(screen.getByRole('button', { name: '写注释' }));
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('annotation refresh unavailable');
+    expect(screen.getByText('已经保存的战术笔记')).toBeTruthy();
+    expect(screen.queryByText(/这条证据还没有注释/u)).toBeNull();
+    fireEvent.click(within(error).getByRole('button', { name: '重试' }));
+    await screen.findByText('补充第二条注释');
+    expect(screen.getByText('已经保存的战术笔记')).toBeTruthy();
+  });
+
+  it('reports an annotation read failure without calling it empty, and retries the read', async () => {
+    const { client, writes } = stubClient();
+    const saved = annotation({ evidence_id: 'demo:aurora/event:e-0', body: '已经保存的战术笔记' });
+    const loadNotes = vi.fn()
+      .mockRejectedValueOnce(new Error('annotation storage unavailable'))
+      .mockResolvedValue({ items: [saved], total: 1, page: 1, page_size: 20 });
+    mount('/evidence', { ...client, listEvidenceAnnotations: loadNotes });
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('annotation storage unavailable');
+    expect(screen.queryByText(/这条证据还没有注释/u)).toBeNull();
+    fireEvent.click(within(error).getByRole('button', { name: '重试' }));
+    await screen.findByText('已经保存的战术笔记');
+    expect(loadNotes).toHaveBeenCalledTimes(2);
+    expect(loadNotes.mock.calls[1]?.[0]).toMatchObject({ evidence_id: saved.evidence_id });
+    expect(writes).toHaveLength(0);
+  });
+
   it('stores the note on the current row and lists it in the Inspector', async () => {
     const { client, writes } = stubClient();
     mount('/evidence', client);

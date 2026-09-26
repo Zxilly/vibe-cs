@@ -8,11 +8,9 @@
  * statistic the data does not carry, and the same treatment is what the missing
  * 首杀 / 残局胜率 columns get in the table beside it.
  *
- * The panel takes its two players from rows the directory already loaded. There
- * is no second read: `commands.comparePlayers` exists on the wire but is not in
- * `data/desktopClient.tsx`'s `DesktopClient` pick, and `PlayerDirectoryItem`
- * already carries every aggregate the panel draws — a compare endpoint would
- * only be needed for a metric the row does not have.
+ * The page resolves the selected IDs through the existing player-profile query.
+ * This panel remains a presentation of those reads, including partial failures,
+ * so paging and searching the directory cannot change who is being compared.
  *
  * The bars are widths, not a chart: `style={{ width: '71%' }}` rather than a
  * Tailwind arbitrary value, because the number is data. Both bars are scaled
@@ -34,7 +32,8 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Empty } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
+import { Alert } from '../../../design/feedback';
 import { Inspector } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import type { PlayerDirectoryItem } from '../../../shared/desktop/dto';
@@ -137,6 +136,11 @@ function ClearFooter({ onClear }: { readonly onClear: () => void }) {
 export interface PlayerComparePanelProps {
   /** In the order the boxes were ticked; 0, 1 or 2 entries. */
   readonly players: readonly PlayerDirectoryItem[];
+  readonly pendingPlayers?: readonly {
+    readonly id: string;
+    readonly error: string | null;
+    readonly onRetry: () => void;
+  }[] | undefined;
   /** The active table row. It gives the persistent panel useful context
    * without silently adding that player to the compare selection. */
   readonly focusedPlayer?: PlayerDirectoryItem | undefined;
@@ -152,11 +156,52 @@ export interface PlayerComparePanelProps {
 
 export function PlayerComparePanel({
   players,
+  pendingPlayers = [],
   focusedPlayer,
   limit,
   onClear,
 }: PlayerComparePanelProps) {
   const [left, right] = players;
+
+  if (pendingPlayers.length > 0) {
+    const selectedCount = players.length + pendingPlayers.length;
+    const failed = pendingPlayers.some((player) => player.error !== null);
+    return (
+      <Inspector
+        title={<Trans>比较</Trans>}
+        label={t`比较`}
+        summary={failed
+          ? <Trans>已选 {selectedCount} 名 · 部分档案未能读取</Trans>
+          : <Trans>已选 {selectedCount} 名 · 正在读取档案</Trans>}
+        summaryActions={onClear === undefined ? undefined : <Button size="sm" onClick={onClear}><Trans>清空选择</Trans></Button>}
+        footer={onClear === undefined ? undefined : <ClearFooter onClear={onClear} />}
+      >
+        {players.length === 0 ? null : (
+          <div className="flex flex-col gap-3">
+            {players.map((player) => <PlayerCard key={player.steam_id} player={player} emphasis={false} />)}
+          </div>
+        )}
+        {pendingPlayers.map((player) => (
+          <div key={player.id} data-compare-pending={player.id}>
+            {player.error === null ? (
+              <div role="status" aria-busy="true" className="flex flex-col gap-2">
+                <Skeleton className="h-16" />
+                <p className="break-words text-sm text-neutral-600"><Trans>正在读取 {player.id} 的档案</Trans></p>
+              </div>
+            ) : (
+              <Alert
+                variant="danger"
+                action={{ label: <Trans>重试</Trans>, onAction: player.onRetry }}
+                detail={player.error}
+              >
+                <Trans>选手 {player.id} 的档案未能读取</Trans>
+              </Alert>
+            )}
+          </div>
+        ))}
+      </Inspector>
+    );
+  }
 
   if (left === undefined) {
     if (focusedPlayer !== undefined) {

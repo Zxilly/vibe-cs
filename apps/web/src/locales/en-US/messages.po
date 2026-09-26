@@ -2181,16 +2181,10 @@ msgstr "The out point must follow the in point. Cancel and adjust the source ran
 msgid "击杀"
 msgstr "Kills"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:51
-#: src/pages/analysis/match/views/PlayersView.tsx:153
-#: src/pages/analysis/match/views/PlayersView.tsx:154
-#: src/pages/analysis/match/views/RoundsView.tsx:86
-#: src/pages/analysis/players/PlayerComparePanel.tsx:213
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
-#: src/pages/analysis/players/PlayersPage.tsx:148
-#: src/pages/analysis/players/PlayersPage.tsx:149
+#: src/domain/match/matchEnums.ts:170
+msgctxt "evidence-kind"
 msgid "击杀"
-msgstr "Kills"
+msgstr "Kill"
 
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:81
 msgid "击杀与死亡位置"
@@ -3165,7 +3159,8 @@ msgstr "Evidence in this round"
 msgid "回合开始"
 msgstr "Round start"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:59
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:28
+msgctxt "evidence-event"
 msgid "回合开始"
 msgstr "Round start"
 
@@ -3422,6 +3417,10 @@ msgstr "Pan"
 msgid "备注"
 msgstr "Note"
 
+#: src/pages/shared/library/LibraryPage.tsx:502
+msgid "备注没有保存。重试会保存到原来的比赛。"
+msgstr "The note was not saved. Retrying will save it to the original match."
+
 #: src/pages/editing/delivery/OutputCard.tsx:115
 msgid "复制完整路径"
 msgstr "Copy full path"
@@ -3460,8 +3459,8 @@ msgstr "Multicam view"
 msgid "多杀"
 msgstr "Multi-kill"
 
-#: src/domain/match/matchEnums.ts:222
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:53
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:36
+msgctxt "evidence-event"
 msgid "多杀"
 msgstr "Multi-kill"
 
@@ -4135,6 +4134,14 @@ msgstr "{0} highlights selected"
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
+#: src/pages/analysis/players/PlayerComparePanel.tsx:175
+msgid "已选 {selectedCount} 名 · 正在读取档案"
+msgstr "{selectedCount} selected · Loading profiles"
+
+#: src/pages/analysis/players/PlayerComparePanel.tsx:174
+msgid "已选 {selectedCount} 名 · 部分档案未能读取"
+msgstr "{selectedCount} selected · Some profiles could not be loaded"
+
 #: src/pages/analysis/evidence/EvidencePage.tsx:324
 msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
@@ -4723,11 +4730,8 @@ msgstr "Open task page"
 msgid "打开作品"
 msgstr "Open project"
 
-#: src/domain/task/useTaskActions.tsx:148
-#: src/domain/task/useTaskActions.tsx:155
-#: src/domain/task/useTaskActions.tsx:210
-#: src/pages/analysis/evidence/EvidencePage.tsx:346
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:218
+#: src/app/command/useObjectCommands.ts:87
+msgctxt "palette-hint"
 msgid "打开作品"
 msgstr "Open project"
 
@@ -6035,6 +6039,10 @@ msgstr "View highlight"
 msgid "标签"
 msgstr "Tags"
 
+#: src/pages/shared/library/LibraryPage.tsx:510
+msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
+msgstr "The tags were not added. Retrying will use the original matches and tags."
+
 #: src/domain/editing/ProjectTimeline.tsx:2389
 #: src/domain/editing/ProjectTimeline.tsx:6153
 #: src/domain/editing/ProjectTimeline.tsx:6154
@@ -6383,6 +6391,11 @@ msgstr "Generating thumbnails"
 msgid "正在读取"
 msgstr "Reading"
 
+#. placeholder {0}: player.id
+#: src/pages/analysis/players/PlayerComparePanel.tsx:189
+msgid "正在读取 {0} 的档案"
+msgstr "Loading the profile for {0}"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1804
 msgid "正在读取任务…"
 msgstr "Loading tasks…"
@@ -6509,14 +6522,10 @@ msgstr "Weapon: {0}"
 msgid "死亡"
 msgstr "Deaths"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:161
-#: src/pages/analysis/match/views/PlayersView.tsx:162
-#: src/pages/analysis/players/PlayerComparePanel.tsx:214
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
-#: src/pages/analysis/players/PlayersPage.tsx:156
-#: src/pages/analysis/players/PlayersPage.tsx:157
+#: src/domain/match/matchEnums.ts:171
+msgctxt "evidence-kind"
 msgid "死亡"
-msgstr "Deaths"
+msgstr "Death"
 
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:85
 msgid "死亡位置"
@@ -6613,15 +6622,10 @@ msgstr "Rate Stretch Tool (R)"
 msgid "比赛"
 msgstr "Match"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:209
-#: src/pages/analysis/players/PlayersPage.tsx:116
-#: src/pages/analysis/players/PlayersPage.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:118
-#: src/pages/shared/library/libraryColumns.tsx:73
-#: src/pages/shared/library/libraryColumns.tsx:74
+#: src/app/command/commandRegistry.ts:95
+msgctxt "palette-group"
 msgid "比赛"
-msgstr "Match"
+msgstr "Matches"
 
 #: src/app/shell/WorkspaceModeMenu.tsx:85
 msgid "比赛、选手、证据与回放"
@@ -7656,8 +7660,8 @@ msgstr "Target:"
 msgid "目标事件"
 msgstr "Objective"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:55
-#: src/pages/analysis/match/views/RoundsView.tsx:588
+#: src/domain/match/matchEnums.ts:173
+msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
@@ -8427,7 +8431,8 @@ msgstr "The setting was not saved"
 msgid "证据"
 msgstr "Evidence"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:292
+#: src/app/command/commandRegistry.ts:98
+msgctxt "palette-group"
 msgid "证据"
 msgstr "Evidence"
 
@@ -8514,6 +8519,10 @@ msgstr "Tell the Agent what you want. It will prepare a shot list and clips, the
 #: src/domain/editing/ClipInspector.tsx:116
 msgid "请先停用不支持的效果，再保存修改。"
 msgstr "Disable unsupported effects before saving changes."
+
+#: src/pages/shared/library/LibraryPage.tsx:644
+msgid "请先读取应用配置"
+msgstr "Load the app configuration first"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:87
 msgid "请先重试扫描，确认需要清理的内容"
@@ -9247,6 +9256,11 @@ msgstr "This task could not be opened"
 msgid "这条比赛不会导入资料库，可以稍后重新下载。"
 msgstr "This match will not be imported into the library. You can download it again later."
 
+#. placeholder {0}: notesReadError.message
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:190
+msgid "这条证据的注释没能读出来：{0}"
+msgstr "Could not load annotations for this evidence: {0}"
+
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:201
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
 msgstr "This evidence has no note yet. Notes are reused across matches, so one written here shows up in the Notes view."
@@ -9446,24 +9460,20 @@ msgstr "Selection detail"
 msgid "选手"
 msgstr "Player"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:71
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:82
-#: src/pages/analysis/match/views/HighlightsView.tsx:407
-#: src/pages/analysis/match/views/PlayersView.tsx:132
-#: src/pages/analysis/match/views/PlayersView.tsx:133
-#: src/pages/analysis/match/views/ReplayView.tsx:380
-#: src/pages/analysis/match/views/TeamsView.tsx:128
-#: src/pages/analysis/match/views/UtilityView.tsx:72
-#: src/pages/analysis/match/views/UtilityView.tsx:73
-#: src/pages/analysis/players/PlayersPage.tsx:99
-#: src/pages/analysis/players/PlayersPage.tsx:100
+#: src/app/command/commandRegistry.ts:96
+msgctxt "palette-group"
 msgid "选手"
-msgstr "Player"
+msgstr "Players"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/conditionSummary.tsx:28
 msgid "选手 {0}"
 msgstr "Player {0}"
+
+#. placeholder {0}: player.id
+#: src/pages/analysis/players/PlayerComparePanel.tsx:197
+msgid "选手 {0} 的档案未能读取"
+msgstr "Could not load the profile for player {0}"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:110
@@ -9891,9 +9901,21 @@ msgstr "Reset filters"
 msgid "重试"
 msgstr "Retry"
 
+#: src/pages/shared/library/LibraryPage.tsx:499
+msgid "重试保存备注"
+msgstr "Retry saving note"
+
 #: src/pages/shared/library/LibraryPage.tsx:534
 msgid "重试回放"
 msgstr "Retry playback"
+
+#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:94
+msgid "重试操作"
+msgstr "Retry action"
+
+#: src/pages/shared/library/LibraryPage.tsx:507
+msgid "重试添加标签"
+msgstr "Retry adding tags"
 
 #: src/domain/editing/ProjectTimeline.tsx:2343
 msgid "链接所选片段"
@@ -10317,50 +10339,3 @@ msgstr "Default cut length"
 #: src/pages/shared/settings/AiAgentSection.tsx:325
 msgid "默认视角"
 msgstr "Default view"
-
-#: src/pages/shared/library/LibraryPage.tsx:502
-msgid "备注没有保存。重试会保存到原来的比赛。"
-msgstr "The note was not saved. Retrying will save it to the original match."
-
-#: src/pages/shared/library/LibraryPage.tsx:510
-msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
-msgstr "The tags were not added. Retrying will use the original matches and tags."
-
-#: src/pages/shared/library/LibraryPage.tsx:644
-msgid "请先读取应用配置"
-msgstr "Load the app configuration first"
-
-#: src/pages/shared/library/LibraryPage.tsx:499
-msgid "重试保存备注"
-msgstr "Retry saving note"
-
-#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:94
-msgid "重试操作"
-msgstr "Retry action"
-
-#: src/pages/shared/library/LibraryPage.tsx:507
-msgid "重试添加标签"
-msgstr "Retry adding tags"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:175
-msgid "已选 {selectedCount} 名 · 正在读取档案"
-msgstr "{selectedCount} selected · Loading profiles"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:174
-msgid "已选 {selectedCount} 名 · 部分档案未能读取"
-msgstr "{selectedCount} selected · Some profiles could not be loaded"
-
-#. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:189
-msgid "正在读取 {0} 的档案"
-msgstr "Loading the profile for {0}"
-
-#. placeholder {0}: notesReadError.message
-#: src/pages/analysis/evidence/EvidenceDetail.tsx:190
-msgid "这条证据的注释没能读出来：{0}"
-msgstr "Could not load annotations for this evidence: {0}"
-
-#. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:197
-msgid "选手 {0} 的档案未能读取"
-msgstr "Could not load the profile for player {0}"

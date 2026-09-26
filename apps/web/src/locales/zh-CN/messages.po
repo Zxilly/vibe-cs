@@ -2180,14 +2180,8 @@ msgstr "出点必须晚于入点。请取消并调整选材范围，作品尚未
 msgid "击杀"
 msgstr "击杀"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:51
-#: src/pages/analysis/match/views/PlayersView.tsx:153
-#: src/pages/analysis/match/views/PlayersView.tsx:154
-#: src/pages/analysis/match/views/RoundsView.tsx:86
-#: src/pages/analysis/players/PlayerComparePanel.tsx:213
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
-#: src/pages/analysis/players/PlayersPage.tsx:148
-#: src/pages/analysis/players/PlayersPage.tsx:149
+#: src/domain/match/matchEnums.ts:170
+msgctxt "evidence-kind"
 msgid "击杀"
 msgstr "击杀"
 
@@ -3164,7 +3158,8 @@ msgstr "回合内证据"
 msgid "回合开始"
 msgstr "回合开始"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:59
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:28
+msgctxt "evidence-event"
 msgid "回合开始"
 msgstr "回合开始"
 
@@ -3421,6 +3416,10 @@ msgstr "声像"
 msgid "备注"
 msgstr "备注"
 
+#: src/pages/shared/library/LibraryPage.tsx:502
+msgid "备注没有保存。重试会保存到原来的比赛。"
+msgstr "备注没有保存。重试会保存到原来的比赛。"
+
 #: src/pages/editing/delivery/OutputCard.tsx:115
 msgid "复制完整路径"
 msgstr "复制完整路径"
@@ -3459,8 +3458,8 @@ msgstr "多机位视图"
 msgid "多杀"
 msgstr "多杀"
 
-#: src/domain/match/matchEnums.ts:222
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:53
+#: src/pages/analysis/evidence/evidenceEventLabel.ts:36
+msgctxt "evidence-event"
 msgid "多杀"
 msgstr "多杀"
 
@@ -4134,6 +4133,14 @@ msgstr "已选 {0} 条高光"
 msgid "已选 {0}，还差一名"
 msgstr "已选 {0}，还差一名"
 
+#: src/pages/analysis/players/PlayerComparePanel.tsx:175
+msgid "已选 {selectedCount} 名 · 正在读取档案"
+msgstr "已选 {selectedCount} 名 · 正在读取档案"
+
+#: src/pages/analysis/players/PlayerComparePanel.tsx:174
+msgid "已选 {selectedCount} 名 · 部分档案未能读取"
+msgstr "已选 {selectedCount} 名 · 部分档案未能读取"
+
 #: src/pages/analysis/evidence/EvidencePage.tsx:324
 msgid "已选 1 条证据"
 msgstr "已选 1 条证据"
@@ -4722,11 +4729,8 @@ msgstr "打开任务页"
 msgid "打开作品"
 msgstr "打开作品"
 
-#: src/domain/task/useTaskActions.tsx:148
-#: src/domain/task/useTaskActions.tsx:155
-#: src/domain/task/useTaskActions.tsx:210
-#: src/pages/analysis/evidence/EvidencePage.tsx:346
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:218
+#: src/app/command/useObjectCommands.ts:87
+msgctxt "palette-hint"
 msgid "打开作品"
 msgstr "打开作品"
 
@@ -6034,6 +6038,10 @@ msgstr "查看高光"
 msgid "标签"
 msgstr "标签"
 
+#: src/pages/shared/library/LibraryPage.tsx:510
+msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
+msgstr "标签没有添加。重试会使用原来选择的比赛和标签。"
+
 #: src/domain/editing/ProjectTimeline.tsx:2389
 #: src/domain/editing/ProjectTimeline.tsx:6153
 #: src/domain/editing/ProjectTimeline.tsx:6154
@@ -6382,6 +6390,11 @@ msgstr "正在生成缩略图"
 msgid "正在读取"
 msgstr "正在读取"
 
+#. placeholder {0}: player.id
+#: src/pages/analysis/players/PlayerComparePanel.tsx:189
+msgid "正在读取 {0} 的档案"
+msgstr "正在读取 {0} 的档案"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1804
 msgid "正在读取任务…"
 msgstr "正在读取任务…"
@@ -6508,12 +6521,8 @@ msgstr "武器：{0}"
 msgid "死亡"
 msgstr "死亡"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:161
-#: src/pages/analysis/match/views/PlayersView.tsx:162
-#: src/pages/analysis/players/PlayerComparePanel.tsx:214
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
-#: src/pages/analysis/players/PlayersPage.tsx:156
-#: src/pages/analysis/players/PlayersPage.tsx:157
+#: src/domain/match/matchEnums.ts:171
+msgctxt "evidence-kind"
 msgid "死亡"
 msgstr "死亡"
 
@@ -6612,13 +6621,8 @@ msgstr "比率伸缩工具 (R)"
 msgid "比赛"
 msgstr "比赛"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:209
-#: src/pages/analysis/players/PlayersPage.tsx:116
-#: src/pages/analysis/players/PlayersPage.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:117
-#: src/pages/shared/library/history/MatchHistoryTable.tsx:118
-#: src/pages/shared/library/libraryColumns.tsx:73
-#: src/pages/shared/library/libraryColumns.tsx:74
+#: src/app/command/commandRegistry.ts:95
+msgctxt "palette-group"
 msgid "比赛"
 msgstr "比赛"
 
@@ -7655,8 +7659,8 @@ msgstr "目标："
 msgid "目标事件"
 msgstr "目标事件"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:55
-#: src/pages/analysis/match/views/RoundsView.tsx:588
+#: src/domain/match/matchEnums.ts:173
+msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "目标事件"
 
@@ -8426,7 +8430,8 @@ msgstr "设置没有保存成功"
 msgid "证据"
 msgstr "证据"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:292
+#: src/app/command/commandRegistry.ts:98
+msgctxt "palette-group"
 msgid "证据"
 msgstr "证据"
 
@@ -8513,6 +8518,10 @@ msgstr "说清你想要什么，Agent 会准备剪辑单和片段；开始录制
 #: src/domain/editing/ClipInspector.tsx:116
 msgid "请先停用不支持的效果，再保存修改。"
 msgstr "请先停用不支持的效果，再保存修改。"
+
+#: src/pages/shared/library/LibraryPage.tsx:644
+msgid "请先读取应用配置"
+msgstr "请先读取应用配置"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:87
 msgid "请先重试扫描，确认需要清理的内容"
@@ -9246,6 +9255,11 @@ msgstr "这条任务没能打开"
 msgid "这条比赛不会导入资料库，可以稍后重新下载。"
 msgstr "这条比赛不会导入资料库，可以稍后重新下载。"
 
+#. placeholder {0}: notesReadError.message
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:190
+msgid "这条证据的注释没能读出来：{0}"
+msgstr "这条证据的注释没能读出来：{0}"
+
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:201
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
 msgstr "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
@@ -9445,17 +9459,8 @@ msgstr "选中项详情"
 msgid "选手"
 msgstr "选手"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:71
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:82
-#: src/pages/analysis/match/views/HighlightsView.tsx:407
-#: src/pages/analysis/match/views/PlayersView.tsx:132
-#: src/pages/analysis/match/views/PlayersView.tsx:133
-#: src/pages/analysis/match/views/ReplayView.tsx:380
-#: src/pages/analysis/match/views/TeamsView.tsx:128
-#: src/pages/analysis/match/views/UtilityView.tsx:72
-#: src/pages/analysis/match/views/UtilityView.tsx:73
-#: src/pages/analysis/players/PlayersPage.tsx:99
-#: src/pages/analysis/players/PlayersPage.tsx:100
+#: src/app/command/commandRegistry.ts:96
+msgctxt "palette-group"
 msgid "选手"
 msgstr "选手"
 
@@ -9463,6 +9468,11 @@ msgstr "选手"
 #: src/pages/analysis/evidence/conditionSummary.tsx:28
 msgid "选手 {0}"
 msgstr "选手 {0}"
+
+#. placeholder {0}: player.id
+#: src/pages/analysis/players/PlayerComparePanel.tsx:197
+msgid "选手 {0} 的档案未能读取"
+msgstr "选手 {0} 的档案未能读取"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:110
@@ -9890,9 +9900,21 @@ msgstr "重置筛选"
 msgid "重试"
 msgstr "重试"
 
+#: src/pages/shared/library/LibraryPage.tsx:499
+msgid "重试保存备注"
+msgstr "重试保存备注"
+
 #: src/pages/shared/library/LibraryPage.tsx:534
 msgid "重试回放"
 msgstr "重试回放"
+
+#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:94
+msgid "重试操作"
+msgstr "重试操作"
+
+#: src/pages/shared/library/LibraryPage.tsx:507
+msgid "重试添加标签"
+msgstr "重试添加标签"
 
 #: src/domain/editing/ProjectTimeline.tsx:2343
 msgid "链接所选片段"
@@ -10316,50 +10338,3 @@ msgstr "默认成片时长"
 #: src/pages/shared/settings/AiAgentSection.tsx:325
 msgid "默认视角"
 msgstr "默认视角"
-
-#: src/pages/shared/library/LibraryPage.tsx:502
-msgid "备注没有保存。重试会保存到原来的比赛。"
-msgstr "备注没有保存。重试会保存到原来的比赛。"
-
-#: src/pages/shared/library/LibraryPage.tsx:510
-msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
-msgstr "标签没有添加。重试会使用原来选择的比赛和标签。"
-
-#: src/pages/shared/library/LibraryPage.tsx:644
-msgid "请先读取应用配置"
-msgstr "请先读取应用配置"
-
-#: src/pages/shared/library/LibraryPage.tsx:499
-msgid "重试保存备注"
-msgstr "重试保存备注"
-
-#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:94
-msgid "重试操作"
-msgstr "重试操作"
-
-#: src/pages/shared/library/LibraryPage.tsx:507
-msgid "重试添加标签"
-msgstr "重试添加标签"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:175
-msgid "已选 {selectedCount} 名 · 正在读取档案"
-msgstr "已选 {selectedCount} 名 · 正在读取档案"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:174
-msgid "已选 {selectedCount} 名 · 部分档案未能读取"
-msgstr "已选 {selectedCount} 名 · 部分档案未能读取"
-
-#. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:189
-msgid "正在读取 {0} 的档案"
-msgstr "正在读取 {0} 的档案"
-
-#. placeholder {0}: notesReadError.message
-#: src/pages/analysis/evidence/EvidenceDetail.tsx:190
-msgid "这条证据的注释没能读出来：{0}"
-msgstr "这条证据的注释没能读出来：{0}"
-
-#. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:197
-msgid "选手 {0} 的档案未能读取"
-msgstr "选手 {0} 的档案未能读取"

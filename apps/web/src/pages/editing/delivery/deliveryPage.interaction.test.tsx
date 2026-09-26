@@ -14,7 +14,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { OutputItem, OutputPage } from '../../../shared/desktop/dto';
+import type { OutputItem, OutputPage, OutputQuery } from '../../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../../shared/desktop/viewModels';
 import { ActivityDrawer } from '../../../domain/task/ActivityDrawer';
 import { DeliveryPage } from './DeliveryPage';
@@ -132,6 +132,44 @@ function renderActivity(client: Record<string, unknown>) {
 }
 
 describe('成品 › 成品文件', () => {
+  it('offers a filter reset instead of creating a project when one output type is empty', async () => {
+    const { client } = stubs();
+    renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: { ...client, listOutputs: (query: OutputQuery) => Promise.resolve(
+        query.availability === 'missing' ? { ...OUTPUTS, items: [], total: 0 } : OUTPUTS,
+      ) },
+    });
+    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    fireEvent.click(screen.getByRole('radio', { name: '文件缺失' }));
+    expect(await screen.findByText('没有缺失的文件')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '新建作品' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '显示全部类型' }));
+    expect(await screen.findByRole('heading', { name: 'Kael 1v3' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '全部' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('reports cleanup failure and the actual retried result', async () => {
+    const { client } = stubs();
+    let attempts = 0;
+    renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: { ...client, cleanupMissingOutputs: () => {
+        attempts += 1;
+        return attempts === 1 ? Promise.reject(new Error('storage unavailable'))
+          : Promise.resolve({ inspected: 8, deleted: 2, scan_limited: true });
+      } },
+    });
+    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    fireEvent.click(screen.getByRole('button', { name: '清理无效记录' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('清理没有完成');
+    fireEvent.click(within(alert).getByRole('button', { name: '重试' }));
+    expect(await screen.findByText('已检查 8 条记录，移除 2 条无效记录。磁盘文件没有变化。')).toBeTruthy();
+    expect(screen.getByText('本次只扫描了部分目录，仍可能有未检查的记录。')).toBeTruthy();
+    expect(attempts).toBe(2);
+  });
+
   it('prints the count and the free space the header promises', async () => {
     const { client } = stubs();
     renderPage({

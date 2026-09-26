@@ -41,7 +41,7 @@ import { useProjects } from '../../../data/projects';
 import { Empty, Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Toolbar } from '../../../design/layout';
-import { Badge, Seg } from '../../../design/primitives';
+import { Badge, Button, Seg } from '../../../design/primitives';
 import type { DeleteOutputResult, OutputItem, OutputQuery } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../shared/navigation/RouteLink';
 import { DeleteOutputDialog } from './DeleteOutputDialog';
@@ -112,7 +112,8 @@ export function OutputsView({ now }: OutputsViewProps) {
     ? dataErrorMessage(outputs.error) ?? t`读取成片列表失败。`
     : undefined;
   const scopedProject = projectId === null ? null : projects.data?.find((project) => project.id === projectId) ?? null;
-  const scopeLabel = projectId === null ? null : scopedProject?.name ?? t`已删除的作品`;
+  const scopeLabel = projectId === null ? null : scopedProject?.name
+    ?? (projects.isPending ? t`正在加载作品…` : projects.isError ? t`指定作品` : t`已删除的作品`);
 
   const onReveal = (output: OutputItem): void => {
     reveal.mutate(output.path, {
@@ -154,12 +155,12 @@ export function OutputsView({ now }: OutputsViewProps) {
             <button
               type="button"
               data-output-scope={projectId}
-              className="gap-1.5 hover:bg-accent-200"
+              className="max-w-full gap-1.5 hover:bg-accent-200"
               aria-label={t`清除作品筛选：${scopeLabel}`}
               onClick={() => void navigate('/delivery')}
             >
-              <Trans>作品：{scopeLabel}</Trans>
-              <X className="size-3" strokeWidth={2} aria-hidden="true" />
+              <span className="truncate"><Trans>作品：{scopeLabel}</Trans></span>
+              <X className="size-3 flex-none" strokeWidth={2} aria-hidden="true" />
             </button>
           </Badge>
         )}
@@ -191,7 +192,13 @@ export function OutputsView({ now }: OutputsViewProps) {
             ))}
           </div>
         ) : items.length === 0 ? (
-          scopeLabel === null ? (
+          filter !== 'all' ? (
+            <Empty
+              title={filter === 'missing' ? <Trans>没有缺失的文件</Trans> : <Trans>没有符合筛选条件的成品文件</Trans>}
+              description={<Trans>当前筛选为「{labels[filter]}」。切换到全部可查看其他成品文件。</Trans>}
+              actions={<Button onClick={() => { setFilter('all'); setPage(1); }}><Trans>显示全部类型</Trans></Button>}
+            />
+          ) : scopeLabel === null ? (
             <Empty
               preset="no-outputs"
               actions={
@@ -220,8 +227,8 @@ export function OutputsView({ now }: OutputsViewProps) {
               <span className="flex items-center px-4"><Trans>预览</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
-              <span className="flex items-center border-l border-divider px-4"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
-              <span className="flex items-center border-l border-divider px-4"><Trans>文件路径</Trans></span>
+              <span className="hidden items-center border-l border-divider px-4 min-[1200px]:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
+              <span className="hidden items-center border-l border-divider px-4 min-[1440px]:flex"><Trans>文件路径</Trans></span>
               <span className="flex items-center justify-center border-l border-divider px-2"><Trans>操作</Trans></span>
             </div>
             {items.map((output, index) => (

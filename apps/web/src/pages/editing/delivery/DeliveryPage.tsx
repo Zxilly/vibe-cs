@@ -5,6 +5,8 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useCleanupMissingOutputs, useOutputList } from '../../../data/outputs';
 import { useStorageStatus } from '../../../data/config';
+import { dataErrorMessage } from '../../../data/errors';
+import { Alert } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import { OutputsView } from './OutputsView';
@@ -43,16 +45,17 @@ export function DeliveryPage() {
           actions={[
             {
               id: 'cleanup',
-              label: <Trans>清理无效记录</Trans>,
+              label: cleanup.isPending ? <Trans>正在清理…</Trans> : <Trans>清理无效记录</Trans>,
               onSelect: () => cleanup.mutate(undefined),
               disabled: cleanup.isPending,
               control: (
                 <Button
                   size="md"
                   onClick={() => cleanup.mutate(undefined)}
+                  aria-busy={cleanup.isPending}
                   {...(cleanup.isPending ? { disabled: true } : {})}
                 >
-                  <Trans>清理无效记录</Trans>
+                  {cleanup.isPending ? <Trans>正在清理…</Trans> : <Trans>清理无效记录</Trans>}
                 </Button>
               ),
             },
@@ -60,7 +63,21 @@ export function DeliveryPage() {
         />
       }
     >
-      <OutputsView />
+      {cleanup.isError ? (
+        <div className="px-6 pt-4">
+          <Alert variant="danger" detail={dataErrorMessage(cleanup.error)} action={{ label: <Trans>重试</Trans>, onAction: () => cleanup.mutate(undefined) }}>
+            <Trans>清理没有完成，请重试。</Trans>
+          </Alert>
+        </div>
+      ) : cleanup.isSuccess ? (
+        <div className="px-6 pt-4">
+          <Alert variant="info" action={{ label: <Trans>知道了</Trans>, onAction: () => cleanup.reset() }}>
+            <Trans>已检查 {cleanup.data.inspected} 条记录，移除 {cleanup.data.deleted} 条无效记录。磁盘文件没有变化。</Trans>
+            {cleanup.data.scan_limited ? <p className="mt-1"><Trans>本次只扫描了部分目录，仍可能有未检查的记录。</Trans></p> : null}
+          </Alert>
+        </div>
+      ) : null}
+      <OutputsView key={projectId ?? 'all'} />
     </Page>
   );
 }

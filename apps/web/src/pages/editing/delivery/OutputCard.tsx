@@ -12,13 +12,8 @@ import type { OutputItem, Project } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../shared/navigation/RouteLink';
 import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
-/**
- * Six tracks whose fixed sum stays under the content width of a 1100px window
- * (DESIGN.md's Shell breakpoint: 1100 − 56 icon rail − 48 page inset ≈ 996px),
- * so the 操作 column is never pushed past the viewport. The two `minmax`
- * columns take whatever a wider window adds.
- */
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(11rem,1.35fr)_7rem_14rem_minmax(9rem,1fr)_6rem]';
+/** Keep the identity and actions visible; secondary facts remain in details. */
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1fr)_7rem_6rem] min-[1200px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1.35fr)_7rem_14rem_6rem] min-[1440px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1.35fr)_7rem_14rem_minmax(9rem,1fr)_6rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -70,7 +65,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           </button>
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
-          <h3 className="min-w-0 truncate text-base font-normal"><button type="button" className="block max-w-full truncate text-left hover:underline" onClick={openDetails}>{title}</button></h3>
+          <h3 className="min-w-0 text-base font-medium"><button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button></h3>
           {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
@@ -83,10 +78,10 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           <span>{size ?? '—'}</span><span>{usable ? stamp : <Trans>文件缺失</Trans>}</span>
           <span>{output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}</span>
         </div>
-        <div className="flex min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700">
+        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 min-[1200px]:flex">
           {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
         </div>
-        <div className="flex min-w-0 items-center border-l border-divider px-4 py-2">
+        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 min-[1440px]:flex">
           {/* The directory gives way first (zero basis), the file name only once it alone overflows: rows differ by name, not by prefix. */}
           <button type="button" className="flex w-full min-w-0 text-left font-mono text-xs text-neutral-600 hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
             <span className="min-w-[4ch] flex-1 truncate">{pathParts.directory}</span>
@@ -103,6 +98,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           <dl className="space-y-2 text-sm">
             <dt className="text-neutral-600">{output.status === 'completed' ? <Trans>完成时间</Trans> : <Trans>更新时间</Trans>}</dt><dd>{stamp}</dd>
             <dt className="text-neutral-600"><Trans>文件名</Trans></dt><dd className="break-all font-mono text-xs">{output.file_name}</dd>
+            <dt className="text-neutral-600"><Trans>文件大小</Trans></dt><dd>{size ?? '—'}</dd>
             <dt className="text-neutral-600"><Trans>文件参数</Trans></dt><dd>{facts.join(' · ') || t`参数不可读取`}</dd>
             <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{shownPath}</dd>
           </dl>

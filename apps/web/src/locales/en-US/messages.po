@@ -167,7 +167,7 @@ msgid "{0} · 第 {1} 回合 · {tick}"
 msgstr "{0} · Round {1} · {tick}"
 
 #. placeholder {0}: keyframe.property
-#: src/domain/editing/ClipInspector.tsx:474
+#: src/domain/editing/ClipInspector.tsx:483
 msgid "{0} {label}"
 msgstr "{0} {label}"
 
@@ -183,17 +183,17 @@ msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} rounds with an opening kill · {1} unattributed"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1576
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1577
 msgid "{0} 个素材未就绪"
 msgstr "{0} assets not ready"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:698
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:699
 msgid "{0} 个素材未就绪，检查素材面板里标红的片段"
 msgstr "{0} clips are not ready; check the clips marked red in the media panel"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:697
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:698
 msgid "{0} 个素材还没录制，先录制缺失片段"
 msgstr "{0} clips are not recorded yet; record the missing clips first"
 
@@ -269,7 +269,7 @@ msgid "{0} 对位 {1} 打出 {2} 比 {3}"
 msgstr "{0} went {2} to {3} against {1}"
 
 #. placeholder {0}: selected.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1905
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1908
 msgid "{0} 战术示意"
 msgstr "{0} tactical view"
 
@@ -292,7 +292,7 @@ msgid "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 msgstr "{0} took {2} opening kills across {1} rounds"
 
 #. placeholder {0}: keyframe.property
-#: src/domain/editing/ClipInspector.tsx:445
+#: src/domain/editing/ClipInspector.tsx:454
 msgid "{0} 插值"
 msgstr "{0} Interpolation"
 
@@ -395,12 +395,12 @@ msgstr "{0}, {1} health left, holding {2}"
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
 #. placeholder {1}: next.status === 'cancelled' ? '已取消' : '失败'
 #. placeholder {2}: next.error ?? '未提供错误详情'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:401
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:402
 msgid "{0}任务{1}：{2}。请说明影响和下一步。"
 msgstr "{0} task {1}: {2}. Explain the impact and next step."
 
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:400
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:401
 msgid "{0}任务已完成。请重新读取作品和交付状态，然后继续。"
 msgstr "Task {0} finished. Reload the project and delivery status, then continue."
 
@@ -646,8 +646,8 @@ msgid "ADR"
 msgstr "ADR"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:176
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1531
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1582
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1532
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1583
 msgid "Agent"
 msgstr "Agent"
 
@@ -704,11 +704,11 @@ msgstr "Agent is replying"
 msgid "Agent 正在编辑 · 你暂时只能查看"
 msgstr "Agent is editing · View only for now"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:685
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:686
 msgid "Agent 正在编辑，完成后再导出"
 msgstr "Agent is editing; export once it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:676
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:677
 msgid "Agent 正在编辑，完成后再录制"
 msgstr "Agent is editing; record once it finishes"
 
@@ -720,7 +720,7 @@ msgstr "Agent is editing; the conversation continues once it finishes"
 msgid "Agent 正在编辑，完成后才能调整"
 msgstr "Agent is editing; adjust once it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1578
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1579
 msgid "Agent 编辑中 · 只读"
 msgstr "Agent editing · Read-only"
 
@@ -785,7 +785,7 @@ msgid "Demo tick {startTick}–{endTick}"
 msgstr "Demo ticks {startTick}–{endTick}"
 
 #. placeholder {0}: currentTick ?? displayed.tick
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2040
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2043
 msgid "Demo tick: {0}"
 msgstr "Demo tick: {0}"
 
@@ -812,7 +812,7 @@ msgstr "Demo library · table view"
 msgid "Demo 选材"
 msgstr "Demo source"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1647
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1648
 msgid "Fit Clip：范围时长不同"
 msgstr "Fit Clip: Range durations differ"
 
@@ -903,7 +903,7 @@ msgstr "Review sections"
 msgid "Solo：只监听所有已 Solo 的音频轨"
 msgstr "Solo: Monitor only all soloed audio tracks"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1658
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1659
 msgid "Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点编辑。"
 msgstr "Source In/Out and Timeline In/Out durations differ. Choose how to complete the four-point edit."
 
@@ -945,7 +945,7 @@ msgstr "Steam settings"
 msgid "Steam 验证码"
 msgstr "Steam authentication code"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:891
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:892
 msgid "Story（内嵌音频）"
 msgstr "Story (embedded audio)"
 
@@ -1033,7 +1033,7 @@ msgstr "Three steps to a first video, and what this machine can do right now."
 msgid "上一个修改"
 msgstr "Previous change"
 
-#: src/domain/editing/ClipInspector.tsx:500
+#: src/domain/editing/ClipInspector.tsx:509
 msgid "上一个关键帧"
 msgstr "Previous keyframe"
 
@@ -1087,7 +1087,7 @@ msgid "上次检查 {0}"
 msgstr "Last checked {0}"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:606
+#: src/domain/editing/ClipInspector.tsx:615
 msgid "上移效果 {0}"
 msgstr "Move effect {0} up"
 
@@ -1099,7 +1099,7 @@ msgstr "Move track up"
 msgid "下一个修改"
 msgstr "Next change"
 
-#: src/domain/editing/ClipInspector.tsx:507
+#: src/domain/editing/ClipInspector.tsx:516
 msgid "下一个关键帧"
 msgstr "Next keyframe"
 
@@ -1140,7 +1140,7 @@ msgid "下包"
 msgstr "Bomb plant"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:607
+#: src/domain/editing/ClipInspector.tsx:616
 msgid "下移效果 {0}"
 msgstr "Move effect {0} down"
 
@@ -1257,7 +1257,7 @@ msgstr "Every new file is written here from now on. Files already written are no
 #: src/domain/editing/ProjectTimeline.tsx:6366
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:155
 #: src/pages/analysis/match/views/RoundsView.tsx:276
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2037
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2040
 msgid "事件"
 msgstr "Event"
 
@@ -1320,7 +1320,7 @@ msgstr "Engagements"
 msgid "交火：这一段没有经击杀验证的交战轴"
 msgstr "Engagements: no kill-verified engagement axis in this stretch"
 
-#: src/domain/editing/ClipInspector.tsx:865
+#: src/domain/editing/ClipInspector.tsx:873
 msgid "亮度"
 msgstr "Brightness"
 
@@ -1480,14 +1480,15 @@ msgstr "Low {0}"
 msgid "作业编号"
 msgstr "Job ID"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1553
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1554
 #: src/pages/editing/projects/ProjectsPage.tsx:43
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "Projects"
 
-#: src/app/command/commandRegistry.ts:97
-msgctxt "palette-group"
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1554
+#: src/pages/editing/projects/ProjectsPage.tsx:43
+#: src/terminology.ts:32
 msgid "作品"
 msgstr "Projects"
 
@@ -1499,13 +1500,13 @@ msgstr "Projects, shot lists, recording, and finished files"
 msgid "作品：{scopeLabel}"
 msgstr "Project: {scopeLabel}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1592
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1790
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1593
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1793
 msgid "作品任务"
 msgstr "Project tasks"
 
 #. placeholder {0}: activeExecutions.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1565
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1566
 msgid "作品任务 {0}"
 msgstr "Project tasks {0}"
 
@@ -1518,8 +1519,8 @@ msgid "作品列表没能读出来：{error}"
 msgstr "The project list could not be loaded: {error}"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:590
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:600
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:591
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:601
 msgid "作品工作区"
 msgstr "Project workspace"
 
@@ -1583,7 +1584,7 @@ msgstr "Save Steam settings"
 msgid "保存为视图"
 msgstr "Save as view"
 
-#: src/domain/editing/ClipInspector.tsx:723
+#: src/domain/editing/ClipInspector.tsx:117
 msgid "保存修改"
 msgstr "Save changes"
 
@@ -1632,7 +1633,7 @@ msgstr "Saved views last until the app is closed"
 msgid "保存面板的位置、大小和分组，可用于其他作品。切换布局会载入已保存的位置；切换前请保存需要保留的调整。"
 msgstr "Save panel positions, sizes, and groups for use in other projects. Switching layouts loads the saved arrangement; save any changes you want to keep before switching."
 
-#: src/domain/editing/ClipInspector.tsx:455
+#: src/domain/editing/ClipInspector.tsx:464
 msgid "保持"
 msgstr "Keep"
 
@@ -1744,11 +1745,11 @@ msgstr "Stop this recording?"
 msgid "停用代理预览"
 msgstr "Disable proxy preview"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1448
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1449
 msgid "允许 Agent 请求的导出操作。"
 msgstr "Allow the export requested by the Agent."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1436
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1437
 msgid "允许 Agent 请求的录制操作。"
 msgstr "Allow the recording requested by the Agent."
 
@@ -1811,7 +1812,7 @@ msgstr "Configure an Agent model first"
 msgid "入出点范围 {0} 到 {1}"
 msgstr "In/Out range {0} to {1}"
 
-#: src/domain/editing/ClipInspector.tsx:465
+#: src/domain/editing/ClipInspector.tsx:474
 msgid "入切线"
 msgstr "In tangent"
 
@@ -1968,8 +1969,8 @@ msgstr "Keyframes"
 msgid "关键帧 {0} {count} 个属性"
 msgstr "Keyframe {0}, {count} properties"
 
-#: src/domain/editing/ClipInspector.tsx:438
-#: src/domain/editing/ClipInspector.tsx:439
+#: src/domain/editing/ClipInspector.tsx:447
+#: src/domain/editing/ClipInspector.tsx:448
 msgid "关键帧插值"
 msgstr "Keyframe interpolation"
 
@@ -2003,7 +2004,7 @@ msgid "关闭 Solo"
 msgstr "Disable Solo"
 
 #. placeholder {0}: item?.name ?? id
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1839
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1842
 msgid "关闭序列 {0}"
 msgstr "Close sequence {0}"
 
@@ -2149,7 +2150,7 @@ msgstr "Equipment at freeze end ($)"
 msgid "准备采集组件"
 msgstr "Prepare capture component"
 
-#: src/domain/editing/ClipInspector.tsx:466
+#: src/domain/editing/ClipInspector.tsx:475
 msgid "出切线"
 msgstr "Out cut line"
 
@@ -2408,7 +2409,7 @@ msgid "删除"
 msgstr "Delete"
 
 #. placeholder {0}: index + 1
-#: src/domain/editing/ClipInspector.tsx:248
+#: src/domain/editing/ClipInspector.tsx:257
 msgid "删除区间 {0} 前的速度关键帧"
 msgstr "Delete speed keyframes before {0}"
 
@@ -2424,8 +2425,8 @@ msgstr "Delete Selected Markers"
 msgid "删除所选片段并闭合间隙"
 msgstr "Delete Selected Clips and Close Gap"
 
-#: src/domain/editing/ClipInspector.tsx:425
-#: src/domain/editing/ClipInspector.tsx:548
+#: src/domain/editing/ClipInspector.tsx:434
+#: src/domain/editing/ClipInspector.tsx:557
 msgid "删除播放头的 {label} 关键帧"
 msgstr "Delete {label} keyframe at playhead"
 
@@ -2434,7 +2435,7 @@ msgid "删除播放头的轨道关键帧"
 msgstr "Delete track keyframes at playhead"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:608
+#: src/domain/editing/ClipInspector.tsx:617
 msgid "删除效果 {0}"
 msgstr "Delete effect {0}"
 
@@ -2511,7 +2512,7 @@ msgstr "Previous Out"
 msgid "前留白"
 msgstr "Lead-in"
 
-#: src/domain/editing/ClipInspector.tsx:288
+#: src/domain/editing/ClipInspector.tsx:297
 msgid "前留白（秒）"
 msgstr "Leading Padding (seconds)"
 
@@ -2601,7 +2602,7 @@ msgctxt "palette-group"
 msgid "动作"
 msgstr "Actions"
 
-#: src/domain/editing/ClipInspector.tsx:559
+#: src/domain/editing/ClipInspector.tsx:568
 msgid "动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。"
 msgstr "Animated zoom and rotation cannot be enabled at the same time; this is a limitation of the export renderer."
 
@@ -2647,11 +2648,11 @@ msgid "区间 {0} {1}%"
 msgstr "Range {0} {1}%"
 
 #. placeholder {0}: index + 1
-#: src/domain/editing/ClipInspector.tsx:233
+#: src/domain/editing/ClipInspector.tsx:242
 msgid "区间 {0} 速度百分比"
 msgstr "Range {0} speed percentage"
 
-#: src/domain/editing/ClipInspector.tsx:226
+#: src/domain/editing/ClipInspector.tsx:235
 msgid "区间速度"
 msgstr "Range speed"
 
@@ -2660,7 +2661,7 @@ msgstr "Range speed"
 msgid "升降"
 msgstr "Crane"
 
-#: src/domain/editing/ClipInspector.tsx:868
+#: src/domain/editing/ClipInspector.tsx:876
 msgid "半径"
 msgstr "Radius"
 
@@ -2750,7 +2751,7 @@ msgstr "Parameters unavailable"
 msgid "双击、Enter 或 F2 重命名轨道"
 msgstr "Double-click, Enter, or F2 to rename track"
 
-#: src/domain/editing/ClipInspector.tsx:146
+#: src/domain/editing/ClipInspector.tsx:155
 msgid "反向播放"
 msgstr "Play backward"
 
@@ -2796,7 +2797,7 @@ msgstr "Cancel"
 msgid "取消中"
 msgstr "Cancelling"
 
-#: src/domain/editing/ClipInspector.tsx:163
+#: src/domain/editing/ClipInspector.tsx:172
 msgid "取消定格"
 msgstr "Remove freeze frame"
 
@@ -2837,12 +2838,12 @@ msgstr "The managed HLAE installation and its safety boundary."
 msgid "受管文件"
 msgstr "Managed file"
 
-#: src/domain/editing/ClipInspector.tsx:495
+#: src/domain/editing/ClipInspector.tsx:504
 #: src/domain/editing/ProjectTimeline.tsx:2923
 msgid "变换"
 msgstr "Transform"
 
-#: src/domain/editing/ClipInspector.tsx:493
+#: src/domain/editing/ClipInspector.tsx:502
 msgid "变换与关键帧"
 msgstr "Transform and keyframes"
 
@@ -2912,7 +2913,7 @@ msgstr "Availability"
 msgid "可重新发起"
 msgstr "Can be started again"
 
-#: src/domain/editing/ClipInspector.tsx:362
+#: src/domain/editing/ClipInspector.tsx:371
 msgid "右对齐"
 msgstr "Align Right"
 
@@ -2949,7 +2950,7 @@ msgstr "Sync Point"
 msgid "同步锁定：Story 插入、波纹删除、提取和波纹裁切时一起移动；Shift 点击切换同类轨道"
 msgstr "Sync Lock: moves together during Story insert, ripple delete, extract, and ripple trim; Shift-click to toggle tracks of the same type"
 
-#: src/domain/editing/ClipInspector.tsx:114
+#: src/domain/editing/ClipInspector.tsx:123
 #: src/domain/editing/MarkerEditorFields.tsx:15
 #: src/pages/shared/library/SaveViewDialog.tsx:64
 msgid "名称"
@@ -2978,7 +2979,7 @@ msgstr "Background task details"
 msgid "后留白"
 msgstr "Lead-out"
 
-#: src/domain/editing/ClipInspector.tsx:289
+#: src/domain/editing/ClipInspector.tsx:298
 msgid "后留白（秒）"
 msgstr "Trailing padding (seconds)"
 
@@ -3021,7 +3022,7 @@ msgstr "Launch"
 msgid "启动方式"
 msgstr "Launch"
 
-#: src/domain/editing/ClipInspector.tsx:179
+#: src/domain/editing/ClipInspector.tsx:188
 msgid "启用"
 msgstr "Enable"
 
@@ -3029,7 +3030,7 @@ msgstr "Enable"
 msgid "启用代理预览"
 msgstr "Enable proxy preview"
 
-#: src/domain/editing/ClipInspector.tsx:194
+#: src/domain/editing/ClipInspector.tsx:203
 msgid "启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。"
 msgstr "When enabled, you can add speed keyframes at the playhead and adjust the speed of each clip section separately."
 
@@ -3038,15 +3039,15 @@ msgid "启用所选片段"
 msgstr "Enable Selected Clip"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:595
+#: src/domain/editing/ClipInspector.tsx:604
 msgid "启用效果 {0}"
 msgstr "Enable effect {0}"
 
-#: src/domain/editing/ClipInspector.tsx:376
+#: src/domain/editing/ClipInspector.tsx:385
 msgid "启用文字背景"
 msgstr "Enable text background"
 
-#: src/domain/editing/ClipInspector.tsx:721
+#: src/domain/editing/ClipInspector.tsx:730
 msgid "启用片段"
 msgstr "Enable clip"
 
@@ -3220,7 +3221,7 @@ msgstr "The replay exceeds the frame limit"
 msgid "固定"
 msgstr "Fixed"
 
-#: src/domain/editing/ClipInspector.tsx:277
+#: src/domain/editing/ClipInspector.tsx:286
 msgid "固定机位"
 msgstr "Locked camera"
 
@@ -3274,8 +3275,8 @@ msgstr "Mark In at playhead"
 msgid "在播放头标记出点"
 msgstr "Mark Out at playhead"
 
-#: src/domain/editing/ClipInspector.tsx:425
-#: src/domain/editing/ClipInspector.tsx:548
+#: src/domain/editing/ClipInspector.tsx:434
+#: src/domain/editing/ClipInspector.tsx:557
 msgid "在播放头添加 {label} 关键帧"
 msgstr "Add {label} keyframe at playhead"
 
@@ -3299,7 +3300,7 @@ msgstr "Add marker at playhead"
 msgid "在播放头添加轨道关键帧"
 msgstr "Add track keyframe at playhead"
 
-#: src/domain/editing/ClipInspector.tsx:213
+#: src/domain/editing/ClipInspector.tsx:222
 msgid "在播放头添加速度关键帧"
 msgstr "Add speed keyframe at playhead"
 
@@ -3392,7 +3393,7 @@ msgstr "Enter the Steam ID, API key, authentication code, and latest share code 
 msgid "填写一个目录的完整路径"
 msgstr "Enter the full path of a folder"
 
-#: src/domain/editing/ClipInspector.tsx:395
+#: src/domain/editing/ClipInspector.tsx:404
 msgid "声像"
 msgstr "Pan"
 
@@ -3464,11 +3465,11 @@ msgstr "Failed, recoverable"
 msgid "媒体地址不是本地服务路径。"
 msgstr "The media address is not a local service path."
 
-#: src/domain/editing/ClipInspector.tsx:321
+#: src/domain/editing/ClipInspector.tsx:330
 msgid "字体"
 msgstr "Font"
 
-#: src/domain/editing/ClipInspector.tsx:330
+#: src/domain/editing/ClipInspector.tsx:339
 msgid "字号"
 msgstr "Font size"
 
@@ -3503,7 +3504,7 @@ msgstr "Completed at"
 msgid "完整参数 JSON"
 msgstr "Full parameter JSON"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1777
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1779
 msgid "完整序列"
 msgstr "Full sequence"
 
@@ -3535,11 +3536,11 @@ msgstr "Locate the opening kill of round {0}"
 msgid "定位文件"
 msgstr "Locate file"
 
-#: src/domain/editing/ClipInspector.tsx:163
+#: src/domain/editing/ClipInspector.tsx:172
 msgid "定格当前帧"
 msgstr "Freeze current frame"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1559
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1560
 msgid "审阅 Agent 修改"
 msgstr "Review Agent edits"
 
@@ -3593,7 +3594,7 @@ msgstr "Matchups view"
 msgid "对位统计不可用"
 msgstr "Matchup statistics unavailable"
 
-#: src/domain/editing/ClipInspector.tsx:866
+#: src/domain/editing/ClipInspector.tsx:874
 msgid "对比度"
 msgstr "Contrast"
 
@@ -3614,7 +3615,7 @@ msgstr "Could not save the conversation. Please try again. {detail}"
 msgid "对话保留多久"
 msgstr "How long to keep conversations"
 
-#: src/domain/editing/ClipInspector.tsx:353
+#: src/domain/editing/ClipInspector.tsx:362
 msgid "对齐"
 msgstr "Align"
 
@@ -3631,7 +3632,7 @@ msgstr "Import"
 msgid "导入 Demo"
 msgstr "Import Demo"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1594
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1595
 msgid "导入 OTIO / XML / EDL…"
 msgstr "Import OTIO / XML / EDL…"
 
@@ -3643,7 +3644,7 @@ msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 msgid "导入文件"
 msgstr "Import Files"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:733
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:734
 msgid "导入时间轴互换文件"
 msgstr "Import Timeline Interchange File"
 
@@ -3657,7 +3658,7 @@ msgid "导入素材"
 msgstr "Imported media"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:322
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1022
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1023
 msgid "导入项目素材"
 msgstr "Import Project Media"
 
@@ -3667,11 +3668,11 @@ msgstr "Import Project Media"
 msgid "导出"
 msgstr "Export"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1597
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1598
 msgid "导出 CMX3600 EDL…"
 msgstr "Export CMX3600 EDL…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1596
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1597
 msgid "导出 Final Cut Pro XML…"
 msgstr "Export Final Cut Pro XML…"
 
@@ -3679,7 +3680,7 @@ msgstr "Export Final Cut Pro XML…"
 msgid "导出 HTML"
 msgstr "Export HTML"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1595
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1596
 msgid "导出 OpenTimelineIO…"
 msgstr "Export OpenTimelineIO…"
 
@@ -3709,7 +3710,7 @@ msgid "导出已取消"
 msgstr "Export cancelled"
 
 #: src/pages/editing/delivery/OutputsView.tsx:62
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1624
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1625
 msgid "导出成片"
 msgstr "Export"
 
@@ -3725,7 +3726,7 @@ msgstr "exporting a finished cut will fail"
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:721
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:722
 msgid "导出时间轴互换文件"
 msgstr "Export Timeline Interchange File"
 
@@ -3733,7 +3734,7 @@ msgstr "Export Timeline Interchange File"
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1770
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1771
 msgid "导出源范围"
 msgstr "Export Source Range"
 
@@ -3742,7 +3743,7 @@ msgstr "Export Source Range"
 msgid "导出结果"
 msgstr "Export results"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1703
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1704
 msgid "导出设置"
 msgstr "Export Settings"
 
@@ -3754,7 +3755,7 @@ msgstr "Export diagnostics"
 msgid "导出诊断包"
 msgstr "Export a diagnostics bundle"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1757
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1758
 msgid "导出质量"
 msgstr "Export Quality"
 
@@ -3772,7 +3773,7 @@ msgid "将删除「{0}」并回到剪辑布局，作品内容不会改变。"
 msgstr "Delete “{0}” and return to the Editing layout. Project content will stay intact."
 
 #. placeholder {0}: externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1699
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1700
 msgid "将启动 CS2 和采集组件，录制 {0} 个还没有素材的片段。"
 msgstr "This will launch CS2 and the capture component to record {0} clips that have no media yet."
 
@@ -3804,7 +3805,7 @@ msgstr "Not added to comparison"
 msgid "就绪"
 msgstr "Ready"
 
-#: src/domain/editing/ClipInspector.tsx:361
+#: src/domain/editing/ClipInspector.tsx:370
 msgid "居中"
 msgstr "Center"
 
@@ -3872,7 +3873,7 @@ msgstr "Work mode"
 msgid "工具已返回结果。"
 msgstr "The tool returned a result."
 
-#: src/domain/editing/ClipInspector.tsx:360
+#: src/domain/editing/ClipInspector.tsx:369
 msgid "左对齐"
 msgstr "Align Left"
 
@@ -3975,7 +3976,7 @@ msgstr "Rejected"
 msgid "已接受 Agent 修改"
 msgstr "Accepted Agent changes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1460
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1461
 msgid "已接受这组 Agent 修改。"
 msgstr "Accepted this set of Agent changes."
 
@@ -4069,7 +4070,7 @@ msgstr "Expired"
 msgid "已过期 · Valve 不再保留"
 msgstr "Expired · Valve no longer keeps it"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1466
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1467
 msgid "已退回这组 Agent 修改。修改意见：{feedback}"
 msgstr "Reverted this set of Agent changes. Feedback: {feedback}"
 
@@ -4137,11 +4138,11 @@ msgstr "Evidence with coordinates"
 msgid "平台"
 msgstr "Platform"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1732
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1733
 msgid "序列"
 msgstr "Sequence"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1779
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1781
 msgid "序列入点到出点"
 msgstr "Sequence In to Out"
 
@@ -4170,7 +4171,7 @@ msgstr "App"
 msgid "应用写出的所有文件都在这里。要改请到「文件与资料库」。"
 msgstr "Everything the app writes goes here. Change it under Files and library."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1648
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1649
 msgid "应用四点编辑"
 msgstr "Apply four-point edit"
 
@@ -4194,7 +4195,7 @@ msgstr "Extend selected edit point to playhead"
 msgid "开始"
 msgstr "Started"
 
-#: src/domain/editing/ClipInspector.tsx:286
+#: src/domain/editing/ClipInspector.tsx:295
 msgid "开始 tick"
 msgstr "Start tick"
 
@@ -4207,11 +4208,11 @@ msgstr "Position sampling started"
 msgid "开始分析"
 msgstr "Start analysis"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1704
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1705
 msgid "开始导出"
 msgstr "Start export"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1684
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1685
 msgid "开始录制"
 msgstr "Start recording"
 
@@ -4398,8 +4399,8 @@ msgstr "The recording environment is not ready, so the jobs that need it cannot 
 msgid "录制用它接管画面。"
 msgstr "Recording uses it to take over the picture."
 
-#: src/domain/editing/ClipInspector.tsx:266
-#: src/domain/editing/ClipInspector.tsx:271
+#: src/domain/editing/ClipInspector.tsx:275
+#: src/domain/editing/ClipInspector.tsx:280
 msgid "录制视角"
 msgstr "Recording perspective"
 
@@ -4411,13 +4412,13 @@ msgstr "Recordings"
 msgid "录制结果、导出成片和应用自己的数据都放在这里。"
 msgstr "Recordings, finished cuts and the app's own data all live here."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1683
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1684
 msgid "录制缺失片段"
 msgstr "Record missing clips"
 
-#: src/domain/editing/ClipInspector.tsx:263
-#: src/domain/editing/ClipInspector.tsx:264
+#: src/domain/editing/ClipInspector.tsx:272
+#: src/domain/editing/ClipInspector.tsx:273
 #: src/domain/project/AddToProjectDialog.tsx:98
 msgid "录制范围"
 msgstr "Recording range"
@@ -4472,11 +4473,11 @@ msgstr "Loop"
 msgid "必填"
 msgstr "Required"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1664
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1665
 msgid "忽略 Timeline 入点"
 msgstr "Ignore Timeline In point"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1665
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1666
 msgid "忽略 Timeline 出点"
 msgstr "Ignore Timeline Out point"
 
@@ -4488,7 +4489,7 @@ msgstr "Total duration"
 msgid "恐怖分子"
 msgstr "Terrorists"
 
-#: src/domain/editing/ClipInspector.tsx:673
+#: src/domain/editing/ClipInspector.tsx:682
 msgid "恒定功率"
 msgstr "Constant power"
 
@@ -4513,7 +4514,7 @@ msgstr "Resync {0} {1}{outOfSyncFrames} frames"
 msgid "恢复已保存布局"
 msgstr "Restore saved layout"
 
-#: src/domain/editing/ClipInspector.tsx:189
+#: src/domain/editing/ClipInspector.tsx:198
 msgid "恢复恒定速度"
 msgstr "Restore constant speed"
 
@@ -4571,11 +4572,11 @@ msgstr "Keeps the radar in the finished picture."
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "Keeps the game's HUD in the finished picture."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1526
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1527
 msgid "成片预览"
 msgstr "Program monitor"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1474
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1475
 msgid "我已接管这组 Agent 修改，改为手动编辑。"
 msgstr "I've taken over this set of Agent changes and switched to manual editing."
 
@@ -4599,9 +4600,9 @@ msgstr "The tactical replay cache metadata is invalid"
 msgid "战术回放缓存元数据超过上限"
 msgstr "The tactical replay cache metadata exceeds the limit"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1528
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1981
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1983
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1529
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1984
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1986
 msgid "战术示意"
 msgstr "Tactical view"
 
@@ -4728,7 +4729,7 @@ msgstr "Open match history"
 msgid "打开比赛工作区"
 msgstr "Open match workspace"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1829
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1832
 msgid "打开的序列"
 msgstr "Open sequences"
 
@@ -4767,7 +4768,7 @@ msgstr "Annotate in bulk"
 msgid "批量组接到序列"
 msgstr "Automate to Sequence"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:604
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:605
 msgid "找不到作品的当前版本。"
 msgstr "Can't find the current version of this project."
 
@@ -4775,7 +4776,7 @@ msgstr "Can't find the current version of this project."
 msgid "找不到这个页面"
 msgstr "Page not found"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:603
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:604
 msgid "找不到这份作品"
 msgstr "Project not found"
 
@@ -4885,7 +4886,7 @@ msgstr "Bomb defused"
 msgid "拒绝"
 msgstr "Reject"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1455
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1456
 msgid "拒绝这次外部执行请求。"
 msgstr "Decline this external execution request."
 
@@ -4921,12 +4922,12 @@ msgstr "Equal"
 msgid "持续 {0}"
 msgstr "Lasts {0}"
 
-#: src/domain/editing/ClipInspector.tsx:700
+#: src/domain/editing/ClipInspector.tsx:709
 #: src/domain/editing/MarkerEditorFields.tsx:39
 msgid "持续时间"
 msgstr "Duration"
 
-#: src/domain/editing/ClipInspector.tsx:693
+#: src/domain/editing/ClipInspector.tsx:702
 #: src/domain/editing/ProjectTimeline.tsx:3093
 msgid "持续时间（秒）"
 msgstr "Duration (seconds)"
@@ -4991,7 +4992,7 @@ msgstr "Queued"
 msgid "排队等待解析"
 msgstr "Queued for parsing"
 
-#: src/domain/editing/ClipInspector.tsx:282
+#: src/domain/editing/ClipInspector.tsx:291
 msgid "掠过"
 msgstr "Skip"
 
@@ -5127,7 +5128,7 @@ msgstr "Play source"
 msgid "播放范围已设置"
 msgstr "Playback range set"
 
-#: src/domain/editing/ClipInspector.tsx:121
+#: src/domain/editing/ClipInspector.tsx:130
 msgid "播放速度（倍）"
 msgstr "Playback speed (×)"
 
@@ -5144,11 +5145,11 @@ msgstr "Actions"
 msgid "操作未完成，查看错误详情"
 msgstr "Operation incomplete — view error details"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1811
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1814
 msgid "操作没有完成"
 msgstr "The operation didn't complete"
 
-#: src/domain/editing/ClipInspector.tsx:682
+#: src/domain/editing/ClipInspector.tsx:691
 msgid "擦除"
 msgstr "Ripple Delete"
 
@@ -5185,12 +5186,12 @@ msgstr "Widening the time range usually helps most."
 msgid "放置"
 msgstr "Placement"
 
-#: src/domain/editing/ClipInspector.tsx:685
+#: src/domain/editing/ClipInspector.tsx:694
 msgid "故障"
 msgstr "Glitch"
 
-#: src/domain/editing/ClipInspector.tsx:564
-#: src/domain/editing/ClipInspector.tsx:566
+#: src/domain/editing/ClipInspector.tsx:573
+#: src/domain/editing/ClipInspector.tsx:575
 #: src/domain/editing/ProjectTimeline.tsx:2924
 msgid "效果"
 msgstr "Effects"
@@ -5236,7 +5237,7 @@ msgstr "Files and library"
 msgid "文件信息"
 msgstr "File details"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1786
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1789
 msgid "文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。"
 msgstr "The file is saved to Outputs. Use Project tasks in the toolbar to check progress or cancel without staying in the Agent conversation."
 
@@ -5282,18 +5283,18 @@ msgstr "File path"
 msgid "文字"
 msgstr "Text"
 
-#: src/domain/editing/ClipInspector.tsx:309
+#: src/domain/editing/ClipInspector.tsx:318
 #: src/domain/editing/ProjectTimeline.tsx:3082
 msgid "文字内容"
 msgstr "Text content"
 
-#: src/domain/editing/ClipInspector.tsx:306
-#: src/domain/editing/ClipInspector.tsx:307
+#: src/domain/editing/ClipInspector.tsx:315
+#: src/domain/editing/ClipInspector.tsx:316
 msgid "文字样式"
 msgstr "Text style"
 
-#: src/domain/editing/ClipInspector.tsx:343
-#: src/domain/editing/ClipInspector.tsx:346
+#: src/domain/editing/ClipInspector.tsx:352
+#: src/domain/editing/ClipInspector.tsx:355
 msgid "文字颜色"
 msgstr "Text color"
 
@@ -5302,7 +5303,7 @@ msgstr "Text color"
 msgid "新作品"
 msgstr "New project"
 
-#: src/pages/editing/delivery/OutputsView.tsx:199
+#: src/pages/editing/delivery/OutputsView.tsx:206
 #: src/pages/editing/projects/ProjectsPage.tsx:32
 #: src/pages/editing/workspace/HomePage.tsx:25
 msgid "新建作品"
@@ -5324,7 +5325,7 @@ msgstr "Create and add"
 msgid "新建面板分组"
 msgstr "New panel group"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:892
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:893
 msgid "新建音频轨道"
 msgstr "New audio track"
 
@@ -5345,7 +5346,7 @@ msgid "方法"
 msgstr "Method"
 
 #: src/domain/editing/ClipInspector.tsx:92
-#: src/domain/editing/ClipInspector.tsx:686
+#: src/domain/editing/ClipInspector.tsx:695
 msgid "旋转"
 msgstr "Rotation"
 
@@ -5354,7 +5355,7 @@ msgstr "Rotation"
 msgid "旋转节目画面 {0}"
 msgstr "Rotate Program view {0}"
 
-#: src/domain/editing/ClipInspector.tsx:670
+#: src/domain/editing/ClipInspector.tsx:679
 msgid "无"
 msgstr "None"
 
@@ -5386,7 +5387,7 @@ msgstr "Could not receive dropped files. Use Select files instead."
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "Clipboard access failed. Select and copy the full path above manually."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1800
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1803
 msgid "无法读取作品任务。"
 msgstr "Unable to load project tasks."
 
@@ -5437,7 +5438,7 @@ msgstr "Duration · resolution · frame rate · codec"
 msgid "时长 {duration}"
 msgstr "Duration {duration}"
 
-#: src/domain/editing/ClipInspector.tsx:118
+#: src/domain/editing/ClipInspector.tsx:127
 msgid "时长（秒）"
 msgstr "Duration (seconds)"
 
@@ -5469,8 +5470,8 @@ msgstr "Unrecorded clips, recorded clips and imported media on the timeline all 
 msgid "时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。"
 msgstr "The timeline still has clips that aren't ready. Record, re-record, or relink them before exporting."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:693
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1574
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:694
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1575
 msgid "时间线还没有片段"
 msgstr "The timeline has no clips yet"
 
@@ -5480,25 +5481,25 @@ msgstr "Time expired"
 
 #: src/domain/editing/ProjectTimeline.tsx:1810
 #: src/domain/editing/ProjectTimeline.tsx:2206
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1529
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1530
 msgid "时间轴"
 msgstr "Timeline"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1594
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1595
 msgid "时间轴互换文件导入失败"
 msgstr "Failed to import timeline interchange file"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1595
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1596
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1597
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1598
 msgid "时间轴互换文件导出失败"
 msgstr "Failed to export timeline interchange file"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:754
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:755
 msgid "时间轴互换文件已导入"
 msgstr "Timeline interchange file imported"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:726
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:727
 msgid "时间轴互换文件已导出"
 msgstr "Timeline interchange file exported"
 
@@ -5544,8 +5545,8 @@ msgstr "Timeline zoom"
 msgid "时间轴轨道网格"
 msgstr "Timeline track grid"
 
-#: src/domain/editing/ClipInspector.tsx:168
-#: src/domain/editing/ClipInspector.tsx:170
+#: src/domain/editing/ClipInspector.tsx:177
+#: src/domain/editing/ClipInspector.tsx:179
 msgid "时间重映射"
 msgstr "Time remapping"
 
@@ -5638,7 +5639,7 @@ msgstr "Can't type right now: {disabledReason}"
 msgid "更多"
 msgstr "More"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1586
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1587
 msgid "更多作品操作"
 msgstr "More project actions"
 
@@ -5672,7 +5673,7 @@ msgstr "Change the clip's source In and Out points without moving it or changing
 msgid "更改"
 msgstr "Change"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1661
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1662
 msgid "更改片段速度（Fit to Fill）"
 msgstr "Change clip speed (Fit to Fill)"
 
@@ -5728,7 +5729,7 @@ msgstr "Source audio channel not enabled"
 msgid "未完成的暂存成品文件"
 msgstr "Unfinished staged files"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:682
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:683
 msgid "未就绪的素材不能靠录制补齐"
 msgstr "The clips that are not ready cannot be fixed by recording"
 
@@ -5919,7 +5920,7 @@ msgstr "View tool details"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
 #: src/domain/task/useTaskActions.tsx:184
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1593
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1594
 msgid "查看成品"
 msgstr "View finished file"
 
@@ -6002,7 +6003,7 @@ msgstr "Checks the file header and size; identical content is never cataloged tw
 msgid "校验输入"
 msgstr "Validating input"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1730
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1731
 msgid "格式"
 msgstr "Format"
 
@@ -6021,11 +6022,11 @@ msgstr "The profile is read-only, so a retry changes no data."
 
 #: src/domain/editing/ProjectAgentPanel.tsx:665
 #: src/domain/editing/ProjectAgentPanel.tsx:692
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1568
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1569
 msgid "检查交付状态"
 msgstr "Check delivery status"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1808
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1811
 msgid "检查作品版本、录制环境和交付状态后重试。"
 msgstr "Check the project version, recording environment, and delivery status, then try again."
 
@@ -6091,9 +6092,9 @@ msgstr "Model settings could not be saved"
 msgid "模型连接失败：{testError}"
 msgstr "Model connection failed: {testError}"
 
-#: src/domain/editing/ClipInspector.tsx:576
-#: src/domain/editing/ClipInspector.tsx:684
-#: src/domain/editing/ClipInspector.tsx:858
+#: src/domain/editing/ClipInspector.tsx:585
+#: src/domain/editing/ClipInspector.tsx:693
+#: src/domain/editing/ClipInspector.tsx:866
 msgid "模糊"
 msgstr "Blur"
 
@@ -6147,6 +6148,7 @@ msgstr "Refreshing nested sequence…"
 msgid "正在加载…"
 msgstr "Loading…"
 
+#: src/pages/editing/delivery/OutputsView.tsx:116
 #: src/pages/editing/projects/ProjectsPage.tsx:65
 msgid "正在加载作品…"
 msgstr "Loading projects…"
@@ -6186,11 +6188,11 @@ msgstr "Locating frame"
 msgid "正在导出"
 msgstr "Exporting"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:689
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:690
 msgid "正在开始导出"
 msgstr "Starting the export"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:680
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:681
 msgid "正在开始录制"
 msgstr "Starting the recording"
 
@@ -6215,7 +6217,7 @@ msgstr "Reading editable timeline fields as the target identity…"
 msgid "正在新建作品"
 msgstr "Creating the project"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2030
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2033
 msgid "正在更新战术图"
 msgstr "Updating tactical map"
 
@@ -6237,8 +6239,8 @@ msgstr "Checking"
 msgid "正在检查事件覆盖与录制边界…"
 msgstr "Checking event coverage and recording limits…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:678
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:687
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:679
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:688
 msgid "正在检查交付状态"
 msgstr "Checking delivery status"
 
@@ -6283,7 +6285,7 @@ msgstr "Generating thumbnails"
 msgid "正在读取"
 msgstr "Reading"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1801
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1804
 msgid "正在读取任务…"
 msgstr "Loading tasks…"
 
@@ -6295,7 +6297,7 @@ msgstr "Reading the task detail"
 msgid "正在读取作品版本和素材概况…"
 msgstr "Reading project version and media summary…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2013
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2016
 msgid "正在读取战术图"
 msgstr "Loading tactical view"
 
@@ -6348,7 +6350,7 @@ msgstr "Reading camera path and tactical context…"
 msgid "正在重新分析，完成后这里会自动刷新"
 msgstr "Re-analysing; this view refreshes when it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1801
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1804
 msgid "此作品尚无录制或导出任务。"
 msgstr "This project has no recording or export tasks yet."
 
@@ -6586,7 +6588,7 @@ msgid "水平缩放"
 msgstr "Horizontal zoom"
 
 #. placeholder {0}: mapName ?? ''
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1925
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1928
 msgid "没有 {0} 的雷达图"
 msgstr "No radar image for {0}"
 
@@ -6726,7 +6728,7 @@ msgstr "No grenade events were decoded{0}"
 msgid "没有进行中的任务"
 msgstr "No tasks in progress"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:682
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:683
 msgid "没有需要录制的片段"
 msgstr "No clips need recording"
 
@@ -6748,7 +6750,7 @@ msgstr "Re-analysis could not start: {startError}"
 msgid "没能打开这个目录"
 msgstr "Could not open this folder"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:691
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:692
 msgid "没能检查交付状态"
 msgstr "Could not check delivery status"
 
@@ -6844,7 +6846,7 @@ msgstr "Test connection"
 msgid "浏览…"
 msgstr "Browse…"
 
-#: src/domain/editing/ClipInspector.tsx:678
+#: src/domain/editing/ClipInspector.tsx:687
 msgid "淡化"
 msgstr "Fade"
 
@@ -6870,11 +6872,11 @@ msgstr "Add Captions"
 msgid "添加字幕轨道"
 msgstr "Add Caption Track"
 
-#: src/domain/editing/ClipInspector.tsx:581
+#: src/domain/editing/ClipInspector.tsx:590
 msgid "添加效果"
 msgstr "Add Effect"
 
-#: src/domain/editing/ClipInspector.tsx:569
+#: src/domain/editing/ClipInspector.tsx:578
 msgid "添加效果类型"
 msgstr "Add Effect Type"
 
@@ -7039,11 +7041,11 @@ msgstr "Source {sourceIn}–{sourceOut}"
 msgid "源："
 msgstr "Source:"
 
-#: src/domain/editing/ClipInspector.tsx:119
+#: src/domain/editing/ClipInspector.tsx:128
 msgid "源入点（秒）"
 msgstr "Source in (seconds)"
 
-#: src/domain/editing/ClipInspector.tsx:120
+#: src/domain/editing/ClipInspector.tsx:129
 msgid "源出点（秒）"
 msgstr "Source out (seconds)"
 
@@ -7079,16 +7081,16 @@ msgstr "Source playhead"
 msgid "源素材预览"
 msgstr "Source preview"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1767
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1769
 msgid "源范围"
 msgstr "Source range"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:486
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1527
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1528
 msgid "源预览"
 msgstr "Source preview"
 
-#: src/domain/editing/ClipInspector.tsx:683
+#: src/domain/editing/ClipInspector.tsx:692
 msgid "滑动"
 msgstr "Slide"
 
@@ -7138,7 +7140,7 @@ msgstr "Rolling edit preview {0}"
 msgid "炸弹引爆"
 msgstr "Bomb exploded"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2036
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2039
 msgid "炸弹点"
 msgstr "Bombsite"
 
@@ -7276,7 +7278,7 @@ msgctxt "task-progress"
 msgid "片段"
 msgstr "Clips"
 
-#: src/domain/editing/ClipInspector.tsx:512
+#: src/domain/editing/ClipInspector.tsx:521
 msgid "片段内"
 msgstr "Inside clip"
 
@@ -7285,8 +7287,8 @@ msgid "片段名称"
 msgstr "Clip name"
 
 #: src/domain/editing/ClipInspector.tsx:112
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1500
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1530
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1501
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1531
 msgid "片段属性"
 msgstr "Clip properties"
 
@@ -7590,12 +7592,12 @@ msgstr "View"
 msgid "视频"
 msgstr "Video"
 
-#: src/domain/editing/ClipInspector.tsx:639
+#: src/domain/editing/ClipInspector.tsx:648
 #: src/domain/editing/ProjectTimeline.tsx:5386
 msgid "视频入场转场"
 msgstr "Video transition in"
 
-#: src/domain/editing/ClipInspector.tsx:640
+#: src/domain/editing/ClipInspector.tsx:649
 #: src/domain/editing/ProjectTimeline.tsx:5386
 msgid "视频出场转场"
 msgstr "Video transition out"
@@ -7793,7 +7795,7 @@ msgstr "Round {0} equipment"
 
 #. placeholder {0}: current.revision
 #. placeholder {0}: project.revision
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1556
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1557
 #: src/pages/editing/projects/ProjectsPage.tsx:106
 msgid "第 {0} 版"
 msgstr "Version {0}"
@@ -7879,12 +7881,12 @@ msgstr "Media"
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "There is no media yet. Import a Demo to start your first project from it."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1572
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1573
 msgid "素材就绪"
 msgstr "Media ready"
 
 #. placeholder {0}: sourceTimeSeconds.toFixed(3)
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2041
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2044
 msgid "素材时间: {0}s"
 msgstr "Media time: {0}s"
 
@@ -7896,7 +7898,7 @@ msgstr "Media not ready · showing available frames"
 msgid "素材状态待更新"
 msgstr "Media status needs updating"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1570
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1571
 #: src/pages/editing/projects/ProjectsPage.tsx:111
 msgid "素材状态暂时不可用"
 msgstr "Media status is unavailable"
@@ -7916,11 +7918,11 @@ msgstr "Indexing"
 msgid "索引失败"
 msgstr "Indexing failed"
 
-#: src/domain/editing/ClipInspector.tsx:456
+#: src/domain/editing/ClipInspector.tsx:465
 msgid "线性"
 msgstr "Linear"
 
-#: src/domain/editing/ClipInspector.tsx:674
+#: src/domain/editing/ClipInspector.tsx:683
 msgid "线性淡化"
 msgstr "Linear fade"
 
@@ -7948,7 +7950,7 @@ msgstr "Eco"
 msgid "经济翻盘"
 msgstr "Eco comeback"
 
-#: src/domain/editing/ClipInspector.tsx:287
+#: src/domain/editing/ClipInspector.tsx:296
 msgid "结束 tick"
 msgstr "End tick"
 
@@ -7976,7 +7978,7 @@ msgstr "Instruction for Agent"
 msgid "给所有片段加上默认转场"
 msgstr "Add the default transition to every clip"
 
-#: src/pages/editing/workspace/HomePage.tsx:36
+#: src/pages/editing/workspace/HomePage.tsx:37
 msgid "继续"
 msgstr "Continue"
 
@@ -7985,7 +7987,7 @@ msgstr "Continue"
 msgid "编码"
 msgstr "Encode"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1736
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1737
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1739
 msgid "编码性能"
 msgstr "Encoding performance"
@@ -8006,7 +8008,7 @@ msgstr "Edit clip markers"
 msgid "缩小时间轴"
 msgstr "Zoom out timeline"
 
-#: src/domain/editing/ClipInspector.tsx:681
+#: src/domain/editing/ClipInspector.tsx:690
 msgid "缩放"
 msgstr "Zoom"
 
@@ -8049,8 +8051,8 @@ msgstr "No radar calibration for this map"
 msgid "聚焦选手"
 msgstr "Focused players"
 
-#: src/domain/editing/ClipInspector.tsx:380
-#: src/domain/editing/ClipInspector.tsx:383
+#: src/domain/editing/ClipInspector.tsx:389
+#: src/domain/editing/ClipInspector.tsx:392
 msgid "背景颜色"
 msgstr "Background color"
 
@@ -8158,11 +8160,11 @@ msgctxt "duel-column"
 msgid "被击杀"
 msgstr "Victim"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1662
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1663
 msgid "裁切片段头部（左侧）"
 msgstr "Trim clip head (left)"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1663
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1664
 msgid "裁切片段尾部（右侧）"
 msgstr "Trim clip tail (right)"
 
@@ -8309,7 +8311,7 @@ msgstr "Evidence is still being collected"
 msgid "评论"
 msgstr "Comment"
 
-#: src/domain/editing/ClipInspector.tsx:610
+#: src/domain/editing/ClipInspector.tsx:619
 msgid "该效果不受当前渲染器支持，请禁用或删除。"
 msgstr "This effect isn't supported by the current renderer. Disable or delete it."
 
@@ -8501,7 +8503,7 @@ msgstr "Read cinematic context"
 msgid "读取阶段日志失败。"
 msgstr "Reading the stage log failed."
 
-#: src/domain/editing/ClipInspector.tsx:257
+#: src/domain/editing/ClipInspector.tsx:266
 msgid "调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段将在保存时波纹移动。"
 msgstr "Changing a range's speed changes the range and clip duration but keeps the source In/Out unchanged; later clips in the Story will ripple when you save."
 
@@ -8543,7 +8545,7 @@ msgstr "Warning"
 msgid "质量"
 msgstr "Quality"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1785
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1788
 msgid "质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。"
 msgstr "Higher quality generally improves the picture and increases file size. It does not specify a fixed bitrate or file size."
 
@@ -8698,7 +8700,7 @@ msgstr "Runtime"
 msgid "返回 Demo 资料库"
 msgstr "Back to Demo library"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:605
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:606
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -9118,12 +9120,12 @@ msgstr "This one reused the previous result for the same evidence set."
 msgid "这段点评没有回引证据。"
 msgstr "This commentary cites no evidence back."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1929
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1932
 msgid "这段素材在 Demo 里没有可用的回放数据"
 msgstr "The Demo has no replay data for this clip"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1923
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1987
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1926
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1990
 msgid "这段素材没有可用的地图上下文"
 msgstr "This clip has no available map context"
 
@@ -9193,7 +9195,7 @@ msgstr "Exit Trim Mode"
 msgid "退回修改"
 msgstr "Request changes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1468
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1469
 msgid "退回修改意见：{feedback}"
 msgstr "Change request: {feedback}"
 
@@ -9384,7 +9386,7 @@ msgstr "Selects the clip at the click and all clips to its right; hold Shift to 
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "Selects the clip at the click and all clips to its left; hold Shift to select across all tracks"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1987
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1990
 msgid "选择片段后显示路径与事件"
 msgstr "Select a clip to show paths and events"
 
@@ -9595,7 +9597,7 @@ msgid "重新定位"
 msgstr "Relink"
 
 #. placeholder {0}: asset.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1027
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1028
 msgid "重新定位 {0}"
 msgstr "Relocate {0}"
 
@@ -9613,7 +9615,7 @@ msgstr "Relocate media {0}"
 msgid "重新录制"
 msgstr "Record again"
 
-#: src/domain/editing/ClipInspector.tsx:300
+#: src/domain/editing/ClipInspector.tsx:309
 msgid "重新录制（保留旧文件）"
 msgstr "Re-record (keep old file)"
 
@@ -9746,7 +9748,7 @@ msgstr "Flashbang"
 msgid "闪光效果统计不可用"
 msgstr "Flash effect statistics unavailable"
 
-#: src/domain/editing/ClipInspector.tsx:680
+#: src/domain/editing/ClipInspector.tsx:689
 msgid "闪白"
 msgstr "Flash white"
 
@@ -9841,7 +9843,7 @@ msgstr "Hide panel"
 msgid "雷达"
 msgstr "Radar"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1927
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1930
 msgid "雷达图没能加载"
 msgstr "The radar image failed to load"
 
@@ -9883,7 +9885,7 @@ msgstr "A still image has nothing to play"
 msgid "静音 {0}"
 msgstr "Mute {0}"
 
-#: src/domain/editing/ClipInspector.tsx:291
+#: src/domain/editing/ClipInspector.tsx:300
 msgid "非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。"
 msgstr "Non-first-person shots need at least four spatial sample points within the clip range; round-boundary shots should stop before the round ends."
 
@@ -9897,11 +9899,11 @@ msgstr "Panel failed to render"
 
 #: src/domain/editing/AudioTrackMixer.tsx:43
 #: src/domain/editing/AudioTrackMixer.tsx:44
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1532
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1533
 msgid "音轨混音器"
 msgstr "Audio track mixer"
 
-#: src/domain/editing/ClipInspector.tsx:394
+#: src/domain/editing/ClipInspector.tsx:403
 msgid "音量"
 msgstr "Volume"
 
@@ -9919,12 +9921,12 @@ msgstr "Audio"
 msgid "音频 {0}"
 msgstr "Audio {0}"
 
-#: src/domain/editing/ClipInspector.tsx:641
+#: src/domain/editing/ClipInspector.tsx:650
 #: src/domain/editing/ProjectTimeline.tsx:5387
 msgid "音频入场转场"
 msgstr "Audio Fade In"
 
-#: src/domain/editing/ClipInspector.tsx:642
+#: src/domain/editing/ClipInspector.tsx:651
 #: src/domain/editing/ProjectTimeline.tsx:5387
 msgid "音频出场转场"
 msgstr "Audio Fade Out"
@@ -9942,12 +9944,12 @@ msgstr "Audio waveform, {total} long"
 msgid "音频波形，全长 {total}，已选 {from} 至 {to}"
 msgstr "Audio waveform, {total} long, {from} to {to} selected"
 
-#: src/domain/editing/ClipInspector.tsx:398
+#: src/domain/editing/ClipInspector.tsx:407
 msgid "音频自动化"
 msgstr "Audio Automation"
 
 #. placeholder {0}: current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:958
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:959
 msgid "音频轨道 {0}"
 msgstr "Audio Track {0}"
 
@@ -9974,7 +9976,7 @@ msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "The page root node #root is missing, so the app cannot start"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:300
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1525
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1526
 msgid "项目素材"
 msgstr "Project Media"
 
@@ -10006,8 +10008,8 @@ msgstr "Preview {title}"
 msgid "颜色"
 msgstr "Color"
 
-#: src/domain/editing/ClipInspector.tsx:574
-#: src/domain/editing/ClipInspector.tsx:856
+#: src/domain/editing/ClipInspector.tsx:583
+#: src/domain/editing/ClipInspector.tsx:864
 msgid "颜色调整"
 msgstr "Color Adjustment"
 
@@ -10015,7 +10017,7 @@ msgstr "Color Adjustment"
 msgid "飞越"
 msgstr "Flyover"
 
-#: src/domain/editing/ClipInspector.tsx:867
+#: src/domain/editing/ClipInspector.tsx:875
 msgid "饱和度"
 msgstr "Saturation"
 
@@ -10117,12 +10119,12 @@ msgstr "Advanced actions"
 msgid "高级时间轴操作"
 msgstr "Advanced timeline actions"
 
-#: src/domain/editing/ClipInspector.tsx:679
+#: src/domain/editing/ClipInspector.tsx:688
 msgid "黑场"
 msgstr "Fade to Black"
 
-#: src/domain/editing/ClipInspector.tsx:575
-#: src/domain/editing/ClipInspector.tsx:857
+#: src/domain/editing/ClipInspector.tsx:584
+#: src/domain/editing/ClipInspector.tsx:865
 msgid "黑白"
 msgstr "Black and White"
 
@@ -10268,3 +10270,39 @@ msgstr "Could not start analysis: {startError}"
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:328
 msgid "近 {RECENT_WINDOW_DAYS} 天"
 msgstr "Last {RECENT_WINDOW_DAYS} days"
+
+#: src/pages/editing/workspace/HomePage.tsx:45
+msgid "从 Demo 中找到精彩片段，加入作品后录制并导出成片。"
+msgstr "Find highlights in a Demo, add them to a project, then record and export your video."
+
+#: src/pages/editing/workspace/HomePage.tsx:38
+msgid "全部作品"
+msgstr "All projects"
+
+#: src/pages/editing/workspace/HomePage.tsx:44
+msgid "开始选材"
+msgstr "Choose footage"
+
+#: src/domain/editing/ClipInspector.tsx:116
+msgid "当前片段只读，请先结束 Agent 编辑或解锁轨道。"
+msgstr "This clip is read-only. End the Agent editing session or unlock the track first."
+
+#: src/domain/editing/ClipInspector.tsx:118
+msgid "放弃修改"
+msgstr "Discard changes"
+
+#: src/domain/editing/ClipInspector.tsx:120
+msgid "有未保存的修改，保存后会更新到时间轴。"
+msgstr "You have unsaved changes. Save to update the timeline."
+
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1787
+msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
+msgstr "To export part of the sequence, set In and Out points on the timeline using I and O."
+
+#: src/domain/editing/ClipInspector.tsx:116
+msgid "请先停用不支持的效果，再保存修改。"
+msgstr "Disable unsupported effects before saving changes."
+
+#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:31
+msgid "还没有作品。点击「新建作品」开始剪辑，或先到 Demo 资料库选材。"
+msgstr "No projects yet. Choose New project to start editing, or browse the Demo library for footage."

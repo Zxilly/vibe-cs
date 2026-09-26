@@ -33,11 +33,16 @@ export function HomePage() {
         <HomeFailureNotice />
 
         <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="continue">
-          <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
+            <RouteLink to="/projects" size="sm"><Trans>全部作品</Trans></RouteLink>
+          </div>
           <ActiveProjectsPanel />
         </section>
 
         <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="new">
+          <h2 className="text-lg font-medium"><Trans>开始选材</Trans></h2>
+          <p className="max-w-prose text-sm leading-relaxed text-neutral-600"><Trans>从 Demo 中找到精彩片段，加入作品后录制并导出成片。</Trans></p>
           <div className="flex flex-wrap items-center gap-3">
             <RouteLink to="/library" size="sm"><Trans>导入 Demo</Trans></RouteLink>
           </div>

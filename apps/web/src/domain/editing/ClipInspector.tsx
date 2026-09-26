@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Diamond, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Button, cn } from '../../design/primitives';
+import { Button, Input, cn } from '../../design/primitives';
 import { DEFAULT_EDITOR_TEXT_BACKGROUND, DEFAULT_EDITOR_TEXT_COLOR } from '../../design/timeline';
 import type {
   EditorKeyframeInterpolation,
@@ -110,9 +110,18 @@ export function ClipInspector({
   ));
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
+      <div className="sticky -top-3 z-20 -mx-3 mb-3 border-b border-divider bg-bg px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="primary" grow disabled={readOnly || hasUnsupportedEnabledEffect || !draftChanged}
+            disabledReason={readOnly ? t`当前片段只读，请先结束 Agent 编辑或解锁轨道。` : hasUnsupportedEnabledEffect ? t`请先停用不支持的效果，再保存修改。` : undefined}
+            onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
+          <Button size="sm" variant="secondary" disabled={readOnly || !draftChanged} onClick={() => setDraft(selected?.clip ?? null)}><Trans>放弃修改</Trans></Button>
+        </div>
+        {draftChanged ? <p role="status" className="mt-2 text-xs text-warn-text"><Trans>有未保存的修改，保存后会更新到时间轴。</Trans></p> : null}
+      </div>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>名称</Trans>
-        <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
+        <Input disabled={readOnly} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
       {([
         ['duration', t`时长（秒）`],
@@ -720,7 +729,6 @@ export function ClipInspector({
         <input type="checkbox" disabled={readOnly} checked={draft.placement.enabled} onChange={(event) => setDraft({ ...draft, placement: { ...draft.placement, enabled: event.currentTarget.checked } })} />
         <Trans>启用片段</Trans>
       </label>
-      <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect || !draftChanged} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
   );
 }

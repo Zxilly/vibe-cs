@@ -10,6 +10,7 @@ import {
   Sparkles,
   Star,
   Video,
+  X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -59,7 +60,7 @@ import {
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, Dialog, Drawer, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, Toolbar } from '../../../design/layout';
-import { Button, cn } from '../../../design/primitives';
+import { Button, NativeSelect, cn } from '../../../design/primitives';
 import { formatMillisecondTimecode } from '../../../design/timeline/timeScale';
 import type { TimelineTimeDisplayMode } from '../../../design/timeline';
 import { ClipInspector } from '../../../domain/editing/ClipInspector';
@@ -1552,7 +1553,7 @@ export function ProjectWorkspacePage() {
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
             <Trans>作品</Trans>
           </Button>
-          <h1 className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
+          <h1 title={current.name} className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
           <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>第 {current.revision} 版</Trans></span>
           {pendingAgentReviewGroup === null ? null : (
             <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}>
@@ -1725,7 +1726,7 @@ export function ProjectWorkspacePage() {
         onClose={() => setExternalConfirm(null)}
       >
         {externalConfirm?.kind !== 'export' ? <span /> : (
-          <div className="space-y-4 text-xs">
+          <div className="space-y-4 text-sm">
             <section className="grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-divider pb-4">
               <span className="text-neutral-500"><Trans>格式</Trans></span>
               <strong className="font-medium">H.264 · MP4</strong>
@@ -1734,8 +1735,7 @@ export function ProjectWorkspacePage() {
             </section>
             <label className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-3">
               <Trans>编码性能</Trans>
-              <select
-                className="h-8 border border-divider bg-bg px-2"
+              <NativeSelect
                 aria-label={t`编码性能`}
                 value={externalConfirm.draft.encoder}
                 onChange={(event) => setExternalConfirm({
@@ -1745,7 +1745,7 @@ export function ProjectWorkspacePage() {
               >
                 <option value="auto"><Trans>自动（硬件优先，软件回退）</Trans></option>
                 <option value="libopenh264"><Trans>软件编码</Trans></option>
-              </select>
+              </NativeSelect>
             </label>
             <label className="grid grid-cols-[112px_minmax(0,1fr)_44px] items-center gap-3">
               <Trans>质量</Trans>
@@ -1754,7 +1754,9 @@ export function ProjectWorkspacePage() {
                 min={1}
                 max={100}
                 step={1}
+                className="min-w-0 accent-accent"
                 aria-label={t`导出质量`}
+                aria-describedby="export-quality-help"
                 value={externalConfirm.draft.quality}
                 onChange={(event) => setExternalConfirm({
                   kind: 'export',
@@ -1765,9 +1767,9 @@ export function ProjectWorkspacePage() {
             </label>
             <label className="grid grid-cols-[112px_minmax(0,1fr)] items-center gap-3">
               <Trans>源范围</Trans>
-              <select
-                className="h-8 border border-divider bg-bg px-2"
+              <NativeSelect
                 aria-label={t`导出源范围`}
+                aria-describedby={!hasExportRange ? 'export-range-help' : undefined}
                 value={externalConfirm.draft.sourceRange}
                 onChange={(event) => setExternalConfirm({
                   kind: 'export',
@@ -1780,9 +1782,10 @@ export function ProjectWorkspacePage() {
                     ? ''
                     : ` · ${formatMillisecondTimecode(exportRangeStart)}–${formatMillisecondTimecode(exportRangeEnd)}`}
                 </option>
-              </select>
+              </NativeSelect>
             </label>
-            <p className="text-xs text-neutral-600"><Trans>质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。</Trans></p>
+            {!hasExportRange ? <p id="export-range-help" className="text-xs leading-relaxed text-neutral-600"><Trans>要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。</Trans></p> : null}
+            <p id="export-quality-help" className="text-xs leading-relaxed text-neutral-600"><Trans>质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。</Trans></p>
             <p className="text-xs text-neutral-600"><Trans>文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。</Trans></p>
           </div>
         )}
@@ -1835,8 +1838,8 @@ function ProjectSequenceTabs({ ids, activeId, projects, onOpen, onClose }: {
             'flex h-7 min-w-28 max-w-56 items-center border-x border-t px-2 text-xs',
             active ? 'border-divider bg-bg font-semibold text-text' : 'border-transparent text-neutral-500 hover:bg-neutral-100',
           )}>
-            <button type="button" className="min-w-0 flex-1 truncate text-left" aria-current={active ? 'page' : undefined} onClick={() => onOpen(id)}>{item?.name ?? id}</button>
-            <button type="button" className="ml-2 grid size-4 flex-none place-items-center rounded-sm hover:bg-neutral-200" aria-label={t`关闭序列 ${item?.name ?? id}`} onClick={() => onClose(id)}>×</button>
+            <button type="button" title={item?.name ?? id} className="h-full min-w-0 flex-1 truncate text-left" aria-current={active ? 'page' : undefined} onClick={() => onOpen(id)}>{item?.name ?? id}</button>
+            <button type="button" className="ml-1 grid size-6 flex-none place-items-center rounded-sm hover:bg-neutral-200" aria-label={t`关闭序列 ${item?.name ?? id}`} onClick={() => onClose(id)}><X className="size-3" aria-hidden="true" /></button>
           </span>
         );
       })}

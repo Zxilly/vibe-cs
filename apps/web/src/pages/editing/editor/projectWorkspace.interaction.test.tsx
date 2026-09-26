@@ -4910,6 +4910,20 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   }, 15_000);
 
+  it('discards unsaved Inspector edits without writing a Project revision', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
+    const name = await screen.findByRole('textbox', { name: '名称' });
+    fireEvent.change(name, { target: { value: 'Uncommitted name' } });
+    expect(screen.getByText('有未保存的修改，保存后会更新到时间轴。')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '放弃修改' }));
+    expect((name as HTMLInputElement).value).toBe('A');
+    expect(screen.queryByText('有未保存的修改，保存后会更新到时间轴。')).toBeNull();
+    expect((screen.getByRole('button', { name: '保存修改' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
   it('keeps Inspector duration and speed on the same Rate Stretch operation', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });

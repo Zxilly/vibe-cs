@@ -102,7 +102,7 @@ function ProjectCard({ project }: { readonly project: Project }) {
    */
   return <article className="relative flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-5 transition-colors hover:bg-action-hover" data-project-card={project.id}>
     <div className="flex min-w-0 items-start gap-3">
-      <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} className="min-w-0 flex-1 truncate text-base font-medium after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
+      <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="min-w-0 flex-1 break-words text-base font-medium after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
       <Badge variant="neutral"><Trans>第 {project.revision} 版</Trans></Badge>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-600">

@@ -1,7 +1,8 @@
 /** Shared window chrome, mode navigation, route boundaries and task drawer.
  * Project workspaces use the full viewport below the window title bar. */
 
-import { useEffect, useState } from 'react';
+import { Trans } from '@lingui/react/macro';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ActivityDrawer } from '../domain/task/ActivityDrawer';
@@ -57,6 +58,7 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityUnread, setActivityUnread] = useState(0);
   const [paletteQuery, setPaletteQuery] = useState('');
+  const mainRef = useRef<HTMLElement>(null);
   const objectCommands = useObjectCommands(paletteQuery, palette.open);
 
   const folded = collapsed ?? viewportFolded;
@@ -103,6 +105,16 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
       data-shell-folded={String(folded)}
       className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
+      <a
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          mainRef.current?.focus();
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-bg focus:px-4 focus:py-2 focus:text-accent-700 focus:shadow-[var(--shadow-md)]"
+      >
+        <Trans>跳到主要内容</Trans>
+      </a>
       <WindowTitleBar
         mode={mode}
         onModeChange={switchMode}
@@ -118,7 +130,9 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         {focusedProject ? null : <SideNav mode={mode} collapsed={navCollapsed} badges={badges} />}
 
         <main
+          ref={mainRef}
           id="main-content"
+          tabIndex={-1}
           data-shell-main
           className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         >

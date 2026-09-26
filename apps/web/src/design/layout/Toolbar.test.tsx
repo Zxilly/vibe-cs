@@ -56,9 +56,8 @@ describe('Toolbar', () => {
   it('renders the title as a heading sized from the §3.2 scale', () => {
     const html = renderMarkup(<Toolbar title={<Trans>交付</Trans>} collapsed={false} />);
 
-    // §3.2 puts 页面标题 at --text-2xl. It is spelled inline because base.css
-    // is unlayered and its `h2` rule outranks any utility class.
-    expect(html).toContain('<h2 data-toolbar-title="true"');
+    // Top bars establish the page outline without changing the visual scale.
+    expect(html).toContain('<h1 data-toolbar-title="true"');
     expect(html).toContain('style="font-size:var(--text-2xl)"');
   });
 

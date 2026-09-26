@@ -199,6 +199,7 @@ export function nextSelectionIndex(current: number, delta: number, count: number
 export function nextGroupSelectionIndex<T extends SearchableCommand>(
   groups: readonly CommandGroupResult<T>[],
   current: number,
+  direction: 1 | -1 = 1,
 ): number {
   const offsets: number[] = [];
   let cursor = 0;
@@ -214,6 +215,6 @@ export function nextGroupSelectionIndex<T extends SearchableCommand>(
     if (current >= offset) currentGroup = index;
   });
 
-  const next = (currentGroup + 1) % offsets.length;
+  const next = (currentGroup + direction + offsets.length) % offsets.length;
   return offsets[next] ?? 0;
 }

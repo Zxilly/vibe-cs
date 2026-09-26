@@ -99,7 +99,7 @@ const TITLE_CLASS: Record<ToolbarHeight, string> = {
 
 export function Toolbar({
   title,
-  titleLevel = 2,
+  titleLevel,
   meta,
   leading,
   children,
@@ -127,7 +127,7 @@ export function Toolbar({
     disabled: action.disabled,
   }));
 
-  const Heading = `h${titleLevel}` as const;
+  const Heading = `h${titleLevel ?? (height === 'topbar' ? 1 : 2)}` as const;
 
   return (
     <header

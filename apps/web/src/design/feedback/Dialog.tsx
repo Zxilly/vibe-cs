@@ -116,7 +116,7 @@ export function Dialog({
           </DialogPrimitive.Title>
 
           {children === undefined ? null : (
-            <div className="min-h-0 overflow-y-auto text-base text-neutral-800">{children}</div>
+            <div className="-m-1 min-h-0 overflow-y-auto break-words p-1 text-base text-neutral-800">{children}</div>
           )}
 
           <div className={cn('mt-2 flex-none', OVERLAY_ACTIONS_CLASS)}>

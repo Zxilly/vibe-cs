@@ -134,14 +134,14 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
       // artboard's `padding:9px 11px`.
       className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-sm', style.box, style.body, className)}
     >
-      <span className={`flex-none pt-px ${style.icon}`}>
+      <span className={`flex-none pt-1 ${style.icon}`}>
         <Icon size={15} strokeWidth={1.5} aria-hidden />
       </span>
       <span className="sr-only">
         <VariantWord variant={variant} />
       </span>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 self-center break-words">
         <div>{children}</div>
         {detail === undefined ? null : (
           <div className="mt-1 text-xs leading-normal text-neutral-700">{detail}</div>
@@ -153,7 +153,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
         onClick={action.onAction}
         disabled={action.disabled ?? false}
         data-notice-action="primary"
-        className="flex-none text-sm text-accent-700 underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-45"
+        className="min-h-6 flex-none px-1 text-sm text-accent-700 underline-offset-2 hover:bg-action-hover hover:underline disabled:cursor-not-allowed disabled:opacity-45"
       >
         {action.label}
       </button>
@@ -163,7 +163,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
           type="button"
           onClick={onDismiss}
           aria-label={t`关闭提示`}
-          className="flex-none text-neutral-600 hover:text-text"
+          className="grid size-6 flex-none place-items-center text-neutral-600 hover:bg-action-hover hover:text-text"
         >
           <X size={14} strokeWidth={1.5} aria-hidden />
         </button>

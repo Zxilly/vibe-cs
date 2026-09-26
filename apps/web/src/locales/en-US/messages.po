@@ -424,7 +424,7 @@ msgstr "{duelsSkipped} kills have no position sample in this stretch, so their e
 msgid "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 msgstr "{heatSkipped} samples fall outside the frame or the selected floor and are not drawn."
 
-#: src/app/command/CommandPalette.tsx:318
+#: src/app/command/CommandPalette.tsx:330
 msgid "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
 msgstr "{hidden, plural, one {# more · keep typing to narrow it down} other {# more · keep typing to narrow it down}}"
 
@@ -587,11 +587,11 @@ msgstr "Read mode only plays back automation; switch to Off or Write to adjust b
 msgid "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
 msgstr "←/→: move 1 frame; Shift: move 5 frames; Ctrl/Shift-click an edit point to multi-select; Space or J/K/L to loop preview"
 
-#: src/app/command/CommandPalette.tsx:329
+#: src/app/command/CommandPalette.tsx:341
 msgid "↑↓ 选择"
 msgstr "↑↓ Select"
 
-#: src/app/command/CommandPalette.tsx:332
+#: src/app/command/CommandPalette.tsx:344
 msgid "↵ 打开"
 msgstr "↵ Open"
 
@@ -963,7 +963,7 @@ msgstr "T spend"
 msgid "T 购买"
 msgstr "T purchases"
 
-#: src/app/command/CommandPalette.tsx:335
+#: src/app/command/CommandPalette.tsx:347
 msgid "TAB 切换分组"
 msgstr "TAB Switch group"
 
@@ -1989,9 +1989,9 @@ msgstr "Keyword {0}"
 msgid "关键词：{0}"
 msgstr "Keyword: {0}"
 
-#: src/app/command/CommandPalette.tsx:245
+#: src/app/command/CommandPalette.tsx:256
 #: src/design/layout/Inspector.tsx:267
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1809
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1812
 msgid "关闭"
 msgstr "Close"
 
@@ -2037,7 +2037,7 @@ msgctxt "utility-item"
 msgid "其他道具"
 msgstr "Other utility"
 
-#: src/app/boundary/RouteBoundary.tsx:125
+#: src/app/boundary/RouteBoundary.tsx:124
 msgid "其他页面仍可使用。返回工作台，或导出这次错误的诊断信息。"
 msgstr "Other pages still work. Return to the workspace, or export diagnostic info for this error."
 
@@ -2257,7 +2257,7 @@ msgstr "Position samples, facing and kill-verified engagement axes only exist on
 msgid "分析已取消"
 msgstr "Analysis cancelled"
 
-#: src/app/shell/FirstRunGuide.tsx:63
+#: src/app/shell/FirstRunGuide.tsx:67
 #: src/app/shell/WorkspaceModeMenu.tsx:35
 #: src/app/shell/WorkspaceModeMenu.tsx:84
 msgid "分析模式"
@@ -2529,7 +2529,7 @@ msgstr "Shot list"
 msgid "剪辑操作"
 msgstr "Edit"
 
-#: src/app/shell/FirstRunGuide.tsx:49
+#: src/app/shell/FirstRunGuide.tsx:52
 #: src/app/shell/WorkspaceModeMenu.tsx:35
 #: src/app/shell/WorkspaceModeMenu.tsx:78
 msgid "剪辑模式"
@@ -3070,11 +3070,11 @@ msgstr "{total} hits"
 msgid "命中方式"
 msgstr "How it hit"
 
-#: src/app/command/CommandPalette.tsx:261
+#: src/app/command/CommandPalette.tsx:272
 msgid "命令"
 msgstr "Commands"
 
-#: src/app/command/CommandPalette.tsx:212
+#: src/app/command/CommandPalette.tsx:220
 msgid "命令面板"
 msgstr "Command palette"
 
@@ -3735,7 +3735,7 @@ msgstr "Export results"
 msgid "导出设置"
 msgstr "Export Settings"
 
-#: src/app/boundary/RouteBoundary.tsx:144
+#: src/app/boundary/RouteBoundary.tsx:143
 msgid "导出诊断"
 msgstr "Export diagnostics"
 
@@ -3850,7 +3850,7 @@ msgstr "Workspace panels"
 msgid "工作台"
 msgstr "Dashboard"
 
-#: src/app/shell/FirstRunGuide.tsx:37
+#: src/app/shell/FirstRunGuide.tsx:40
 #: src/app/shell/WorkspaceModeMenu.tsx:62
 #: src/app/shell/WorkspaceModeMenu.tsx:67
 msgid "工作模式"
@@ -4457,7 +4457,7 @@ msgstr "Awaiting analysis"
 msgid "循环"
 msgstr "Loop"
 
-#: src/design/primitives/Field.tsx:89
+#: src/design/primitives/Field.tsx:91
 msgid "必填"
 msgstr "Required"
 
@@ -4760,7 +4760,7 @@ msgstr "Automate to Sequence"
 msgid "找不到作品的当前版本。"
 msgstr "Can't find the current version of this project."
 
-#: src/app/boundary/RouteBoundary.tsx:174
+#: src/app/boundary/RouteBoundary.tsx:170
 msgid "找不到这个页面"
 msgstr "Page not found"
 
@@ -4956,7 +4956,7 @@ msgstr "Filter finished files by type"
 msgid "按高光类型统计，胜负未记录"
 msgstr "Counted by highlight kind; the outcome is not recorded"
 
-#: src/app/command/CommandPalette.tsx:257
+#: src/app/command/CommandPalette.tsx:268
 msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 msgstr "Try a shorter keyword, or a page name, a path, or an English name. No pinyin, no fuzzy matching."
 
@@ -5043,8 +5043,8 @@ msgstr "Search projects"
 msgid "搜索作品…"
 msgstr "Search projects…"
 
-#: src/app/command/CommandPalette.tsx:238
-#: src/app/command/CommandPalette.tsx:339
+#: src/app/command/CommandPalette.tsx:249
+#: src/app/command/CommandPalette.tsx:351
 msgid "搜索比赛、选手、作品、页面和动作"
 msgstr "Search matches, players, projects, pages and actions"
 
@@ -6614,7 +6614,7 @@ msgstr "No matching matches"
 msgid "没有匹配的素材"
 msgstr "No matching media"
 
-#: src/app/command/CommandPalette.tsx:252
+#: src/app/command/CommandPalette.tsx:263
 msgid "没有匹配的结果"
 msgstr "No results"
 
@@ -8610,6 +8610,7 @@ msgctxt "recording-stage"
 msgid "跳转"
 msgstr "Seek"
 
+#: src/app/command/CommandPalette.tsx:250
 #: src/app/shell/WindowTitleBar.tsx:291
 msgid "跳转、搜索比赛或作品"
 msgstr "Go to, search matches or projects"
@@ -8682,8 +8683,8 @@ msgstr "Back to projects"
 msgid "返回导出设置"
 msgstr "Return to export settings"
 
-#: src/app/boundary/RouteBoundary.tsx:134
-#: src/app/boundary/RouteBoundary.tsx:180
+#: src/app/boundary/RouteBoundary.tsx:133
+#: src/app/boundary/RouteBoundary.tsx:176
 msgid "返回工作台"
 msgstr "Back to dashboard"
 
@@ -8754,7 +8755,7 @@ msgid "还没有按地图的数据"
 msgstr "No per-map data yet"
 
 #: src/design/data/Empty.tsx:136
-#: src/pages/analysis/players/PlayerProfilePage.tsx:250
+#: src/pages/analysis/players/PlayerProfilePage.tsx:263
 msgid "还没有比赛"
 msgstr "No matches yet"
 
@@ -8879,7 +8880,7 @@ msgstr "This statistic is unavailable"
 msgid "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgstr "This action needs the desktop app; a browser cannot reach local files"
 
-#: src/app/boundary/RouteBoundary.tsx:177
+#: src/app/boundary/RouteBoundary.tsx:173
 msgid "这个地址不存在。其余功能不受影响。"
 msgstr "This address does not exist. Everything else still works."
 
@@ -8903,7 +8904,7 @@ msgstr "No highlight of this kind"
 msgid "这个素材还没有可预览的媒体"
 msgstr "This clip has no media to preview yet"
 
-#: src/app/boundary/RouteBoundary.tsx:122
+#: src/app/boundary/RouteBoundary.tsx:119
 #: src/design/data/Empty.tsx:152
 msgid "这个页面没能打开"
 msgstr "This page failed to open"
@@ -9624,7 +9625,7 @@ msgstr "Choose again"
 msgid "重置筛选"
 msgstr "Reset filters"
 
-#: src/app/boundary/RouteBoundary.tsx:130
+#: src/app/boundary/RouteBoundary.tsx:129
 #: src/domain/editing/ProjectWorkspaceDock.tsx:131
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:185
@@ -9634,20 +9635,24 @@ msgstr "Reset filters"
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
 #: src/pages/analysis/evidence/EvidenceResults.tsx:132
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:207
-#: src/pages/analysis/match/views/ReviewView.tsx:194
-#: src/pages/analysis/match/views/ReviewView.tsx:689
-#: src/pages/analysis/match/views/viewChrome.tsx:362
-#: src/pages/analysis/match/views/viewChrome.tsx:373
+#: src/pages/analysis/match/views/ReviewView.tsx:195
+#: src/pages/analysis/match/views/ReviewView.tsx:690
+#: src/pages/analysis/match/views/viewChrome.tsx:230
+#: src/pages/analysis/match/views/viewChrome.tsx:367
+#: src/pages/analysis/match/views/viewChrome.tsx:378
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:147
-#: src/pages/analysis/players/PlayerProfilePage.tsx:180
-#: src/pages/analysis/players/PlayerProfilePage.tsx:244
-#: src/pages/analysis/players/PlayersPage.tsx:320
+#: src/pages/analysis/players/PlayerProfilePage.tsx:182
+#: src/pages/analysis/players/PlayerProfilePage.tsx:199
+#: src/pages/analysis/players/PlayerProfilePage.tsx:257
+#: src/pages/analysis/players/PlayersPage.tsx:322
+#: src/pages/analysis/players/PlayerTrend.tsx:135
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:67
+#: src/pages/editing/delivery/DeliveryPage.tsx:68
 #: src/pages/editing/projects/ProjectsPage.tsx:58
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:23
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:147
 #: src/pages/shared/library/DeleteDemosDialog.tsx:88
-#: src/pages/shared/library/history/HistoryPage.tsx:222
+#: src/pages/shared/library/history/HistoryPage.tsx:225
 #: src/pages/shared/library/ImportDemoDialog.tsx:105
 #: src/pages/shared/library/LibraryCards.tsx:84
 #: src/pages/shared/library/LibraryInspector.tsx:137
@@ -9655,7 +9660,7 @@ msgstr "Reset filters"
 #: src/pages/shared/library/LibraryPage.tsx:501
 #: src/pages/shared/library/LibraryTable.tsx:101
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:83
-#: src/pages/shared/onboarding/GuidePage.tsx:114
+#: src/pages/shared/onboarding/GuidePage.tsx:116
 #: src/pages/shared/settings/AdvancedSection.tsx:78
 #: src/pages/shared/settings/AdvancedSection.tsx:128
 #: src/pages/shared/settings/AdvancedSection.tsx:183
@@ -9666,11 +9671,11 @@ msgstr "Reset filters"
 #: src/pages/shared/settings/AiAgentSection.tsx:566
 #: src/pages/shared/settings/AiAgentSection.tsx:969
 #: src/pages/shared/settings/AiAgentSection.tsx:975
-#: src/pages/shared/settings/AppSection.tsx:72
+#: src/pages/shared/settings/AppSection.tsx:79
 #: src/pages/shared/settings/FilesSection.tsx:88
 #: src/pages/shared/settings/GameSection.tsx:111
-#: src/pages/shared/settings/RecoveryPage.tsx:97
-#: src/pages/shared/settings/RecoveryPage.tsx:102
+#: src/pages/shared/settings/RecoveryPage.tsx:109
+#: src/pages/shared/settings/RecoveryPage.tsx:114
 msgid "重试"
 msgstr "Retry"
 
@@ -10096,3 +10101,27 @@ msgstr "Default cut length"
 #: src/pages/shared/settings/AiAgentSection.tsx:325
 msgid "默认视角"
 msgstr "Default view"
+
+#: src/app/shell/WorkspaceModeMenu.tsx:79
+msgid "作品、时间轴、录制与成品"
+msgstr "Projects, timeline, recording and outputs"
+
+#: src/app/boundary/RouteBoundary.tsx:123
+msgid "其他页面仍可使用。返回工作台继续操作。"
+msgstr "Other pages are still available. Return to the workbench to continue."
+
+#: src/app/shell/FirstRunGuide.tsx:53
+msgid "挑选精彩片段，编排时间轴，录制并导出成片。"
+msgstr "Choose highlights, arrange your timeline, then record and export a video."
+
+#: src/app/shell/FirstRunGuide.tsx:68
+msgid "查看比赛数据、回合事件与战术回放。"
+msgstr "Explore match statistics, round events and tactical replays."
+
+#: src/app/AppShell.tsx:116
+msgid "跳到主要内容"
+msgstr "Skip to main content"
+
+#: src/app/shell/FirstRunGuide.tsx:38
+msgid "选择这次要做的事。之后可以随时从左上角切换模式。"
+msgstr "Choose what you want to do. You can switch modes anytime from the top left."

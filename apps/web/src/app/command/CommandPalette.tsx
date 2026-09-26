@@ -77,7 +77,7 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
 import { Search } from 'lucide-react';
-import { useEffect, useId, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
@@ -133,6 +133,7 @@ export function CommandPalette({
   const returnFocus = useOverlayReturnFocus(open);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
+  const activeOption = useRef<HTMLDivElement>(null);
 
   // The palette stays mounted while closed (the shell renders it next to the
   // title bar), so each opening has to clear the last session's query rather
@@ -155,6 +156,10 @@ export function CommandPalette({
   const activeIndex = flat.length === 0 ? -1 : Math.min(selected, flat.length - 1);
   const active = activeIndex === -1 ? undefined : flat[activeIndex];
 
+  useEffect(() => {
+    if (open) activeOption.current?.scrollIntoView({ block: 'nearest' });
+  }, [active?.id, open, query]);
+
   const listId = `${baseId}-list`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
@@ -164,6 +169,9 @@ export function CommandPalette({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    // Enter and arrows belong to the input method while choosing a Chinese
+    // character; they must never execute or move a command underneath it.
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setSelected(nextSelectionIndex(activeIndex, 1, flat.length));
@@ -175,7 +183,7 @@ export function CommandPalette({
       return;
     }
     if (event.key === 'Tab') {
-      const next = nextGroupSelectionIndex(groups, activeIndex);
+      const next = nextGroupSelectionIndex(groups, activeIndex, event.shiftKey ? -1 : 1);
       if (next === -1) return;
       // Radix's focus scope also answers Tab. Stopping propagation keeps the
       // two from fighting over the same key; the scope would only re-focus
@@ -206,17 +214,20 @@ export function CommandPalette({
             chrome lit. */}
         <DialogPrimitive.Overlay
           data-overlay="command-palette-backdrop"
-          className="fixed inset-x-0 bottom-0 top-[var(--h-titlebar)] z-50 bg-neutral-900/34"
+          className="fixed inset-x-0 bottom-0 top-[var(--h-titlebar)] z-50 bg-media/50"
         />
         <DialogPrimitive.Content
           aria-label={t`命令面板`}
           aria-describedby={undefined}
           onCloseAutoFocus={returnFocus}
+          onEscapeKeyDown={(event) => {
+            if (event.isComposing || event.keyCode === 229) event.preventDefault();
+          }}
           data-overlay="command-palette"
           className={
             'fixed inset-x-0 top-[calc(var(--h-titlebar)*2)] z-50 mx-auto flex h-fit ' +
             'max-h-[calc(100%-var(--h-titlebar)*2-1rem)] w-[var(--w-overlay)] max-w-[calc(100%-2rem)] ' +
-            'flex-col border border-neutral-500 bg-bg shadow-[var(--shadow-lg)]'
+            'flex-col overflow-hidden rounded-lg border border-divider bg-bg shadow-[var(--shadow-lg)]'
           }
         >
         <div className="flex h-[var(--h-topbar)] flex-none items-center gap-3 border-b border-divider px-4">
@@ -232,11 +243,11 @@ export function CommandPalette({
             onKeyDown={onKeyDown}
             role="combobox"
             aria-expanded={flat.length > 0}
-            aria-controls={listId}
+            aria-controls={flat.length > 0 ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={activeIndex === -1 ? undefined : optionId(activeIndex)}
             aria-label={t`搜索比赛、选手、作品、页面和动作`}
-            placeholder={t`跳转、搜索比赛或证据`}
+            placeholder={t`跳转、搜索比赛或作品`}
             className="min-w-0 flex-1 bg-transparent text-md placeholder:text-neutral-600"
           />
           {/* A key name plus its verb; the artboard prints both, so both go
@@ -258,7 +269,7 @@ export function CommandPalette({
             </p>
           </div>
         ) : (
-          <div id={listId} role="listbox" aria-label={t`命令`} className="max-h-[60vh] overflow-y-auto py-2">
+          <div id={listId} role="listbox" aria-label={t`命令`} className="min-h-0 max-h-[60vh] overflow-y-auto py-2">
             {groups.map((group) => {
               const headingId = `${baseId}-group-${group.group}`;
               const hidden = group.total - group.commands.length;
@@ -276,6 +287,7 @@ export function CommandPalette({
                     return (
                       <div
                         key={command.id}
+                        ref={isActive ? activeOption : undefined}
                         id={optionId(index)}
                         role="option"
                         aria-selected={isActive}
@@ -295,7 +307,7 @@ export function CommandPalette({
                         {command.hint === null ? null : (
                           <span
                             className={cn(
-                              'flex-none text-xs',
+                              'max-w-[40%] truncate text-xs',
                               isActive ? 'text-accent-800' : 'text-neutral-600',
                             )}
                           >

@@ -34,6 +34,7 @@ export interface CommandPaletteController {
  * Exported for the interaction test, which asserts the near-misses do nothing.
  */
 export function isCommandPaletteHotkey(event: KeyboardEvent): boolean {
+  if (event.isComposing || event.keyCode === 229) return false;
   if (!(event.ctrlKey || event.metaKey)) return false;
   if (event.shiftKey || event.altKey) return false;
   return event.key.toLowerCase() === 'k';

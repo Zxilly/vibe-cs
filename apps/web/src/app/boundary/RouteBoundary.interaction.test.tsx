@@ -206,7 +206,7 @@ describe('RouteErrorElement — the router’s errorElement slot', () => {
 describe('NotFound', () => {
   it('uses one compact classified boundary panel', () => {
     const { container } = renderInteractive(<NotFound />);
-    expect(container.querySelector('[data-route-not-found]')?.textContent).toContain('ROUTE / NOT FOUND');
+    expect(container.querySelector('[data-route-not-found] h1')?.textContent).toBe('找不到这个页面');
   });
 
   it('navigates home through the hash router by default', async () => {

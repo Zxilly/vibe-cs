@@ -41,7 +41,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
         aria-label={t`切换工作模式，当前：${currentModeLabel}`}
         data-workspace-mode-trigger
         className={cn(
-          'flex h-full w-full items-center gap-3 text-text outline-none hover:bg-neutral-200 ' +
+          'flex h-full w-full items-center gap-3 text-text focus-visible:-outline-offset-2 hover:bg-neutral-200 ' +
             'data-[state=open]:bg-neutral-200',
           collapsed ? 'justify-center px-1.5' : 'px-6',
         )}
@@ -76,7 +76,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
               value="edit"
               icon={Clapperboard}
               title={<Trans>剪辑模式</Trans>}
-              description={<Trans>作品、剪辑单、录制与成品</Trans>}
+              description={<Trans>作品、时间轴、录制与成品</Trans>}
             />
             <ModeItem
               value="analysis"

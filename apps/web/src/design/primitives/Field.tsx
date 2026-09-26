@@ -33,6 +33,7 @@ export interface FieldControlProps {
   id: string;
   'aria-describedby'?: string;
   'aria-invalid'?: true;
+  'aria-required'?: true;
 }
 
 export interface FieldProps {
@@ -72,6 +73,7 @@ export function Field({ label, hint, error, required = false, className, childre
     id: controlId,
     ...(hasMessage ? { 'aria-describedby': messageId } : {}),
     ...(hasError ? { 'aria-invalid': true as const } : {}),
+    ...(required ? { 'aria-required': true as const } : {}),
   };
 
   return (

@@ -34,6 +34,9 @@ export function FirstRunGuide({ open, initialMode, onChoose, onDismiss }: FirstR
       className="w-[var(--w-split)]"
     >
       <div className="flex flex-col gap-4" data-first-run-guide>
+        <p className="text-sm leading-relaxed text-neutral-700">
+          <Trans>选择这次要做的事。之后可以随时从左上角切换模式。</Trans>
+        </p>
         <div className="grid grid-cols-2 gap-3" role="group" aria-label={t`工作模式`}>
           <button
             type="button"
@@ -47,6 +50,7 @@ export function FirstRunGuide({ open, initialMode, onChoose, onDismiss }: FirstR
           >
             <Clapperboard size={20} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
             <strong className="font-heading text-lg"><Trans>剪辑模式</Trans></strong>
+            <span className="text-sm leading-relaxed text-neutral-700"><Trans>挑选精彩片段，编排时间轴，录制并导出成片。</Trans></span>
           </button>
 
           <button
@@ -61,6 +65,7 @@ export function FirstRunGuide({ open, initialMode, onChoose, onDismiss }: FirstR
           >
             <ChartNoAxesCombined size={20} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
             <strong className="font-heading text-lg"><Trans>分析模式</Trans></strong>
+            <span className="text-sm leading-relaxed text-neutral-700"><Trans>查看比赛数据、回合事件与战术回放。</Trans></span>
           </button>
         </div>
 

@@ -162,6 +162,16 @@ describe('AppShell — the retired Agent column', () => {
 });
 
 describe('AppShell — Ctrl K', () => {
+  it('lets keyboard users bypass window chrome and navigation', () => {
+    media = stubMatchMedia(false);
+    const { getByRole } = renderInteractive(<RouterProvider router={shellRouter()} />);
+    const skip = getByRole('link', { name: '跳到主要内容' });
+    skip.focus();
+    fireEvent.click(skip);
+    expect(document.activeElement).toBe(getByRole('main'));
+    expect(getByRole('main').textContent).toContain('资料库内容');
+  });
+
   it('opens the command palette from anywhere in the shell and Esc closes it', async () => {
     media = stubMatchMedia(false);
     renderInteractive(<RouterProvider router={shellRouter()} />);

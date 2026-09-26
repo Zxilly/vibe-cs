@@ -183,6 +183,19 @@ describe('CommandPalette selection', () => {
     expect(active).toBe(selected?.id);
   });
 
+  it('keeps keyboard selection visible in a scrolling result list', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    try {
+      const { getByRole } = open();
+      fireEvent.keyDown(searchBox(getByRole), { key: 'ArrowDown' });
+      const selected = getByRole('option', { selected: true });
+      expect(scroll.mock.contexts.at(-1)).toBe(selected);
+      expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' });
+    } finally {
+      scroll.mockRestore();
+    }
+  });
+
   it('moves to the next group on TAB and wraps back', () => {
     const { getAllByRole, getByRole } = open(TWO_GROUPS);
     expect(selectedId(getAllByRole)).toBe('match.aurora');
@@ -207,6 +220,25 @@ describe('CommandPalette selection', () => {
 });
 
 describe('CommandPalette execution', () => {
+  it('leaves composing keys to the input method before allowing a command', () => {
+    const navigate = vi.fn();
+    const { getByRole, queryByRole } = renderInteractive(<Harness navigate={navigate} />);
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+    const input = searchBox(getByRole);
+    const initialSelection = input.getAttribute('aria-activedescendant');
+
+    fireEvent.keyDown(input, { key: 'ArrowDown', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    fireEvent.keyDown(input, { key: 'Escape', isComposing: true });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(queryByRole('dialog')).not.toBeNull();
+    expect(input.getAttribute('aria-activedescendant')).toBe(initialSelection);
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(navigate).toHaveBeenCalledWith('/');
+  });
+
   it('runs the selected command on Enter and closes', () => {
     const navigate = vi.fn();
     const { getByRole, queryByRole } = renderInteractive(<Harness navigate={navigate} />);
@@ -256,6 +288,7 @@ describe('CommandPalette execution', () => {
 
     expect(queryAllByRole('option')).toHaveLength(0);
     expect(queryByRole('listbox')).toBeNull();
+    expect(searchBox(getByRole).getAttribute('aria-controls')).toBeNull();
     expect(getByText('没有匹配的结果')).toBeTruthy();
 
     fireEvent.keyDown(searchBox(getByRole), { key: 'Enter' });

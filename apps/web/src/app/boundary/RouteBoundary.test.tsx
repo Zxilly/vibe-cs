@@ -44,7 +44,7 @@ describe('RouteErrorState — 这个页面没能打开', () => {
   it('renders the artboard copy verbatim', () => {
     const html = renderMarkup(<RouteErrorState />);
     expect(html).toContain('这个页面没能打开');
-    expect(html).toContain('其他页面仍可使用。返回工作台，或导出这次错误的诊断信息。');
+    expect(html).toContain('其他页面仍可使用。返回工作台继续操作。');
     expect(html).toContain('返回工作台');
   });
 

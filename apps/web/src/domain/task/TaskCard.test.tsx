@@ -55,6 +55,11 @@ const RECORDING_BAR = recordingStages(taskStageStates(
 ));
 
 describe('TaskCard', () => {
+  it('can be the first section under a page heading or live inside a task group', () => {
+    expect(renderMarkup(<TaskCard task={FAILED} headingLevel={2} {...UTC} />)).toContain('<h2');
+    expect(renderMarkup(<TaskCard task={FAILED} {...UTC} />)).toContain('<h3');
+  });
+
   it('names the type and the target object the way the rail writes them', () => {
     const markup = renderMarkup(<TaskCard task={DONE} {...UTC} />);
 

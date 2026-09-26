@@ -258,6 +258,12 @@ describe('nextGroupSelectionIndex', () => {
     expect(nextGroupSelectionIndex(groups, 3)).toBe(0);
   });
 
+  it('moves backward through groups for Shift Tab', () => {
+    expect(nextGroupSelectionIndex(groups, 3, -1)).toBe(2);
+    expect(nextGroupSelectionIndex(groups, 2, -1)).toBe(0);
+    expect(nextGroupSelectionIndex(groups, 0, -1)).toBe(3);
+  });
+
   it('is a visible no-op with a single group', () => {
     expect(nextGroupSelectionIndex(searchCommands(commands, 'x player'), 0)).toBe(0);
   });

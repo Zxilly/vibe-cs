@@ -64,7 +64,7 @@ export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
 
   return (
     <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-5">
-      <TaskCard task={summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
+      <TaskCard task={summary} links={bound.links} headingLevel={2} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">
           <RouteLink to="/tasks" size="sm">

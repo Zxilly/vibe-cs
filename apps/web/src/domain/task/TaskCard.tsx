@@ -72,7 +72,7 @@ import {
 } from './taskVocabulary';
 import type { TaskLink, TaskProgress, TaskSummary } from './types';
 
-const HEADING_TAG = { 3: 'h3', 4: 'h4' } as const;
+const HEADING_TAG = { 2: 'h2', 3: 'h3', 4: 'h4' } as const;
 
 export interface TaskCardProps {
   readonly task: TaskSummary;
@@ -93,7 +93,7 @@ export interface TaskCardProps {
   /** Lets a stamp from today drop its date. See `taskClock.ts`. */
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
-  readonly headingLevel?: 3 | 4 | undefined;
+  readonly headingLevel?: 2 | 3 | 4 | undefined;
   /** Dense summaries can omit the technical locator; detail views still carry it. */
   readonly showId?: boolean | undefined;
   /** Drawer summaries cap diagnostic prose; the detail surface keeps it complete. */

@@ -204,6 +204,12 @@
     resize: vertical;
   }
 
+  input,
+  textarea,
+  [contenteditable='true'] {
+    caret-color: var(--color-accent);
+  }
+
   table {
     border-collapse: collapse;
     border-spacing: 0;

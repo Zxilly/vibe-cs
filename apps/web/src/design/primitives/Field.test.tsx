@@ -34,11 +34,12 @@ describe('Field markup', () => {
   });
 
   it('marks a required field for sighted and screen reader users alike', () => {
-    const html = renderMarkup(<Field label="标题" required>{() => null}</Field>);
+    const html = renderMarkup(<Field label="标题" required>{(control) => <Input {...control} />}</Field>);
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('*');
     expect(html).toContain('sr-only');
     expect(html).toContain('必填');
+    expect(html).toMatch(/<input[^>]*aria-required="true"/u);
   });
 
   it('leaves the required marker off by default', () => {

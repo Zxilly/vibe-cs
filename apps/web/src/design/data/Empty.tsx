@@ -111,7 +111,7 @@ export function Empty({
       {resolvedDescription === undefined ? null : (
         <p
           className={cn(
-            'max-w-[46ch] text-xs leading-normal',
+            'max-w-[65ch] break-words text-sm leading-relaxed',
             resolvedVariant === 'error' ? 'text-neutral-800' : 'text-neutral-700',
           )}
         >

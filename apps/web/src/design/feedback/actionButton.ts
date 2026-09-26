@@ -8,4 +8,4 @@ export function overlayActionClass(variant: OverlayActionVariant): string {
 }
 
 /** The fixed bottom-right action row shared by Dialog and Drawer footers. */
-export const OVERLAY_ACTIONS_CLASS = 'flex flex-none items-center justify-end gap-2';
+export const OVERLAY_ACTIONS_CLASS = 'flex flex-none flex-wrap items-center justify-end gap-2';

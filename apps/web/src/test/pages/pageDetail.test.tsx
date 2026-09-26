@@ -90,8 +90,8 @@ describe('the §7 path parameters', () => {
     expect(at('/players/:playerId', '/players/kael', <PlayerProfilePage />)).toContain('kael');
   });
 
-  it('/tasks/:taskId shows the id it was given', () => {
-    expect(at('/tasks/:taskId', '/tasks/t-42', <TaskDetailPage />)).toContain('t-42');
+  it('/tasks/:taskId explains an invalid task address', () => {
+    expect(at('/tasks/:taskId', '/tasks/t-42', <TaskDetailPage />)).toContain('找不到这条任务');
   });
 
 });

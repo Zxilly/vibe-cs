@@ -88,7 +88,7 @@ export function LibraryCards({
         )}
 
         {loading ? (
-          <p className="text-sm text-neutral-600">
+          <p role="status" className="text-sm text-neutral-600">
             <Trans>正在读取资料库</Trans>
           </p>
         ) : null}
@@ -102,7 +102,7 @@ export function LibraryCards({
             `DataTable`'s visually hidden `<caption>`. */}
         <ul
           aria-label={t`Demo 资料库 · 卡片视图`}
-          className={cn('grid grid-cols-[repeat(auto-fill,minmax(var(--w-panel),1fr))]', CARD_LIST_GAP_CLASS)}
+          className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--w-panel)),1fr))]', CARD_LIST_GAP_CLASS)}
         >
           {rows.map((demo) => (
             <li key={demo.id}>
@@ -152,7 +152,7 @@ function DemoCard({
       )}
     >
       <span className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-heading text-lg">{demo.display_name}</span>
+        <span className="min-w-0 truncate font-heading text-lg" title={demo.display_name}>{demo.display_name}</span>
         <span
           className={cn(
             'flex-none font-mono text-sm tabular-nums',

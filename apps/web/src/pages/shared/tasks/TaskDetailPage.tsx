@@ -2,7 +2,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { useTask } from '../../../data/tasks';
@@ -15,6 +15,7 @@ import { TASK_POLL_DETAIL_MS } from '../../../domain/task/taskPolling';
 import { RouteLink } from '../navigation/RouteLink';
 
 export function TaskDetailPage() {
+  const navigate = useNavigate();
   const { taskId = '' } = useParams<{ taskId: string }>();
   const locator = parseTaskLocator(taskId);
   const task = useTask(locator?.kind ?? null, locator?.jobId ?? null, {
@@ -27,7 +28,11 @@ export function TaskDetailPage() {
       toolbar={
         <Toolbar
           title={<Trans>后台任务详情</Trans>}
-          meta={taskId}
+          meta={task.data?.subject}
+          inlineActionsWhenCollapsed={1}
+          actions={[{ id: 'task-center', label: <Trans>回到任务中心</Trans>,
+            onSelect: () => void navigate('/tasks'),
+            control: <RouteLink to="/tasks"><Trans>回到任务中心</Trans></RouteLink> }]}
         />
       }
     >

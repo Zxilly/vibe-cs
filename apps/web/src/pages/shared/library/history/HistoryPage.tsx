@@ -196,6 +196,9 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               </Button>
             }
           >
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+              <Trans>取消选择</Trans>
+            </Button>
             {/* The service takes a match id and nothing else — see the header. */}
             <Button
               variant="secondary"
@@ -283,7 +286,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               page={page}
               pageSize={HISTORY_PAGE_SIZE}
               total={total}
-              onPageChange={setPage}
+              onPageChange={(next) => { setSelected(new Set()); setPage(next); }}
               summary={<Trans>共 {total} 场对局</Trans>}
             />
           }

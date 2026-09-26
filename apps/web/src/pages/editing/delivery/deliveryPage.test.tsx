@@ -68,8 +68,9 @@ describe('/delivery', () => {
 describe('/tasks/:taskId', () => {
   const html = at('/tasks/:taskId', '/tasks/recording%3Ajob-1', <TaskDetailPage />);
 
-  it('shows the id it was given', () => {
-    expect(html).toContain('recording:job-1');
+  it('names the task surface while its details are loading', () => {
+    expect(html).toContain('后台任务详情');
+    expect(html).toContain('正在读取任务详情');
   });
 
   it('does not duplicate shell breadcrumb navigation in the toolbar', () => {

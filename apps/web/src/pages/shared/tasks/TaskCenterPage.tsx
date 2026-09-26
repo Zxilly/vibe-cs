@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { dataErrorMessage } from '../../../data/errors';
 import { useTaskFeed } from '../../../data/tasks';
 import { Drawer } from '../../../design/feedback';
-import { Page, useCollapsed } from '../../../design/layout';
+import { Pagination } from '../../../design/data';
+import { Page, Toolbar, useCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
 import { TaskActivityList } from '../../../domain/task/TaskActivityList';
 import { TaskDetailBody } from '../../../domain/task/TaskDetailBody';
@@ -37,7 +38,7 @@ export function TaskCenterPage() {
   const showAll = () => { setState('all'); setPage(1); setSelectedId(null); };
 
   return (
-    <Page scroll={false} bar={
+    <Page scroll={false} toolbar={<Toolbar title={<Trans>任务中心</Trans>} meta={<Trans>查看分析、录制与导出的进度，继续处理失败任务</Trans>} />} bar={
       <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-b border-divider bg-surface-chrome px-4 py-2">
         <Seg<TaskFilter>
           name="task-state"
@@ -52,17 +53,16 @@ export function TaskCenterPage() {
             { value: 'cancelled', label: <Trans>已取消</Trans> },
           ]}
         />
-        <Button size="sm" variant="ghost" onClick={() => void feed.refetch()}><Trans>刷新</Trans></Button>
+        <Button size="sm" variant="ghost" disabled={feed.isFetching} onClick={() => void feed.refetch()}>
+          {feed.isFetching ? <Trans>正在刷新</Trans> : <Trans>刷新</Trans>}
+        </Button>
       </div>
     } footer={
-      <div className="flex flex-none justify-end gap-2 border-t border-divider px-4 py-2">
-        <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage((value) => value - 1)}><Trans>上一页</Trans></Button>
-        <span className="self-center font-mono text-xs">{page}</span>
-        <Button size="sm" variant="ghost" disabled={feed.isPending || page * 20 >= (feed.data?.total ?? 0)} onClick={() => setPage((value) => value + 1)}><Trans>下一页</Trans></Button>
-      </div>
+      feed.isPending ? null : <Pagination page={page} pageSize={20} total={feed.data?.total ?? 0}
+        onPageChange={(next) => { setPage(next); setSelectedId(null); }} />
     }>
       <div className="flex min-h-0 min-w-0 flex-1 gap-4 p-4" data-task-center>
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           <TaskActivityList
             items={items}
             total={feed.data?.total ?? 0}
@@ -75,7 +75,7 @@ export function TaskCenterPage() {
             onSelect={setSelectedId}
             {...(state === 'all' ? {} : { filter: { state, onClear: showAll } })}
           />
-        </main>
+        </div>
         {collapsed ? (
           <Drawer
             open={chosen !== null}
@@ -86,7 +86,7 @@ export function TaskCenterPage() {
             {chosen === null ? null : <TaskDetailBody item={chosen} compact />}
           </Drawer>
         ) : selected === null ? null : (
-          <aside className="w-[var(--w-inspector)] flex-none overflow-y-auto rounded-lg border border-divider bg-bg" aria-label={t`任务详情`}>
+          <aside className="w-[var(--w-inspector)] flex-none overflow-y-auto border-l border-divider bg-bg" aria-label={t`任务详情`}>
             <TaskDetailBody item={selected} compact />
           </aside>
         )}

@@ -112,6 +112,23 @@ describe('the read', () => {
 });
 
 describe('下载', () => {
+  it('clears the page-local download selection when navigating to another page', async () => {
+    const stub = client({ listMatchHistory: vi.fn((pageNumber: number) => Promise.resolve({
+      items: pageNumber === 1 ? [rows()[0]] : [matchHistoryItem({
+        id: 'mh-second', match_id: 'second', map_name: 'de_mirage',
+        played_at: new Date().toISOString(), demo_status: 'available', demo_id: null,
+      })],
+      total: 51, page: pageNumber, page_size: 50,
+    })) });
+    render(stub);
+    fireEvent.click(await screen.findByRole('checkbox', { name: /de_ancient/u }));
+    expect(screen.getByText('已选 1 场')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await screen.findByText('de_mirage');
+    expect(screen.queryByText('已选 1 场')).toBeNull();
+    expect(stub.downloadMatchDemo).not.toHaveBeenCalled();
+  });
+
   it('sends the match id and re-reads the list afterwards', async () => {
     const stub = client();
     render(stub);

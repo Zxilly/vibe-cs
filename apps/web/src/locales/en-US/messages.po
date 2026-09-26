@@ -1161,7 +1161,7 @@ msgstr "Downloading"
 msgid "下载中 {activeCount}"
 msgstr "{activeCount} downloading"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:206
+#: src/pages/shared/library/history/HistoryPage.tsx:209
 msgid "下载后自动分析"
 msgstr "Analyze after download"
 
@@ -1409,6 +1409,7 @@ msgstr "Center on Edit Point"
 
 #: src/app/routeCrumb.ts:105
 #: src/app/routeCrumb.ts:107
+#: src/pages/shared/tasks/TaskCenterPage.tsx:41
 msgid "任务中心"
 msgstr "Task center"
 
@@ -1416,7 +1417,7 @@ msgstr "Task center"
 msgid "任务概览"
 msgstr "Task overview"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:44
+#: src/pages/shared/tasks/TaskCenterPage.tsx:45
 msgid "任务状态"
 msgstr "Task status"
 
@@ -1854,7 +1855,7 @@ msgstr "Select all on this page"
 #: src/pages/shared/library/LibraryFilters.tsx:153
 #: src/pages/shared/library/LibraryFilters.tsx:266
 #: src/pages/shared/library/LibraryFilters.tsx:284
-#: src/pages/shared/tasks/TaskCenterPage.tsx:48
+#: src/pages/shared/tasks/TaskCenterPage.tsx:49
 msgid "全部"
 msgstr "All"
 
@@ -1924,7 +1925,7 @@ msgstr "{0} highlights in total, {1} under the current filter"
 msgid "共 {total} 名选手"
 msgstr "{total} players in total"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:287
+#: src/pages/shared/library/history/HistoryPage.tsx:290
 msgid "共 {total} 场对局"
 msgstr "{total} matches in total"
 
@@ -2483,7 +2484,7 @@ msgstr "Extend to Edit Point"
 msgid "制作"
 msgstr "Create"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:55
+#: src/pages/shared/tasks/TaskCenterPage.tsx:57
 msgid "刷新"
 msgstr "Refresh"
 
@@ -2703,7 +2704,7 @@ msgstr "Original Out point"
 msgid "原序列"
 msgstr "Previous sequence"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:276
+#: src/pages/shared/library/history/HistoryPage.tsx:279
 msgid "去 Demo 资料库"
 msgstr "Go to the demo library"
 
@@ -2716,7 +2717,7 @@ msgstr "Make a highlight reel in the match workspace"
 msgid "去设置"
 msgstr "Open settings"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:240
+#: src/pages/shared/library/history/HistoryPage.tsx:243
 msgid "去设置检查 Steam 连接"
 msgstr "Check the Steam connection in Settings"
 
@@ -2804,6 +2805,7 @@ msgstr "Cancel recording task"
 msgid "取消组合所选片段"
 msgstr "Ungroup selected clips"
 
+#: src/pages/shared/library/history/HistoryPage.tsx:200
 #: src/pages/shared/library/LibraryPage.tsx:325
 msgid "取消选择"
 msgstr "Clear selection"
@@ -2916,7 +2918,7 @@ msgstr "Total"
 msgid "同名片段标记"
 msgstr "Duplicate Clip Markers"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:246
+#: src/pages/shared/library/history/HistoryPage.tsx:249
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
 msgstr "Both the sync and the download go through the Steam credentials, so when those expire the two fail together."
 
@@ -2924,7 +2926,7 @@ msgstr "Both the sync and the download go through the Steam credentials, so when
 msgid "同步最近比赛"
 msgstr "Sync recent matches"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:269
+#: src/pages/shared/library/history/HistoryPage.tsx:272
 msgid "同步后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放； 过期对局仍会显示，但不能再下载。"
 msgstr "After syncing, your recent competitive matches will appear here. Valve only keeps replays for about {DEMO_RETENTION_DAYS} days; expired matches still show up, but can no longer be downloaded."
 
@@ -2961,7 +2963,7 @@ msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "Background tasks, {activityUnreadCount} unread"
 
 #: src/domain/task/ActivityDrawer.tsx:53
-#: src/pages/shared/tasks/TaskDetailPage.tsx:29
+#: src/pages/shared/tasks/TaskDetailPage.tsx:30
 msgid "后台任务详情"
 msgstr "Background task details"
 
@@ -3079,7 +3081,9 @@ msgstr "Commands"
 msgid "命令面板"
 msgstr "Command palette"
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:42
+#: src/pages/shared/tasks/TaskDetailPage.tsx:33
+#: src/pages/shared/tasks/TaskDetailPage.tsx:35
+#: src/pages/shared/tasks/TaskDetailPage.tsx:47
 msgid "回到任务中心"
 msgstr "Back to task center"
 
@@ -3374,7 +3378,7 @@ msgstr "Coordinates come from the local overview radar calibration; this stretch
 msgid "垂直缩放"
 msgstr "Vertical zoom"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:226
+#: src/pages/shared/library/history/HistoryPage.tsx:229
 msgid "填写 Steam ID、API 密钥、验证码和最近分享代码后再同步。"
 msgstr "Enter the Steam ID, API key, authentication code, and latest share code before syncing."
 
@@ -3442,7 +3446,7 @@ msgstr "Fail"
 #: src/design/feedback/StageBar.tsx:73
 #: src/domain/task/TaskActivityList.tsx:14
 #: src/domain/task/taskVocabulary.tsx:47
-#: src/pages/shared/tasks/TaskCenterPage.tsx:50
+#: src/pages/shared/tasks/TaskCenterPage.tsx:51
 msgid "失败"
 msgstr "Failed"
 
@@ -3894,7 +3898,7 @@ msgstr "Added to “{0}”"
 
 #: src/domain/task/TaskActivityList.tsx:16
 #: src/domain/task/taskVocabulary.tsx:48
-#: src/pages/shared/tasks/TaskCenterPage.tsx:52
+#: src/pages/shared/tasks/TaskCenterPage.tsx:53
 msgid "已取消"
 msgstr "Cancelled"
 
@@ -4656,7 +4660,7 @@ msgstr "Open the profile of {0}"
 msgid "打开 {0} 的详情"
 msgstr "Open the details of {0}"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:219
+#: src/pages/shared/library/history/HistoryPage.tsx:222
 msgid "打开 Steam 设置"
 msgstr "Open Steam settings"
 
@@ -4769,7 +4773,7 @@ msgstr "Page not found"
 msgid "找不到这份作品"
 msgstr "Project not found"
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:38
+#: src/pages/shared/tasks/TaskDetailPage.tsx:43
 msgid "找不到这条任务"
 msgstr "Task not found"
 
@@ -5575,7 +5579,7 @@ msgstr "Show and hide panels…"
 msgid "显示全部"
 msgstr "Show all"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:204
+#: src/pages/shared/library/history/HistoryPage.tsx:207
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
 
@@ -5702,7 +5706,7 @@ msgstr "The service gave no reason"
 msgid "服务没有说明原因；这一项不用推算值填空。"
 msgstr "The service gave no reason, and this entry is not filled in with an estimate."
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:53
+#: src/pages/shared/tasks/TaskDetailPage.tsx:58
 msgid "服务没有返回这条后台任务。"
 msgstr "The service did not return this background task."
 
@@ -6276,7 +6280,7 @@ msgstr "Reading"
 msgid "正在读取任务…"
 msgstr "Loading tasks…"
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:66
+#: src/pages/shared/tasks/TaskDetailPage.tsx:71
 msgid "正在读取任务详情"
 msgstr "Reading the task detail"
 
@@ -6292,7 +6296,7 @@ msgstr "Loading tactical view"
 msgid "正在读取比赛分析"
 msgstr "Reading the match analysis"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:263
+#: src/pages/shared/library/history/HistoryPage.tsx:266
 msgid "正在读取比赛历史"
 msgstr "Reading the match history"
 
@@ -6504,7 +6508,7 @@ msgid "比赛历史"
 msgstr "Match history"
 
 #. placeholder {0}: readFailure.message
-#: src/pages/shared/library/history/HistoryPage.tsx:232
+#: src/pages/shared/library/history/HistoryPage.tsx:235
 msgid "比赛历史没能读出来：{0}"
 msgstr "The match history could not be read: {0}"
 
@@ -8461,7 +8465,7 @@ msgstr "Couldn't load the finished files list."
 msgid "读取时间线详情"
 msgstr "Read timeline details"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:227
+#: src/pages/shared/library/history/HistoryPage.tsx:230
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "The read is read-only, so a retry changes no record and re-downloads no Demo."
 
@@ -8713,7 +8717,7 @@ msgstr "No projects yet."
 msgid "还没有可播放的素材"
 msgstr "No footage to play yet"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:267
+#: src/pages/shared/library/history/HistoryPage.tsx:270
 msgid "还没有可显示的对局"
 msgstr "No match to show yet"
 
@@ -8819,7 +8823,7 @@ msgstr "No player selected yet"
 msgid "还没有选手"
 msgstr "No players yet"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:231
+#: src/pages/shared/library/history/HistoryPage.tsx:234
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "Steam match history has not been configured yet."
 
@@ -8887,7 +8891,7 @@ msgstr "This action needs the desktop app; a browser cannot reach local files"
 msgid "这个地址不存在。其余功能不受影响。"
 msgstr "This address does not exist. Everything else still works."
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:39
+#: src/pages/shared/tasks/TaskDetailPage.tsx:44
 msgid "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
 msgstr "This address is not a background task id. Open a background task from the list."
 
@@ -9047,7 +9051,7 @@ msgstr "These Demo files carry no usable purchase event{0}"
 msgid "这批证据没有比赛日期，无法按时间筛选"
 msgstr "This evidence carries no match dates, so it cannot be filtered by time"
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:52
+#: src/pages/shared/tasks/TaskDetailPage.tsx:57
 msgid "这条任务没能打开"
 msgstr "This task could not be opened"
 
@@ -9072,7 +9076,7 @@ msgstr "This export will not produce a video. The project and its media are unaf
 msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:248
+#: src/pages/shared/library/history/HistoryPage.tsx:251
 msgid "这次操作没有成功：{writeError}"
 msgstr "That action did not succeed: {writeError}"
 
@@ -9145,7 +9149,7 @@ msgstr "Process, ticks, encoder settings"
 
 #: src/design/feedback/StageBar.tsx:69
 #: src/domain/task/TaskActivityList.tsx:13
-#: src/pages/shared/tasks/TaskCenterPage.tsx:49
+#: src/pages/shared/tasks/TaskCenterPage.tsx:50
 msgid "进行中"
 msgstr "Running"
 
@@ -9549,10 +9553,10 @@ msgstr "Re-analyse"
 #: src/domain/project/AddToProjectDialog.tsx:119
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
-#: src/pages/editing/delivery/OutputsView.tsx:181
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1800
+#: src/pages/editing/delivery/OutputsView.tsx:182
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1803
 #: src/pages/editing/projects/ProjectsPage.tsx:53
-#: src/pages/shared/tasks/TaskDetailPage.tsx:56
+#: src/pages/shared/tasks/TaskDetailPage.tsx:61
 msgid "重新加载"
 msgstr "Reload"
 
@@ -10182,3 +10186,11 @@ msgstr "Retry loading the recovery status first"
 #: src/pages/shared/onboarding/GuidePage.tsx:136
 msgid "需要配置"
 msgstr "Setup required"
+
+#: src/pages/shared/tasks/TaskCenterPage.tsx:41
+msgid "查看分析、录制与导出的进度，继续处理失败任务"
+msgstr "Track analysis, recording and export progress, and recover failed tasks"
+
+#: src/pages/shared/tasks/TaskCenterPage.tsx:57
+msgid "正在刷新"
+msgstr "Refreshing"

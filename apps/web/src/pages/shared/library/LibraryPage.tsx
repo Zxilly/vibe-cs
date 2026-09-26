@@ -70,7 +70,8 @@ import { ColumnConfigDialog } from './ColumnConfigDialog';
 import { DeleteDemosDialog } from './DeleteDemosDialog';
 import { ImportDemoDialog } from './ImportDemoDialog';
 import { LibraryCards } from './LibraryCards';
-import { LibraryFilters, type SavedLibraryView } from './LibraryFilters';
+import { LibraryFilters } from './LibraryFilters';
+import { useLibrarySession } from './librarySession';
 import { LibraryInspector } from './LibraryInspector';
 import { LibraryTable } from './LibraryTable';
 import { SaveViewDialog } from './SaveViewDialog';
@@ -152,10 +153,7 @@ function DemoLibraryPage() {
 
   const [selectedIds, setSelected] = useState<ReadonlySet<string>>(new Set<string>());
   const [activeDemoId, setActiveDemoId] = useState<string | null>(null);
-  const [hiddenColumns, setHiddenColumns] = useState<ReadonlySet<string>>(new Set<string>());
-  // §4.2 wants saved views in the persisted store; that store is `shared/**`
-  // and this phase does not own it. See `SaveViewDialog`'s header.
-  const [savedViews, setSavedViews] = useState<readonly SavedLibraryView[]>([]);
+  const { hiddenColumns, setHiddenColumns, savedViews, saveView, applyView } = useLibrarySession();
   const [overlay, setOverlay] = useState<LibraryOverlay>(null);
 
   const activeDetail = useDemo(activeDemoId);
@@ -295,6 +293,8 @@ function DemoLibraryPage() {
   const analysisError = dataErrorMessage(startAnalysis.error);
   const playbackError = dataErrorMessage(launchPlayback.error);
   const createProjectError = dataErrorMessage(demoProject.error);
+  const remarkError = dataErrorMessage(updateDemo.error);
+  const tagError = dataErrorMessage(tagBatch.error);
 
   const selectionBar = (
     <SelectionBar
@@ -396,8 +396,8 @@ function DemoLibraryPage() {
       revealButtonProps={shellAction.buttonProps}
       onSaveRemark={(remark) =>
         activeDemo === undefined
-          ? Promise.resolve()
-          : updateDemo.mutateAsync({ demoId: activeDemo.id, update: { remark } })
+          ? undefined
+          : updateDemo.mutate({ demoId: activeDemo.id, update: { remark } })
       }
       savingRemark={updateDemo.isPending}
     />
@@ -475,6 +475,7 @@ function DemoLibraryPage() {
           tags={tags.data ?? []}
           savedViews={savedViews}
           onApplySavedView={(view) => {
+            applyView(view);
             setLibraryAddress(view.address);
           }}
           onSaveView={() => {
@@ -493,6 +494,22 @@ function DemoLibraryPage() {
     >
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {remarkError === null ? null : (
+            <Alert className="m-4" variant="danger" detail={remarkError}
+              action={{ label: <Trans>重试保存备注</Trans>, disabled: updateDemo.isPending, onAction: () => {
+                if (updateDemo.variables !== undefined) updateDemo.mutate(updateDemo.variables);
+              } }}>
+              <Trans>备注没有保存。重试会保存到原来的比赛。</Trans>
+            </Alert>
+          )}
+          {tagError === null ? null : (
+            <Alert className="m-4" variant="danger" detail={tagError}
+              action={{ label: <Trans>重试添加标签</Trans>, disabled: tagBatch.isPending, onAction: () => {
+                if (tagBatch.variables !== undefined) tagBatch.mutate(tagBatch.variables);
+              } }}>
+              <Trans>标签没有添加。重试会使用原来选择的比赛和标签。</Trans>
+            </Alert>
+          )}
           {analysisError === null ? null : (
             <Alert
               className="m-4"
@@ -614,17 +631,28 @@ function DemoLibraryPage() {
         }}
         status={watch.data}
         loading={watch.isLoading}
-        error={dataErrorMessage(watch.error) ?? dataErrorMessage(setWatchPaths.error)}
+        error={dataErrorMessage(watch.error) ?? dataErrorMessage(config.error)}
         onRetry={() => {
           void watch.refetch();
+          void config.refetch();
         }}
+        actionError={dataErrorMessage(setWatchPaths.error) ?? dataErrorMessage(rescan.error)}
+        onRetryAction={() => {
+          if (setWatchPaths.isError && setWatchPaths.variables !== undefined) setWatchPaths.mutate(setWatchPaths.variables);
+          else rescan.mutate();
+        }}
+        writeDisabledReason={config.data === undefined ? t`请先读取应用配置` : undefined}
         onAdd={() => {
           setOverlay('watch-add');
         }}
         onRemove={(path) => {
-          void setWatchDirectories(watchPaths.filter((entry) => entry !== path));
+          rescan.reset();
+          if (config.data !== undefined) setWatchPaths.mutate({
+            config: config.data, paths: watchPaths.filter((entry) => entry !== path),
+          });
         }}
         onRescan={() => {
+          setWatchPaths.reset();
           rescan.mutate();
         }}
         busy={watchBusy}
@@ -658,7 +686,7 @@ function DemoLibraryPage() {
         }}
         existingNames={savedViews.map((view) => view.name)}
         onSave={(name) => {
-          setSavedViews([...savedViews, { name, address }]);
+          saveView(name, address);
         }}
       />
 

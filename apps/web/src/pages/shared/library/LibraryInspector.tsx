@@ -81,7 +81,7 @@ export interface LibraryInspectorProps {
   /** 「定位文件」 — reveal the demo in the file manager. */
   readonly onReveal: () => void;
   readonly revealButtonProps: ActionAvailability;
-  readonly onSaveRemark: (remark: string) => Promise<unknown>;
+  readonly onSaveRemark: (remark: string) => void;
   readonly savingRemark: boolean;
 
   /** Test seam for the §8 breakpoint; production leaves it to the component. */
@@ -270,6 +270,7 @@ export function LibraryInspector({
           size="sm"
           aria-label={t`备注`}
           value={remark}
+          disabled={savingRemark}
           placeholder={t`写下这场值得回头看的地方`}
           onChange={(event) => {
             setRemark(event.target.value);
@@ -280,7 +281,7 @@ export function LibraryInspector({
             size="sm"
             disabled={savingRemark || remark === demo.remark}
             onClick={() => {
-              void onSaveRemark(remark);
+              onSaveRemark(remark);
             }}
           >
             <Trans>保存备注</Trans>

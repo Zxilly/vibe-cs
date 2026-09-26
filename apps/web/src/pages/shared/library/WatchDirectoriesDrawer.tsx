@@ -41,6 +41,9 @@ export interface WatchDirectoriesDrawerProps {
   readonly loading: boolean;
   readonly error: string | null;
   readonly onRetry: () => void;
+  readonly actionError: string | null;
+  readonly onRetryAction: () => void;
+  readonly writeDisabledReason?: string | undefined;
   readonly onAdd: () => void;
   readonly onRemove: (path: string) => void;
   readonly onRescan: () => void;
@@ -54,6 +57,9 @@ export function WatchDirectoriesDrawer({
   loading,
   error,
   onRetry,
+  actionError,
+  onRetryAction,
+  writeDisabledReason,
   onAdd,
   onRemove,
   onRescan,
@@ -72,7 +78,7 @@ export function WatchDirectoriesDrawer({
           <Button size="sm" onClick={onRescan} disabled={busy}>
             <Trans>重新扫描</Trans>
           </Button>
-          <Button size="sm" variant="primary" onClick={onAdd}>
+          <Button size="sm" variant="primary" onClick={onAdd} disabled={busy || writeDisabledReason !== undefined} disabledReason={writeDisabledReason}>
             <Trans>添加目录</Trans>
           </Button>
         </>
@@ -84,6 +90,11 @@ export function WatchDirectoriesDrawer({
             {error}
           </Alert>
         )}
+        {actionError === null ? null : (
+          <Alert variant="danger" action={{ label: <Trans>重试操作</Trans>, onAction: onRetryAction, disabled: busy }}>
+            {actionError}
+          </Alert>
+        )}
 
         {loading ? (
           <p className="text-sm text-neutral-600">
@@ -91,7 +102,7 @@ export function WatchDirectoriesDrawer({
           </p>
         ) : null}
 
-        {!loading && roots.length === 0 ? (
+        {!loading && error === null && roots.length === 0 ? (
           <p className="text-sm leading-normal text-neutral-700">
             <Trans>还没有监听目录。添加一个之后，新的 .dem 会自动入库。</Trans>
           </p>
@@ -119,7 +130,8 @@ export function WatchDirectoriesDrawer({
                 onClick={() => {
                   onRemove(root.path);
                 }}
-                disabled={busy}
+                disabled={busy || writeDisabledReason !== undefined}
+                disabledReason={writeDisabledReason}
               >
                 <Trans>停止监听</Trans>
               </Button>

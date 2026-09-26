@@ -6,18 +6,8 @@
  * appears in the filter strip as the accent tag 「保存的视图 · 待剪素材」 that
  * 「02 Demo 资料库」 draws.
  *
- * ## Where a saved view is kept — and where it is not
- *
- * §4.2 puts 「各表的列配置与保存的视图」 in the persisted zustand store. That
- * store (`shared/stores/uiStore.ts`) carries three keys today — sidebar, theme,
- * language — and adding a fourth is an edit to `shared/**`, which this phase
- * does not own. So a saved view lives in page state: real for the session,
- * gone on reload.
- *
- * The copy does not claim otherwise, and the gap is reported. What is *not*
- * done is the tempting middle: writing the view into `localStorage` from a
- * page. That would be a second persistence mechanism beside the store §4.2
- * already names, and the store is where it has to end up.
+ * App-session view state is owned by librarySession; changing routes does not
+ * discard a saved filter and column snapshot.
  */
 
 import { t } from '@lingui/core/macro';

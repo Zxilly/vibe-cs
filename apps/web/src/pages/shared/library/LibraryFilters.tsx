@@ -45,6 +45,7 @@ import { Badge, Button, cn, InputGroup, InputGroupAddon, InputGroupInput } from 
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../../shared/desktop/dto';
 import type { ActionAvailability } from './libraryColumns';
 import { clearLibraryFilters, hasActiveFilter, type LibraryAddress } from './libraryQuery';
+import type { SavedLibraryView } from './librarySession';
 
 /** The wire's six record states, in the order `DemoRecord.status` declares. */
 const STATUS_OPTIONS: readonly { value: DemoLifecycleStatus; label: MessageDescriptor }[] = [
@@ -78,11 +79,6 @@ const MATCH_SOURCE_OPTIONS: readonly { value: DemoMatchSource; label: string }[]
   { value: 'pracc', label: 'PRACC' },
   { value: 'renown', label: 'Renown' },
 ];
-
-export interface SavedLibraryView {
-  readonly name: string;
-  readonly address: LibraryAddress;
-}
 
 export interface LibraryFiltersProps {
   readonly address: LibraryAddress;

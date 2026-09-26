@@ -96,6 +96,43 @@ describe('library batch action scope', () => {
 });
 
 describe('library action recovery', () => {
+  it('reports a failed remark and retries the original Demo after selection changes', async () => {
+    const first = makeDemo(0);
+    const second = makeDemo(1);
+    const updateDemo = vi.fn().mockRejectedValueOnce(new Error('remark storage unavailable'))
+      .mockResolvedValue({ ...first, remark: 'Keep this round' });
+    renderLibrary({ seed: { ...ONLINE, demos: demoPage([first, second]), detail: first }, client: {
+      updateDemo, getDemo: (id) => Promise.resolve(id === first.id ? first : second),
+      listDemos: () => Promise.resolve(demoPage([first, second])),
+    } });
+    fireEvent.change(await screen.findByRole('textbox', { name: '备注' }), { target: { value: 'Keep this round' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存备注' }));
+    expect(await screen.findByText('remark storage unavailable')).toBeTruthy();
+    expect((screen.getByRole('textbox', { name: '备注' }) as HTMLInputElement).value).toBe('Keep this round');
+    fireEvent.click(document.querySelector(`[data-row-id="${second.id}"]`) as HTMLElement);
+    await waitFor(() => expect((screen.getByRole('textbox', { name: '备注' }) as HTMLInputElement).value).toBe(''));
+    fireEvent.click(screen.getByRole('button', { name: '重试保存备注' }));
+    await waitFor(() => expect(updateDemo).toHaveBeenCalledTimes(2));
+    expect(updateDemo.mock.calls).toEqual([[first.id, { remark: 'Keep this round' }], [first.id, { remark: 'Keep this round' }]]);
+  });
+
+  it('reports a failed tag batch and retries its original selection', async () => {
+    const first = makeDemo(0);
+    const second = makeDemo(1);
+    const updateDemoMetadataBatch = vi.fn().mockRejectedValueOnce(new Error('tag storage unavailable')).mockResolvedValue([]);
+    renderLibrary({ seed: { ...ONLINE, demos: demoPage([first, second]) }, client: { updateDemoMetadataBatch } });
+    fireEvent.click(screen.getByRole('checkbox', { name: `选择 ${first.display_name}` }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: '添加标签' }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole('menuitem', { name: TAG_FIXTURE.name }));
+    expect(await screen.findByText('tag storage unavailable')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: `选择 ${first.display_name}` }));
+    fireEvent.click(screen.getByRole('checkbox', { name: `选择 ${second.display_name}` }));
+    fireEvent.click(screen.getByRole('button', { name: '重试添加标签' }));
+    await waitFor(() => expect(updateDemoMetadataBatch).toHaveBeenCalledTimes(2));
+    expect(updateDemoMetadataBatch.mock.calls[1]?.[0]).toEqual(updateDemoMetadataBatch.mock.calls[0]?.[0]);
+    expect(updateDemoMetadataBatch.mock.calls[1]?.[0].demo_ids).toEqual([first.id]);
+  });
+
   it('retries the failed playback for its original Demo and never starts an analysis', async () => {
     const playDemo = vi.fn<() => Promise<DemoPlaybackLaunch>>()
       .mockRejectedValueOnce(new Error('CS2 未启动'))

@@ -38,6 +38,43 @@ afterEach(() => {
 });
 
 describe('shared task center', () => {
+  it('retries the current page after a read failure instead of treating it as an empty result', async () => {
+    let fail = false;
+    const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> => fail
+      ? Promise.reject(new Error('task feed unavailable'))
+      : Promise.resolve({ ...feedOf([task(query.page)]), total: 21, page: query.page ?? 1 }));
+    renderPage({ route: '/tasks', element: <TaskCenterPage />, client: { listActivities } });
+    await screen.findByRole('heading', { name: /录制片段 1/u });
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await screen.findByRole('heading', { name: /录制片段 2/u });
+    fail = true;
+    fireEvent.click(screen.getByRole('button', { name: '刷新' }));
+    expect(await screen.findByText('task feed unavailable')).toBeTruthy();
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: '重新加载' }));
+    await screen.findByRole('heading', { name: /录制片段 2/u });
+    expect(listActivities.mock.calls.at(-1)?.[0]).toMatchObject({ page: 2 });
+  });
+
+  it('returns to a valid page when completion empties the last filtered page', async () => {
+    let completed = false;
+    const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve({
+      items: completed && query.page === 2 ? [] : [task(query.page)], total: completed ? 20 : 21,
+      page: query.page ?? 1, page_size: 20,
+      summary: { total: 21, active: completed ? 20 : 21, failed: 0, completed: completed ? 1 : 0, cancelled: 0 },
+    }));
+    renderPage({ route: '/tasks', element: <TaskCenterPage />, client: { listActivities } });
+    fireEvent.click(screen.getByRole('radio', { name: '进行中' }));
+    await screen.findByRole('heading', { name: /录制片段 1/u });
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await screen.findByRole('heading', { name: /录制片段 2/u });
+    completed = true;
+    fireEvent.click(screen.getByRole('button', { name: '刷新' }));
+    await waitFor(() => expect(listActivities.mock.calls.at(-1)?.[0]).toMatchObject({ page: 1, state: 'active' }));
+    expect(await screen.findByRole('heading', { name: /录制片段 1/u })).toBeTruthy();
+    expect(screen.queryByText('没有进行中的任务')).toBeNull();
+  });
+
   it('requests filtered pages from the task feed and resets pagination when the filter changes', async () => {
     const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve({
       items: [task(query.page)], total: 41, page: query.page ?? 1, page_size: 20,

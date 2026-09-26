@@ -1,11 +1,11 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { useTaskFeed } from '../../../data/tasks';
 import { Drawer } from '../../../design/feedback';
-import { Pagination } from '../../../design/data';
+import { clampPage, Pagination } from '../../../design/data';
 import { Page, Toolbar, useCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
 import { TaskActivityList } from '../../../domain/task/TaskActivityList';
@@ -36,6 +36,12 @@ export function TaskCenterPage() {
   const chosen = items.find((item) => item.id === selectedId) ?? null;
   const selected = chosen ?? (collapsed ? null : items.find((item) => item.status === 'failed') ?? null);
   const showAll = () => { setState('all'); setPage(1); setSelectedId(null); };
+  const validPage = feed.isSuccess ? clampPage(page, feed.data.total, 20) : page;
+  useEffect(() => {
+    if (validPage === page) return;
+    setPage(validPage);
+    setSelectedId(null);
+  }, [page, validPage]);
 
   return (
     <Page scroll={false} toolbar={<Toolbar title={<Trans>任务中心</Trans>} meta={<Trans>查看分析、录制与导出的进度，继续处理失败任务</Trans>} />} bar={
@@ -68,7 +74,7 @@ export function TaskCenterPage() {
             total={feed.data?.total ?? 0}
             firstItem={(page - 1) * 20 + 1}
             selectedId={selected?.id ?? null}
-            isLoading={feed.isPending}
+            isLoading={feed.isPending || validPage !== page}
             error={feed.isError ? dataErrorMessage(feed.error) ?? t`读取任务失败` : null}
             onReload={() => void feed.refetch()}
             bind={bind}

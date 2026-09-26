@@ -24,11 +24,13 @@ vi.mock('../../../shared/desktop/dialog', async (original) => ({
 }));
 
 beforeEach(() => {
+  useLibrarySession.setState(useLibrarySession.getInitialState(), true);
   nativeFiles.choose.mockReset().mockResolvedValue(['C:\\matches\\aurora.dem']);
   nativeFiles.subscribe.mockReset().mockResolvedValue(() => {});
 });
 
 import type { AppConfig } from '../../../shared/desktop/dto';
+import { useLibrarySession } from './librarySession';
 import {
   CONFIG_FIXTURE,
   DEMO_FIXTURE,
@@ -249,6 +251,40 @@ describe('列配置', () => {
 });
 
 describe('保存为视图', () => {
+  it('keeps the saved view when the library route is unmounted and opened again', async () => {
+    const first = renderLibrary({ seed: ONLINE });
+    fireEvent.click(screen.getByRole('button', { name: '保存为视图' }));
+    fireEvent.change(within(dialog()).getByLabelText('名称'), { target: { value: 'Return later' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: '保存' }));
+    first.unmount();
+    renderLibrary({ seed: ONLINE });
+    expect(screen.getByRole('button', { name: '保存的视图 · Return later' })).toBeTruthy();
+  });
+
+  it('keeps a saved view through Steam navigation and restores its column configuration', async () => {
+    renderLibrary({ seed: ONLINE, client: {
+      listDemos: () => Promise.resolve(ONLINE.demos),
+      listMatchHistory: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50 }),
+      listActiveMatchDownloadJobs: () => Promise.resolve([]),
+    } });
+    fireEvent.click(screen.getByRole('button', { name: '列配置' }));
+    fireEvent.click(within(dialog()).getByRole('checkbox', { name: '地图' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: '应用' }));
+    expect(screen.queryByRole('columnheader', { name: '地图' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '保存为视图' }));
+    fireEvent.change(within(dialog()).getByLabelText('名称'), { target: { value: 'No map column' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: '保存' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Steam 下载' }));
+    fireEvent.click(await screen.findByRole('button', { name: '返回 Demo 资料库' }));
+    expect(await screen.findByRole('button', { name: '保存的视图 · No map column' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '列配置' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: '恢复默认' }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: '应用' }));
+    expect(screen.getByRole('columnheader', { name: '地图' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '保存的视图 · No map column' }));
+    expect(screen.queryByRole('columnheader', { name: '地图' })).toBeNull();
+  });
+
   it('saves the current address and shows it as the artboard’s accent tag', async () => {
     renderLibrary({ at: '/library?q=kael', seed: ONLINE });
 
@@ -323,6 +359,30 @@ describe('删除 N 条记录', () => {
 });
 
 describe('监听目录 (Drawer, not Dialog)', () => {
+  it('reports a failed rescan and retries the scan rather than only reloading status', async () => {
+    const rescanDemoWatch = vi.fn().mockRejectedValueOnce(new Error('scan unavailable')).mockResolvedValue(WATCH_FIXTURE);
+    renderLibrary({ seed: ONLINE, client: { rescanDemoWatch } });
+    fireEvent.click(screen.getByRole('button', { name: '监听目录' }));
+    const drawer = await screen.findByRole('dialog', { name: '监听目录' });
+    fireEvent.click(within(drawer).getByRole('button', { name: '重新扫描' }));
+    expect(await within(drawer).findByText('scan unavailable')).toBeTruthy();
+    fireEvent.click(within(drawer).getByRole('button', { name: '重试操作' }));
+    await waitFor(() => expect(rescanDemoWatch).toHaveBeenCalledTimes(2));
+  });
+
+  it('retries the failed directory removal with the same remaining roots', async () => {
+    const updateConfig = vi.fn().mockRejectedValueOnce(new Error('config write unavailable')).mockResolvedValue(CONFIG_FIXTURE);
+    renderLibrary({ seed: ONLINE, client: { updateConfig } });
+    fireEvent.click(screen.getByRole('button', { name: '监听目录' }));
+    const drawer = await screen.findByRole('dialog', { name: '监听目录' });
+    fireEvent.click(within(drawer).getByRole('button', { name: '停止监听 E:\\replays\\' }));
+    expect(await within(drawer).findByText('config write unavailable')).toBeTruthy();
+    fireEvent.click(within(drawer).getByRole('button', { name: '重试操作' }));
+    await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(2));
+    expect(updateConfig.mock.calls[1]?.[0]).toEqual(updateConfig.mock.calls[0]?.[0]);
+    expect(updateConfig.mock.calls[1]?.[0].demo_watch_paths).toEqual(['D:\\CS2\\demos\\', 'F:\\link\\']);
+  });
+
   it('lists every root with the service’s own state and message', async () => {
     renderLibrary({ seed: ONLINE });
 

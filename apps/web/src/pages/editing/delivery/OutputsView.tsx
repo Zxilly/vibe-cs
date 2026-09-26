@@ -33,12 +33,12 @@ import { t } from '@lingui/core/macro';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Trans } from '@lingui/react/macro';
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../../data/outputs';
 import { useProjects } from '../../../data/projects';
-import { Empty, Pagination } from '../../../design/data';
+import { clampPage, Empty, Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Toolbar } from '../../../design/layout';
 import { Badge, Button, Seg } from '../../../design/primitives';
@@ -106,6 +106,14 @@ export function OutputsView({ now }: OutputsViewProps) {
   const outputs = useOutputList({ page, page_size: OUTPUT_PAGE_SIZE, ...filterQuery(filter), ...(projectId === null ? {} : { project_id: projectId }) });
   const reveal = useRevealOutput();
   const remove = useDeleteOutput();
+
+  // A deletion or cleanup can remove the final page. Keep the query on the
+  // same valid page the shared pager displays, using a successful list read.
+  useEffect(() => {
+    if (!outputs.isSuccess) return;
+    const nextPage = clampPage(page, outputs.data.total, OUTPUT_PAGE_SIZE);
+    if (nextPage !== page) setPage(nextPage);
+  }, [outputs.isSuccess, outputs.data?.total, page]);
 
   const items = outputs.data?.items ?? [];
   const errorMessage = outputs.isError

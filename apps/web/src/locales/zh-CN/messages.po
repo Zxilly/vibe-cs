@@ -574,7 +574,7 @@ msgstr "「{fileName}」会从磁盘删除，不能恢复。指向它的记录�
 msgid "「{fileName}」已不在原位，只移除这条记录。"
 msgstr "「{fileName}」已不在原位，只移除这条记录。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:212
+#: src/pages/editing/delivery/OutputsView.tsx:220
 msgid "「{scopeLabel}」还没有成品文件"
 msgstr "「{scopeLabel}」还没有成品文件"
 
@@ -1487,7 +1487,7 @@ msgstr "作品"
 msgid "作品、时间轴、录制与成品"
 msgstr "作品、时间轴、录制与成品"
 
-#: src/pages/editing/delivery/OutputsView.tsx:162
+#: src/pages/editing/delivery/OutputsView.tsx:170
 msgid "作品：{scopeLabel}"
 msgstr "作品：{scopeLabel}"
 
@@ -1849,10 +1849,10 @@ msgstr "全选本页"
 #: src/pages/analysis/match/views/ReplayView.tsx:367
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
 #: src/pages/editing/delivery/OutputsView.tsx:60
-#: src/pages/shared/library/LibraryFilters.tsx:153
-#: src/pages/shared/library/LibraryFilters.tsx:266
-#: src/pages/shared/library/LibraryFilters.tsx:284
-#: src/pages/shared/tasks/TaskCenterPage.tsx:49
+#: src/pages/shared/library/LibraryFilters.tsx:149
+#: src/pages/shared/library/LibraryFilters.tsx:262
+#: src/pages/shared/library/LibraryFilters.tsx:280
+#: src/pages/shared/tasks/TaskCenterPage.tsx:55
 msgid "全部"
 msgstr "全部"
 
@@ -2449,7 +2449,7 @@ msgstr "删除效果 {0}"
 msgid "删除文件"
 msgstr "删除文件"
 
-#: src/pages/editing/delivery/OutputsView.tsx:257
+#: src/pages/editing/delivery/OutputsView.tsx:265
 msgid "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
 msgstr "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
 
@@ -2882,7 +2882,7 @@ msgstr "只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒�
 msgid "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
 msgstr "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:121
+#: src/pages/editing/delivery/OutputsView.tsx:129
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "只有桌面端能在文件管理器里定位文件。"
 
@@ -3777,7 +3777,7 @@ msgstr "导出质量"
 msgid "导出资料库元数据"
 msgstr "导出资料库元数据"
 
-#: src/pages/editing/delivery/OutputsView.tsx:213
+#: src/pages/editing/delivery/OutputsView.tsx:221
 msgid "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 msgstr "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 
@@ -3907,7 +3907,7 @@ msgstr "已入库"
 msgid "已分析 {totalAnalyses} 场，证据还没有写进索引。稍等片刻再检索。"
 msgstr "已分析 {totalAnalyses} 场，证据还没有写进索引。稍等片刻再检索。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:116
+#: src/pages/editing/delivery/OutputsView.tsx:124
 msgid "已删除的作品"
 msgstr "已删除的作品"
 
@@ -4321,7 +4321,7 @@ msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤�
 msgstr "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 
 #. placeholder {0}: labels[filter]
-#: src/pages/editing/delivery/OutputsView.tsx:198
+#: src/pages/editing/delivery/OutputsView.tsx:206
 msgid "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
 msgstr "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
 
@@ -4569,7 +4569,7 @@ msgstr "恢复默认"
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/editing/delivery/OutputsView.tsx:228
+#: src/pages/editing/delivery/OutputsView.tsx:236
 msgid "成品"
 msgstr "成品"
 
@@ -4974,7 +4974,7 @@ msgstr "指向不存在文件的记录"
 msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 msgstr "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:116
+#: src/pages/editing/delivery/OutputsView.tsx:124
 msgid "指定作品"
 msgstr "指定作品"
 
@@ -4998,7 +4998,7 @@ msgstr "按地图的成绩"
 msgid "按检出置信度排序"
 msgstr "按检出置信度排序"
 
-#: src/pages/editing/delivery/OutputsView.tsx:144
+#: src/pages/editing/delivery/OutputsView.tsx:152
 msgid "按类型筛选成品文件"
 msgstr "按类型筛选成品文件"
 
@@ -5182,7 +5182,7 @@ msgstr "播放速度（倍）"
 msgid "播放速率"
 msgstr "播放速率"
 
-#: src/pages/editing/delivery/OutputsView.tsx:232
+#: src/pages/editing/delivery/OutputsView.tsx:240
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:151
 msgid "操作"
 msgstr "操作"
@@ -5300,7 +5300,7 @@ msgid "文件名"
 msgstr "文件名"
 
 #: src/pages/editing/delivery/OutputCard.tsx:101
-#: src/pages/editing/delivery/OutputsView.tsx:229
+#: src/pages/editing/delivery/OutputsView.tsx:237
 msgid "文件大小"
 msgstr "文件大小"
 
@@ -5314,7 +5314,7 @@ msgstr "文件已删除。"
 
 #: src/pages/editing/delivery/OutputCard.tsx:78
 #: src/pages/editing/delivery/OutputsView.tsx:63
-#: src/pages/shared/library/LibraryFilters.tsx:56
+#: src/pages/shared/library/LibraryFilters.tsx:57
 #: src/pages/shared/library/libraryFormat.ts:142
 msgid "文件缺失"
 msgstr "文件缺失"
@@ -5324,7 +5324,7 @@ msgid "文件被手动移动或删除后，资料库里的记录会指向一个�
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。"
 
 #: src/domain/task/TaskDetailBody.tsx:145
-#: src/pages/editing/delivery/OutputsView.tsx:231
+#: src/pages/editing/delivery/OutputsView.tsx:239
 msgid "文件路径"
 msgstr "文件路径"
 
@@ -5354,7 +5354,7 @@ msgstr "文字颜色"
 msgid "新作品"
 msgstr "新作品"
 
-#: src/pages/editing/delivery/OutputsView.tsx:206
+#: src/pages/editing/delivery/OutputsView.tsx:214
 #: src/pages/editing/projects/ProjectsPage.tsx:32
 #: src/pages/editing/workspace/HomePage.tsx:25
 msgid "新建作品"
@@ -5414,7 +5414,7 @@ msgstr "无"
 msgid "无法安全打开这个链接"
 msgstr "无法安全打开这个链接"
 
-#: src/pages/editing/delivery/OutputsView.tsx:123
+#: src/pages/editing/delivery/OutputsView.tsx:131
 msgid "无法定位这个文件。"
 msgstr "无法定位这个文件。"
 
@@ -5481,7 +5481,7 @@ msgstr "旧版本"
 msgid "时长"
 msgstr "时长"
 
-#: src/pages/editing/delivery/OutputsView.tsx:230
+#: src/pages/editing/delivery/OutputsView.tsx:238
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "时长 · 分辨率 · 帧率 · 编码"
 
@@ -5637,7 +5637,7 @@ msgstr "显示与隐藏面板…"
 msgid "显示全部"
 msgstr "显示全部"
 
-#: src/pages/editing/delivery/OutputsView.tsx:199
+#: src/pages/editing/delivery/OutputsView.tsx:207
 msgid "显示全部类型"
 msgstr "显示全部类型"
 
@@ -5963,7 +5963,7 @@ msgstr "查看全部"
 msgid "查看全部 {0} 条"
 msgstr "查看全部 {0} 条"
 
-#: src/pages/editing/delivery/OutputsView.tsx:216
+#: src/pages/editing/delivery/OutputsView.tsx:224
 msgid "查看全部成品文件"
 msgstr "查看全部成品文件"
 
@@ -6223,7 +6223,7 @@ msgstr "正在刷新嵌套序列…"
 msgid "正在加载…"
 msgstr "正在加载…"
 
-#: src/pages/editing/delivery/OutputsView.tsx:116
+#: src/pages/editing/delivery/OutputsView.tsx:124
 #: src/pages/editing/projects/ProjectsPage.tsx:65
 msgid "正在加载作品…"
 msgstr "正在加载作品…"
@@ -6723,7 +6723,7 @@ msgstr "没有创建任何作品。"
 msgid "没有创建作品。"
 msgstr "没有创建作品。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:268
+#: src/pages/editing/delivery/OutputsView.tsx:276
 msgid "没有删除，记录和文件都还在。"
 msgstr "没有删除，记录和文件都还在。"
 
@@ -6823,11 +6823,11 @@ msgstr "没有收到环境检查结果。请重新检查后确认回放、录制
 msgid "没有数据目录"
 msgstr "没有数据目录"
 
-#: src/pages/editing/delivery/OutputsView.tsx:197
+#: src/pages/editing/delivery/OutputsView.tsx:205
 msgid "没有符合筛选条件的成品文件"
 msgstr "没有符合筛选条件的成品文件"
 
-#: src/pages/editing/delivery/OutputsView.tsx:197
+#: src/pages/editing/delivery/OutputsView.tsx:205
 msgid "没有缺失的文件"
 msgstr "没有缺失的文件"
 
@@ -7113,7 +7113,7 @@ msgstr "清空没有成功"
 msgid "清空选择"
 msgstr "清空选择"
 
-#: src/pages/editing/delivery/OutputsView.tsx:159
+#: src/pages/editing/delivery/OutputsView.tsx:167
 msgid "清除作品筛选：{scopeLabel}"
 msgstr "清除作品筛选：{scopeLabel}"
 
@@ -7613,7 +7613,7 @@ msgstr "目录"
 msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
 msgstr "目录太大，这次只统计了一部分，实际占用比上面多。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:140
+#: src/pages/editing/delivery/OutputsView.tsx:148
 msgid "目录很大，只扫描了一部分"
 msgstr "目录很大，只扫描了一部分"
 
@@ -7685,11 +7685,11 @@ msgstr "看整场"
 msgid "看道具与经济"
 msgstr "看道具与经济"
 
-#: src/pages/analysis/evidence/EvidenceDetail.tsx:211
-#: src/pages/analysis/evidence/EvidencePage.tsx:351
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:219
+#: src/pages/analysis/evidence/EvidencePage.tsx:355
 #: src/pages/analysis/match/views/ReviewView.tsx:675
 #: src/pages/editing/delivery/DeliveryPage.tsx:74
-#: src/pages/editing/delivery/OutputsView.tsx:173
+#: src/pages/editing/delivery/OutputsView.tsx:181
 #: src/pages/shared/settings/AiAgentSection.tsx:172
 #: src/pages/shared/settings/AiAgentSection.tsx:186
 #: src/pages/shared/settings/AiAgentSection.tsx:571
@@ -8620,7 +8620,7 @@ msgstr "读取作品摘要"
 msgid "读取后台任务失败。"
 msgstr "读取后台任务失败。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:112
+#: src/pages/editing/delivery/OutputsView.tsx:120
 msgid "读取成片列表失败。"
 msgstr "读取成片列表失败。"
 
@@ -10146,7 +10146,7 @@ msgstr "项目素材顺序"
 msgid "项目还没有素材"
 msgstr "项目还没有素材"
 
-#: src/pages/editing/delivery/OutputsView.tsx:227
+#: src/pages/editing/delivery/OutputsView.tsx:235
 msgid "预览"
 msgstr "预览"
 

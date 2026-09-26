@@ -65,7 +65,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           </button>
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
-          <h3 className="min-w-0 text-base font-medium"><button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button></h3>
+          <h2 className="min-w-0 text-base font-medium"><button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button></h2>
           {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}

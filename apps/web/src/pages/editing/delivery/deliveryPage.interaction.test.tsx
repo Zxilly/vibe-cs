@@ -158,6 +158,43 @@ describe('成品 › 成品文件', () => {
     expect(remove).toHaveBeenNthCalledWith(2, 'recording', OUTPUT.id, true);
   });
 
+  it('returns to the preceding page after removing the last output on the final page', async () => {
+    const { client } = stubs();
+    let removed = false;
+    const pages: number[] = [];
+    const firstPage = Array.from({ length: 12 }, (_, index) => ({ ...OUTPUT, id: `first-${index}`, title: `Existing output ${index}` }));
+    const lastOutput = { ...OUTPUT, id: 'last', title: 'Last output', managed: false };
+    renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: {
+        ...client,
+        listOutputs: (query: OutputQuery) => {
+          const page = query.page ?? 1;
+          if (query.page_size === 12) pages.push(page);
+          return Promise.resolve({ ...OUTPUTS, total: removed ? 12 : 13, page,
+            items: page === 1 ? firstPage : removed ? [] : [lastOutput] });
+        },
+        deleteOutput: () => {
+          removed = true;
+          return Promise.resolve({ id: 'last', output_kind: 'recording', record_deleted: true,
+            file_deleted: false, file_action: 'record_only', warning: null });
+        },
+      },
+    });
+    await screen.findByRole('heading', { name: 'Existing output 0' });
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+    await screen.findByRole('heading', { name: 'Last output' });
+    fireEvent.click(screen.getByRole('button', { name: '移除记录' }));
+    const dialog = await screen.findByRole('dialog', { name: '移除这条记录？' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '移除记录' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByRole('heading', { name: 'Existing output 0' })).toBeTruthy();
+    expect(pages).toContain(2);
+    expect(pages.at(-1)).toBe(1);
+    expect(screen.getByRole('button', { name: '第 1 页' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.queryByText('还没有成片')).toBeNull();
+  });
+
   it('offers a filter reset instead of creating a project when one output type is empty', async () => {
     const { client } = stubs();
     renderPage({
@@ -235,7 +272,7 @@ describe('成品 › 成品文件', () => {
       element: <DeliveryPage />, client, route: '/delivery',
     });
 
-    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    await screen.findByRole('heading', { name: 'Kael 1v3', level: 2 });
     expect(screen.getByText('文件大小')).toBeTruthy();
     expect(screen.getByText('时长 · 分辨率 · 帧率 · 编码')).toBeTruthy();
     expect(container.querySelector('[data-output-emphasized="true"]')?.getAttribute('data-output')).toBe('out-1');

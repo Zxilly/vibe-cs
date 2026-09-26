@@ -43,6 +43,7 @@ const GROUP_CLASS =
   'flex w-full min-w-0 items-center gap-2 border px-3 ' +
   'hover:not-focus-within:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +
   'focus-within:border-accent ' +
+  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-offset-2 ' +
   'has-[input:disabled]:opacity-45';
 
 export function InputGroup({

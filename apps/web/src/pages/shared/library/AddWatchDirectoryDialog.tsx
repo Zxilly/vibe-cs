@@ -96,7 +96,8 @@ export function AddWatchDirectoryDialog({
       title={<Trans>添加监听目录</Trans>}
       onClose={onClose}
       confirmLabel={<Trans>开始监听</Trans>}
-      confirmDisabled={rejection !== null || saving}
+      busy={saving}
+      confirmDisabled={rejection !== null}
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">
@@ -113,13 +114,14 @@ export function AddWatchDirectoryDialog({
                 {...control}
                 mono
                 value={path}
+                disabled={saving}
                 placeholder={t`D:\\CS2\\demos\\`}
                 invalid={path !== '' && rejection !== null}
                 onChange={(event) => {
                   setPath(event.target.value);
                 }}
               />
-              <Button size="sm" className="flex-none" {...shellAction.buttonProps} onClick={browse}>
+              <Button size="sm" className="flex-none" {...shellAction.buttonProps} disabled={saving || shellAction.buttonProps.disabled} onClick={browse}>
                 <Trans>浏览…</Trans>
               </Button>
             </div>
@@ -136,7 +138,7 @@ export function AddWatchDirectoryDialog({
         </div>
 
         {pickerError === null ? null : (
-          <Alert variant="danger" action={{ label: <Trans>浏览…</Trans>, onAction: browse }}>
+          <Alert variant="danger" action={{ label: <Trans>浏览…</Trans>, onAction: browse, disabled: saving }}>
             {pickerError}
           </Alert>
         )}

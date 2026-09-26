@@ -1,11 +1,39 @@
 import { fireEvent, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
 import { Button } from '../primitives/Button';
+import { Checkbox } from '../primitives/Checkbox';
 import { Tooltip } from './Tooltip';
 
 describe('Tooltip', () => {
+  it('keeps checkbox selection-limit reasons stable as availability changes', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    function SelectionLimit() {
+      const [blocked, setBlocked] = useState(false);
+      return <>
+        <button type="button" onClick={() => setBlocked((value) => !value)}>切换比较上限</button>
+        <Checkbox disabled={blocked} disabledReason="最多比较两名选手" aria-label="选择第三名选手" />
+      </>;
+    }
+    try {
+      const { getByRole } = renderInteractive(<SelectionLimit />);
+      const checkbox = getByRole('checkbox', { name: '选择第三名选手' });
+      fireEvent.click(getByRole('button', { name: '切换比较上限' }));
+      expect(checkbox).toHaveProperty('disabled', true);
+      const description = document.getElementById(checkbox.getAttribute('aria-describedby') ?? '');
+      expect(description?.textContent).toBe('最多比较两名选手');
+      fireEvent.click(getByRole('button', { name: '切换比较上限' }));
+      expect(getByRole('checkbox', { name: '选择第三名选手' })).toBe(checkbox);
+      expect(checkbox).toHaveProperty('disabled', false);
+      expect(checkbox.hasAttribute('aria-describedby')).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('renders the child untouched when there is nothing to say', () => {
     const { getByRole, container } = renderInteractive(
       <Tooltip>

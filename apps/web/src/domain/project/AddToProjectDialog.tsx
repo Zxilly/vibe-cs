@@ -82,9 +82,10 @@ export function AddToProjectDialog({
       title={<Trans>加入作品</Trans>}
       className="w-[var(--w-overlay)]"
       confirmLabel={selected === NEW_PROJECT ? <Trans>新建并加入</Trans> : <Trans>加入 Story 末尾</Trans>}
-      confirmDisabled={clips.length === 0 || selected === null || projects.isPending || projects.isError || invalidRange || busy}
+      busy={busy}
+      confirmDisabled={clips.length === 0 || selected === null || projects.isPending || projects.isError || invalidRange}
       onConfirm={confirm}
-      onClose={() => { if (!busy) onClose(); }}
+      onClose={onClose}
     >
       <p className="mb-3 break-words text-neutral-700">
         {clip === null
@@ -118,7 +119,7 @@ export function AddToProjectDialog({
       <p className="text-xs text-warn-text"><Trans>加入后是未录制片段；录制完成后才能导出。</Trans></p>
       {projects.isError ? <Alert className="mt-3" variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: () => void projects.refetch() }}><Trans>无法读取目标作品。</Trans></Alert> : null}
       {failure === null ? null : (
-        <Alert className="mt-3" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: confirm }}>
+        <Alert className="mt-3" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: confirm, disabled: busy }}>
           <Trans>没有把素材加入作品：{failure}</Trans>
         </Alert>
       )}

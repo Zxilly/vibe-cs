@@ -88,7 +88,7 @@ msgid "{0, plural, other {# 天}}"
 msgstr "{0, plural, one {# day} other {# days}}"
 
 #. placeholder {0}: external.length
-#: src/pages/shared/library/DeleteDemosDialog.tsx:71
+#: src/pages/shared/library/DeleteDemosDialog.tsx:72
 msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 msgstr "{0, plural, one {# of them is an external file: only the record is removed, and the file on disk is kept.} other {# of them are external files: only the records are removed, and the files on disk are kept.}}"
 
@@ -103,7 +103,7 @@ msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, one {# clip} other {# clips}}"
 
 #. placeholder {0}: managed.length
-#: src/pages/shared/library/DeleteDemosDialog.tsx:65
+#: src/pages/shared/library/DeleteDemosDialog.tsx:66
 msgid "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
 msgstr "{0, plural, one {# of them is a managed file and goes to a rollback staging area, cleared after 24 hours.} other {# of them are managed files and go to a rollback staging area, cleared after 24 hours.}}"
 
@@ -567,11 +567,11 @@ msgstr "{winnerName} won"
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "“{0}” matched no player and no alias. The directory matches names and aliases by prefix and substring only — no pinyin, no fuzzy matching."
 
-#: src/pages/editing/delivery/DeleteOutputDialog.tsx:56
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:57
 msgid "「{fileName}」会从磁盘删除，不能恢复。指向它的记录一起移除。"
 msgstr "\"{fileName}\" will be deleted from disk and cannot be recovered. Its record goes with it."
 
-#: src/pages/editing/delivery/DeleteOutputDialog.tsx:58
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:59
 msgid "「{fileName}」已不在原位，只移除这条记录。"
 msgstr "\"{fileName}\" is no longer where it was; only this record is removed."
 
@@ -595,7 +595,7 @@ msgstr "↑↓ Select"
 msgid "↵ 打开"
 msgstr "↵ Open"
 
-#: src/domain/project/AddToProjectDialog.tsx:110
+#: src/domain/project/AddToProjectDialog.tsx:111
 msgid "＋ 新建作品"
 msgstr "+ New project"
 
@@ -767,7 +767,7 @@ msgstr "CT purchases"
 msgid "D"
 msgstr "D"
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:116
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:118
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
@@ -1185,7 +1185,7 @@ msgstr "Unavailable"
 msgid "不可用时录制无法启动。"
 msgstr "Recording cannot begin while this is unavailable."
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:105
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:106
 msgid "不接受符号链接根目录"
 msgstr "A symlinked root folder is not accepted"
 
@@ -1257,7 +1257,7 @@ msgstr "Event {0} {1}"
 msgid "事件 {0} 条"
 msgstr "{0} events"
 
-#: src/domain/project/AddToProjectDialog.tsx:97
+#: src/domain/project/AddToProjectDialog.tsx:98
 msgid "事件范围"
 msgstr "Event range"
 
@@ -1633,7 +1633,7 @@ msgstr "Keep"
 msgid "保留 0 条"
 msgstr "Keep 0"
 
-#: src/domain/project/AddToProjectDialog.tsx:101
+#: src/domain/project/AddToProjectDialog.tsx:102
 msgid "保留事件前 {CAPTURE_PRE_ROLL_SECONDS} 秒、后 {CAPTURE_POST_ROLL_SECONDS} 秒；录制范围会按 Demo 边界裁剪。"
 msgstr "Include {CAPTURE_PRE_ROLL_SECONDS}s before and {CAPTURE_POST_ROLL_SECONDS}s after the event. The recording range is clipped to the Demo boundaries."
 
@@ -2166,7 +2166,7 @@ msgstr "Out point"
 msgid "出点已设置"
 msgstr "Out point set"
 
-#: src/domain/project/AddToProjectDialog.tsx:103
+#: src/domain/project/AddToProjectDialog.tsx:104
 msgid "出点必须晚于入点。请取消并调整选材范围，作品尚未修改。"
 msgstr "The out point must follow the in point. Cancel and adjust the source range. The project has not been changed."
 
@@ -2560,13 +2560,13 @@ msgstr "{0} free"
 msgid "加入 Story 末尾"
 msgstr "Append to Story"
 
-#: src/domain/project/AddToProjectDialog.tsx:115
+#: src/domain/project/AddToProjectDialog.tsx:116
 msgid "加入位置"
 msgstr "Placement"
 
 #: src/domain/project/AddToProjectDialog.tsx:82
-#: src/pages/analysis/evidence/EvidenceDetail.tsx:131
-#: src/pages/analysis/evidence/EvidencePage.tsx:323
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:133
+#: src/pages/analysis/evidence/EvidencePage.tsx:327
 #: src/pages/analysis/evidence/EvidenceResults.tsx:192
 #: src/pages/analysis/match/MatchInspectorPanel.tsx:80
 #: src/pages/analysis/match/views/HighlightsView.tsx:272
@@ -2577,11 +2577,11 @@ msgstr "Placement"
 msgid "加入作品"
 msgstr "Add to project"
 
-#: src/domain/project/AddToProjectDialog.tsx:116
+#: src/domain/project/AddToProjectDialog.tsx:117
 msgid "加入后时长"
 msgstr "Resulting duration"
 
-#: src/domain/project/AddToProjectDialog.tsx:118
+#: src/domain/project/AddToProjectDialog.tsx:119
 msgid "加入后是未录制片段；录制完成后才能导出。"
 msgstr "Added clips start unrecorded; export becomes available once they are recorded."
 
@@ -2635,7 +2635,7 @@ msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are plac
 msgid "勾选的 {0} 条会一起加入"
 msgstr "The {0} checked rows are added together"
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:131
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:133
 msgid "包含子目录"
 msgstr "Include subfolders"
 
@@ -2793,7 +2793,7 @@ msgstr "Send to Agent"
 msgid "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取样，不是全部。"
 msgstr "Sampled {0} of {1} positions (limit {2}). This map shows the sample, not all of them."
 
-#: src/design/feedback/Dialog.tsx:124
+#: src/design/feedback/Dialog.tsx:135
 #: src/domain/editing/ProjectAgentPanel.tsx:284
 #: src/domain/editing/ProjectExecutionCard.tsx:47
 #: src/domain/editing/ProjectTimeline.tsx:3067
@@ -2891,7 +2891,7 @@ msgstr "Only the desktop build can locate a file in the file manager."
 msgid "只有视频素材可生成代理"
 msgstr "Only video assets can generate proxies"
 
-#: src/pages/editing/delivery/DeleteOutputDialog.tsx:60
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:61
 msgid "只移除「{fileName}」的记录，磁盘上的文件不会被删除。"
 msgstr "Only the record of \"{fileName}\" is removed; the file on disk is not deleted."
 
@@ -3404,7 +3404,7 @@ msgstr "Vertical zoom"
 msgid "填写 Steam ID、API 密钥、验证码和最近分享代码后再同步。"
 msgstr "Enter the Steam ID, API key, authentication code, and latest share code before syncing."
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:159
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:161
 msgid "填写一个目录的完整路径"
 msgstr "Enter the full path of a folder"
 
@@ -3641,7 +3641,7 @@ msgstr "Import"
 
 #: src/pages/editing/workspace/HomePage.tsx:47
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
-#: src/pages/shared/library/LibraryPage.tsx:281
+#: src/pages/shared/library/LibraryPage.tsx:279
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
 #: src/pages/shared/onboarding/FirstRunStrip.tsx:67
 msgid "导入 Demo"
@@ -4135,7 +4135,7 @@ msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
 
 #. placeholder {0}: clips.length
-#: src/domain/project/AddToProjectDialog.tsx:92
+#: src/domain/project/AddToProjectDialog.tsx:93
 msgid "已选择 {0} 个片段"
 msgstr "{0} clips selected"
 
@@ -4454,7 +4454,7 @@ msgstr "Record missing clips"
 
 #: src/domain/editing/ClipInspector.tsx:272
 #: src/domain/editing/ClipInspector.tsx:273
-#: src/domain/project/AddToProjectDialog.tsx:98
+#: src/domain/project/AddToProjectDialog.tsx:99
 msgid "录制范围"
 msgstr "Recording range"
 
@@ -4491,12 +4491,12 @@ msgstr "Pending"
 msgid "待索引"
 msgstr "Awaiting indexing"
 
-#: src/domain/project/AddToProjectDialog.tsx:98
-#: src/domain/project/AddToProjectDialog.tsx:116
+#: src/domain/project/AddToProjectDialog.tsx:99
+#: src/domain/project/AddToProjectDialog.tsx:117
 msgid "待范围有效后计算"
 msgstr "Calculated when the range is valid"
 
-#: src/domain/project/AddToProjectDialog.tsx:97
+#: src/domain/project/AddToProjectDialog.tsx:98
 msgid "待解析"
 msgstr "Awaiting analysis"
 
@@ -5443,7 +5443,7 @@ msgstr "Clipboard access failed. Select and copy the full path above manually."
 msgid "无法读取作品任务。"
 msgstr "Unable to load project tasks."
 
-#: src/domain/project/AddToProjectDialog.tsx:119
+#: src/domain/project/AddToProjectDialog.tsx:120
 msgid "无法读取目标作品。"
 msgstr "Unable to load target projects."
 
@@ -5494,7 +5494,7 @@ msgstr "Duration {duration}"
 msgid "时长（秒）"
 msgstr "Duration (seconds)"
 
-#: src/domain/project/AddToProjectDialog.tsx:102
+#: src/domain/project/AddToProjectDialog.tsx:103
 msgid "时长待解析"
 msgstr "Duration pending analysis"
 
@@ -5761,7 +5761,7 @@ msgstr "Some rounds carry no prices, so the spend total shows “—” instead 
 msgid "有未保存的修改，保存后会更新到时间轴。"
 msgstr "You have unsaved changes. Save to update the timeline."
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:134
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:136
 msgid "服务当前按目录递归监听，子目录会一同纳入"
 msgstr "The service watches this directory recursively, including subfolders"
 
@@ -5919,8 +5919,8 @@ msgstr "{0} not downloaded on this page"
 msgid "条件"
 msgstr "Conditions"
 
-#: src/domain/project/AddToProjectDialog.tsx:96
-#: src/pages/analysis/evidence/EvidenceDetail.tsx:168
+#: src/domain/project/AddToProjectDialog.tsx:97
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:170
 #: src/pages/shared/library/libraryColumns.tsx:145
 #: src/pages/shared/library/libraryColumns.tsx:146
 #: src/pages/shared/library/LibraryInspector.tsx:245
@@ -6245,6 +6245,7 @@ msgstr "Syncing…"
 msgid "正在启动回放"
 msgstr "Starting playback"
 
+#: src/design/feedback/Dialog.tsx:133
 #: src/pages/shared/settings/FilesSection.tsx:68
 #: src/pages/shared/settings/GameSection.tsx:97
 #: src/pages/shared/settings/RecoveryPage.tsx:82
@@ -6811,7 +6812,7 @@ msgstr "Could not scan what there is to clean: {scanError}"
 msgid "没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。"
 msgstr "No radar calibration found for {mapName}, so positions can't be shown. Install CS2 to read local radar data."
 
-#: src/domain/project/AddToProjectDialog.tsx:122
+#: src/domain/project/AddToProjectDialog.tsx:123
 msgid "没有把素材加入作品：{failure}"
 msgstr "The media was not added to the project: {failure}"
 
@@ -6958,8 +6959,8 @@ msgstr "Light"
 msgid "测试连接"
 msgstr "Test connection"
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:123
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:139
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:125
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:141
 msgid "浏览…"
 msgstr "Browse…"
 
@@ -7605,7 +7606,7 @@ msgstr "Percent"
 msgid "监听目录"
 msgstr "Watched folders"
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:104
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:105
 msgid "目录"
 msgstr "Folder"
 
@@ -7639,7 +7640,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
-#: src/domain/project/AddToProjectDialog.tsx:105
+#: src/domain/project/AddToProjectDialog.tsx:106
 msgid "目标作品"
 msgstr "Target project"
 
@@ -7881,7 +7882,7 @@ msgstr "Competitive · {0}"
 #. placeholder {0}: detail.number
 #: src/domain/match/EvidenceRow.tsx:158
 #: src/domain/match/RoundTimeline.tsx:264
-#: src/domain/project/AddToProjectDialog.tsx:96
+#: src/domain/project/AddToProjectDialog.tsx:97
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:133
 #: src/pages/analysis/match/views/RoundsView.tsx:344
 msgid "第 {0} 回合"
@@ -8669,7 +8670,7 @@ msgstr "Adjust the start of the visible timeline range"
 msgid "调整片段增益 {0}"
 msgstr "Adjust clip gain {0}"
 
-#: src/domain/project/AddToProjectDialog.tsx:103
+#: src/domain/project/AddToProjectDialog.tsx:104
 msgid "调整范围"
 msgstr "Adjust range"
 
@@ -9066,7 +9067,7 @@ msgstr "This address is not a background task id. Open a background task from th
 msgid "这个目录占用的磁盘空间。需要清理时，前往「成品文件」。"
 msgstr "Disk space used by this folder. To free up space, go to Finished Files."
 
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:161
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:163
 msgid "这个目录已经在监听中"
 msgstr "This folder is already being watched"
 
@@ -9492,7 +9493,7 @@ msgstr "Select, move, and trim timeline clips"
 msgid "选择一个回合、选手或高光后，这里会显示可定位、可加入作品的真实上下文。"
 msgstr "Select a round, player, or highlight to see real context that can be located or added to a project."
 
-#: src/domain/project/AddToProjectDialog.tsx:91
+#: src/domain/project/AddToProjectDialog.tsx:92
 msgid "选择一条片段后再加入作品。"
 msgstr "Select a clip before adding it to a project."
 
@@ -9721,10 +9722,10 @@ msgstr "Replan timeline"
 msgid "重新分析"
 msgstr "Re-analyse"
 
-#: src/domain/project/AddToProjectDialog.tsx:119
+#: src/domain/project/AddToProjectDialog.tsx:120
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
-#: src/pages/editing/delivery/OutputsView.tsx:182
+#: src/pages/editing/delivery/OutputsView.tsx:190
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1803
 #: src/pages/editing/projects/ProjectsPage.tsx:53
 #: src/pages/shared/tasks/TaskDetailPage.tsx:61
@@ -9809,10 +9810,11 @@ msgstr "Reset filters"
 #: src/domain/editing/ProjectWorkspaceDock.tsx:131
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:185
-#: src/domain/project/AddToProjectDialog.tsx:121
+#: src/domain/project/AddToProjectDialog.tsx:122
 #: src/domain/task/TaskDetail.tsx:161
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
+#: src/pages/analysis/evidence/EvidenceDetail.tsx:189
 #: src/pages/analysis/evidence/EvidenceResults.tsx:132
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:207
 #: src/pages/analysis/match/views/ReviewView.tsx:195
@@ -9820,26 +9822,27 @@ msgstr "Reset filters"
 #: src/pages/analysis/match/views/viewChrome.tsx:230
 #: src/pages/analysis/match/views/viewChrome.tsx:367
 #: src/pages/analysis/match/views/viewChrome.tsx:378
+#: src/pages/analysis/players/PlayerComparePanel.tsx:194
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:147
 #: src/pages/analysis/players/PlayerProfilePage.tsx:182
 #: src/pages/analysis/players/PlayerProfilePage.tsx:199
 #: src/pages/analysis/players/PlayerProfilePage.tsx:257
-#: src/pages/analysis/players/PlayersPage.tsx:322
+#: src/pages/analysis/players/PlayersPage.tsx:337
 #: src/pages/analysis/players/PlayerTrend.tsx:135
-#: src/pages/editing/delivery/DeleteOutputDialog.tsx:67
+#: src/pages/editing/delivery/DeleteOutputDialog.tsx:68
 #: src/pages/editing/delivery/DeliveryPage.tsx:68
 #: src/pages/editing/projects/ProjectsPage.tsx:58
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:23
-#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:147
-#: src/pages/shared/library/DeleteDemosDialog.tsx:88
+#: src/pages/shared/library/AddWatchDirectoryDialog.tsx:149
+#: src/pages/shared/library/DeleteDemosDialog.tsx:89
 #: src/pages/shared/library/history/HistoryPage.tsx:225
 #: src/pages/shared/library/ImportDemoDialog.tsx:105
 #: src/pages/shared/library/LibraryCards.tsx:84
 #: src/pages/shared/library/LibraryInspector.tsx:137
 #: src/pages/shared/library/LibraryInspector.tsx:198
-#: src/pages/shared/library/LibraryPage.tsx:501
+#: src/pages/shared/library/LibraryPage.tsx:518
 #: src/pages/shared/library/LibraryTable.tsx:101
-#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:83
+#: src/pages/shared/library/WatchDirectoriesDrawer.tsx:89
 #: src/pages/shared/onboarding/GuidePage.tsx:116
 #: src/pages/shared/settings/AdvancedSection.tsx:78
 #: src/pages/shared/settings/AdvancedSection.tsx:128

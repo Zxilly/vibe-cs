@@ -33,6 +33,13 @@ function DeleteRecords({ onConfirm = () => {} }: { onConfirm?: () => void }) {
 }
 
 describe('Dialog focus contract', () => {
+  it('lets an invalid form close without treating it as an operation in progress', () => {
+    const onClose = vi.fn();
+    renderInteractive(<Dialog open title="保存视图" confirmLabel="保存" confirmDisabled onConfirm={vi.fn()} onClose={onClose} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('moves focus into the dialog when it opens', () => {
     const { getByRole, getAllByRole } = renderInteractive(<DeleteRecords />);
     fireEvent.click(getByRole('button', { name: '删除' }));

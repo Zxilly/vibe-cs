@@ -74,7 +74,7 @@ export function ImportDemoDialog({ open, onClose, onImport, importing, error }: 
       open={open}
       title={<Trans>导入 Demo</Trans>}
       onClose={close}
-      confirmDisabled={importing}
+      busy={importing}
       confirmLabel={staged.length === 0
         ? <Trans>选择文件</Trans>
         : <Plural value={staged.length} other="导入 # 个文件" />}

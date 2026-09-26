@@ -56,7 +56,8 @@ export function DeleteDemosDialog({
       title={<Plural value={demos.length} other="删除 # 条记录？" />}
       onClose={onClose}
       confirmLabel={<Trans>删除</Trans>}
-      confirmDisabled={deleting || demos.length === 0}
+      busy={deleting}
+      confirmDisabled={demos.length === 0}
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">

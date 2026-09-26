@@ -47,7 +47,8 @@ export function DeleteOutputDialog({ output, onClose, onDelete, deleting, error 
       title={removesFile ? <Trans>删除这个成品文件？</Trans> : <Trans>移除这条记录？</Trans>}
       onClose={onClose}
       confirmLabel={removesFile ? <Trans>删除文件</Trans> : <Trans>移除记录</Trans>}
-      confirmDisabled={deleting || output === null}
+      busy={deleting}
+      confirmDisabled={output === null}
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">

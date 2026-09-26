@@ -64,6 +64,9 @@ export interface DialogProps {
   onClose: () => void;
   cancelLabel?: ReactNode;
   tone?: DialogTone;
+  /** An accepted operation is still running. Keep its result and recovery in view. */
+  busy?: boolean;
+  /** Form validation only; unlike busy, this still allows dismissal. */
   confirmDisabled?: boolean;
   className?: string;
 }
@@ -84,6 +87,7 @@ export function Dialog({
   onClose,
   cancelLabel,
   tone = 'default',
+  busy = false,
   confirmDisabled = false,
   className,
 }: DialogProps) {
@@ -94,7 +98,7 @@ export function Dialog({
     <DialogPrimitive.Root
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose();
+        if (!next && !busy) onClose();
       }}
     >
       <DialogPrimitive.Portal>
@@ -102,6 +106,12 @@ export function Dialog({
         <DialogPrimitive.Content
           data-tone={tone}
           onCloseAutoFocus={returnFocus}
+          onEscapeKeyDown={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (busy) event.preventDefault();
+          }}
           /* The body is prose of one or two lines, not a described-by target:
              it is already inside the dialog and read in order. Passing
              `undefined` explicitly is how Radix is told the omission is
@@ -120,13 +130,15 @@ export function Dialog({
           )}
 
           <div className={cn('mt-2 flex-none', OVERLAY_ACTIONS_CLASS)}>
-            <DialogPrimitive.Close className={overlayActionClass('secondary')}>
+            {busy ? <span role="status" className="mr-auto text-sm text-neutral-600"><Trans>正在处理</Trans></span> : null}
+            <DialogPrimitive.Close disabled={busy} className={overlayActionClass('secondary')}>
               {cancelLabel ?? <Trans>取消</Trans>}
             </DialogPrimitive.Close>
             <button
               type="button"
               onClick={onConfirm}
-              disabled={confirmDisabled}
+              disabled={confirmDisabled || busy}
+              aria-busy={busy || undefined}
               data-dialog-action="confirm"
               className={overlayActionClass(destructive ? 'destructive' : 'primary')}
             >

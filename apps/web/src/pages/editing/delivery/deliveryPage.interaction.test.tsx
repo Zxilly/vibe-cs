@@ -11,8 +11,8 @@
  *      link both keep working.
  */
 
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { OutputItem, OutputPage, OutputQuery } from '../../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../../shared/desktop/viewModels';
@@ -132,6 +132,32 @@ function renderActivity(client: Record<string, unknown>) {
 }
 
 describe('成品 › 成品文件', () => {
+  it('keeps a pending file deletion open and preserves its failed target for retry', async () => {
+    const { client } = stubs();
+    let rejectDelete!: (error: Error) => void;
+    const pending = new Promise<never>((_, reject) => { rejectDelete = reject; });
+    const remove = vi.fn().mockReturnValueOnce(pending).mockResolvedValueOnce({
+      id: OUTPUT.id, output_kind: OUTPUT.output_kind, record_deleted: true, file_deleted: true,
+      file_action: 'managed_file_deleted', warning: null,
+    });
+    renderPage({ element: <DeliveryPage />, client: { ...client, deleteOutput: remove }, route: '/delivery' });
+    fireEvent.click(await screen.findByRole('button', { name: '删除文件' }));
+    const panel = screen.getByRole('dialog', { name: '删除这个成品文件？' });
+    fireEvent.click(within(panel).getByRole('button', { name: '删除文件' }));
+    await waitFor(() => expect(within(panel).getByRole('button', { name: '删除文件' })).toHaveProperty('disabled', true));
+    expect(within(panel).getByRole('button', { name: '取消' })).toHaveProperty('disabled', true);
+    fireEvent.keyDown(panel, { key: 'Escape' });
+    expect(panel.isConnected).toBe(true);
+    await act(async () => rejectDelete(new Error('成品文件仍在使用')));
+    expect(await within(panel).findByText('成品文件仍在使用')).toBeTruthy();
+    expect(panel.textContent).toContain(OUTPUT.file_name);
+    expect(within(panel).getByRole('button', { name: '取消' })).toHaveProperty('disabled', false);
+    fireEvent.click(within(panel).getByRole('button', { name: '重试' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(remove).toHaveBeenNthCalledWith(1, 'recording', OUTPUT.id, true);
+    expect(remove).toHaveBeenNthCalledWith(2, 'recording', OUTPUT.id, true);
+  });
+
   it('offers a filter reset instead of creating a project when one output type is empty', async () => {
     const { client } = stubs();
     renderPage({

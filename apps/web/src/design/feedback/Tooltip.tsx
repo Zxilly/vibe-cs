@@ -123,7 +123,7 @@ export function Tooltip({
 
   return (
     <TooltipProvider>
-      <TooltipPrimitive.Root {...(hasContent ? {} : { open: false })}>
+      <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger asChild>
           {wrap ? (
             /* `inline-flex`, not `block`: the wrapper stands where the control

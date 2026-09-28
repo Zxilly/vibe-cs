@@ -351,13 +351,20 @@ mod tests {
 
     #[cfg(windows)]
     #[tokio::test]
-    async fn installed_truetype_font_has_ready_streamless_metadata() {
+    async fn imported_truetype_font_has_ready_streamless_metadata() {
+        let directory = tempfile::tempdir().unwrap();
+        let fixture = directory.path().join("chinese.ttf");
+        std::fs::write(
+            &fixture,
+            include_bytes!("../../media/tests/fixtures/chinese-font/VibeCSTestChinese.ttf"),
+        )
+        .unwrap();
         let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
         let media = RuntimeMediaPort::new(storage);
-        let paths = std::iter::once(PathBuf::from("C:/Windows/Fonts/simhei.ttf"))
+        let paths = std::iter::once(fixture)
             .chain(std::env::var_os("VIBE_CS_FONT_PROBE_FIXTURE").map(PathBuf::from));
         for path in paths {
-            let path = std::fs::canonicalize(path).expect("installed font fixture");
+            let path = std::fs::canonicalize(path).expect("imported font fixture");
             let metadata = media
                 .probe(path)
                 .await

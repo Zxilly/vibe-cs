@@ -24,13 +24,17 @@ async fn exports_chinese_text_with_an_imported_truetype_font() {
         .tempdir()
         .unwrap();
     let root = directory.path();
-    let font_path =
-        std::fs::canonicalize("C:/Windows/Fonts/simhei.ttf").expect("Windows SimHei font");
+    let font_path = root.join("imported-chinese-font.ttf");
+    std::fs::write(
+        &font_path,
+        include_bytes!("fixtures/chinese-font/VibeCSTestChinese.ttf"),
+    )
+    .expect("import the bundled OFL Chinese font fixture");
     let font_id = Uuid::new_v4();
     let story_id = Uuid::new_v4();
     let mut title = clip(font_id, 0.0, 1.0, 0.0, 0.0);
     title["material"] = json!({"kind":"planned"});
-    title["text"] = json!({"content":"中文高光 · NiKo","font_family":"SimHei",
+    title["text"] = json!({"content":"中文高光 · NiKo","font_family":"VibeCSTestChinese",
         "font_asset_id":font_id,"font_size":32.0,"color":"#FFFFFF","background":null,"align":"center"});
     let project: Project = serde_json::from_value(json!({
         "id":Uuid::new_v4(),"name":"Chinese custom font acceptance","revision":1,

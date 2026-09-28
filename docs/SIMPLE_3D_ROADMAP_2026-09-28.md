@@ -1,6 +1,6 @@
 # 简易 3D 回放与镜头预演 · 路线图
 
-2026-09-28 · 状态：规划中，未开工
+2026-09-28 · 状态：实施中（2026-09-29：M0 原生物理资源解码已通过真实 Mirage 验证，网格及坐标验收进行中）
 
 ## 目标与边界
 
@@ -42,7 +42,7 @@
 
 ```
 CS2 安装目录
-  └ maps/<map>.vpk ──► source-assets: vphys_c → KV3 解码 → 过滤挡视线三角形
+  └ maps/<map>.vpk ──► source-assets: world_physics.vmdl_c / PHYS → KV3 解码 → 过滤挡视线三角形
                                      └► 自有网格格式（按地图缓存于 app data）
 demo ──► crates/demo ──► ARPL v2（pitch、密采样、道具轨迹）
                    │
@@ -67,8 +67,8 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 决定几何获取方案，输出验证记录。
 
-- [ ] 从本机 `game/csgo/maps/de_mirage.vpk` 中用现有 `crates/source-assets/src/vpk.rs` 列出并读取 `maps/de_mirage/world_physics.vphys_c`
-- [ ] 评估 Rust 原生解码二进制 KV3（资源块结构、LZ4/zstd、各版本格式），以 ValveResourceFormat [S3] 的实现为参考（MIT，可移植）；`kv3` crate [S15] 主要面向文本 KV3，确认能否复用
+- [x] 从本机 `game/csgo/maps/de_mirage.vpk` 中用 `crates/source-assets/src/vpk.rs` 列出并读取物理资源；实际路径为 `maps/de_mirage/world_physics.vmdl_c`，原计划的 `.vphys_c` 不存在
+- [x] 评估并实现 Rust 原生二进制 KV3 v5 解码（资源块结构、未压缩/LZ4/Zstd）；参考 ValveResourceFormat [S3]，保留 MIT 声明。真实 Mirage 使用 v5 + Zstd，其他版本明确拒绝。`kv3` 0.2.1 与 `keyvalues3` 1.1.0 均面向文本，不能复用为二进制解码器
 - [ ] 备选方案：Source2Viewer-CLI 旁挂 [S6]。确认其能否导出物理网格（官方 CLI 文档未写明 vphys 导出 [S6]；地图导出文档说明 glTF 含几何、贴图和 prop，不含光照与导航网格 [S4]），并测量 .NET 运行时带来的包体增量
 - [ ] 坐标对齐：随机抽取 demo 中选手落地时刻，脚底 Z 与网格地面误差 < 2 单位
 - [ ] 过滤规则：区分天空盒、玩家专用空气墙、挡子弹/挡视线的碰撞属性，只保留挡视线几何
@@ -169,9 +169,28 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 ## 决策记录
 
-- [ ] M0：几何获取方案（Rust 原生 / Source2Viewer-CLI）——待定
+- [x] M0：几何获取方案——Rust 原生；已解码本机 Mirage 的 PHYS 数据，不引入 .NET 旁挂。CLI 导出能力/包体对照仍待记录，不能视为该验收项完成
 - [ ] M0：网格过滤规则——待定
 - [ ] M1：默认采样间隔——暂定 16 tick，高光内 8 tick
+
+### 2026-09-29 · M0 首轮实测
+
+- 本机 `de_mirage.vpk` 为 176,187,297 bytes，修改时间 2026-09-23 08:27；699 个条目。原 VPK 读取器要求 `_dir.vpk` 后缀，现已支持独立 `.vpk` 地图包，并保留路径、范围、CRC 校验。
+- `maps/de_mirage/world_physics.vmdl_c` 为 3,494,920 bytes；资源头版本 12，PHYS 使用 KV3 v5 / Zstd。原生完整解码一次约 136 ms（debug、本机缓存条件，包含 VPK 打开/读取/CRC 与诊断输出）；**不是**完整网格首次导出的耗时。
+- 解析到 1 个 physics part、9 组 collision attributes、40 个 surface hashes。属性包括默认实体、`passbullets`、`npcclip/playerclip`、`ladder`、`csgo_grenadeclip`、`window`、`sky`。尚未将这些标签等同于视觉遮挡规则；玻璃、可穿透表面和实体状态需要进一步验证。
+- 上游参考固定于 ValveResourceFormat `b20af3819872f010da71c74c47e79191bb070c97` 的 `BinaryKV3.cs`；MIT 声明保存在 `crates/source-assets/licenses/ValveResourceFormat-MIT.txt`。不随代码提交游戏资源。
+- 单元测试：30 passed；真实安装测试显式运行：2 passed（Mirage PHYS、Dust II 雷达）。覆盖三种压缩、所有截断前缀、异常版本、分配上限、损坏 trailer 和资源目录重叠；严格 Clippy 通过。
+- 真实 demo 已定位：本机应用数据目录的 `demos/iem-cologne-major-2026-final/furia-vs-falcons-m1-mirage.dem`。接下来提取/过滤三角形，并用该 demo 验证地面坐标；尚未声称脚底 Z 误差或网格体积达标。
+
+复现（PowerShell）：
+
+```powershell
+$env:VIBE_CS2_INSTALL = 'E:/SteamLibrary/steamapps/common/Counter-Strike Global Offensive'
+cargo run -p vibe-cs-source-assets --example physics_probe -- "$env:VIBE_CS2_INSTALL/game/csgo/maps/de_mirage.vpk"
+cargo test --locked -p vibe-cs-source-assets
+cargo test --locked -p vibe-cs-source-assets -- --ignored --nocapture
+cargo clippy --locked -p vibe-cs-source-assets --all-targets -- -D warnings
+```
 
 ## 参考来源
 

@@ -69,7 +69,7 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 - [x] 从本机 `game/csgo/maps/de_mirage.vpk` 中用 `crates/source-assets/src/vpk.rs` 列出并读取物理资源；实际路径为 `maps/de_mirage/world_physics.vmdl_c`，原计划的 `.vphys_c` 不存在
 - [x] 评估并实现 Rust 原生二进制 KV3 v5 解码（资源块结构、未压缩/LZ4/Zstd）；参考 ValveResourceFormat [S3]，保留 MIT 声明。真实 Mirage 使用 v5 + Zstd，其他版本明确拒绝。`kv3` 0.2.1 与 `keyvalues3` 1.1.0 均面向文本，不能复用为二进制解码器
-- [ ] 备选方案：Source2Viewer-CLI 旁挂 [S6]。确认其能否导出物理网格（官方 CLI 文档未写明 vphys 导出 [S6]；地图导出文档说明 glTF 含几何、贴图和 prop，不含光照与导航网格 [S4]），并测量 .NET 运行时带来的包体增量
+- [x] 备选方案：Source2Viewer-CLI 20.0 已从本机 Mirage 导出物理 GLB；同版本源码分别发布 framework-dependent / self-contained，运行时增量约 80.2 MB，详见决策记录
 - [ ] 坐标对齐：随机抽取 demo 中选手落地时刻，脚底 Z 与网格地面误差 < 2 单位
 - [ ] 过滤规则：区分天空盒、玩家专用空气墙、挡子弹/挡视线的碰撞属性，只保留挡视线几何
 - [ ] 体积与耗时：过滤后网格 < 10 MB，首次导出 < 10 s
@@ -206,6 +206,34 @@ cargo clippy --locked -p vibe-cs-source-assets --all-targets -- -D warnings
 扩展实测暴露的待办（均明确返回错误，没有静默省略几何）：Inferno 的 PHYS 解压计数超出当前 128 MiB 上限；Nuke、Ancient、Train 有 `blocklight`；Anubis 有 `navclip`；Overpass 含 sphere。M2 接入产品前需要验证对应规则、支持这些形状，并评估大地图内存与体积；不能把 Mirage 的结果推广为全地图支持。
 
 远端验收另发现两项原主分支问题：中文字体导出测试依赖 CI runner 缺少的 `C:/Windows/Fonts/simhei.ttf`；依赖审计报 `RUSTSEC-2026-0285`。后者已将 rustls 0.23.43 更新为 0.23.45，`vibe-cs-integrations` 32 项测试通过；字体测试待改为可复现的开源字体 fixture。完整远端 CI 尚未通过。
+
+### 2026-09-29 · 全图形状、CLI 对照与落地检验
+
+- 已支持 sphere/capsule 三角化（径向弦误差目标 0.25 单位、最大 256 段，随后 1/16 单位量化），补闭合性、朝外绕序、径向误差和非法半径测试。
+- 实测 Inferno PHYS 二进制块为 141,610,742 bytes，因此将总解压上限提高到 256 MiB，值节点上限 400 万，三角形上限 400 万；仍先验证大小再解压，非无限分配。8 张真实地图的提取集成测试通过。
+- 碰撞规则的本机依据：`csgo/pak01_dir.vpk` 中 `scripts/collision_properties.txt` 明确区分 window、不挡 LOS 的 solid、声音专用碰撞、玩家/投掷物碰撞；`core/pak01_dir.vpk` 的 `toolsblocklight.vmat_c` 和 `toolsnavclip.vmat_c` 标记工具材质。Nuke 存在 `blocklight, blocklos, blocksound, solid` 组合，必须保留显式 solid/LOS，不能因同时含工具标签而全部排除。声音、光照、导航专用形状不作为遮挡体，未知标签明确报错。
+
+| 地图 | 顶点 | 三角形 | 顶点+索引原始大小 |
+|---|---:|---:|---:|
+| Inferno | 1,369,614 | 2,527,380 | 46,763,928 bytes |
+| Nuke | 85,848 | 163,593 | 2,993,292 bytes |
+| Ancient | 496,625 | 958,470 | 17,461,140 bytes |
+| Anubis | 375,182 | 672,703 | 12,574,620 bytes |
+| Train | 797,091 | 1,532,622 | 27,956,556 bytes |
+| Overpass | 406,700 | 711,210 | 13,414,920 bytes |
+
+因此紧凑编码是必需项，不能把 Mirage 的原始体积达标等同于全地图达标。
+
+CLI 对照：官方 20.0 `cli-windows-x64.zip` 为 52,735,867 bytes，解包三个文件共 127,601,184 bytes。参数 `-i de_mirage.vpk -f maps/de_mirage/world_physics.vmdl_c -d --gltf_export_format glb -o ...` 成功生成 14,425,104-byte 的 `_physics.glb`（另有 236-byte 空可视模型）。同一参考源码、win-x64、Release、关闭 single-file 和 ReadyToRun，framework-dependent 发布为 110,564,322 bytes，self-contained 为 190,720,169 bytes，差值 **80,155,847 bytes**。原生 Rust 方案继续采用；CLI 仅用于开发验证。
+
+落地检验尚未通过，不调整坐标去掩盖误差：
+
+- 用独立 `demoparser2==0.42.0` 读取真实决赛 demo，SHA-256 `04f26f0f092f24fd13e7939dc56e72a3783a61872500b97b09810ed5a2363697`。
+- `scripts/sample-demo-landings.py` 固定 seed 20260929，先随机取 32 个连续 256-tick 窗口，再从 75 个 alive 且 FL_ONGROUND 由 0→1 的相邻 tick 状态中随机取 32 个；选择过程不读取地图几何。
+- 中心向下射线有 15 个样本超过 2 单位；考虑 +/-16 单位玩家水平碰撞盒、将三角形裁剪到脚底区域后，只剩 3 个，最大误差 7.328125。复现入口为 `cargo run -p vibe-cs-source-assets --example geometry_alignment -- MAP.vpk LANDINGS.json`，未达标会返回非零退出码。
+- 逐 tick 追踪三个残差，发现 FL_ONGROUND 首次置位后位置仍继续下降；还需核对网络位置时序、玩家专用支撑几何、PHYS 碰撞皮肤与历史 demo/当前地图差异。坐标对齐验收继续保持未完成。
+
+完整 CI 的字体依赖已改为仓库内 3,208-byte 开源中文字体子集（许可证与可复现脚本齐备），两项原生导出测试通过；rustls 更新后的远端依赖审计也已通过。
 
 ## 参考来源
 

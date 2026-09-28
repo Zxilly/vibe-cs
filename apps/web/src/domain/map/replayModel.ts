@@ -249,6 +249,8 @@ export interface PlayerMarker {
   readonly x: number;
   readonly y: number;
   readonly side: MapSide | undefined;
+  /** The roster team (`A`/`B`) — the colour the player list and map share. */
+  readonly team: 'A' | 'B';
   readonly health: number;
   readonly weapon: string;
 }
@@ -292,6 +294,7 @@ export function playerMarkers(frame: ReplayFrameRecord | null): readonly PlayerM
       x: point.x,
       y: point.y,
       side: normaliseSide(player.team),
+      team: player.team === 'A' ? 'A' : 'B',
       health: player.health,
       weapon: player.weapon,
     });

@@ -97,7 +97,7 @@ export function PlayerLayer({
               width={MARKER_SIZE}
               height={MARKER_SIZE}
               strokeWidth={1.5}
-              className={focused ? 'fill-accent-800 stroke-accent-800' : 'fill-none stroke-team-b'}
+              className={focused ? 'fill-accent-800 stroke-accent-800' : marker.team === 'A' ? 'fill-none stroke-accent' : 'fill-none stroke-team-b'}
             />
             <text
               x={point.x}
@@ -105,7 +105,7 @@ export function PlayerLayer({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={13}
-              className={focused ? 'fill-bg' : 'fill-team-b'}
+              className={focused ? 'fill-bg' : marker.team === 'A' ? 'fill-accent' : 'fill-team-b'}
             >
               {marker.initial}
             </text>

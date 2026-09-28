@@ -135,6 +135,7 @@ import type {
 import type { ActivityItem } from '../../../shared/desktop/viewModels';
 import { deliveryDecisionToolCallId } from '../../../shared/desktop/deliveryReview';
 import { RouteLink } from '../../shared/navigation/RouteLink';
+import { RecordingConfirmDialog } from './RecordingConfirmDialog';
 import { PlayerLayer } from '../../../domain/map/ReplayCanvas';
 import { buildPlayerTracks, clampTick, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from '../../../domain/map/replayModel';
 
@@ -1679,26 +1680,23 @@ export function ProjectWorkspacePage() {
           })}
         </div>
       </Dialog>
-      <Dialog
+      <RecordingConfirmDialog
         open={externalConfirm?.kind === 'recording'}
-        title={<Trans>录制缺失片段</Trans>}
-        confirmLabel={<Trans>开始录制</Trans>}
+        clips={externalConfirm?.kind === 'recording'
+          ? externalConfirm.clipIds.flatMap((clipId) => clipById.get(clipId) ?? [])
+          : []}
+        selectedClipIds={selectedClipIds}
         confirmDisabled={deliveryGatePending
           || externalConfirm?.kind !== 'recording'
-          || externalConfirm.clipIds.length === 0
           || externalConfirm.clipIds.some((clipId) => !recordableClipIds.includes(clipId))
           || startRecording.isPending}
-        onConfirm={() => {
-          if (externalConfirm?.kind !== 'recording') return;
-          if (deliveryGatePending || externalConfirm.clipIds.some((clipId) => !recordableClipIds.includes(clipId))) return;
-          const clipIds = [...externalConfirm.clipIds];
+        onConfirm={(clipIds) => {
+          if (deliveryGatePending || clipIds.some((clipId) => !recordableClipIds.includes(clipId))) return;
           setExternalConfirm(null);
-          startRecording.mutate({ projectId: current.id, expectedRevision: current.revision, clipIds });
+          startRecording.mutate({ projectId: current.id, expectedRevision: current.revision, clipIds: [...clipIds] });
         }}
         onClose={() => setExternalConfirm(null)}
-      >
-        <p><Trans>将启动 CS2 和采集组件，录制 {externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0} 个还没有素材的片段。</Trans></p>
-      </Dialog>
+      />
       <Dialog
         open={externalConfirm?.kind === 'export'}
         title={<Trans>导出设置</Trans>}

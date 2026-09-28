@@ -483,20 +483,10 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--color-neutral-50": "#ffffff",
   "--color-neutral-950": "#111827",
   "--color-neutral-900": "#1b2637",
-  "--color-accent-2": "#5b8ff9",
   "--color-accent-200": "#d9e7ff",
   "--color-accent-400": "#79a4f0",
   "--color-accent-800": "#214b98",
   "--color-accent-900": "#1d2d3d",
-  "--color-accent-2-100": "#eef4ff",
-  "--color-accent-2-200": "#d9e7ff",
-  "--color-accent-2-300": "#b9d1ff",
-  "--color-accent-2-400": "#79a4f0",
-  "--color-accent-2-500": "#5b8ff9",
-  "--color-accent-2-600": "#285abd",
-  "--color-accent-2-700": "#214b98",
-  "--color-accent-2-800": "#214b98",
-  "--color-accent-2-900": "#1d2d3d",
   "--color-ok-text": "#3c5a44",
   "--color-ok-border": "#a8c3a9",
   "--color-fail-border": "#c9a8a3",
@@ -741,10 +731,6 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "light": "#1b2637",
     "dark": "#e6edf7"
   },
-  "--color-accent-2": {
-    "light": "#5b8ff9",
-    "dark": "#a3c3fa"
-  },
   "--color-accent-200": {
     "light": "#d9e7ff",
     "dark": "#304b6c"
@@ -758,42 +744,6 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#c4d9fc"
   },
   "--color-accent-900": {
-    "light": "#1d2d3d",
-    "dark": "#e0ebff"
-  },
-  "--color-accent-2-100": {
-    "light": "#eef4ff",
-    "dark": "#243953"
-  },
-  "--color-accent-2-200": {
-    "light": "#d9e7ff",
-    "dark": "#304b6c"
-  },
-  "--color-accent-2-300": {
-    "light": "#b9d1ff",
-    "dark": "#3c608a"
-  },
-  "--color-accent-2-400": {
-    "light": "#79a4f0",
-    "dark": "#628ec4"
-  },
-  "--color-accent-2-500": {
-    "light": "#5b8ff9",
-    "dark": "#8db3f4"
-  },
-  "--color-accent-2-600": {
-    "light": "#285abd",
-    "dark": "#a3c3fa"
-  },
-  "--color-accent-2-700": {
-    "light": "#214b98",
-    "dark": "#b8d0fa"
-  },
-  "--color-accent-2-800": {
-    "light": "#214b98",
-    "dark": "#c4d9fc"
-  },
-  "--color-accent-2-900": {
     "light": "#1d2d3d",
     "dark": "#e0ebff"
   },

@@ -122,6 +122,12 @@ describe('approved Figma theme contract', () => {
     }
   });
 
+  it('keeps a single accent ramp', () => {
+    expect([...themeTokens.keys()].filter(token => token.startsWith('--color-accent-2'))).toEqual(
+      ['--color-accent-200'],
+    );
+  });
+
   it('has no workbench-specific palette or external font dependency', () => {
     expect(theme).not.toMatch(/\.review-workbench\s*\{/);
     expect(theme).toContain("@import '@fontsource-variable/noto-sans-sc';");

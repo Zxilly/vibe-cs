@@ -2,13 +2,11 @@
  * Design system, layer 1 of 3 — Badge.
  *
  * shadcn's Badge over Industry's `.tag`, restricted to the tones the design
- * reference actually draws plus Industry's own accent-2:
+ * reference actually draws:
  *
  *   accent    66 occurrences — 「已分析」「等待确认」「合并」, the state a row is in
  *   neutral   63 occurrences — 「已过期」「未下载 11」, counts and inert states
  *   outline   24 occurrences — 「待处理」 and the 「＋ 选手」 context chips
- *   accent-2  Industry defines it; the reference never uses it, kept so a
- *             second categorical hue exists without a page inventing one
  *   count     the small tally beside a nav entry — 「3」 on 会话, on the Agent
  *             rail, on a folded view. Four files had grown their own copy of
  *             its four utilities before it was a variant
@@ -40,7 +38,7 @@ import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 
 import { cn } from '../cn';
 
-export type BadgeVariant = 'accent' | 'accent-2' | 'neutral' | 'outline' | 'count';
+export type BadgeVariant = 'accent' | 'neutral' | 'outline' | 'count';
 export type BadgeSize = 'md' | 'sm';
 
 /**
@@ -56,11 +54,10 @@ export const badgeVariants = cva(
   {
     variants: {
       variant: {
-        /* Industry pairs step 100 with step 800 of the same ramp. Both ramps
-           invert in dark (theme.css), so the pairing survives the theme
+        /* Industry pairs step 100 with step 800 of the same ramp. The ramp
+           inverts in dark (theme.css), so the pairing survives the theme
            without a rule. */
         accent: 'border border-transparent bg-accent-100 text-accent-800',
-        'accent-2': 'border border-transparent bg-accent-2-100 text-accent-2-800',
         neutral: 'border border-transparent bg-neutral-100 text-neutral-800',
         /* Industry outlines with the flat accent. The border may keep it; the
            label moves to `--color-accent-700`, the reversal table's clickable

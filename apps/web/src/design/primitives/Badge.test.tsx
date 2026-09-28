@@ -18,11 +18,9 @@ describe('Badge markup', () => {
     expect(html).toContain('text-neutral-800');
   });
 
-  it('pairs step 100 with step 800 of the same ramp for every filled tone', () => {
+  it('pairs step 100 with step 800 of the same ramp for the filled accent tone', () => {
     expect(renderMarkup(<Badge variant="accent">已分析</Badge>)).toContain('bg-accent-100');
     expect(renderMarkup(<Badge variant="accent">已分析</Badge>)).toContain('text-accent-800');
-    expect(renderMarkup(<Badge variant="accent-2">合并</Badge>)).toContain('bg-accent-2-100');
-    expect(renderMarkup(<Badge variant="accent-2">合并</Badge>)).toContain('text-accent-2-800');
   });
 
   it('outlines rather than fills the outline tone', () => {
@@ -32,7 +30,7 @@ describe('Badge markup', () => {
   });
 
   it('declares a border on every tone so the box size does not move', () => {
-    for (const tone of ['accent', 'accent-2', 'neutral', 'outline'] as const) {
+    for (const tone of ['accent', 'neutral', 'outline'] as const) {
       expect(renderMarkup(<Badge variant={tone}>x</Badge>)).toMatch(/class="[^"]*\bborder\b/u);
     }
   });

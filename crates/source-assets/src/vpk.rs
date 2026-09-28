@@ -520,9 +520,10 @@ fn directory_archive_prefix(path: &Path) -> Result<String> {
         .ok_or_else(|| invalid_input(path, "VPK directory filename is not UTF-8"))?;
     filename
         .strip_suffix("_dir.vpk")
+        .or_else(|| filename.strip_suffix(".vpk"))
         .filter(|prefix| !prefix.is_empty())
         .map(str::to_owned)
-        .ok_or_else(|| invalid_input(path, "VPK directory filename must end in _dir.vpk"))
+        .ok_or_else(|| invalid_input(path, "VPK directory filename must end in .vpk"))
 }
 
 fn invalid_input(path: &Path, message: &'static str) -> SourceAssetError {
@@ -623,6 +624,29 @@ mod tests {
 
     use super::*;
     use crate::test_support::{TestEntry, TestLocation, build_vpk, write_vpk};
+
+    #[test]
+    fn reads_standalone_map_package_with_preload_and_crc() {
+        let directory = tempdir().expect("create temp directory");
+        let path = directory.path().join("de_safe.vpk");
+        let resource = "maps/de_safe/world_physics.vphys_c";
+        let built = build_vpk(&[TestEntry::new(
+            resource,
+            b"header",
+            b"physics",
+            TestLocation::Inline,
+        )]);
+        fs::write(&path, built.directory).expect("write standalone package");
+        let archive = VpkArchive::open(&path).expect("open standalone map");
+        assert_eq!(
+            archive.read(resource).expect("read physics"),
+            b"headerphysics"
+        );
+        assert_eq!(
+            archive.entry(resource).unwrap().unwrap().archive(),
+            VpkArchiveLocation::Inline
+        );
+    }
 
     #[test]
     fn reads_inline_and_external_entries_with_preload_and_crc() {

@@ -400,21 +400,17 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                           updateContext({ player: explicitlyFocused ? null : player.id })
                         }
                         className={cn(
-                          'flex w-full items-center gap-2 px-1 py-1 text-left text-sm',
-                          'hover:bg-surface',
+                          'flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm',
                           'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                          focused ? 'text-accent-800' : null,
+                          focused ? 'bg-accent-100 font-medium text-accent-800' : 'hover:bg-action-hover',
                         )}
                       >
+                        {/* The team's own marker colour, not a checkbox: selection is the row's fill. */}
                         <span
                           aria-hidden="true"
-                          className={cn(
-                            'grid size-4 flex-none place-items-center text-xs',
-                            focused ? 'bg-accent text-bg' : 'border border-neutral-400',
-                          )}
-                        >
-                          {player.name.trim().charAt(0).toUpperCase()}
-                        </span>
+                          data-replay-player-team={player.team}
+                          className={cn('size-2 flex-none rounded-full', player.team === 'A' ? 'bg-accent' : 'bg-team-b')}
+                        />
                         <span className="min-w-0 truncate">{player.name}</span>
                       </button>
                     </li>

@@ -132,6 +132,23 @@ describe('the body', () => {
     expect(html).toContain('data-player-marker="kael"');
   });
 
+  it('marks each player with a round dot in their team colour, and the focused one with the row fill', () => {
+    loaded();
+    const html = markupView(<ReplayView.Body {...viewProps({ context: { player: 'sable' } })} />);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const row = (id: string) => doc.querySelector<HTMLElement>(`[data-replay-player="${id}"]`)!;
+
+    expect(row('kael').querySelector('[data-replay-player-team="A"]')?.className).toContain('bg-accent');
+    expect(row('sable').querySelector('[data-replay-player-team="B"]')?.className).toContain('bg-team-b');
+    expect(row('sable').querySelector('[data-replay-player-team]')?.className).toContain('rounded-full');
+    expect(row('sable').textContent).toBe('Sable');
+    expect(row('sable').getAttribute('aria-pressed')).toBe('true');
+    expect(row('sable').className).toContain('bg-accent-100');
+    expect(row('sable').className).toContain('font-medium');
+    expect(row('kael').getAttribute('aria-pressed')).toBe('false');
+    expect(row('kael').className).not.toContain('bg-accent-100');
+  });
+
   it('focuses the first roster player by default without needing a URL player', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps()} />);

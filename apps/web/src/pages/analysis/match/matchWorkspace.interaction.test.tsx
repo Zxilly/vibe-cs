@@ -322,39 +322,50 @@ describe('用这场比赛新建作品', () => {
 });
 
 describe('加入作品', () => {
-  it('chooses an existing project and returns a feedback link to it', async () => {
+  it('adds straight into the project that sent the user here, with no dialog', async () => {
     media = stubMatchMedia(1400);
+    const existing = {
+      id: '00000000-0000-4000-8000-000000000001',
+      name: '现有作品', revision: 1,
+      document: {
+        width: 1920, height: 1080, fps: 60, duration_seconds: 0,
+        story_track_id: '00000000-0000-4000-8000-000000000002',
+        tracks: [{
+          id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video' as const,
+          order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [],
+        }],
+        markers: [], settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: false },
+      },
+      created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+    };
+    const patches: { project_id: string; base_revision: number }[] = [];
     renderWorkspace({
-      url: `/match/${DEMO_ID}?view=rounds&round=2&project=00000000-0000-4000-8000-000000000001`,
+      url: `/match/${DEMO_ID}?view=rounds&round=2&project=${existing.id}`,
       client: {
         ...loaded(),
-        listProjects: () => Promise.resolve([{
-          id: '00000000-0000-4000-8000-000000000001',
-          name: '现有作品', revision: 1,
-          document: {
-            width: 1920, height: 1080, fps: 60, duration_seconds: 0,
-            story_track_id: '00000000-0000-4000-8000-000000000002',
-            tracks: [{
-              id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
-              order: 0, muted: false, solo: false, volume: 1, pan: 0, keyframes: [], locked: false, hidden: false, clips: [],
-            }],
-            markers: [], settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: false },
-          },
-          created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
-        }]),
+        listProjects: () => Promise.resolve([existing]),
+        applyProjectPatch: (patch: { project_id: string; base_revision: number }) => {
+          patches.push(patch);
+          return Promise.resolve({
+            project: { ...existing, revision: 2 },
+            change_group: {
+              id: 'change-1', project_id: existing.id, from_revision: 1, to_revision: 2,
+              author: { kind: 'human' }, status: 'completed', summary: '加入', reverts_change_group_id: null,
+              operations: [], inverse_operations: [], created_at: '2026-08-20T00:00:00Z', completed_at: '2026-08-20T00:00:00Z',
+            },
+          });
+        },
         listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
         listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
       },
     });
 
-    const add = await screen.findByRole('button', { name: '把这个回合加入作品' });
-    fireEvent.click(add);
-    expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('option', { name: '现有作品' })).toBeTruthy();
-    expect((screen.getByLabelText('目标作品') as HTMLSelectElement).value).toBe(
-      '00000000-0000-4000-8000-000000000001',
-    );
-    expect(screen.getByRole('button', { name: '加入 Story 末尾' })).toBeTruthy();
+    expect(await screen.findByText('正在为作品选材')).toBeTruthy();
+    expect((screen.getByLabelText('选材目标作品') as HTMLSelectElement).value).toBe(existing.id);
+    fireEvent.click(await screen.findByRole('button', { name: '把这个回合加入作品' }));
+    expect(await screen.findByText('本次已加入 1 个')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(patches).toMatchObject([{ project_id: existing.id, base_revision: 1 }]);
   });
 
 });

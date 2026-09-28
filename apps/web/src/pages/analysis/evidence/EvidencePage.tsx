@@ -68,7 +68,8 @@ import { EvidenceResults } from './EvidenceResults';
 import { conditionSummaryText } from './conditionSummary';
 import { evidenceEventLabel } from './evidenceEventLabel';
 import { evidenceKindOf } from './evidenceItems';
-import { AddToProjectDialog, type AddedProjectTarget } from '../../../domain/project/AddToProjectDialog';
+import { AddToProjectDialog } from '../../../domain/project/AddToProjectDialog';
+import { CollectTargetBar, useQuickAddToProject } from '../../../domain/project/quickAdd';
 import {
   EVIDENCE_PAGE_SIZE,
   EVIDENCE_VIEWS,
@@ -89,7 +90,10 @@ export function EvidencePage() {
   const navigate = useNavigate();
   const collapsed = useCollapsed(undefined);
   const [pendingClip, setPendingClip] = useState<ProjectCollectedClip | null>(null);
-  const [addedProject, setAddedProject] = useState<AddedProjectTarget | null>(null);
+  const quickAdd = useQuickAddToProject(null);
+  const collect = (clip: ProjectCollectedClip) => {
+    if (!quickAdd.add([clip])) setPendingClip(clip);
+  };
 
   /*
    * The bridge has no saved-view and no export route, and the results list has
@@ -214,7 +218,7 @@ export function EvidencePage() {
         row={activeRow}
         onOpenWorkspace={(row) => openWorkspace(row, 'overview')}
         onLocate={(row) => openWorkspace(row, 'replay')}
-        onAddToVideo={(row) => setPendingClip(collectedClip(row))}
+        onAddToVideo={(row) => collect(collectedClip(row))}
         notes={rowNotes.data?.items ?? []}
         notesLoading={rowNotes.isPending && rowNotes.fetchStatus !== 'idle'}
         {...(notesReadError === null ? {} : {
@@ -323,7 +327,7 @@ export function EvidencePage() {
           <SelectionBar
             summary={<Trans>已选 1 条证据</Trans>}
             primary={
-              <Button variant="primary" size="sm" onClick={() => activeRow === null ? undefined : setPendingClip(collectedClip(activeRow))}>
+              <Button variant="primary" size="sm" onClick={() => activeRow === null ? undefined : collect(collectedClip(activeRow))}>
                 <Trans>加入作品</Trans>
               </Button>
             }
@@ -339,15 +343,7 @@ export function EvidencePage() {
       }
     >
       <>
-      {addedProject === null ? null : (
-        <Alert
-          className="mx-4 mt-4"
-          variant="success"
-          action={{ label: <Trans>打开作品</Trans>, onAction: () => void navigate(`/projects/${encodeURIComponent(addedProject.id)}?step=select`) }}
-        >
-          <Trans>已加入「{addedProject.name}」</Trans>
-        </Alert>
-      )}
+      <CollectTargetBar quickAdd={quickAdd} />
       {updateError === null ? null : (
         <Alert
           className="mx-4 mt-4"
@@ -373,7 +369,7 @@ export function EvidencePage() {
                 commit({ ...state, evidenceId: row.evidence_id === state.evidenceId ? '' : row.evidence_id })
               }
               onLocate={(row) => openWorkspace(row, 'replay')}
-              onAddToVideo={(row) => setPendingClip(collectedClip(row))}
+              onAddToVideo={(row) => collect(collectedClip(row))}
               loading={search.isPending}
               {...(searchError === null
                 ? {}
@@ -440,7 +436,7 @@ export function EvidencePage() {
         open={pendingClip !== null}
         clips={pendingClip === null ? [] : [pendingClip]}
         onClose={() => setPendingClip(null)}
-        onAdded={setAddedProject}
+        onAdded={(project) => quickAdd.retarget(project, 1)}
       />
       </>
     </Page>

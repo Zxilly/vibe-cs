@@ -1,5 +1,6 @@
 /** Match identity, view navigation and URL-owned selection.
- * Evidence collection writes through the shared AddToProjectDialog.
+ * Collection goes straight into the target project (`useQuickAddToProject`);
+ * the shared AddToProjectDialog only asks when there is no target yet.
  *
  * A failed analysis read is rendered here, once, in place of the view body and
  * without an Inspector: nine views each drawing their own red box drifted into
@@ -34,7 +35,8 @@ import {
   type MatchViewId,
   type MatchViewProps,
 } from './viewContract';
-import { AddToProjectDialog, type AddedProjectTarget } from '../../../domain/project/AddToProjectDialog';
+import { AddToProjectDialog } from '../../../domain/project/AddToProjectDialog';
+import { CollectTargetBar, useQuickAddToProject } from '../../../domain/project/quickAdd';
 import {
   patchWorkspaceContext,
   readWorkspaceContext,
@@ -50,7 +52,7 @@ export function MatchWorkspacePage() {
   const collapsed = useCollapsed(undefined);
   const [preferredProjectId] = useState(() => params.get('project'));
   const [pendingClips, setPendingClips] = useState<readonly ProjectCollectedClip[]>([]);
-  const [addedProject, setAddedProject] = useState<AddedProjectTarget | null>(null);
+  const quickAdd = useQuickAddToProject(preferredProjectId);
 
   const context = readWorkspaceContext(params);
   const view = MATCH_VIEWS[context.view];
@@ -67,10 +69,19 @@ export function MatchWorkspacePage() {
   };
 
   const matchLabel = demo.data?.display_name ?? demoId;
+  const toClip = (selection: Parameters<NonNullable<MatchVideoAction['onAdd']>>[0]) =>
+    collectedClip(demoId, matchLabel, selection, analysis.data?.players.find((player) => player.id === selection.playerId)?.name ?? null);
+  /* Every 加入作品 on this page — row, Inspector, batch bar, replay range —
+     lands here, so they all behave the same: straight in with 「撤销」, and the
+     dialog only when there is nowhere to put the clips yet. */
+  const collect = (clips: readonly ProjectCollectedClip[]) => {
+    if (!quickAdd.add(clips)) setPendingClips(clips);
+  };
   const addToVideo: MatchVideoAction = {
-    disabled: false,
-    onAdd: (selection) => setPendingClips([collectedClip(demoId, matchLabel, selection, analysis.data?.players.find((player) => player.id === selection.playerId)?.name ?? null)]),
-    onAddMany: (selections) => setPendingClips(selections.map((selection) => collectedClip(demoId, matchLabel, selection, analysis.data?.players.find((player) => player.id === selection.playerId)?.name ?? null))),
+    disabled: quickAdd.pending,
+    ...(quickAdd.pending ? { disabledReason: t`正在加入作品` } : {}),
+    onAdd: (selection) => collect([toClip(selection)]),
+    onAddMany: (selections) => collect(selections.map(toClip)),
   };
 
   const viewProps: MatchViewProps = {
@@ -212,18 +223,7 @@ export function MatchWorkspacePage() {
           <Trans>作品没能新建：{dataErrorMessage(demoProject.error)}</Trans>
         </Alert>
       )}
-      {addedProject === null ? null : (
-        <Alert
-          className="mx-4 mt-4"
-          variant="success"
-          action={{
-            label: <Trans>打开作品</Trans>,
-            onAction: () => void navigate(`/projects/${encodeURIComponent(addedProject.id)}?step=select`),
-          }}
-        >
-          <Trans>已加入「{addedProject.name}」</Trans>
-        </Alert>
-      )}
+      <CollectTargetBar quickAdd={quickAdd} />
       <div className="flex min-h-0 min-w-0 flex-1">
         <main
           data-match-content=""
@@ -252,7 +252,7 @@ export function MatchWorkspacePage() {
         clips={pendingClips}
         preferredProjectId={preferredProjectId}
         onClose={() => setPendingClips([])}
-        onAdded={setAddedProject}
+        onAdded={(project) => quickAdd.retarget(project, pendingClips.length)}
       />
       </>
     </Page>

@@ -211,10 +211,13 @@ export function Toaster() {
           </ToastPrimitive.Root>
         );
       })}
+      {/* Bottom centre, over the content column: the corners belong to the
+          Inspector's primary action and the toolbar, and a 「已加入 · 撤销」
+          toast must not cover the button the user presses next. */}
       <ToastPrimitive.Viewport
         data-toaster=""
         label={t`提示`}
-        className="fixed bottom-4 right-4 z-[60] m-0 flex w-[var(--w-inspector)] max-w-[calc(100%-2rem)] list-none flex-col gap-2 p-0"
+        className="fixed bottom-4 left-1/2 z-[60] m-0 flex w-[var(--w-inspector)] max-w-[calc(100%-2rem)] -translate-x-1/2 list-none flex-col gap-2 p-0"
       />
     </ToastPrimitive.Provider>
   );

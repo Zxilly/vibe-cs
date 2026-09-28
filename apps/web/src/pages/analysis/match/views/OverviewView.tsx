@@ -70,6 +70,7 @@ import {
   teamNames,
   toHighlightCandidate,
 } from './matchAggregates';
+import { highlightSelection } from './highlightModel';
 import {
   MetricStrip,
   SelectedRoundLine,
@@ -238,11 +239,7 @@ export function OverviewPanels({
                           : { disabledReason: addToVideo.disabledReason })}
                         onClick={() =>
                           addToVideo.onAdd?.({
-                            round: highlight.round,
-                            highlightId: highlight.id,
-                            playerId: highlight.player_id,
-                            startTick: highlight.start_tick,
-                            endTick: highlight.end_tick,
+                            ...highlightSelection(toHighlightCandidate(highlight, directory)),
                             ...(tickRate === undefined ? {} : { tickRate }),
                           })
                         }

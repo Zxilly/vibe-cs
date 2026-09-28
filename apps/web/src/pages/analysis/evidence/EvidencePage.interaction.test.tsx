@@ -326,14 +326,31 @@ describe('selecting a row', () => {
     expect(screen.getByText('已选 1 条证据')).toBeTruthy();
   });
 
-  it('adds a result to an existing project and points back to it', async () => {
-    const { container } = mount();
+  it('adds a result straight into the most recent project, with no dialog', async () => {
+    const { client } = stubClient();
+    const [existing] = await client.listProjects!();
+    const patches: { project_id: string }[] = [];
+    const { container } = mount('/evidence', {
+      ...client,
+      applyProjectPatch: (patch) => {
+        patches.push(patch);
+        return Promise.resolve({
+          project: { ...existing!, revision: 2 },
+          change_group: {
+            id: 'change-1', project_id: existing!.id, from_revision: 1, to_revision: 2,
+            author: { kind: 'human' }, status: 'completed', summary: '加入', reverts_change_group_id: null,
+            operations: [], inverse_operations: [], created_at: '2026-08-20T00:00:00Z', completed_at: '2026-08-20T00:00:00Z',
+          },
+        });
+      },
+    });
     await screen.findByText('命中 47 条 · 排序：时间倒序');
+    expect(await screen.findByText('加入作品会放进')).toBeTruthy();
     const row = container.querySelectorAll('[data-evidence-row]')[0] as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: '加入作品' }));
-    expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('option', { name: '证据集锦' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '加入 Story 末尾' })).toBeTruthy();
+    expect(await screen.findByText('本次已加入 1 个')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(patches).toMatchObject([{ project_id: existing!.id }]);
   });
 });
 

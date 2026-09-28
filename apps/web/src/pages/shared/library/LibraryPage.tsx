@@ -63,6 +63,7 @@ import { useNativeShell, useNativeShellAction, useRevealPath } from '../../../da
 import { Alert, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
+import { CollectTargetBar, useQuickAddToProject } from '../../../domain/project/quickAdd';
 import { useCreateDemoProject } from '../../../domain/project/createDemoProject';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { AddWatchDirectoryDialog } from './AddWatchDirectoryDialog';
@@ -128,6 +129,7 @@ export function LibraryPage() {
 function DemoLibraryPage() {
   const [params, setParams] = useSearchParams();
   const preferredProjectId = params.get('project');
+  const collectTarget = useQuickAddToProject(preferredProjectId);
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
   const demoProject = useCreateDemoProject();
@@ -473,6 +475,8 @@ function DemoLibraryPage() {
         />
       }
       bar={
+        <>
+        {preferredProjectId === null ? null : <CollectTargetBar quickAdd={collectTarget} />}
         <LibraryFilters
           address={address}
           onChange={setAddress}
@@ -494,6 +498,7 @@ function DemoLibraryPage() {
             exportMetadata.isPending ? { disabled: true } : shellAction.buttonProps
           }
         />
+        </>
       }
       footer={collapsed ? inspector : undefined}
     >

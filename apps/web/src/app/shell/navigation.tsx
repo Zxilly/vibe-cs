@@ -126,13 +126,21 @@ export const MODE_LANDING_PATH: Readonly<Record<WorkspaceMode, string>> = {
   analysis: '/library',
 };
 
-/** Routes with one unambiguous owner switch the shell lens on deep-link entry. */
-export function workspaceModeForPath(pathname: string): WorkspaceMode | null {
+/**
+ * Routes with one unambiguous owner switch the shell lens on deep-link entry.
+ * The match workspace serves both jobs, so it keeps the lens the user is in —
+ * unless a project sent them there to collect clips (`?project=`), which is
+ * editing work whatever lens they left.
+ */
+export function workspaceModeForPath(pathname: string, search = ''): WorkspaceMode | null {
   const path = normalizePath(pathname);
   if (path === '/' || path === '/projects' || path.startsWith('/projects/') || path === '/delivery' || path.startsWith('/delivery/')) {
     return 'edit';
   }
-  if (path === '/players' || path.startsWith('/players/') || path === '/evidence' || path.startsWith('/evidence/') || path === '/match' || path.startsWith('/match/')) {
+  if (path === '/match' || path.startsWith('/match/')) {
+    return new URLSearchParams(search).has('project') ? 'edit' : null;
+  }
+  if (path === '/players' || path.startsWith('/players/') || path === '/evidence' || path.startsWith('/evidence/')) {
     return 'analysis';
   }
   return null;

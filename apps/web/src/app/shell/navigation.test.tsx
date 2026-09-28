@@ -82,11 +82,12 @@ describe('workspaceModeForPath', () => {
     expect(workspaceModeForPath('/delivery')).toBe('edit');
     expect(workspaceModeForPath('/players/kael')).toBe('analysis');
     expect(workspaceModeForPath('/evidence')).toBe('analysis');
-    expect(workspaceModeForPath('/match/demo-1')).toBe('analysis');
   });
 
   it('leaves shared library and settings routes in the chosen mode', () => {
     expect(workspaceModeForPath('/library')).toBeNull();
+    expect(workspaceModeForPath('/match/demo-1')).toBeNull();
+    expect(workspaceModeForPath('/match/demo-1', '?view=replay&project=p-1')).toBe('edit');
     expect(workspaceModeForPath('/settings')).toBeNull();
   });
 });

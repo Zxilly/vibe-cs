@@ -66,7 +66,7 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
      preference says. The title bar's brand block is the same width as the rail,
      so it is told the resolved state rather than re-deriving it. */
   const navCollapsed = storedNavCollapsed || folded;
-  const routeMode = workspaceModeForPath(location.pathname);
+  const routeMode = workspaceModeForPath(location.pathname, location.search);
   const mode = routeMode ?? storedMode;
 
   const crumb = routeCrumb(location.pathname, location.search);

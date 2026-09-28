@@ -53,6 +53,17 @@ const CLIP: TimelineClip = {
   speed_segments: [],
 };
 
+const PLANNED: TimelineClip = {
+  ...CLIP,
+  id: '00000000-0000-4000-8000-000000000011',
+  material: { kind: 'planned' },
+  capture_intent: {
+    demo_id: 'demo-a', highlight_id: null, player_id: 'player-a',
+    start_tick: 10_000, end_tick: 10_384, pre_roll_seconds: 0, post_roll_seconds: 0,
+    victim_pov: false, camera_style: 'pov', presentation: null,
+  },
+};
+
 describe('/projects', () => {
   it('renders only canonical projects and links by the real project id', async () => {
     renderPage({
@@ -70,6 +81,41 @@ describe('/projects', () => {
     // The title stays the only anchor; its box is stretched over the card.
     expect(link.className).toContain('after:inset-0');
     expect(link.closest('[data-project-card]')?.className).toContain('relative');
+  });
+
+  it('offers 继续剪辑 as a secondary link beside the one primary 新建作品', async () => {
+    renderPage({
+      element: <ProjectsPage />,
+      client: { listProjects: () => Promise.resolve([PROJECT]) },
+      route: '/projects',
+    });
+
+    const resume = await screen.findByRole('link', { name: '继续剪辑' });
+    expect(resume.getAttribute('href')).toBe(`/projects/${PROJECT.id}`);
+    expect(resume.className).toContain('border-divider');
+    expect(resume.className).not.toContain('bg-accent');
+    expect(document.querySelectorAll('.bg-accent.text-on-accent')).toHaveLength(1);
+  });
+
+  it.each([
+    ['a Timeline without clips', [], { ready: false, blockers: [] }, 'idle', '时间线还没有片段 → 去选材'],
+    ['clips the recorder can fill', [PLANNED, { ...PLANNED, id: 'clip-2' }, CLIP], { ready: false, blockers: [{ clip_id: PLANNED.id, state: 'unrecorded' }, { clip_id: 'clip-2', state: 'stale' }] }, 'warn', '2 段待录制 → 录制缺失片段'],
+    ['clips recording cannot fill', [CLIP], { ready: false, blockers: [{ clip_id: CLIP.id, state: 'unbound' }] }, 'warn', '1 段素材未就绪 → 在剪辑里检查'],
+    ['every clip ready', [CLIP], { ready: true, blockers: [] }, 'ok', '素材就绪 → 可以导出'],
+  ] as const)('names the next step for %s', async (_case, clips, gate, status, text) => {
+    const project = { ...PROJECT, document: { ...PROJECT.document, tracks: PROJECT.document.tracks.map((track) => ({ ...track, clips: [...clips] })) } };
+    const { container } = renderPage({
+      element: <ProjectsPage />,
+      client: {
+        listProjects: () => Promise.resolve([project]),
+        getProjectDeliveryGate: (id: string) => Promise.resolve({ project_id: id, revision: PROJECT.revision, ...gate }),
+      },
+      route: '/projects',
+    });
+
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(container.querySelector('[data-project-next-step]')?.getAttribute('data-project-next-step')).toBe(status);
+    expect(container.querySelector('[data-project-next-step] [data-status]')?.getAttribute('data-status')).toBe(status);
   });
 
   it('keeps a failed load distinct from an empty library and recovers through retry', async () => {
@@ -111,6 +157,7 @@ describe('/projects', () => {
     expect(within(staleCard).queryByText(/全部就绪/)).toBeNull();
     expect(within(staleCard).getByText(/素材状态待更新/)).toBeTruthy();
     expect(within(staleCard).queryByText(/正在检查素材/)).toBeNull();
+    expect(staleCard.querySelector('[data-project-next-step]')).toBeNull();
   });
 
   it('offers to clear a search that matched nothing instead of a second 新建作品', async () => {

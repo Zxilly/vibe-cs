@@ -1,5 +1,18 @@
 # Dependency provenance
 
+## Three.js scene rendering
+
+The shared `domain/scene3d` renderer uses `three` 0.186.1 and the matching
+`@types/three` 0.186.0 development declarations, pinned by `pnpm-lock.yaml`.
+Three.js is MIT-licensed; its unmodified license is copied to
+`apps/web/public/licenses/three-MIT.txt` so the notice accompanies the desktop
+frontend distribution. No CS2 geometry or other game resource is included.
+
+The renderer is a dynamic import. It consumes the local VMAP and replay
+projections and releases its own geometries, materials, controls, observers,
+animation callbacks and WebGL context when removed. Resource ownership follows
+the [official Three.js cleanup guide](https://threejs.org/manual/en/cleanup.html).
+
 ## Vendored demoparser Rust packages
 
 Vibe CS vendors the Rust parser packages from

@@ -66,22 +66,24 @@ const GROUP_CLASS = 'inline-flex overflow-hidden rounded-md border border-divide
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`
  * base = 11.9px), 6px gap for an option that carries an icon.
  *
+ * The checked option is a selection, not an action: it takes the light accent
+ * face with deep accent text and a 1px inset accent hairline, never the solid
+ * accent fill. A solid fill would compete with the view's one primary button.
+ *
  * The focus ring is inset here rather than taking base.css's 2px offset: the
  * group clips its options (`overflow-hidden`), so an outset ring on the first
- * or last option would be cut in half by the box it sits in. An inset accent
- * ring is invisible on the checked option, whose fill is the same accent — and
- * the checked option is exactly where Tab lands, because the radio group's
- * roving tabindex always enters on the selection. So the checked option draws
- * the ring in the fill's foreground colour instead.
+ * or last option would be cut in half by the box it sits in. On the checked
+ * option — where Tab lands, because the radio group's roving tabindex always
+ * enters on the selection — the 2px ring reads as a thicker hairline.
  */
 const OPTION_CLASS =
   'inline-flex h-full items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
   'cursor-pointer select-none ' +
-  'data-[state=checked]:bg-accent data-[state=checked]:text-bg ' +
+  'data-[state=checked]:bg-accent-100 data-[state=checked]:font-medium data-[state=checked]:text-accent-700 ' +
+  'data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-accent)] ' +
   'data-[state=unchecked]:hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] ' +
   'disabled:cursor-not-allowed disabled:opacity-45 ' +
-  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 ' +
-  'data-[state=checked]:focus-visible:outline-bg';
+  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2';
 
 export function Seg<Value extends string>({
   name,

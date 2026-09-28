@@ -93,13 +93,19 @@ describe('Seg markup', () => {
     expect(html.match(/data-disabled=""/gu)?.length).toBe(1);
   });
 
-  it('keeps the keyboard ring visible on the checked option', () => {
-    /* Tab enters the group on the selection, whose fill is the accent — the
-       same colour as the inset ring. The checked option therefore draws the
-       ring in the fill's foreground colour, or the entry focus is invisible. */
+  it('marks the selection with the light accent face, not the primary fill', () => {
+    /* One solid accent element per view belongs to the primary action. */
     const html = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
+    expect(html).toContain('data-[state=checked]:bg-accent-100');
+    expect(html).toContain('data-[state=checked]:text-accent-700');
+    expect(html).toContain('data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-accent)]');
+    expect(html).not.toContain('data-[state=checked]:bg-accent ');
+  });
+
+  it('keeps the keyboard ring inset so the clipped group cannot cut it', () => {
+    const html = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
+    expect(html).toContain('focus-visible:outline-accent');
     expect(html).toContain('focus-visible:-outline-offset-2');
-    expect(html).toContain('data-[state=checked]:focus-visible:outline-bg');
   });
 
   it('carries no bare hex and no literal type size', () => {

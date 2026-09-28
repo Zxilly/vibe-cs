@@ -143,7 +143,7 @@
   }
 
   /* The reversal table's "可点击的钢蓝" row: accent-700 on light, and the same
-     token resolves to #94bce3 on dark because the accent ramp inverts. The flat
+     token resolves to #b8d0fa on dark because the accent ramp inverts. The flat
      --color-accent would only reach 4.4:1 on the dark canvas. */
   a {
     color: var(--color-accent-700);

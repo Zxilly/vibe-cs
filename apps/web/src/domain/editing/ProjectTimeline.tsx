@@ -607,10 +607,13 @@ export function ProjectTimeline({
    * the ruler uses, so the Program Monitor shows the clip that was picked. A
    * playhead already inside the clip stays where the editor left it.
    */
-  const seekIntoClip = (clip: TimelineClip) => {
+  /* A plain click brings the playhead to the clicked point, not the clip's
+     head: the head is an edit point, where 分割 has nothing to cut, so
+     「点片段 → Ctrl+K」 would otherwise always take a second step. */
+  const seekIntoClip = (clip: TimelineClip, time: number) => {
     const playhead = playheadSecondsRef.current;
     if (playhead >= clip.placement.start && playhead < clip.placement.start + clip.placement.duration) return;
-    onSeek(clip.placement.start);
+    onSeek(time);
   };
   const snapPoints = useMemo(() => [
     ...document.tracks.flatMap((track) => track.clips.flatMap((clip) => [
@@ -3546,7 +3549,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onInspectClip: (clipId: string) => void;
   readonly onRestoreClipSync: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
-  readonly onSeekIntoClip: (clip: TimelineClip) => void;
+  readonly onSeekIntoClip: (clip: TimelineClip, time: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
@@ -3860,7 +3863,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onInspect={() => onInspectClip(clip.id)}
             onRestoreSync={() => onRestoreClipSync(clip.id)}
             onSeek={onSeek}
-            onSeekInto={() => onSeekIntoClip(clip)}
+            onSeekInto={(time) => onSeekIntoClip(clip, time)}
             razorEnabled={!readOnly && !track.track.locked}
             onRazor={onRazor}
             onTrackSelect={onTrackSelect}
@@ -4347,7 +4350,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
   readonly onRestoreSync: () => void;
   readonly onSeek: (seconds: number) => void;
   /** A plain click on the clip, with no drag: the playhead follows the selection. */
-  readonly onSeekInto: () => void;
+  readonly onSeekInto: (time: number) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'ripple_start' | 'ripple_end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'transition' | 'speed_remap') => boolean;
@@ -4398,6 +4401,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
     shiftKey: boolean;
     moved: boolean;
     targetTrackId: string | null;
+    /** Where along the clip the press landed, 0–1, for a click that seeks. */
+    readonly pressFraction: number;
   } | null>(null);
   useEffect(() => {
     setVisualClip(clip);
@@ -4580,7 +4585,10 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
     }
     visualClipRef.current = active.clip;
     setVisualClip(active.clip);
-    if (active.mode === 'move' && !active.moved) onSeekInto();
+    if (active.mode === 'move' && !active.moved) {
+      const { start, duration } = active.clip.placement;
+      onSeekInto(start + Math.min(duration - 1 / fps, Math.max(0, duration * active.pressFraction)));
+    }
   };
   const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end' | 'ripple_start' | 'ripple_end' | 'slip' | 'slide' | 'rate_start' | 'rate_end') => {
     if (readOnly
@@ -4612,6 +4620,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
       shiftKey: event.shiftKey,
       moved: false,
       targetTrackId: null,
+      pressFraction: pressFraction(event),
     };
     lastGestureWasDragRef.current = false;
     onDragAutoScroll(event.clientX, (nextScrollLeft) => {
@@ -6434,4 +6443,11 @@ const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentW
 
 function TimelineGrid({ ticks }: { readonly ticks: ReturnType<typeof rulerTicks> }) {
   return <>{ticks.filter((tick) => tick.major).map((tick) => <span key={`grid:${tick.time}`} className="pointer-events-none absolute inset-y-0 border-l border-divider" style={{ left: tick.px }} aria-hidden="true" />)}</>;
+}
+
+/** Where a press landed along the pressed clip, 0–1; 0 when it has no width. */
+function pressFraction(event: React.PointerEvent<HTMLElement>): number {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  if (bounds.width <= 0) return 0;
+  return Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
 }

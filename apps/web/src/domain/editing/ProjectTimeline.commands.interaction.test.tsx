@@ -310,4 +310,19 @@ describe('Project Timeline command hierarchy', () => {
     fireEvent.keyDown(field, { key: 'k', ctrlKey: true });
     expect(info).not.toHaveBeenCalled();
   });
+
+  it('seeks to the clicked point inside the clip so a split can follow at once', () => {
+    const props = twoClipProps();
+    renderPage({ element: <ProjectTimeline {...props} />, client: {} });
+    const later = clipButton(LATER_CLIP);
+    vi.spyOn(later, 'getBoundingClientRect').mockReturnValue(
+      { left: 100, right: 300, width: 200, top: 0, bottom: 40, height: 40, x: 100, y: 0, toJSON: () => ({}) },
+    );
+
+    fireEvent.pointerDown(later, { clientX: 250, pointerId: 1, button: 0 });
+    fireEvent.pointerUp(later, { clientX: 250, pointerId: 1 });
+
+    // Three quarters into a 6 s clip that starts at 6 s — inside it, not on its head.
+    expect(props.transport.onSeek).toHaveBeenCalledWith(10.5);
+  });
 });

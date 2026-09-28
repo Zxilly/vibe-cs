@@ -3272,7 +3272,8 @@ mod tests {
     #[derive(Debug)]
     struct CancellationIgnoringEncoder {
         started: Arc<AtomicBool>,
-        delay: Duration,
+        release: Mutex<std::sync::mpsc::Receiver<()>>,
+        finished: Arc<tokio::sync::Notify>,
     }
 
     impl HlaeSessionEncoder for CancellationIgnoringEncoder {
@@ -3282,8 +3283,14 @@ mod tests {
             _cancellation: &ProcessCancellation,
         ) -> Result<HlaeTakeMp4EncodeEvidence, HlaeTakeMp4EncodeError> {
             self.started.store(true, Ordering::Release);
-            std::thread::sleep(self.delay);
-            atomic_write_new(&request.output_path, b"late fake MP4")?;
+            self.release
+                .lock()
+                .unwrap()
+                .recv()
+                .expect("release fake encoder");
+            let write = atomic_write_new(&request.output_path, b"late fake MP4");
+            self.finished.notify_one();
+            write?;
             Ok(HlaeTakeMp4EncodeEvidence {
                 summary: NativeMp4VideoSummary {
                     output_path: request.output_path.clone(),
@@ -3470,6 +3477,34 @@ mod tests {
         );
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn encoder_shutdown_uses_exactly_its_configured_grace_deadline() {
+        let directory = tempfile::tempdir().unwrap();
+        let staged = directory.path().join("staged.mp4");
+        let partial = directory.path().join("partial.mp4");
+        let mut encoder = tokio::spawn(std::future::pending::<
+            Result<HlaeTakeMp4EncodeEvidence, HlaeTakeMp4EncodeError>,
+        >());
+        let grace = Duration::from_millis(20);
+        let started = tokio::time::Instant::now();
+        let shutdown = remove_completed_encode_output(&mut encoder, grace, &staged, &partial);
+        tokio::pin!(shutdown);
+        assert!(futures_util::poll!(&mut shutdown).is_pending());
+        tokio::time::advance(Duration::from_millis(19)).await;
+        assert!(
+            futures_util::poll!(&mut shutdown).is_pending(),
+            "must allow the full grace period"
+        );
+        tokio::time::advance(Duration::from_millis(1)).await;
+        let error = shutdown
+            .await
+            .expect_err("unfinished encoder must time out");
+        assert!(
+            matches!(error, RuntimeHlaeSessionError::CancellationTimedOut { timeout, .. } if timeout == grace)
+        );
+        assert_eq!(started.elapsed(), grace);
+    }
+
     #[tokio::test]
     async fn cancellation_has_a_bounded_encoder_shutdown_and_never_publishes_the_mp4() {
         let directory = tempfile::tempdir().unwrap();
@@ -3480,6 +3515,8 @@ mod tests {
         let job = request.managed_job_root.clone();
         let closed = Arc::new(AtomicBool::new(false));
         let encoder_started = Arc::new(AtomicBool::new(false));
+        let (release, wait_for_release) = std::sync::mpsc::channel();
+        let encoder_finished = Arc::new(tokio::sync::Notify::new());
         let orchestrator = RuntimeHlaeSessionOrchestrator::with_backends(
             Arc::new(FakeProcessLauncher {
                 closed: Arc::clone(&closed),
@@ -3487,7 +3524,8 @@ mod tests {
             }),
             Arc::new(CancellationIgnoringEncoder {
                 started: Arc::clone(&encoder_started),
-                delay: Duration::from_millis(500),
+                release: Mutex::new(wait_for_release),
+                finished: Arc::clone(&encoder_finished),
             }),
             Arc::new(FakeDiskPreflight),
         );
@@ -3500,11 +3538,12 @@ mod tests {
         .await
         .expect("fake encoder should start");
 
-        let cancelled_at = tokio::time::Instant::now();
         cancellation.cancel();
-        let error = tokio::time::timeout(Duration::from_millis(250), running)
+        // This is an integration watchdog, not a wall-clock assertion about
+        // the CI scheduler. The exact 20 ms policy is tested with virtual time.
+        let error = tokio::time::timeout(Duration::from_secs(2), running)
             .await
-            .expect("cancellation must settle inside its grace bound")
+            .expect("cancelled session must terminate")
             .expect("orchestrator task")
             .expect_err("cancelled encode cannot publish a clip");
 
@@ -3515,10 +3554,14 @@ mod tests {
                 ..
             }
         ));
-        assert!(cancelled_at.elapsed() < Duration::from_millis(250));
         assert!(closed.load(Ordering::Acquire));
         assert!(!output.exists(), "cancelled output must not be published");
-        tokio::time::sleep(Duration::from_millis(550)).await;
+        release
+            .send(())
+            .expect("release the late encoder after cleanup");
+        tokio::time::timeout(Duration::from_secs(2), encoder_finished.notified())
+            .await
+            .expect("late encoder attempted its write");
         assert!(
             !output.exists(),
             "late encoder completion must remain isolated"

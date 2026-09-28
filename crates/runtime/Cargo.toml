@@ -37,6 +37,7 @@ uuid.workspace = true
 parry3d = { version = "0.28.0", default-features = false, features = ["required-features", "alloc", "enhanced-determinism"] }
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 axum.workspace = true
 bzip2.workspace = true
 rusqlite.workspace = true

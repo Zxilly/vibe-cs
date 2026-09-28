@@ -56,16 +56,20 @@ export interface PlaybackClockOptions {
    * loop or discard the accumulated remainder.
    */
   readonly onAdvance: (elapsedSeconds: number) => void;
+  /** Every animation-frame delta, for a renderer reading the same clock without React updates. */
+  readonly onFrame?: ((elapsedSeconds: number) => void) | undefined;
   /** Milliseconds between released steps. Exposed for the test's benefit. */
   readonly stepMs?: number | undefined;
 }
 
-export function usePlaybackClock({ playing, onAdvance, stepMs = STEP_MS }: PlaybackClockOptions): void {
+export function usePlaybackClock({ playing, onAdvance, onFrame, stepMs = STEP_MS }: PlaybackClockOptions): void {
   /* The callback is read through a ref so a new `onAdvance` on every render —
      which is what a closure over the playhead is — does not tear the loop down
      and build it back up sixty times a second. */
   const advance = useRef(onAdvance);
   advance.current = onAdvance;
+  const frame = useRef(onFrame);
+  frame.current = onFrame;
 
   useEffect(() => {
     if (!playing) return undefined;
@@ -79,7 +83,9 @@ export function usePlaybackClock({ playing, onAdvance, stepMs = STEP_MS }: Playb
         const elapsed = now - previous;
         // A negative or absurd delta means the clock was adjusted or the tab
         // was suspended; skipping it is better than jumping the playhead.
-        pending += elapsed > 0 && elapsed < 1_000 ? elapsed : 0;
+        const delta = elapsed > 0 && elapsed < 1_000 ? elapsed : 0;
+        frame.current?.(delta / 1_000);
+        pending += delta;
         if (pending >= stepMs) {
           const released = pending;
           pending = 0;

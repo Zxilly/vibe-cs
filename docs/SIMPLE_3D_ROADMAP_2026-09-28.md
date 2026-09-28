@@ -102,8 +102,8 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 不需要画面即可交付价值。
 
-- [ ] 在 `crates/hlae` 实现 campath 插值（位置 Cubic、旋转 SphericalCubic、FOV cubic），与 `compile.rs` 写出的 XML 语义一致 [S12]
-- [ ] 按 30 fps 将每个镜头采样为逐帧机位（位置、朝向、FOV）
+- [x] 在 `crates/hlae` 实现 campath 插值（位置 Cubic、旋转 SphericalCubic、FOV cubic），与 `compile.rs` 写出的 XML 语义一致 [S12]
+- [x] 按 30 fps 将每个镜头采样为逐帧机位（位置、朝向、FOV）
 - [ ] runtime 引入 `parry3d` [S16]，对地图网格建 BVH
 - [ ] 每帧检查：
   - [ ] 相机 → 目标选手头部/胸部的视线是否被遮挡
@@ -278,6 +278,14 @@ M2 完成不代表整个功能完成：M0 的三个落地残差仍待解释，M1
 - M2 远端 CI 与依赖审计已全绿。本批 M1 提交后继续核对对应远端检查。
 
 M1/M2 完成不等于 3D 功能完成：M0 的三个落地残差仍待解释；M3 的 campath/遮挡检测、M4 的 3D 视图、M5 的剪辑预演仍未完成。
+
+### 2026-09-29 · M3 机位采样基础
+
+- `crates/hlae/src/camera_sampling` 提供唯一的 Rust `sample_camera_shot`，默认使用方可取 `CAMERA_PREVIEW_FPS=30`。位置/FOV 是零端点速度的 C2 三次样条；旋转为 HLAE 的 qspline，保留半球选择、1e-6 容差和最多三次角速度迭代。每个镜头持有自己的系数，不使用上游的全局临时缓冲。
+- XML 编译和采样共用六位小数数值约定，包含非 64/128 tick rate 的时间结点；对非法镜头、速率及超过 100,000 个采样的请求在分配前拒绝。输出位置、Source 轴系四元数、FOV、相对秒和 Demo tick，前端无需重做 campath 插值。
+- 固定当前受管 HLAE v2.191.1 源码 `b97636852b8eecae09285b5a386192bb285638eb`；开发脚本编译上游 `AfxMath.cpp` 生成 8 组、**842 个**独立对照样本，覆盖非均匀时间、yaw 跨界、静止、极点附近姿态、线性/三次模式和六位小数时刻。逐分量误差阈值 **2e-9** 全部通过；另验端点静止、并发调用及请求上限。MIT 与 qspline CC0 声明已保留，生产应用不引入 C++ 运行时或 HLAE 二进制。
+- 真实 Mirage 决赛第 20 回合 tick 160800–161310，现有机位规划函数根据 FalleN 和对手实体生成 Flyby/Crane，两者分别得到 **241 个 30 fps 机位**。结果保留于本机忽略目录的 `real-campath-samples.json`，供后续碰撞验收使用。
+- HLAE 全套测试、严格 Clippy 和 TypeScript 绑定生成通过。M1 远端 web、Rust 与依赖审计已通过；desktop 仍在运行。机位采样仅完成 M3 数学基础，尚未宣称遮挡诊断、自动修正或游戏实拍比对完成。
 
 ## 参考来源
 

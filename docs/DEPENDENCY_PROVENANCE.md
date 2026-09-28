@@ -67,6 +67,22 @@ HLAE is used only for offline demo movie work. Every launch profile requires `-i
 process, an isolated per-job config root and managed output paths. The product never attaches HLAE to
 an existing CS2 process and never treats a loader exit code as proof that a hook or capture succeeded.
 
+## HLAE-compatible camera sampling
+
+The Rust camera sampler under `crates/hlae/src/camera_sampling` follows the public
+math contract in advancedfx v2.191.1, commit
+`b97636852b8eecae09285b5a386192bb285638eb`, specifically `shared/AfxMath.h`,
+`shared/AfxMath.cpp` and `shared/CamPath.cpp`. Quaternion interpolation adapts
+James McEnnan's qspline CC0 routines as used by HLAE; the MIT and CC0 notices are
+retained under `crates/hlae/licenses/`. It does not incorporate the proprietary
+Source 2 hook or distribute an HLAE executable.
+
+The scalar C2 spline uses an independently expressed first-derivative tridiagonal
+solve with zero endpoint velocities. Runtime sampling is pure Rust with per-shot
+storage. `scripts/generate-campath-oracle.py` compiles the pinned upstream math
+only in a temporary development directory to produce synthetic comparison
+fixtures; it requires no C++ toolchain in the application or ordinary CI tests.
+
 ## Self-hosted Barlow web fonts
 
 The web interface ships Barlow and Barlow Condensed (SIL Open Font License 1.1, designer Jeremy

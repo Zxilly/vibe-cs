@@ -192,6 +192,21 @@ cargo test --locked -p vibe-cs-source-assets -- --ignored --nocapture
 cargo clippy --locked -p vibe-cs-source-assets --all-targets -- -D warnings
 ```
 
+### 2026-09-29 · 静态三角形提取进展
+
+`map_geometry.rs` 已实现 PHYS 的静态 mesh 读取、convex hull 面扇形三角化、1/16 单位量化与顶点焊接；索引越界、非有限坐标和损坏半边环均报错。当前保留默认实体，排除已识别的玩家/NPC/投掷物工具碰撞、梯子、天空和窗口属性；这是物理几何的可见性近似，还不能替代游戏实拍的遮挡验收。
+
+| 真实地图 | 顶点 | 三角形 | 保留 / 排除形状 | 顶点+索引原始大小 | debug 探针总时间 |
+|---|---:|---:|---:|---:|---:|
+| Mirage | 73,649 | 122,643 | 1,859 / 82 | 2,355,504 bytes | 322 ms |
+| Dust II | 231,957 | 419,440 | 10,105 / 44 | 7,816,764 bytes | 1,397 ms |
+
+探针时间包含完整提取及额外一次 KV3 诊断解码，受本机缓存影响，尚未计入最终缓存格式写盘。M0 的「首次导出 < 10 s」暂不勾选。当前 source-assets 单测 33 passed，真实 Mirage 网格测试另行通过；原有两项真实资源测试已在上一阶段通过。
+
+扩展实测暴露的待办（均明确返回错误，没有静默省略几何）：Inferno 的 PHYS 解压计数超出当前 128 MiB 上限；Nuke、Ancient、Train 有 `blocklight`；Anubis 有 `navclip`；Overpass 含 sphere。M2 接入产品前需要验证对应规则、支持这些形状，并评估大地图内存与体积；不能把 Mirage 的结果推广为全地图支持。
+
+远端验收另发现两项原主分支问题：中文字体导出测试依赖 CI runner 缺少的 `C:/Windows/Fonts/simhei.ttf`；依赖审计报 `RUSTSEC-2026-0285`。后者已将 rustls 0.23.43 更新为 0.23.45，`vibe-cs-integrations` 32 项测试通过；字体测试待改为可复现的开源字体 fixture。完整远端 CI 尚未通过。
+
 ## 参考来源
 
 外部资料（检索于 2026-09-28）：

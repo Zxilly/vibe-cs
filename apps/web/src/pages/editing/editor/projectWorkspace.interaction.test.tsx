@@ -965,7 +965,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
     expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });
-    expect(within(panel).getByRole('button', { name: '从 Demo 创建剪辑' })).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Demo 选材' })).toBeTruthy();
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
     expect(within(panel).getByRole('region', {name: '未录制'}).querySelector('header')?.textContent).toBe('未录制2');
     expect(within(panel).queryByRole('region', {name: '已录制'})).toBeNull();
@@ -3965,8 +3965,8 @@ describe('unified project workspace', () => {
     expect(Number.parseFloat(firstSelection.style.left)).toBeCloseTo(280);
     fireEvent.click(within(context).getByRole('button', {name: '查看片段详情 Moment 15'}));
     const inspector = screen.getByRole('region', {name: '片段属性'});
-    expect((within(inspector).getByRole('spinbutton', {name: '源入点（秒）'}) as HTMLInputElement).value).toBe('12');
-    expect((within(inspector).getByRole('spinbutton', {name: '源出点（秒）'}) as HTMLInputElement).value).toBe('18');
+    expect((within(inspector).getByRole('textbox', {name: '源入点'}) as HTMLInputElement).value).toBe('00:00:12:00');
+    expect((within(inspector).getByRole('textbox', {name: '源出点'}) as HTMLInputElement).value).toBe('00:00:18:00');
     const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
     const selectedTime = playhead.getAttribute('aria-valuenow');
 
@@ -4910,30 +4910,27 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   }, 15_000);
 
-  it('discards unsaved Inspector edits without writing a Project revision', async () => {
+  it('reverts an Inspector field on Escape without writing a Project revision', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
     const name = await screen.findByRole('textbox', { name: '名称' });
     fireEvent.change(name, { target: { value: 'Uncommitted name' } });
-    expect(screen.getByText('有未保存的修改，保存后会更新到时间轴。')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '放弃修改' }));
+    fireEvent.keyDown(name, { key: 'Escape' });
+    fireEvent.blur(name);
     expect((name as HTMLInputElement).value).toBe('A');
-    expect(screen.queryByText('有未保存的修改，保存后会更新到时间轴。')).toBeNull();
-    expect((screen.getByRole('button', { name: '保存修改' }) as HTMLButtonElement).disabled).toBe(true);
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
-  it('keeps Inspector duration and speed on the same Rate Stretch operation', async () => {
+  it('commits Inspector speed as one Rate Stretch that ripples Story', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
 
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
-    const duration = await screen.findByRole('spinbutton', { name: '时长（秒）' });
-    const speed = screen.getByRole('spinbutton', { name: '播放速度（倍）' });
-    fireEvent.change(duration, { target: { value: '2.5' } });
-    expect(Number((speed as HTMLInputElement).value)).toBe(2);
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+    const speed = await screen.findByRole('spinbutton', { name: '播放速度（倍）' });
+    fireEvent.change(speed, { target: { value: '2' } });
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.blur(speed);
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -4944,6 +4941,29 @@ describe('unified project workspace', () => {
         ],
       })],
     })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('commits an Inspector source In through the Timeline trim and ripples Story', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
+    const sourceIn = await screen.findByRole('textbox', { name: '源入点' });
+    expect((sourceIn as HTMLInputElement).value).toBe('00:00:01:00');
+    fireEvent.change(sourceIn, { target: { value: '00:00:02:30' } });
+    fireEvent.keyDown(sourceIn, { key: 'Enter' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 5 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 5, duration: 3.5, source_in: 2.5, source_out: 6 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
   it('authors reverse playback as signed speed while storing a positive speed magnitude', async () => {
@@ -4953,9 +4973,7 @@ describe('unified project workspace', () => {
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
     const speed = await screen.findByRole('spinbutton', { name: '播放速度（倍）' });
     fireEvent.change(speed, { target: { value: '-2' } });
-    expect((speed as HTMLInputElement).value).toBe('-2');
-    expect((screen.getByRole('checkbox', { name: '反向播放' }) as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+    fireEvent.keyDown(speed, { key: 'Enter' });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -4979,9 +4997,6 @@ describe('unified project workspace', () => {
     stepTimelineSeconds(playhead, 2);
     fireEvent.doubleClick(screen.getByRole('button', { name: /A 5\.0s · 已录制/u }));
     fireEvent.click(await screen.findByRole('button', { name: '定格当前帧' }));
-    expect((screen.getByRole('spinbutton', { name: '源入点（秒）' }) as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: '启用' }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -5001,20 +5016,30 @@ describe('unified project workspace', () => {
     })));
   });
 
-  it('authors Time Remapping sections and ripples Story once on save', async () => {
+  it('commits one Time Remapping section speed and ripples Story once', async () => {
     const applyProjectPatch = vi.fn();
-    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            speed_segments: [
+              { id: 'speed-left', start: 0, end: 2, speed: 1 },
+              { id: 'speed-right', start: 2, end: 5, speed: 1 },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project, applyProjectPatch });
 
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
-    fireEvent.click(await screen.findByRole('button', { name: '启用' }));
-    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
-    stepTimelineSeconds(playhead, 2);
-    fireEvent.click(screen.getByRole('button', { name: '在播放头添加速度关键帧' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: '区间 2 速度百分比' }), { target: { value: '200' } });
-
-    expect((screen.getByRole('spinbutton', { name: '时长（秒）' }) as HTMLInputElement).value).toBe('3.5');
-    expect((screen.getByRole('spinbutton', { name: '时长（秒）' }) as HTMLInputElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+    const sectionSpeed = await screen.findByRole('spinbutton', { name: '区间 2 速度百分比' });
+    fireEvent.change(sectionSpeed, { target: { value: '200' } });
+    fireEvent.blur(sectionSpeed);
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -5086,22 +5111,6 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps Inspector save disabled until the canonical clip draft actually differs', async () => {
-    const applyProjectPatch = vi.fn();
-    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
-
-    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
-    const name = await screen.findByLabelText('名称');
-    const save = screen.getByRole('button', { name: '保存修改' }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
-
-    fireEvent.change(name, { target: { value: 'A revised' } });
-    expect(save.disabled).toBe(false);
-    fireEvent.change(name, { target: { value: 'A' } });
-    expect(save.disabled).toBe(true);
-    expect(applyProjectPatch).not.toHaveBeenCalled();
-  });
-
   it('opens a locked clip in Inspector as read-only through direct review', async () => {
     const lockedProject: Project = {
       ...PROJECT,
@@ -5158,7 +5167,7 @@ describe('unified project workspace', () => {
     })));
     const inspector = await screen.findByRole('region', { name: '片段属性' });
     expect((within(inspector).getByLabelText('名称') as HTMLInputElement).disabled).toBe(true);
-    expect((within(inspector).getByRole('button', { name: '保存修改' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(inspector).getByText('当前片段只读，请先结束 Agent 编辑或解锁轨道。')).toBeTruthy();
   });
 
   it('edits a planned clip recording camera through the canonical Project Patch', async () => {
@@ -5191,27 +5200,27 @@ describe('unified project workspace', () => {
 
     fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
     fireEvent.change(await screen.findByRole('combobox', { name: '录制视角' }), { target: { value: 'pov' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '结束 tick' }), { target: { value: '180' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '前留白（秒）' }), { target: { value: '11.5' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '后留白（秒）' }), { target: { value: '0' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
-
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
         op: 'replace_track_clips',
         clips: expect.arrayContaining([
-          expect.objectContaining({
-            id: CLIP_A,
-            capture_intent: expect.objectContaining({
-              camera_style: 'pov',
-              end_tick: 180,
-              pre_roll_seconds: 11.5,
-              post_roll_seconds: 0,
-            }),
-          }),
+          expect.objectContaining({ id: CLIP_A, capture_intent: expect.objectContaining({ camera_style: 'pov' }) }),
         ]),
       })],
     })));
+
+    const endTick = screen.getByRole('spinbutton', { name: '结束 tick' });
+    fireEvent.change(endTick, { target: { value: '180' } });
+    fireEvent.keyDown(endTick, { key: 'Enter' });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenLastCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([
+          expect.objectContaining({ id: CLIP_A, capture_intent: expect.objectContaining({ end_tick: 180 }) }),
+        ]),
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(2);
   });
 
   it('returns an attached clip to Planned through the Inspector without deleting its file', async () => {
@@ -7021,9 +7030,7 @@ describe('unified project workspace', () => {
     fireEvent.doubleClick(clipButton);
     const name = await screen.findByRole('textbox', { name: '名称' });
     fireEvent.change(name, { target: { value: 'A revised' } });
-    fireEvent.change(screen.getByRole('combobox', { name: '视频入场转场' }), { target: { value: 'fade' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '视频入场转场 持续时间' }), { target: { value: '0.5' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+    fireEvent.keyDown(name, { key: 'Enter' });
     await waitFor(() => {
       expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
         project_id: PROJECT.id,
@@ -7034,132 +7041,10 @@ describe('unified project workspace', () => {
           clips: expect.arrayContaining([expect.objectContaining({
             id: CLIP_A,
             name: 'A revised',
-            transitions: expect.objectContaining({ video_in: { kind: 'fade', duration_seconds: 0.5 } }),
           })]),
         })],
       }));
     });
-  });
-
-  it('authors and reorders only renderer-backed clip effects', async () => {
-    const applyProjectPatch = vi.fn();
-    renderWorkspace({ applyProjectPatch });
-
-    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
-    const kind = await screen.findByRole('combobox', { name: '添加效果类型' });
-    fireEvent.change(kind, { target: { value: 'color_adjust' } });
-    fireEvent.click(screen.getByRole('button', { name: '添加效果' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: '颜色调整 亮度' }), { target: { value: '0.25' } });
-    fireEvent.change(kind, { target: { value: 'blur' } });
-    fireEvent.click(screen.getByRole('button', { name: '添加效果' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: '模糊 半径' }), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: '上移效果 模糊' }));
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
-
-    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [expect.objectContaining({
-        op: 'replace_track_clips',
-        clips: expect.arrayContaining([expect.objectContaining({
-          id: CLIP_A,
-          effects: [
-            expect.objectContaining({ kind: 'blur', enabled: true, parameters: { radius: 5 } }),
-            expect.objectContaining({ kind: 'color_adjust', enabled: true, parameters: { brightness: 0.25, contrast: 1, saturation: 1 } }),
-          ],
-        })]),
-      })],
-    })));
-  });
-
-  it('authors frame-aligned transform keyframes at the shared playhead', async () => {
-    const applyProjectPatch = vi.fn();
-    renderWorkspace({ applyProjectPatch });
-
-    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
-    const x = await screen.findByRole('spinbutton', { name: '位置 X' });
-    fireEvent.change(x, { target: { value: '100' } });
-    fireEvent.click(screen.getByRole('button', { name: '在播放头添加 位置 X 关键帧' }));
-    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
-    expect((screen.getByRole('spinbutton', { name: '位置 X' }) as HTMLInputElement).value).toBe('100');
-    fireEvent.change(screen.getByRole('spinbutton', { name: '位置 X' }), { target: { value: '200' } });
-    fireEvent.click(screen.getByRole('button', { name: '上一个关键帧' }));
-    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(0);
-    fireEvent.click(screen.getByRole('button', { name: '下一个关键帧' }));
-    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(1);
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
-
-    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [expect.objectContaining({
-        op: 'replace_track_clips',
-        track_id: STORY_ID,
-        clips: expect.arrayContaining([expect.objectContaining({
-          id: CLIP_A,
-          transform: expect.objectContaining({ x: 100 }),
-          keyframes: [
-            expect.objectContaining({ time: 0, property: 'x', value: 100 }),
-            expect.objectContaining({ time: 1, property: 'x', value: 200 }),
-          ],
-        })]),
-      })],
-    })));
-  });
-
-  it('authors Bezier interpolation and tangents on the canonical keyframe', async () => {
-    const project: Project = {
-      ...PROJECT,
-      document: {
-        ...PROJECT.document,
-        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
-          ...track,
-          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
-            ...candidate,
-            keyframes: [
-              { id: 'x-0', time: 0, property: 'x', value: 0, interpolation: 'linear', in_tangent: 0, out_tangent: 0 },
-              { id: 'x-1', time: 1, property: 'x', value: 100, interpolation: 'linear', in_tangent: 0, out_tangent: 0 },
-            ],
-          }),
-        }),
-      },
-    };
-    const applyProjectPatch = vi.fn();
-    renderWorkspace({ project, applyProjectPatch });
-    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'x 插值' }), { target: { value: 'bezier' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'x 出切线' }), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
-    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [expect.objectContaining({
-        op: 'replace_track_clips',
-        clips: expect.arrayContaining([expect.objectContaining({
-          id: CLIP_A,
-          keyframes: expect.arrayContaining([expect.objectContaining({ id: 'x-0', interpolation: 'bezier', out_tangent: 2 })]),
-        })]),
-      })],
-    })));
-  });
-
-  it('authors Volume keyframes from Inspector and keeps base volume unchanged', async () => {
-    const applyProjectPatch = vi.fn();
-    renderWorkspace({ applyProjectPatch });
-
-    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
-    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加 音量 关键帧' }));
-    stepTimelineSeconds(screen.getByRole('slider', { name: '时间轴播放头' }), 1);
-    fireEvent.change(screen.getByRole('spinbutton', { name: '音量' }), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
-
-    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
-      operations: [expect.objectContaining({
-        op: 'replace_track_clips',
-        clips: expect.arrayContaining([expect.objectContaining({
-          id: CLIP_A,
-          placement: expect.objectContaining({ volume: 1 }),
-          keyframes: [
-            expect.objectContaining({ time: 0, property: 'volume', value: 1 }),
-            expect.objectContaining({ time: 1, property: 'volume', value: 2 }),
-          ],
-        })]),
-      })],
-    })));
   });
 
   it('projects grouped keyframe diamonds onto the canonical clip and seeks them', async () => {

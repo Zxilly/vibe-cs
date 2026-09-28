@@ -95,6 +95,17 @@ The following narrow changes are permitted in this snapshot:
     instead of guessing a spectator slot; the application converts only unique,
     bounded evidence into CS2 `spec_player` input.
 
+14. Projectile/grenade dataframe collection claims the same parser-wide row
+    budget as player collection before appending any columns. Its typed limit
+    error propagates through `collect_entities`; `parse_projectiles` no longer
+    bypasses the retained-row bound during dense replay extraction.
+15. Projectile dataframe rows expose `grenade_entity_serial` from the entity
+    create message. Deletion retires the serial with the entity slot, allowing
+    replay trajectories to distinguish reused slots without timing heuristics.
+16. `FrameParser::packet_ticks` exposes a bounded header-only index of actual
+    packet ticks using the existing frame reader. Dense replay aligns nominal
+    sample ticks to this index rather than inventing missing HLTV frames.
+
 These parser hardening and resource-control changes are intentionally local and
 covered by focused tests plus the ignored real-demo benchmark report. Future
 functional patches must be isolated, tested, documented here, and represented in

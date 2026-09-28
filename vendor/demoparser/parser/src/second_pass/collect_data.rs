@@ -63,8 +63,7 @@ impl<'a> SecondPassParser<'a> {
             }
         }
         if self.parse_projectiles {
-            self.collect_projectiles();
-            return Ok(());
+            return self.collect_projectiles();
         }
         // iterate every player and every wanted prop name
         // if either one is missing then push None to output
@@ -269,7 +268,7 @@ impl<'a> SecondPassParser<'a> {
         None
     }
 
-    pub fn collect_projectiles(&mut self) {
+    pub fn collect_projectiles(&mut self) -> Result<(), DemoParserError> {
         for projectile_entid in &self.projectiles {
             let grenade_type = match self.find_grenade_type(projectile_entid) {
                 Some(t) => {
@@ -299,6 +298,8 @@ impl<'a> SecondPassParser<'a> {
                 (None, None, None)
             };
 
+            // Projectile rows use the same parser-wide bound as player rows.
+            self.collected_row_budget.claim()?;
             // Insert these always
             let pairs = vec![
                 (GRENADE_TYPE_ID, Some(Variant::String(grenade_type))),
@@ -306,6 +307,7 @@ impl<'a> SecondPassParser<'a> {
                 (NAME_ID, Some(Variant::String(name))),
                 (TICK_ID, Some(Variant::I32(self.tick))),
                 (ENTITY_ID_ID, Some(Variant::I32(*projectile_entid))),
+                (GRENADE_SERIAL_ID, self.projectile_serials.get(projectile_entid).copied().map(Variant::U32)),
                 (GRENADE_X, x),
                 (GRENADE_Y, y),
                 (GRENADE_Z, z),
@@ -321,6 +323,7 @@ impl<'a> SecondPassParser<'a> {
                     || prop_info.id == TICK_ID
                     || prop_info.id == GRENADE_TYPE_ID
                     || prop_info.id == ENTITY_ID_ID
+                    || prop_info.id == GRENADE_SERIAL_ID
                     || prop_info.id == GRENADE_X
                     || prop_info.id == GRENADE_Y
                     || prop_info.id == GRENADE_Z
@@ -341,6 +344,7 @@ impl<'a> SecondPassParser<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     fn find_weapon_name(&self, entity_id: &i32) -> Result<Variant, PropCollectionError> {

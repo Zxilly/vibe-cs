@@ -83,6 +83,7 @@ impl<'a> SecondPassParser<'a> {
             match cmd {
                 EntityCmd::Delete => {
                     self.projectiles.remove(&entity_id);
+                    self.projectile_serials.remove(&entity_id);
                     if let Some(entry) = self.entities.get_mut(entity_id as usize) {
                         *entry = None;
                     }
@@ -339,13 +340,14 @@ impl<'a> SecondPassParser<'a> {
         // already equals num_classes + 1 (see first_pass::parser::parse_class_info).
         let cls_bits = (self.cls_by_id.len() as f32).log2().ceil() as u32;
         let cls_id: u32 = bitreader.read_nbits(cls_bits)?;
-        // Both of these are not used. Don't think they are interesting for the parser
-        let _serial = bitreader.read_nbits(NSERIALBITS)?;
+        // Entity slots are reused; projectile trajectories retain the wire serial.
+        let serial = bitreader.read_nbits(NSERIALBITS)?;
         let _unknown = bitreader.read_varint();
         let entity_type = self.check_entity_type(&cls_id)?;
         match entity_type {
             EntityType::Projectile => {
                 self.projectiles.insert(*entity_id);
+                self.projectile_serials.insert(*entity_id, serial);
             }
             EntityType::Rules => self.rules_entity_id = Some(*entity_id),
             EntityType::C4 => self.c4_entity_id = Some(*entity_id),

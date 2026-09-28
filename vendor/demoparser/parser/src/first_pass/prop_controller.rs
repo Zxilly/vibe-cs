@@ -94,6 +94,7 @@ pub const GRENADE_X: u32 = 100100023;
 pub const GRENADE_Y: u32 = 100100024;
 pub const GRENADE_Z: u32 = 100100025;
 pub const INVENTORY_AS_IDS_BITMASK: u32 = 100100026;
+pub const GRENADE_SERIAL_ID: u32 = 100100027;
 
 #[derive(Clone, Debug)]
 pub struct PropController {
@@ -290,6 +291,13 @@ impl PropController {
         }
         // Parse grenades specific
         if self.parse_projectiles {
+            self.prop_infos.push(PropInfo {
+                id: GRENADE_SERIAL_ID,
+                prop_type: PropType::Custom,
+                prop_name: "grenade_entity_serial".to_string(),
+                prop_friendly_name: "grenade_entity_serial".to_string(),
+                is_player_prop: true,
+            });
             self.prop_infos.push(PropInfo {
                 id: GRENADE_TYPE_ID,
                 prop_type: PropType::Tick,

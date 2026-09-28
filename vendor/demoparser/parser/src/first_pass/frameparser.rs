@@ -34,6 +34,37 @@ pub enum StartEndType {
 }
 
 impl FrameParser {
+    /// Index actual packet ticks without allocating or decompressing payloads.
+    pub fn packet_ticks(demo_bytes: &[u8], maximum: usize) -> Result<Vec<i32>, DemoParserError> {
+        if demo_bytes.len() < 16 || &demo_bytes[..8] != b"PBDEMS2\0" {
+            return Err(DemoParserError::MalformedMessage);
+        }
+        let mut ptr = 16;
+        let mut ticks = Vec::new();
+        while ptr < demo_bytes.len() {
+            let frame = Self::read_frame(demo_bytes, ptr)?;
+            ptr = frame.frame_ends_at.checked_add(frame.size)
+                .filter(|end| *end <= demo_bytes.len())
+                .ok_or(DemoParserError::MalformedMessage)?;
+            if frame.demo_cmd == EDemoCommands::DemStop {
+                break;
+            }
+            if frame.demo_cmd == EDemoCommands::DemPacket && frame.tick >= 0 {
+                if ticks.len() >= maximum {
+                    return Err(DemoParserError::ResourceLimitExceeded {
+                        resource: "packet_ticks",
+                        limit: maximum,
+                        actual: ticks.len().saturating_add(1),
+                    });
+                }
+                ticks.push(frame.tick);
+            }
+        }
+        ticks.sort_unstable();
+        ticks.dedup();
+        Ok(ticks)
+    }
+
     pub fn new() -> Self {
         FrameParser {
             ptr: 0,
@@ -269,6 +300,16 @@ fn check_all_bytes_are_covered(mut sorted_offsets: Vec<StartEndOffset>, demo_len
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn packet_tick_index_preserves_gaps_and_bounds_untrusted_frames() {
+        let mut bytes = b"PBDEMS2\0".to_vec();
+        bytes.resize(16, 0);
+        bytes.extend_from_slice(&[7, 10, 1, 0, 7, 12, 1, 0, 0, 13, 0]);
+        assert_eq!(super::FrameParser::packet_ticks(&bytes, 2).unwrap(), vec![10, 12]);
+        assert!(super::FrameParser::packet_ticks(&bytes, 1).is_err());
+        bytes[18] = 127;
+        assert!(super::FrameParser::packet_ticks(&bytes, 2).is_err());
+    }
     use super::{check_all_bytes_are_covered, StartEndOffset};
     use crate::first_pass::frameparser::StartEndType;
     use std::sync::mpsc::channel;

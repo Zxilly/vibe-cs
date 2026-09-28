@@ -305,14 +305,12 @@ export function ProjectMediaWorkspace({
             size="sm"
             variant="secondary"
             className="@max-[280px]:px-2"
-            aria-label={t`从 Demo 创建剪辑`}
             disabled={readOnly}
             {...(readOnly ? { disabledReason: t`Agent 操作期间项目素材为只读` } : {})}
             onClick={onCreateFromDemo}
           >
             <FileVideo2 className="size-3.5" aria-hidden="true" />
-            <span className="@max-[340px]:hidden"><Trans>从 Demo 创建剪辑</Trans></span>
-            <span className="hidden @max-[340px]:inline"><Trans>Demo 选材</Trans></span>
+            <Trans>Demo 选材</Trans>
           </Button>
           <Button
             size="sm"

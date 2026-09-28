@@ -1920,8 +1920,118 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR, VIBE_CS_REAL_ANALYSIS_JSON and VIBE_CS_REAL_WORKER"]
-    async fn real_major_m1_whole_replay_is_dense_and_reuses_its_cache() {
+    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR, VIBE_CS_REAL_ANALYSIS_JSON, VIBE_CS_REAL_WORKER and VIBE_CS2_INSTALL"]
+    async fn real_major_camera_preview_uses_the_production_round_worker_and_map() {
+        use axum::{
+            body::{Body, to_bytes},
+            http::Request,
+        };
+        use tower::ServiceExt;
+        let (storage, analysis, demo, worker) = real_major_fixture().await;
+        storage
+            .put_config(vibe_cs_domain::AppConfig {
+                cs2_path: std::env::var("VIBE_CS2_INSTALL").unwrap(),
+                ..vibe_cs_domain::AppConfig::default()
+            })
+            .await
+            .unwrap();
+        let directory = TempDir::new().unwrap();
+        let runtime_analysis = Arc::new(RuntimeAnalysisPort::new_with_worker(
+            storage.clone(),
+            directory.path().join("tasks"),
+            directory.path().join("replay-cache"),
+            Some(worker),
+        ));
+        let assets = Arc::new(crate::RuntimeSourceAssetPort::new(
+            storage.clone(),
+            directory.path().join("map-geometry"),
+        ));
+        let camera = Arc::new(crate::RuntimeCameraPreviewPort::new(
+            storage.clone(),
+            runtime_analysis,
+            assets,
+        ));
+        let app = vibe_cs_application::build_dispatcher(
+            vibe_cs_application::AppState::new(storage, directory.path().to_path_buf())
+                .with_camera_preview(camera),
+        );
+        let highlight = analysis
+            .highlights
+            .iter()
+            .find(|highlight| highlight.round == 20 && highlight.player_id == "76561197960690195")
+            .unwrap();
+        let mut previews = Vec::new();
+        for style in [
+            vibe_cs_domain::HlaeCameraStyle::Flyby,
+            vibe_cs_domain::HlaeCameraStyle::Crane,
+        ] {
+            let capture = vibe_cs_domain::RecordingRequest {
+                id: None,
+                demo_id: demo.id,
+                highlight_id: Some(highlight.id.clone()),
+                player_id: highlight.player_id.clone(),
+                title: "Real camera acceptance".to_owned(),
+                start_tick: 160_800,
+                end_tick: 161_310,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                victim_pov: false,
+                camera_style: style,
+                presentation: None,
+            };
+            let start = Instant::now();
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/camera-preview")
+                        .header("content-type", "application/json")
+                        .body(Body::from(
+                            serde_json::json!({"capture": capture}).to_string(),
+                        ))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            let status = response.status();
+            let bytes = to_bytes(response.into_body(), 16 * 1024 * 1024)
+                .await
+                .unwrap();
+            assert!(
+                status.is_success(),
+                "camera preview {status}: {}",
+                String::from_utf8_lossy(&bytes)
+            );
+            let preview: vibe_cs_application::CameraPreview =
+                serde_json::from_slice(&bytes).unwrap();
+            let inspection = preview.inspection();
+            eprintln!(
+                "production camera {style:?}: {} poses, adjusted={}, original intervals={}, remaining={}, {} ms",
+                preview.samples.len(),
+                preview.adjusted,
+                inspection.original_issues.len(),
+                inspection.issues.len(),
+                start.elapsed().as_millis()
+            );
+            assert!(preview.geometry_unavailable.is_none());
+            assert!(preview.adjusted);
+            assert!(inspection.issues.is_empty(), "{inspection:?}");
+            assert_eq!(preview.shot.start_tick, capture.start_tick);
+            assert_eq!(preview.shot.end_tick, capture.end_tick);
+            previews.push(serde_json::json!({"preview": preview, "inspection": inspection}));
+        }
+        if let Ok(output) = std::env::var("VIBE_CAMERA_API_OUTPUT") {
+            std::fs::write(output, serde_json::to_vec_pretty(&previews).unwrap()).unwrap();
+        }
+    }
+
+    async fn real_major_fixture() -> (
+        vibe_cs_storage::Storage,
+        MatchAnalysis,
+        DemoRecord,
+        DemoWorkerSidecar,
+    ) {
         let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
         let analysis: MatchAnalysis = serde_json::from_slice(
             &std::fs::read(std::env::var("VIBE_CS_REAL_ANALYSIS_JSON").unwrap()).unwrap(),
@@ -1966,6 +2076,13 @@ mod tests {
             hex::encode(Sha256::digest(std::fs::read(worker_path).unwrap())),
         )
         .unwrap();
+        (storage, analysis, demo, worker)
+    }
+
+    #[tokio::test]
+    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR, VIBE_CS_REAL_ANALYSIS_JSON and VIBE_CS_REAL_WORKER"]
+    async fn real_major_m1_whole_replay_is_dense_and_reuses_its_cache() {
+        let (storage, analysis, demo, worker) = real_major_fixture().await;
         let round = analysis
             .rounds
             .iter()

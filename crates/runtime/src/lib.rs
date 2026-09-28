@@ -5,6 +5,7 @@ mod avatar_cache;
 mod cache_directory;
 mod camera_geometry;
 mod camera_planning;
+mod camera_preview;
 mod cosmetics;
 mod demo_watch;
 mod export;
@@ -30,7 +31,8 @@ use tokio::sync::RwLock;
 use vibe_cs_integrations::GsiState;
 
 pub use analysis::{DemoWorkerSidecar, RuntimeAnalysisPort};
-pub use camera_geometry::{CameraGeometry, CameraPoseDiagnostic};
+pub use camera_geometry::CameraGeometry;
+pub use camera_preview::RuntimeCameraPreviewPort;
 pub use cosmetics::RuntimeCosmeticsPort;
 pub use demo_watch::RuntimeDemoWatchPort;
 pub use export::RuntimeExportPort;
@@ -137,6 +139,11 @@ pub async fn build_app_state_with_demo_worker(
         storage.clone(),
         data_dir.join("map-geometry"),
     ));
+    let camera_preview = Arc::new(RuntimeCameraPreviewPort::new(
+        storage.clone(),
+        analysis.clone(),
+        source_assets.clone(),
+    ));
     let gsi_state = Arc::new(RwLock::new(GsiState::default()));
     let integrations = Arc::new(RuntimeIntegrationPort::new_with_state(
         storage.clone(),
@@ -153,7 +160,10 @@ pub async fn build_app_state_with_demo_worker(
     let recording = Arc::new(
         RuntimeRecordingPort::new(
             storage.clone(),
-            Arc::new(HlaeRecordingBackend::new(data_dir.clone())),
+            Arc::new(HlaeRecordingBackend::new(
+                data_dir.clone(),
+                source_assets.clone(),
+            )),
         )
         .with_analysis(analysis.clone()),
     );
@@ -173,6 +183,7 @@ pub async fn build_app_state_with_demo_worker(
         .with_media(media)
         .with_players(players)
         .with_source_assets(source_assets)
+        .with_camera_preview(camera_preview)
         .with_integrations(integrations)
         .with_recording(recording)
         .with_demo_watch(demo_watch))

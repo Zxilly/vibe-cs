@@ -20,11 +20,11 @@ use vibe_cs_domain::{
     RecordingVoicePolicy,
 };
 use vibe_cs_hlae::{
-    CameraShot, CaptureLayers, CaptureSettings, HLAE_SESSION_MAX_TAKES, HLAE_TAKE_MAX_FRAMES,
+    CaptureLayers, CaptureSettings, HLAE_SESSION_MAX_TAKES, HLAE_TAKE_MAX_FRAMES,
     HlaeBundleLaunchInputs, HlaeDiscoverySource, HlaeHudVisibility, HlaePlan, HlaePlanMode,
     HlaePlayerPovCapturePlan, HlaePlayerPovPresentation, HlaeRadarVisibility,
-    HlaeScenePresentation, HlaeVoicePolicy, LaunchResolution, PositionInterpolation,
-    RotationInterpolation, discover_managed_hlae, validate_hlae_plan,
+    HlaeScenePresentation, HlaeVoicePolicy, LaunchResolution, discover_managed_hlae,
+    validate_hlae_plan,
 };
 use vibe_cs_integrations::{discover_active_cs2_user_config, discover_paths};
 use vibe_cs_platform_windows::{
@@ -1288,53 +1288,44 @@ fn scene_presentation(
     Ok(presentation.scene(voice_target_slot))
 }
 
+fn camera_scene(
+    item: &PreparedRecording,
+    capture: &CaptureSettings,
+) -> crate::camera_planning::CameraScene {
+    crate::camera_planning::CameraScene {
+        id: format!("clip_{:02}", item.item_index + 1),
+        map_name: item.demo.map_name.clone().unwrap_or_default(),
+        frames: item.replay_frames.clone(),
+        player_id: item.segment.player_id.clone(),
+        start_tick: item.segment.start_tick,
+        end_tick: item.segment.end_tick,
+        tick_rate: item.segment.tick_rate,
+        style: item.request.camera_style,
+        aspect_ratio: f64::from(capture.width) / f64::from(capture.height),
+    }
+}
+
+#[cfg(test)]
+fn build_test_camera_plan(
+    item: &PreparedRecording,
+    root: &Path,
+    capture: CaptureSettings,
+    presentation: HlaePlayerPovPresentation,
+) -> Result<HlaePlan, DomainError> {
+    let preview = crate::camera_planning::plan_camera_scene(
+        &camera_scene(item, &capture),
+        Err("test has no map geometry".to_owned()),
+    )?;
+    build_camera_plan(item, root, capture, presentation, preview.shot)
+}
+
 fn build_camera_plan(
     item: &PreparedRecording,
     managed_job_root: &Path,
     capture: CaptureSettings,
     presentation: HlaePlayerPovPresentation,
+    shot: vibe_cs_hlae::CameraShot,
 ) -> Result<HlaePlan, DomainError> {
-    let candidates = item
-        .replay_frames
-        .iter()
-        .filter(|frame| {
-            frame.tick >= item.segment.start_tick && frame.tick <= item.segment.end_tick
-        })
-        .filter_map(|frame| {
-            frame
-                .players
-                .iter()
-                .find(|player| player.id == item.segment.player_id)
-                .map(|player| (frame.tick, (player, frame)))
-        })
-        .collect::<Vec<_>>();
-    let samples = crate::camera_planning::sample_four_frames(&candidates).ok_or_else(|| {
-        DomainError::DependencyUnavailable(
-            "this shot needs at least four spatial replay samples for camera movement".to_owned(),
-        )
-    })?;
-    let duration = item.segment.end_tick - item.segment.start_tick;
-    let target_ticks = [
-        item.segment.start_tick,
-        item.segment.start_tick + duration / 3,
-        item.segment.start_tick + duration.saturating_mul(2) / 3,
-        item.segment.end_tick,
-    ];
-    let keyframes = samples
-        .iter()
-        .zip(target_ticks)
-        .enumerate()
-        .map(|(index, ((_, (player, frame)), tick))| {
-            crate::camera_planning::camera_keyframe_for_scene(
-                tick,
-                player,
-                samples[0].1.0,
-                item.request.camera_style,
-                index,
-                crate::camera_planning::engagement_focus(frame, player),
-            )
-        })
-        .collect();
     let plan = HlaePlan {
         mode: HlaePlanMode::Capture,
         tick_rate: item.segment.tick_rate,
@@ -1343,14 +1334,7 @@ fn build_camera_plan(
         pre_roll_ticks: item.segment.start_tick.saturating_sub(1).min(128),
         capture,
         presentation: scene_presentation(item, presentation)?,
-        shots: vec![CameraShot {
-            id: format!("clip_{:02}", item.item_index + 1),
-            start_tick: item.segment.start_tick,
-            end_tick: item.segment.end_tick,
-            position_interpolation: PositionInterpolation::Cubic,
-            rotation_interpolation: RotationInterpolation::SphericalCubic,
-            keyframes,
-        }],
+        shots: vec![shot],
     };
     validate_hlae_plan(&plan).map_err(|error| DomainError::InvalidInput(error.to_string()))?;
     Ok(plan)
@@ -1682,6 +1666,7 @@ impl HlaeLaunchEnvironment for SystemHlaeLaunchEnvironment {
 
 #[derive(Debug, Clone)]
 struct HlaeRecordingClipContext {
+    camera_inspection: Option<vibe_cs_application::CameraInspection>,
     binding: PreparedRecording,
     expected_output_mp4: PathBuf,
     job_root: PathBuf,
@@ -1730,6 +1715,7 @@ fn capture_program_demo_path(program: &RuntimeHlaeCaptureProgram) -> &Path {
 /// Media Foundation. It never probes or launches OBS or an external encoder.
 #[derive(Clone)]
 pub struct HlaeRecordingBackend {
+    source_assets: Option<Arc<crate::RuntimeSourceAssetPort>>,
     data_dir: PathBuf,
     session_runner: Arc<dyn HlaeSessionRunner>,
     launch_environment: Arc<dyn HlaeLaunchEnvironment>,
@@ -1749,8 +1735,9 @@ impl fmt::Debug for HlaeRecordingBackend {
 
 impl HlaeRecordingBackend {
     #[must_use]
-    pub fn new(data_dir: PathBuf) -> Self {
+    pub fn new(data_dir: PathBuf, source_assets: Arc<crate::RuntimeSourceAssetPort>) -> Self {
         Self {
+            source_assets: Some(source_assets),
             launch_environment: Arc::new(SystemHlaeLaunchEnvironment {
                 data_dir: data_dir.clone(),
             }),
@@ -1769,6 +1756,7 @@ impl HlaeRecordingBackend {
         launch_environment: Arc<dyn HlaeLaunchEnvironment>,
     ) -> Self {
         Self {
+            source_assets: None,
             data_dir,
             session_runner,
             launch_environment,
@@ -1880,7 +1868,7 @@ impl HlaeRecordingBackend {
         }
     }
 
-    fn capture_settings(config: &AppConfig) -> Result<CaptureSettings, DomainError> {
+    pub(crate) fn capture_settings(config: &AppConfig) -> Result<CaptureSettings, DomainError> {
         let (width, height) = parse_resolution(&config.recording.resolution)?;
         if !matches!(config.recording.fps, 30 | 60) {
             return Err(DomainError::InvalidInput(
@@ -2036,16 +2024,31 @@ impl HlaeRecordingBackend {
             // is muted and whose second keeps team voice has to record two
             // different soundtracks, so this cannot be hoisted out of the loop.
             let presentation = take_presentation(fallback_presentation, &item.request);
-            let plan = match item.request.camera_style {
-                HlaeCameraStyle::Pov => RuntimeHlaeCaptureProgram::PlayerPov(
-                    build_player_pov_plan(item, &job_root, capture.clone(), presentation)?,
-                ),
-                _ => RuntimeHlaeCaptureProgram::Camera(build_camera_plan(
+            let mut camera_inspection = None;
+            let plan = if item.request.camera_style == HlaeCameraStyle::Pov {
+                RuntimeHlaeCaptureProgram::PlayerPov(build_player_pov_plan(
                     item,
                     &job_root,
                     capture.clone(),
                     presentation,
-                )?),
+                )?)
+            } else {
+                let preview = crate::camera_preview::plan_with_local_geometry(
+                    camera_scene(item, &capture),
+                    self.source_assets.as_deref(),
+                )
+                .await?;
+                tracing::info!(adjusted = preview.adjusted, requested_style = ?preview.requested_style,
+                        effective_style = ?preview.effective_style, geometry_unavailable = ?preview.geometry_unavailable,
+                        "camera plan inspected before recording");
+                camera_inspection = Some(preview.inspection());
+                RuntimeHlaeCaptureProgram::Camera(build_camera_plan(
+                    item,
+                    &job_root,
+                    capture.clone(),
+                    presentation,
+                    preview.shot,
+                )?)
             };
             let verified_total_ticks = item.segment.verified_total_ticks.ok_or_else(|| {
                 DomainError::DependencyUnavailable(
@@ -2064,6 +2067,7 @@ impl HlaeRecordingBackend {
             )
             .expect("scheduler tolerance is bounded to eight ticks");
             clips.push(HlaeRecordingClipContext {
+                camera_inspection,
                 binding: item.clone(),
                 expected_output_mp4,
                 job_root,
@@ -2405,7 +2409,8 @@ impl RecordingBackend for HlaeRecordingBackend {
                 "observer_steam_id64": result.observer_steam_id64.map(|value| value.to_string()),
                 "observer_mode_raw": result.observer_mode_raw,
                 "observer_identity_validation": if item.request.camera_style == HlaeCameraStyle::Pov { "continuous_bridge_lock_with_start_and_stop_evidence" } else { "not_required_for_camera_path" },
-                "camera_style": item.request.camera_style,
+                "camera_style": clip_context.camera_inspection.as_ref().map_or(item.request.camera_style, |inspection| inspection.effective_style),
+                "camera_inspection": clip_context.camera_inspection,
                 "observer_verified_before_capture_tick": result.observer_verified_before_capture_tick,
                 "observer_verified_at_capture_stop_tick": result.observer_verified_at_capture_stop_tick,
                 "output_bytes": result.output_bytes,
@@ -3164,8 +3169,9 @@ mod tests {
         let (directory, item) = cinematic_fixture();
         let job = directory.path().join("camera-job");
 
-        let plan = build_camera_plan(&item, &job, capture(), HlaePlayerPovPresentation::default())
-            .expect("camera plan");
+        let plan =
+            build_test_camera_plan(&item, &job, capture(), HlaePlayerPovPresentation::default())
+                .expect("camera plan");
 
         assert_eq!(plan.mode, HlaePlanMode::Capture);
         assert_eq!(plan.output_directory, job.join("capture"));
@@ -3274,7 +3280,7 @@ mod tests {
         let fallback = HlaeRecordingBackend::presentation(&AppConfig::default());
         let presentation = take_presentation(fallback, &item.request);
 
-        let plan = build_camera_plan(
+        let plan = build_test_camera_plan(
             &item,
             &directory.path().join("camera-job"),
             capture(),
@@ -3305,7 +3311,7 @@ mod tests {
         let fallback = HlaeRecordingBackend::presentation(&AppConfig::default());
         let presentation = take_presentation(fallback, &item.request);
 
-        let error = build_camera_plan(
+        let error = build_test_camera_plan(
             &item,
             &directory.path().join("camera-job"),
             capture(),
@@ -3322,7 +3328,7 @@ mod tests {
             ..vibe_cs_domain::RecordingPresentation::default()
         });
         let muted = take_presentation(fallback, &item.request);
-        build_camera_plan(
+        build_test_camera_plan(
             &item,
             &directory.path().join("camera-job"),
             capture(),

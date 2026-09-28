@@ -6,7 +6,7 @@ use parry3d::{
     query::{PointQuery, Ray, RayCast},
     shape::TriMesh,
 };
-use serde::Serialize;
+use vibe_cs_application::CameraPoseDiagnostic;
 use vibe_cs_domain::{DomainError, ReplayFrame};
 use vibe_cs_hlae::CameraSample;
 use vibe_cs_source_assets::MapGeometry;
@@ -18,21 +18,6 @@ const RAY_ENDPOINT_MARGIN: f32 = 0.125;
 #[derive(Debug)]
 pub struct CameraGeometry {
     mesh: TriMesh,
-}
-
-/// Per-pose evidence, suitable for a preview overlay or an Agent diagnostic.
-/// `None` means no observed target at this time, rather than an unobstructed view.
-#[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct CameraPoseDiagnostic {
-    pub time_seconds: f64,
-    pub tick: f64,
-    pub wall_distance: f64,
-    pub near_wall: bool,
-    pub crossed_surface: bool,
-    pub head_occluded: Option<bool>,
-    pub chest_occluded: Option<bool>,
-    pub target_in_view: Option<bool>,
 }
 
 impl CameraGeometry {

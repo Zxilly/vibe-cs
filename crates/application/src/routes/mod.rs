@@ -2,6 +2,7 @@ mod activity;
 mod agent_sessions;
 mod analysis_runs;
 mod annotations;
+mod camera;
 mod cosmetics;
 mod demos;
 mod evidence;
@@ -31,6 +32,7 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(activity::router())
         .merge(agent_sessions::router())
         .merge(analysis_runs::router())
+        .merge(camera::router())
         .merge(annotations::router())
         .merge(system::router())
         .merge(cosmetics::router())

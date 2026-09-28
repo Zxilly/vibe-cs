@@ -59,9 +59,8 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     }
 
     let mut notices = vec![HlaeNotice {
-        code: HlaeNoticeCode::CameraCollisionNotChecked,
-        message: "Camera coordinates cannot be checked against map geometry before HLAE preview"
-            .to_owned(),
+        code: HlaeNoticeCode::CameraRequiresInGameReview,
+        message: "Review the camera in CS2: sampled static-map checks do not prove collision-free or unobstructed game playback".to_owned(),
         shot_id: None,
     }];
     match plan.mode {

@@ -8,4 +8,4 @@ export type HlaeNoticeCode =
   | "shotGap"
   | "previewDoesNotRecord"
   | "captureProducesImageSequences"
-  | "cameraCollisionNotChecked";
+  | "cameraRequiresInGameReview";

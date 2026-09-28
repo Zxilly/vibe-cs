@@ -1,6 +1,7 @@
 //! In-process application command dispatcher used by the Tauri desktop host.
 
 mod analysis_tasks;
+mod camera;
 mod error;
 mod extract;
 mod player;
@@ -13,6 +14,7 @@ pub(crate) use extract::{ApiJson, ApiMultipart, ApiQuery};
 
 use axum::Router;
 
+pub use camera::*;
 pub use error::{ApiError, ApiResult};
 pub use player::*;
 pub use ports::{

@@ -177,7 +177,10 @@ impl CinematicReplayHost {
         Ok(artifact)
     }
 
-    async fn validate_story_camera(&self, clip: &StoryClipInput) -> Result<(), String> {
+    async fn validate_story_camera(
+        &self,
+        clip: &StoryClipInput,
+    ) -> Result<vibe_cs_application::CameraPreview, String> {
         let highlight_id = clip.highlight_id.as_deref().ok_or_else(|| {
             format!(
                 "clip '{}' requires highlightId before using a non-POV camera",
@@ -201,22 +204,24 @@ impl CinematicReplayHost {
                 clip.name
             ));
         }
-        let artifact = self.round_replay(highlight.round).await?;
-        let pre_roll_ticks =
-            seconds_to_replay_ticks(clip.pre_roll_seconds, artifact.metadata.tick_rate)?;
-        let post_roll_ticks =
-            seconds_to_replay_ticks(clip.post_roll_seconds, artifact.metadata.tick_rate)?;
-        let start_tick = clip
-            .start_tick
-            .saturating_sub(pre_roll_ticks)
-            .max(artifact.metadata.start_tick);
-        let end_tick = clip
-            .end_tick
-            .checked_add(post_roll_ticks)
-            .ok_or_else(|| format!("clip '{}' post-roll exceeds the tick range", clip.name))?
-            .min(artifact.metadata.end_tick);
-        let samples = camera_spatial_sample_count(&artifact, &clip.player_id, start_tick, end_tick);
-        validate_camera_sample_count(&clip.name, clip.camera_style, samples, start_tick, end_tick)
+        let capture = clip
+            .capture_intent()
+            .into_recording_request(Uuid::nil(), &clip.name);
+        let response = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/camera-preview".to_owned(),
+                body: Some(json!({"capture": capture})),
+            })
+            .await
+            .map_err(|error| {
+                format!(
+                    "unable to inspect camera for clip '{}': {error:?}",
+                    clip.name
+                )
+            })?;
+        serde_json::from_value(response).map_err(|error| format!("invalid camera preview: {error}"))
     }
 }
 
@@ -262,10 +267,13 @@ struct DesktopAgentToolHost {
 }
 
 impl DesktopAgentToolHost {
-    async fn validate_story_camera(&self, clip: &StoryClipInput) -> Result<(), String> {
+    async fn validate_story_camera(
+        &self,
+        clip: &StoryClipInput,
+    ) -> Result<Option<vibe_cs_application::CameraPreview>, String> {
         clip.validate_camera_design()?;
         if matches!(clip.camera_style, HlaeCameraStyle::Pov) {
-            return Ok(());
+            return Ok(None);
         }
         let cinematic = self
             .cinematic
@@ -277,7 +285,7 @@ impl DesktopAgentToolHost {
                     clip.name
                 )
             })?;
-        cinematic.validate_story_camera(clip).await
+        cinematic.validate_story_camera(clip).await.map(Some)
     }
 }
 
@@ -455,16 +463,19 @@ impl AgentToolHost for DesktopAgentToolHost {
         let mut compatible_takes = story_take_candidates(&project);
         let mut timeline_start = 0.0;
         let mut clips = Vec::with_capacity(input.clips.len());
-        for mut clip in input.clips {
-            self.validate_story_camera(&clip).await?;
-            clip.highlight_id = clip
-                .highlight_id
-                .as_deref()
-                .map(|id| canonical_highlight_id(clip.demo_id, id));
+        let mut camera_diagnostics = Vec::new();
+        for clip in input.clips {
+            let camera_preview = self.validate_story_camera(&clip).await?;
             let timeline_clip = reuse_compatible_story_take(
                 clip.into_timeline_clip(timeline_start),
                 &mut compatible_takes,
             )?;
+            if let Some(preview) = camera_preview {
+                camera_diagnostics.push(json!({
+                    "clipId": timeline_clip.id,
+                    "inspection": preview.inspection(),
+                }));
+            }
             timeline_start += timeline_clip.placement.duration;
             clips.push(timeline_clip);
         }
@@ -490,6 +501,7 @@ impl AgentToolHost for DesktopAgentToolHost {
         };
         let mut result = apply_agent_patch(&self.bridge.storage, patch).await?;
         result["eventCoverage"] = coverage;
+        result["cameraDiagnostics"] = json!(camera_diagnostics);
         Ok(result)
     }
 }
@@ -557,23 +569,30 @@ impl StoryClipInput {
         Ok(())
     }
 
+    fn capture_intent(&self) -> CaptureIntent {
+        CaptureIntent {
+            demo_id: self.demo_id,
+            highlight_id: self
+                .highlight_id
+                .as_deref()
+                .map(|id| canonical_highlight_id(self.demo_id, id)),
+            player_id: self.player_id.clone(),
+            start_tick: self.start_tick,
+            end_tick: self.end_tick,
+            pre_roll_seconds: self.pre_roll_seconds,
+            post_roll_seconds: self.post_roll_seconds,
+            victim_pov: false,
+            camera_style: self.camera_style,
+            presentation: self.presentation.map(Into::into),
+        }
+    }
+
     fn into_timeline_clip(self, start: f64) -> TimelineClip {
-        let presentation = self.presentation.map(Into::into);
+        let capture_intent = self.capture_intent();
         TimelineClip {
             id: Uuid::new_v4(),
             name: self.name,
-            capture_intent: Some(CaptureIntent {
-                demo_id: self.demo_id,
-                highlight_id: self.highlight_id,
-                player_id: self.player_id,
-                start_tick: self.start_tick,
-                end_tick: self.end_tick,
-                pre_roll_seconds: self.pre_roll_seconds,
-                post_roll_seconds: self.post_roll_seconds,
-                victim_pov: false,
-                camera_style: self.camera_style,
-                presentation,
-            }),
+            capture_intent: Some(capture_intent),
             material: TimelineClipMaterial::Planned,
             placement: TimelinePlacement {
                 start,
@@ -920,25 +939,6 @@ fn cinematic_scene_from_replay(
     })
 }
 
-fn camera_spatial_sample_count(
-    artifact: &RoundReplayArtifact,
-    player_id: &str,
-    start_tick: u64,
-    end_tick: u64,
-) -> usize {
-    artifact
-        .frames
-        .iter()
-        .filter(|frame| frame.tick >= start_tick && frame.tick <= end_tick)
-        .filter(|frame| {
-            frame
-                .players
-                .iter()
-                .any(|player| player.steam_id == player_id)
-        })
-        .count()
-}
-
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
@@ -957,34 +957,6 @@ fn canonical_highlight_id(demo_id: Uuid, highlight_id: &str) -> String {
         .strip_prefix(&format!("{demo_id}:"))
         .unwrap_or(highlight_id)
         .to_owned()
-}
-
-const fn camera_style_name(style: HlaeCameraStyle) -> &'static str {
-    match style {
-        HlaeCameraStyle::Pov => "pov",
-        HlaeCameraStyle::Orbit => "orbit",
-        HlaeCameraStyle::Dolly => "dolly",
-        HlaeCameraStyle::Static => "static",
-        HlaeCameraStyle::Tracking => "tracking",
-        HlaeCameraStyle::Crane => "crane",
-        HlaeCameraStyle::Flyby => "flyby",
-    }
-}
-
-fn validate_camera_sample_count(
-    clip_name: &str,
-    camera_style: HlaeCameraStyle,
-    samples: usize,
-    start_tick: u64,
-    end_tick: u64,
-) -> Result<(), String> {
-    if end_tick <= start_tick || samples < 4 {
-        return Err(format!(
-            "clip '{clip_name}' cameraStyle '{}' has {samples} spatial samples in its effective round-bounded capture range; use pov or widen the in-round handles to provide at least 4",
-            camera_style_name(camera_style),
-        ));
-    }
-    Ok(())
 }
 
 fn json_position(value: &Value) -> Option<[f64; 3]> {
@@ -2065,16 +2037,6 @@ mod tests {
                     .expect("recommended pair must pass the actual validator");
             }
         }
-    }
-
-    #[test]
-    fn story_camera_validation_requires_four_effective_samples() {
-        let error = validate_camera_sample_count("R7", HlaeCameraStyle::Tracking, 3, 100, 180)
-            .expect_err("three samples cannot drive a camera path");
-        assert!(error.contains("has 3 spatial samples"));
-        assert!(error.contains("use pov"));
-        validate_camera_sample_count("R7", HlaeCameraStyle::Tracking, 4, 100, 180)
-            .expect("four samples are executable");
     }
 
     #[test]

@@ -226,6 +226,7 @@ impl EventHub {
 
 #[derive(Clone)]
 pub struct AppState {
+    pub(crate) camera_preview: Arc<dyn crate::CameraPreviewPort>,
     pub(crate) storage: vibe_cs_storage::Storage,
     pub(crate) analysis: Arc<dyn AnalysisPort>,
     pub(crate) analysis_tasks: AnalysisTaskRegistry,
@@ -283,6 +284,7 @@ impl AppState {
         let gsi_token = load_or_create_gsi_token(&data_dir);
         Self {
             storage,
+            camera_preview: Arc::new(crate::DisabledCameraPreviewPort),
             analysis: Arc::new(DisabledAnalysisPort),
             analysis_tasks: AnalysisTaskRegistry::default(),
             review: Arc::new(DisabledReviewPort),
@@ -312,6 +314,12 @@ impl AppState {
     #[must_use]
     pub fn with_analysis(mut self, port: Arc<dyn AnalysisPort>) -> Self {
         self.analysis = port;
+        self
+    }
+
+    #[must_use]
+    pub fn with_camera_preview(mut self, port: Arc<dyn crate::CameraPreviewPort>) -> Self {
+        self.camera_preview = port;
         self
     }
 

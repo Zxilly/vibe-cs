@@ -487,8 +487,19 @@ impl RuntimeRecordingPort {
             let replay_frames = if request.camera_style == vibe_cs_domain::HlaeCameraStyle::Pov {
                 Vec::new()
             } else {
-                self.camera_replay_frames(&demo, analysis.as_ref(), request, &mut round_replays)
-                    .await?
+                camera_replay_frames(
+                    &self.storage,
+                    self.analysis.as_deref().ok_or_else(|| {
+                        DomainError::DependencyUnavailable(
+                            "camera movement requires selected-round replay evidence".to_owned(),
+                        )
+                    })?,
+                    &demo,
+                    analysis.as_ref(),
+                    request,
+                    &mut round_replays,
+                )
+                .await?
             };
             prepared.push(PreparedRecording {
                 job_id: job.id,
@@ -504,71 +515,6 @@ impl RuntimeRecordingPort {
             items: prepared,
             _demo_guards: demo_guards,
         })
-    }
-
-    async fn camera_replay_frames(
-        &self,
-        demo: &DemoRecord,
-        analysis: Option<&MatchAnalysis>,
-        request: &RecordingRequest,
-        cache: &mut HashMap<(Uuid, u32), Arc<RoundReplayArtifact>>,
-    ) -> Result<Vec<ReplayFrame>, DomainError> {
-        let analysis = analysis.ok_or_else(|| {
-            DomainError::DependencyUnavailable(
-                "camera movement requires persisted analysis evidence".to_owned(),
-            )
-        })?;
-        let highlight_id = request.highlight_id.as_deref().ok_or_else(|| {
-            DomainError::InvalidInput(
-                "camera movement requires a canonical highlight_id".to_owned(),
-            )
-        })?;
-        let highlight = analysis
-            .highlights
-            .iter()
-            .find(|highlight| highlight.id == highlight_id)
-            .ok_or_else(|| {
-                DomainError::InvalidInput(
-                    "camera movement highlight_id is not present in the persisted analysis"
-                        .to_owned(),
-                )
-            })?;
-        let run = self
-            .storage
-            .list_analysis_runs(demo.id)
-            .await
-            .map_err(|error| storage_error(&error))?
-            .into_iter()
-            .filter(|run| run.status == AnalysisRunStatus::Completed)
-            .max_by_key(|run| run.created_at)
-            .ok_or_else(|| {
-                DomainError::DependencyUnavailable(
-                    "camera movement requires a completed analysis run".to_owned(),
-                )
-            })?;
-        let key = (run.id, highlight.round);
-        let artifact = if let Some(artifact) = cache.get(&key) {
-            Arc::clone(artifact)
-        } else {
-            let analysis_port = self.analysis.as_ref().ok_or_else(|| {
-                DomainError::DependencyUnavailable(
-                    "camera movement requires selected-round replay evidence".to_owned(),
-                )
-            })?;
-            let artifact = Arc::new(analysis_port.replay_round(run.id, highlight.round).await?);
-            if artifact.metadata.producer_run_id != run.id
-                || artifact.metadata.demo_id != demo.id
-                || artifact.metadata.round != highlight.round
-            {
-                return Err(DomainError::Conflict(
-                    "selected-round replay identity does not match the recording request"
-                        .to_owned(),
-                ));
-            }
-            cache.insert(key, Arc::clone(&artifact));
-            artifact
-        };
-        Ok(round_replay_camera_frames(&artifact))
     }
 
     async fn run_job(run: RecordingRun) {
@@ -734,6 +680,62 @@ impl RuntimeRecordingPort {
         }
         Ok(())
     }
+}
+
+pub(crate) async fn camera_replay_frames(
+    storage: &Storage,
+    analysis_port: &dyn vibe_cs_application::AnalysisPort,
+    demo: &DemoRecord,
+    analysis: Option<&MatchAnalysis>,
+    request: &RecordingRequest,
+    cache: &mut HashMap<(Uuid, u32), Arc<RoundReplayArtifact>>,
+) -> Result<Vec<ReplayFrame>, DomainError> {
+    let analysis = analysis.ok_or_else(|| {
+        DomainError::DependencyUnavailable(
+            "camera movement requires persisted analysis evidence".to_owned(),
+        )
+    })?;
+    let highlight_id = request.highlight_id.as_deref().ok_or_else(|| {
+        DomainError::InvalidInput("camera movement requires a canonical highlight_id".to_owned())
+    })?;
+    let highlight = analysis
+        .highlights
+        .iter()
+        .find(|highlight| highlight.id == highlight_id)
+        .ok_or_else(|| {
+            DomainError::InvalidInput(
+                "camera movement highlight_id is not present in the persisted analysis".to_owned(),
+            )
+        })?;
+    let run = storage
+        .list_analysis_runs(demo.id)
+        .await
+        .map_err(|error| storage_error(&error))?
+        .into_iter()
+        .filter(|run| run.status == AnalysisRunStatus::Completed)
+        .max_by_key(|run| run.created_at)
+        .ok_or_else(|| {
+            DomainError::DependencyUnavailable(
+                "camera movement requires a completed analysis run".to_owned(),
+            )
+        })?;
+    let key = (run.id, highlight.round);
+    let artifact = if let Some(artifact) = cache.get(&key) {
+        Arc::clone(artifact)
+    } else {
+        let artifact = Arc::new(analysis_port.replay_round(run.id, highlight.round).await?);
+        if artifact.metadata.producer_run_id != run.id
+            || artifact.metadata.demo_id != demo.id
+            || artifact.metadata.round != highlight.round
+        {
+            return Err(DomainError::Conflict(
+                "selected-round replay identity does not match the recording request".to_owned(),
+            ));
+        }
+        cache.insert(key, Arc::clone(&artifact));
+        artifact
+    };
+    Ok(round_replay_camera_frames(&artifact))
 }
 
 fn round_replay_camera_frames(artifact: &RoundReplayArtifact) -> Vec<ReplayFrame> {
@@ -1319,7 +1321,9 @@ impl RecordingPort for RuntimeRecordingPort {
     }
 }
 
-fn authoritative_tick_rate(analysis: Option<&MatchAnalysis>) -> Result<f64, DomainError> {
+pub(crate) fn authoritative_tick_rate(
+    analysis: Option<&MatchAnalysis>,
+) -> Result<f64, DomainError> {
     analysis
         .map(|analysis| analysis.tick_rate)
         .filter(|tick_rate| tick_rate.is_finite() && (1.0..=256.0).contains(tick_rate))
@@ -1331,7 +1335,7 @@ fn authoritative_tick_rate(analysis: Option<&MatchAnalysis>) -> Result<f64, Doma
         })
 }
 
-fn build_segment_plan(
+pub(crate) fn build_segment_plan(
     request: &RecordingRequest,
     demo: &DemoRecord,
     analysis: Option<&MatchAnalysis>,

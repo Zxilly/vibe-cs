@@ -208,7 +208,7 @@ pub enum HlaeNoticeCode {
     ShotGap,
     PreviewDoesNotRecord,
     CaptureProducesImageSequences,
-    CameraCollisionNotChecked,
+    CameraRequiresInGameReview,
 }
 
 /// One review notice. The English `message` is the free half; `code` is what a

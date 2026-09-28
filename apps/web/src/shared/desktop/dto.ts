@@ -87,6 +87,11 @@ export type { DemoWatchStatus } from './generated/DemoWatchStatus';
 /* ── canonical project editing ───────────────────────────────────────────── */
 
 export type { Project } from './generated/Project';
+export type { CameraPreview } from './generated/CameraPreview';
+export type { CameraInspection } from './generated/CameraInspection';
+export type { CameraIssueInterval } from './generated/CameraIssueInterval';
+export type { CameraIssueKind } from './generated/CameraIssueKind';
+export type { ProjectCameraPreviewResponse } from './generated/ProjectCameraPreviewResponse';
 export type { EditingDocument } from './generated/EditingDocument';
 export type { TimelineTrack } from './generated/TimelineTrack';
 export type { TimelineClip } from './generated/TimelineClip';

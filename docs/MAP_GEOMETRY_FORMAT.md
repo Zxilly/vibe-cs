@@ -53,3 +53,35 @@ The example prints counts, file size and the VPK-read-to-write time. It then
 reads the file back and compares all quantized vertices, indices and shape
 counts. Timing is measured with no Vibe CS geometry-cache lookup; operating
 system file caches can still be warm.
+
+## Application cache and routes
+
+The runtime stores each map below `app-data/map-geometry/<map>/`. The filename
+is a SHA-256 key over the extraction/format revision, canonical installation
+path, VPK byte length and nanosecond modification time. A changed package is
+rebuilt on its next geometry request. Publication is atomic; obsolete files
+for that map are retired only after a replacement is complete. Directory
+capabilities prevent reads, writes and cleanup from following cache junctions
+into unrelated files. Damaged content is checked and regenerated on load.
+
+These are internal application-dispatcher routes, carried through Tauri IPC:
+
+- `GET /api/source-assets/map-geometry`: states for the eight supported maps.
+- `GET /api/source-assets/map-geometry/<map>`: a verified VMAP, generated when
+  missing or stale. MIME is `application/vnd.vibe-cs.map-geometry`; `no-store`
+  prevents a browser HTTP cache from hiding package updates.
+- `POST /api/source-assets/map-geometry/<map>/rebuild`: force generation and
+  return the resulting status after publication.
+
+Status values are `missing`, `stale`, `building`, `ready`, `failed` and
+`unavailable`. Status reads do not decompress every stored map. The complete
+payload, checksum and indices are validated before serving cached bytes.
+
+The browser decodes VMAP only in `data/mapGeometryBinary.ts`, yielding a
+`Float32Array` of XYZ positions and a `Uint32Array` of triangle indices.
+`data/mapGeometry.ts` owns query caching and rebuild invalidation. Changes to
+CS2 configuration invalidate both status and geometry queries. Typed arrays
+skip JSON structural sharing and unused map data expires after one minute.
+
+The development map is an original floor/wall/boxes fixture generated through
+the Rust production extractor; see `crates/source-assets/tests/fixtures/README.md`.

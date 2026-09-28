@@ -90,13 +90,13 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 ## M2 · 地图几何管线（1–1.5 周）
 
-- [ ] `crates/source-assets/src/map_geometry.rs`：定位地图 VPK → 解析 vphys → 过滤 → 输出自有紧凑网格格式（量化顶点 + 索引，风格同 ARPL）
-- [ ] 缓存：app data 下按「地图名 + VPK 大小与修改时间」为键，游戏更新自动失效重建
-- [ ] 路由 `GET /api/source-assets/map-geometry/:map`，与现有 `/source-assets/radar` 同风格；runtime 接线放在 `crates/runtime/src/source_assets.rs`
-- [ ] 设置页游戏区域（`apps/web/src/pages/shared/settings/GameSection.tsx`）显示每张图的几何状态与重建入口
-- [ ] `mockBackend` 生成带墙和箱子的合成地图，浏览器开发与走查不依赖 CS2
-- [ ] 测试：KV3 解码与网格编码用合成数据做单元测试；读真实安装的集成测试用环境变量开关，CI 默认跳过
-- [ ] 格式识别失败时返回明确错误，不崩溃
+- [x] `crates/source-assets/src/map_geometry.rs`：定位地图 VPK → 解析 PHYS → 过滤 → 输出自有紧凑网格格式（量化顶点 + 索引，风格同 ARPL）
+- [x] 缓存：app data 下按「地图名 + VPK 大小与修改时间」为键，游戏更新后下次请求自动失效重建；另包含安装路径与提取版本
+- [x] 路由 `GET /api/source-assets/map-geometry/:map`，另有状态查询与显式重建；runtime 接线放在 `crates/runtime/src/source_assets.rs`
+- [x] 设置页游戏区域（`apps/web/src/pages/shared/settings/GameSection.tsx`）显示 8 张支持地图的几何状态与重建入口
+- [x] `mockBackend` 使用原生生产提取器生成的墙/箱子合成 VMAP，浏览器开发与走查不依赖 CS2
+- [x] 测试：KV3 解码与网格编码用合成数据做单元测试；读真实安装的集成测试用环境变量开关，CI 默认跳过
+- [x] 格式识别失败时返回明确错误，不崩溃；缓存损坏自动重建，设置页保留可重试错误
 
 ## M3 · 遮挡检测与机位校验（约 1 周）
 
@@ -253,6 +253,18 @@ CLI 对照：官方 20.0 `cli-windows-x64.zip` 为 52,735,867 bytes，解包三�
 | Overpass | 2,605,302 | 242 ms |
 
 这些时间不含编译，不是系统冷启动磁盘基准；没有复用应用网格缓存。真实文件留在本机被 Git 忽略的 `artifacts/simple-3d/`，不提交游戏资源。source-assets 单测现为 37 passed，严格 Clippy 通过。M2 的应用缓存、HTTP 路由、浏览器解码和设置状态仍待接入。
+
+### 2026-09-29 · M2 产品接线与验收
+
+- 已接入 `Cs2AssetStore` 地图路径校验、持久 VMAP 缓存、应用调度器三个接口和设置页；新增 `missing/stale/building/ready/failed/unavailable` 状态，重建请求成功后才显示已准备。
+- 缓存沿用回放缓存的目录能力与原子写入实现，抽出两者共用的 `cache_directory`，避免另写一套文件安全逻辑。测试覆盖缓存复用、包大小/mtime 变化、损坏恢复、提取期间源变化和指向外部目录的 Windows junction；外部哨兵文件保持原样。
+- 环境变量开启的真实测试走应用 dispatcher，从本机 Mirage 返回 73,649 个顶点、122,643 个三角形、451,099-byte VMAP，随后验证缓存命中、状态和 POST 重建。压缩后字节数可因依赖特性选择的 DEFLATE 后端不同而略有差异，解码结果与校验契约一致。
+- Chrome 使用生产 `decodeMapGeometry` 解码真实 API 返回文件（22 ms）和 Inferno 文件（330 ms），顶点/索引数量与 Rust 一致。这不是 M4 的 WebView2 帧率验收。
+- 浏览器走查：设置页 1440×900、900×700，浅色与系统深色主题；键盘 Enter 生成 Nuke 的开发地图后，行状态由尚未生成变为已准备。新增区域 axe 检查 0 violations，Impeccable detector 0 findings。页面走查使用明确的合成 fixture，真实地图数据验证另走上述 API/解码链。
+- 本地 `cargo test --workspace --locked` 通过；新增缓存状态修正另跑相关测试与严格 Clippy 通过。`pnpm test` 306 个文件、3,291 项通过，1 项真实地图测试默认跳过（已显式开启另跑通过）；`pnpm lint`、`pnpm build` 通过，中英翻译无缺项，`pnpm bindings` 已重生成。
+- 全量 CI 发现第二处 SimHei 依赖（runtime 字体元数据测试），已同样改用仓库内开源字体 fixture；本地整仓 Rust 测试通过，新的远端检查仍需等待。
+
+M2 完成不代表整个功能完成：M0 的三个落地残差仍待解释，M1 的密集回放数据、M3 遮挡与 campath、M4 3D 视图、M5 剪辑预演尚未完成。
 
 ## 参考来源
 

@@ -6,9 +6,9 @@ import { shellNavGroups } from './app/shell/navigation';
 import { MATCH_VIEW_IDS } from './pages/analysis/match/viewContract';
 
 describe('analysis mode capability contract', () => {
-  it('keeps the three cross-match analysis destinations in the mode rail', () => {
+  it('leads the analysis rail with the three cross-match analysis destinations', () => {
     expect(
-      shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id),
+      shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id).slice(0, 3),
     ).toEqual(['library', 'players', 'evidence']);
   });
 

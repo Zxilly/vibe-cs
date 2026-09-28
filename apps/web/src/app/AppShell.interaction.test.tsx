@@ -274,13 +274,14 @@ describe('AppShell — work modes', () => {
     expect(container.querySelector('[data-page="home"]')).not.toBeNull();
   });
 
-  it('switches from editing to analysis and back without the route effect overriding the choice', async () => {
+  it('switches from editing to analysis and back, reordering the one rail', async () => {
     media = stubMatchMedia(false);
     const router = shellRouter('/');
-    const { getByRole, queryByText } = renderInteractive(<RouterProvider router={router} />);
+    const { container, getByRole } = renderInteractive(<RouterProvider router={router} />);
+    const rail = () => [...container.querySelectorAll('[data-shell-nav] [data-nav-item]')]
+      .map((element) => element.getAttribute('data-nav-item'));
 
-    expect(queryByText('作品')).not.toBeNull();
-    expect(queryByText('选手目录')).toBeNull();
+    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'players', 'evidence', 'settings']);
 
     fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
       button: 0,
@@ -289,9 +290,7 @@ describe('AppShell — work modes', () => {
     fireEvent.click(getByRole('menuitemradio', { name: /^分析模式/u }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
-    expect(queryByText('选手目录')).not.toBeNull();
-    expect(queryByText('证据检索')).not.toBeNull();
-    expect(queryByText('作品')).toBeNull();
+    expect(rail()).toEqual(['library', 'players', 'evidence', 'home', 'projects', 'outputs', 'settings']);
 
     fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
       button: 0,
@@ -301,18 +300,18 @@ describe('AppShell — work modes', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(useShellStore.getState().mode).toBe('edit');
-    expect(queryByText('作品')).not.toBeNull();
-    expect(queryByText('选手目录')).toBeNull();
+    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'players', 'evidence', 'settings']);
   });
 
   it('opens analysis deep links in analysis mode without a wrong-nav frame', () => {
     media = stubMatchMedia(false);
-    const { queryAllByText, queryByText } = renderInteractive(
+    const { container } = renderInteractive(
       <RouterProvider router={shellRouter('/players')} />,
     );
 
-    expect(queryAllByText('选手目录').length).toBeGreaterThan(0);
-    expect(queryByText('作品')).toBeNull();
+    const first = container.querySelector('[data-shell-nav] [data-nav-group]');
+    expect(first?.querySelector('[data-nav-item="library"]')).not.toBeNull();
+    expect(container.querySelector('[data-nav-group="mode-edit"] [data-nav-item="projects"]')).not.toBeNull();
   });
 });
 

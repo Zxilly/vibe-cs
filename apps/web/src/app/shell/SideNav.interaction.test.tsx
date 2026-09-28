@@ -159,6 +159,8 @@ describe('tab order', () => {
       'library',
       'projects',
       'outputs',
+      'players',
+      'evidence',
       'settings',
       'true',
     ]);

@@ -6,7 +6,6 @@ import { LEGACY_UI_TERMS } from '../../terminology';
 import {
   activeNavItemId,
   SHELL_NAV_FOOTER_ITEM,
-  SHELL_NAV_GROUPS,
   SHELL_NAV_ITEMS,
   shellNavGroups,
   workspaceModeForPath,
@@ -19,7 +18,7 @@ beforeAll(() => {
 describe('the nav table mirrors Frame.dc.html', () => {
   it('contains none of the legacy IA nouns in shell chrome', () => {
     const chrome = [
-      ...SHELL_NAV_GROUPS.flatMap((group) =>
+      ...(['edit', 'analysis'] as const).flatMap((mode) => shellNavGroups(mode)).flatMap((group) =>
         group.label === null ? [] : [i18n._(group.label)],
       ),
       ...SHELL_NAV_ITEMS.map((item) => i18n._(item.label)),
@@ -28,15 +27,17 @@ describe('the nav table mirrors Frame.dc.html', () => {
     for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
   });
 
-  it('keeps the four groups in the order the frame declares them', () => {
-    expect(SHELL_NAV_GROUPS.map((group) => group.id)).toEqual([
+  it('keeps the four editing groups in the order the frame declares them', () => {
+    const groups = shellNavGroups('edit');
+    expect(groups.map((group) => group.id)).toEqual([
       'workspace',
       'library',
       'production',
       'delivery',
+      'mode-analysis',
     ]);
     // Only the first group is drawn without a heading.
-    expect(SHELL_NAV_GROUPS.map((group) => group.label === null)).toEqual([true, false, false, false]);
+    expect(groups.map((group) => group.label === null)).toEqual([true, false, false, false, false]);
   });
 
   it('lists the twelve destinations of spec §7 that the rail carries', () => {
@@ -62,16 +63,30 @@ describe('the nav table mirrors Frame.dc.html', () => {
 
   it('pins 设置与诊断 outside the groups, as the frame does', () => {
     expect(SHELL_NAV_FOOTER_ITEM.id).toBe('settings');
-    expect(SHELL_NAV_GROUPS.flatMap((group) => group.items).map((item) => item.id)).not.toContain('settings');
+    for (const mode of ['edit', 'analysis'] as const) {
+      expect(shellNavGroups(mode).flatMap((group) => group.items).map((item) => item.id)).not.toContain('settings');
+    }
   });
 
-  it('separates editing destinations from analysis destinations without duplicating data', () => {
+  it('keeps every destination in both modes and leads with the current mode', () => {
     expect(shellNavGroups('edit').flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'home', 'library', 'projects', 'outputs',
+      'home', 'library', 'projects', 'outputs', 'players', 'evidence',
     ]);
     expect(shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'library', 'players', 'evidence',
+      'library', 'players', 'evidence', 'home', 'projects', 'outputs',
     ]);
+  });
+
+  it('gathers the other mode under its own heading, last', () => {
+    const otherGroup = (mode: 'edit' | 'analysis') => {
+      const groups = shellNavGroups(mode);
+      const last = groups[groups.length - 1]!;
+      expect(groups.filter((group) => group.otherMode === true)).toEqual([last]);
+      return last.label === null ? null : i18n._(last.label);
+    };
+
+    expect(otherGroup('edit')).toBe('分析');
+    expect(otherGroup('analysis')).toBe('剪辑');
   });
 });
 

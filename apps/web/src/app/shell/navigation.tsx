@@ -1,4 +1,4 @@
-/** Mode-specific navigation. Shared routes retain the current workspace mode. */
+/** One rail ordered by work mode. Shared routes retain the current workspace mode. */
 
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
@@ -40,6 +40,8 @@ export interface ShellNavGroup {
   /** Frame's first group has no heading; the other three do. */
   readonly label: MessageDescriptor | null;
   readonly items: readonly ShellNavItem[];
+  /** The other mode's entries, drawn below the current mode's groups. */
+  readonly otherMode?: true;
 }
 
 const EDIT_NAV_GROUPS: readonly ShellNavGroup[] = [
@@ -87,16 +89,41 @@ const ANALYSIS_NAV_GROUPS: readonly ShellNavGroup[] = [
   },
 ];
 
+/** Each mode's own groups — the ones that lead the rail while it is current. */
 export const SHELL_NAV_GROUPS_BY_MODE: Readonly<Record<WorkspaceMode, readonly ShellNavGroup[]>> = {
   edit: EDIT_NAV_GROUPS,
   analysis: ANALYSIS_NAV_GROUPS,
 };
 
-/** Kept as the editing-mode table for callers that render the default shell. */
-export const SHELL_NAV_GROUPS = SHELL_NAV_GROUPS_BY_MODE.edit;
+function withOtherMode(mode: WorkspaceMode, other: WorkspaceMode, label: MessageDescriptor): readonly ShellNavGroup[] {
+  const own = SHELL_NAV_GROUPS_BY_MODE[mode];
+  const shown = new Set(own.flatMap((group) => group.items.map((item) => item.id)));
+  return [
+    ...own,
+    {
+      id: `mode-${other}`,
+      label,
+      items: SHELL_NAV_GROUPS_BY_MODE[other]
+        .flatMap((group) => group.items)
+        .filter((item) => !shown.has(item.id)),
+      otherMode: true,
+    },
+  ];
+}
+
+/*
+ * Every destination stays in the rail in both modes. Switching mode reorders
+ * it — the current mode's groups first, the other mode's remaining entries in
+ * one group under that mode's name — so the user's map of the app survives
+ * the switch.
+ */
+const SHELL_NAV_RAIL: Readonly<Record<WorkspaceMode, readonly ShellNavGroup[]>> = {
+  edit: withOtherMode('edit', 'analysis', msg`分析`),
+  analysis: withOtherMode('analysis', 'edit', msg`剪辑`),
+};
 
 export function shellNavGroups(mode: WorkspaceMode): readonly ShellNavGroup[] {
-  return SHELL_NAV_GROUPS_BY_MODE[mode];
+  return SHELL_NAV_RAIL[mode];
 }
 
 /** Frame pins this one to the bottom of the rail, below a `flex:1` spacer. */

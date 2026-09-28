@@ -22,6 +22,11 @@ function modeItems(mode: WorkspaceMode) {
   return [...shellNavGroups(mode).flatMap((group) => group.items), SHELL_NAV_FOOTER_ITEM];
 }
 
+/** Every entry id in the order the rail draws it. */
+function railOrder(html: string): string[] {
+  return [...html.matchAll(/data-nav-item="([^"]+)"/gu)].map((match) => match[1] as string);
+}
+
 /** The ids of the entries the markup marks as current. */
 function currentIds(html: string): string[] {
   return [...html.matchAll(/data-nav-item="([^"]+)"[^>]*aria-current="page"/gu)].map((match) => match[1] as string);
@@ -46,12 +51,12 @@ describe('SideNav, expanded', () => {
     expect(html).toContain('h-[var(--h-nav-item)]');
   });
 
-  it('shows the three group headings the frame labels', () => {
+  it('shows the three group headings the frame labels, then the analysis group', () => {
     const html = nav();
 
-    for (const heading of ['资料库', '制作', '交付']) expect(html).toContain(`>${heading}</h2>`);
+    for (const heading of ['资料库', '制作', '交付', '分析']) expect(html).toContain(`>${heading}</h2>`);
     // The first group is drawn without one.
-    expect(html.split('</h2>')).toHaveLength(4);
+    expect(html.split('</h2>')).toHaveLength(5);
   });
 
   it('marks the current destination with aria-current, not colour alone', () => {
@@ -106,6 +111,15 @@ describe('SideNav, collapsed', () => {
     expect(html).toContain('<span class="sr-only">工作台</span>');
   });
 
+  it('sets the other mode apart with a short rule between the icons', () => {
+    const html = nav({ collapsed: true });
+    const rule = html.indexOf('role="presentation"');
+
+    expect(html.split('role="presentation"')).toHaveLength(2);
+    expect(rule).toBeGreaterThan(html.indexOf('data-nav-item="outputs"'));
+    expect(rule).toBeLessThan(html.indexOf('data-nav-item="players"'));
+  });
+
   it('drops the group headings — they only come back in the hover flyout', () => {
     const html = nav({ collapsed: true });
 
@@ -122,14 +136,13 @@ describe('SideNav, collapsed', () => {
 });
 
 describe('SideNav modes', () => {
-  it('shows creation destinations in editing mode', () => {
+  it('leads with creation destinations in editing mode and keeps analysis below', () => {
     const html = nav({ mode: 'edit' });
-    expect(html).toContain('data-nav-item="home"');
+    expect(railOrder(html)).toEqual(['home', 'library', 'projects', 'outputs', 'players', 'evidence', 'settings']);
     expect(html).not.toContain('data-nav-item="agent"');
-    expect(html).toContain('data-nav-item="projects"');
-    expect(html).toContain('data-nav-item="outputs"');
-    expect(html).not.toContain('data-nav-item="players"');
-    expect(html).not.toContain('data-nav-item="evidence"');
+    const analysis = html.slice(html.indexOf('data-nav-group="mode-analysis"'));
+    expect(analysis).toContain('border-t');
+    expect(analysis).toContain('>分析</h2>');
   });
 
   it('lets the active settings row fill the expanded footer behind the overlay toggle', () => {
@@ -143,13 +156,14 @@ describe('SideNav modes', () => {
     expect(settings.slice(0, 400)).toContain('pr-12');
   });
 
-  it('shows the retained analysis destinations in analysis mode', () => {
+  it('reorders rather than replaces the rail in analysis mode', () => {
     const html = nav({ mode: 'analysis' }, '/players');
-    expect(html).toContain('data-nav-item="library"');
-    expect(html).toContain('data-nav-item="players"');
-    expect(html).toContain('data-nav-item="evidence"');
-    expect(html).not.toContain('data-nav-item="home"');
-    expect(html).not.toContain('data-nav-item="projects"');
+    expect(railOrder(html)).toEqual(['library', 'players', 'evidence', 'home', 'projects', 'outputs', 'settings']);
+    expect(html.slice(html.indexOf('data-nav-group="mode-edit"'))).toContain('>剪辑</h2>');
     expect(currentIds(html)).toEqual(['players']);
+  });
+
+  it('lights an entry of the other mode where it now sits', () => {
+    expect(currentIds(nav({ mode: 'analysis' }, '/projects'))).toEqual(['projects']);
   });
 });

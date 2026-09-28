@@ -14,7 +14,6 @@ export {
   activeNavItemId,
   MODE_LANDING_PATH,
   SHELL_NAV_FOOTER_ITEM,
-  SHELL_NAV_GROUPS,
   SHELL_NAV_GROUPS_BY_MODE,
   SHELL_NAV_ITEMS,
   shellNavGroups,

@@ -2,6 +2,7 @@
 
 mod analysis;
 mod avatar_cache;
+mod cache_directory;
 mod camera_planning;
 mod cosmetics;
 mod demo_watch;
@@ -130,7 +131,10 @@ pub async fn build_app_state_with_demo_worker(
         storage.clone(),
         data_dir.join("avatar-cache"),
     ));
-    let source_assets = Arc::new(RuntimeSourceAssetPort::new(storage.clone()));
+    let source_assets = Arc::new(RuntimeSourceAssetPort::new(
+        storage.clone(),
+        data_dir.join("map-geometry"),
+    ));
     let gsi_state = Arc::new(RwLock::new(GsiState::default()));
     let integrations = Arc::new(RuntimeIntegrationPort::new_with_state(
         storage.clone(),

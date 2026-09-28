@@ -214,6 +214,21 @@ impl Cs2AssetStore {
         &self.content_root
     }
 
+    /// Locate a standalone map package inside the active installation.
+    pub fn map_package_path(&self, map_name: &str) -> Result<PathBuf> {
+        let map_name = normalize_map_name(map_name)?;
+        let path = self
+            .content_root
+            .join("maps")
+            .join(format!("{map_name}.vpk"));
+        let canonical =
+            fs::canonicalize(&path).map_err(|error| SourceAssetError::io(&path, error))?;
+        if !canonical.starts_with(&self.content_root) {
+            return Err(SourceAssetError::ResourceOutsideContent(canonical));
+        }
+        Ok(canonical)
+    }
+
     pub fn package(&self) -> Option<&VpkArchive> {
         self.package.as_ref()
     }

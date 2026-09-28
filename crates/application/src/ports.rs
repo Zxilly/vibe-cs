@@ -587,9 +587,42 @@ pub struct RadarOverviewData {
     pub image: Option<RadarImageData>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum MapGeometryCacheState {
+    Missing,
+    Stale,
+    Building,
+    Ready,
+    Failed,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
+pub struct MapGeometryStatus {
+    pub map_name: String,
+    pub state: MapGeometryCacheState,
+    pub bytes: Option<u64>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MapGeometryData {
+    pub bytes: Vec<u8>,
+    pub status: MapGeometryStatus,
+}
+
 #[async_trait]
 pub trait SourceAssetPort: Send + Sync + std::fmt::Debug {
     async fn radar_overview(&self, map_name: String) -> Result<RadarOverviewData, DomainError>;
+    async fn map_geometry(
+        &self,
+        map_name: String,
+        rebuild: bool,
+    ) -> Result<MapGeometryData, DomainError>;
+    async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError>;
 }
 
 #[derive(Debug, Default)]
@@ -600,6 +633,22 @@ impl SourceAssetPort for DisabledSourceAssetPort {
     async fn radar_overview(&self, _map_name: String) -> Result<RadarOverviewData, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "local game asset store".to_owned(),
+        ))
+    }
+
+    async fn map_geometry(
+        &self,
+        _map_name: String,
+        _rebuild: bool,
+    ) -> Result<MapGeometryData, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "local map geometry".to_owned(),
+        ))
+    }
+
+    async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "local map geometry".to_owned(),
         ))
     }
 }

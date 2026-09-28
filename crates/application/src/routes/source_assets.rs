@@ -4,17 +4,67 @@ use axum::{
     extract::{Path, State},
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
 };
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::{ApiError, ApiResult, AppState, RadarOverviewData};
+use crate::{ApiError, ApiResult, AppState, MapGeometryStatus, RadarOverviewData};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/maps/{map_name}/radar", get(radar_image))
         .route("/api/maps/{map_name}/radar/metadata", get(radar_metadata))
+        .route("/api/source-assets/map-geometry", get(map_geometry_status))
+        .route(
+            "/api/source-assets/map-geometry/{map_name}",
+            get(map_geometry),
+        )
+        .route(
+            "/api/source-assets/map-geometry/{map_name}/rebuild",
+            post(rebuild_map_geometry),
+        )
+}
+
+async fn map_geometry_status(
+    State(state): State<AppState>,
+) -> ApiResult<Json<Vec<MapGeometryStatus>>> {
+    Ok(Json(state.source_assets.map_geometry_status().await?))
+}
+
+async fn rebuild_map_geometry(
+    State(state): State<AppState>,
+    Path(map_name): Path<String>,
+) -> ApiResult<Json<MapGeometryStatus>> {
+    Ok(Json(
+        state
+            .source_assets
+            .map_geometry(map_name, true)
+            .await?
+            .status,
+    ))
+}
+
+async fn map_geometry(
+    State(state): State<AppState>,
+    Path(map_name): Path<String>,
+) -> ApiResult<Response> {
+    let geometry = state.source_assets.map_geometry(map_name, false).await?;
+    let mut response = Body::from(geometry.bytes).into_response();
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/vnd.vibe-cs.map-geometry"),
+    );
+    // The source package fingerprint is checked on every request. A browser's
+    // day-long cache must not hide a CS2 map update or an explicit rebuild.
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response.headers_mut().insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    Ok(response)
 }
 
 /// The radar overview transform published by `/api/maps/{map}/radar/metadata`.
@@ -119,13 +169,40 @@ mod tests {
     use vibe_cs_domain::DomainError;
 
     use super::*;
-    use crate::{RadarImageData, RadarTransformData, SourceAssetPort};
+    use crate::{
+        MapGeometryCacheState, MapGeometryData, RadarImageData, RadarTransformData, SourceAssetPort,
+    };
 
     #[derive(Debug)]
     struct FixtureAssets;
 
     #[async_trait]
     impl SourceAssetPort for FixtureAssets {
+        async fn map_geometry(
+            &self,
+            map_name: String,
+            rebuild: bool,
+        ) -> Result<MapGeometryData, DomainError> {
+            Ok(MapGeometryData {
+                bytes: b"VMAPfixture".to_vec(),
+                status: MapGeometryStatus {
+                    map_name,
+                    state: MapGeometryCacheState::Ready,
+                    bytes: Some(11),
+                    reason: rebuild.then(|| "rebuilt".to_owned()),
+                },
+            })
+        }
+
+        async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError> {
+            Ok(vec![MapGeometryStatus {
+                map_name: "de_safe".to_owned(),
+                state: MapGeometryCacheState::Missing,
+                bytes: None,
+                reason: None,
+            }])
+        }
+
         async fn radar_overview(&self, map_name: String) -> Result<RadarOverviewData, DomainError> {
             Ok(RadarOverviewData {
                 map_name: map_name.to_ascii_lowercase(),
@@ -188,5 +265,60 @@ mod tests {
             to_bytes(response.into_body(), 64).await.expect("body"),
             &b"\x89PNGfixture"[..]
         );
+    }
+
+    #[tokio::test]
+    async fn geometry_routes_dispatch_binary_status_and_explicit_rebuild() {
+        use axum::http::Request;
+        use tower::ServiceExt;
+        let (_directory, state) = test_state().await;
+        let app = router().with_state(state);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/source-assets/map-geometry/de_safe")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "application/vnd.vibe-cs.map-geometry"
+        );
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+        assert_eq!(
+            to_bytes(response.into_body(), 64).await.unwrap(),
+            &b"VMAPfixture"[..]
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/source-assets/map-geometry")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status: Vec<MapGeometryStatus> =
+            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+        assert_eq!(status[0].state, MapGeometryCacheState::Missing);
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/source-assets/map-geometry/de_safe/rebuild")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status: MapGeometryStatus =
+            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+        assert_eq!(status.state, MapGeometryCacheState::Ready);
+        assert_eq!(status.reason.as_deref(), Some("rebuilt"));
     }
 }

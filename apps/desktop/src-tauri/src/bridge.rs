@@ -98,7 +98,10 @@ impl DesktopBridge {
                     .uri(uri)
                     .header(header::HOST, "tauri.localhost")
                     .header(header::ORIGIN, "tauri://localhost")
-                    .header(header::ACCEPT, "application/vnd.vibe-cs.replay")
+                    .header(
+                        header::ACCEPT,
+                        "application/vnd.vibe-cs.replay, application/vnd.vibe-cs.map-geometry",
+                    )
                     .body(Body::empty())
                     .map_err(|error| DesktopCommandError::internal(error.to_string()))?,
             )

@@ -6,7 +6,10 @@ use std::{
 
 use async_trait::async_trait;
 use tokio::sync::{Mutex, RwLock};
-use vibe_cs_application::{RadarImageData, RadarOverviewData, RadarTransformData, SourceAssetPort};
+use vibe_cs_application::{
+    MapGeometryCacheState, MapGeometryData, MapGeometryStatus, RadarImageData, RadarOverviewData,
+    RadarTransformData, SourceAssetPort,
+};
 use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_source_assets::{
@@ -15,6 +18,15 @@ use vibe_cs_source_assets::{
 
 const MAXIMUM_CACHED_RADARS: usize = 16;
 const MAXIMUM_RADAR_CACHE_BYTES: usize = 64 * 1024 * 1024;
+
+mod geometry;
+
+#[derive(Debug, Clone)]
+struct GeometryActivity {
+    key: String,
+    state: MapGeometryCacheState,
+    reason: Option<String>,
+}
 
 #[derive(Debug, Default)]
 struct AssetStoreCache {
@@ -30,15 +42,21 @@ pub struct RuntimeSourceAssetPort {
     storage: vibe_cs_storage::Storage,
     cache: Arc<RwLock<AssetStoreCache>>,
     radar_generation: Arc<Mutex<()>>,
+    geometry_root: PathBuf,
+    geometry_generation: Arc<Mutex<()>>,
+    geometry_activity: Arc<RwLock<HashMap<String, GeometryActivity>>>,
 }
 
 impl RuntimeSourceAssetPort {
     #[must_use]
-    pub fn new(storage: vibe_cs_storage::Storage) -> Self {
+    pub fn new(storage: vibe_cs_storage::Storage, geometry_root: PathBuf) -> Self {
         Self {
             storage,
             cache: Arc::new(RwLock::new(AssetStoreCache::default())),
             radar_generation: Arc::new(Mutex::new(())),
+            geometry_root,
+            geometry_generation: Arc::new(Mutex::new(())),
+            geometry_activity: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -134,6 +152,72 @@ impl RuntimeSourceAssetPort {
 
 #[async_trait]
 impl SourceAssetPort for RuntimeSourceAssetPort {
+    async fn map_geometry(
+        &self,
+        map_name: String,
+        rebuild: bool,
+    ) -> Result<MapGeometryData, DomainError> {
+        let _generation = self.geometry_generation.lock().await;
+        let store = self.asset_store().await?;
+        let root = self.geometry_root.clone();
+        let map_name = map_name.to_ascii_lowercase();
+        let map_for_source = map_name.clone();
+        let source = tokio::task::spawn_blocking(move || {
+            geometry::GeometrySource::open(&store, &root, &map_for_source)
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))??;
+        let key = source.key.clone();
+        self.geometry_activity.write().await.insert(
+            map_name.clone(),
+            GeometryActivity {
+                key: key.clone(),
+                state: MapGeometryCacheState::Building,
+                reason: None,
+            },
+        );
+        let result = tokio::task::spawn_blocking(move || source.load(rebuild))
+            .await
+            .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))
+            .and_then(std::convert::identity);
+        let (state, reason) = match &result {
+            Ok(_) => (MapGeometryCacheState::Ready, None),
+            Err(error) => (MapGeometryCacheState::Failed, Some(error.to_string())),
+        };
+        self.geometry_activity
+            .write()
+            .await
+            .insert(map_name, GeometryActivity { key, state, reason });
+        result
+    }
+
+    async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError> {
+        let store = self.asset_store().await?;
+        let root = self.geometry_root.clone();
+        let entries = tokio::task::spawn_blocking(move || geometry::statuses(&store, &root))
+            .await
+            .map_err(|error| {
+                DomainError::Internal(format!("geometry status task failed: {error}"))
+            })?;
+        let activity = self.geometry_activity.read().await;
+        Ok(entries
+            .into_iter()
+            .map(|(mut status, key)| {
+                if let Some(active) = activity.get(&status.map_name)
+                    && key.as_ref() == Some(&active.key)
+                    && matches!(
+                        active.state,
+                        MapGeometryCacheState::Building | MapGeometryCacheState::Failed
+                    )
+                {
+                    status.state = active.state;
+                    status.reason.clone_from(&active.reason);
+                }
+                status
+            })
+            .collect())
+    }
+
     async fn radar_overview(&self, map_name: String) -> Result<RadarOverviewData, DomainError> {
         let cache_key = map_name.to_ascii_lowercase();
         let store = self.asset_store().await?;
@@ -260,6 +344,9 @@ fn map_source_asset_error(error: SourceAssetError) -> DomainError {
             "unable to read local game asset {}: {source}",
             path.display()
         )),
+        SourceAssetError::InvalidPhysics(reason) => DomainError::DependencyUnavailable(format!(
+            "local map geometry is unsupported or invalid: {reason}"
+        )),
         error => DomainError::Internal(format!("local game asset is invalid: {error}")),
     }
 }
@@ -302,7 +389,7 @@ mod tests {
             })
             .await
             .expect("config");
-        let port = RuntimeSourceAssetPort::new(storage);
+        let port = RuntimeSourceAssetPort::new(storage, root.path().join("geometry-cache"));
         let overview = port
             .radar_overview("DE_SAFE".to_owned())
             .await
@@ -340,10 +427,11 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires a locally installed Steam copy of CS2"]
     async fn discovers_and_decodes_the_real_mirage_radar() {
+        let root = tempdir().expect("geometry cache root");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
-        let port = RuntimeSourceAssetPort::new(storage);
+        let port = RuntimeSourceAssetPort::new(storage, root.path().join("geometry-cache"));
         let overview = port
             .radar_overview("de_mirage".to_owned())
             .await
@@ -354,5 +442,84 @@ mod tests {
         assert!(image.browser_displayable);
         assert_eq!(image.content_type, "image/png");
         assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires VIBE_CS2_INSTALL pointing at a real CS2 installation"]
+    async fn real_map_geometry_passes_through_dispatcher_cache_status_and_rebuild() {
+        use axum::{
+            body::{Body, to_bytes},
+            http::Request,
+        };
+        use tower::ServiceExt;
+        let installation = std::env::var("VIBE_CS2_INSTALL").expect("VIBE_CS2_INSTALL");
+        let root = tempdir().unwrap();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        storage
+            .put_config(AppConfig {
+                cs2_path: installation,
+                ..AppConfig::default()
+            })
+            .await
+            .unwrap();
+        let port = Arc::new(RuntimeSourceAssetPort::new(
+            storage.clone(),
+            root.path().join("map-geometry"),
+        ));
+        let state = vibe_cs_application::AppState::new(storage, root.path().to_path_buf())
+            .with_source_assets(port.clone());
+        let app = vibe_cs_application::build_dispatcher(state);
+        let request = |method: &str, path: &str| {
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("host", "tauri.localhost")
+                .header("origin", "tauri://localhost")
+                .body(Body::empty())
+                .unwrap()
+        };
+        let response = app
+            .clone()
+            .oneshot(request("GET", "/api/source-assets/map-geometry/de_mirage"))
+            .await
+            .unwrap();
+        assert!(response.status().is_success(), "{}", response.status());
+        let bytes = to_bytes(response.into_body(), 128 * 1024 * 1024)
+            .await
+            .unwrap();
+        let mesh = vibe_cs_source_assets::decode_map_geometry(&bytes).unwrap();
+        assert!(mesh.triangles.len() > 100_000);
+        let cached = port
+            .map_geometry("de_mirage".to_owned(), false)
+            .await
+            .unwrap();
+        assert_eq!(cached.bytes, bytes);
+        let statuses = port.map_geometry_status().await.unwrap();
+        let status = statuses
+            .iter()
+            .find(|status| status.map_name == "de_mirage")
+            .unwrap();
+        assert_eq!(status.state, MapGeometryCacheState::Ready);
+        assert_eq!(status.bytes, Some(bytes.len() as u64));
+        let response = app
+            .oneshot(request(
+                "POST",
+                "/api/source-assets/map-geometry/de_mirage/rebuild",
+            ))
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        let rebuilt: MapGeometryStatus =
+            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
+        assert_eq!(rebuilt, *status);
+        if let Some(output) = std::env::var_os("VIBE_GEOMETRY_API_OUTPUT") {
+            fs::write(output, &bytes).unwrap();
+        }
+        eprintln!(
+            "real Mirage API: {} vertices, {} triangles, {} bytes; cache hit and rebuild verified",
+            mesh.vertices.len(),
+            mesh.triangles.len(),
+            bytes.len()
+        );
     }
 }

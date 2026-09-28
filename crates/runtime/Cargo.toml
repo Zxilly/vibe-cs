@@ -36,9 +36,11 @@ url.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
 bzip2.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true
+tower.workspace = true
 
 [lints]
 workspace = true

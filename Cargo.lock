@@ -7325,6 +7325,7 @@ dependencies = [
  "lz4_flex",
  "png 0.18.1",
  "same-file",
+ "serde_json",
  "tempfile",
  "texture2ddecoder",
  "thiserror 2.0.20",

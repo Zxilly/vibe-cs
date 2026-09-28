@@ -171,7 +171,7 @@ export function OverviewPanels({
       </ViewPanel>
 
       {/* The strip is `domain/match`'s and draws its own panel, head included.
-          A click is a jump: 「点击回合进入逐回合复盘」 is the component's own hint,
+          A click on a round is a jump to its review,
           and 逐回合复盘 is the body of 回合. */}
       <RoundTimeline
         rounds={roundSummaries(analysis)}
@@ -358,18 +358,24 @@ function OverviewInspector({
           <dt className="text-neutral-600"><Trans>回合</Trans></dt>
           <dd className="font-mono text-xs">R{candidate.round}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-neutral-600"><Trans>tick 区间</Trans></dt>
-          <dd className="font-mono text-xs">
-            {candidate.startTick}–{candidate.endTick}
-          </dd>
-        </div>
         {candidate.description === undefined ? null : (
           <div className="border-t border-divider pt-3 text-xs leading-normal text-neutral-700">
             {candidate.description}
           </div>
         )}
       </dl>
+      {/* Precise source parameters trail the human-readable facts. */}
+      <section className="flex flex-col gap-1 border-t border-divider pt-3">
+        <h4 className="text-xs font-medium text-neutral-600">
+          <Trans>精确信息</Trans>
+        </h4>
+        <dl className="flex items-baseline justify-between gap-3 text-xs text-neutral-600">
+          <dt><Trans>tick 区间</Trans></dt>
+          <dd className="font-mono">
+            {candidate.startTick}–{candidate.endTick}
+          </dd>
+        </dl>
+      </section>
     </MatchInspectorPanel>
   );
 }

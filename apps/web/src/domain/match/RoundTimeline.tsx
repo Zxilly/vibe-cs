@@ -166,9 +166,6 @@ export function RoundTimeline({
         <h3 className="font-heading text-base tracking-wide">
           <Trans>回合时间线</Trans>
         </h3>
-        <p className="text-xs text-neutral-600">
-          <Trans>点击回合进入逐回合复盘</Trans>
-        </p>
         <span className="flex-1" />
         <LegendEntry ruleClass={WINNER_RULE.a} position="top">
           <Trans>{teamAName} 胜</Trans>

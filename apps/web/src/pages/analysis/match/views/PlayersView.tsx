@@ -493,7 +493,7 @@ function PlayersInspector({
       >
         <p className="text-sm text-neutral-700">
           {context.player === null ? (
-            <Trans>点左侧记分板的一行，这里会显示他这一场的 K/D/A、武器分布和高光。</Trans>
+            <Trans>选择一名选手后，这里会显示其本场的 K/D/A、武器分布和高光。</Trans>
           ) : (
             <Trans>这份分析里没有这名选手。地址上的选择保留着，换一场比赛可能就能对上。</Trans>
           )}

@@ -13,7 +13,7 @@ describe('RoundTimeline', () => {
 
     expect(html).toContain('data-round-timeline=""');
     expect(html).toContain('回合时间线');
-    expect(html).toContain('点击回合进入逐回合复盘');
+    expect(html).not.toContain('点击');
     expect(html).toContain('data-round-timeline-state="ready"');
   });
 

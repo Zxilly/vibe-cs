@@ -307,7 +307,7 @@ export function PlayersPage() {
               }}
             />
           </div>
-          <p className="text-xs text-neutral-600"><Trans>勾选两名选手进行比较，点击行查看详情。</Trans></p>
+          <p className="text-xs text-neutral-600"><Trans>勾选两名选手进行比较。</Trans></p>
         </Toolbar>
       }
       footer={

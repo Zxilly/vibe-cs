@@ -165,14 +165,16 @@ export function MatchWorkspacePage() {
               >
                 <Trans>AI 点评</Trans>
               </Button>
-              {/* §8's non-negotiable line: the primary action is visible at
-                  every width and never enters an overflow menu. `MatchContextBar`
-                  keeps its `actions` slot out of the fold for that reason.
+              {/* Visible at every width and never in an overflow menu —
+                  `MatchContextBar` keeps its `actions` slot out of the fold for
+                  that reason. It stays secondary: the view's single primary is
+                  the Inspector's contextual 「加入作品」 for the selected
+                  moment, and a second filled button here would compete with it.
                   The project it creates starts from *this* match — named after
                   it, listing the Demo as its source, the whole match on the
                   Story track — the same project a 资料库 row creates. */}
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
                 disabled={createDisabledReason !== undefined}
                 {...(createDisabledReason === undefined ? {} : { disabledReason: createDisabledReason })}

@@ -381,7 +381,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
           {highlights.length === 0 ? (
             <Trans>这场比赛没有检出高光，这里没有可以加入作品的片段。</Trans>
           ) : (
-            <Trans>点左侧一行的「定位」，这里会显示那条高光的类型、选手、tick 区间和时长。</Trans>
+            <Trans>选择一条高光后，这里会显示它的类型、选手、tick 区间和时长。</Trans>
           )}
         </p>
       </MatchInspectorPanel>

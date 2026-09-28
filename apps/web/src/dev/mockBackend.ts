@@ -36,6 +36,7 @@
 
 import { applyMockPatch, mockProject, revertMockChangeGroup } from './mockProjectEdits';
 import { mockReplayBinary } from './mockReplay';
+import geometryFixtureUrl from './fixtures/scene3d.vmap?url';
 import { PREVIEW_DELIVERY_GATE } from './projectFixtures';
 import type {
   ProjectPatch,
@@ -45,6 +46,7 @@ import type {
   AgentStatus,
   AgentWorkspaceSettings,
   AppConfig,
+  MapGeometryStatus,
   AvatarCacheStatus,
   DeleteOutputResult,
   DemoRecord,
@@ -1156,6 +1158,8 @@ type Handler = (context: {
  * accordingly.
  */
 const ROUTES: Array<[string, string, Handler]> = [
+  ['GET', '/source-assets/map-geometry', () => GEOMETRY_STATUS.map((status) => ({ ...status }))],
+  ['POST', '/source-assets/map-geometry/:map/rebuild', ({ params }) => readyGeometry(params['map']!)],
   /* setup and runtime */
   ['GET', '/app/runtime-state', () => ({
     version: '0.1.0-dev',
@@ -1435,6 +1439,13 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
       return true;
     case 'desktop_binary': {
       const path = (args as { path?: unknown } | undefined)?.path;
+      const map = typeof path === 'string' ? /^\/source-assets\/map-geometry\/([^/]+)$/u.exec(path)?.[1] : undefined;
+      if (map !== undefined) {
+        readyGeometry(decodeURIComponent(map));
+        const response = await fetch(geometryFixtureUrl);
+        if (!response.ok) throw new Error('Development geometry fixture is unavailable');
+        return response.arrayBuffer();
+      }
       const demoId = typeof path === 'string' ? /^\/demos\/([^/]+)\/replay\.bin$/u.exec(path)?.[1] : undefined;
       return demoId === undefined ? new ArrayBuffer(0) : mockReplayBinary(analysisOf(decodeURIComponent(demoId)));
     }
@@ -1454,4 +1465,22 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
     code: 'MOCK_COMMAND_MISSING',
     message: `浏览器模式没有实现命令 ${command}。`,
   };
+}
+
+// Original synthetic floor, wall and boxes. Generated through the production
+// Rust VPK -> PHYS -> VMAP path; no game assets are distributed with the mock.
+const GEOMETRY_STATUS: MapGeometryStatus[] = [
+  'de_mirage', 'de_dust2', 'de_inferno', 'de_nuke', 'de_ancient', 'de_anubis', 'de_train', 'de_overpass',
+].map((map_name, index) => ({
+  map_name, state: index < 2 ? 'ready' : index === 2 ? 'stale' : 'missing',
+  bytes: index < 2 ? 143 : null, reason: null,
+}));
+
+function readyGeometry(map: string): MapGeometryStatus {
+  const status = GEOMETRY_STATUS.find((candidate) => candidate.map_name === map);
+  if (status === undefined) throw new Error(`No development geometry fixture for ${map}`);
+  status.state = 'ready';
+  status.bytes = 143;
+  status.reason = null;
+  return { ...status };
 }

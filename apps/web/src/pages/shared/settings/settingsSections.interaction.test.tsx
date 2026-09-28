@@ -97,6 +97,7 @@ function render(
     storageStatus: () => Promise.resolve(STORAGE),
     quickCheck: () => Promise.resolve(CHECKS),
     getHlaeStatus: () => Promise.resolve({ available: true, messages: [] }),
+    mapGeometryStatus: () => Promise.resolve([]),
     runtimeState: () => Promise.resolve({ version: '0.0.0' }),
     ...overrides,
   };

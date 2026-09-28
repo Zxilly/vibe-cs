@@ -315,6 +315,8 @@ export const qk = {
     quickCheck: () => [QUERY_NAMESPACE.config, 'quick-check'] as const,
     storage: () => [QUERY_NAMESPACE.config, 'storage'] as const,
     hlae: () => [QUERY_NAMESPACE.config, 'hlae'] as const,
+    mapGeometryStatus: () => [QUERY_NAMESPACE.config, 'map-geometry-status'] as const,
+    mapGeometry: (map: string) => [QUERY_NAMESPACE.config, 'map-geometry', map] as const,
     recovery: () => [QUERY_NAMESPACE.config, 'recovery'] as const,
     runtime: () => [QUERY_NAMESPACE.config, 'runtime'] as const,
   },

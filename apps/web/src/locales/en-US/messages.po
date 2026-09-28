@@ -348,8 +348,8 @@ msgid "{0} 视频预览"
 msgstr "{0} video preview"
 
 #. placeholder {0}: shown.toFixed(1)
-#: src/pages/shared/settings/GameSection.tsx:404
-#: src/pages/shared/settings/GameSection.tsx:409
+#: src/pages/shared/settings/GameSection.tsx:407
+#: src/pages/shared/settings/GameSection.tsx:412
 msgid "{0} 秒"
 msgstr "{0}s"
 
@@ -766,7 +766,7 @@ msgstr "API key"
 msgid "API 密钥和私密请求头由上方的连接配置保管。"
 msgstr "API keys and private request headers are stored in the connection settings above."
 
-#: src/pages/shared/settings/GameSection.tsx:131
+#: src/pages/shared/settings/GameSection.tsx:132
 msgid "CS2 位置"
 msgstr "CS2 location"
 
@@ -828,8 +828,8 @@ msgstr "Demo source"
 msgid "Fit Clip：范围时长不同"
 msgstr "Fit Clip: Range durations differ"
 
-#: src/pages/shared/settings/GameSection.tsx:211
 #: src/pages/shared/settings/GameSection.tsx:214
+#: src/pages/shared/settings/GameSection.tsx:217
 msgid "HUD"
 msgstr "HUD"
 
@@ -1089,7 +1089,7 @@ msgstr "Last scan: {0} imported · {1} updated · {2} missing"
 
 #. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
 #: src/pages/shared/settings/AdvancedSection.tsx:159
-#: src/pages/shared/settings/GameSection.tsx:281
+#: src/pages/shared/settings/GameSection.tsx:284
 msgid "上次检查 {0}"
 msgstr "Last checked {0}"
 
@@ -1318,9 +1318,9 @@ msgstr "The binary replay has an invalid bomb marker"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "The binary replay exceeds the 128 MiB limit"
 
-#: src/shared/desktop/client.ts:232
-msgid "二进制回放超过 128 MiB 上限。"
-msgstr "The binary replay exceeds the 128 MiB limit."
+#: src/shared/desktop/client.ts:234
+msgid "二进制数据超过 128 MiB 上限。"
+msgstr "Binary data exceeds the 128 MiB limit."
 
 #: src/app/shell/navigation.tsx:69
 msgid "交付"
@@ -1391,6 +1391,10 @@ msgstr "Create Nested Sequence from Selected Clips…"
 #: src/domain/editing/TimelineProgramMonitor.tsx:401
 msgid "从时间轴选择一个片段"
 msgstr "Select a clip from the timeline"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:38
+msgid "从本机 CS2 生成简化地图，用于回放和镜头预演。游戏更新后会自动重新生成，文件只保存在本机。"
+msgstr "Generate simplified maps from your local CS2 installation for replays and camera previews. Maps rebuild after game updates, and files stay on this computer."
 
 #. placeholder {0}: clip.name
 #: src/domain/editing/ProjectTimeline.tsx:5051
@@ -1905,7 +1909,7 @@ msgid "全部作品"
 msgstr "All projects"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:848
-#: src/pages/shared/settings/GameSection.tsx:303
+#: src/pages/shared/settings/GameSection.tsx:306
 msgid "全部保留"
 msgstr "Keep all"
 
@@ -1925,7 +1929,7 @@ msgstr "all ready"
 msgid "全部状态"
 msgstr "All statuses"
 
-#: src/pages/shared/settings/GameSection.tsx:307
+#: src/pages/shared/settings/GameSection.tsx:310
 msgid "全部静音"
 msgstr "Mute everything"
 
@@ -2181,7 +2185,7 @@ msgstr "Write a note"
 msgid "决定对话列表保留多久。成片和后台任务不会删除。"
 msgstr "Decides how long conversations are kept. Finished files and background tasks are not deleted."
 
-#: src/pages/shared/settings/GameSection.tsx:233
+#: src/pages/shared/settings/GameSection.tsx:236
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "Whose voice is kept in the recorded audio."
 
@@ -2294,7 +2298,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "Rounds, evidence, and highlights only exist after analysis. A 40-minute match takes about 3 minutes."
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:354
+#: src/shared/desktop/client.ts:360
 msgid "分析响应包含未知阵营：{0}"
 msgstr "The analysis response contains an unknown team: {0}"
 
@@ -2554,6 +2558,10 @@ msgstr "Refresh"
 msgid "刷新所选嵌套序列"
 msgstr "Refresh Selected Nested Sequences"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:39
+msgid "刷新状态"
+msgstr "Refresh status"
+
 #: src/domain/editing/TimelineToolStrip.tsx:138
 msgid "剃刀工具 (C)"
 msgstr "Razor Tool (C)"
@@ -2562,7 +2570,7 @@ msgstr "Razor Tool (C)"
 msgid "前 Out"
 msgstr "Previous Out"
 
-#: src/pages/shared/settings/GameSection.tsx:196
+#: src/pages/shared/settings/GameSection.tsx:199
 msgid "前留白"
 msgstr "Lead-in"
 
@@ -2601,7 +2609,7 @@ msgid "剪辑模式"
 msgstr "Editing mode"
 
 #. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/shared/settings/GameSection.tsx:172
+#: src/pages/shared/settings/GameSection.tsx:173
 msgid "剩余 {0}"
 msgstr "{0} free"
 
@@ -2835,7 +2843,7 @@ msgstr "Counter-Terrorists"
 msgid "发布"
 msgstr "Publish"
 
-#: src/shared/desktop/client.ts:1254
+#: src/shared/desktop/client.ts:1263
 msgid "发生未知错误，请重试。"
 msgstr "Something went wrong. Please try again."
 
@@ -2927,7 +2935,7 @@ msgstr "{0} more failed records"
 msgid "只保留击杀最多的三个片段"
 msgstr "Keep only the three clips with the most kills"
 
-#: src/pages/shared/settings/GameSection.tsx:306
+#: src/pages/shared/settings/GameSection.tsx:309
 msgid "只保留目标选手"
 msgstr "Recorded player only"
 
@@ -3055,7 +3063,7 @@ msgstr "Background tasks, {activityUnreadCount} unread"
 msgid "后台任务详情"
 msgstr "Background task details"
 
-#: src/pages/shared/settings/GameSection.tsx:203
+#: src/pages/shared/settings/GameSection.tsx:206
 msgid "后留白"
 msgstr "Lead-out"
 
@@ -3265,7 +3273,7 @@ msgstr "Rounds won"
 msgid "回放 tick 超出浏览器安全整数范围"
 msgstr "A replay tick falls outside the browser's safe integer range"
 
-#: src/pages/shared/settings/GameSection.tsx:132
+#: src/pages/shared/settings/GameSection.tsx:133
 msgid "回放与录制都从这个目录启动游戏。"
 msgstr "Replay and recording both launch the game from this directory."
 
@@ -3431,6 +3439,10 @@ msgstr "Map"
 msgid "地图 {0}"
 msgstr "Map {0}"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:37
+msgid "地图 3D 预演"
+msgstr "3D map previews"
+
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:97
 msgid "地图，例如 de_mirage"
 msgstr "Map, e.g. de_mirage"
@@ -3443,6 +3455,26 @@ msgstr "Map: {0}"
 #: src/pages/analysis/players/PlayerProfilePage.tsx:206
 msgid "地图与最近比赛"
 msgstr "Maps and recent matches"
+
+#: src/data/mapGeometryBinary.ts:19
+msgid "地图几何文件无效，请重新生成。"
+msgstr "The map geometry file is invalid. Regenerate it."
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:44
+msgid "地图几何状态"
+msgstr "Map geometry status"
+
+#: src/data/mapGeometryBinary.ts:47
+msgid "地图几何解压失败，请重新生成。"
+msgstr "The map geometry could not be decompressed. Regenerate it."
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:23
+msgid "地图已更新"
+msgstr "Map updated"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:42
+msgid "地图没有生成成功："
+msgstr "The map could not be generated: "
 
 #: src/pages/analysis/players/PlayerProfilePage.tsx:200
 msgid "地图统计没能读出来：{mapsError}"
@@ -3550,7 +3582,7 @@ msgstr "Failed"
 msgid "失败可恢复"
 msgstr "Failed, recoverable"
 
-#: src/shared/desktop/client.ts:171
+#: src/shared/desktop/client.ts:172
 msgid "媒体地址不是本地服务路径。"
 msgstr "The media address is not a local service path."
 
@@ -3887,6 +3919,10 @@ msgstr "This will overwrite the current config file with the last automatic back
 msgid "尚未加入比较"
 msgstr "Not added to comparison"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:22
+msgid "尚未生成"
+msgstr "Not generated"
+
 #: src/pages/shared/onboarding/GuidePage.tsx:136
 #: src/pages/shared/settings/AdvancedSection.tsx:142
 #: src/pages/shared/settings/AdvancedSection.tsx:196
@@ -3975,6 +4011,10 @@ msgstr "Allowed"
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:39
 msgid "已入库"
 msgstr "In library"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:25
+msgid "已准备"
+msgstr "Ready"
 
 #: src/pages/analysis/evidence/EvidenceEmpty.tsx:85
 msgid "已分析 {totalAnalyses} 场，证据还没有写进索引。稍等片刻再检索。"
@@ -4488,7 +4528,7 @@ msgstr "Recording cancelled"
 msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
 msgstr "An interrupted recording or export leaves staged files behind, and they do not clear themselves. This will delete the unfinished files in the staging folder."
 
-#: src/pages/shared/settings/GameSection.tsx:161
+#: src/pages/shared/settings/GameSection.tsx:162
 msgid "录制文件目录"
 msgstr "Recording file directory"
 
@@ -4554,7 +4594,7 @@ msgstr "Record missing clips"
 msgid "录制范围"
 msgstr "Recording range"
 
-#: src/pages/shared/settings/GameSection.tsx:240
+#: src/pages/shared/settings/GameSection.tsx:243
 msgid "录制语音"
 msgstr "Recording voice"
 
@@ -4566,7 +4606,7 @@ msgstr "recording cannot start; analysis and editing are unaffected"
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "Recording needs it. Importing, analysis and editing are unaffected."
 
-#: src/pages/shared/settings/GameSection.tsx:190
+#: src/pages/shared/settings/GameSection.tsx:193
 msgid "录制默认值"
 msgstr "Recording defaults"
 
@@ -4679,7 +4719,7 @@ msgstr "Play output {title}"
 msgid "成品文件"
 msgstr "Finished files"
 
-#: src/pages/shared/settings/GameSection.tsx:255
+#: src/pages/shared/settings/GameSection.tsx:258
 msgid "成品生成能力"
 msgstr "Finished-file generation"
 
@@ -4695,11 +4735,11 @@ msgstr "Final export"
 msgid "成片已准备好导出。确认后才会写出 MP4 文件。"
 msgstr "The finished file is ready to export. The MP4 will only be written after you confirm."
 
-#: src/pages/shared/settings/GameSection.tsx:222
+#: src/pages/shared/settings/GameSection.tsx:225
 msgid "成片画面里保留左上角的小地图。"
 msgstr "Keeps the radar in the finished picture."
 
-#: src/pages/shared/settings/GameSection.tsx:212
+#: src/pages/shared/settings/GameSection.tsx:215
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "Keeps the game's HUD in the finished picture."
 
@@ -4765,7 +4805,7 @@ msgstr "The selected consecutive Story clips move to a new source sequence; the 
 msgid "手动启动"
 msgstr "Manual"
 
-#: src/pages/shared/settings/GameSection.tsx:339
+#: src/pages/shared/settings/GameSection.tsx:342
 msgid "手动指定"
 msgstr "Set manually"
 
@@ -4873,7 +4913,7 @@ msgid "打开的序列"
 msgstr "Open sequences"
 
 #: src/pages/shared/settings/FilesSection.tsx:132
-#: src/pages/shared/settings/GameSection.tsx:181
+#: src/pages/shared/settings/GameSection.tsx:182
 msgid "打开目录"
 msgstr "Open folder"
 
@@ -5503,7 +5543,7 @@ msgstr "New panel group"
 msgid "新建音频轨道"
 msgstr "New audio track"
 
-#: src/pages/shared/settings/GameSection.tsx:164
+#: src/pages/shared/settings/GameSection.tsx:165
 msgid "新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。"
 msgstr "New recordings are written here. The location follows the data directory — change it under Files and library."
 
@@ -5569,10 +5609,11 @@ msgstr "Unable to load project tasks."
 msgid "无法读取目标作品。"
 msgstr "Unable to load target projects."
 
-#: src/shared/desktop/client.ts:185
-#: src/shared/desktop/client.ts:212
-#: src/shared/desktop/client.ts:292
-#: src/shared/desktop/client.ts:483
+#: src/shared/desktop/client.ts:186
+#: src/shared/desktop/client.ts:213
+#: src/shared/desktop/client.ts:239
+#: src/shared/desktop/client.ts:298
+#: src/shared/desktop/client.ts:489
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "Cannot reach the local service. Check that it is running."
 
@@ -5822,6 +5863,10 @@ msgstr "Not available: {disabledReason}"
 msgid "暂时不能输入：{disabledReason}"
 msgstr "Can't type right now: {disabledReason}"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:41
+msgid "暂时读不到地图，请先确认上方的 CS2 位置。"
+msgstr "Maps are unavailable. Check the CS2 location above."
+
 #: src/design/layout/OverflowMenu.tsx:111
 msgid "更多"
 msgstr "More"
@@ -5856,7 +5901,7 @@ msgid "更换片段的源入点和源出点，不改变时间轴位置与时长"
 msgstr "Change the clip's source In and Out points without moving it or changing its duration on the timeline"
 
 #: src/pages/shared/settings/FilesSection.tsx:151
-#: src/pages/shared/settings/GameSection.tsx:152
+#: src/pages/shared/settings/GameSection.tsx:153
 msgid "更改"
 msgstr "Change"
 
@@ -5962,6 +6007,10 @@ msgstr "Unrecorded {plannedCount}"
 msgid "未录制，暂不能播放"
 msgstr "Not recorded yet, so it cannot play"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:27
+msgid "未找到地图"
+msgstr "Map not found"
+
 #: src/domain/match/Scoreboard.tsx:45
 msgid "未知"
 msgstr "Unknown"
@@ -5974,7 +6023,7 @@ msgstr "Unknown reason"
 msgid "未知地图"
 msgstr "Unknown map"
 
-#: src/shared/desktop/client.ts:425
+#: src/shared/desktop/client.ts:431
 msgid "未知玩家"
 msgstr "Unknown player"
 
@@ -6007,7 +6056,7 @@ msgstr "No highlight selected"
 msgid "未选择选手"
 msgstr "No player selected"
 
-#: src/shared/desktop/client.ts:266
+#: src/shared/desktop/client.ts:272
 msgid "本地数据库读写失败"
 msgstr "The local database could not be read or written"
 
@@ -6015,7 +6064,7 @@ msgstr "The local database could not be read or written"
 msgid "本地文件"
 msgstr "Local file"
 
-#: src/shared/desktop/client.ts:268
+#: src/shared/desktop/client.ts:274
 msgid "本地文件读写失败"
 msgstr "The local file could not be read or written"
 
@@ -6394,7 +6443,7 @@ msgstr "Starting playback"
 
 #: src/design/feedback/Dialog.tsx:133
 #: src/pages/shared/settings/FilesSection.tsx:68
-#: src/pages/shared/settings/GameSection.tsx:97
+#: src/pages/shared/settings/GameSection.tsx:98
 #: src/pages/shared/settings/RecoveryPage.tsx:82
 msgid "正在处理"
 msgstr "Working"
@@ -6463,7 +6512,7 @@ msgstr "Validating and submitting incremental changes…"
 
 #: src/pages/shared/onboarding/GuidePage.tsx:108
 #: src/pages/shared/settings/AdvancedSection.tsx:166
-#: src/pages/shared/settings/GameSection.tsx:288
+#: src/pages/shared/settings/GameSection.tsx:291
 msgid "正在检查"
 msgstr "Checking"
 
@@ -6506,6 +6555,11 @@ msgstr "Cleaning up…"
 msgid "正在渲染预览…"
 msgstr "Rendering preview…"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:24
+#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+msgid "正在生成"
+msgstr "Generating"
+
 #: src/pages/analysis/match/views/ReviewView.tsx:153
 msgid "正在生成…"
 msgstr "Generating…"
@@ -6513,6 +6567,10 @@ msgstr "Generating…"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:961
 msgid "正在生成可拖动预览使用的低分辨率代理"
 msgstr "Generating a low-resolution proxy for the draggable preview"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:50
+msgid "正在生成地图，请稍候。"
+msgstr "A map is being generated. Please wait."
 
 #: src/domain/media/FilmStrip.tsx:77
 msgid "正在生成缩略图"
@@ -6699,7 +6757,7 @@ msgstr "The opening duel of every round"
 msgid "每个格子都是 {maxWeight} 次，没有疏密之分"
 msgstr "Every cell is {maxWeight} times; there is no denser or sparser cell"
 
-#: src/pages/shared/settings/GameSection.tsx:392
+#: src/pages/shared/settings/GameSection.tsx:395
 msgid "每个片段在正式内容之外多录的时长。"
 msgstr "How much each clip records beyond the content itself."
 
@@ -7307,7 +7365,7 @@ msgstr "Clear Source In/Out"
 msgid "渲染入点到出点"
 msgstr "Render In to Out"
 
-#: src/pages/shared/settings/GameSection.tsx:123
+#: src/pages/shared/settings/GameSection.tsx:124
 msgid "游戏"
 msgstr "Game"
 
@@ -7643,6 +7701,14 @@ msgstr "Results can't be exported yet"
 msgid "现在还不能批量注释"
 msgstr "Batch annotation isn't available yet"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+msgid "生成"
+msgstr "Generate"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:64
+msgid "生成 {name} 地图"
+msgstr "Generate {name} geometry"
+
 #: src/pages/analysis/match/views/ReviewView.tsx:153
 msgid "生成 AI 点评"
 msgstr "Generate AI commentary"
@@ -7659,6 +7725,10 @@ msgstr "Generate proxy {0}"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:962
 msgid "生成低分辨率代理；导出仍使用原始素材"
 msgstr "Generate a low-resolution proxy; exports still use the original media"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:26
+msgid "生成失败"
+msgstr "Generation failed"
 
 #. placeholder {0}: dataErrorMessage(review.error) ?? t`服务没有给出原因`
 #: src/pages/analysis/match/views/ReviewView.tsx:198
@@ -7732,7 +7802,7 @@ msgstr "The language of the interface wording. The change is saved and applies t
 msgid "界面语言"
 msgstr "Interface language"
 
-#: src/pages/shared/settings/GameSection.tsx:403
+#: src/pages/shared/settings/GameSection.tsx:406
 msgid "留白"
 msgstr "Lead-in"
 
@@ -7844,7 +7914,8 @@ msgstr "See utility & economy"
 #: src/pages/shared/settings/AiAgentSection.tsx:571
 #: src/pages/shared/settings/AppSection.tsx:84
 #: src/pages/shared/settings/FilesSection.tsx:96
-#: src/pages/shared/settings/GameSection.tsx:116
+#: src/pages/shared/settings/GameSection.tsx:117
+#: src/pages/shared/settings/MapGeometrySettings.tsx:42
 #: src/pages/shared/settings/RecoveryPage.tsx:122
 msgid "知道了"
 msgstr "Got it"
@@ -8379,7 +8450,7 @@ msgstr "Automation mode {0}"
 msgid "自动启动"
 msgstr "Automatic"
 
-#: src/pages/shared/settings/GameSection.tsx:341
+#: src/pages/shared/settings/GameSection.tsx:344
 msgid "自动检测到"
 msgstr "Detected automatically"
 
@@ -8639,7 +8710,7 @@ msgstr "Tone: analytical"
 msgid "语言"
 msgstr "Language"
 
-#: src/pages/shared/settings/GameSection.tsx:232
+#: src/pages/shared/settings/GameSection.tsx:235
 msgid "语音"
 msgstr "Voice"
 
@@ -8671,6 +8742,10 @@ msgstr "Disable the unsupported effect first"
 #: src/domain/editing/ClipInspector.tsx:135
 msgid "请先停用不支持的效果，再修改片段。"
 msgstr "Disable the unsupported effect before editing this clip."
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:50
+msgid "请先在 CS2 中安装这张地图。"
+msgstr "Install this map in CS2 first."
 
 #: src/pages/shared/library/LibraryPage.tsx:654
 msgid "请先读取应用配置"
@@ -8708,9 +8783,10 @@ msgstr "Request export"
 msgid "请求录制片段"
 msgstr "Request clip recording"
 
-#: src/shared/desktop/client.ts:182
-#: src/shared/desktop/client.ts:205
-#: src/shared/desktop/client.ts:228
+#: src/shared/desktop/client.ts:183
+#: src/shared/desktop/client.ts:206
+#: src/shared/desktop/client.ts:221
+#: src/shared/desktop/client.ts:230
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "The request timed out or was cancelled. Please try again shortly."
 
@@ -8783,7 +8859,7 @@ msgstr "Could not read the environment self-check: {error}"
 
 #: src/pages/shared/settings/AppSection.tsx:80
 #: src/pages/shared/settings/FilesSection.tsx:89
-#: src/pages/shared/settings/GameSection.tsx:112
+#: src/pages/shared/settings/GameSection.tsx:113
 msgid "读不到设置：{configError}"
 msgstr "Could not read the settings: {configError}"
 
@@ -9127,7 +9203,7 @@ msgstr "No finished files yet"
 msgid "还没有打开一场比赛"
 msgstr "No match is open yet"
 
-#: src/pages/shared/settings/GameSection.tsx:343
+#: src/pages/shared/settings/GameSection.tsx:346
 msgid "还没有找到 CS2。点「更改」选择安装目录。"
 msgstr "CS2 has not been found. Click Change to choose the install directory."
 
@@ -9177,7 +9253,7 @@ msgid "还没有缩略图"
 msgstr "No thumbnails yet"
 
 #: src/pages/shared/settings/FilesSection.tsx:155
-#: src/pages/shared/settings/GameSection.tsx:185
+#: src/pages/shared/settings/GameSection.tsx:186
 msgid "还没有设置"
 msgstr "Not set yet"
 
@@ -9298,7 +9374,7 @@ msgstr "These instructions are sent with every request. An empty field uses the 
 msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 msgstr "New Demos appearing in these folders are added to the library automatically."
 
-#: src/pages/shared/settings/GameSection.tsx:124
+#: src/pages/shared/settings/GameSection.tsx:125
 msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 msgstr "These settings decide how video is recorded. Changes apply only to recording tasks created afterwards."
 
@@ -9461,7 +9537,7 @@ msgstr "That action did not succeed: {writeError}"
 
 #: src/pages/shared/settings/AppSection.tsx:85
 #: src/pages/shared/settings/FilesSection.tsx:103
-#: src/pages/shared/settings/GameSection.tsx:117
+#: src/pages/shared/settings/GameSection.tsx:118
 msgid "这次改动没有保存：{writeError}"
 msgstr "This change was not saved: {writeError}"
 
@@ -9469,7 +9545,7 @@ msgstr "This change was not saved: {writeError}"
 msgid "这次检查没有返回任何项。"
 msgstr "This check returned nothing."
 
-#: src/pages/shared/settings/GameSection.tsx:275
+#: src/pages/shared/settings/GameSection.tsx:278
 msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 msgstr "No encoder checks in this run. The full list is under Advanced and diagnostics."
 
@@ -9502,7 +9578,7 @@ msgstr "This footage has no peaks analyzed yet, or it simply carries no audio."
 msgid "这组修改已应用到时间线，请检查效果。"
 msgstr "These changes have been applied to the timeline. Review the result."
 
-#: src/pages/shared/settings/GameSection.tsx:256
+#: src/pages/shared/settings/GameSection.tsx:259
 msgid "这里显示本机的成片生成能力，结果来自编码器检查。"
 msgstr "This shows the machine’s finished-video capability, based on encoder checks."
 
@@ -9697,7 +9773,7 @@ msgstr "Player utility details"
 msgid "选择 {0}"
 msgstr "Select {0}"
 
-#: src/pages/shared/settings/GameSection.tsx:144
+#: src/pages/shared/settings/GameSection.tsx:145
 msgid "选择 CS2 安装目录"
 msgstr "Choose the CS2 install folder"
 
@@ -10008,7 +10084,7 @@ msgstr "Rescan"
 
 #: src/pages/shared/onboarding/GuidePage.tsx:111
 #: src/pages/shared/settings/AdvancedSection.tsx:169
-#: src/pages/shared/settings/GameSection.tsx:291
+#: src/pages/shared/settings/GameSection.tsx:294
 #: src/pages/shared/settings/RecoveryPage.tsx:98
 #: src/pages/shared/settings/RecoveryPage.tsx:102
 msgid "重新检查"
@@ -10019,6 +10095,14 @@ msgstr "Check again"
 #: src/pages/analysis/evidence/EvidenceEmpty.tsx:133
 msgid "重新检索"
 msgstr "Search again"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+msgid "重新生成"
+msgstr "Regenerate"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:64
+msgid "重新生成 {name} 地图"
+msgstr "Regenerate {name} geometry"
 
 #. placeholder {0}: asset.name
 #: src/domain/editing/ProjectMediaWorkspace.tsx:955
@@ -10088,7 +10172,8 @@ msgstr "Reset filters"
 #: src/pages/shared/settings/AiAgentSection.tsx:975
 #: src/pages/shared/settings/AppSection.tsx:79
 #: src/pages/shared/settings/FilesSection.tsx:88
-#: src/pages/shared/settings/GameSection.tsx:111
+#: src/pages/shared/settings/GameSection.tsx:112
+#: src/pages/shared/settings/MapGeometrySettings.tsx:41
 #: src/pages/shared/settings/RecoveryPage.tsx:109
 #: src/pages/shared/settings/RecoveryPage.tsx:114
 msgid "重试"
@@ -10229,8 +10314,8 @@ msgstr "Hide all panels in this group"
 msgid "隐藏面板"
 msgstr "Hide panel"
 
-#: src/pages/shared/settings/GameSection.tsx:221
 #: src/pages/shared/settings/GameSection.tsx:224
+#: src/pages/shared/settings/GameSection.tsx:227
 msgid "雷达"
 msgstr "Radar"
 

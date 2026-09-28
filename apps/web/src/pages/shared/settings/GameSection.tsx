@@ -43,6 +43,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
+import { MapGeometrySettings } from './MapGeometrySettings';
 
 import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
@@ -186,6 +187,8 @@ export function GameSection() {
           </>
         )}
       </SettingsBlock>
+
+      <MapGeometrySettings />
 
       <SettingsBlock id="recording-defaults" title={<Trans>录制默认值</Trans>}>
         {current === undefined ? (

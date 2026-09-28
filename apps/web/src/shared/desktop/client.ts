@@ -39,6 +39,7 @@ import type {
   AnalysisRun,
   AnalysisRunDetail,
   AppConfig,
+  MapGeometryStatus,
   AudioAnalysis,
   AudioAnalysisOptions,
   AvatarCacheCleanup,
@@ -217,6 +218,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 }
 
 async function requestBinary(path: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  if (signal?.aborted) throw new DesktopError(t`请求超时或已取消，请稍后重试。`, 0, 'REQUEST_ABORTED');
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), 60_000);
   const abortFromCaller = () => controller.abort();
@@ -229,8 +231,12 @@ async function requestBinary(path: string, signal?: AbortSignal): Promise<ArrayB
       }, { once: true });
     });
     const buffer = await Promise.race([invocation, cancellation]);
-    if (buffer.byteLength > 128 * 1024 * 1024) throw new DesktopError(t`二进制回放超过 128 MiB 上限。`, 413, 'REPLAY_TOO_LARGE');
+    if (buffer.byteLength > 128 * 1024 * 1024) throw new DesktopError(t`二进制数据超过 128 MiB 上限。`, 413, 'BINARY_TOO_LARGE');
     return buffer;
+  } catch (error) {
+    if (error instanceof DesktopError) throw error;
+    if (isDesktopCommandFailure(error)) throw commandFailure(error);
+    throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'DESKTOP_COMMAND_FAILED');
   } finally {
     globalThis.clearTimeout(timer);
     signal?.removeEventListener('abort', abortFromCaller);
@@ -980,6 +986,9 @@ export const commands = {
     }),
   getReplayBinary: (id: string, signal?: AbortSignal) =>
     requestBinary(`/demos/${encodeURIComponent(id)}/replay.bin`, signal),
+  mapGeometryStatus: (signal?: AbortSignal) => request<MapGeometryStatus[]>('/source-assets/map-geometry', { signal }),
+  getMapGeometryBinary: (mapName: string, signal?: AbortSignal) => requestBinary(`/source-assets/map-geometry/${encodeURIComponent(mapName)}`, signal),
+  rebuildMapGeometry: (mapName: string) => request<MapGeometryStatus>(`/source-assets/map-geometry/${encodeURIComponent(mapName)}/rebuild`, { method: 'POST', timeoutMs: 60_000 }),
   getAnalysisRunRoundReplayBinary: (runId: string, round: number, signal?: AbortSignal) =>
     requestBinary(
       `/analysis-runs/${encodeURIComponent(runId)}/replay/rounds/${encodeURIComponent(String(round))}/replay.bin`,

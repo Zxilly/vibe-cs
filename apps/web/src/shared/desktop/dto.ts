@@ -235,6 +235,8 @@ export type { HeatPoint as HeatPointRecord } from './generated/HeatPoint';
  */
 export type { RadarMetadataResponse as RadarOverviewRecord } from './generated/RadarMetadataResponse';
 export type { RadarTransformResponse } from './generated/RadarTransformResponse';
+export type { MapGeometryCacheState } from './generated/MapGeometryCacheState';
+export type { MapGeometryStatus } from './generated/MapGeometryStatus';
 
 /* ── players and lineups ──────────────────────────────────────────────────── */
 

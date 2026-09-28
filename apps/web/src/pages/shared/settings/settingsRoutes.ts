@@ -9,6 +9,7 @@ export const SETTINGS_ITEM_SECTION = {
   'watch-folders': 'files',
   steam: 'files',
   game: 'game',
+  'map-geometry': 'game',
   'recording-defaults': 'game',
   'video-output': 'game',
   model: 'ai',

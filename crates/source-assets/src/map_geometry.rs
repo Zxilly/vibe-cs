@@ -9,7 +9,7 @@ use crate::{Kv3Value, Result, SourceAssetError, decode_physics_kv3};
 const MAX_TRIANGLES: usize = 4_000_000;
 const QUANTIZATION: f32 = 16.0;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct MapGeometry {
     pub vertices: Vec<[f32; 3]>,
     pub triangles: Vec<[u32; 3]>,

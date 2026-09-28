@@ -14,6 +14,7 @@
 mod cosmetics;
 mod cs2;
 mod error;
+mod geometry_binary;
 mod kv3;
 mod map_geometry;
 mod overview;
@@ -23,6 +24,7 @@ mod vtex;
 pub use cosmetics::*;
 pub use cs2::*;
 pub use error::{Result, SourceAssetError};
+pub use geometry_binary::{decode_map_geometry, encode_map_geometry};
 pub use kv3::{Kv3Value, decode_physics_kv3};
 pub use map_geometry::*;
 pub use overview::*;

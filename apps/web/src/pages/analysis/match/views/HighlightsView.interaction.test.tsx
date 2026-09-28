@@ -171,3 +171,37 @@ describe('定位', () => {
     expect(updateContext).toHaveBeenCalledWith({ highlight: 'h-21-clutch', round: 21, tick: 148_920, player: 'kael' });
   });
 });
+
+describe('keyboard picking', () => {
+  it('steps with the arrows, adds with A and ticks with X', () => {
+    const updateContext = vi.fn<(patch: MatchContextPatch) => void>();
+    const onAdd = vi.fn();
+    renderHighlights({ ...viewProps({ updateContext }), addToVideo: { disabled: false, onAdd } });
+    const [first, second] = rows();
+
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' });
+    expect(updateContext).toHaveBeenLastCalledWith(
+      expect.objectContaining({ highlight: second }),
+      { replace: true },
+    );
+
+    fireEvent.keyDown(document.body, { key: 'a' });
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ highlightId: first }));
+
+    fireEvent.keyDown(document.body, { key: 'x' });
+    expect(screen.getByText('已选 1 条')).toBeTruthy();
+  });
+
+  it('leaves the keys to a focused control that owns them', () => {
+    const updateContext = vi.fn<(patch: MatchContextPatch) => void>();
+    const onAdd = vi.fn();
+    renderHighlights({ ...viewProps({ updateContext }), addToVideo: { disabled: false, onAdd } });
+
+    fireEvent.keyDown(screen.getByRole('radio', { name: /全部/u }), { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getAllByRole('button', { name: '加入作品' })[0] as HTMLElement, { key: ' ' });
+    fireEvent.keyDown(document.body, { key: 'a', ctrlKey: true });
+
+    expect(updateContext).not.toHaveBeenCalled();
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+});

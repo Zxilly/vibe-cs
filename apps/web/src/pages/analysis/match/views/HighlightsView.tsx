@@ -66,7 +66,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 
 import { analysisIsMissing, useMatchAnalysis } from '../../../../data/match';
 import { Empty, Pagination } from '../../../../design/data';
-import { Button, Seg, Badge } from '../../../../design/primitives';
+import { Button, Seg, Badge, Kbd } from '../../../../design/primitives';
 import { SelectionBar } from '../../../../design/layout';
 import {
   HIGHLIGHT_KIND,
@@ -77,6 +77,7 @@ import {
   type HighlightKind,
 } from '../../../../domain/match';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
+import { HighlightPreview } from './HighlightPreview';
 import { NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
@@ -98,15 +99,39 @@ type FilterValue = 'all' | HighlightKind;
 interface HighlightBatch {
   readonly selected: ReadonlySet<string>;
   readonly setSelected: (next: ReadonlySet<string> | ((current: ReadonlySet<string>) => ReadonlySet<string>)) => void;
+  /** The Inspector preview's play state: the list's Space and the preview's
+      button are one control. */
+  readonly previewPlaying: boolean;
+  readonly setPreviewPlaying: (playing: boolean) => void;
 }
 
-const NO_BATCH: HighlightBatch = { selected: new Set(), setSelected: () => undefined };
+const NO_BATCH: HighlightBatch = {
+  selected: new Set(),
+  setSelected: () => undefined,
+  previewPlaying: false,
+  setPreviewPlaying: () => undefined,
+};
 const HighlightBatchContext = createContext<HighlightBatch>(NO_BATCH);
 
 function HighlightBatchProvider({ children }: { readonly children: ReactNode }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const batch = useMemo<HighlightBatch>(() => ({ selected, setSelected }), [selected]);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const batch = useMemo<HighlightBatch>(
+    () => ({ selected, setSelected, previewPlaying, setPreviewPlaying }),
+    [selected, previewPlaying],
+  );
   return <HighlightBatchContext.Provider value={batch}>{children}</HighlightBatchContext.Provider>;
+}
+
+/**
+ * Whether the focused element owns a key the list would otherwise answer: a
+ * field, an open menu or dialog, a radio group's arrows, a button's Space.
+ */
+function ownsKey(target: EventTarget | null, key: string): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]')) return true;
+  if ((key === 'ArrowUp' || key === 'ArrowDown') && target.closest('[role="radiogroup"], [role="tablist"]')) return true;
+  return key === ' ' && target.closest('button, a, [role="button"], [role="checkbox"], [role="radio"]') !== null;
 }
 
 /* ── the body ────────────────────────────────────────────────────────────── */
@@ -118,7 +143,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
 
   const [filter, setFilter] = useState<FilterValue>('all');
   const [page, setPage] = useState(1);
-  const { selected, setSelected } = useContext(HighlightBatchContext);
+  const { selected, setSelected, previewPlaying, setPreviewPlaying } = useContext(HighlightBatchContext);
   const listRef = useRef<HTMLUListElement>(null);
 
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
@@ -148,6 +173,43 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     const index = visible.findIndex((highlight) => highlight.id === current);
     if (index >= 0) setPage(Math.floor(index / HIGHLIGHT_PAGE_SIZE) + 1);
   }, [current, visible]);
+
+  /* Picking is repetitive, so the list answers the keyboard while focus is not
+     in something that owns the key: ↑/↓ step through the visible highlights
+     and start the preview, Space plays or pauses it, A adds the current one,
+     X ticks it for the batch. */
+  const keys = useRef({ visible, focusedCurrent, previewPlaying, addToVideo, updateContext });
+  keys.current = { visible, focusedCurrent, previewPlaying, addToVideo, updateContext };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      if (!['ArrowUp', 'ArrowDown', ' ', 'a', 'x'].includes(key) || ownsKey(event.target, key)) return;
+      const state = keys.current;
+      const index = state.visible.findIndex((highlight) => highlight.id === state.focusedCurrent);
+      const here = state.visible[index] ?? null;
+      if (key === 'ArrowUp' || key === 'ArrowDown') {
+        const step = key === 'ArrowDown' ? 1 : -1;
+        const next = state.visible[Math.min(state.visible.length - 1, Math.max(0, index + step))];
+        if (next === undefined) return;
+        event.preventDefault();
+        state.updateContext(
+          { highlight: next.id, round: next.round, player: next.playerId ?? null },
+          { replace: true },
+        );
+        setPreviewPlaying(true);
+        return;
+      }
+      if (here === null) return;
+      event.preventDefault();
+      if (key === ' ') setPreviewPlaying(!state.previewPlaying);
+      else if (key === 'a') {
+        if (!state.addToVideo.disabled) state.addToVideo.onAdd?.(highlightSelection(here));
+      } else setSelected((current_) => toggleSelected(current_, here.id, !current_.has(here.id)));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setPreviewPlaying, setSelected]);
 
   /*
    * The handoff's payload, built from the *wire* highlights rather than from
@@ -217,7 +279,12 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
           ]}
         />
         <div className="flex-1" aria-hidden="true" />
-        <p className="text-xs text-neutral-600">
+        <p data-highlights-keys="" className="flex items-center gap-1.5 text-xs text-neutral-600">
+          <Kbd>↑</Kbd><Kbd>↓</Kbd> <Trans>切换</Trans>
+          <Kbd><Trans>空格</Trans></Kbd> <Trans>预览</Trans>
+          <Kbd>A</Kbd> <Trans>加入</Trans>
+          <Kbd>X</Kbd> <Trans>勾选</Trans>
+          <span aria-hidden="true">·</span>
           <Trans>按回合排序</Trans>
         </p>
       </header>
@@ -332,7 +399,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
-  const { selected, setSelected } = useContext(HighlightBatchContext);
+  const { selected, setSelected, previewPlaying, setPreviewPlaying } = useContext(HighlightBatchContext);
   const batch = useMemo(() => visibleSelection(selected, highlights), [selected, highlights]);
   const currentId = context.highlight ?? currentHighlightId(highlights, context.round, context.tick, context.player)
     ?? highlights[0]?.id
@@ -399,7 +466,13 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
       selection={highlightSelection(highlight)}
       collapsed={collapsed}
     >
-      <dl className="flex flex-col gap-3 text-sm">
+      <HighlightPreview
+        demoId={demoId}
+        highlight={highlight}
+        playing={previewPlaying}
+        onPlayingChange={setPreviewPlaying}
+      />
+      <dl className="mt-4 flex flex-col gap-3 text-sm">
         <Row label={<Trans>类型</Trans>}>
           <Badge variant="accent">{highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}</Badge>
         </Row>
@@ -409,13 +482,14 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         {highlight.description === undefined ? null : (
           <Row label={<Trans>说明</Trans>}>{highlight.description}</Row>
         )}
-        <Row label={<Trans>tick 区间</Trans>}>
-          <span className="font-mono text-xs">
-            {formatTickRange(highlight.startTick, highlight.endTick)}
-          </span>
-        </Row>
         <Row label={<Trans>时长</Trans>}>
           <Trans>{seconds} 秒</Trans>
+        </Row>
+        {/* Precise source parameters trail the readable facts (DESIGN.md). */}
+        <Row label={<Trans>tick 区间</Trans>}>
+          <span className="font-mono text-xs text-neutral-600">
+            {formatTickRange(highlight.startTick, highlight.endTick)}
+          </span>
         </Row>
       </dl>
     </MatchInspectorPanel>

@@ -958,7 +958,7 @@ function AssetProxyButton({ asset, generating, busy, compact = false, onGenerate
   const detail = asset.proxy_status.status === 'ready'
     ? t`代理已就绪；重新生成会替换现有代理文件`
     : asset.proxy_status.status === 'failed'
-      ? t`上次代理生成失败；点击重试`
+      ? t`上次代理生成失败，可以重新生成`
       : asset.proxy_status.status === 'generating' || generating
         ? t`正在生成可拖动预览使用的低分辨率代理`
         : supported ? t`生成低分辨率代理；导出仍使用原始素材` : t`只有视频素材可生成代理`;

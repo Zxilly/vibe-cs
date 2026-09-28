@@ -125,7 +125,7 @@ function projectWorkspaceLabel(label: I18nLabel): string | undefined {
     case I18nLabel.Group_Name_Label: return t`分组名称`;
     case I18nLabel.Group_Name_Placeholder: return t`分组名称`;
     case I18nLabel.Group_Color: return t`分组颜色`;
-    case I18nLabel.Group_Pill_Tooltip: return t`点击展开或折叠面板分组`;
+    case I18nLabel.Group_Pill_Tooltip: return t`展开或折叠面板分组`;
     case I18nLabel.Splitter: return t`调整面板尺寸`;
     case I18nLabel.Error_rendering_component: return t`面板渲染失败`;
     case I18nLabel.Error_rendering_component_retry: return t`重试`;

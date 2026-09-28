@@ -78,6 +78,7 @@ import {
   projectStoryTimelineChanges,
   type TimelineClipChange,
 } from './timelineChangeProjection';
+import { timelineClipStripLabel } from './timelineClipLabel';
 import { timelineTrackLayout } from './timelineTrackLayout';
 import { TimelineFilmstrip } from './TimelineFilmstrip';
 import { TimelineToolStrip, type TimelineEditTool } from './TimelineToolStrip';
@@ -2475,7 +2476,7 @@ export function ProjectTimeline({
           <Trans>目标：</Trans>{targetedTracks.map((track) => track.name).join('、') || '—'}
         </span>
         {linkedSelectionEnabled ? null : (
-          <Tooltip content={t`链接片段当前可独立选择；点击恢复链接选择`} side="bottom">
+          <Tooltip content={t`链接片段当前可独立选择`} side="bottom">
             <button type="button" className="h-[var(--h-ctl-sm)] rounded-sm px-2 text-xs text-neutral-600 hover:bg-neutral-100" aria-label={t`切换链接选择`} onClick={onToggleLinkedSelection}><Trans>独立选择</Trans></button>
           </Tooltip>
         )}
@@ -3785,10 +3786,11 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             role="img"
           />
         )) : null}
-        {track.clips.map((clip) => (
+        {track.clips.map((clip, index) => (
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
             clip={rippleDrafts.get(clip.id) ?? rollingDrafts.get(clip.id) ?? rateDrafts.get(clip.id) ?? slideDrafts.get(clip.id) ?? clip}
+            ordinal={index + 1}
             kind={track.kind}
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
@@ -4277,8 +4279,10 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, ordinal, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
+  /** 1-based position on its track: the compact name strip's last resort. */
+  readonly ordinal: number;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
@@ -4947,7 +4951,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         kind === 'video'
           ? 'bg-neutral-200/95 text-neutral-800'
           : 'border-divider bg-neutral-100/90 text-neutral-700',
-      )}>{clip.name}</span> : null}
+      )}>{timelineClipStripLabel(clip, ordinal, visualWidth)}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
         <>
           <span

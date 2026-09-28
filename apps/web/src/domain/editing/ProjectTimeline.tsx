@@ -78,7 +78,7 @@ import {
   projectStoryTimelineChanges,
   type TimelineClipChange,
 } from './timelineChangeProjection';
-import { timelineClipStripLabel } from './timelineClipLabel';
+import { timelineClipCompactLabels, timelineClipStripLabel } from './timelineClipLabel';
 import { timelineTrackLayout } from './timelineTrackLayout';
 import { TimelineFilmstrip } from './TimelineFilmstrip';
 import { TimelineToolStrip, type TimelineEditTool } from './TimelineToolStrip';
@@ -3592,6 +3592,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   const slidePoints = useMemo(() => slideEditTriples(track.track.clips, fps), [fps, track.track.clips]);
   const repeatedClipIds = useMemo(() => repeatedFrameClipIds(track.track.clips), [track.track.clips]);
   const throughEditCuts = useMemo(() => timelineThroughEditCuts(track.track.clips, fps), [fps, track.track.clips]);
+  const compactLabels = useMemo(() => timelineClipCompactLabels(track.clips), [track.clips]);
   useEffect(() => {
     if (editTool !== 'ripple' && rippleDrafts.size > 0) setRippleDrafts(new Map());
   }, [editTool, rippleDrafts.size]);
@@ -3786,11 +3787,11 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             role="img"
           />
         )) : null}
-        {track.clips.map((clip, index) => (
+        {track.clips.map((clip) => (
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
             clip={rippleDrafts.get(clip.id) ?? rollingDrafts.get(clip.id) ?? rateDrafts.get(clip.id) ?? slideDrafts.get(clip.id) ?? clip}
-            ordinal={index + 1}
+            compactLabel={compactLabels.get(clip.id) ?? clip.name}
             kind={track.kind}
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
@@ -4279,10 +4280,10 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, ordinal, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
-  /** 1-based position on its track: the compact name strip's last resort. */
-  readonly ordinal: number;
+  /** What the name strip collapses to when the name does not fit. */
+  readonly compactLabel: string;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
@@ -4951,7 +4952,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, ordinal, kind, d
         kind === 'video'
           ? 'bg-neutral-200/95 text-neutral-800'
           : 'border-divider bg-neutral-100/90 text-neutral-700',
-      )}>{timelineClipStripLabel(clip, ordinal, visualWidth)}</span> : null}
+      )}>{timelineClipStripLabel(clip, compactLabel, visualWidth)}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
         <>
           <span

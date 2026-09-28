@@ -34,8 +34,10 @@
  * its check. It also makes the data unmistakably fake at a glance.
  */
 
-import { PREVIEW_DELIVERY_GATE, PREVIEW_PROJECT } from './projectFixtures';
+import { applyMockPatch, mockProject, revertMockChangeGroup } from './mockProjectEdits';
+import { PREVIEW_DELIVERY_GATE } from './projectFixtures';
 import type {
+  ProjectPatch,
   ActivityFeed,
   AgentSessionPage,
   AgentSessionStorageStats,
@@ -1357,8 +1359,11 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['POST', '/recording/jobs/:id/cancel', () => ({ ...RECORDING_JOB_DETAIL, status: 'cancelling' as const })],
 
   /* editing and delivery */
-  ['GET', '/projects', () => [PREVIEW_PROJECT]],
-  ['GET', '/projects/:id', () => PREVIEW_PROJECT],
+  ['GET', '/projects', () => [mockProject()]],
+  ['GET', '/projects/:id', () => mockProject()],
+  ['PATCH', '/projects/:id', ({ body }) => applyMockPatch(body as ProjectPatch)],
+  ['POST', '/projects/:id/change-groups/:group/revert', ({ params, body }) =>
+    revertMockChangeGroup(params['group'] ?? '', (body as { expected_revision: number }).expected_revision)],
   ['GET', '/projects/:id/delivery-gate', () => PREVIEW_DELIVERY_GATE],
   ['GET', '/projects/:id/change-groups', () => []],
   ['GET', '/projects/:id/edit-lease', () => null],

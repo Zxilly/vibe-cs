@@ -124,6 +124,12 @@ function stubs(): Stubs {
   };
 }
 
+/** Radix opens its menu on pointer down, not on click. */
+async function chooseRowAction(title: string, action: string): Promise<void> {
+  fireEvent.pointerDown(await screen.findByRole('button', { name: `${title} 的更多操作` }), { button: 0, ctrlKey: false });
+  fireEvent.click(await screen.findByRole('menuitem', { name: action }));
+}
+
 function renderActivity(client: Record<string, unknown>) {
   return renderPage({
     element: <ActivityDrawer open onClose={() => undefined} onUnreadChange={() => undefined} />,
@@ -141,7 +147,7 @@ describe('成品 › 成品文件', () => {
       file_action: 'managed_file_deleted', warning: null,
     });
     renderPage({ element: <DeliveryPage />, client: { ...client, deleteOutput: remove }, route: '/delivery' });
-    fireEvent.click(await screen.findByRole('button', { name: '删除文件' }));
+    await chooseRowAction('Kael 1v3', '删除文件');
     const panel = screen.getByRole('dialog', { name: '删除这个成品文件？' });
     fireEvent.click(within(panel).getByRole('button', { name: '删除文件' }));
     await waitFor(() => expect(within(panel).getByRole('button', { name: '删除文件' })).toHaveProperty('disabled', true));
@@ -184,7 +190,7 @@ describe('成品 › 成品文件', () => {
     await screen.findByRole('heading', { name: 'Existing output 0' });
     fireEvent.click(screen.getByRole('button', { name: '下一页' }));
     await screen.findByRole('heading', { name: 'Last output' });
-    fireEvent.click(screen.getByRole('button', { name: '移除记录' }));
+    await chooseRowAction('Last output', '移除记录');
     const dialog = await screen.findByRole('dialog', { name: '移除这条记录？' });
     fireEvent.click(within(dialog).getByRole('button', { name: '移除记录' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -263,7 +269,47 @@ describe('成品 › 成品文件', () => {
     expect(screen.getByRole('heading', { name: 'Kael 1v3' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '预览 Kael 1v3' })).toBeTruthy();
     expect(screen.getByText('8.75 s · 1920×1080 · 60 fps · H264 / AAC')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '定位文件' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开所在文件夹' })).toBeTruthy();
+  });
+
+  it('leads each row with play and its folder, keeping removal in the row menu', async () => {
+    const { client } = stubs();
+    const { container } = renderPage({
+      element: <DeliveryPage />, client, route: '/delivery',
+      shell: { ...unavailableNativeShell, available: true, mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}` },
+    });
+
+    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    const actions = container.querySelector<HTMLElement>('[data-output-actions]')!;
+    expect(within(actions).queryByRole('button', { name: '删除文件' })).toBeNull();
+    expect(within(actions).getByRole('button', { name: '打开所在文件夹' })).toBeTruthy();
+
+    fireEvent.click(within(actions).getByRole('button', { name: '播放' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Kael 1v3' });
+    expect(within(drawer).getByLabelText('成品播放 Kael 1v3').tagName).toBe('VIDEO');
+
+    fireEvent.keyDown(drawer, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await chooseRowAction('Kael 1v3', '删除文件');
+    expect(await screen.findByRole('dialog', { name: '删除这个成品文件？' })).toBeTruthy();
+  });
+
+  it('keeps 移除记录 visible and neutral on a row whose file is gone', async () => {
+    const { client } = stubs();
+    const { container } = renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: { ...client, listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{ ...OUTPUT, availability: 'missing' }] }) },
+    });
+
+    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    const actions = container.querySelector<HTMLElement>('[data-output-actions]')!;
+    expect(within(actions).queryByRole('button', { name: '播放' })).toBeNull();
+    expect(within(actions).queryByRole('button', { name: '打开所在文件夹' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Kael 1v3 的更多操作' })).toBeNull();
+    const remove = within(actions).getByRole('button', { name: '移除记录' });
+    expect(remove.className).not.toContain('text-fail');
+    fireEvent.click(remove);
+    expect(await screen.findByRole('dialog', { name: '移除这条记录？' })).toBeTruthy();
   });
 
   it('uses one comparable file row and anchors the newest output', async () => {
@@ -278,7 +324,7 @@ describe('成品 › 成品文件', () => {
     expect(container.querySelector('[data-output-emphasized="true"]')?.getAttribute('data-output')).toBe('out-1');
   });
 
-  it('keeps the file name whole in the path column and hides the canonical prefix', async () => {
+  it('shows the file name above a directory that gives way in its middle, and hides the canonical prefix', async () => {
     const { client } = stubs();
     renderPage({
       element: <DeliveryPage />,
@@ -288,8 +334,10 @@ describe('成品 › 成品文件', () => {
 
     const path = await screen.findByRole('button', { name: '查看 Kael 1v3 的完整路径' });
     expect(path.getAttribute('title')).toBe('D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4');
-    expect(path.lastElementChild?.textContent).toBe('Kael_Mirage_1v3.mp4');
-    expect(path.firstElementChild?.textContent).toBe('D:\\vibe\\outputs\\');
+    expect(path.querySelector('[data-output-file-name]')?.textContent).toBe('Kael_Mirage_1v3.mp4');
+    const directory = path.querySelector('[data-output-directory]')!;
+    expect(directory.firstElementChild?.textContent).toBe('D:\\vibe\\');
+    expect(directory.lastElementChild?.textContent).toBe('outputs\\');
   });
 
   it('asks before deleting a managed file, then reports what the service did', async () => {
@@ -307,7 +355,7 @@ describe('成品 › 成品文件', () => {
       route: '/delivery',
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: '删除文件' }));
+    await chooseRowAction('Kael 1v3', '删除文件');
     expect(deleted).toEqual([]);
     const dialog = await screen.findByRole('dialog', { name: '删除这个成品文件？' });
     expect(dialog.textContent).toContain('不能恢复');
@@ -335,7 +383,7 @@ describe('成品 › 成品文件', () => {
       route: '/delivery',
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: '移除记录' }));
+    await chooseRowAction('Kael 1v3', '移除记录');
     const dialog = await screen.findByRole('dialog', { name: '移除这条记录？' });
     expect(dialog.textContent).toContain('磁盘上的文件不会被删除');
     expect(dialog.getAttribute('data-tone')).toBe('default');

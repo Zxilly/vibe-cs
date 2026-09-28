@@ -15,7 +15,9 @@
  *
  * ── One deletion, one confirmation ────────────────────────────────────────
  *
- * The row button names what it does — 删除文件 for a managed file that is
+ * A row leads with 播放 and 打开所在文件夹; removal sits in the row's 更多操作
+ * menu, or stays visible on a row whose file is gone, where it is the only
+ * useful action. It names what it does — 删除文件 for a managed file that is
  * still there, 移除记录 for everything else — and both go through
  * `DeleteOutputDialog`, which spells out the blast radius before the mutation
  * runs. What actually happened to the file is then reported from the result the
@@ -236,8 +238,7 @@ export function OutputsView({ now }: OutputsViewProps) {
               <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
               <span className="hidden items-center border-l border-divider px-4 min-[1200px]:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
-              <span className="hidden items-center border-l border-divider px-4 min-[1440px]:flex"><Trans>文件路径</Trans></span>
-              <span className="flex items-center justify-center border-l border-divider px-2"><Trans>操作</Trans></span>
+              <span className="flex items-center justify-end border-l border-divider px-4"><Trans>操作</Trans></span>
             </div>
             {items.map((output, index) => (
               <OutputCard

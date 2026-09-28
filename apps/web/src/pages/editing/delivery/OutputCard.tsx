@@ -1,11 +1,11 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Film, Play } from 'lucide-react';
+import { Ellipsis, Film, FolderOpen, Play } from 'lucide-react';
 import { useState } from 'react';
 
 import { useNativeShell } from '../../../data/nativeShell';
 import { Drawer } from '../../../design/feedback';
-import { Blueprint } from '../../../design/layout';
+import { Blueprint, OverflowMenu } from '../../../design/layout';
 import { Button, cn } from '../../../design/primitives';
 import { formatTaskClock } from '../../../domain/task';
 import type { OutputItem, Project } from '../../../shared/desktop/dto';
@@ -13,7 +13,7 @@ import { RouteLink } from '../../shared/navigation/RouteLink';
 import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
 /** Keep the identity and actions visible; secondary facts remain in details. */
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1fr)_7rem_6rem] min-[1200px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1.35fr)_7rem_14rem_6rem] min-[1440px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(10rem,1.35fr)_7rem_14rem_minmax(9rem,1fr)_6rem]';
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(12rem,1fr)_7rem_17rem] min-[1200px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(12rem,1.35fr)_7rem_14rem_17rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -45,8 +45,11 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
   const currentVersion = project !== undefined && version === project.revision;
   const shownPath = displayOutputPath(output.path);
   const pathParts = splitDisplayOutputPath(output.path);
+  const [directoryHead, directoryTail] = splitDirectoryTail(pathParts.directory);
   const removesFile = outputDeletionRemovesFile(output);
   const openDetails = () => { setPreviewOpen(false); setCopyNotice(null); setDetailsOpen(true); };
+  const play = () => { setPreviewOpen(true); setCopyNotice(null); setDetailsOpen(true); };
+  const removeLabel = removesFile ? t`删除文件` : t`移除记录`;
 
   return (
     <>
@@ -57,7 +60,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
         <div className="flex items-center justify-center px-4 py-2">
           <button type="button" className="relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-sm border border-divider bg-media text-on-media"
             aria-label={t`预览 ${title}`} disabled={!usable}
-            onClick={() => { setPreviewOpen(true); setDetailsOpen(true); }}>
+            onClick={play}>
             {streamUrl !== null && output.media?.width != null ? <video className="size-full object-contain" src={streamUrl} muted preload="metadata" aria-hidden="true" />
               : <Film className="size-5" aria-hidden="true" />}
             {usable ? <span className="absolute grid size-8 place-items-center rounded-sm bg-media/90"><Play className="size-4" aria-hidden="true" /></span>
@@ -69,10 +72,14 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
-            {sourceTaskId === null ? null : <RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>来源任务</Trans></RouteLink>}
-          </div>
+          {/* The file name is what tells rows apart on disk; the directory gives way in its middle, keeping the drive and the folder that holds the file. */}
+          <button type="button" className="flex min-w-0 flex-col items-start gap-0.5 text-left" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
+            <span data-output-file-name className="max-w-full truncate text-sm text-text">{pathParts.fileName}</span>
+            {pathParts.directory === '' ? null : <span data-output-directory className="flex w-full min-w-0 font-mono text-xs text-neutral-600">
+              <span className="min-w-[4ch] truncate">{directoryHead}</span><span className="flex-none">{directoryTail}</span>
+            </span>}
+          </button>
+          {sourceTaskId === null ? null : <RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm" className="self-start"><Trans>来源任务</Trans></RouteLink>}
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2 text-xs text-neutral-600">
           <span>{size ?? '—'}</span><span>{usable ? stamp : <Trans>文件缺失</Trans>}</span>
@@ -81,15 +88,22 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
         <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 min-[1200px]:flex">
           {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
         </div>
-        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 min-[1440px]:flex">
-          {/* The directory gives way first (zero basis), the file name only once it alone overflows: rows differ by name, not by prefix. */}
-          <button type="button" className="flex w-full min-w-0 text-left font-mono text-xs text-neutral-600 hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
-            <span className="min-w-[4ch] flex-1 truncate">{pathParts.directory}</span>
-            <span className="min-w-0 flex-initial truncate">{pathParts.fileName}</span>
-          </button>
-        </div>
-        <div className="flex items-center justify-center border-l border-divider px-2 py-2">
-          <Button variant="ghost" size="sm" className={cn(removesFile && 'text-fail-text')} onClick={() => onDelete(output)}>{removesFile ? <Trans>删除文件</Trans> : <Trans>移除记录</Trans>}</Button>
+        <div data-output-actions className="flex items-center justify-end gap-1 border-l border-divider px-2 py-2">
+          {usable ? <>
+            <Button variant="ghost" size="sm" onClick={play}><Play className="size-4" aria-hidden="true" /><Trans>播放</Trans></Button>
+            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><FolderOpen className="size-4" aria-hidden="true" /><Trans>打开所在文件夹</Trans></Button>
+            <OverflowMenu
+              label={t`${title} 的更多操作`}
+              triggerLabel={<Ellipsis className="size-4" aria-hidden="true" />}
+              iconOnly
+              align="end"
+              triggerClassName="rounded-md"
+              items={[
+                { id: 'details', label: t`查看详情`, onSelect: openDetails },
+                { id: 'delete', label: <span className={cn(removesFile && 'text-fail-text')}>{removeLabel}</span>, onSelect: () => onDelete(output) },
+              ]}
+            />
+          </> : <Button variant="ghost" size="sm" onClick={() => onDelete(output)}>{removeLabel}</Button>}
         </div>
       </Blueprint>
       <Drawer open={detailsOpen} title={title} description={version === null ? undefined : t`第 ${version} 版`} width="wide" onClose={() => setDetailsOpen(false)}>
@@ -104,7 +118,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           </dl>
           {usable ? null : <p className="text-sm text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>定位文件</Trans></Button>
+            {usable ? <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>打开所在文件夹</Trans></Button> : null}
             <Button size="sm" variant="secondary" onClick={async () => {
               try {
                 await navigator.clipboard.writeText(shownPath);
@@ -119,6 +133,13 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
       </Drawer>
     </>
   );
+}
+
+/** The directory's last folder stays whole; everything before it is what gets elided. */
+function splitDirectoryTail(directory: string): readonly [string, string] {
+  const trimmed = directory.slice(0, -1);
+  const cut = Math.max(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'));
+  return cut === -1 ? ['', directory] : [directory.slice(0, cut + 1), directory.slice(cut + 1)];
 }
 
 export function OutputCardSkeleton() {

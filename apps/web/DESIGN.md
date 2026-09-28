@@ -154,7 +154,7 @@ Vibe CS 的两个工作模式共用色彩、字体、导航和反馈语言。剪
 
 成功、警告与失败使用主题已有的 ok / warn / fail 及相应 surface、text、border 配对，呈现为 Notice 或 StatusDot 等反馈；这些语义色不扩展成第二套品牌配色。
 
-**The Action Hierarchy Rule.** 蓝色优先表达主动作、当前选择与焦点；普通 ghost 动作默认使用中性色。
+**The Action Hierarchy Rule.** 蓝色优先表达主动作、当前选择与焦点；普通 ghost 动作默认使用中性色。每个视图只有一个实心蓝色元素，即当前任务的 primary 按钮；页面标题栏的次要动作使用 secondary 或 ghost，Inspector 中针对所选对象的上下文动作存在时，由它承担唯一 primary。选中状态（Seg、工具栏开关、导航）使用 accent-100 浅蓝面与 accent-700 深蓝文字，不使用实心 accent 填充。
 
 ## Typography
 
@@ -195,10 +195,14 @@ Dock 负责个人面板几何，支持拖动、标签分组、拆分、调整大
 
 - **Buttons：** primary、secondary、ghost、danger 是同一个 Button 的四个变体。普通按钮水平内边距采用 panel-inset；hero 使用更宽的一档。悬停和按下只改变颜色，不改变盒子尺寸。禁用控件保留原因提示，危险动作与普通操作区分。
 - **Inputs：** 默认透明底、细边框，必要时用 ground="bg" 与父面板分离；悬停增强边框，焦点采用 accent。错误通过 invalid 与失败边框表达，禁用使用现有透明度。附加按钮或单位通过 InputGroup 组合。
-- **Badges：** 用于状态、计数和上下文；accent、neutral、outline、count 等沿用现有变体。可操作标签使用真实 button / link，不把静态 span 当作按钮。
+- **Segmented（Seg）：** 选中项使用 accent-100 浅蓝面、accent-700 文字和 1 px 内描边，保留内嵌 2 px 键盘焦点环；不使用实心 accent，避免与视图的 primary 按钮竞争。
+- **Badges：** 用于计数和上下文；accent、neutral、outline、count 沿用现有变体。可操作标签使用真实 button / link，不把静态 span 当作按钮。
+- **状态表达：** 同一列表中的对象状态统一使用 StatusDot 加文字：完成用 ok，进行中用 accent，未开始用 neutral，等待确认用 warn，失败用 fail。不要在同一列混用徽标、圆点和描边方块。失败任务只由内部 fail Alert 承担强调，外框保持 divider，进度条改用 fail 色调停在中断位置。
+- **行操作：** 表格行内动作统一使用 ghost 按钮外观；导航仍是真实链接，但不与按钮混用下划线或纯文本样式。动作文字使用动词，描述按下后真正发生的事。
 - **Panels / Cards：** ReviewPanel 提供中性和 focus 边界，容器没有强制固定内边距；内部标题、正文与操作沿共享内容轴线对齐。Dock 中的容器由 Dock 统一边界。
 - **Navigation：** 主导航选中使用浅蓝面和左侧细线；折叠后保留图标的可访问名称与焦点标签。次导航横向形态用底边线表达当前视图，不让当前入口藏入溢出菜单。
-- **Project Timeline：** 保留唯一 `domain/editing/ProjectTimeline`，所有时间几何使用 `design/timeline`，视觉沿用 `design/review` 与主题。默认突出播放、分割、撤销和吸附，高级操作按既有轨道、剪辑、标记、显示分组展开；非默认编辑状态仍需可见。所选片段保留简短身份、详情和缩放入口，精确源参数进入属性或源检查面板。紧凑工具栏选中状态采用浅蓝面；Program Monitor 继续由 Timeline Transport 驱动。
+- **Project Timeline：** 保留唯一 `domain/editing/ProjectTimeline`，所有时间几何使用 `design/timeline`，视觉沿用 `design/review` 与主题。默认突出播放、分割、撤销和吸附，高级操作按既有轨道、剪辑、标记、显示分组展开；非默认编辑状态仍需可见。所选片段保留简短身份、详情和缩放入口，精确源参数进入属性或源检查面板。片段宽度放不下完整名称时，名称条显示紧凑标记（源回合如“R1”，否则为轨道内序号），完整名称保留在可访问名称和悬停提示中，不显示只剩相同前缀的截断文字。紧凑工具栏选中状态采用浅蓝面；Program Monitor 继续由 Timeline Transport 驱动。
+- **精确参数：** tick 区间、路径等精确源参数排在人类可读事实之后，作为次级等宽元数据（如“精确信息”分组），不放在详情首行。
 - **选材确认：** 列表、Inspector 和批量动作共享高光来源映射。高光身份独立于回放播放头保存在工作区 URL；确认显示事件、含缓冲录制范围、目标作品、Story 落点和加入后时长。不能从时间定位点猜测最终录制长度。
 - **任务反馈：** 顶部作品任务与 Agent 对话共用 `ProjectExecutionCard`，状态来自持久任务接口。恢复已有任务不自动重启 Agent 或执行录制。取消、失败、成功分别表达；成功文件仍需人工观看验收。
 - **成品：** 使用 144 px 预览和可比较的文件行，列表不堆叠原生播放器控件。作品名、源版本、完成时间为首要信息；完整文件名、路径和单文件播放放入详情。版本来自 DTO，不能由文件名推断。

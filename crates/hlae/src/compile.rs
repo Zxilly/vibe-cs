@@ -224,17 +224,18 @@ fn compile_camera_path(shot: &CameraShot, tick_rate: f64) -> String {
     );
     for keyframe in &shot.keyframes {
         let relative_tick = u32::try_from(keyframe.tick - shot.start_tick).unwrap_or(u32::MAX);
-        let time = f64::from(relative_tick) / tick_rate;
+        let time =
+            crate::camera_sampling::serialized_camera_value(f64::from(relative_tick) / tick_rate);
         writeln!(
             xml,
             "<p t=\"{time:.6}\" x=\"{:.6}\" y=\"{:.6}\" z=\"{:.6}\" fov=\"{:.6}\" rx=\"{:.6}\" ry=\"{:.6}\" rz=\"{:.6}\" />",
-            keyframe.position.x,
-            keyframe.position.y,
-            keyframe.position.z,
-            keyframe.fov,
-            keyframe.rotation.roll,
-            keyframe.rotation.pitch,
-            keyframe.rotation.yaw
+            crate::camera_sampling::serialized_camera_value(keyframe.position.x),
+            crate::camera_sampling::serialized_camera_value(keyframe.position.y),
+            crate::camera_sampling::serialized_camera_value(keyframe.position.z),
+            crate::camera_sampling::serialized_camera_value(keyframe.fov),
+            crate::camera_sampling::serialized_camera_value(keyframe.rotation.roll),
+            crate::camera_sampling::serialized_camera_value(keyframe.rotation.pitch),
+            crate::camera_sampling::serialized_camera_value(keyframe.rotation.yaw)
         )
         .expect("writing to String cannot fail");
     }

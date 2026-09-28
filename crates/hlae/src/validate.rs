@@ -115,7 +115,7 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     Ok(notices)
 }
 
-fn validate_shot(
+pub(crate) fn validate_shot(
     shot: &CameraShot,
     tick_rate: f64,
     notices: &mut Vec<HlaeNotice>,

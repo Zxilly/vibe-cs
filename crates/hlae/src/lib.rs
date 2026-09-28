@@ -7,6 +7,7 @@
 //! or invokes a shell.
 
 mod bridge;
+mod camera_sampling;
 mod capture_artifacts;
 mod compile;
 mod discovery;
@@ -22,6 +23,7 @@ mod session_bootstrap;
 mod validate;
 
 pub use bridge::*;
+pub use camera_sampling::*;
 pub use capture_artifacts::*;
 pub use compile::*;
 pub use discovery::*;

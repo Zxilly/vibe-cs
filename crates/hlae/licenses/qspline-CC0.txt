@@ -1,0 +1,14 @@
+Quaternion spline routines are adapted from qspline CC0 by James McEnnan,
+as incorporated in advancedfx shared/AfxMath.cpp.
+
+COPYRIGHT (C) 2003 by James McEnnan
+
+To the extent possible under law, James McEnnan ( jmcennan@mailaps.org )
+has waived all copyright and related or neighboring rights to qspline CC0
+( http://sourceforge.net/projects/qspline-cc0 ) under the CC0 1.0
+license ( http://creativecommons.org/publicdomain/zero/1.0/ ).
+This work is published from: United States.
+
+The Rust implementation retains HLAE's endpoint conditions, hemisphere
+selection, epsilon and iterative solver stopping rule. It keeps coefficients
+inside each shot and only computes the quaternion output needed by the product.

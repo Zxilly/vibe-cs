@@ -179,3 +179,82 @@ fn look_at(camera: [f64; 3], target: [f64; 3]) -> CameraRotation {
 fn normalized_yaw(value: f64) -> f64 {
     (value + 180.0).rem_euclid(360.0) - 180.0
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires VIBE_DENSE_REPLAY_JSON from the real Major M1 extraction"]
+    fn real_major_flyby_and_crane_use_the_hlae_camera_sampler() {
+        use vibe_cs_hlae::{
+            CameraShot, PositionInterpolation, RotationInterpolation, sample_camera_shot,
+        };
+        let replay: vibe_cs_domain::ReplayArtifact = serde_json::from_slice(
+            &std::fs::read(std::env::var("VIBE_DENSE_REPLAY_JSON").unwrap()).unwrap(),
+        )
+        .unwrap();
+        let start_tick = 160_800;
+        let end_tick = 161_310;
+        let candidates = replay
+            .frames
+            .iter()
+            .filter(|frame| (start_tick..=end_tick).contains(&frame.tick))
+            .filter_map(|frame| {
+                frame
+                    .players
+                    .iter()
+                    .find(|player| player.name == "FalleN")
+                    .map(|player| (frame.tick, (player, frame)))
+            })
+            .collect::<Vec<_>>();
+        let selected = sample_four_frames(&candidates).unwrap();
+        let ticks = [start_tick, start_tick + 170, start_tick + 340, end_tick];
+        let mut output = Vec::new();
+        for style in [HlaeCameraStyle::Flyby, HlaeCameraStyle::Crane] {
+            let shot = CameraShot {
+                id: format!("real_{style:?}"),
+                start_tick,
+                end_tick,
+                position_interpolation: PositionInterpolation::Cubic,
+                rotation_interpolation: RotationInterpolation::SphericalCubic,
+                keyframes: selected
+                    .iter()
+                    .zip(ticks)
+                    .enumerate()
+                    .map(|(index, ((_, (player, frame)), tick))| {
+                        camera_keyframe_for_scene(
+                            tick,
+                            player,
+                            selected[0].1.0,
+                            style,
+                            index,
+                            engagement_focus(frame, player),
+                        )
+                    })
+                    .collect(),
+            };
+            let samples = sample_camera_shot(&shot, replay.fidelity.tick_rate, 30).unwrap();
+            assert_eq!(samples.len(), 241);
+            assert!(
+                samples
+                    .iter()
+                    .all(|sample| sample.quaternion.iter().all(|value| value.is_finite()))
+            );
+            assert!(samples.iter().all(|sample| sample.position.x.is_finite()
+                && sample.position.y.is_finite()
+                && sample.position.z.is_finite()));
+            eprintln!(
+                "real {:?}: {} samples, first={:?}, last={:?}",
+                style,
+                samples.len(),
+                samples.first().unwrap().position,
+                samples.last().unwrap().position
+            );
+            output.push(serde_json::json!({ "shot": shot, "samples": samples }));
+        }
+        if let Ok(path) = std::env::var("VIBE_CAMERA_PROBE_OUTPUT") {
+            std::fs::write(path, serde_json::to_vec(&output).unwrap()).unwrap();
+        }
+    }
+}

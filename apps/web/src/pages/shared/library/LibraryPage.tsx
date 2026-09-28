@@ -427,7 +427,7 @@ function DemoLibraryPage() {
               id: 'steam',
               label: <Trans>Steam 下载</Trans>,
               control: (
-                <Button variant="secondary" onClick={openSteam}>
+                <Button variant="ghost" onClick={openSteam}>
                   <Trans>Steam 下载</Trans>
                 </Button>
               ),
@@ -458,7 +458,7 @@ function DemoLibraryPage() {
                 setOverlay('watch');
               },
               control: (
-                <Button onClick={() => { setOverlay('watch'); }}>
+                <Button variant="ghost" onClick={() => { setOverlay('watch'); }}>
                   <Trans>监听目录</Trans>
                 </Button>
               ),

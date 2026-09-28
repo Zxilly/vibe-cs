@@ -174,13 +174,13 @@ describe('collecting clips for the current project', () => {
       client: { listDemos: () => Promise.resolve(demoPage([DEMO_FIXTURE])) },
     });
     fireEvent.change(search(), { target: { value: 'Aurora' } });
-    await screen.findByRole('link', { name: '工作区' });
+    await screen.findByRole('link', { name: '打开' });
     const address = location();
     expect(new URLSearchParams(address.split('?')[1]).get('project')).toBe('project-destination');
     first.unmount();
 
     renderLibrary({ at: address, seed: ONLINE });
-    const rowLink = screen.getByRole('link', { name: '工作区' });
+    const rowLink = screen.getByRole('link', { name: '打开' });
     expect(rowLink.getAttribute('href')).toBe(`/match/${DEMO_FIXTURE.id}?view=replay&project=project-destination`);
     fireEvent.click(await screen.findByRole('button', { name: '从 Demo 创建剪辑' }));
     await waitFor(() => expect(location()).toBe(`/match/${DEMO_FIXTURE.id}?view=replay&project=project-destination`));

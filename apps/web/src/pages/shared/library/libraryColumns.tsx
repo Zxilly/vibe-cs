@@ -25,12 +25,12 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { MoreHorizontal } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useHref } from 'react-router-dom';
 
 import type { DataTableColumn } from '../../../design/data';
 import { OverflowMenu } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
-import { RouteLink } from '../navigation/RouteLink';
 import { DemoStatusMark } from './DemoStatusMark';
 import {
   demoSourceLabel,
@@ -176,8 +176,22 @@ function DemoSourceCell({ demo }: { demo: DemoSummary }) {
 }
 
 /**
- * The artboard's fourth column of actions: 工作区 · 分析 · 查看 · 重新定位, one
- * per status.
+ * A row action that navigates. It stays a real anchor for middle-click and the
+ * status bar, but borrows the ghost button box so every row action — link or
+ * button — reads the same: no underline on one and plain text on the next.
+ */
+function RowLink({ to, children }: { to: string; children: ReactNode }) {
+  const href = useHref(to);
+  return (
+    <Button asChild size="sm" variant="ghost">
+      <a href={href}>{children}</a>
+    </Button>
+  );
+}
+
+/**
+ * The artboard's fourth column of actions: 打开 · 分析 · 查看进度 · 重新定位,
+ * one verb per status, all drawn as ghost buttons.
  *
  * 重新定位 is rendered disabled with its reason written on it rather than
  * omitted: the desktop bridge has no 「relink this demo」 command (only
@@ -204,18 +218,18 @@ function RowAction({
       </Button>
     );
   } else if (demo.lifecycle_status === 'analyzing') {
-    // 「查看」 — the run itself lives on the delivery task list, which is where
-    // §7 puts 「分析、录制与导出的执行记录」.
+    // 「查看进度」 — the run itself lives on the delivery task list, which is
+    // where §7 puts 「分析、录制与导出的执行记录」.
     existing = (
-      <RouteLink to="/tasks">
-        <Trans>查看</Trans>
-      </RouteLink>
+      <RowLink to="/tasks">
+        <Trans>查看进度</Trans>
+      </RowLink>
     );
   } else if (isDemoAnalysable(demo)) {
     existing = (
-      <RouteLink to={handlers.workspaceHref(demo)}>
-        <Trans>工作区</Trans>
-      </RouteLink>
+      <RowLink to={handlers.workspaceHref(demo)}>
+        <Trans>打开</Trans>
+      </RowLink>
     );
   } else {
     existing = (

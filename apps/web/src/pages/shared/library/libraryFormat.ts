@@ -24,6 +24,7 @@
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
+import type { StatusDotStatus } from '../../../design/feedback';
 import { formatTimecode } from '../../../design/timeline';
 import type { DemoLifecycleStatus } from '../../../shared/desktop/dto';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
@@ -117,15 +118,13 @@ export function formatFileLocation(path: string): string {
 
 /* ── status ──────────────────────────────────────────────────────────────── */
 
-export type DemoStatusTone = 'accent' | 'neutral' | 'running' | 'fail';
-
 export interface DemoStatusMeta {
   readonly label: MessageDescriptor;
-  readonly tone: DemoStatusTone;
+  readonly tone: StatusDotStatus;
 }
 
 /**
- * `DemoRecord.status`, in words, with the tone the artboard paints it in.
+ * `DemoRecord.status`, in words, with the StatusDot tone that marks it.
  *
  * `missing` is the artboard's 「文件缺失」 row — brick red, and the one row whose
  * action is 「重新定位」 rather than 「工作区」. `analyzing` is its 「分析中」 row,
@@ -134,9 +133,9 @@ export interface DemoStatusMeta {
  * progress.
  */
 const DEMO_STATUS_META: Readonly<Record<DemoLifecycleStatus, DemoStatusMeta>> = {
-  discovered: { label: msg`待索引`, tone: 'neutral' },
+  discovered: { label: msg`待索引`, tone: 'idle' },
   indexing: { label: msg`索引中`, tone: 'running' },
-  ready: { label: msg`已就绪`, tone: 'accent' },
+  ready: { label: msg`已就绪`, tone: 'ok' },
   analyzing: { label: msg`分析中`, tone: 'running' },
   failed: { label: msg`索引失败`, tone: 'fail' },
   missing: { label: msg`文件缺失`, tone: 'fail' },

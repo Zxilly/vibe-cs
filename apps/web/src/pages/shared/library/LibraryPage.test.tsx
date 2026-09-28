@@ -138,7 +138,7 @@ describe('the table', () => {
 
   it('takes an analysed row to its workspace', () => {
     expect(html).toContain('href="/match/demo-a"');
-    expect(html).toContain('工作区');
+    expect(html).toContain('打开');
   });
 
   it('names the full match on the truncated identity cell', () => {
@@ -156,11 +156,12 @@ describe('the table', () => {
     }
   });
 
-  it('paints 「已就绪」 as the same accent badge the card and the Inspector use', () => {
+  it('marks 「已就绪」 with the same status dot and words the card and the Inspector use', () => {
     const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'));
-    const cell = table.slice(table.lastIndexOf('<span', table.indexOf('已就绪')), table.indexOf('已就绪'));
-    expect(cell).toContain('bg-accent-100');
-    expect(cell).not.toContain('text-neutral-600');
+    const cell = table.slice(table.lastIndexOf('<span data-status', table.indexOf('已就绪')), table.indexOf('已就绪'));
+    expect(cell).toContain('data-status="ok"');
+    expect(cell).toContain('bg-ok');
+    expect(cell).not.toContain('bg-accent-100');
   });
 });
 

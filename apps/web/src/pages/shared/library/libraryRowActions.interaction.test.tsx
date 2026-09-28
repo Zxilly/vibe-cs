@@ -47,7 +47,7 @@ describe('compact library row actions', () => {
     expect(onRowActivate).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(trigger));
-    expect(screen.getAllByRole('link', { name: '工作区' })[1]?.getAttribute('href'))
+    expect(screen.getAllByRole('link', { name: '打开' })[1]?.getAttribute('href'))
       .toBe(`/match/${rows[1]!.id}?project=target-project`);
   });
 

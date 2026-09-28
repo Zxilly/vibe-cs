@@ -38,6 +38,7 @@ import { applyMockPatch, mockProject, revertMockChangeGroup } from './mockProjec
 import { mockReplayBinary } from './mockReplay';
 import geometryFixtureUrl from './fixtures/scene3d.vmap?url';
 import { PREVIEW_DELIVERY_GATE } from './projectFixtures';
+import cameraFixture from './fixtures/camera-preview';
 import type {
   ProjectPatch,
   ActivityFeed,
@@ -1366,10 +1367,14 @@ const ROUTES: Array<[string, string, Handler]> = [
   /* editing and delivery */
   ['GET', '/projects', () => [mockProject()]],
   ['GET', '/projects/:id', () => mockProject()],
+  ['POST', '/projects/:id/clips/:clip/camera-preview', ({ params, body }) => ({
+    projectId: params['id'], clipId: params['clip'], revision: (body as { revision: number }).revision,
+    ...cameraFixture,
+  })],
   ['PATCH', '/projects/:id', ({ body }) => applyMockPatch(body as ProjectPatch)],
   ['POST', '/projects/:id/change-groups/:group/revert', ({ params, body }) =>
     revertMockChangeGroup(params['group'] ?? '', (body as { expected_revision: number }).expected_revision)],
-  ['GET', '/projects/:id/delivery-gate', () => PREVIEW_DELIVERY_GATE],
+  ['GET', '/projects/:id/delivery-gate', () => ({ ...PREVIEW_DELIVERY_GATE, revision: mockProject().revision })],
   ['GET', '/projects/:id/change-groups', () => []],
   ['GET', '/projects/:id/edit-lease', () => null],
   ['GET', '/projects/:id/render-previews', () => []],

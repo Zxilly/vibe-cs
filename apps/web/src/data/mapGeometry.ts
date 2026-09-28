@@ -36,7 +36,10 @@ export function useRebuildMapGeometry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (mapName: string) => client.rebuildMapGeometry(mapName),
-    onSuccess: (_status, mapName) => queryClient.invalidateQueries({ queryKey: qk.config.mapGeometry(mapName) }),
+    onSuccess: (_status, mapName) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.config.mapGeometry(mapName) }),
+      queryClient.invalidateQueries({ queryKey: qk.projects.cameraPreviews() }),
+    ]).then(() => undefined),
     onSettled: () => queryClient.invalidateQueries({ queryKey: qk.config.mapGeometryStatus() }),
   });
 }

@@ -265,5 +265,8 @@ function normaliseWatchPath(path: string): string {
 
 /** The config document and every probe derived from it. */
 export function invalidateConfig(client: QueryClient): Promise<void> {
-  return client.invalidateQueries({ queryKey: qk.config.all });
+  return Promise.all([
+    client.invalidateQueries({ queryKey: qk.config.all }),
+    client.invalidateQueries({ queryKey: qk.projects.cameraPreviews() }),
+  ]).then(() => undefined);
 }

@@ -54,6 +54,7 @@ import type {
   CreateNestedSequenceResponse,
   CreateMulticamRequest,
   CreateProjectRequest,
+  ProjectCameraPreviewResponse,
   CosmeticCatalog,
   CosmeticInspectionReport,
   CosmeticPlan,
@@ -519,6 +520,10 @@ export const commands = {
   listProjects: (signal?: AbortSignal) => request<Project[]>('/projects', { signal }),
   getProject: (projectId: string, signal?: AbortSignal) =>
     request<Project>(`/projects/${encodeURIComponent(projectId)}`, { signal }),
+  getProjectCameraPreview: (projectId: string, clipId: string, revision: number, signal?: AbortSignal) =>
+    request<ProjectCameraPreviewResponse>(`/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/camera-preview`, {
+      method: 'POST', body: { revision }, signal,
+    }),
   getProjectDeliveryGate: (projectId: string, signal?: AbortSignal) =>
     request<ProjectDeliveryGate>(`/projects/${encodeURIComponent(projectId)}/delivery-gate`, { signal }),
   createProject: (requestBody: CreateProjectRequest) =>

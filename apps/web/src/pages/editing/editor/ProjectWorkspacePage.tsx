@@ -40,6 +40,7 @@ import { useAgentStatus } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
 import { activityIsActive, useCancelTask, useTask, useTaskFeed } from '../../../data/tasks';
 import { ProjectExecutionCard } from '../../../domain/editing/ProjectExecutionCard';
+import { ClipCameraInspection } from '../../../domain/editing/ClipCameraInspection';
 import { useMapRadarOverview, useMatchReplay } from '../../../data/match';
 import { useNativeShell } from '../../../data/nativeShell';
 import {
@@ -1508,6 +1509,9 @@ export function ProjectWorkspacePage() {
   const inspectorPanel = (
     <section className="h-full min-h-0 overflow-y-auto p-3" aria-label={t`片段属性`}>
         <ClipInspector
+          cameraPreview={selected?.clip.capture_intent != null && selected.clip.capture_intent.camera_style !== 'pov'
+            ? <ClipCameraInspection projectId={current.id} revision={current.revision} clipId={selected.clip.id} />
+            : null}
           selected={selected}
           readOnly={readOnly || selected?.track.locked === true}
           timelineTimeSeconds={transportTimeSeconds}

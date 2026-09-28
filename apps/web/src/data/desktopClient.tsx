@@ -163,6 +163,7 @@ export type DesktopClient = Pick<
   | 'listProjects'
   | 'getProject'
   | 'getProjectDeliveryGate'
+  | 'getProjectCameraPreview'
   | 'createProject'
   | 'createProjectRecordingPlan'
   | 'exportProject'

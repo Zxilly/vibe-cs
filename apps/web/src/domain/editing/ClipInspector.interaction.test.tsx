@@ -55,6 +55,7 @@ function Harness({
   const [clip, setClip] = useState(initial);
   return (
     <ClipInspector
+      cameraPreview={null}
       selected={{ track: { ...TRACK, clips: [clip] }, clip }}
       readOnly={readOnly}
       timelineTimeSeconds={time}

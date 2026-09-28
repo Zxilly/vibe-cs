@@ -46,6 +46,15 @@ export function useProjectDeliveryGate(projectId: string | null, tuning: DataQue
   });
 }
 
+export function useProjectCameraPreview(projectId: string, clipId: string, revision: number, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.projects.cameraPreview(projectId, clipId, revision),
+    queryFn: ({ signal }) => client.getProjectCameraPreview(projectId, clipId, revision, signal),
+    ...resolveQueryTuning(tuning),
+  });
+}
+
 export function useProjectChangeGroups(projectId: string | null, tuning: DataQueryTuning = {}) {
   const client = useDesktopClient();
   return useQuery({

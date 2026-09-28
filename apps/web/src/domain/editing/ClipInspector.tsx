@@ -1,7 +1,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Diamond, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { Button, cn } from '../../design/primitives';
 import {
@@ -61,6 +61,7 @@ export function ClipInspector({
   fps,
   onSeek,
   onReplace,
+  cameraPreview,
 }: {
   readonly selected: { readonly track: TimelineTrack; readonly clip: TimelineClip } | null;
   readonly readOnly: boolean;
@@ -68,6 +69,7 @@ export function ClipInspector({
   readonly fps: number;
   readonly onSeek: (seconds: number) => void;
   readonly onReplace: (clip: TimelineClip) => void;
+  readonly cameraPreview: ReactNode;
 }) {
   const [effectKind, setEffectKind] = useState<SupportedEditorEffectKind>('color_adjust');
   if (selected === null) {
@@ -335,6 +337,7 @@ export function ClipInspector({
             <CaptureIntentNumberField label={t`后留白（秒）`} value={clip.capture_intent.post_roll_seconds} step={0.1} readOnly={readOnly} onCommit={commitNumber((value) => updateCaptureIntent(clip, { post_roll_seconds: Math.max(0, value) }))} />
           </div>
           <span className="mt-1 block text-xs text-neutral-500"><Trans>非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。</Trans></span>
+          {cameraPreview}
           {clip.material.kind === 'planned' ? null : (
             <Button
               className="mt-2 w-full"

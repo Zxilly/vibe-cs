@@ -284,6 +284,9 @@ export const qk = {
 
   projects: {
     all: [QUERY_NAMESPACE.projects] as const,
+    cameraPreviews: () => [QUERY_NAMESPACE.projects, 'camera-previews'] as const,
+    cameraPreview: (projectId: string, clipId: string, revision: number) =>
+      [QUERY_NAMESPACE.projects, 'camera-previews', projectId, clipId, revision] as const,
     list: () => [QUERY_NAMESPACE.projects, LIST] as const,
     detail: (projectId: string) => [QUERY_NAMESPACE.projects, DETAIL, projectId] as const,
     changeGroups: (projectId: string) =>

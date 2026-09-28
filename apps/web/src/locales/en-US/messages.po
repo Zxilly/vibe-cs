@@ -63,7 +63,7 @@ msgid "{0, plural, other {# 个未完成的文件}}"
 msgstr "{0, plural, one {# unfinished file} other {# unfinished files}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:418
+#: src/pages/shared/library/LibraryPage.tsx:425
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, one {# watched folder} other {# watched folders}}"
 
@@ -78,7 +78,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, one {# round} other {# rounds}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:416
+#: src/pages/shared/library/LibraryPage.tsx:423
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, one {# match} other {# matches}}"
 
@@ -113,7 +113,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, one {Last # conversation} other {Last # conversations}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:315
+#: src/pages/shared/library/LibraryPage.tsx:322
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, one {Analyze # selected match} other {Analyze # selected matches}}"
 
@@ -172,13 +172,13 @@ msgid "{0} {label}"
 msgstr "{0} {label}"
 
 #. placeholder {0}: facts.opening.rounds
-#: src/pages/analysis/match/views/OverviewView.tsx:137
+#: src/pages/analysis/match/views/OverviewView.tsx:138
 msgid "{0} 个回合有首杀"
 msgstr "{0} rounds with an opening kill"
 
 #. placeholder {0}: facts.opening.rounds
 #. placeholder {1}: facts.opening.unattributed
-#: src/pages/analysis/match/views/OverviewView.tsx:133
+#: src/pages/analysis/match/views/OverviewView.tsx:134
 msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} rounds with an opening kill · {1} unattributed"
 
@@ -199,7 +199,7 @@ msgstr "{0} clips are not recorded yet; record the missing clips first"
 
 #. placeholder {0}: pixelsPerSecond.toFixed(1)
 #. placeholder {1}: pixelsPerFrame.toFixed(2)
-#: src/domain/editing/ProjectTimeline.tsx:3362
+#: src/domain/editing/ProjectTimeline.tsx:3392
 msgid "{0} 像素/秒，{1} 像素/帧"
 msgstr "{0} px/sec, {1} px/frame"
 
@@ -256,7 +256,7 @@ msgstr "{0} matches"
 
 #. placeholder {0}: availability.indexed_demos
 #. placeholder {1}: availability.indexed_items
-#: src/pages/analysis/evidence/EvidencePage.tsx:254
+#: src/pages/analysis/evidence/EvidencePage.tsx:258
 msgid "{0} 场比赛 · {1} 条证据"
 msgstr "{0} matches · {1} evidence items"
 
@@ -269,7 +269,7 @@ msgid "{0} 对位 {1} 打出 {2} 比 {3}"
 msgstr "{0} went {2} to {3} against {1}"
 
 #. placeholder {0}: selected.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1908
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1910
 msgid "{0} 战术示意"
 msgstr "{0} tactical view"
 
@@ -370,7 +370,7 @@ msgstr "{0} trend, {1} matches, from {2} to {3}, average {4}"
 
 #. placeholder {0}: property === 'volume' ? 'Volume' : 'Pan'
 #. placeholder {1}: formatMillisecondTimecode(keyframe.time)
-#: src/domain/editing/ProjectTimeline.tsx:5902
+#: src/domain/editing/ProjectTimeline.tsx:5944
 msgid "{0} 轨道关键帧 {1}"
 msgstr "{0} Track Keyframe {1}"
 
@@ -380,8 +380,8 @@ msgid "{0} 还没有本地雷达数据，位置按通用参数估算，可能整
 msgstr "{0} has no local radar data yet; positions are estimated from generic parameters and may be offset as a whole. Once CS2 is installed, the local radar data is used instead."
 
 #. placeholder {0}: row.track.name
-#: src/domain/editing/ProjectTimeline.tsx:3447
-#: src/domain/editing/ProjectTimeline.tsx:3448
+#: src/domain/editing/ProjectTimeline.tsx:3477
+#: src/domain/editing/ProjectTimeline.tsx:3478
 msgid "{0} 音频"
 msgstr "{0} Audio"
 
@@ -473,7 +473,7 @@ msgstr "{removed, plural, other {Deleted # conversations. Shot list, background 
 msgid "{reserved} 由 Agent 运行时统一生成"
 msgstr "The Agent runtime generates {reserved}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2500
+#: src/domain/editing/ProjectTimeline.tsx:2529
 msgid "{reviewChangeCount} 处修改"
 msgstr "{reviewChangeCount} changes"
 
@@ -583,7 +583,7 @@ msgstr "No finished files for \"{scopeLabel}\" yet"
 msgid "「读取」模式只回放自动化；切到「关」或「写入」后才能手动调整"
 msgstr "Read mode only plays back automation; switch to Off or Write to adjust by hand"
 
-#: src/domain/editing/ProjectTimeline.tsx:2261
+#: src/domain/editing/ProjectTimeline.tsx:2290
 msgid "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
 msgstr "←/→: move 1 frame; Shift: move 5 frames; Ctrl/Shift-click an edit point to multi-select; Space or J/K/L to loop preview"
 
@@ -683,7 +683,7 @@ msgid "Agent 操作期间项目素材为只读"
 msgstr "Project media is read-only while the Agent is working"
 
 #. placeholder {0}: formatSeconds(current.placement.duration)
-#: src/domain/editing/ProjectTimeline.tsx:5737
+#: src/domain/editing/ProjectTimeline.tsx:5779
 msgid "Agent 新增片段 · {0}"
 msgstr "Agent added clips · {0}"
 
@@ -727,7 +727,7 @@ msgstr "Agent panel"
 msgid "AI 与 Agent"
 msgstr "AI & Agent"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:166
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:177
 #: src/pages/analysis/match/views/ReviewView.tsx:180
 #: src/pages/analysis/match/views/ReviewView.tsx:185
 msgid "AI 点评"
@@ -776,7 +776,7 @@ msgid "Demo tick {startTick}–{endTick}"
 msgstr "Demo ticks {startTick}–{endTick}"
 
 #. placeholder {0}: currentTick ?? displayed.tick
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2043
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2045
 msgid "Demo tick: {0}"
 msgstr "Demo tick: {0}"
 
@@ -787,7 +787,7 @@ msgstr "The Demo file and its library record were not touched. Re-analysing rege
 #: src/app/command/commandRegistry.ts:175
 #: src/app/shell/navigation.tsx:55
 #: src/app/shell/navigation.tsx:78
-#: src/pages/shared/library/LibraryPage.tsx:413
+#: src/pages/shared/library/LibraryPage.tsx:420
 msgid "Demo 资料库"
 msgstr "Demo library"
 
@@ -886,7 +886,7 @@ msgstr "R{0} · tick {1}"
 msgid "Review 分区"
 msgstr "Review sections"
 
-#: src/domain/editing/ProjectTimeline.tsx:6084
+#: src/domain/editing/ProjectTimeline.tsx:6126
 msgid "Solo：只监听所有已 Solo 的音频轨"
 msgstr "Solo: Monitor only all soloed audio tracks"
 
@@ -908,9 +908,9 @@ msgid "Steam Web API 密钥"
 msgstr "Steam Web API key"
 
 #: src/app/routeCrumb.ts:116
-#: src/pages/shared/library/LibraryPage.tsx:112
-#: src/pages/shared/library/LibraryPage.tsx:428
-#: src/pages/shared/library/LibraryPage.tsx:431
+#: src/pages/shared/library/LibraryPage.tsx:113
+#: src/pages/shared/library/LibraryPage.tsx:435
+#: src/pages/shared/library/LibraryPage.tsx:438
 #: src/pages/shared/settings/FilesSection.tsx:272
 msgid "Steam 下载"
 msgstr "Steam downloads"
@@ -963,11 +963,11 @@ msgid "Temperature 和 Top P 通常只需设置一个。"
 msgstr "You usually only need to set Temperature or Top P, not both."
 
 #. placeholder {0}: formatMillisecondTimecode(cut)
-#: src/domain/editing/ProjectTimeline.tsx:3785
+#: src/domain/editing/ProjectTimeline.tsx:3817
 msgid "Through Edit {0}"
 msgstr "Through Edit {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2442
+#: src/domain/editing/ProjectTimeline.tsx:2471
 msgid "Through Edit 标记"
 msgstr "Through Edit marker"
 
@@ -983,7 +983,7 @@ msgid "tick {0}"
 msgstr "tick {0}"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:412
-#: src/pages/analysis/match/views/OverviewView.tsx:373
+#: src/pages/analysis/match/views/OverviewView.tsx:370
 msgid "tick 区间"
 msgstr "tick range"
 
@@ -1012,7 +1012,7 @@ msgstr "Three steps to your first video, and what this machine can do right now"
 msgid "三步做出第一条视频，以及这台机器现在能做什么。"
 msgstr "Three steps to a first video, and what this machine can do right now."
 
-#: src/domain/editing/ProjectTimeline.tsx:2502
+#: src/domain/editing/ProjectTimeline.tsx:2531
 msgid "上一个修改"
 msgstr "Previous change"
 
@@ -1020,16 +1020,16 @@ msgstr "Previous change"
 msgid "上一个关键帧"
 msgstr "Previous keyframe"
 
-#: src/domain/editing/ProjectTimeline.tsx:2307
-#: src/domain/editing/ProjectTimeline.tsx:2311
+#: src/domain/editing/ProjectTimeline.tsx:2336
+#: src/domain/editing/ProjectTimeline.tsx:2340
 msgid "上一个字幕"
 msgstr "Previous subtitle"
 
-#: src/domain/editing/ProjectTimeline.tsx:2403
+#: src/domain/editing/ProjectTimeline.tsx:2432
 msgid "上一个标记"
 msgstr "Previous marker"
 
-#: src/domain/editing/ProjectTimeline.tsx:2341
+#: src/domain/editing/ProjectTimeline.tsx:2370
 msgid "上一个目标轨编辑点"
 msgstr "Previous edit point on target track"
 
@@ -1073,11 +1073,11 @@ msgstr "Last checked {0}"
 msgid "上移效果 {0}"
 msgstr "Move effect {0} up"
 
-#: src/domain/editing/ProjectTimeline.tsx:6112
+#: src/domain/editing/ProjectTimeline.tsx:6154
 msgid "上移轨道"
 msgstr "Move track up"
 
-#: src/domain/editing/ProjectTimeline.tsx:2503
+#: src/domain/editing/ProjectTimeline.tsx:2532
 msgid "下一个修改"
 msgstr "Next change"
 
@@ -1085,16 +1085,16 @@ msgstr "Next change"
 msgid "下一个关键帧"
 msgstr "Next keyframe"
 
-#: src/domain/editing/ProjectTimeline.tsx:2316
-#: src/domain/editing/ProjectTimeline.tsx:2320
+#: src/domain/editing/ProjectTimeline.tsx:2345
+#: src/domain/editing/ProjectTimeline.tsx:2349
 msgid "下一个字幕"
 msgstr "Next subtitle"
 
-#: src/domain/editing/ProjectTimeline.tsx:2404
+#: src/domain/editing/ProjectTimeline.tsx:2433
 msgid "下一个标记"
 msgstr "Next marker"
 
-#: src/domain/editing/ProjectTimeline.tsx:2342
+#: src/domain/editing/ProjectTimeline.tsx:2371
 msgid "下一个目标轨编辑点"
 msgstr "Next edit point on target track"
 
@@ -1129,7 +1129,7 @@ msgstr "Bomb plant"
 msgid "下移效果 {0}"
 msgstr "Move effect {0} down"
 
-#: src/domain/editing/ProjectTimeline.tsx:6113
+#: src/domain/editing/ProjectTimeline.tsx:6155
 msgid "下移轨道"
 msgstr "Move track down"
 
@@ -1238,17 +1238,17 @@ msgstr "Theme"
 msgid "之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。"
 msgstr "Every new file is written here from now on. Files already written are not moved and stay in the old directory."
 
-#: src/domain/editing/ProjectTimeline.tsx:6369
-#: src/domain/editing/ProjectTimeline.tsx:6370
+#: src/domain/editing/ProjectTimeline.tsx:6411
+#: src/domain/editing/ProjectTimeline.tsx:6412
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:157
 #: src/pages/analysis/match/views/RoundsView.tsx:276
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2040
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2042
 msgid "事件"
 msgstr "Event"
 
 #. placeholder {0}: clip.name
 #. placeholder {1}: formatMillisecondTimecode(clip.placement.start)
-#: src/domain/editing/ProjectTimeline.tsx:6382
+#: src/domain/editing/ProjectTimeline.tsx:6424
 msgid "事件 {0} {1}"
 msgstr "Event {0} {1}"
 
@@ -1329,7 +1329,7 @@ msgstr "Find highlights in a Demo, add them to a project, then record and export
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:308
 #: src/domain/editing/ProjectMediaWorkspace.tsx:314
-#: src/pages/shared/library/LibraryPage.tsx:376
+#: src/pages/shared/library/LibraryPage.tsx:383
 msgid "从 Demo 创建剪辑"
 msgstr "Create clip from Demo"
 
@@ -1337,11 +1337,11 @@ msgstr "Create clip from Demo"
 msgid "从 Demo 到第一条视频"
 msgstr "From Demo to your first video"
 
-#: src/pages/shared/library/LibraryPage.tsx:113
+#: src/pages/shared/library/LibraryPage.tsx:114
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "Sync recent matches from Steam and download replays"
 
-#: src/domain/editing/ProjectTimeline.tsx:2275
+#: src/domain/editing/ProjectTimeline.tsx:2304
 msgid "从剪辑点开始"
 msgstr "Start from Edit Point"
 
@@ -1353,7 +1353,7 @@ msgstr "Start by importing a Demo"
 msgid "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 msgstr "Pick a few takes from the recordings; they are stitched into the video in the order shown here."
 
-#: src/domain/editing/ProjectTimeline.tsx:2359
+#: src/domain/editing/ProjectTimeline.tsx:2388
 msgid "从所选片段创建嵌套序列…"
 msgstr "Create Nested Sequence from Selected Clips…"
 
@@ -1362,12 +1362,12 @@ msgid "从时间轴选择一个片段"
 msgstr "Select a clip from the timeline"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/ProjectTimeline.tsx:5009
+#: src/domain/editing/ProjectTimeline.tsx:5051
 msgid "从终点比率伸缩 {0}"
 msgstr "Rate Stretch from End {0}"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/ProjectTimeline.tsx:4991
+#: src/domain/editing/ProjectTimeline.tsx:5033
 msgid "从起点比率伸缩 {0}"
 msgstr "Rate Stretch from Start {0}"
 
@@ -1397,7 +1397,7 @@ msgstr "A proxy is ready; regenerating will replace the existing proxy file"
 msgid "代理生成中"
 msgstr "Generating Proxy"
 
-#: src/domain/editing/ProjectTimeline.tsx:2274
+#: src/domain/editing/ProjectTimeline.tsx:2303
 msgid "以剪辑点为中心"
 msgstr "Center on Edit Point"
 
@@ -1510,6 +1510,10 @@ msgstr "The project list is temporarily unavailable."
 msgid "作品列表没能读出来：{error}"
 msgstr "The project list could not be loaded: {error}"
 
+#: src/domain/project/quickAdd.tsx:74
+msgid "作品可能已被修改，请在作品的修订历史里撤销。"
+msgstr "The project may have changed since. Undo it from the project's revision history."
+
 #: src/app/routeCrumb.ts:70
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:591
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:601
@@ -1520,8 +1524,12 @@ msgstr "Project workspace"
 msgid "作品工作区面板"
 msgstr "Project Workspace Panel"
 
+#: src/domain/project/quickAdd.tsx:83
+msgid "作品没有被修改，请重试。"
+msgstr "The project was not changed. Try again."
+
 #. placeholder {0}: dataErrorMessage(demoProject.error)
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:212
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:223
 msgid "作品没能新建：{0}"
 msgstr "The project could not be created: {0}"
 
@@ -1569,8 +1577,8 @@ msgstr "Save"
 msgid "保存 Steam 设置"
 msgstr "Save Steam settings"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:267
-#: src/pages/analysis/evidence/EvidencePage.tsx:270
+#: src/pages/analysis/evidence/EvidencePage.tsx:271
+#: src/pages/analysis/evidence/EvidencePage.tsx:274
 #: src/pages/shared/library/LibraryFilters.tsx:231
 #: src/pages/shared/library/SaveViewDialog.tsx:42
 msgid "保存为视图"
@@ -1600,7 +1608,7 @@ msgstr "Save layout"
 msgid "保存当前的搜索、筛选、排序和列配置"
 msgstr "Saves the current search, filters, sort and column setup"
 
-#: src/domain/editing/ProjectTimeline.tsx:3143
+#: src/domain/editing/ProjectTimeline.tsx:3173
 msgid "保存标记"
 msgstr "Save Marker"
 
@@ -1649,8 +1657,8 @@ msgstr "Keep the selected clip's position, duration, effects, and keyframes, and
 msgid "保留策略没有应用成功"
 msgstr "The retention policy was not applied"
 
-#: src/domain/editing/ProjectTimeline.tsx:2262
-#: src/domain/editing/ProjectTimeline.tsx:2263
+#: src/domain/editing/ProjectTimeline.tsx:2291
+#: src/domain/editing/ProjectTimeline.tsx:2292
 msgid "修剪模式"
 msgstr "Trim mode"
 
@@ -1670,11 +1678,11 @@ msgstr "Changes applied to the timeline."
 msgid "修改时间线"
 msgstr "Edit timeline"
 
-#: src/domain/editing/ProjectTimeline.tsx:5554
+#: src/domain/editing/ProjectTimeline.tsx:5596
 msgid "修改注释"
 msgstr "Change notes"
 
-#: src/domain/editing/ProjectTimeline.tsx:2506
+#: src/domain/editing/ProjectTimeline.tsx:2535
 msgid "修改筛选"
 msgstr "Filter changes"
 
@@ -1753,11 +1761,11 @@ msgstr "Allow export"
 msgid "允许录制"
 msgstr "Allow recording"
 
-#: src/pages/shared/library/LibraryPage.tsx:231
+#: src/pages/shared/library/LibraryPage.tsx:233
 msgid "元数据已导出"
 msgstr "Metadata exported"
 
-#: src/pages/shared/library/LibraryPage.tsx:234
+#: src/pages/shared/library/LibraryPage.tsx:236
 msgid "元数据没能导出"
 msgstr "Metadata was not exported"
 
@@ -1785,6 +1793,10 @@ msgstr "Use current mode"
 msgid "先选一个回合"
 msgstr "Pick a round first"
 
+#: src/domain/editing/ProjectTimeline.tsx:2213
+msgid "先选中要删除的片段"
+msgstr "Select the clips to delete first"
+
 #: src/pages/analysis/match/MatchInspectorPanel.tsx:64
 msgid "先选择一个回合、选手或片段"
 msgstr "Select a round, player, or clip first"
@@ -1804,7 +1816,7 @@ msgstr "Configure an Agent model first"
 
 #. placeholder {0}: formatMillisecondTimecode(rangeStart)
 #. placeholder {1}: formatMillisecondTimecode(rangeEnd)
-#: src/domain/editing/ProjectTimeline.tsx:3056
+#: src/domain/editing/ProjectTimeline.tsx:3086
 msgid "入出点范围 {0} 到 {1}"
 msgstr "In/Out range {0} to {1}"
 
@@ -1833,7 +1845,7 @@ msgstr "In {0} · Out {1}"
 msgid "入点 {0} · 出点 {1} · 镜头跟随 {2}"
 msgstr "In {0} · Out {1} · Camera follows {2}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2486
+#: src/domain/editing/ProjectTimeline.tsx:2515
 msgid "入点已设置"
 msgstr "In point set"
 
@@ -1870,7 +1882,7 @@ msgstr "All projects"
 msgid "全部保留"
 msgstr "Keep all"
 
-#: src/domain/editing/ProjectTimeline.tsx:2511
+#: src/domain/editing/ProjectTimeline.tsx:2540
 msgid "全部修改"
 msgstr "All changes"
 
@@ -1902,7 +1914,7 @@ msgstr "{0} players"
 
 #. placeholder {0}: facts.rounds
 #. placeholder {0}: totals.rounds
-#: src/pages/analysis/match/views/OverviewView.tsx:123
+#: src/pages/analysis/match/views/OverviewView.tsx:124
 #: src/pages/analysis/match/views/TeamsView.tsx:328
 msgid "共 {0} 回合"
 msgstr "{0} rounds in total"
@@ -1959,13 +1971,13 @@ msgstr "Off"
 msgid "关键回合"
 msgstr "Key round"
 
-#: src/domain/editing/ProjectTimeline.tsx:2440
-#: src/domain/editing/ProjectTimeline.tsx:2926
+#: src/domain/editing/ProjectTimeline.tsx:2469
+#: src/domain/editing/ProjectTimeline.tsx:2956
 msgid "关键帧"
 msgstr "Keyframes"
 
 #. placeholder {0}: formatMillisecondTimecode(time)
-#: src/domain/editing/ProjectTimeline.tsx:4895
+#: src/domain/editing/ProjectTimeline.tsx:4937
 msgid "关键帧 {0} {count} 个属性"
 msgstr "Keyframe {0}, {count} properties"
 
@@ -1974,12 +1986,12 @@ msgstr "Keyframe {0}, {count} properties"
 msgid "关键帧插值"
 msgstr "Keyframe interpolation"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:191
+#: src/pages/analysis/match/views/OverviewView.tsx:192
 msgid "关键时刻"
 msgstr "Key moments"
 
 #. placeholder {0}: candidate.round
-#: src/pages/analysis/match/views/OverviewView.tsx:321
+#: src/pages/analysis/match/views/OverviewView.tsx:318
 msgid "关键时刻 · 第 {0} 回合"
 msgstr "Critical moment · Round {0}"
 
@@ -1995,21 +2007,21 @@ msgstr "Keyword: {0}"
 
 #: src/app/command/CommandPalette.tsx:256
 #: src/design/layout/Inspector.tsx:267
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1812
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1814
 msgid "关闭"
 msgstr "Close"
 
-#: src/domain/editing/ProjectTimeline.tsx:6084
+#: src/domain/editing/ProjectTimeline.tsx:6126
 msgid "关闭 Solo"
 msgstr "Disable Solo"
 
 #. placeholder {0}: item?.name ?? id
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1842
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1844
 msgid "关闭序列 {0}"
 msgstr "Close sequence {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2492
-#: src/domain/editing/ProjectTimeline.tsx:2493
+#: src/domain/editing/ProjectTimeline.tsx:2521
+#: src/domain/editing/ProjectTimeline.tsx:2522
 msgid "关闭循环播放"
 msgstr "Turn off loop playback"
 
@@ -2022,7 +2034,7 @@ msgstr "Close drawer"
 msgid "关闭提示"
 msgstr "Dismiss notice"
 
-#: src/domain/editing/ProjectTimeline.tsx:2383
+#: src/domain/editing/ProjectTimeline.tsx:2412
 msgid "关闭目标轨全部间隙"
 msgstr "Close all gaps on target track"
 
@@ -2162,7 +2174,7 @@ msgstr "Out cut line"
 msgid "出点"
 msgstr "Out point"
 
-#: src/domain/editing/ProjectTimeline.tsx:2486
+#: src/domain/editing/ProjectTimeline.tsx:2515
 msgid "出点已设置"
 msgstr "Out point set"
 
@@ -2213,7 +2225,7 @@ msgctxt "evidence-event"
 msgid "刀杀"
 msgstr "Knife kill"
 
-#: src/domain/editing/ProjectTimeline.tsx:2225
+#: src/domain/editing/ProjectTimeline.tsx:2254
 msgid "分割"
 msgstr "Split"
 
@@ -2288,7 +2300,7 @@ msgid "分析这名选手的比赛之后，每张地图的场次与命中会在�
 msgstr "Once the matches of this player are analyzed, the matches and hits per map build up here."
 
 #: src/domain/editing/MarkerEditorFields.tsx:35
-#: src/domain/editing/ProjectTimeline.tsx:6356
+#: src/domain/editing/ProjectTimeline.tsx:6398
 msgid "分段"
 msgstr "Section"
 
@@ -2306,15 +2318,15 @@ msgid "分页"
 msgstr "Pagination"
 
 #. placeholder {0}: track.name
-#: src/domain/editing/ProjectTimeline.tsx:6088
+#: src/domain/editing/ProjectTimeline.tsx:6130
 msgid "切换 Solo {0}"
 msgstr "Toggle Solo {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:3196
+#: src/domain/editing/ProjectTimeline.tsx:3226
 msgid "切换为 HH:MM:SS:FF 时间码"
 msgstr "Switch to HH:MM:SS:FF timecode"
 
-#: src/domain/editing/ProjectTimeline.tsx:3196
+#: src/domain/editing/ProjectTimeline.tsx:3226
 msgid "切换为总帧计数"
 msgstr "Switch to total frame count"
 
@@ -2322,7 +2334,7 @@ msgstr "Switch to total frame count"
 msgid "切换到摄像机 {angle} {name}"
 msgstr "Switch to camera {angle} {name}"
 
-#: src/domain/editing/ProjectTimeline.tsx:6058
+#: src/domain/editing/ProjectTimeline.tsx:6100
 msgid "切换同步锁定 {label}"
 msgstr "Toggle sync lock {label}"
 
@@ -2330,41 +2342,41 @@ msgstr "Toggle sync lock {label}"
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "Switch work mode, current: {currentModeLabel}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2396
+#: src/domain/editing/ProjectTimeline.tsx:2425
 msgid "切换循环播放"
 msgstr "Toggle loop playback"
 
-#: src/domain/editing/ProjectTimeline.tsx:3200
+#: src/domain/editing/ProjectTimeline.tsx:3230
 msgid "切换时间显示模式"
 msgstr "Toggle time display mode"
 
-#: src/domain/editing/ProjectTimeline.tsx:2240
+#: src/domain/editing/ProjectTimeline.tsx:2269
 msgid "切换时间轴吸附"
 msgstr "Toggle timeline snapping"
 
-#: src/pages/shared/library/LibraryPage.tsx:438
+#: src/pages/shared/library/LibraryPage.tsx:445
 msgid "切换视图"
 msgstr "Switch view"
 
-#: src/domain/editing/ProjectTimeline.tsx:6073
+#: src/domain/editing/ProjectTimeline.tsx:6115
 msgid "切换视频轨道显示"
 msgstr "Toggle video track visibility"
 
 #. placeholder {0}: property === 'volume' ? 'Volume' : 'Pan'
-#: src/domain/editing/ProjectTimeline.tsx:5809
+#: src/domain/editing/ProjectTimeline.tsx:5851
 msgid "切换轨道自动化属性，当前 {0}"
 msgstr "Toggle track automation property, currently {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:6098
+#: src/domain/editing/ProjectTimeline.tsx:6140
 msgid "切换轨道锁定"
 msgstr "Toggle Track Lock"
 
-#: src/domain/editing/ProjectTimeline.tsx:6073
+#: src/domain/editing/ProjectTimeline.tsx:6115
 msgid "切换轨道静音"
 msgstr "Toggle Track Mute"
 
-#: src/domain/editing/ProjectTimeline.tsx:2343
-#: src/domain/editing/ProjectTimeline.tsx:2480
+#: src/domain/editing/ProjectTimeline.tsx:2372
+#: src/domain/editing/ProjectTimeline.tsx:2509
 msgid "切换链接选择"
 msgstr "Toggle linked selection"
 
@@ -2389,7 +2401,7 @@ msgstr "Create clip"
 msgid "创建后，同步好的多机位轨道会替换当前时间轴。整个操作可以一次撤销。"
 msgstr "Once created, the synced multicam track replaces the current timeline. The entire operation can be undone in one step."
 
-#: src/domain/editing/ProjectTimeline.tsx:3108
+#: src/domain/editing/ProjectTimeline.tsx:3138
 msgid "创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。"
 msgstr "After creating it, double-click the text clip on the timeline to adjust font, color, position, and keyframes."
 
@@ -2401,11 +2413,11 @@ msgstr "Create multi-camera source sequence"
 msgid "创建多机位源序列"
 msgstr "Create Multicam Source Sequence"
 
-#: src/domain/editing/ProjectTimeline.tsx:2889
+#: src/domain/editing/ProjectTimeline.tsx:2919
 msgid "创建嵌套序列"
 msgstr "Create Nested Sequence"
 
-#: src/domain/editing/ProjectTimeline.tsx:2890
+#: src/domain/editing/ProjectTimeline.tsx:2920
 msgid "创建并打开"
 msgstr "Create and Open"
 
@@ -2423,11 +2435,11 @@ msgstr "Delete speed keyframes before {0}"
 msgid "删除布局"
 msgstr "Delete layout"
 
-#: src/domain/editing/ProjectTimeline.tsx:2406
+#: src/domain/editing/ProjectTimeline.tsx:2435
 msgid "删除所选标记"
 msgstr "Delete Selected Markers"
 
-#: src/domain/editing/ProjectTimeline.tsx:2381
+#: src/domain/editing/ProjectTimeline.tsx:2410
 msgid "删除所选片段并闭合间隙"
 msgstr "Delete Selected Clips and Close Gap"
 
@@ -2436,7 +2448,7 @@ msgstr "Delete Selected Clips and Close Gap"
 msgid "删除播放头的 {label} 关键帧"
 msgstr "Delete {label} keyframe at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:5820
+#: src/domain/editing/ProjectTimeline.tsx:5862
 msgid "删除播放头的轨道关键帧"
 msgstr "Delete track keyframes at playhead"
 
@@ -2454,7 +2466,7 @@ msgstr "Delete file"
 msgid "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
 msgstr "Delete file removes a managed file from disk and cannot be undone. Remove record never deletes an external file."
 
-#: src/domain/editing/ProjectTimeline.tsx:3130
+#: src/domain/editing/ProjectTimeline.tsx:3160
 msgid "删除标记"
 msgstr "Delete Marker"
 
@@ -2466,15 +2478,15 @@ msgstr "Delete this layout…"
 msgid "删除片段标记"
 msgstr "Delete Clip Markers"
 
-#: src/pages/shared/library/LibraryPage.tsx:358
+#: src/pages/shared/library/LibraryPage.tsx:365
 msgid "删除记录"
 msgstr "Delete records"
 
-#: src/domain/editing/ProjectTimeline.tsx:6114
+#: src/domain/editing/ProjectTimeline.tsx:6156
 msgid "删除轨道"
 msgstr "Delete track"
 
-#: src/domain/editing/ProjectTimeline.tsx:5824
+#: src/domain/editing/ProjectTimeline.tsx:5866
 msgid "删除轨道关键帧"
 msgstr "Delete Track Keyframes"
 
@@ -2486,11 +2498,11 @@ msgstr "Delete this saved layout?"
 msgid "删除这个成品文件？"
 msgstr "Delete this finished file?"
 
-#: src/domain/editing/ProjectTimeline.tsx:2467
+#: src/domain/editing/ProjectTimeline.tsx:2496
 msgid "删除预览文件"
 msgstr "Delete Preview Files"
 
-#: src/domain/editing/ProjectTimeline.tsx:2273
+#: src/domain/editing/ProjectTimeline.tsx:2302
 msgid "到剪辑点结束"
 msgstr "Extend to Edit Point"
 
@@ -2502,7 +2514,7 @@ msgstr "Create"
 msgid "刷新"
 msgstr "Refresh"
 
-#: src/domain/editing/ProjectTimeline.tsx:2368
+#: src/domain/editing/ProjectTimeline.tsx:2397
 msgid "刷新所选嵌套序列"
 msgstr "Refresh Selected Nested Sequences"
 
@@ -2522,11 +2534,11 @@ msgstr "Lead-in"
 msgid "前留白（秒）"
 msgstr "Leading Padding (seconds)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2376
+#: src/domain/editing/ProjectTimeline.tsx:2405
 msgid "剪切所选片段"
 msgstr "Cut Selected Clips"
 
-#: src/domain/editing/ProjectTimeline.tsx:2337
+#: src/domain/editing/ProjectTimeline.tsx:2366
 #: src/domain/editing/ProjectWorkspaceManager.tsx:151
 #: src/domain/editing/ProjectWorkspaceManager.tsx:156
 #: src/domain/task/taskVocabulary.tsx:29
@@ -2541,7 +2553,7 @@ msgstr "Editing"
 msgid "剪辑单"
 msgstr "Shot list"
 
-#: src/domain/editing/ProjectTimeline.tsx:2336
+#: src/domain/editing/ProjectTimeline.tsx:2365
 msgid "剪辑操作"
 msgstr "Edit"
 
@@ -2566,16 +2578,20 @@ msgstr "Placement"
 
 #: src/domain/project/AddToProjectDialog.tsx:82
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:133
-#: src/pages/analysis/evidence/EvidencePage.tsx:327
+#: src/pages/analysis/evidence/EvidencePage.tsx:331
 #: src/pages/analysis/evidence/EvidenceResults.tsx:192
 #: src/pages/analysis/match/MatchInspectorPanel.tsx:80
 #: src/pages/analysis/match/views/HighlightsView.tsx:272
 #: src/pages/analysis/match/views/HighlightsView.tsx:311
-#: src/pages/analysis/match/views/OverviewView.tsx:250
+#: src/pages/analysis/match/views/OverviewView.tsx:247
 #: src/pages/analysis/match/views/PlayersView.tsx:388
 #: src/pages/analysis/match/views/ReplayView.tsx:633
 msgid "加入作品"
 msgstr "Add to project"
+
+#: src/domain/project/quickAdd.tsx:131
+msgid "加入作品会放进"
+msgstr "Adding to a project goes to"
 
 #: src/domain/project/AddToProjectDialog.tsx:117
 msgid "加入后时长"
@@ -2647,13 +2663,13 @@ msgstr "Include Source Video"
 msgid "包含源音频"
 msgstr "Include Source Audio"
 
-#: src/domain/editing/ProjectTimeline.tsx:2353
+#: src/domain/editing/ProjectTimeline.tsx:2382
 msgid "匹配播放头源帧"
 msgstr "Match Source Frame at Playhead"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: (segment.speed * 100).toFixed(1)
-#: src/domain/editing/ProjectTimeline.tsx:5117
+#: src/domain/editing/ProjectTimeline.tsx:5159
 msgid "区间 {0} {1}%"
 msgstr "Range {0} {1}%"
 
@@ -2701,24 +2717,24 @@ msgstr "A single frame exceeds the grenade-effect limit"
 msgid "占用"
 msgstr "Usage"
 
-#: src/pages/shared/library/LibraryPage.tsx:446
+#: src/pages/shared/library/LibraryPage.tsx:453
 msgid "卡片"
 msgstr "Cards"
 
-#: src/domain/editing/ProjectTimeline.tsx:5650
+#: src/domain/editing/ProjectTimeline.tsx:5692
 msgid "原位置"
 msgstr "Original position"
 
 #. placeholder {0}: previous.name
-#: src/domain/editing/ProjectTimeline.tsx:5648
+#: src/domain/editing/ProjectTimeline.tsx:5690
 msgid "原位置 {0}"
 msgstr "Original position {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:5703
+#: src/domain/editing/ProjectTimeline.tsx:5745
 msgid "原出点"
 msgstr "Original Out point"
 
-#: src/domain/editing/ProjectTimeline.tsx:2959
+#: src/domain/editing/ProjectTimeline.tsx:2989
 msgid "原序列"
 msgstr "Previous sequence"
 
@@ -2757,7 +2773,7 @@ msgstr "Analyze a match in the library"
 msgid "参数不可读取"
 msgstr "Parameters unavailable"
 
-#: src/domain/editing/ProjectTimeline.tsx:6030
+#: src/domain/editing/ProjectTimeline.tsx:6072
 msgid "双击、Enter 或 F2 重命名轨道"
 msgstr "Double-click, Enter, or F2 to rename track"
 
@@ -2796,7 +2812,7 @@ msgstr "Sampled {0} of {1} positions (limit {2}). This map shows the sample, not
 #: src/design/feedback/Dialog.tsx:135
 #: src/domain/editing/ProjectAgentPanel.tsx:284
 #: src/domain/editing/ProjectExecutionCard.tsx:47
-#: src/domain/editing/ProjectTimeline.tsx:3068
+#: src/domain/editing/ProjectTimeline.tsx:3098
 #: src/domain/editing/ProjectWorkspaceManager.tsx:213
 #: src/domain/task/TaskCancelButton.tsx:93
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:172
@@ -2819,16 +2835,16 @@ msgstr "Cancel export task"
 msgid "取消录制任务"
 msgstr "Cancel recording task"
 
-#: src/domain/editing/ProjectTimeline.tsx:2356
+#: src/domain/editing/ProjectTimeline.tsx:2385
 msgid "取消组合所选片段"
 msgstr "Ungroup selected clips"
 
 #: src/pages/shared/library/history/HistoryPage.tsx:200
-#: src/pages/shared/library/LibraryPage.tsx:325
+#: src/pages/shared/library/LibraryPage.tsx:332
 msgid "取消选择"
 msgstr "Clear selection"
 
-#: src/domain/editing/ProjectTimeline.tsx:2344
+#: src/domain/editing/ProjectTimeline.tsx:2373
 msgid "取消链接所选片段"
 msgstr "Unlink selected clips"
 
@@ -2849,7 +2865,7 @@ msgid "受管文件"
 msgstr "Managed file"
 
 #: src/domain/editing/ClipInspector.tsx:504
-#: src/domain/editing/ProjectTimeline.tsx:2924
+#: src/domain/editing/ProjectTimeline.tsx:2954
 msgid "变换"
 msgstr "Transform"
 
@@ -2899,7 +2915,7 @@ msgstr "Only the record of \"{fileName}\" is removed; the file on disk is not de
 msgid "只移除项目中的素材记录；磁盘上的源文件不会删除。"
 msgstr "Only removes the media record from the project; the source file on disk is not deleted."
 
-#: src/pages/analysis/match/views/OverviewView.tsx:159
+#: src/pages/analysis/match/views/OverviewView.tsx:160
 msgid "可以画进 2D 回放的事件"
 msgstr "Events that can be drawn in the 2D replay"
 
@@ -2956,7 +2972,7 @@ msgstr "Sync and Create"
 msgid "同步点"
 msgstr "Sync Point"
 
-#: src/domain/editing/ProjectTimeline.tsx:6049
+#: src/domain/editing/ProjectTimeline.tsx:6091
 msgid "同步锁定：Story 插入、波纹删除、提取和波纹裁切时一起移动；Shift 点击切换同类轨道"
 msgstr "Sync Lock: moves together during Story insert, ripple delete, extract, and ripple trim; Shift-click to toggle tracks of the same type"
 
@@ -2994,12 +3010,12 @@ msgid "后留白（秒）"
 msgstr "Trailing padding (seconds)"
 
 #. placeholder {0}: formatSignedSeconds(change.startDelta)
-#: src/domain/editing/ProjectTimeline.tsx:5671
+#: src/domain/editing/ProjectTimeline.tsx:5713
 msgid "后续片段 {0}"
 msgstr "Following clips {0}"
 
 #. placeholder {0}: formatSignedSeconds(change.startDelta)
-#: src/domain/editing/ProjectTimeline.tsx:5668
+#: src/domain/editing/ProjectTimeline.tsx:5710
 msgid "后续片段移动 {0}"
 msgstr "Move following clips {0}"
 
@@ -3007,7 +3023,7 @@ msgstr "Move following clips {0}"
 msgid "向前选择轨道工具 (A)"
 msgstr "Track Select Forward Tool (A)"
 
-#: src/domain/editing/ProjectTimeline.tsx:5817
+#: src/domain/editing/ProjectTimeline.tsx:5859
 msgid "向右调整声像"
 msgstr "Pan Right"
 
@@ -3015,11 +3031,11 @@ msgstr "Pan Right"
 msgid "向后选择轨道工具 (Shift+A)"
 msgstr "Track Select Backward Tool (Shift+A)"
 
-#: src/domain/editing/ProjectTimeline.tsx:5813
+#: src/domain/editing/ProjectTimeline.tsx:5855
 msgid "向左调整声像"
 msgstr "Pan Left"
 
-#: src/domain/editing/ProjectTimeline.tsx:2348
+#: src/domain/editing/ProjectTimeline.tsx:2377
 msgid "向所选切口应用默认转场"
 msgstr "Apply Default Transition to Selected Cut"
 
@@ -3044,7 +3060,7 @@ msgstr "Enable proxy preview"
 msgid "启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。"
 msgstr "When enabled, you can add speed keyframes at the playhead and adjust the speed of each clip section separately."
 
-#: src/domain/editing/ProjectTimeline.tsx:2354
+#: src/domain/editing/ProjectTimeline.tsx:2383
 msgid "启用所选片段"
 msgstr "Enable Selected Clip"
 
@@ -3062,15 +3078,15 @@ msgid "启用片段"
 msgstr "Enable clip"
 
 #. placeholder {0}: formatMillisecondTimecode(snapGuideTime)
-#: src/domain/editing/ProjectTimeline.tsx:3046
+#: src/domain/editing/ProjectTimeline.tsx:3076
 msgid "吸附到 {0}"
 msgstr "Snap to {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2236
+#: src/domain/editing/ProjectTimeline.tsx:2265
 msgid "吸附已关闭 (S)"
 msgstr "Snapping off (S)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2236
+#: src/domain/editing/ProjectTimeline.tsx:2265
 msgid "吸附已开启 (S)"
 msgstr "Snapping on (S)"
 
@@ -3079,7 +3095,7 @@ msgid "告诉 Agent 要调整什么…"
 msgstr "Tell the Agent what to change…"
 
 #. placeholder {0}: search.data.total
-#: src/pages/analysis/evidence/EvidencePage.tsx:313
+#: src/pages/analysis/evidence/EvidencePage.tsx:317
 msgid "命中 {0} 条 · 排序：时间倒序"
 msgstr "{0} hits · sorted newest first"
 
@@ -3112,7 +3128,7 @@ msgstr "Back to task center"
 msgid "回到概览"
 msgstr "Back to the overview"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:429
+#: src/pages/analysis/evidence/EvidencePage.tsx:425
 msgid "回到证据视图"
 msgstr "Back to the evidence view"
 
@@ -3124,7 +3140,7 @@ msgstr "Back to the library"
 #: src/pages/analysis/match/views/DuelsView.tsx:249
 #: src/pages/analysis/match/views/DuelsView.tsx:250
 #: src/pages/analysis/match/views/EquipmentChart.tsx:49
-#: src/pages/analysis/match/views/OverviewView.tsx:358
+#: src/pages/analysis/match/views/OverviewView.tsx:355
 #: src/pages/analysis/match/views/TeamsView.tsx:238
 #: src/pages/analysis/match/views/UtilityView.tsx:232
 #: src/pages/analysis/match/views/UtilityView.tsx:233
@@ -3187,7 +3203,7 @@ msgstr "Round end"
 msgid "回合结束方式"
 msgstr "How rounds ended"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:121
+#: src/pages/analysis/match/views/OverviewView.tsx:122
 msgid "回合胜负"
 msgstr "Rounds won"
 
@@ -3260,12 +3276,12 @@ msgstr "Expands the rounds and events behind each of the Agent's reads, in the w
 msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 msgstr "Pick a match on the left and its file, its status and its next step show up here."
 
-#: src/domain/editing/ProjectTimeline.tsx:2218
-#: src/domain/editing/ProjectTimeline.tsx:2222
+#: src/domain/editing/ProjectTimeline.tsx:2247
+#: src/domain/editing/ProjectTimeline.tsx:2251
 msgid "在播放头分割 (Ctrl/Cmd+K)"
 msgstr "Split at playhead (Ctrl/Cmd+K)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2374
+#: src/domain/editing/ProjectTimeline.tsx:2403
 msgid "在播放头复制所选片段"
 msgstr "Duplicate selected clip at playhead"
 
@@ -3274,15 +3290,15 @@ msgstr "Duplicate selected clip at playhead"
 msgid "在播放头插入 {0}"
 msgstr "Insert {0} at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2378
+#: src/domain/editing/ProjectTimeline.tsx:2407
 msgid "在播放头插入粘贴"
 msgstr "Paste insert at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2394
+#: src/domain/editing/ProjectTimeline.tsx:2423
 msgid "在播放头标记入点"
 msgstr "Mark In at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2395
+#: src/domain/editing/ProjectTimeline.tsx:2424
 msgid "在播放头标记出点"
 msgstr "Mark Out at playhead"
 
@@ -3291,23 +3307,23 @@ msgstr "Mark Out at playhead"
 msgid "在播放头添加 {label} 关键帧"
 msgstr "Add {label} keyframe at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2345
+#: src/domain/editing/ProjectTimeline.tsx:2374
 msgid "在播放头添加剪辑点"
 msgstr "Add edit point at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2303
+#: src/domain/editing/ProjectTimeline.tsx:2332
 msgid "在播放头添加字幕"
 msgstr "Add subtitle at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2302
+#: src/domain/editing/ProjectTimeline.tsx:2331
 msgid "在播放头添加文字"
 msgstr "Add text at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2402
+#: src/domain/editing/ProjectTimeline.tsx:2431
 msgid "在播放头添加标记"
 msgstr "Add marker at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:5820
+#: src/domain/editing/ProjectTimeline.tsx:5862
 msgid "在播放头添加轨道关键帧"
 msgstr "Add track keyframe at playhead"
 
@@ -3315,7 +3331,7 @@ msgstr "Add track keyframe at playhead"
 msgid "在播放头添加速度关键帧"
 msgstr "Add speed keyframe at playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2377
+#: src/domain/editing/ProjectTimeline.tsx:2406
 msgid "在播放头粘贴覆盖"
 msgstr "Paste overwrite at playhead"
 
@@ -3340,7 +3356,7 @@ msgstr "Add or edit a clip marker at the source playhead"
 msgid "在节目画布中移动 {0}"
 msgstr "Move {0} in the Program canvas"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:423
+#: src/pages/analysis/evidence/EvidencePage.tsx:419
 msgid "在证据视图里选一条结果，在右侧「注释」栏写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。"
 msgstr "Pick a result in the evidence view and write why it is worth cutting in the Notes block on the right. Notes show up here and can be searched across matches."
 
@@ -3417,7 +3433,7 @@ msgstr "Pan"
 msgid "备注"
 msgstr "Note"
 
-#: src/pages/shared/library/LibraryPage.tsx:502
+#: src/pages/shared/library/LibraryPage.tsx:512
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "The note was not saved. Retrying will save it to the original match."
 
@@ -3425,11 +3441,11 @@ msgstr "The note was not saved. Retrying will save it to the original match."
 msgid "复制完整路径"
 msgstr "Copy full path"
 
-#: src/domain/editing/ProjectTimeline.tsx:2373
+#: src/domain/editing/ProjectTimeline.tsx:2402
 msgid "复制所选片段"
 msgstr "Duplicate selected clip"
 
-#: src/domain/editing/ProjectTimeline.tsx:2375
+#: src/domain/editing/ProjectTimeline.tsx:2404
 msgid "复制所选转场"
 msgstr "Duplicate selected transition"
 
@@ -3492,17 +3508,17 @@ msgstr "Font"
 msgid "字号"
 msgstr "Font size"
 
-#: src/domain/editing/ProjectTimeline.tsx:1324
-#: src/domain/editing/ProjectTimeline.tsx:1350
-#: src/domain/editing/ProjectTimeline.tsx:1406
+#: src/domain/editing/ProjectTimeline.tsx:1342
+#: src/domain/editing/ProjectTimeline.tsx:1368
+#: src/domain/editing/ProjectTimeline.tsx:1424
 msgid "字幕"
 msgstr "Captions"
 
-#: src/domain/editing/ProjectTimeline.tsx:3107
+#: src/domain/editing/ProjectTimeline.tsx:3137
 msgid "字幕会显示在独立字幕轨中，可前后导航、编辑样式并导出为 SRT。"
 msgstr "Captions appear on their own track. Navigate between them, edit their style, and export them as SRT."
 
-#: src/domain/editing/ProjectTimeline.tsx:3083
+#: src/domain/editing/ProjectTimeline.tsx:3113
 msgid "字幕内容"
 msgstr "Caption text"
 
@@ -3645,7 +3661,7 @@ msgstr "Import"
 
 #: src/pages/editing/workspace/HomePage.tsx:47
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
-#: src/pages/shared/library/LibraryPage.tsx:279
+#: src/pages/shared/library/LibraryPage.tsx:286
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
 #: src/pages/shared/onboarding/FirstRunStrip.tsx:67
 msgid "导入 Demo"
@@ -3703,8 +3719,8 @@ msgstr "Export HTML"
 msgid "导出 OpenTimelineIO…"
 msgstr "Export OpenTimelineIO…"
 
-#: src/domain/editing/ProjectTimeline.tsx:2325
-#: src/domain/editing/ProjectTimeline.tsx:2329
+#: src/domain/editing/ProjectTimeline.tsx:2354
+#: src/domain/editing/ProjectTimeline.tsx:2358
 msgid "导出 SRT 字幕"
 msgstr "Export SRT subtitles"
 
@@ -3716,7 +3732,7 @@ msgstr "Export metadata"
 msgid "导出失败"
 msgstr "Export failed"
 
-#: src/domain/editing/ProjectTimeline.tsx:1465
+#: src/domain/editing/ProjectTimeline.tsx:1483
 msgid "导出字幕"
 msgstr "Export Subtitles"
 
@@ -3757,8 +3773,8 @@ msgstr "The export did not finish: {exportError}"
 msgid "导出源范围"
 msgstr "Export Source Range"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:277
-#: src/pages/analysis/evidence/EvidencePage.tsx:280
+#: src/pages/analysis/evidence/EvidencePage.tsx:281
+#: src/pages/analysis/evidence/EvidencePage.tsx:284
 msgid "导出结果"
 msgstr "Export results"
 
@@ -3778,7 +3794,7 @@ msgstr "Export a diagnostics bundle"
 msgid "导出质量"
 msgstr "Export Quality"
 
-#: src/pages/shared/library/LibraryPage.tsx:224
+#: src/pages/shared/library/LibraryPage.tsx:226
 msgid "导出资料库元数据"
 msgstr "Export library metadata"
 
@@ -3805,10 +3821,6 @@ msgstr "Save current layout as…"
 #: src/pages/analysis/match/views/ReviewView.tsx:663
 msgid "将挂在第 {0} 回合 tick {1} 的证据上。"
 msgstr "It will hang on the evidence at round {0}, tick {1}."
-
-#: src/domain/editing/ProjectTimeline.tsx:2218
-msgid "将播放头移至未锁定的目标轨片段内部"
-msgstr "Place the playhead inside an unlocked clip on a targeted track"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:160
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
@@ -3837,7 +3849,7 @@ msgstr "Expand sidebar"
 msgid "展开或折叠面板分组"
 msgstr "Expand or collapse the panel group"
 
-#: src/domain/editing/ProjectTimeline.tsx:5980
+#: src/domain/editing/ProjectTimeline.tsx:6022
 msgid "展开轨道 {label}"
 msgstr "Expand track {label}"
 
@@ -3859,12 +3871,12 @@ msgstr "Peak {0} {1}%"
 msgid "嵌入源时间码"
 msgstr "Embed Source Timecode"
 
-#: src/domain/editing/ProjectTimeline.tsx:4792
+#: src/domain/editing/ProjectTimeline.tsx:4834
 msgid "嵌套序列"
 msgstr "Nested Sequence"
 
 #. placeholder {0}: document.tracks.filter((track) => track.clips.some((clip) => clip.material.kind === 'sequence')).length + 1
-#: src/domain/editing/ProjectTimeline.tsx:2362
+#: src/domain/editing/ProjectTimeline.tsx:2391
 msgid "嵌套序列 {0}"
 msgstr "Nested Sequence {0}"
 
@@ -3916,11 +3928,9 @@ msgstr "{totalAnalyses} matches analysed, but their evidence is not in the index
 msgid "已删除的作品"
 msgstr "Deleted project"
 
-#. placeholder {0}: addedProject.name
-#: src/pages/analysis/evidence/EvidencePage.tsx:348
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:224
-msgid "已加入「{0}」"
-msgstr "Added to “{0}”"
+#: src/domain/project/quickAdd.tsx:64
+msgid "已加入「{name}」"
+msgstr "Added to “{name}”"
 
 #: src/domain/task/TaskActivityList.tsx:16
 #: src/domain/task/taskVocabulary.tsx:48
@@ -3928,7 +3938,7 @@ msgstr "Added to “{0}”"
 msgid "已取消"
 msgstr "Cancelled"
 
-#: src/domain/editing/ProjectTimeline.tsx:4862
+#: src/domain/editing/ProjectTimeline.tsx:4904
 msgid "已启用 {enabledEffectCount} 个效果"
 msgstr "{enabledEffectCount} effects enabled"
 
@@ -3966,26 +3976,31 @@ msgstr "Imported matches are still on disk; a retry usually brings the list back
 msgid "已就绪"
 msgstr "Ready"
 
-#: src/domain/editing/ProjectTimeline.tsx:5747
+#: src/domain/editing/ProjectTimeline.tsx:5789
 msgid "已应用到时间线"
 msgstr "Applied to Timeline"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:423
 #: src/domain/editing/ProjectMediaWorkspace.tsx:445
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1419
-#: src/domain/editing/ProjectTimeline.tsx:4748
-#: src/domain/editing/ProjectTimeline.tsx:4753
+#: src/domain/editing/ProjectTimeline.tsx:4790
+#: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/TimelineProgramMonitor.tsx:1768
 msgid "已录制"
 msgstr "Recorded"
 
-#: src/domain/editing/ProjectTimeline.tsx:2949
+#: src/domain/editing/ProjectTimeline.tsx:2979
 msgid "已录制 {recordedCount}"
 msgstr "Recorded {recordedCount}"
 
 #: src/domain/task/TaskCancelButton.tsx:46
 msgid "已录完的片段会保留在成品文件里，没录完的片段不会生成。作品和剪辑单不受影响，可以重新发起录制。"
 msgstr "Clips already recorded stay in your output files; unfinished clips will not be produced. The project and its shot list are unaffected, and you can start recording again."
+
+#. placeholder {0}: clips.length
+#: src/domain/project/quickAdd.tsx:64
+msgid "已把 {0} 个片段加入「{name}」"
+msgstr "Added {0} clips to “{name}”"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:545
 msgid "已拒绝"
@@ -4025,7 +4040,7 @@ msgstr "Source ranges and recording limits checked. Recorded footage still needs
 msgid "已渲染时间轴预览"
 msgstr "Timeline Preview Rendered"
 
-#: src/domain/editing/ProjectTimeline.tsx:4748
+#: src/domain/editing/ProjectTimeline.tsx:4790
 msgid "已生成"
 msgstr "Generated"
 
@@ -4100,7 +4115,7 @@ msgid "已退回这组 Agent 修改。修改意见：{feedback}"
 msgstr "Reverted this set of Agent changes. Feedback: {feedback}"
 
 #. placeholder {0}: selectedClips.length
-#: src/domain/editing/ProjectTimeline.tsx:2956
+#: src/domain/editing/ProjectTimeline.tsx:2986
 msgid "已选 {0} 个"
 msgstr "{0} selected"
 
@@ -4115,7 +4130,7 @@ msgid "已选 {0} 场"
 msgstr "{0} matches selected"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:302
+#: src/pages/shared/library/LibraryPage.tsx:309
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "{0} matches selected · up to {DEMO_SELECTION_LIMIT}"
 
@@ -4142,7 +4157,7 @@ msgstr "{selectedCount} selected · Loading profiles"
 msgid "已选 {selectedCount} 名 · 部分档案未能读取"
 msgstr "{selectedCount} selected · Some profiles could not be loaded"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:324
+#: src/pages/analysis/evidence/EvidencePage.tsx:328
 msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
 
@@ -4163,7 +4178,7 @@ msgstr "Layout name"
 msgid "布局未保存"
 msgstr "Layout not saved"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:157
+#: src/pages/analysis/match/views/OverviewView.tsx:158
 msgid "带坐标证据"
 msgstr "Evidence with coordinates"
 
@@ -4179,12 +4194,12 @@ msgstr "Sequence"
 msgid "序列入点到出点"
 msgstr "Sequence In to Out"
 
-#: src/domain/editing/ProjectTimeline.tsx:2901
+#: src/domain/editing/ProjectTimeline.tsx:2931
 msgid "序列名称"
 msgstr "Sequence name"
 
-#: src/domain/editing/ProjectTimeline.tsx:2948
-#: src/domain/editing/ProjectTimeline.tsx:2957
+#: src/domain/editing/ProjectTimeline.tsx:2978
+#: src/domain/editing/ProjectTimeline.tsx:2987
 msgid "序列时长："
 msgstr "Sequence duration:"
 
@@ -4209,7 +4224,7 @@ msgstr "Everything the app writes goes here. Change it under Files and library."
 msgid "应用四点编辑"
 msgstr "Apply four-point edit"
 
-#: src/domain/editing/ProjectTimeline.tsx:2346
+#: src/domain/editing/ProjectTimeline.tsx:2375
 msgid "应用默认视频转场"
 msgstr "Apply default video transition"
 
@@ -4217,11 +4232,11 @@ msgstr "Apply default video transition"
 msgid "应用默认视频转场（重叠 0.5 秒）"
 msgstr "Apply default video transition (0.5s overlap)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2347
+#: src/domain/editing/ProjectTimeline.tsx:2376
 msgid "应用默认音频转场"
 msgstr "Apply default audio transition"
 
-#: src/domain/editing/ProjectTimeline.tsx:2372
+#: src/domain/editing/ProjectTimeline.tsx:2401
 msgid "延伸所选剪辑点到播放头"
 msgstr "Extend selected edit point to playhead"
 
@@ -4275,7 +4290,7 @@ msgstr "It cites {0} evidence rows, all of them from the set sent to the model:"
 msgid "强起"
 msgstr "Force buy"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:148
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:159
 msgid "当前 {round}"
 msgstr "Current {round}"
 
@@ -4321,7 +4336,7 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前查看 {0} · 尚未加入比较"
 msgstr "Viewing {0} · not added to comparison"
 
-#: src/domain/editing/ProjectTimeline.tsx:2227
+#: src/domain/editing/ProjectTimeline.tsx:2256
 msgid "当前没有可撤销的剪辑"
 msgstr "No edit to undo"
 
@@ -4352,7 +4367,7 @@ msgstr "Current count: the position events of round {0}."
 msgid "当前统计：这场比赛的全部位置事件。"
 msgstr "Current count: every position event of this match."
 
-#: src/domain/editing/ProjectTimeline.tsx:5816
+#: src/domain/editing/ProjectTimeline.tsx:5858
 msgid "当前轨道自动化值 {label}"
 msgstr "Current track automation value {label}"
 
@@ -4512,7 +4527,7 @@ msgstr "Calculated when the range is valid"
 msgid "待解析"
 msgstr "Awaiting analysis"
 
-#: src/domain/editing/ProjectTimeline.tsx:2494
+#: src/domain/editing/ProjectTimeline.tsx:2523
 msgid "循环"
 msgstr "Loop"
 
@@ -4553,7 +4568,7 @@ msgstr "Recovery center"
 
 #. placeholder {0}: clip.name
 #. placeholder {1}: outOfSyncFrames > 0 ? '+' : ''
-#: src/domain/editing/ProjectTimeline.tsx:4820
+#: src/domain/editing/ProjectTimeline.tsx:4862
 msgid "恢复同步 {0} {1}{outOfSyncFrames} 帧"
 msgstr "Resync {0} {1}{outOfSyncFrames} frames"
 
@@ -4648,8 +4663,8 @@ msgid "战术回放缓存元数据超过上限"
 msgstr "The tactical replay cache metadata exceeds the limit"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1529
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1984
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1986
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1988
 msgid "战术示意"
 msgstr "Tactical view"
 
@@ -4665,15 +4680,15 @@ msgstr "Selected In"
 msgid "所选 Out"
 msgstr "Selected Out"
 
-#: src/domain/editing/ProjectTimeline.tsx:2512
+#: src/domain/editing/ProjectTimeline.tsx:2541
 msgid "所选修改"
 msgstr "Selected changes"
 
-#: src/domain/editing/ProjectTimeline.tsx:2953
+#: src/domain/editing/ProjectTimeline.tsx:2983
 msgid "所选片段信息"
 msgstr "Selected clip details"
 
-#: src/domain/editing/ProjectTimeline.tsx:2910
+#: src/domain/editing/ProjectTimeline.tsx:2940
 msgid "所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。"
 msgstr "The selected consecutive Story clips move to a new source sequence; the parent timeline replaces them with a nested clip you can double-click to open."
 
@@ -4726,11 +4741,10 @@ msgstr "Open Steam settings"
 msgid "打开任务页"
 msgstr "Open task page"
 
+#: src/domain/project/quickAdd.tsx:148
 #: src/domain/task/useTaskActions.tsx:148
 #: src/domain/task/useTaskActions.tsx:155
 #: src/domain/task/useTaskActions.tsx:210
-#: src/pages/analysis/evidence/EvidencePage.tsx:346
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:220
 msgid "打开作品"
 msgstr "Open project"
 
@@ -4747,7 +4761,7 @@ msgstr "Open getting started"
 msgid "打开分析"
 msgstr "Open analysis"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:184
+#: src/pages/analysis/match/views/OverviewView.tsx:185
 msgid "打开回合视图"
 msgstr "Open the rounds view"
 
@@ -4776,11 +4790,11 @@ msgstr "Open model settings"
 msgid "打开比赛历史"
 msgstr "Open match history"
 
-#: src/pages/shared/library/LibraryPage.tsx:376
+#: src/pages/shared/library/LibraryPage.tsx:383
 msgid "打开比赛工作区"
 msgstr "Open match workspace"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1832
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1834
 msgid "打开的序列"
 msgstr "Open sequences"
 
@@ -4810,7 +4824,7 @@ msgstr "Execution failed"
 msgid "执行这个操作"
 msgstr "Run this action"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:335
+#: src/pages/analysis/evidence/EvidencePage.tsx:339
 msgid "批量注释"
 msgstr "Annotate in bulk"
 
@@ -4852,6 +4866,14 @@ msgstr "Add .dem files to the library, or set a watched folder and let them arri
 msgid "把已选 {0} 条加入作品"
 msgstr "Add the {0} selected to a project"
 
+#: src/domain/editing/ProjectTimeline.tsx:868
+msgid "把播放头移到未锁定的片段内再分割"
+msgstr "Move the playhead into an unlocked clip to split"
+
+#: src/domain/editing/ProjectTimeline.tsx:867
+msgid "把播放头移到未锁定的目标轨片段内再分割"
+msgstr "Move the playhead into an unlocked clip on a target track to split"
+
 #: src/pages/shared/settings/FilesSection.tsx:389
 msgid "把数据目录改到这里？"
 msgstr "Move the data directory here?"
@@ -4872,7 +4894,7 @@ msgid "把这名选手加入作品"
 msgstr "Add this player to a project"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:398
-#: src/pages/analysis/match/views/OverviewView.tsx:324
+#: src/pages/analysis/match/views/OverviewView.tsx:321
 msgid "把这条高光加入作品"
 msgstr "Add this highlight to a project"
 
@@ -4893,7 +4915,7 @@ msgctxt "evidence-event"
 msgid "投掷道具"
 msgstr "Grenade"
 
-#: src/domain/editing/ProjectTimeline.tsx:5980
+#: src/domain/editing/ProjectTimeline.tsx:6022
 msgid "折叠轨道 {label}"
 msgstr "Collapse track {label}"
 
@@ -4941,7 +4963,7 @@ msgstr "Reject"
 msgid "拒绝这次外部执行请求。"
 msgstr "Decline this external execution request."
 
-#: src/domain/editing/ProjectTimeline.tsx:3233
+#: src/domain/editing/ProjectTimeline.tsx:3263
 msgid "拖动播放头时间码"
 msgstr "Drag the playhead timecode"
 
@@ -4968,8 +4990,8 @@ msgstr "Equal"
 #. placeholder {0}: formatMillisecondTimecode(marker.duration)
 #. placeholder {0}: formatSourceTime(marker.duration)
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1285
-#: src/domain/editing/ProjectTimeline.tsx:4928
-#: src/domain/editing/ProjectTimeline.tsx:6261
+#: src/domain/editing/ProjectTimeline.tsx:4970
+#: src/domain/editing/ProjectTimeline.tsx:6303
 msgid "持续 {0}"
 msgstr "Lasts {0}"
 
@@ -4979,7 +5001,7 @@ msgid "持续时间"
 msgstr "Duration"
 
 #: src/domain/editing/ClipInspector.tsx:702
-#: src/domain/editing/ProjectTimeline.tsx:3094
+#: src/domain/editing/ProjectTimeline.tsx:3124
 msgid "持续时间（秒）"
 msgstr "Duration (seconds)"
 
@@ -5011,7 +5033,7 @@ msgstr "By map"
 msgid "按地图的成绩"
 msgstr "Performance by map"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:192
+#: src/pages/analysis/match/views/OverviewView.tsx:193
 msgid "按检出置信度排序"
 msgstr "Sorted by detection confidence"
 
@@ -5019,7 +5041,7 @@ msgstr "Sorted by detection confidence"
 msgid "按类型筛选成品文件"
 msgstr "Filter finished files by type"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:146
+#: src/pages/analysis/match/views/OverviewView.tsx:147
 msgid "按高光类型统计，胜负未记录"
 msgstr "Counted by highlight kind; the outcome is not recorded"
 
@@ -5076,25 +5098,25 @@ msgstr "Provider"
 msgid "提供方默认值"
 msgstr "Provider default"
 
-#: src/domain/editing/ProjectTimeline.tsx:2349
+#: src/domain/editing/ProjectTimeline.tsx:2378
 msgid "提升入出点范围"
 msgstr "Lift In/Out Range"
 
-#: src/domain/editing/ProjectTimeline.tsx:2350
+#: src/domain/editing/ProjectTimeline.tsx:2379
 msgid "提取入出点范围"
 msgstr "Extract In/Out Range"
 
 #: src/design/feedback/Alert.tsx:115
-#: src/design/feedback/Toast.tsx:216
+#: src/design/feedback/Toast.tsx:219
 msgid "提示"
 msgstr "Info"
 
-#: src/domain/editing/ProjectTimeline.tsx:5817
+#: src/domain/editing/ProjectTimeline.tsx:5859
 msgid "提高轨道音量"
 msgstr "Increase Track Volume"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:619
-#: src/domain/editing/ProjectTimeline.tsx:3744
+#: src/domain/editing/ProjectTimeline.tsx:3776
 msgid "插入"
 msgstr "Insert"
 
@@ -5141,13 +5163,17 @@ msgstr "Search Project Media"
 msgid "摄像机角度（2–9）"
 msgstr "Camera Angle (2–9)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2227
-#: src/domain/editing/ProjectTimeline.tsx:2231
-#: src/domain/editing/ProjectTimeline.tsx:2384
+#: src/domain/project/quickAdd.tsx:68
+msgid "撤销"
+msgstr "Undo"
+
+#: src/domain/editing/ProjectTimeline.tsx:2256
+#: src/domain/editing/ProjectTimeline.tsx:2260
+#: src/domain/editing/ProjectTimeline.tsx:2413
 msgid "撤销上一次剪辑"
 msgstr "Undo Last Edit"
 
-#: src/domain/editing/ProjectTimeline.tsx:5748
+#: src/domain/editing/ProjectTimeline.tsx:5790
 msgid "撤销这组修改"
 msgstr "Undo This Group of Changes"
 
@@ -5155,23 +5181,23 @@ msgstr "Undo This Group of Changes"
 msgid "播放"
 msgstr "Play"
 
-#: src/domain/editing/ProjectTimeline.tsx:2450
+#: src/domain/editing/ProjectTimeline.tsx:2479
 msgid "播放头居中连续滚动"
 msgstr "Keep playhead centered during playback"
 
-#: src/domain/editing/ProjectTimeline.tsx:3206
+#: src/domain/editing/ProjectTimeline.tsx:3236
 msgid "播放头帧计数"
 msgstr "Playhead Frame Count"
 
-#: src/domain/editing/ProjectTimeline.tsx:3206
+#: src/domain/editing/ProjectTimeline.tsx:3236
 msgid "播放头时间码"
 msgstr "Playhead Timecode"
 
-#: src/domain/editing/ProjectTimeline.tsx:2212
+#: src/domain/editing/ProjectTimeline.tsx:2241
 msgid "播放序列"
 msgstr "Play sequence"
 
-#: src/domain/editing/ProjectTimeline.tsx:2208
+#: src/domain/editing/ProjectTimeline.tsx:2237
 msgid "播放序列 (Space)"
 msgstr "Play sequence (Space)"
 
@@ -5187,7 +5213,7 @@ msgstr "Play Timeline"
 msgid "播放源素材"
 msgstr "Play source"
 
-#: src/domain/editing/ProjectTimeline.tsx:2486
+#: src/domain/editing/ProjectTimeline.tsx:2515
 msgid "播放范围已设置"
 msgstr "Playback range set"
 
@@ -5208,7 +5234,7 @@ msgstr "Actions"
 msgid "操作未完成，查看错误详情"
 msgstr "Operation incomplete — view error details"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1814
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1816
 msgid "操作没有完成"
 msgstr "The operation didn't complete"
 
@@ -5237,7 +5263,11 @@ msgstr "Switch to opening duels"
 msgid "攻守已交换"
 msgstr "Sides swapped"
 
-#: src/domain/editing/ProjectTimeline.tsx:3375
+#: src/domain/project/quickAdd.tsx:66
+msgid "放在 Story 末尾，录制后才能导出。"
+msgstr "Placed at the end of Story. Record it before exporting."
+
+#: src/domain/editing/ProjectTimeline.tsx:3405
 msgid "放大时间轴"
 msgstr "Zoom in timeline"
 
@@ -5259,7 +5289,7 @@ msgstr "Glitch"
 
 #: src/domain/editing/ClipInspector.tsx:573
 #: src/domain/editing/ClipInspector.tsx:575
-#: src/domain/editing/ProjectTimeline.tsx:2925
+#: src/domain/editing/ProjectTimeline.tsx:2955
 msgid "效果"
 msgstr "Effects"
 
@@ -5345,14 +5375,14 @@ msgstr "When a file is moved or deleted by hand, the library's record points at 
 msgid "文件路径"
 msgstr "File path"
 
-#: src/domain/editing/ProjectTimeline.tsx:1325
-#: src/domain/editing/ProjectTimeline.tsx:1350
-#: src/domain/editing/ProjectTimeline.tsx:1406
+#: src/domain/editing/ProjectTimeline.tsx:1343
+#: src/domain/editing/ProjectTimeline.tsx:1368
+#: src/domain/editing/ProjectTimeline.tsx:1424
 msgid "文字"
 msgstr "Text"
 
 #: src/domain/editing/ClipInspector.tsx:318
-#: src/domain/editing/ProjectTimeline.tsx:3083
+#: src/domain/editing/ProjectTimeline.tsx:3113
 msgid "文字内容"
 msgstr "Text content"
 
@@ -5547,8 +5577,8 @@ msgstr "The timeline has no clips yet"
 msgid "时间耗尽"
 msgstr "Time expired"
 
-#: src/domain/editing/ProjectTimeline.tsx:1811
-#: src/domain/editing/ProjectTimeline.tsx:2207
+#: src/domain/editing/ProjectTimeline.tsx:1829
+#: src/domain/editing/ProjectTimeline.tsx:2236
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1530
 msgid "时间轴"
 msgstr "Timeline"
@@ -5572,15 +5602,15 @@ msgid "时间轴互换文件已导出"
 msgstr "Timeline interchange file exported"
 
 #. placeholder {0}: change.number
-#: src/domain/editing/ProjectTimeline.tsx:5730
+#: src/domain/editing/ProjectTimeline.tsx:5772
 msgid "时间轴修改 {0}"
 msgstr "Timeline change {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2619
+#: src/domain/editing/ProjectTimeline.tsx:2648
 msgid "时间轴内容"
 msgstr "Timeline content"
 
-#: src/domain/editing/ProjectTimeline.tsx:3385
+#: src/domain/editing/ProjectTimeline.tsx:3415
 msgid "时间轴可视范围"
 msgstr "Timeline visible range"
 
@@ -5588,28 +5618,29 @@ msgstr "Timeline visible range"
 msgid "时间轴工具"
 msgstr "Timeline tools"
 
-#: src/domain/editing/ProjectTimeline.tsx:2218
-#: src/domain/editing/ProjectTimeline.tsx:2227
+#: src/domain/editing/ProjectTimeline.tsx:867
+#: src/domain/editing/ProjectTimeline.tsx:868
+#: src/domain/editing/ProjectTimeline.tsx:2256
 msgid "时间轴当前只读"
 msgstr "The timeline is read-only"
 
-#: src/domain/editing/ProjectTimeline.tsx:3000
+#: src/domain/editing/ProjectTimeline.tsx:3030
 msgid "时间轴播放头"
 msgstr "Timeline playhead"
 
-#: src/domain/editing/ProjectTimeline.tsx:2420
+#: src/domain/editing/ProjectTimeline.tsx:2449
 msgid "时间轴显示设置"
 msgstr "Timeline display settings"
 
-#: src/domain/editing/ProjectTimeline.tsx:2554
+#: src/domain/editing/ProjectTimeline.tsx:2583
 msgid "时间轴标尺"
 msgstr "Timeline ruler"
 
-#: src/domain/editing/ProjectTimeline.tsx:3361
+#: src/domain/editing/ProjectTimeline.tsx:3391
 msgid "时间轴缩放"
 msgstr "Timeline zoom"
 
-#: src/domain/editing/ProjectTimeline.tsx:2634
+#: src/domain/editing/ProjectTimeline.tsx:2663
 msgid "时间轴轨道网格"
 msgstr "Timeline track grid"
 
@@ -5619,11 +5650,11 @@ msgid "时间重映射"
 msgstr "Time remapping"
 
 #. placeholder {0}: displayed.speed_segments.length
-#: src/domain/editing/ProjectTimeline.tsx:5102
+#: src/domain/editing/ProjectTimeline.tsx:5144
 msgid "时间重映射 {0} 个区间"
 msgstr "Time remapping {0} segments"
 
-#: src/domain/editing/ProjectTimeline.tsx:2421
+#: src/domain/editing/ProjectTimeline.tsx:2450
 #: src/domain/editing/ProjectWorkspaceManager.tsx:196
 msgid "显示"
 msgstr "Display"
@@ -5638,11 +5669,11 @@ msgstr "Show {0}"
 msgid "显示 Agent 读取了哪些证据"
 msgstr "Show which evidence the Agent read"
 
-#: src/domain/editing/ProjectTimeline.tsx:5805
+#: src/domain/editing/ProjectTimeline.tsx:5847
 msgid "显示 Pan 轨道自动化"
 msgstr "Show Pan track automation"
 
-#: src/domain/editing/ProjectTimeline.tsx:5805
+#: src/domain/editing/ProjectTimeline.tsx:5847
 msgid "显示 Volume 轨道自动化"
 msgstr "Show Volume track automation"
 
@@ -5675,11 +5706,11 @@ msgstr "Relocating a demo file is not supported yet"
 msgid "暂停"
 msgstr "Pause"
 
-#: src/domain/editing/ProjectTimeline.tsx:2212
+#: src/domain/editing/ProjectTimeline.tsx:2241
 msgid "暂停序列"
 msgstr "Pause sequence"
 
-#: src/domain/editing/ProjectTimeline.tsx:2208
+#: src/domain/editing/ProjectTimeline.tsx:2237
 msgid "暂停序列 (Space)"
 msgstr "Pause sequence (Space)"
 
@@ -5809,7 +5840,7 @@ msgstr "Unfinished staged files"
 msgid "未就绪的素材不能靠录制补齐"
 msgstr "The clips that are not ready cannot be fixed by recording"
 
-#: src/domain/editing/ProjectTimeline.tsx:5402
+#: src/domain/editing/ProjectTimeline.tsx:5444
 msgid "未应用"
 msgstr "Not applied"
 
@@ -5823,7 +5854,7 @@ msgstr "Not started"
 msgid "未归属"
 msgstr "Unattributed"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:353
+#: src/pages/analysis/match/views/OverviewView.tsx:350
 msgid "未归属选手"
 msgstr "Unattributed player"
 
@@ -5835,15 +5866,15 @@ msgstr "No team"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:432
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1224
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1417
-#: src/domain/editing/ProjectTimeline.tsx:4748
-#: src/domain/editing/ProjectTimeline.tsx:4753
+#: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
+#: src/domain/editing/ProjectTimeline.tsx:4837
 #: src/domain/editing/TimelineProgramMonitor.tsx:1765
 #: src/domain/editing/TimelineProgramMonitor.tsx:1768
 msgid "未录制"
 msgstr "Unrecorded"
 
-#: src/domain/editing/ProjectTimeline.tsx:2950
+#: src/domain/editing/ProjectTimeline.tsx:2980
 msgid "未录制 {plannedCount}"
 msgstr "Unrecorded {plannedCount}"
 
@@ -5908,13 +5939,17 @@ msgstr "Local file"
 msgid "本地文件读写失败"
 msgstr "The local file could not be read or written"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:167
+#: src/pages/analysis/match/views/OverviewView.tsx:168
 msgid "本场结果"
 msgstr "Match result"
 
 #: src/pages/editing/delivery/DeliveryPage.tsx:76
 msgid "本次只扫描了部分目录，仍可能有未检查的记录。"
 msgstr "Only some directories were scanned. Some records may remain unchecked."
+
+#: src/domain/project/quickAdd.tsx:141
+msgid "本次已加入 {addedCount} 个"
+msgstr "{addedCount} added this visit"
 
 #. placeholder {0}: counts.downloaded
 #: src/pages/shared/library/history/HistoryPage.tsx:169
@@ -5951,7 +5986,7 @@ msgstr "Source task"
 msgid "来源对象"
 msgstr "Source object"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:230
+#: src/pages/analysis/match/views/OverviewView.tsx:231
 msgid "查看"
 msgstr "View"
 
@@ -5959,12 +5994,12 @@ msgstr "View"
 msgid "查看 {title} 的完整路径"
 msgstr "View the full path for {title}"
 
-#: src/pages/shared/library/LibraryPage.tsx:549
+#: src/pages/shared/library/LibraryPage.tsx:559
 msgid "查看作品"
 msgstr "View projects"
 
 #. placeholder {0}: change.number
-#: src/domain/editing/ProjectTimeline.tsx:5592
+#: src/domain/editing/ProjectTimeline.tsx:5634
 msgid "查看修改 {0}"
 msgstr "View change {0}"
 
@@ -5974,7 +6009,7 @@ msgstr "Show all"
 
 #. placeholder {0}: facts.highlights
 #. placeholder {0}: rows.length
-#: src/pages/analysis/match/views/OverviewView.tsx:196
+#: src/pages/analysis/match/views/OverviewView.tsx:197
 #: src/pages/analysis/match/views/ReviewView.tsx:567
 msgid "查看全部 {0} 条"
 msgstr "View all {0}"
@@ -6008,7 +6043,7 @@ msgid "查看成品"
 msgstr "View finished file"
 
 #. placeholder {0}: group.items.length
-#: src/domain/editing/ProjectTimeline.tsx:5578
+#: src/domain/editing/ProjectTimeline.tsx:5620
 msgid "查看此处 {0} 项修改"
 msgstr "View {0} changes here"
 
@@ -6017,7 +6052,7 @@ msgid "查看比赛数据、回合事件与战术回放。"
 msgstr "Explore match statistics, round events and tactical replays."
 
 #. placeholder {0}: selectedClip.name
-#: src/domain/editing/ProjectTimeline.tsx:2962
+#: src/domain/editing/ProjectTimeline.tsx:2992
 msgid "查看片段详情 {0}"
 msgstr "View clip details for {0}"
 
@@ -6037,7 +6072,7 @@ msgstr "View stages"
 msgid "查看阶段日志"
 msgstr "View the stage log"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:345
+#: src/pages/analysis/match/views/OverviewView.tsx:342
 msgid "查看高光"
 msgstr "View highlight"
 
@@ -6046,13 +6081,13 @@ msgstr "View highlight"
 msgid "标签"
 msgstr "Tags"
 
-#: src/pages/shared/library/LibraryPage.tsx:510
+#: src/pages/shared/library/LibraryPage.tsx:520
 msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
 msgstr "The tags were not added. Retrying will use the original matches and tags."
 
-#: src/domain/editing/ProjectTimeline.tsx:2390
-#: src/domain/editing/ProjectTimeline.tsx:6157
-#: src/domain/editing/ProjectTimeline.tsx:6158
+#: src/domain/editing/ProjectTimeline.tsx:2419
+#: src/domain/editing/ProjectTimeline.tsx:6199
+#: src/domain/editing/ProjectTimeline.tsx:6200
 #: src/pages/analysis/match/views/DuelsView.tsx:292
 #: src/pages/analysis/match/views/DuelsView.tsx:293
 msgid "标记"
@@ -6060,11 +6095,11 @@ msgstr "Marks"
 
 #. placeholder {0}: marker.label
 #. placeholder {1}: formatMillisecondTimecode(visualTime)
-#: src/domain/editing/ProjectTimeline.tsx:6273
+#: src/domain/editing/ProjectTimeline.tsx:6315
 msgid "标记 {0} {1}"
 msgstr "Marker {0} {1}"
 
-#: src/domain/editing/ProjectTimeline.tsx:1484
+#: src/domain/editing/ProjectTimeline.tsx:1502
 msgid "标记 {number}"
 msgstr "Marker {number}"
 
@@ -6078,7 +6113,7 @@ msgstr "Marker name"
 msgid "标记已处理"
 msgstr "Mark handled"
 
-#: src/domain/editing/ProjectTimeline.tsx:2389
+#: src/domain/editing/ProjectTimeline.tsx:2418
 msgid "标记操作"
 msgstr "Markers"
 
@@ -6102,7 +6137,7 @@ msgstr "Validating input"
 msgid "格式"
 msgstr "Format"
 
-#: src/domain/editing/ProjectTimeline.tsx:2881
+#: src/domain/editing/ProjectTimeline.tsx:2911
 msgid "框选范围"
 msgstr "Selection range"
 
@@ -6121,7 +6156,7 @@ msgstr "The profile is read-only, so a retry changes no data."
 msgid "检查交付状态"
 msgstr "Check delivery status"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1811
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1813
 msgid "检查作品版本、录制环境和交付状态后重试。"
 msgstr "Check the project version, recording environment, and delivery status, then try again."
 
@@ -6165,7 +6200,7 @@ msgstr "Floor"
 msgid "楼层只筛热力叠加：回放数据不记录楼层。"
 msgstr "Floors filter the heat overlay only — replay data does not record a floor."
 
-#: src/pages/analysis/match/views/OverviewView.tsx:271
+#: src/pages/analysis/match/views/OverviewView.tsx:268
 msgid "概览"
 msgstr "Overview"
 
@@ -6196,6 +6231,10 @@ msgstr "Blur"
 #: src/pages/shared/settings/AdvancedSection.tsx:232
 msgid "正在下载并校验采集组件"
 msgstr "Downloading and verifying the capture component"
+
+#: src/domain/project/quickAdd.tsx:131
+msgid "正在为作品选材"
+msgstr "Collecting clips for"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:202
 #: src/pages/shared/settings/AiAgentSection.tsx:252
@@ -6239,9 +6278,13 @@ msgstr "Creating the conversation"
 msgid "正在刷新"
 msgstr "Refreshing"
 
-#: src/domain/editing/ProjectTimeline.tsx:2368
+#: src/domain/editing/ProjectTimeline.tsx:2397
 msgid "正在刷新嵌套序列…"
 msgstr "Refreshing nested sequence…"
+
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:82
+msgid "正在加入作品"
+msgstr "Adding to project"
 
 #: src/pages/editing/projects/ProjectsPage.tsx:53
 msgid "正在加载…"
@@ -6321,11 +6364,11 @@ msgstr "Reading editable timeline fields as the target identity…"
 msgid "正在提交…"
 msgstr "Submitting…"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:137
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:148
 msgid "正在新建作品"
 msgstr "Creating the project"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2033
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2035
 msgid "正在更新战术图"
 msgstr "Updating tactical map"
 
@@ -6378,7 +6421,7 @@ msgstr "Testing"
 msgid "正在清理…"
 msgstr "Cleaning up…"
 
-#: src/domain/editing/ProjectTimeline.tsx:2455
+#: src/domain/editing/ProjectTimeline.tsx:2484
 msgid "正在渲染预览…"
 msgstr "Rendering preview…"
 
@@ -6423,7 +6466,7 @@ msgstr "Loading recent matches"
 msgid "正在读取恢复状态"
 msgstr "Loading recovery status"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2016
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2018
 msgid "正在读取战术图"
 msgstr "Loading tactical view"
 
@@ -6547,7 +6590,7 @@ msgctxt "evidence-event"
 msgid "残局"
 msgstr "Clutch"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:144
+#: src/pages/analysis/match/views/OverviewView.tsx:145
 msgid "残局候选"
 msgstr "Clutch candidates"
 
@@ -6611,7 +6654,7 @@ msgid "比分 {score}"
 msgstr "Score {score}"
 
 #. placeholder {0}: (visualClip.placement.speed * 100).toFixed(1)
-#: src/domain/editing/ProjectTimeline.tsx:4872
+#: src/domain/editing/ProjectTimeline.tsx:4914
 msgid "比率伸缩 {0}%"
 msgstr "Rate stretch {0}%"
 
@@ -6642,7 +6685,7 @@ msgstr "Matches, players, evidence, and replays"
 msgid "比赛信息"
 msgstr "Match info"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:136
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:147
 msgid "比赛信息还没读出来"
 msgstr "The match record has not loaded yet"
 
@@ -6664,7 +6707,7 @@ msgstr "Could not read match history"
 msgid "比赛工作区"
 msgstr "Match workspace"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:195
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:206
 msgid "比赛工作区视图"
 msgstr "Match workspace views"
 
@@ -6712,7 +6755,7 @@ msgstr "Compare"
 msgid "比较 {0} 与 {1}"
 msgstr "Compare {0} with {1}"
 
-#: src/domain/editing/ProjectTimeline.tsx:3228
+#: src/domain/editing/ProjectTimeline.tsx:3258
 msgid "水平拖动 scrub；方向键 1 帧，Shift 5 帧"
 msgstr "Drag horizontally to scrub; arrow keys 1 frame, Shift 5 frames"
 
@@ -6721,7 +6764,7 @@ msgid "水平缩放"
 msgstr "Horizontal zoom"
 
 #. placeholder {0}: mapName ?? ''
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1928
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1930
 msgid "没有 {0} 的雷达图"
 msgstr "No radar image for {0}"
 
@@ -6729,7 +6772,7 @@ msgstr "No radar image for {0}"
 msgid "没有任何数据被改动，可以直接重试。"
 msgstr "Nothing was changed, so a retry is safe."
 
-#: src/pages/analysis/match/views/OverviewView.tsx:302
+#: src/pages/analysis/match/views/OverviewView.tsx:299
 msgid "没有关键时刻可预览"
 msgstr "No critical moment to preview"
 
@@ -6747,7 +6790,7 @@ msgstr "Nothing was written; the automatic insights are unaffected."
 msgid "没有击杀或目标事件，全程 {0} v {1}"
 msgstr "No kill or objective events; {0} v {1} throughout"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:210
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:221
 msgid "没有创建任何作品。"
 msgstr "No project was created."
 
@@ -6758,6 +6801,10 @@ msgstr "The project was not created."
 #: src/pages/editing/delivery/OutputsView.tsx:276
 msgid "没有删除，记录和文件都还在。"
 msgstr "Nothing was deleted; the record and the file are still there."
+
+#: src/domain/project/quickAdd.tsx:82
+msgid "没有加入「{name}」"
+msgstr "Could not add to “{name}”"
 
 #: src/pages/editing/projects/ProjectsPage.tsx:74
 msgid "没有匹配的作品"
@@ -6899,20 +6946,24 @@ msgstr "Re-analysis could not start: {startError}"
 msgid "没能打开这个目录"
 msgstr "Could not open this folder"
 
+#: src/domain/project/quickAdd.tsx:73
+msgid "没能撤销加入"
+msgstr "Could not undo the addition"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:692
 msgid "没能检查交付状态"
 msgstr "Could not check delivery status"
 
 #. placeholder {0}: formatSignedSeconds(change.durationDelta)
-#: src/domain/editing/ProjectTimeline.tsx:5743
+#: src/domain/editing/ProjectTimeline.tsx:5785
 msgid "波纹 {0}"
 msgstr "Ripple {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2382
+#: src/domain/editing/ProjectTimeline.tsx:2411
 msgid "波纹删除所选间隙"
 msgstr "Ripple Delete Selected Gap"
 
-#: src/domain/editing/ProjectTimeline.tsx:2410
+#: src/domain/editing/ProjectTimeline.tsx:2439
 msgid "波纹移动序列标记"
 msgstr "Ripple Move Sequence Marker"
 
@@ -6920,18 +6971,18 @@ msgstr "Ripple Move Sequence Marker"
 msgid "波纹编辑工具 (B)"
 msgstr "Ripple Edit Tool (B)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2352
+#: src/domain/editing/ProjectTimeline.tsx:2381
 msgid "波纹裁切播放头到片段终点"
 msgstr "Ripple Trim Playhead to Clip End"
 
-#: src/domain/editing/ProjectTimeline.tsx:2351
+#: src/domain/editing/ProjectTimeline.tsx:2380
 msgid "波纹裁切片段起点到播放头"
 msgstr "Ripple Trim Clip Start to Playhead"
 
 #: src/domain/editing/MarkerEditorFields.tsx:51
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:115
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:186
-#: src/pages/analysis/evidence/EvidencePage.tsx:292
+#: src/pages/analysis/evidence/EvidencePage.tsx:296
 #: src/pages/analysis/match/views/RoundsView.tsx:632
 msgid "注释"
 msgstr "Notes"
@@ -6958,7 +7009,7 @@ msgstr "The note was not written: {noteError}"
 msgid "注释没有写成功：{writeError}"
 msgstr "The note was not written: {writeError}"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:357
+#: src/pages/analysis/evidence/EvidencePage.tsx:353
 msgid "注释没有改成功：{updateError}"
 msgstr "The note was not updated: {updateError}"
 
@@ -7008,16 +7059,16 @@ msgstr "Dark"
 msgid "混音轨 {0}"
 msgstr "Mix Track {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2293
+#: src/domain/editing/ProjectTimeline.tsx:2322
 msgid "添加到时间轴"
 msgstr "Add to Timeline"
 
-#: src/domain/editing/ProjectTimeline.tsx:3062
-#: src/domain/editing/ProjectTimeline.tsx:3075
+#: src/domain/editing/ProjectTimeline.tsx:3092
+#: src/domain/editing/ProjectTimeline.tsx:3105
 msgid "添加字幕"
 msgstr "Add Captions"
 
-#: src/domain/editing/ProjectTimeline.tsx:2301
+#: src/domain/editing/ProjectTimeline.tsx:2330
 msgid "添加字幕轨道"
 msgstr "Add Caption Track"
 
@@ -7029,17 +7080,17 @@ msgstr "Add Effect"
 msgid "添加效果类型"
 msgstr "Add Effect Type"
 
-#: src/domain/editing/ProjectTimeline.tsx:3062
-#: src/domain/editing/ProjectTimeline.tsx:3075
+#: src/domain/editing/ProjectTimeline.tsx:3092
+#: src/domain/editing/ProjectTimeline.tsx:3105
 msgid "添加文字"
 msgstr "Add Text"
 
-#: src/domain/editing/ProjectTimeline.tsx:2300
+#: src/domain/editing/ProjectTimeline.tsx:2329
 msgid "添加文字轨道"
 msgstr "Add Text Track"
 
-#: src/pages/shared/library/LibraryPage.tsx:335
-#: src/pages/shared/library/LibraryPage.tsx:336
+#: src/pages/shared/library/LibraryPage.tsx:342
+#: src/pages/shared/library/LibraryPage.tsx:343
 msgid "添加标签"
 msgstr "Add tag"
 
@@ -7057,21 +7108,21 @@ msgstr "Add clip"
 msgid "添加监听目录"
 msgstr "Add a watched folder"
 
-#: src/pages/shared/library/LibraryPage.tsx:287
+#: src/pages/shared/library/LibraryPage.tsx:294
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:82
 #: src/pages/shared/settings/FilesSection.tsx:256
 msgid "添加目录"
 msgstr "Add folder"
 
-#: src/domain/editing/ProjectTimeline.tsx:2298
+#: src/domain/editing/ProjectTimeline.tsx:2327
 msgid "添加视频轨道"
 msgstr "Add Video Track"
 
-#: src/domain/editing/ProjectTimeline.tsx:5824
+#: src/domain/editing/ProjectTimeline.tsx:5866
 msgid "添加轨道关键帧"
 msgstr "Add Track Keyframe"
 
-#: src/domain/editing/ProjectTimeline.tsx:2299
+#: src/domain/editing/ProjectTimeline.tsx:2328
 msgid "添加音频轨道"
 msgstr "Add Audio Track"
 
@@ -7137,7 +7188,7 @@ msgstr "Clear the conditions"
 msgid "清空没有成功"
 msgstr "The clear did not succeed"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:332
+#: src/pages/analysis/evidence/EvidencePage.tsx:336
 #: src/pages/analysis/match/views/HighlightsView.tsx:319
 #: src/pages/analysis/match/views/HighlightsView.tsx:353
 #: src/pages/analysis/players/PlayerComparePanel.tsx:129
@@ -7150,20 +7201,20 @@ msgstr "Clear the selection"
 msgid "清除作品筛选：{scopeLabel}"
 msgstr "Clear project filter: {scopeLabel}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2401
-#: src/domain/editing/ProjectTimeline.tsx:2485
+#: src/domain/editing/ProjectTimeline.tsx:2430
+#: src/domain/editing/ProjectTimeline.tsx:2514
 msgid "清除入出点"
 msgstr "Clear In/Out Points"
 
-#: src/domain/editing/ProjectTimeline.tsx:2399
+#: src/domain/editing/ProjectTimeline.tsx:2428
 msgid "清除入点"
 msgstr "Clear In Point"
 
-#: src/domain/editing/ProjectTimeline.tsx:2407
+#: src/domain/editing/ProjectTimeline.tsx:2436
 msgid "清除全部标记"
 msgstr "Clear All Markers"
 
-#: src/domain/editing/ProjectTimeline.tsx:2400
+#: src/domain/editing/ProjectTimeline.tsx:2429
 msgid "清除出点"
 msgstr "Clear Out Point"
 
@@ -7171,7 +7222,7 @@ msgstr "Clear Out Point"
 msgid "清除源入出点"
 msgstr "Clear Source In/Out"
 
-#: src/domain/editing/ProjectTimeline.tsx:2455
+#: src/domain/editing/ProjectTimeline.tsx:2484
 msgid "渲染入点到出点"
 msgstr "Render In to Out"
 
@@ -7191,7 +7242,7 @@ msgstr "In-game replay"
 msgid "源 {sourceIn}–{sourceOut}"
 msgstr "Source {sourceIn}–{sourceOut}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2921
+#: src/domain/editing/ProjectTimeline.tsx:2951
 msgid "源："
 msgstr "Source:"
 
@@ -7249,7 +7300,7 @@ msgid "滑动"
 msgstr "Slide"
 
 #. placeholder {0}: formatSignedTimelineDelta(slideDelta)
-#: src/domain/editing/ProjectTimeline.tsx:4877
+#: src/domain/editing/ProjectTimeline.tsx:4919
 msgid "滑动 {0}"
 msgstr "Slide {0}"
 
@@ -7262,7 +7313,7 @@ msgid "滑动编辑预览"
 msgstr "Slide edit preview"
 
 #. placeholder {0}: formatSignedTimelineDelta(slipDelta)
-#: src/domain/editing/ProjectTimeline.tsx:4865
+#: src/domain/editing/ProjectTimeline.tsx:4907
 msgid "滑移 {0}"
 msgstr "Slip {0}"
 
@@ -7272,7 +7323,7 @@ msgstr "Slip tool (Y)"
 
 #. placeholder {0}: left.name
 #. placeholder {1}: right.name
-#: src/domain/editing/ProjectTimeline.tsx:4190
+#: src/domain/editing/ProjectTimeline.tsx:4223
 msgid "滚动编辑 {0} / {1}"
 msgstr "Rolling edit {0} / {1}"
 
@@ -7285,7 +7336,7 @@ msgid "滚动编辑预览"
 msgstr "Rolling edit preview"
 
 #. placeholder {0}: formatSignedTimelineDelta(draft.delta)
-#: src/domain/editing/ProjectTimeline.tsx:4274
+#: src/domain/editing/ProjectTimeline.tsx:4307
 msgid "滚动编辑预览 {0}"
 msgstr "Rolling edit preview {0}"
 
@@ -7294,7 +7345,7 @@ msgstr "Rolling edit preview {0}"
 msgid "炸弹引爆"
 msgstr "Bomb exploded"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2039
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2041
 msgid "炸弹点"
 msgstr "Bombsite"
 
@@ -7420,7 +7471,7 @@ msgstr "Clips"
 msgid "片段内"
 msgstr "Inside clip"
 
-#: src/domain/editing/ProjectTimeline.tsx:2438
+#: src/domain/editing/ProjectTimeline.tsx:2467
 msgid "片段名称"
 msgstr "Clip name"
 
@@ -7439,11 +7490,11 @@ msgstr "Clip marker {0}"
 #. placeholder {1}: formatMillisecondTimecode(marker.time)
 #. placeholder {1}: formatSourceTime(marker.time)
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1281
-#: src/domain/editing/ProjectTimeline.tsx:4924
+#: src/domain/editing/ProjectTimeline.tsx:4966
 msgid "片段标记 {0} {1}"
 msgstr "Clip marker {0} {1}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2962
+#: src/domain/editing/ProjectTimeline.tsx:2992
 msgid "片段详情"
 msgstr "Clip details"
 
@@ -7473,7 +7524,7 @@ msgstr "Status"
 msgid "独奏 {0}"
 msgstr "Solo {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2480
+#: src/domain/editing/ProjectTimeline.tsx:2509
 msgid "独立选择"
 msgstr "Independent selection"
 
@@ -7499,15 +7550,15 @@ msgstr "Orbit"
 msgid "现在按保留策略清理对话？"
 msgstr "Apply the retention policy to conversations now?"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:102
+#: src/pages/analysis/evidence/EvidencePage.tsx:106
 msgid "现在还不能保存视图"
 msgstr "Views can't be saved yet"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:103
+#: src/pages/analysis/evidence/EvidencePage.tsx:107
 msgid "现在还不能导出结果"
 msgstr "Results can't be exported yet"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:104
+#: src/pages/analysis/evidence/EvidencePage.tsx:108
 msgid "现在还不能批量注释"
 msgstr "Batch annotation isn't available yet"
 
@@ -7544,7 +7595,7 @@ msgstr "Detonated"
 msgid "用 {0} 替换所选片段"
 msgstr "Replace selected clip with {0}"
 
-#: src/pages/shared/library/LibraryPage.tsx:332
+#: src/pages/shared/library/LibraryPage.tsx:339
 msgid "用 Agent 创作"
 msgstr "Create with Agent"
 
@@ -7573,7 +7624,7 @@ msgstr "Overwrite the configuration with the backup?"
 msgid "用时 {duration}"
 msgstr "Took {duration}"
 
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:183
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:194
 msgid "用这场比赛新建作品"
 msgstr "New project from this match"
 
@@ -7615,8 +7666,8 @@ msgid "百分比"
 msgstr "Percent"
 
 #: src/pages/shared/library/libraryFormat.ts:169
-#: src/pages/shared/library/LibraryPage.tsx:456
-#: src/pages/shared/library/LibraryPage.tsx:462
+#: src/pages/shared/library/LibraryPage.tsx:463
+#: src/pages/shared/library/LibraryPage.tsx:469
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:74
 #: src/pages/shared/settings/FilesSection.tsx:190
 msgid "监听目录"
@@ -7642,7 +7693,7 @@ msgstr "The directory builds up from analyzed matches. Analyze one and the playe
 msgid "目录是只读的，重试不会改动任何数据。"
 msgstr "The directory is read-only, so a retry changes no data."
 
-#: src/domain/editing/ProjectTimeline.tsx:2476
+#: src/domain/editing/ProjectTimeline.tsx:2505
 msgid "目标："
 msgstr "Target:"
 
@@ -7660,7 +7711,7 @@ msgstr "Objective"
 msgid "目标作品"
 msgstr "Target project"
 
-#: src/domain/editing/ProjectTimeline.tsx:2921
+#: src/domain/editing/ProjectTimeline.tsx:2951
 msgid "目标片段："
 msgstr "Target clip:"
 
@@ -7703,7 +7754,7 @@ msgid "看道具与经济"
 msgstr "See utility & economy"
 
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:219
-#: src/pages/analysis/evidence/EvidencePage.tsx:355
+#: src/pages/analysis/evidence/EvidencePage.tsx:351
 #: src/pages/analysis/match/views/ReviewView.tsx:675
 #: src/pages/editing/delivery/DeliveryPage.tsx:74
 #: src/pages/editing/delivery/OutputsView.tsx:181
@@ -7721,42 +7772,42 @@ msgstr "Got it"
 msgid "磁盘空间不足"
 msgstr "Not enough disk space"
 
-#: src/pages/shared/library/LibraryPage.tsx:442
+#: src/pages/shared/library/LibraryPage.tsx:449
 msgid "视图"
 msgstr "View"
 
-#: src/domain/editing/ProjectTimeline.tsx:1320
-#: src/domain/editing/ProjectTimeline.tsx:3744
+#: src/domain/editing/ProjectTimeline.tsx:1338
+#: src/domain/editing/ProjectTimeline.tsx:3776
 msgid "视频"
 msgstr "Video"
 
 #: src/domain/editing/ClipInspector.tsx:648
-#: src/domain/editing/ProjectTimeline.tsx:5390
+#: src/domain/editing/ProjectTimeline.tsx:5432
 msgid "视频入场转场"
 msgstr "Video transition in"
 
 #: src/domain/editing/ClipInspector.tsx:649
-#: src/domain/editing/ProjectTimeline.tsx:5390
+#: src/domain/editing/ProjectTimeline.tsx:5432
 msgid "视频出场转场"
 msgstr "Video transition out"
 
-#: src/domain/editing/ProjectTimeline.tsx:2431
+#: src/domain/editing/ProjectTimeline.tsx:2460
 msgid "视频缩略图：不显示"
 msgstr "Video thumbnails: Off"
 
-#: src/domain/editing/ProjectTimeline.tsx:2428
+#: src/domain/editing/ProjectTimeline.tsx:2457
 msgid "视频缩略图：仅片头"
 msgstr "Video thumbnails: Head only"
 
-#: src/domain/editing/ProjectTimeline.tsx:2429
+#: src/domain/editing/ProjectTimeline.tsx:2458
 msgid "视频缩略图：片头和片尾"
 msgstr "Video thumbnails: Head and tail"
 
-#: src/domain/editing/ProjectTimeline.tsx:2430
+#: src/domain/editing/ProjectTimeline.tsx:2459
 msgid "视频缩略图：连续帧"
 msgstr "Video thumbnails: Continuous frames"
 
-#: src/domain/editing/ProjectTimeline.tsx:2271
+#: src/domain/editing/ProjectTimeline.tsx:2300
 msgid "视频转场"
 msgstr "Video transition"
 
@@ -7765,7 +7816,7 @@ msgstr "Video transition"
 msgid "视频预览"
 msgstr "Video preview"
 
-#: src/domain/editing/ProjectTimeline.tsx:2354
+#: src/domain/editing/ProjectTimeline.tsx:2383
 msgid "禁用所选片段"
 msgstr "Disable selected clip"
 
@@ -7999,15 +8050,15 @@ msgstr "Filter media by status"
 msgid "类型"
 msgstr "Type"
 
-#: src/domain/editing/ProjectTimeline.tsx:2916
+#: src/domain/editing/ProjectTimeline.tsx:2946
 msgid "粘贴属性"
 msgstr "Paste attributes"
 
-#: src/domain/editing/ProjectTimeline.tsx:2379
+#: src/domain/editing/ProjectTimeline.tsx:2408
 msgid "粘贴转场到所选剪辑点"
 msgstr "Paste transition at selected edit points"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:370
+#: src/pages/analysis/match/views/OverviewView.tsx:367
 msgid "精确信息"
 msgstr "Precise details"
 
@@ -8032,7 +8083,7 @@ msgid "素材就绪"
 msgstr "Media ready"
 
 #. placeholder {0}: sourceTimeSeconds.toFixed(3)
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2044
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2046
 msgid "素材时间: {0}s"
 msgstr "Media time: {0}s"
 
@@ -8050,7 +8101,7 @@ msgid "素材状态暂时不可用"
 msgstr "Media status is unavailable"
 
 #. placeholder {0}: track.label
-#: src/domain/editing/ProjectTimeline.tsx:3741
+#: src/domain/editing/ProjectTimeline.tsx:3773
 msgid "素材落点 {0}"
 msgstr "Drop point {0}"
 
@@ -8072,7 +8123,7 @@ msgstr "Linear"
 msgid "线性淡化"
 msgstr "Linear fade"
 
-#: src/domain/editing/ProjectTimeline.tsx:2355
+#: src/domain/editing/ProjectTimeline.tsx:2384
 msgid "组合所选片段"
 msgstr "Group selected clips"
 
@@ -8138,11 +8189,11 @@ msgstr "Encode"
 msgid "编码性能"
 msgstr "Encoding performance"
 
-#: src/domain/editing/ProjectTimeline.tsx:2405
+#: src/domain/editing/ProjectTimeline.tsx:2434
 msgid "编辑所选标记"
 msgstr "Edit selected marker"
 
-#: src/domain/editing/ProjectTimeline.tsx:3115
+#: src/domain/editing/ProjectTimeline.tsx:3145
 msgid "编辑标记"
 msgstr "Edit marker"
 
@@ -8150,7 +8201,7 @@ msgstr "Edit marker"
 msgid "编辑片段标记"
 msgstr "Edit clip markers"
 
-#: src/domain/editing/ProjectTimeline.tsx:3354
+#: src/domain/editing/ProjectTimeline.tsx:3384
 msgid "缩小时间轴"
 msgstr "Zoom out timeline"
 
@@ -8162,12 +8213,12 @@ msgstr "Zoom"
 msgid "缩放工具 (Z)"
 msgstr "Zoom Tool (Z)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2970
+#: src/domain/editing/ProjectTimeline.tsx:3000
 msgid "缩放所选"
 msgstr "Zoom to selection"
 
-#: src/domain/editing/ProjectTimeline.tsx:2425
-#: src/domain/editing/ProjectTimeline.tsx:2966
+#: src/domain/editing/ProjectTimeline.tsx:2454
+#: src/domain/editing/ProjectTimeline.tsx:2996
 msgid "缩放至所选片段"
 msgstr "Zoom to selected clips"
 
@@ -8272,7 +8323,7 @@ msgstr "Program canvas"
 msgid "花费"
 msgstr "Spend"
 
-#: src/pages/shared/library/LibraryPage.tsx:550
+#: src/pages/shared/library/LibraryPage.tsx:560
 msgid "若作品已创建，可从作品列表打开并继续添加素材。"
 msgstr "If the project was created, open it from the project list to continue adding media."
 
@@ -8293,7 +8344,7 @@ msgstr "Row ＼ Column"
 msgid "行方与列方"
 msgstr "Row side and column side"
 
-#: src/pages/shared/library/LibraryPage.tsx:445
+#: src/pages/shared/library/LibraryPage.tsx:452
 msgid "表格"
 msgstr "Table"
 
@@ -8314,11 +8365,11 @@ msgstr "Trim clip head (left)"
 msgid "裁切片段尾部（右侧）"
 msgstr "Trim clip tail (right)"
 
-#: src/domain/editing/ProjectTimeline.tsx:4973
+#: src/domain/editing/ProjectTimeline.tsx:5015
 msgid "裁切片段终点"
 msgstr "Trim clip end"
 
-#: src/domain/editing/ProjectTimeline.tsx:4960
+#: src/domain/editing/ProjectTimeline.tsx:5002
 msgid "裁切片段起点"
 msgstr "Trim clip start"
 
@@ -8335,7 +8386,7 @@ msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、�
 msgstr "To export part of the sequence, set In and Out points on the timeline using I and O."
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:630
-#: src/domain/editing/ProjectTimeline.tsx:3744
+#: src/domain/editing/ProjectTimeline.tsx:3776
 msgid "覆盖"
 msgstr "Overwrite"
 
@@ -8392,7 +8443,7 @@ msgstr "The record was removed, but the file is still in the staging folder. Cle
 msgid "记录已移除，磁盘上的文件没有变化。"
 msgstr "The record was removed; the file on disk is unchanged."
 
-#: src/domain/editing/ProjectTimeline.tsx:5996
+#: src/domain/editing/ProjectTimeline.tsx:6038
 msgid "设为目标轨道 {label}"
 msgstr "Set as target track {label}"
 
@@ -8422,7 +8473,7 @@ msgstr "Settings saved."
 msgid "设置没有保存成功"
 msgstr "The setting was not saved"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:292
+#: src/pages/analysis/evidence/EvidencePage.tsx:296
 msgid "证据"
 msgstr "Evidence"
 
@@ -8433,11 +8484,11 @@ msgstr "Evidence"
 
 #: src/app/command/commandRegistry.ts:188
 #: src/app/shell/navigation.tsx:85
-#: src/pages/analysis/evidence/EvidencePage.tsx:251
+#: src/pages/analysis/evidence/EvidencePage.tsx:255
 msgid "证据检索"
 msgstr "Evidence search"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:295
+#: src/pages/analysis/evidence/EvidencePage.tsx:299
 msgid "证据检索视图"
 msgstr "Evidence search view"
 
@@ -8461,7 +8512,7 @@ msgid "证据还在整理中"
 msgstr "Evidence is still being collected"
 
 #: src/domain/editing/MarkerEditorFields.tsx:33
-#: src/domain/editing/ProjectTimeline.tsx:6357
+#: src/domain/editing/ProjectTimeline.tsx:6399
 msgid "评论"
 msgstr "Comment"
 
@@ -8515,7 +8566,7 @@ msgstr "Tell the Agent what you want. It will prepare a shot list and clips, the
 msgid "请先停用不支持的效果，再保存修改。"
 msgstr "Disable unsupported effects before saving changes."
 
-#: src/pages/shared/library/LibraryPage.tsx:644
+#: src/pages/shared/library/LibraryPage.tsx:654
 msgid "请先读取应用配置"
 msgstr "Load the app configuration first"
 
@@ -8569,7 +8620,7 @@ msgstr "Enter a JSON object (key-value pairs)"
 msgid "请输入有效的 JSON 对象"
 msgstr "Enter a valid JSON object"
 
-#: src/domain/editing/ProjectTimeline.tsx:2359
+#: src/domain/editing/ProjectTimeline.tsx:2388
 msgid "请选择连续、启用且未锁定的 Story 片段"
 msgstr "Select consecutive, enabled clips on an unlocked Story track"
 
@@ -8681,16 +8732,16 @@ msgstr "Changing a range's speed changes the range and clip duration but keeps t
 msgid "调整搜索词或素材状态筛选。"
 msgstr "Adjust the search term or media status filter."
 
-#: src/domain/editing/ProjectTimeline.tsx:3433
+#: src/domain/editing/ProjectTimeline.tsx:3463
 msgid "调整时间轴可视范围终点"
 msgstr "Adjust the end of the visible timeline range"
 
-#: src/domain/editing/ProjectTimeline.tsx:3427
+#: src/domain/editing/ProjectTimeline.tsx:3457
 msgid "调整时间轴可视范围起点"
 msgstr "Adjust the start of the visible timeline range"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/ProjectTimeline.tsx:5207
+#: src/domain/editing/ProjectTimeline.tsx:5249
 msgid "调整片段增益 {0}"
 msgstr "Adjust clip gain {0}"
 
@@ -8699,7 +8750,7 @@ msgid "调整范围"
 msgstr "Adjust range"
 
 #. placeholder {0}: track.label
-#: src/domain/editing/ProjectTimeline.tsx:4021
+#: src/domain/editing/ProjectTimeline.tsx:4054
 msgid "调整轨道高度 {0}"
 msgstr "Adjust track height {0}"
 
@@ -8814,15 +8865,15 @@ msgstr "Seek"
 msgid "跳转、搜索比赛或作品"
 msgstr "Go to, search matches or projects"
 
-#: src/domain/editing/ProjectTimeline.tsx:2397
+#: src/domain/editing/ProjectTimeline.tsx:2426
 msgid "跳转到入点"
 msgstr "Go to In"
 
-#: src/domain/editing/ProjectTimeline.tsx:2398
+#: src/domain/editing/ProjectTimeline.tsx:2427
 msgid "跳转到出点"
 msgstr "Go to Out"
 
-#: src/domain/editing/ProjectTimeline.tsx:6017
+#: src/domain/editing/ProjectTimeline.tsx:6059
 msgid "轨道名称"
 msgstr "Track Name"
 
@@ -8831,12 +8882,12 @@ msgstr "Track Name"
 msgid "轨道声像 {0}"
 msgstr "Track Pan {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:6030
+#: src/domain/editing/ProjectTimeline.tsx:6072
 msgid "轨道当前只读"
 msgstr "Track is currently read-only"
 
 #. placeholder {0}: track.name
-#: src/domain/editing/ProjectTimeline.tsx:6107
+#: src/domain/editing/ProjectTimeline.tsx:6149
 msgid "轨道操作 {0}"
 msgstr "Track actions {0}"
 
@@ -8845,7 +8896,7 @@ msgstr "Track actions {0}"
 msgid "轨道音量 {0}"
 msgstr "Track Volume {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2927
+#: src/domain/editing/ProjectTimeline.tsx:2957
 msgid "转场"
 msgstr "Transition"
 
@@ -8869,10 +8920,14 @@ msgstr "Runtime"
 msgid "近 {RECENT_WINDOW_DAYS} 天"
 msgstr "Last {RECENT_WINDOW_DAYS} days"
 
-#: src/pages/shared/library/LibraryPage.tsx:116
-#: src/pages/shared/library/LibraryPage.tsx:118
+#: src/pages/shared/library/LibraryPage.tsx:117
+#: src/pages/shared/library/LibraryPage.tsx:119
 msgid "返回 Demo 资料库"
 msgstr "Back to Demo library"
+
+#: src/domain/project/quickAdd.tsx:148
+msgid "返回「{name}」"
+msgstr "Back to “{name}”"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:606
 msgid "返回作品列表"
@@ -8962,7 +9017,7 @@ msgstr "No matches yet"
 msgid "还没有波形"
 msgstr "No waveform yet"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:421
+#: src/pages/analysis/evidence/EvidencePage.tsx:417
 msgid "还没有注释"
 msgstr "No notes yet"
 
@@ -9239,7 +9294,7 @@ msgstr "These Demo files carry no usable grenade events"
 msgid "这批 Demo 没有可用的购买事件{0}"
 msgstr "These Demo files carry no usable purchase event{0}"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:309
+#: src/pages/analysis/evidence/EvidencePage.tsx:313
 msgid "这批证据没有比赛日期，无法按时间筛选"
 msgstr "This evidence carries no match dates, so it cannot be filtered by time"
 
@@ -9260,7 +9315,7 @@ msgstr "Could not load annotations for this evidence: {0}"
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
 msgstr "This evidence has no note yet. Notes are reused across matches, so one written here shows up in the Notes view."
 
-#: src/pages/analysis/match/views/OverviewView.tsx:203
+#: src/pages/analysis/match/views/OverviewView.tsx:204
 msgid "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
 msgstr "This analysis detected no highlight candidate. The round timeline still supports a round-by-round review."
 
@@ -9299,12 +9354,12 @@ msgstr "This one reused the previous result for the same evidence set."
 msgid "这段点评没有回引证据。"
 msgstr "This commentary cites no evidence back."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1932
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1934
 msgid "这段素材在 Demo 里没有可用的回放数据"
 msgstr "The Demo has no replay data for this clip"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1926
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1990
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1928
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1992
 msgid "这段素材没有可用的地图上下文"
 msgstr "This clip has no available map context"
 
@@ -9366,7 +9421,7 @@ msgstr "Connection succeeded: {testResult}. Agent tool calling is supported."
 msgid "连续放置"
 msgstr "Place Sequentially"
 
-#: src/domain/editing/ProjectTimeline.tsx:2265
+#: src/domain/editing/ProjectTimeline.tsx:2294
 msgid "退出修剪模式"
 msgstr "Exit Trim Mode"
 
@@ -9382,11 +9437,11 @@ msgstr "Change request: {feedback}"
 msgid "适合几十场以内的个人资料库；大库仍建议用表格"
 msgstr "Good for a personal library of a few dozen matches; a large library is still better in the table"
 
-#: src/domain/editing/ProjectTimeline.tsx:3439
+#: src/domain/editing/ProjectTimeline.tsx:3469
 msgid "适应"
 msgstr "Fit"
 
-#: src/domain/editing/ProjectTimeline.tsx:2426
+#: src/domain/editing/ProjectTimeline.tsx:2455
 msgid "适应整个序列"
 msgstr "Fit entire sequence"
 
@@ -9430,7 +9485,7 @@ msgid "选中：第 {0} 回合的高光"
 msgstr "Selected: a highlight of round {0}"
 
 #: src/pages/analysis/match/views/DuelsView.tsx:743
-#: src/pages/analysis/match/views/OverviewView.tsx:301
+#: src/pages/analysis/match/views/OverviewView.tsx:298
 #: src/pages/analysis/match/views/PlayersView.tsx:489
 #: src/pages/analysis/match/views/RoundsView.tsx:676
 #: src/pages/analysis/match/views/TeamsView.tsx:535
@@ -9523,7 +9578,7 @@ msgstr "Choose the CS2 install folder"
 msgid "选择、移动和裁切时间轴片段"
 msgstr "Select, move, and trim timeline clips"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:307
+#: src/pages/analysis/match/views/OverviewView.tsx:304
 msgid "选择一个回合、选手或高光后，这里会显示可定位、可加入作品的真实上下文。"
 msgstr "Select a round, player, or highlight to see real context that can be located or added to a project."
 
@@ -9547,8 +9602,8 @@ msgstr "Select imported media to insert or overwrite."
 msgid "选择工具 (V)"
 msgstr "Selection Tool (V)"
 
-#: src/domain/editing/ProjectTimeline.tsx:2380
-#: src/domain/editing/ProjectTimeline.tsx:2915
+#: src/domain/editing/ProjectTimeline.tsx:2409
+#: src/domain/editing/ProjectTimeline.tsx:2945
 msgid "选择性粘贴属性"
 msgstr "Paste Attributes"
 
@@ -9569,7 +9624,7 @@ msgstr "Selects the clip at the click and all clips to its right; hold Shift to 
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "Selects the clip at the click and all clips to its left; hold Shift to select across all tracks"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1990
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1992
 msgid "选择片段后显示路径与事件"
 msgstr "Select a clip to show paths and events"
 
@@ -9622,6 +9677,10 @@ msgstr "Selection order"
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:47
 msgid "选材中"
 msgstr "Selecting clips"
+
+#: src/domain/project/quickAdd.tsx:134
+msgid "选材目标作品"
+msgstr "Target project for collected clips"
 
 #: src/domain/editing/ClipInspector.tsx:85
 #: src/domain/editing/ClipInspector.tsx:93
@@ -9680,7 +9739,7 @@ msgstr "Utility damage attribution unavailable"
 msgid "道具投掷统计不可用"
 msgstr "Utility throw statistics unavailable"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:168
+#: src/pages/analysis/match/views/OverviewView.tsx:169
 msgid "都由这次分析的回合与事件推出"
 msgstr "All derived from the rounds and the events of this analysis"
 
@@ -9704,7 +9763,7 @@ msgstr "The configuration file cannot be read"
 msgid "配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。"
 msgstr "Clean up there when the configuration cannot be read, staged exports are left behind, or records point at missing files."
 
-#: src/pages/shared/library/LibraryPage.tsx:252
+#: src/pages/shared/library/LibraryPage.tsx:254
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
 
@@ -9726,7 +9785,7 @@ msgstr "The capture component could not be prepared: {0}"
 msgid "采集组件没能启动。打开任务详情查看原因。"
 msgstr "The capture component failed to start. Open the task details to see why."
 
-#: src/domain/editing/ProjectTimeline.tsx:2385
+#: src/domain/editing/ProjectTimeline.tsx:2414
 msgid "重做上一次剪辑"
 msgstr "Redo last edit"
 
@@ -9739,7 +9798,7 @@ msgid "重命名布局…"
 msgstr "Rename layout…"
 
 #. placeholder {0}: track.name
-#: src/domain/editing/ProjectTimeline.tsx:6034
+#: src/domain/editing/ProjectTimeline.tsx:6076
 msgid "重命名轨道 {0}"
 msgstr "Rename track {0}"
 
@@ -9748,11 +9807,11 @@ msgid "重命名面板分组"
 msgstr "Rename panel group"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/ProjectTimeline.tsx:4948
+#: src/domain/editing/ProjectTimeline.tsx:4990
 msgid "重复帧 {0}"
 msgstr "Duplicate frame {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2441
+#: src/domain/editing/ProjectTimeline.tsx:2470
 msgid "重复帧标记"
 msgstr "Duplicate frame marker"
 
@@ -9858,7 +9917,7 @@ msgstr "Reset filters"
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:189
 #: src/pages/analysis/evidence/EvidenceResults.tsx:132
-#: src/pages/analysis/match/MatchWorkspacePage.tsx:209
+#: src/pages/analysis/match/MatchWorkspacePage.tsx:220
 #: src/pages/analysis/match/views/ReviewView.tsx:195
 #: src/pages/analysis/match/views/ReviewView.tsx:690
 #: src/pages/analysis/match/views/viewChrome.tsx:230
@@ -9882,7 +9941,7 @@ msgstr "Reset filters"
 #: src/pages/shared/library/LibraryCards.tsx:84
 #: src/pages/shared/library/LibraryInspector.tsx:137
 #: src/pages/shared/library/LibraryInspector.tsx:198
-#: src/pages/shared/library/LibraryPage.tsx:518
+#: src/pages/shared/library/LibraryPage.tsx:528
 #: src/pages/shared/library/LibraryTable.tsx:101
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:89
 #: src/pages/shared/onboarding/GuidePage.tsx:116
@@ -9904,11 +9963,11 @@ msgstr "Reset filters"
 msgid "重试"
 msgstr "Retry"
 
-#: src/pages/shared/library/LibraryPage.tsx:499
+#: src/pages/shared/library/LibraryPage.tsx:509
 msgid "重试保存备注"
 msgstr "Retry saving note"
 
-#: src/pages/shared/library/LibraryPage.tsx:534
+#: src/pages/shared/library/LibraryPage.tsx:544
 msgid "重试回放"
 msgstr "Retry playback"
 
@@ -9916,15 +9975,15 @@ msgstr "Retry playback"
 msgid "重试操作"
 msgstr "Retry action"
 
-#: src/pages/shared/library/LibraryPage.tsx:507
+#: src/pages/shared/library/LibraryPage.tsx:517
 msgid "重试添加标签"
 msgstr "Retry adding tags"
 
-#: src/domain/editing/ProjectTimeline.tsx:2344
+#: src/domain/editing/ProjectTimeline.tsx:2373
 msgid "链接所选片段"
 msgstr "Link selected clips"
 
-#: src/domain/editing/ProjectTimeline.tsx:2479
+#: src/domain/editing/ProjectTimeline.tsx:2508
 msgid "链接片段当前可独立选择"
 msgstr "Linked clips can currently be selected independently"
 
@@ -9961,14 +10020,14 @@ msgstr "Attacker flashed"
 msgid "闭锁 · Latch"
 msgstr "Latch"
 
-#: src/domain/editing/ProjectTimeline.tsx:3778
+#: src/domain/editing/ProjectTimeline.tsx:3810
 msgid "间隙"
 msgstr "Gap"
 
 #. placeholder {0}: track.label
 #. placeholder {1}: formatMillisecondTimecode(gap.start)
 #. placeholder {2}: formatMillisecondTimecode(gap.end)
-#: src/domain/editing/ProjectTimeline.tsx:3767
+#: src/domain/editing/ProjectTimeline.tsx:3799
 msgid "间隙 {0} {1} 到 {2}"
 msgstr "Gap {0} {1} to {2}"
 
@@ -9983,14 +10042,14 @@ msgctxt "match-view"
 msgid "队伍"
 msgstr "Teams"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:114
+#: src/pages/analysis/match/views/OverviewView.tsx:115
 #: src/pages/analysis/match/views/RoundsView.tsx:464
 #: src/pages/analysis/match/views/RoundsView.tsx:670
 #: src/pages/analysis/match/views/TeamsView.tsx:426
 msgid "队伍 A"
 msgstr "Team A"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:115
+#: src/pages/analysis/match/views/OverviewView.tsx:116
 #: src/pages/analysis/match/views/RoundsView.tsx:465
 #: src/pages/analysis/match/views/RoundsView.tsx:671
 #: src/pages/analysis/match/views/TeamsView.tsx:427
@@ -10014,7 +10073,7 @@ msgstr "Stage {index}/{count} {label}"
 msgid "阶段日志"
 msgstr "Stage log"
 
-#: src/domain/editing/ProjectTimeline.tsx:5813
+#: src/domain/editing/ProjectTimeline.tsx:5855
 msgid "降低轨道音量"
 msgstr "Lower track volume"
 
@@ -10044,7 +10103,7 @@ msgstr "Hide panel"
 msgid "雷达"
 msgstr "Radar"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1930
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1932
 msgid "雷达图没能加载"
 msgstr "The radar image failed to load"
 
@@ -10056,7 +10115,7 @@ msgstr "Your confirmation is required"
 msgid "需要先选择兼容片段，并确保源入点之后有足够素材"
 msgstr "Select a compatible clip first and make sure there is enough media after the source In point"
 
-#: src/domain/editing/ProjectTimeline.tsx:2325
+#: src/domain/editing/ProjectTimeline.tsx:2354
 msgid "需要桌面应用才能导出 SRT"
 msgstr "Exporting SRT requires the desktop app"
 
@@ -10070,8 +10129,8 @@ msgid "需要配置"
 msgstr "Setup required"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1418
-#: src/domain/editing/ProjectTimeline.tsx:4748
-#: src/domain/editing/ProjectTimeline.tsx:4753
+#: src/domain/editing/ProjectTimeline.tsx:4790
+#: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/TimelineProgramMonitor.tsx:1764
 #: src/domain/editing/TimelineProgramMonitor.tsx:1767
 msgid "需要重录"
@@ -10112,32 +10171,32 @@ msgstr "Audio track mixer"
 msgid "音量"
 msgstr "Volume"
 
-#: src/domain/editing/ProjectTimeline.tsx:2928
+#: src/domain/editing/ProjectTimeline.tsx:2958
 msgid "音量与声像"
 msgstr "Volume and pan"
 
-#: src/domain/editing/ProjectTimeline.tsx:1322
-#: src/domain/editing/ProjectTimeline.tsx:3744
+#: src/domain/editing/ProjectTimeline.tsx:1340
+#: src/domain/editing/ProjectTimeline.tsx:3776
 msgid "音频"
 msgstr "Audio"
 
 #. placeholder {0}: document.tracks.filter((track) => track.kind === 'audio').length + 1
-#: src/domain/editing/ProjectTimeline.tsx:980
+#: src/domain/editing/ProjectTimeline.tsx:998
 msgid "音频 {0}"
 msgstr "Audio {0}"
 
 #: src/domain/editing/ClipInspector.tsx:650
-#: src/domain/editing/ProjectTimeline.tsx:5391
+#: src/domain/editing/ProjectTimeline.tsx:5433
 msgid "音频入场转场"
 msgstr "Audio Fade In"
 
 #: src/domain/editing/ClipInspector.tsx:651
-#: src/domain/editing/ProjectTimeline.tsx:5391
+#: src/domain/editing/ProjectTimeline.tsx:5433
 msgid "音频出场转场"
 msgstr "Audio Fade Out"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:773
-#: src/domain/editing/ProjectTimeline.tsx:2439
+#: src/domain/editing/ProjectTimeline.tsx:2468
 msgid "音频波形"
 msgstr "Audio Waveform"
 
@@ -10158,7 +10217,7 @@ msgstr "Audio Automation"
 msgid "音频轨道 {0}"
 msgstr "Audio Track {0}"
 
-#: src/domain/editing/ProjectTimeline.tsx:2271
+#: src/domain/editing/ProjectTimeline.tsx:2300
 msgid "音频转场"
 msgstr "Audio Transition"
 
@@ -10167,7 +10226,7 @@ msgid "音频随摄像机切换；关闭时固定使用角度 1 音频"
 msgstr "Audio follows camera switching; when off, always uses angle 1 audio"
 
 #: src/domain/editing/MarkerEditorFields.tsx:34
-#: src/domain/editing/ProjectTimeline.tsx:6355
+#: src/domain/editing/ProjectTimeline.tsx:6397
 msgid "章节"
 msgstr "Chapter"
 
@@ -10261,7 +10320,7 @@ msgstr "The opening kill is the earliest kill event of each round."
 msgid "首杀对决"
 msgstr "Opening duels"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:129
+#: src/pages/analysis/match/views/OverviewView.tsx:130
 msgid "首杀差"
 msgstr "Opening kill diff"
 
@@ -10285,7 +10344,7 @@ msgctxt "match-view"
 msgid "高光"
 msgstr "Highlights"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:150
+#: src/pages/analysis/match/views/OverviewView.tsx:151
 #: src/pages/analysis/match/views/TeamsView.tsx:579
 msgid "高光候选"
 msgstr "Highlight candidates"
@@ -10315,12 +10374,12 @@ msgstr "Advanced and diagnostics"
 msgid "高级工具"
 msgstr "Advanced tools"
 
-#: src/domain/editing/ProjectTimeline.tsx:2257
+#: src/domain/editing/ProjectTimeline.tsx:2286
 msgid "高级操作"
 msgstr "Advanced actions"
 
-#: src/domain/editing/ProjectTimeline.tsx:2251
-#: src/domain/editing/ProjectTimeline.tsx:2291
+#: src/domain/editing/ProjectTimeline.tsx:2280
+#: src/domain/editing/ProjectTimeline.tsx:2320
 msgid "高级时间轴操作"
 msgstr "Advanced timeline actions"
 

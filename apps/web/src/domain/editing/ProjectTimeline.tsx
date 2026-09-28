@@ -39,7 +39,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review/ReviewPanel';
 import { clusterTimelinePins } from '../../design/timeline/marker';
 import { OverflowMenu } from '../../design/layout';
-import { Dialog, Drawer, Tooltip } from '../../design/feedback';
+import { Dialog, Drawer, Tooltip, toast } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import {
   MAX_ZOOM,
@@ -600,6 +600,18 @@ export function ProjectTimeline({
     Math.max(0, timelineTimeSeconds),
   );
   const editPlayheadSeconds = snapTimeToFrame(playheadSeconds, document.fps);
+  const playheadSecondsRef = useRef(playheadSeconds);
+  playheadSecondsRef.current = playheadSeconds;
+  /**
+   * A plain click on a clip brings the playhead into it through the same seek
+   * the ruler uses, so the Program Monitor shows the clip that was picked. A
+   * playhead already inside the clip stays where the editor left it.
+   */
+  const seekIntoClip = (clip: TimelineClip) => {
+    const playhead = playheadSecondsRef.current;
+    if (playhead >= clip.placement.start && playhead < clip.placement.start + clip.placement.duration) return;
+    onSeek(clip.placement.start);
+  };
   const snapPoints = useMemo(() => [
     ...document.tracks.flatMap((track) => track.clips.flatMap((clip) => [
       { time: clip.placement.start, clipId: clip.id },
@@ -848,6 +860,9 @@ export function ProjectTimeline({
   const canAddEditAll = !readOnly && document.tracks.some((track) => (
     !track.locked && track.clips.some((clip) => clipCrossesTime(clip, editPlayheadSeconds))
   ));
+  /** Why split is unavailable: the disabled button's tooltip and the shortcut's toast say the same thing. */
+  const addEditUnavailableReason = readOnly ? t`时间轴当前只读` : t`把播放头移到未锁定的目标轨片段内再分割`;
+  const addEditAllUnavailableReason = readOnly ? t`时间轴当前只读` : t`把播放头移到未锁定的片段内再分割`;
   const canDelete = !readOnly && editableSelectedTrackGroups.length > 0;
   const canCloseSelectedGap = !readOnly
     && selectedGap !== null
@@ -2006,7 +2021,9 @@ export function ProjectTimeline({
           event.preventDefault();
           if (event.shiftKey) {
             if (canAddEditAll) addEditAll();
+            else toast.info(addEditAllUnavailableReason);
           } else if (canAddEdit) addEdit();
+          else toast.info(addEditUnavailableReason);
           return;
         }
         if (event.key.toLowerCase() === 'd' && (event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -2184,6 +2201,15 @@ export function ProjectTimeline({
           deleteSelected();
           return;
         }
+        if ((event.key === 'Delete' || event.key === 'Backspace')
+          && !event.defaultPrevented
+          && !readOnly
+          && selectedClipIds.length === 0
+          && selectedGap === null) {
+          event.preventDefault();
+          toast.info(t`先选中要删除的片段`);
+          return;
+        }
         if (event.key.toLowerCase() === 'z'
           && (event.ctrlKey || event.metaKey)
           && event.shiftKey
@@ -2215,7 +2241,7 @@ export function ProjectTimeline({
             {transportPlaying ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
           </button>
         </Tooltip>
-        <Tooltip content={readOnly ? t`时间轴当前只读` : canAddEdit ? t`在播放头分割 (Ctrl/Cmd+K)` : t`将播放头移至未锁定的目标轨片段内部`} side="bottom" wrap wrapFocusable={!canAddEdit}>
+        <Tooltip content={canAddEdit ? t`在播放头分割 (Ctrl/Cmd+K)` : addEditUnavailableReason} side="bottom" wrap wrapFocusable={!canAddEdit}>
           <button
             type="button"
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
@@ -2769,6 +2795,7 @@ export function ProjectTimeline({
               }}
               onRestoreClipSync={restoreClipSync}
               onSeek={onSeek}
+              onSeekIntoClip={seekIntoClip}
               onRazor={(time, allTracks, followLinkedClips) => addEditAt({
                 time,
                 allTracks,
@@ -3493,7 +3520,7 @@ function timelineClipboardFromSelection(
   };
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, thumbnailWindowStartPx, thumbnailWindowEndPx, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, sourceMarkersByAssetId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, thumbnailWindowStartPx, thumbnailWindowEndPx, selectedClipId, selectedClipIds, selectedTransition, selectedGap, displaySettings, selectedEditPoint, deliveryStateByClipId, sourceMarkersByAssetId, outOfSyncFramesByClipId, editTool, fps, readOnly, onSelectClip, onSelectTransition, onSelectGap, onSelectEditPoint, onPromoteClip, onInspectClip, onRestoreClipSync, onSeek, onSeekIntoClip, onRazor, onTrackSelect, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackIds, syncLocked, crossTrackTargeted, timelineTimeSeconds, onTargetTrack, onToggleSyncLock, onCrossTrackPreview, onMoveCrossTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, selectedTrimModeEditKeys, trimModeActive, onToggleTrimModeEdit, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: TimeScale;
   readonly contentWidth: number;
@@ -3519,6 +3546,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onInspectClip: (clipId: string) => void;
   readonly onRestoreClipSync: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
+  readonly onSeekIntoClip: (clip: TimelineClip) => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
@@ -3832,6 +3860,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onInspect={() => onInspectClip(clip.id)}
             onRestoreSync={() => onRestoreClipSync(clip.id)}
             onSeek={onSeek}
+            onSeekInto={() => onSeekIntoClip(clip)}
             razorEnabled={!readOnly && !track.track.locked}
             onRazor={onRazor}
             onTrackSelect={onTrackSelect}
@@ -4280,7 +4309,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onSeekInto, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   /** What the name strip collapses to when the name does not fit. */
   readonly compactLabel: string;
@@ -4317,6 +4346,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
   readonly onInspect: () => void;
   readonly onRestoreSync: () => void;
   readonly onSeek: (seconds: number) => void;
+  /** A plain click on the clip, with no drag: the playhead follows the selection. */
+  readonly onSeekInto: () => void;
   readonly onRazor: (time: number, allTracks: boolean, followLinkedClips: boolean) => void;
   readonly onTrackSelect: (time: number, direction: 'forward' | 'backward', allTracks: boolean) => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'ripple_start' | 'ripple_end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'transition' | 'speed_remap') => boolean;
@@ -4549,6 +4580,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
     }
     visualClipRef.current = active.clip;
     setVisualClip(active.clip);
+    if (active.mode === 'move' && !active.moved) onSeekInto();
   };
   const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end' | 'ripple_start' | 'ripple_end' | 'slip' | 'slide' | 'rate_start' | 'rate_end') => {
     if (readOnly
@@ -4622,7 +4654,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
         !clip.placement.enabled && 'opacity-55',
         change?.kind === 'added' && 'border-t-2 border-t-ok',
         change?.kind === 'modified' && 'border-t-2 border-t-accent-500',
-        selected && 'ring-1 ring-inset ring-accent-600',
+        selected && "after:pointer-events-none after:absolute after:inset-0 after:z-50 after:rounded-sm after:border-2 after:border-accent after:content-['']",
         editTool === 'track_forward' && 'cursor-e-resize',
         editTool === 'track_backward' && 'cursor-w-resize',
         editTool === 'razor' && razorEnabled && 'cursor-crosshair',

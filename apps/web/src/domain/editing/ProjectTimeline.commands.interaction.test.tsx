@@ -1,6 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { toast } from '../../design/feedback';
 import type { TimelineClip } from '../../shared/desktop/dto';
 import { renderPage } from '../../test/renderPage';
 import { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
@@ -103,6 +104,30 @@ function timelineProps(readOnly = false): ProjectTimelineProps {
       onRedo: vi.fn(),
     },
   };
+}
+
+const LATER_CLIP: TimelineClip = {
+  ...CLIP,
+  id: 'clip-b',
+  name: 'Mirage R2 · later moment',
+  placement: { ...CLIP.placement, start: 6, source_in: 30, source_out: 36 },
+};
+
+/** Two Story clips with only the first selected, and the playhead inside it. */
+function twoClipProps(): ProjectTimelineProps {
+  const props = timelineProps();
+  const [story] = props.project.document.tracks;
+  return {
+    ...props,
+    project: {
+      ...props.project,
+      document: { ...props.project.document, tracks: [{ ...story!, clips: [CLIP, LATER_CLIP] }] },
+    },
+  };
+}
+
+function clipButton(clip: TimelineClip): HTMLElement {
+  return document.querySelector<HTMLElement>(`[data-timeline-clip-id="${clip.id}"]`)!;
 }
 
 function openMenu(name: string): void {
@@ -210,5 +235,79 @@ describe('Project Timeline command hierarchy', () => {
     expect(props.transport.onTogglePlayback).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: `查看片段详情 ${CLIP.name}` }));
     expect(props.selection.onInspectClip).toHaveBeenCalledWith(CLIP.id);
+  });
+
+  it('moves the playhead into a plainly clicked clip through the transport seek, but not on a drag or modified click', () => {
+    const props = twoClipProps();
+    renderPage({ element: <ProjectTimeline {...props} />, client: {} });
+
+    fireEvent.pointerDown(clipButton(CLIP), { clientX: 20, pointerId: 1, button: 0 });
+    fireEvent.pointerUp(clipButton(CLIP), { clientX: 20, pointerId: 1 });
+    // The playhead (2s) is already inside the first clip, so it stays.
+    expect(props.transport.onSeek).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(clipButton(LATER_CLIP), { clientX: 200, pointerId: 2, button: 0 });
+    fireEvent.pointerUp(clipButton(LATER_CLIP), { clientX: 200, pointerId: 2 });
+    expect(props.selection.onSelectClip).toHaveBeenLastCalledWith(LATER_CLIP.id, false, false);
+    expect(props.transport.onSeek).toHaveBeenCalledTimes(1);
+    expect(props.transport.onSeek).toHaveBeenCalledWith(6);
+
+    fireEvent.pointerDown(clipButton(LATER_CLIP), { clientX: 200, pointerId: 3, button: 0, ctrlKey: true });
+    fireEvent.pointerUp(clipButton(LATER_CLIP), { clientX: 200, pointerId: 3, ctrlKey: true });
+    fireEvent.pointerDown(clipButton(LATER_CLIP), { clientX: 200, pointerId: 4, button: 0, shiftKey: true });
+    fireEvent.pointerUp(clipButton(LATER_CLIP), { clientX: 200, pointerId: 4, shiftKey: true });
+    expect(props.transport.onSeek).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerDown(clipButton(LATER_CLIP), { clientX: 200, pointerId: 5, button: 0 });
+    fireEvent.pointerMove(clipButton(LATER_CLIP), { clientX: 320, pointerId: 5 });
+    fireEvent.pointerUp(clipButton(LATER_CLIP), { clientX: 320, pointerId: 5 });
+    expect(props.transport.onSeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the selected clip with a solid accent outline', () => {
+    renderPage({ element: <ProjectTimeline {...twoClipProps()} />, client: {} });
+    expect(clipButton(CLIP).className).toContain('after:border-accent');
+    expect(clipButton(CLIP).className).not.toContain('border-dashed');
+    expect(clipButton(LATER_CLIP).className).not.toContain('after:border-accent');
+  });
+
+  it('explains an unavailable split or delete instead of ignoring the shortcut', async () => {
+    const info = vi.spyOn(toast, 'info');
+    const base = timelineProps();
+    const props: ProjectTimelineProps = {
+      ...base,
+      selection: { ...base.selection, selectedClipId: null, selectedClipIds: [] },
+      transport: { ...base.transport, timelineTimeSeconds: 120 },
+    };
+    renderPage({ element: <ProjectTimeline {...props} />, client: {} });
+    const timeline = screen.getByRole('region', { name: '时间轴' });
+
+    fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true });
+    expect(info).toHaveBeenLastCalledWith('把播放头移到未锁定的目标轨片段内再分割');
+    fireEvent.keyDown(timeline, { key: 'k', ctrlKey: true, shiftKey: true });
+    expect(info).toHaveBeenLastCalledWith('把播放头移到未锁定的片段内再分割');
+    expect(props.editing.onReplaceTrackClipGroups).not.toHaveBeenCalled();
+
+    const split = screen.getByRole('button', { name: '在播放头分割 (Ctrl/Cmd+K)' }) as HTMLButtonElement;
+    expect(split.disabled).toBe(true);
+    fireEvent.focus(split.parentElement as HTMLElement);
+    expect((await screen.findByRole('tooltip')).textContent).toBe('把播放头移到未锁定的目标轨片段内再分割');
+    fireEvent.blur(split.parentElement as HTMLElement);
+
+    fireEvent.keyDown(timeline, { key: 'Delete' });
+    expect(info).toHaveBeenLastCalledWith('先选中要删除的片段');
+    expect(info).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not toast shortcuts typed into a field', () => {
+    const info = vi.spyOn(toast, 'info');
+    const base = timelineProps();
+    const props: ProjectTimelineProps = { ...base, selection: { ...base.selection, selectedClipId: null, selectedClipIds: [] } };
+    renderPage({ element: <ProjectTimeline {...props} />, client: {} });
+    const field = document.createElement('input');
+    screen.getByRole('region', { name: '时间轴' }).appendChild(field);
+    fireEvent.keyDown(field, { key: 'Delete' });
+    fireEvent.keyDown(field, { key: 'k', ctrlKey: true });
+    expect(info).not.toHaveBeenCalled();
   });
 });

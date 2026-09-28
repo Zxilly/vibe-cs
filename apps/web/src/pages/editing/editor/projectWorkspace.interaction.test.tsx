@@ -1292,14 +1292,14 @@ describe('unified project workspace', () => {
       toJSON: () => ({}),
     });
 
-    expect(clipA.className).toContain('ring-accent');
+    expect(clipA.className).toContain('after:border-accent');
     expect(fireEvent.pointerDown(playhead, { clientX: 199, pointerId: 7, button: 0 })).toBe(false);
     fireEvent.pointerMove(playhead, { clientX: 199.2, pointerId: 7 });
     fireEvent.pointerUp(playhead, { clientX: 199.2, pointerId: 7 });
 
     await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBeGreaterThan(5));
-    expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }).className).toContain('ring-accent');
-    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).not.toContain('ring-accent');
+    expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }).className).toContain('after:border-accent');
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).not.toContain('after:border-accent');
     expect(screen.getByLabelText('B 视频预览')).toBeTruthy();
     expect(screen.getByRole('region', { name: '时间轴' }).classList.contains('select-none')).toBe(true);
   });
@@ -1620,8 +1620,8 @@ describe('unified project workspace', () => {
     const audioButton = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
     fireEvent.pointerDown(audioButton, { pointerId: 41, button: 0, ctrlKey: true, clientX: 400 });
     await waitFor(() => {
-      expect(storyClip.className).toContain('ring-accent');
-      expect(audioButton.className).toContain('ring-accent');
+      expect(storyClip.className).toContain('after:border-accent');
+      expect(audioButton.className).toContain('after:border-accent');
     });
     runTimelineCommand('删除所选片段并闭合间隙');
 
@@ -2488,8 +2488,8 @@ describe('unified project workspace', () => {
     fireEvent.pointerDown(clipB, { pointerId: 31, button: 0, ctrlKey: true, clientX: 400 });
 
     await waitFor(() => {
-      expect(clipA.className).toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
+      expect(clipA.className).toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
     });
     expect(clipB.hasPointerCapture(31)).toBe(false);
 
@@ -2663,7 +2663,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ applyProjectPatch });
     const restoredPlayhead = await screen.findByRole('slider', { name: '时间轴播放头' });
     await waitFor(() => expect(Number(restoredPlayhead.getAttribute('aria-valuenow'))).toBeCloseTo(5));
-    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).toContain('ring-accent');
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).toContain('after:border-accent');
     expect(screen.getByLabelText('入出点范围 00:03.000 到 00:05.000')).toBeTruthy();
     expect(screen.getByRole('button', { name: '关闭循环播放' }).getAttribute('aria-pressed')).toBe('true');
 
@@ -3701,7 +3701,7 @@ describe('unified project workspace', () => {
     stepTimelineSeconds(playhead, 6);
     fireEvent.keyDown(timeline, { key: 'f' });
 
-    await waitFor(() => expect(clipB.className).toContain('ring-accent'));
+    await waitFor(() => expect(clipB.className).toContain('after:border-accent'));
     expect((screen.getByRole('slider', { name: '源素材播放头' }) as HTMLInputElement).value).toBe('2');
   });
 
@@ -4117,8 +4117,8 @@ describe('unified project workspace', () => {
     const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
     fireEvent.pointerDown(clipB, { pointerId: 52, button: 0, shiftKey: true, clientX: 400 });
     await waitFor(() => {
-      expect(clipA.className).toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
+      expect(clipA.className).toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
     });
     expect(clipB.hasPointerCapture(52)).toBe(false);
 
@@ -4128,9 +4128,9 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'a', ctrlKey: true });
     const audio = screen.getByRole('button', { name: /Range audio 10\.0s · 已录制/u });
     await waitFor(() => {
-      expect(clipA.className).toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
-      expect(audio.className).toContain('ring-accent');
+      expect(clipA.className).toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
+      expect(audio.className).toContain('after:border-accent');
     });
   });
 
@@ -4139,9 +4139,9 @@ describe('unified project workspace', () => {
 
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
-    expect(clipA.className).toContain('ring-accent');
+    expect(clipA.className).toContain('after:border-accent');
     fireEvent.keyDown(timeline, { key: 'a', ctrlKey: true, shiftKey: true });
-    expect(clipA.className).not.toContain('ring-accent');
+    expect(clipA.className).not.toContain('after:border-accent');
   });
 
   it('toggles selected clip output with the Premiere Shift+E shortcut', async () => {
@@ -4178,15 +4178,15 @@ describe('unified project workspace', () => {
     });
     fireEvent.pointerDown(clipB, { pointerId: 122, button: 0, clientX: 200 });
     await waitFor(() => {
-      expect(clipA.className).not.toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
-      expect(audio.className).not.toContain('ring-accent');
+      expect(clipA.className).not.toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
+      expect(audio.className).not.toContain('after:border-accent');
     });
 
     fireEvent.pointerDown(clipB, { pointerId: 123, button: 0, clientX: 200, shiftKey: true });
     await waitFor(() => {
-      expect(clipB.className).toContain('ring-accent');
-      expect(audio.className).toContain('ring-accent');
+      expect(clipB.className).toContain('after:border-accent');
+      expect(audio.className).toContain('after:border-accent');
     });
     clientWidth.mockRestore();
   });
@@ -4205,8 +4205,8 @@ describe('unified project workspace', () => {
     });
     fireEvent.pointerDown(clipB, { pointerId: 124, button: 0, clientX: 200 });
     await waitFor(() => {
-      expect(clipA.className).toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
+      expect(clipA.className).toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
     });
     clientWidth.mockRestore();
   });
@@ -4218,8 +4218,8 @@ describe('unified project workspace', () => {
     const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     const audio = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
     await waitFor(() => {
-      expect(story.className).toContain('ring-accent');
-      expect(audio.className).toContain('ring-accent');
+      expect(story.className).toContain('after:border-accent');
+      expect(audio.className).toContain('after:border-accent');
     });
     fireEvent.pointerDown(audio, { pointerId: 94, button: 0, clientX: 300 });
     fireEvent.pointerUp(audio, { pointerId: 94, clientX: 300 });
@@ -4267,11 +4267,11 @@ describe('unified project workspace', () => {
     const timeline = await screen.findByRole('region', { name: '时间轴' });
     const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
     const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
-    expect(clipA.className).toContain('ring-accent');
-    expect(clipB.className).toContain('ring-accent');
+    expect(clipA.className).toContain('after:border-accent');
+    expect(clipB.className).toContain('after:border-accent');
     runTimelineCommand('切换链接选择');
     fireEvent.click(clipA);
-    expect(clipB.className).toContain('ring-accent');
+    expect(clipB.className).toContain('after:border-accent');
     fireEvent.keyDown(timeline, { key: 'g', ctrlKey: true, shiftKey: true });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -4305,7 +4305,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ project: linkedProject(), applyProjectPatch });
 
     const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('after:border-accent'));
     fireEvent.pointerDown(story, { pointerId: 91, button: 0, clientX: 200 });
     fireEvent.pointerMove(story, { pointerId: 91, clientX: 600 });
     fireEvent.pointerUp(story, { pointerId: 91, clientX: 600 });
@@ -4393,7 +4393,7 @@ describe('unified project workspace', () => {
     const targetRow = screen.getByRole('row', { name: 'Target V3' });
     elementFromPoint.mockReturnValue(targetRow);
     fireEvent.pointerMove(moving, { pointerId: 203, clientX: 500, clientY: 500, shiftKey: true });
-    expect(targetRow.className).not.toContain('ring-accent');
+    expect(targetRow.className).not.toContain('after:border-accent');
     fireEvent.pointerUp(moving, { pointerId: 203, clientX: 500, clientY: 500, shiftKey: true });
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
@@ -4491,7 +4491,7 @@ describe('unified project workspace', () => {
 
     const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     const audio = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
-    await waitFor(() => expect(audio.className).toContain('ring-accent'));
+    await waitFor(() => expect(audio.className).toContain('after:border-accent'));
     fireEvent.pointerDown(story, { pointerId: 117, button: 0, clientX: 200 });
     fireEvent.pointerMove(story, { pointerId: 117, clientX: 600 });
     fireEvent.pointerUp(story, { pointerId: 117, clientX: 600 });
@@ -4546,7 +4546,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ project: linkedProject(), applyProjectPatch });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('after:border-accent'));
     const startHandle = screen.getByRole('separator', { name: '裁切片段起点' });
     fireEvent.pointerDown(startHandle, { pointerId: 93, button: 0, clientX: 200 });
     fireEvent.pointerMove(startHandle, { pointerId: 93, clientX: 250 });
@@ -4644,7 +4644,7 @@ describe('unified project workspace', () => {
     renderWorkspace({ project, applyProjectPatch });
 
     const story = await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('after:border-accent'));
     fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'y' });
     fireEvent.pointerDown(story, { pointerId: 112, button: 0, clientX: 400 });
     fireEvent.pointerMove(story, { pointerId: 112, clientX: 700 });
@@ -5412,8 +5412,8 @@ describe('unified project workspace', () => {
     fireEvent.pointerMove(grid, { pointerId: 63, clientX: 420, clientY: 200 });
     expect(screen.getByLabelText('框选范围')).toBeTruthy();
     await waitFor(() => {
-      expect(clipA.className).toContain('ring-accent');
-      expect(clipB.className).toContain('ring-accent');
+      expect(clipA.className).toContain('after:border-accent');
+      expect(clipB.className).toContain('after:border-accent');
     });
     fireEvent.pointerUp(grid, { pointerId: 63, clientX: 420, clientY: 200 });
     expect(screen.queryByLabelText('框选范围')).toBeNull();
@@ -6646,7 +6646,7 @@ describe('unified project workspace', () => {
     showAdvancedTimeline();
     fireEvent.click(screen.getByRole('button', {name: '下一个字幕'}));
     await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(2));
-    expect(screen.getByRole('button', { name: /First cue 2\.0s/u }).className).toContain('ring-accent');
+    expect(screen.getByRole('button', { name: /First cue 2\.0s/u }).className).toContain('after:border-accent');
     fireEvent.click(screen.getByRole('button', { name: '下一个字幕' }));
     await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(5));
     fireEvent.click(screen.getByRole('button', { name: '上一个字幕' }));

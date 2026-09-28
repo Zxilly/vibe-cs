@@ -1592,10 +1592,10 @@ export function ProjectWorkspacePage() {
               items={[
                 { id: 'tasks', label: t`作品任务`, onSelect: () => setTaskDetailsOpen(true) },
                 { id: 'outputs', label: t`查看成品`, onSelect: () => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`) },
-                { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? String(error) })) },
-                { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
-                { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
-                { id: 'export-edl', label: t`导出 CMX3600 EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('edl').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? String(error) })) },
+                { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                { id: 'export-edl', label: t`导出 CMX3600 EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('edl').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
               ]}
             />
           </span>
@@ -1806,7 +1806,9 @@ export function ProjectWorkspacePage() {
       </Drawer>
       {mutationError === null ? null : (
         <Alert
-          className="m-4"
+          /* Floats over the dock so a failed edit never reflows the timeline
+             the user is working in. */
+          className="fixed left-1/2 top-[calc(var(--h-titlebar)+var(--h-topbar)+0.5rem)] z-30 w-[min(40rem,calc(100%-2rem))] -translate-x-1/2 shadow-[var(--shadow-lg)]"
           variant="danger"
           detail={mutationErrorDetail ?? <Trans>检查作品版本、录制环境和交付状态后重试。</Trans>}
           action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); renderPreview.reset(); clearRenderPreviews.reset(); createNestedSequence.reset(); refreshNestedSequence.reset(); createMulticam.reset(); switchMulticamAngle.reset(); cancelTask.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}

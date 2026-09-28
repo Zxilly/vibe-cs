@@ -15,6 +15,8 @@
  * Pure and dependency-free, so it is asserted in the `unit` project.
  */
 
+const RUNTIME_FAULTS = [TypeError, ReferenceError, RangeError, SyntaxError] as const;
+
 export interface DataError {
   /** Ready to render. Never empty — `fallback` fills in when nothing readable
    *  came back (a thrown string, a rejected `undefined`). */
@@ -33,6 +35,10 @@ export interface DataError {
 export function dataErrorMessage(error: unknown): string | null {
   if (error === null || error === undefined) return null;
   if (typeof error === 'string') return error === '' ? null : error;
+  /* A JavaScript runtime fault (「Cannot read properties of undefined」) is a
+     defect report, not something the user can act on: the caller's own
+     localized fallback reads better than the engine's English. */
+  if (RUNTIME_FAULTS.some((fault) => error instanceof fault)) return null;
   if (error instanceof Error) return error.message === '' ? null : error.message;
 
   const record = asRecord(error);

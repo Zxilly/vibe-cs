@@ -24,6 +24,11 @@ describe('dataErrorMessage', () => {
     );
   });
 
+  it('does not surface a JavaScript runtime fault as a user message', () => {
+    expect(dataErrorMessage(new TypeError("Cannot read properties of undefined (reading 'id')"))).toBeNull();
+    expect(toDataError(new ReferenceError('x is not defined'), '操作没有完成')?.message).toBe('操作没有完成');
+  });
+
   it('reads a bare string rejection', () => {
     expect(dataErrorMessage('boom')).toBe('boom');
   });

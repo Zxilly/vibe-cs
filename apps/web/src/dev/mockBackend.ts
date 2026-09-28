@@ -35,6 +35,7 @@
  */
 
 import { applyMockPatch, mockProject, revertMockChangeGroup } from './mockProjectEdits';
+import { mockReplayBinary } from './mockReplay';
 import { PREVIEW_DELIVERY_GATE } from './projectFixtures';
 import type {
   ProjectPatch,
@@ -1432,8 +1433,11 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
       return AGENT_STATUS;
     case 'agent_cancel':
       return true;
-    case 'desktop_binary':
-      return new ArrayBuffer(0);
+    case 'desktop_binary': {
+      const path = (args as { path?: unknown } | undefined)?.path;
+      const demoId = typeof path === 'string' ? /^\/demos\/([^/]+)\/replay\.bin$/u.exec(path)?.[1] : undefined;
+      return demoId === undefined ? new ArrayBuffer(0) : mockReplayBinary(analysisOf(decodeURIComponent(demoId)));
+    }
     default:
       break;
   }

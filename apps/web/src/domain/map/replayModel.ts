@@ -191,19 +191,19 @@ export function interpolateReplayFrame(frames: readonly ReplayFrameRecord[], tic
 export interface ProjectileTrail {
   readonly id: string;
   readonly kind: string;
-  readonly points: readonly { readonly x: number; readonly y: number }[];
+  readonly points: readonly { readonly x: number; readonly y: number; readonly z: number }[];
 }
 
 /** Short, bounded tails over actual observations; reused by replay and preview. */
 export function projectileTrails(frames: readonly ReplayFrameRecord[], tick: number, tickRate: number): readonly ProjectileTrail[] {
   const end = frameIndexAtTick(frames, tick);
   const start = Math.max(0, frameIndexAtTick(frames, tick - tickRate * 2));
-  const trails = new Map<string, { id: string; kind: string; points: { x: number; y: number }[] }>();
+  const trails = new Map<string, { id: string; kind: string; points: { x: number; y: number; z: number }[] }>();
   for (let index = start; index <= end; index += 1) {
     for (const projectile of frames[index]?.projectiles ?? []) {
       if (projectile.phase !== 'flying') continue;
       const trail = trails.get(projectile.id) ?? { id: projectile.id, kind: projectile.kind, points: [] };
-      trail.points.push({ x: projectile.position[0], y: projectile.position[1] });
+      trail.points.push({ x: projectile.position[0], y: projectile.position[1], z: projectile.position[2] });
       trails.set(projectile.id, trail);
     }
   }

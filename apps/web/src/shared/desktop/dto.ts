@@ -88,6 +88,7 @@ export type { DemoWatchStatus } from './generated/DemoWatchStatus';
 
 export type { Project } from './generated/Project';
 export type { CameraPreview } from './generated/CameraPreview';
+export type { CameraSample } from './generated/CameraSample';
 export type { CameraInspection } from './generated/CameraInspection';
 export type { CameraIssueInterval } from './generated/CameraIssueInterval';
 export type { CameraIssueKind } from './generated/CameraIssueKind';

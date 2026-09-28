@@ -49,7 +49,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../../data/match';
 import { dataErrorMessage } from '../../../../data/errors';
@@ -73,6 +73,7 @@ import { NotAnalysedState } from './viewChrome';
 import { mapDisplayName } from '../matchModel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import { ReplayCanvas, type ReplayLayerVisibility } from '../../../../domain/map/ReplayCanvas';
+import { Scene3DView } from '../../../../domain/scene3d/Scene3DView';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
 import {
   buildEngagements,
@@ -145,6 +146,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const [floor, setFloor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
+  const [show3D, setShow3D] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [clipInTick, setClipInTick] = useState<number | null>(null);
   const [clipOutTick, setClipOutTick] = useState<number | null>(null);
@@ -159,6 +161,11 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const events = useMemo(() => roundEvents(analysis.data, context.round), [analysis.data, context.round]);
 
   const effectiveTick = slice === null ? null : clampTick(playhead ?? context.tick ?? slice.startTick, slice);
+  const liveTick = useRef<number | null>(effectiveTick);
+  const readLiveTick = useCallback(() => liveTick.current ?? 0, []);
+  // Reset only for a changed data slice or an explicit seek. The 30 Hz React
+  // publication must not overwrite a newer animation-frame sample of this clock.
+  useLayoutEffect(() => { liveTick.current = effectiveTick; }, [slice]);
   const frameIndex = slice === null || effectiveTick === null ? -1 : frameIndexAtTick(slice.frames, effectiveTick);
 
   const tracks = useMemo(
@@ -199,7 +206,10 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   /* A `?tick=` this view did not write wins over the local playhead — that is
      「定位」 from the panel, a deep link, or the Agent. */
   useEffect(() => {
-    if (context.tick !== null && context.tick !== written.current) setPlayhead(context.tick);
+    if (context.tick !== null && context.tick !== written.current) {
+      liveTick.current = slice === null ? context.tick : clampTick(context.tick, slice);
+      setPlayhead(context.tick);
+    }
   }, [context.tick]);
 
   /* A different round is a different slice; the playhead from the old one is
@@ -207,6 +217,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
      this only has to drop the local copy. */
   useEffect(() => {
     setPlayhead(null);
+    liveTick.current = context.tick ?? slice?.startTick ?? null;
     setPlaying(false);
     setClipInTick(null);
     setClipOutTick(null);
@@ -224,15 +235,19 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const seekTo = (tick: number) => {
     if (slice === null) return;
     const next = clampTick(tick, slice);
+    liveTick.current = next;
     setPlayhead(next);
     publishTick(next, true);
   };
 
   usePlaybackClock({
     playing: playing && slice !== null,
-    onAdvance: (elapsedSeconds) => {
+    onFrame: (elapsedSeconds) => {
+      if (slice !== null && liveTick.current !== null) liveTick.current = clampTick(liveTick.current + elapsedSeconds * rate * slice.tickRate, slice);
+    },
+    onAdvance: () => {
       if (slice === null || effectiveTick === null) return;
-      const next = effectiveTick + elapsedSeconds * rate * slice.tickRate;
+      const next = liveTick.current ?? effectiveTick;
       if (next >= slice.endTick) {
         setPlayhead(slice.endTick);
         setPlaying(false);
@@ -297,6 +312,9 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
           className="flex w-[var(--w-subnav)] flex-none flex-col gap-4 overflow-y-auto overscroll-y-contain border-r border-divider p-3.5"
         >
           <section>
+            <div className="mb-4">
+              <Checkbox size="sm" checked={show3D} onChange={setShow3D}><Trans>显示 3D 视图</Trans></Checkbox>
+            </div>
             <RailHeading>
               <Trans>图层</Trans>
             </RailHeading>
@@ -426,7 +444,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
         </aside>
 
         {/* ── canvas + transport ─────────────────────────────────────────── */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="@container flex min-h-0 min-w-0 flex-1 flex-col">
           {!radar.isPending && radar.data?.transform === undefined ? (
             <div
               role="status"
@@ -434,13 +452,13 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
             >
               <StatusDot status="warn" className="mt-1" />
               <Trans>
-                当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。
+                2D 地图当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。
               </Trans>
             </div>
           ) : null}
           <div className="flex min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
             <ReplayCanvas
-              className="flex-1"
+              className={cn('flex-1', show3D && 'hidden @xl:flex @xl:basis-0')}
               mapName={mapName ?? ''}
               overviewTransform={radar.data?.transform}
               basemap={radarSrc === null ? undefined : (
@@ -468,6 +486,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 );
                 if (duel !== undefined) {
                   setPlayhead(duel.tick);
+                  liveTick.current = duel.tick;
                   written.current = duel.tick;
                   wroteAt.current = Date.now();
                 }
@@ -511,6 +530,20 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                     ),
                   })}
             />
+            {show3D && (
+              <Scene3DView
+                className="min-h-0 flex-1 border-divider @xl:basis-0 @xl:border-l"
+                mapName={mapName}
+                frames={slice?.frames ?? []}
+                tick={effectiveTick ?? 0}
+                readTick={readLiveTick}
+                tickRate={slice?.tickRate ?? 64}
+                selectedPlayerId={effectivePlayerId}
+                onSelectPlayer={(playerId) => updateContext({ player: playerId })}
+                showPlayers={layers.players}
+                showUtilities={layers.utilities}
+              />
+            )}
           </div>
 
           <div
@@ -528,7 +561,10 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               fps={slice?.tickRate ?? 64}
               rate={rate}
               rates={DEFAULT_PLAYBACK_RATES}
-              onTogglePlay={() => setPlaying((current) => !current)}
+              onTogglePlay={() => {
+                if (playing && liveTick.current !== null) seekTo(liveTick.current);
+                setPlaying((current) => !current);
+              }}
               onSeek={(seconds) => {
                 setPlaying(false);
                 if (slice !== null) seekTo(slice.startTick + Math.round(seconds * slice.tickRate));

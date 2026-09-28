@@ -208,7 +208,7 @@ msgid "{0} 入点预览"
 msgstr "{0} 入点预览"
 
 #. placeholder {0}: mapDisplayName(mapName) ?? demoId
-#: src/pages/analysis/match/views/ReplayView.tsx:287
+#: src/pages/analysis/match/views/ReplayView.tsx:302
 msgid "{0} 全场回放"
 msgstr "{0} 全场回放"
 
@@ -354,7 +354,7 @@ msgstr "{0} 秒"
 
 #. placeholder {0}: mapDisplayName(mapName) ?? demoId
 #. placeholder {1}: context.round
-#: src/pages/analysis/match/views/ReplayView.tsx:288
+#: src/pages/analysis/match/views/ReplayView.tsx:303
 msgid "{0} 第 {1} 回合"
 msgstr "{0} 第 {1} 回合"
 
@@ -431,11 +431,11 @@ msgstr "{clipCount, plural, other {# 段素材}}"
 msgid "{customCount} 项自定义"
 msgstr "{customCount} 项自定义"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:805
+#: src/pages/analysis/match/views/ReplayView.tsx:841
 msgid "{duelsSkipped} 次击杀在这一段没有位置样本，交战轴画不出来。"
 msgstr "{duelsSkipped} 次击杀在这一段没有位置样本，交战轴画不出来。"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:799
+#: src/pages/analysis/match/views/ReplayView.tsx:835
 msgid "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 msgstr "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 
@@ -644,9 +644,33 @@ msgstr "2D 回放"
 msgid "2D 回放定位"
 msgstr "2D 回放定位"
 
+#: src/pages/analysis/match/views/ReplayView.tsx:454
+msgid "2D 地图当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。"
+msgstr "2D 地图当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。"
+
 #: src/pages/shared/settings/FilesSection.tsx:303
 msgid "32 位十六进制密钥"
 msgstr "32 位十六进制密钥"
+
+#: src/domain/scene3d/Scene3DView.tsx:85
+msgid "3D 回放"
+msgstr "3D 回放"
+
+#: src/domain/scene3d/Scene3DView.tsx:96
+msgid "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
+msgstr "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
+
+#: src/domain/scene3d/Scene3DView.tsx:63
+msgid "3D 渲染已中断，请重新加载视图。"
+msgstr "3D 渲染已中断，请重新加载视图。"
+
+#: src/domain/scene3d/Scene3DView.tsx:87
+msgid "3D 视图"
+msgstr "3D 视图"
+
+#: src/domain/scene3d/Scene3DView.tsx:88
+msgid "3D 视角"
+msgstr "3D 视角"
 
 #: src/pages/analysis/match/views/TeamsView.tsx:135
 msgid "A"
@@ -1009,7 +1033,7 @@ msgstr "tick"
 #. placeholder {0}: formatTickCount(annotation.tick)
 #. placeholder {0}: formatTickCount(effectiveTick)
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:130
-#: src/pages/analysis/match/views/ReplayView.tsx:552
+#: src/pages/analysis/match/views/ReplayView.tsx:588
 msgid "tick {0}"
 msgstr "tick {0}"
 
@@ -1018,7 +1042,7 @@ msgstr "tick {0}"
 msgid "tick 区间"
 msgstr "tick 区间"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:550
+#: src/pages/analysis/match/views/ReplayView.tsx:586
 msgid "tick 未定位"
 msgstr "tick 未定位"
 
@@ -1301,7 +1325,7 @@ msgid "事件 {0} {1}"
 msgstr "事件 {0} {1}"
 
 #. placeholder {0}: rows.length
-#: src/pages/analysis/match/views/ReplayView.tsx:633
+#: src/pages/analysis/match/views/ReplayView.tsx:669
 msgid "事件 {0} 条"
 msgstr "事件 {0} 条"
 
@@ -1815,7 +1839,7 @@ msgstr "先从地址中选择一条证据，再新建注释。"
 msgid "先写下要调整什么"
 msgstr "先写下要调整什么"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:281
+#: src/pages/analysis/match/views/ReplayView.tsx:296
 msgid "先在回放中设置不同的入点和出点"
 msgstr "先在回放中设置不同的入点和出点"
 
@@ -1835,7 +1859,7 @@ msgstr "先选中要删除的片段"
 msgid "先选择一个回合、选手或片段"
 msgstr "先选择一个回合、选手或片段"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:279
+#: src/pages/analysis/match/views/ReplayView.tsx:294
 msgid "先选择这个镜头跟随的选手"
 msgstr "先选择这个镜头跟随的选手"
 
@@ -1871,7 +1895,7 @@ msgstr "入点 {0} · 出点 {1}"
 #. placeholder {0}: clipInTick === null ? '—' : formatTickCount(clipInTick)
 #. placeholder {1}: clipOutTick === null ? '—' : formatTickCount(clipOutTick)
 #. placeholder {2}: effectivePlayer?.name ?? t`未选择选手`
-#: src/pages/analysis/match/views/ReplayView.tsx:556
+#: src/pages/analysis/match/views/ReplayView.tsx:592
 msgid "入点 {0} · 出点 {1} · 镜头跟随 {2}"
 msgstr "入点 {0} · 出点 {1} · 镜头跟随 {2}"
 
@@ -1893,7 +1917,7 @@ msgstr "全选本页"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:49
 #: src/pages/analysis/match/views/HighlightsView.tsx:270
-#: src/pages/analysis/match/views/ReplayView.tsx:371
+#: src/pages/analysis/match/views/ReplayView.tsx:389
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
 #: src/pages/editing/delivery/OutputsView.tsx:62
 #: src/pages/shared/library/LibraryFilters.tsx:149
@@ -2255,7 +2279,7 @@ msgstr "击杀与死亡位置"
 msgid "击杀与目标事件 {0} 条 · 本回合共 {1} 条事件"
 msgstr "击杀与目标事件 {0} 条 · 本回合共 {1} 条事件"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:323
+#: src/pages/analysis/match/views/ReplayView.tsx:341
 msgid "击杀事件"
 msgstr "击杀事件"
 
@@ -2432,7 +2456,7 @@ msgstr "切换轨道静音"
 msgid "切换链接选择"
 msgstr "切换链接选择"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:653
+#: src/pages/analysis/match/views/ReplayView.tsx:689
 msgid "列表只收击杀与目标事件；伤害、购买与投掷物在证据检索里。"
 msgstr "列表只收击杀与目标事件；伤害、购买与投掷物在证据检索里。"
 
@@ -2445,7 +2469,7 @@ msgstr "列表视图"
 msgid "列配置"
 msgstr "列配置"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:597
+#: src/pages/analysis/match/views/ReplayView.tsx:633
 msgid "创建剪辑"
 msgstr "创建剪辑"
 
@@ -2646,7 +2670,7 @@ msgstr "加入位置"
 #: src/pages/analysis/match/views/HighlightsView.tsx:378
 #: src/pages/analysis/match/views/OverviewView.tsx:247
 #: src/pages/analysis/match/views/PlayersView.tsx:388
-#: src/pages/analysis/match/views/ReplayView.tsx:635
+#: src/pages/analysis/match/views/ReplayView.tsx:671
 msgid "加入作品"
 msgstr "加入作品"
 
@@ -2662,8 +2686,8 @@ msgstr "加入后时长"
 msgid "加入后是未录制片段；录制完成后才能导出。"
 msgstr "加入后是未录制片段；录制完成后才能导出。"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:599
 #: src/pages/analysis/match/views/ReplayView.tsx:635
+#: src/pages/analysis/match/views/ReplayView.tsx:671
 msgid "加入当前高光"
 msgstr "加入当前高光"
 
@@ -2811,7 +2835,7 @@ msgstr "去设置"
 msgid "去设置检查 Steam 连接"
 msgstr "去设置检查 Steam 连接"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:657
+#: src/pages/analysis/match/views/ReplayView.tsx:693
 msgid "去证据检索"
 msgstr "去证据检索"
 
@@ -2943,7 +2967,7 @@ msgid "只保留目标选手"
 msgstr "只保留目标选手"
 
 #. placeholder {0}: rows.length
-#: src/pages/analysis/match/views/ReplayView.tsx:687
+#: src/pages/analysis/match/views/ReplayView.tsx:723
 msgid "只列击杀与目标事件，共 {0} 条。"
 msgstr "只列击杀与目标事件，共 {0} 条。"
 
@@ -3224,7 +3248,7 @@ msgctxt "match-view"
 msgid "回合"
 msgstr "回合"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:520
+#: src/pages/analysis/match/views/ReplayView.tsx:553
 msgid "回合内"
 msgstr "回合内"
 
@@ -3297,7 +3321,7 @@ msgstr "回放与热力图"
 msgid "回放中"
 msgstr "回放中"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:296
+#: src/pages/analysis/match/views/ReplayView.tsx:311
 msgid "回放图层与选手"
 msgstr "回放图层与选手"
 
@@ -3314,7 +3338,7 @@ msgstr "固定"
 msgid "固定机位"
 msgstr "固定机位"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:301
+#: src/pages/analysis/match/views/ReplayView.tsx:319
 msgid "图层"
 msgstr "图层"
 
@@ -3456,7 +3480,11 @@ msgstr "地图：{0}"
 msgid "地图与最近比赛"
 msgstr "地图与最近比赛"
 
-#: src/data/mapGeometryBinary.ts:15
+#: src/domain/scene3d/Scene3DView.tsx:111
+msgid "地图几何不可用，当前仅显示选手与机位。"
+msgstr "地图几何不可用，当前仅显示选手与机位。"
+
+#: src/data/mapGeometryBinary.ts:16
 msgid "地图几何文件无效，请重新生成。"
 msgstr "地图几何文件无效，请重新生成。"
 
@@ -3476,7 +3504,7 @@ msgstr "地图没有生成成功："
 msgid "地图统计没能读出来：{mapsError}"
 msgstr "地图统计没能读出来：{mapsError}"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:751
+#: src/pages/analysis/match/views/ReplayView.tsx:787
 msgid "地面"
 msgstr "地面"
 
@@ -3490,7 +3518,7 @@ msgstr "场次"
 msgid "均值 {0}"
 msgstr "均值 {0}"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:781
+#: src/pages/analysis/match/views/ReplayView.tsx:817
 msgid "坐标来自本地 overview 雷达标定；这一段有 {frameCount} 帧，整场 {totalFrames} 帧，{tickRate} tick。"
 msgstr "坐标来自本地 overview 雷达标定；这一段有 {frameCount} 帧，整场 {totalFrames} 帧，{tickRate} tick。"
 
@@ -3518,6 +3546,10 @@ msgstr "备注"
 #: src/pages/shared/library/LibraryPage.tsx:512
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "备注没有保存。重试会保存到原来的比赛。"
+
+#: src/domain/scene3d/Scene3DView.tsx:93
+msgid "复位视角"
+msgstr "复位视角"
 
 #: src/pages/editing/delivery/OutputCard.tsx:129
 msgid "复制完整路径"
@@ -4402,10 +4434,6 @@ msgstr "当前 R{round}"
 msgid "当前作品版本"
 msgstr "当前作品版本"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:436
-msgid "当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。"
-msgstr "当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。"
-
 #: src/pages/shared/settings/AiAgentSection.tsx:997
 msgid "当前占用 {conversation}"
 msgstr "当前占用 {conversation}"
@@ -4459,11 +4487,11 @@ msgid "当前统计：{subject}，共 {0} 个采样点。"
 msgstr "当前统计：{subject}，共 {0} 个采样点。"
 
 #. placeholder {0}: context.round
-#: src/pages/analysis/match/views/ReplayView.tsx:349
+#: src/pages/analysis/match/views/ReplayView.tsx:367
 msgid "当前统计：第 {0} 回合的位置事件。"
 msgstr "当前统计：第 {0} 回合的位置事件。"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:347
+#: src/pages/analysis/match/views/ReplayView.tsx:365
 msgid "当前统计：这场比赛的全部位置事件。"
 msgstr "当前统计：这场比赛的全部位置事件。"
 
@@ -4991,7 +5019,7 @@ msgstr "把数据目录改到这里？"
 msgid "把每个片段前面留 1 秒缓冲"
 msgstr "把每个片段前面留 1 秒缓冲"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:635
+#: src/pages/analysis/match/views/ReplayView.tsx:671
 #: src/pages/analysis/match/views/RoundsView.tsx:693
 msgid "把这个回合加入作品"
 msgstr "把这个回合加入作品"
@@ -5015,7 +5043,7 @@ msgstr "投出"
 
 #: src/domain/map/ReplayCanvas.tsx:202
 #: src/domain/map/ReplayCanvas.tsx:270
-#: src/pages/analysis/match/views/ReplayView.tsx:333
+#: src/pages/analysis/match/views/ReplayView.tsx:351
 msgid "投掷物与范围示意"
 msgstr "投掷物与范围示意"
 
@@ -5421,11 +5449,11 @@ msgstr "数据不可用"
 msgid "数据目录"
 msgstr "数据目录"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:628
+#: src/pages/analysis/match/views/ReplayView.tsx:664
 msgid "整场 · 事件"
 msgstr "整场 · 事件"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:520
+#: src/pages/analysis/match/views/ReplayView.tsx:553
 msgid "整场回放"
 msgstr "整场回放"
 
@@ -5575,6 +5603,10 @@ msgstr "旋转节目画面 {0}"
 #: src/domain/editing/ClipInspector.tsx:721
 msgid "无"
 msgstr "无"
+
+#: src/domain/scene3d/Scene3DView.tsx:73
+msgid "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
+msgstr "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:439
 msgid "无法安全打开这个链接"
@@ -5791,6 +5823,10 @@ msgstr "显示"
 #: src/domain/editing/ProjectWorkspaceManager.tsx:193
 msgid "显示 {0}"
 msgstr "显示 {0}"
+
+#: src/pages/analysis/match/views/ReplayView.tsx:316
+msgid "显示 3D 视图"
+msgstr "显示 3D 视图"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:299
 #: src/pages/shared/settings/AiAgentSection.tsx:302
@@ -6063,7 +6099,7 @@ msgstr "未选中比赛"
 msgid "未选中高光"
 msgstr "未选中高光"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:561
+#: src/pages/analysis/match/views/ReplayView.tsx:597
 msgid "未选择选手"
 msgstr "未选择选手"
 
@@ -6105,6 +6141,10 @@ msgstr "本页已过期 {0}"
 #: src/pages/shared/library/history/HistoryPage.tsx:166
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
+
+#: src/domain/scene3d/Scene3DView.tsx:91
+msgid "机位视角"
+msgstr "机位视角"
 
 #: src/domain/editing/ClipCameraInspection.tsx:81
 msgid "机位距离墙面不足 16 单位"
@@ -6177,6 +6217,7 @@ msgid "查看分析进度"
 msgstr "查看分析进度"
 
 #: src/domain/editing/ClipCameraInspection.tsx:31
+#: src/domain/scene3d/Scene3DView.tsx:115
 msgid "查看原因"
 msgstr "查看原因"
 
@@ -6344,12 +6385,12 @@ msgstr "检索没能完成：{0}"
 msgid "检索证据"
 msgstr "检索证据"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:362
-#: src/pages/analysis/match/views/ReplayView.tsx:367
+#: src/pages/analysis/match/views/ReplayView.tsx:380
+#: src/pages/analysis/match/views/ReplayView.tsx:385
 msgid "楼层"
 msgstr "楼层"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:377
+#: src/pages/analysis/match/views/ReplayView.tsx:395
 msgid "楼层只筛热力叠加：回放数据不记录楼层。"
 msgstr "楼层只筛热力叠加：回放数据不记录楼层。"
 
@@ -6419,6 +6460,10 @@ msgstr "正在准备"
 msgid "正在准备 {0}"
 msgstr "正在准备 {0}"
 
+#: src/domain/scene3d/Scene3DView.tsx:109
+msgid "正在准备本机地图几何…"
+msgstr "正在准备本机地图几何…"
+
 #: src/pages/editing/projects/ProjectsPage.tsx:32
 msgid "正在创建…"
 msgstr "正在创建…"
@@ -6459,6 +6504,10 @@ msgstr "正在取消这条任务"
 #: src/pages/shared/library/history/HistoryPage.tsx:152
 msgid "正在同步…"
 msgstr "正在同步…"
+
+#: src/domain/scene3d/Scene3DView.tsx:102
+msgid "正在启动 3D 视图…"
+msgstr "正在启动 3D 视图…"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:351
 msgid "正在启动回放"
@@ -6885,7 +6934,7 @@ msgstr "比赛数"
 msgid "比赛日期"
 msgstr "比赛日期"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:520
+#: src/pages/analysis/match/views/ReplayView.tsx:553
 #: src/pages/shared/library/LibraryInspector.tsx:246
 msgid "比赛时间"
 msgstr "比赛时间"
@@ -7019,6 +7068,10 @@ msgstr "没有可滚动编辑的未锁定相邻片段"
 #: src/pages/analysis/match/views/DuelsView.tsx:568
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
+
+#: src/domain/scene3d/Scene3DView.tsx:105
+msgid "没有可用的选手位置数据。"
+msgstr "没有可用的选手位置数据。"
 
 #: src/pages/editing/projects/ProjectsPage.tsx:75
 msgid "没有名字包含「{search}」的作品。"
@@ -7551,7 +7604,7 @@ msgid "烟雾弹"
 msgstr "烟雾弹"
 
 #: src/domain/map/ReplayCanvas.tsx:200
-#: src/pages/analysis/match/views/ReplayView.tsx:330
+#: src/pages/analysis/match/views/ReplayView.tsx:348
 msgid "热力叠加"
 msgstr "热力叠加"
 
@@ -7571,11 +7624,11 @@ msgstr "热力叠加：{subject}，共 {sampleCount} 个采样点，最密处 {m
 msgid "热力叠加：没有采样点"
 msgstr "热力叠加：没有采样点"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:793
+#: src/pages/analysis/match/views/ReplayView.tsx:829
 msgid "热力叠加统计了 {heatSamples} 个位置事件。"
 msgstr "热力叠加统计了 {heatSamples} 个位置事件。"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:341
+#: src/pages/analysis/match/views/ReplayView.tsx:359
 msgid "热力图图例"
 msgstr "热力图图例"
 
@@ -7598,7 +7651,7 @@ msgstr "燃烧瓶 / 燃烧弹"
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:164
 #: src/pages/analysis/evidence/EvidenceResults.tsx:74
 #: src/pages/analysis/match/views/DuelsView.tsx:348
-#: src/pages/analysis/match/views/ReplayView.tsx:707
+#: src/pages/analysis/match/views/ReplayView.tsx:743
 #: src/pages/analysis/match/views/RoundsView.tsx:99
 #: src/pages/analysis/match/views/RoundsView.tsx:290
 msgid "爆头"
@@ -7927,8 +7980,8 @@ msgstr "看回合详情"
 msgid "看对位"
 msgstr "看对位"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:491
-#: src/pages/analysis/match/views/ReplayView.tsx:661
+#: src/pages/analysis/match/views/ReplayView.tsx:510
+#: src/pages/analysis/match/views/ReplayView.tsx:697
 msgid "看整场"
 msgstr "看整场"
 
@@ -8040,7 +8093,7 @@ msgstr "移动相邻片段的剪辑点，不改变两个片段的总时长"
 
 #: src/domain/map/PathLayer.tsx:109
 #: src/domain/map/ReplayCanvas.tsx:194
-#: src/pages/analysis/match/views/ReplayView.tsx:316
+#: src/pages/analysis/match/views/ReplayView.tsx:334
 msgid "移动路线"
 msgstr "移动路线"
 
@@ -8048,7 +8101,7 @@ msgstr "移动路线"
 msgid "移动路线：这一段没有位置样本"
 msgstr "移动路线：这一段没有位置样本"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:787
+#: src/pages/analysis/match/views/ReplayView.tsx:823
 msgid "移动路线每 {stride} 帧取一个采样点。"
 msgstr "移动路线每 {stride} 帧取一个采样点。"
 
@@ -8099,7 +8152,7 @@ msgstr "空间证据"
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:163
 #: src/pages/analysis/evidence/EvidenceResults.tsx:74
 #: src/pages/analysis/match/views/DuelsView.tsx:353
-#: src/pages/analysis/match/views/ReplayView.tsx:706
+#: src/pages/analysis/match/views/ReplayView.tsx:742
 #: src/pages/analysis/match/views/RoundsView.tsx:97
 #: src/pages/analysis/match/views/RoundsView.tsx:295
 msgid "穿墙"
@@ -8150,12 +8203,12 @@ msgid "第 {0} 回合 · {1} 条证据"
 msgstr "第 {0} 回合 · {1} 条证据"
 
 #. placeholder {0}: context.round
-#: src/pages/analysis/match/views/ReplayView.tsx:628
+#: src/pages/analysis/match/views/ReplayView.tsx:664
 msgid "第 {0} 回合 · 事件"
 msgstr "第 {0} 回合 · 事件"
 
 #. placeholder {0}: context.round
-#: src/pages/analysis/match/views/ReplayView.tsx:477
+#: src/pages/analysis/match/views/ReplayView.tsx:496
 msgid "第 {0} 回合的位置事件"
 msgstr "第 {0} 回合的位置事件"
 
@@ -8165,7 +8218,7 @@ msgid "第 {0} 回合的击杀与目标事件"
 msgstr "第 {0} 回合的击杀与目标事件"
 
 #. placeholder {0}: context.round
-#: src/pages/analysis/match/views/ReplayView.tsx:485
+#: src/pages/analysis/match/views/ReplayView.tsx:504
 msgid "第 {0} 回合落在回放流的范围之外。"
 msgstr "第 {0} 回合落在回放流的范围之外。"
 
@@ -8186,7 +8239,7 @@ msgstr "第 {0} 回合高光的 2D 回放"
 msgid "第 {0} 版"
 msgstr "第 {0} 版"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:753
+#: src/pages/analysis/match/views/ReplayView.tsx:789
 msgid "第 {floor} 层"
 msgstr "第 {floor} 层"
 
@@ -8217,6 +8270,10 @@ msgstr "第 {version} 版"
 #: src/pages/shared/settings/AiAgentSection.tsx:103
 msgid "第一人称"
 msgstr "第一人称"
+
+#: src/domain/scene3d/Scene3DView.tsx:91
+msgid "第一人称视角"
+msgstr "第一人称视角"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:548
 msgid "等待你确认"
@@ -8256,7 +8313,7 @@ msgstr "粘贴转场到所选剪辑点"
 msgid "精确信息"
 msgstr "精确信息"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:689
+#: src/pages/analysis/match/views/ReplayView.tsx:725
 msgid "精确来源与身份"
 msgstr "精确来源与身份"
 
@@ -8474,6 +8531,10 @@ msgstr "胜方"
 msgid "胜方未知"
 msgstr "胜方未知"
 
+#: src/domain/scene3d/Scene3DView.tsx:116
+msgid "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
+msgstr "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
+
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1755
 msgid "自动（硬件优先，软件回退）"
 msgstr "自动（硬件优先，软件回退）"
@@ -8503,6 +8564,10 @@ msgstr "自动洞察 · 由规则从证据推出"
 #: src/pages/shared/settings/AiAgentSection.tsx:557
 msgid "自定义指令"
 msgstr "自定义指令"
+
+#: src/domain/scene3d/Scene3DView.tsx:89
+msgid "自由视角"
+msgstr "自由视角"
 
 #: src/pages/analysis/match/views/UtilityView.tsx:117
 #: src/pages/analysis/match/views/UtilityView.tsx:118
@@ -8657,11 +8722,11 @@ msgstr "记录已移除，磁盘上的文件没有变化。"
 msgid "设为目标轨道 {label}"
 msgstr "设为目标轨道 {label}"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:570
+#: src/pages/analysis/match/views/ReplayView.tsx:606
 msgid "设入点"
 msgstr "设入点"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:578
+#: src/pages/analysis/match/views/ReplayView.tsx:614
 msgid "设出点"
 msgstr "设出点"
 
@@ -8904,7 +8969,7 @@ msgstr "读不到设置：{configError}"
 msgid "读不到运行时状态：{runtimeError}"
 msgstr "读不到运行时状态：{runtimeError}"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:480
+#: src/pages/analysis/match/views/ReplayView.tsx:499
 msgid "读不到这场比赛的回放：{replayError}"
 msgstr "读不到这场比赛的回放：{replayError}"
 
@@ -9069,6 +9134,10 @@ msgstr "距离 {metres}m"
 #: src/pages/shared/settings/AiAgentSection.tsx:104
 msgid "跟随"
 msgstr "跟随"
+
+#: src/domain/scene3d/Scene3DView.tsx:90
+msgid "跟随选手"
+msgstr "跟随选手"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:125
 msgid "路径、进程与编码器的逐项检查。"
@@ -9359,7 +9428,7 @@ msgstr "这一场的高光"
 msgid "这一步未完成，展开详情查看原因。"
 msgstr "这一步未完成，展开详情查看原因。"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:652
+#: src/pages/analysis/match/views/ReplayView.tsx:688
 msgid "这一段没有可列出的事件"
 msgstr "这一段没有可列出的事件"
 
@@ -9498,7 +9567,7 @@ msgstr "这场比赛没有第 {selectedRound} 回合"
 msgid "这场比赛的分析结果没能打开"
 msgstr "这场比赛的分析结果没能打开"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:483
+#: src/pages/analysis/match/views/ReplayView.tsx:502
 msgid "这场比赛还没有可用的回放帧。"
 msgstr "这场比赛还没有可用的回放帧。"
 
@@ -9742,7 +9811,7 @@ msgstr "选中项详情"
 #: src/pages/analysis/match/views/HighlightsView.tsx:480
 #: src/pages/analysis/match/views/PlayersView.tsx:132
 #: src/pages/analysis/match/views/PlayersView.tsx:133
-#: src/pages/analysis/match/views/ReplayView.tsx:384
+#: src/pages/analysis/match/views/ReplayView.tsx:402
 #: src/pages/analysis/match/views/TeamsView.tsx:128
 #: src/pages/analysis/match/views/UtilityView.tsx:72
 #: src/pages/analysis/match/views/UtilityView.tsx:73
@@ -9773,7 +9842,7 @@ msgstr "选手：{0}"
 
 #: src/domain/map/ReplayCanvas.tsx:79
 #: src/domain/map/ReplayCanvas.tsx:191
-#: src/pages/analysis/match/views/ReplayView.tsx:309
+#: src/pages/analysis/match/views/ReplayView.tsx:327
 msgid "选手位置"
 msgstr "选手位置"
 
@@ -10078,6 +10147,10 @@ msgstr "重新分析"
 msgid "重新加载"
 msgstr "重新加载"
 
+#: src/domain/scene3d/Scene3DView.tsx:100
+msgid "重新加载 3D"
+msgstr "重新加载 3D"
+
 #: src/domain/task/TaskDetail.tsx:161
 msgid "重新发起"
 msgstr "重新发起"
@@ -10166,6 +10239,7 @@ msgstr "重置筛选"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
+#: src/domain/scene3d/Scene3DView.tsx:112
 #: src/domain/task/TaskDetail.tsx:161
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
@@ -10357,6 +10431,10 @@ msgstr "隐藏右侧面板"
 #: src/domain/editing/ProjectWorkspaceDock.tsx:113
 msgid "隐藏此组所有面板"
 msgstr "隐藏此组所有面板"
+
+#: src/domain/scene3d/Scene3DView.tsx:107
+msgid "隐藏选手头顶上方的地图几何"
+msgstr "隐藏选手头顶上方的地图几何"
 
 #: src/domain/editing/ProjectWorkspaceDock.tsx:112
 msgid "隐藏面板"
@@ -10647,7 +10725,7 @@ msgstr "高光类型"
 msgid "高光预览"
 msgstr "高光预览"
 
-#: src/pages/analysis/match/views/ReplayView.tsx:752
+#: src/pages/analysis/match/views/ReplayView.tsx:788
 msgid "高层"
 msgstr "高层"
 

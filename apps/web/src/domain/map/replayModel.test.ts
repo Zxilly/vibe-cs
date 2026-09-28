@@ -144,7 +144,7 @@ describe('replay presentation interpolation', () => {
   });
   it('builds projectile trails from their own identities rather than their owners', () => {
     const trails = projectileTrails(frames, 16, 64);
-    expect(trails).toEqual([{ id: 'projectile:1:2', kind: 'smoke', points: [{ x: 0, y: 0 }, { x: 16, y: 0 }] }]);
+    expect(trails).toEqual([{ id: 'projectile:1:2', kind: 'smoke', points: [{ x: 0, y: 0, z: 32 }, { x: 16, y: 0, z: 48 }] }]);
   });
 });
 

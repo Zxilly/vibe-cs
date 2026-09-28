@@ -482,7 +482,7 @@ msgid "{score} 回合"
 msgstr "{score} rounds"
 
 #: src/domain/match/HighlightRow.tsx:167
-#: src/pages/analysis/match/views/HighlightsView.tsx:418
+#: src/pages/analysis/match/views/HighlightsView.tsx:486
 msgid "{seconds} 秒"
 msgstr "{seconds}s"
 
@@ -982,7 +982,7 @@ msgstr "tick"
 msgid "tick {0}"
 msgstr "tick {0}"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:412
+#: src/pages/analysis/match/views/HighlightsView.tsx:489
 #: src/pages/analysis/match/views/OverviewView.tsx:370
 msgid "tick 区间"
 msgstr "tick range"
@@ -1858,7 +1858,7 @@ msgid "全选本页"
 msgstr "Select all on this page"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:49
-#: src/pages/analysis/match/views/HighlightsView.tsx:208
+#: src/pages/analysis/match/views/HighlightsView.tsx:270
 #: src/pages/analysis/match/views/ReplayView.tsx:367
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
 #: src/pages/editing/delivery/OutputsView.tsx:60
@@ -1925,13 +1925,13 @@ msgid "共 {0} 条"
 msgstr "{0} rows in total"
 
 #. placeholder {0}: highlights.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:376
+#: src/pages/analysis/match/views/HighlightsView.tsx:443
 msgid "共 {0} 条高光"
 msgstr "{0} highlights in total"
 
 #. placeholder {0}: highlights.length
 #. placeholder {1}: visible.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:287
+#: src/pages/analysis/match/views/HighlightsView.tsx:354
 msgid "共 {0} 条高光，当前筛出 {1} 条"
 msgstr "{0} highlights in total, {1} under the current filter"
 
@@ -2066,7 +2066,7 @@ msgid "其余功能不受影响。你可以返回工作台，或把这次错误�
 msgstr "Everything else keeps working. Go back to the dashboard, or export this error for the developers."
 
 #. placeholder {0}: highlights.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:229
+#: src/pages/analysis/match/views/HighlightsView.tsx:296
 msgid "其余类型仍然有 {0} 条。"
 msgstr "The other kinds still hold {0}."
 
@@ -2316,6 +2316,10 @@ msgstr "Group color"
 #: src/design/data/Pagination.tsx:57
 msgid "分页"
 msgstr "Pagination"
+
+#: src/pages/analysis/match/views/HighlightsView.tsx:283
+msgid "切换"
+msgstr "switch"
 
 #. placeholder {0}: track.name
 #: src/domain/editing/ProjectTimeline.tsx:6130
@@ -2568,6 +2572,10 @@ msgstr "Editing mode"
 msgid "剩余 {0}"
 msgstr "{0} free"
 
+#: src/pages/analysis/match/views/HighlightsView.tsx:285
+msgid "加入"
+msgstr "add"
+
 #: src/domain/project/AddToProjectDialog.tsx:84
 msgid "加入 Story 末尾"
 msgstr "Append to Story"
@@ -2581,8 +2589,8 @@ msgstr "Placement"
 #: src/pages/analysis/evidence/EvidencePage.tsx:331
 #: src/pages/analysis/evidence/EvidenceResults.tsx:192
 #: src/pages/analysis/match/MatchInspectorPanel.tsx:80
-#: src/pages/analysis/match/views/HighlightsView.tsx:272
-#: src/pages/analysis/match/views/HighlightsView.tsx:311
+#: src/pages/analysis/match/views/HighlightsView.tsx:339
+#: src/pages/analysis/match/views/HighlightsView.tsx:378
 #: src/pages/analysis/match/views/OverviewView.tsx:247
 #: src/pages/analysis/match/views/PlayersView.tsx:388
 #: src/pages/analysis/match/views/ReplayView.tsx:633
@@ -2633,6 +2641,10 @@ msgstr "Animated zoom and rotation cannot be enabled at the same time; this is a
 msgid "助攻"
 msgstr "Assists"
 
+#: src/pages/analysis/match/views/HighlightsView.tsx:286
+msgid "勾选"
+msgstr "tick"
+
 #. placeholder {0}: focusedPlayer.name
 #: src/pages/analysis/players/PlayerComparePanel.tsx:246
 msgid "勾选 {0}，再勾选另一名选手，即可并排比较。最多 {limit} 名。"
@@ -2647,7 +2659,7 @@ msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆�
 msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are placed side by side here."
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:346
+#: src/pages/analysis/match/views/HighlightsView.tsx:413
 msgid "勾选的 {0} 条会一起加入"
 msgstr "The {0} checked rows are added together"
 
@@ -3552,7 +3564,7 @@ msgstr "Full path"
 #: src/pages/analysis/match/views/DuelsView.tsx:305
 #: src/pages/analysis/match/views/DuelsView.tsx:312
 #: src/pages/analysis/match/views/DuelsView.tsx:413
-#: src/pages/analysis/match/views/HighlightsView.tsx:259
+#: src/pages/analysis/match/views/HighlightsView.tsx:326
 #: src/pages/analysis/match/views/RoundsView.tsx:334
 #: src/pages/analysis/match/views/RoundsView.tsx:442
 msgid "定位"
@@ -4135,12 +4147,12 @@ msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "{0} matches selected · up to {DEMO_SELECTION_LIMIT}"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:295
+#: src/pages/analysis/match/views/HighlightsView.tsx:362
 msgid "已选 {0} 条"
 msgstr "{0} selected"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:345
+#: src/pages/analysis/match/views/HighlightsView.tsx:412
 msgid "已选 {0} 条高光"
 msgstr "{0} highlights selected"
 
@@ -4862,7 +4874,7 @@ msgid "把 .dem 文件加进资料库，或者设一个监听目录让它们自�
 msgstr "Add .dem files to the library, or set a watched folder and let them arrive on their own."
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:348
+#: src/pages/analysis/match/views/HighlightsView.tsx:415
 msgid "把已选 {0} 条加入作品"
 msgstr "Add the {0} selected to a project"
 
@@ -4893,7 +4905,7 @@ msgstr "Add this round to a project"
 msgid "把这名选手加入作品"
 msgstr "Add this player to a project"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:398
+#: src/pages/analysis/match/views/HighlightsView.tsx:465
 #: src/pages/analysis/match/views/OverviewView.tsx:321
 msgid "把这条高光加入作品"
 msgstr "Add this highlight to a project"
@@ -5021,7 +5033,7 @@ msgstr "Selected project"
 msgid "按住 Ctrl 与左右方向键可以调整片段顺序。"
 msgstr "Hold Ctrl and use the left and right arrow keys to reorder clips."
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:221
+#: src/pages/analysis/match/views/HighlightsView.tsx:288
 msgid "按回合排序"
 msgstr "Sorted by round"
 
@@ -5224,6 +5236,10 @@ msgstr "Playback speed (×)"
 #: src/domain/media/Transport.tsx:242
 msgid "播放速率"
 msgstr "Playback rate"
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:142
+msgid "播放预览（空格）"
+msgstr "Play preview (Space)"
 
 #: src/pages/editing/delivery/OutputsView.tsx:240
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:151
@@ -5521,7 +5537,7 @@ msgstr "Date"
 msgid "旧版本"
 msgstr "Older revision"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:417
+#: src/pages/analysis/match/views/HighlightsView.tsx:485
 #: src/pages/editing/projects/ProjectsPage.tsx:117
 #: src/pages/shared/library/libraryColumns.tsx:121
 #: src/pages/shared/library/libraryColumns.tsx:122
@@ -5681,7 +5697,7 @@ msgstr "Show Volume track automation"
 msgid "显示与隐藏面板…"
 msgstr "Show and hide panels…"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:232
+#: src/pages/analysis/match/views/HighlightsView.tsx:299
 msgid "显示全部"
 msgstr "Show all"
 
@@ -5717,6 +5733,10 @@ msgstr "Pause sequence (Space)"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1246
 msgid "暂停源素材"
 msgstr "Pause source media"
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:142
+msgid "暂停预览（空格）"
+msgstr "Pause preview (Space)"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:357
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
@@ -5919,7 +5939,7 @@ msgstr "No player selected"
 msgid "未选中比赛"
 msgstr "No match selected"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:375
+#: src/pages/analysis/match/views/HighlightsView.tsx:442
 msgid "未选中高光"
 msgstr "No highlight selected"
 
@@ -6170,7 +6190,7 @@ msgstr "Inspect source clip"
 msgid "检查镜头范围"
 msgstr "Check shot ranges"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:182
+#: src/pages/analysis/match/views/HighlightsView.tsx:244
 msgid "检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。"
 msgstr "The detector found no clutch, multi-kill or wallbang in this match — nothing that stands on its own as a clip."
 
@@ -7189,8 +7209,8 @@ msgid "清空没有成功"
 msgstr "The clear did not succeed"
 
 #: src/pages/analysis/evidence/EvidencePage.tsx:336
-#: src/pages/analysis/match/views/HighlightsView.tsx:319
-#: src/pages/analysis/match/views/HighlightsView.tsx:353
+#: src/pages/analysis/match/views/HighlightsView.tsx:386
+#: src/pages/analysis/match/views/HighlightsView.tsx:420
 #: src/pages/analysis/players/PlayerComparePanel.tsx:129
 #: src/pages/analysis/players/PlayerComparePanel.tsx:176
 #: src/pages/analysis/players/PlayersPage.tsx:325
@@ -7898,6 +7918,10 @@ msgstr "Remove this record?"
 msgid "稳定"
 msgstr "Settle"
 
+#: src/pages/analysis/match/views/HighlightsView.tsx:284
+msgid "空格"
+msgstr "Space"
+
 #: src/pages/shared/settings/AdvancedSection.tsx:349
 msgid "空闲"
 msgstr "Idle"
@@ -7986,6 +8010,11 @@ msgstr "Round {0} falls outside the range of the replay stream."
 msgid "第 {0} 回合装备"
 msgstr "Round {0} equipment"
 
+#. placeholder {0}: highlight.round
+#: src/pages/analysis/match/views/HighlightPreview.tsx:121
+msgid "第 {0} 回合高光的 2D 回放"
+msgstr "2D replay of the round {0} highlight"
+
 #. placeholder {0}: current.revision
 #. placeholder {0}: project.revision
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1557
@@ -8046,7 +8075,7 @@ msgstr "Filter media by status"
 
 #: src/domain/editing/MarkerEditorFields.tsx:27
 #: src/domain/task/TaskDetailBody.tsx:134
-#: src/pages/analysis/match/views/HighlightsView.tsx:403
+#: src/pages/analysis/match/views/HighlightsView.tsx:476
 msgid "类型"
 msgstr "Type"
 
@@ -8546,7 +8575,7 @@ msgctxt "utility-item"
 msgid "诱饵弹"
 msgstr "Decoy"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:410
+#: src/pages/analysis/match/views/HighlightsView.tsx:483
 msgid "说明"
 msgstr "Description"
 
@@ -8635,6 +8664,10 @@ msgstr "Could not read the dependency checks: {checksError}"
 #: src/pages/shared/settings/FilesSection.tsx:165
 msgid "读不到占用统计"
 msgstr "Could not read the usage figures"
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:135
+msgid "读不到回放：{replayError}"
+msgstr "Cannot read the replay: {replayError}"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:970
 msgid "读不到对话占用：{error}"
@@ -9150,7 +9183,7 @@ msgstr "Disk space used by this folder. To free up space, go to Finished Files."
 msgid "这个目录已经在监听中"
 msgstr "This folder is already being watched"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:228
+#: src/pages/analysis/match/views/HighlightsView.tsx:295
 msgid "这个类型下没有高光"
 msgstr "No highlight of this kind"
 
@@ -9241,11 +9274,11 @@ msgstr "This match returns to the not-analysed state. The demo file is unaffecte
 msgid "这场比赛既没有解析出击杀，也没有道具与对位数据。"
 msgstr "This match parsed no kills, and no grenade or matchup data either."
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:181
+#: src/pages/analysis/match/views/HighlightsView.tsx:243
 msgid "这场比赛没有检出高光"
 msgstr "No highlight detected in this match"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:382
+#: src/pages/analysis/match/views/HighlightsView.tsx:449
 msgid "这场比赛没有检出高光，这里没有可以加入作品的片段。"
 msgstr "No highlights were detected in this match, so there is nothing here to add to a project."
 
@@ -9349,6 +9382,10 @@ msgstr "No encoder checks in this run. The full list is under Advanced and diagn
 #: src/pages/analysis/match/views/ReviewView.tsx:225
 msgid "这次直接用了同一批证据上次的结果。"
 msgstr "This one reused the previous result for the same evidence set."
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:132
+msgid "这段没有可用的回放帧。"
+msgstr "No replay frames are available for this range."
 
 #: src/pages/analysis/match/views/ReviewView.tsx:460
 msgid "这段点评没有回引证据。"
@@ -9480,7 +9517,7 @@ msgid "选中：第 {0} 回合"
 msgstr "Selected: round {0}"
 
 #. placeholder {0}: highlight.round
-#: src/pages/analysis/match/views/HighlightsView.tsx:395
+#: src/pages/analysis/match/views/HighlightsView.tsx:462
 msgid "选中：第 {0} 回合的高光"
 msgstr "Selected: a highlight of round {0}"
 
@@ -9498,7 +9535,7 @@ msgstr "Selection detail"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:71
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:82
-#: src/pages/analysis/match/views/HighlightsView.tsx:407
+#: src/pages/analysis/match/views/HighlightsView.tsx:480
 #: src/pages/analysis/match/views/PlayersView.tsx:132
 #: src/pages/analysis/match/views/PlayersView.tsx:133
 #: src/pages/analysis/match/views/ReplayView.tsx:380
@@ -9590,7 +9627,7 @@ msgstr "Select a player to see their K/D/A, weapon split and highlights for this
 msgid "选择一条片段后再加入作品。"
 msgstr "Select a clip before adding it to a project."
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:384
+#: src/pages/analysis/match/views/HighlightsView.tsx:451
 msgid "选择一条高光后，这里会显示它的类型、选手、tick 区间和时长。"
 msgstr "Select a highlight to see its type, player, tick range and duration."
 
@@ -9695,7 +9732,7 @@ msgstr "Per opponent"
 msgid "逐事件时间轴"
 msgstr "Per-event timeline"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:185
+#: src/pages/analysis/match/views/HighlightsView.tsx:247
 #: src/pages/analysis/match/views/ReviewView.tsx:279
 msgid "逐回合看"
 msgstr "Look round by round"
@@ -10260,6 +10297,7 @@ msgstr "Project Media Order"
 msgid "项目还没有素材"
 msgstr "No media in this project yet"
 
+#: src/pages/analysis/match/views/HighlightsView.tsx:284
 #: src/pages/editing/delivery/OutputsView.tsx:235
 msgid "预览"
 msgstr "Preview"
@@ -10267,6 +10305,10 @@ msgstr "Preview"
 #: src/pages/editing/delivery/OutputCard.tsx:59
 msgid "预览 {title}"
 msgstr "Preview {title}"
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:153
+msgid "预览进度"
+msgstr "Preview progress"
 
 #: src/domain/editing/MarkerEditorFields.tsx:23
 msgid "颜色"
@@ -10358,9 +10400,13 @@ msgctxt "evidence-event"
 msgid "高光片段"
 msgstr "Highlight"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:201
+#: src/pages/analysis/match/views/HighlightsView.tsx:263
 msgid "高光类型"
 msgstr "Highlight kind"
+
+#: src/pages/analysis/match/views/HighlightPreview.tsx:110
+msgid "高光预览"
+msgstr "Highlight preview"
 
 #: src/pages/analysis/match/views/ReplayView.tsx:750
 msgid "高层"

@@ -5,7 +5,8 @@ use std::collections::HashMap;
 
 use crate::{Kv3Value, Result, SourceAssetError, decode_physics_kv3};
 
-const MAX_TRIANGLES: usize = 2_000_000;
+// Current Inferno has more than two million opaque collision triangles.
+const MAX_TRIANGLES: usize = 4_000_000;
 const QUANTIZATION: f32 = 16.0;
 
 #[derive(Debug, Default)]
@@ -58,14 +59,44 @@ fn index(value: &Kv3Value) -> Result<usize> {
     }
 }
 
-// Collision geometry approximates visibility: tool clips, sky, and transparent
-// windows do not form occluders. Unknown tag sets fail explicitly, so a game
-// update cannot silently produce an apparently complete but empty map.
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "finite Source coordinates and radii are bounded before conversion"
+)]
+fn scalar(value: &Kv3Value) -> Result<f32> {
+    let Kv3Value::Float(value) = value else {
+        return Err(invalid("expected physics float"));
+    };
+    if !value.is_finite() || value.abs() > 1_000_000.0 {
+        return Err(invalid("invalid physics scalar"));
+    }
+    Ok(*value as f32)
+}
+
+fn vector(value: &Kv3Value) -> Result<[f32; 3]> {
+    let values = array(value)?;
+    if values.len() != 3 {
+        return Err(invalid("expected physics three-vector"));
+    }
+    Ok([
+        scalar(&values[0])?,
+        scalar(&values[1])?,
+        scalar(&values[2])?,
+    ])
+}
+
+// Evidence: CS2 scripts/collision_properties.txt and core tools materials.
+// Untagged/default geometry and explicit solid/LOS geometry block vision.
+// Sound/light-only and navigation/player/grenade tool clips do not. Nuke has
+// [blocklight, blocklos, blocksound, solid], which must not be discarded merely
+// because one of its tags is a non-visual tool tag.
 fn is_occluder(attribute: &Kv3Value) -> Result<bool> {
     let tags = array(field(attribute, "m_InteractAsStrings")?)?;
     if tags.is_empty() {
         return Ok(true);
     }
+    let mut blocks_vision = false;
+    let mut passes_vision = false;
     for tag in tags {
         let Kv3Value::String(tag) = tag else {
             return Err(invalid("non-string collision tag"));
@@ -79,11 +110,22 @@ fn is_occluder(attribute: &Kv3Value) -> Result<bool> {
                 | "ladder"
                 | "passbullets"
                 | "window"
+                | "blocklight"
+                | "navclip"
+                | "blocksound"
+                | "blocklos"
+                | "solid"
+                | "CONTENTS_SOLID"
+                | "CONTENTS_SOLID_NO_BLOCK_LOS"
+                | "csgo_droneclip"
+                | ""
         ) {
             return Err(invalid(format!("unknown world collision tag {tag:?}")));
         }
+        blocks_vision |= matches!(tag.as_str(), "solid" | "CONTENTS_SOLID" | "blocklos");
+        passes_vision |= matches!(tag.as_str(), "window" | "CONTENTS_SOLID_NO_BLOCK_LOS");
     }
-    Ok(false)
+    Ok(blocks_vision && !passes_vision)
 }
 
 /// Extract opaque static hulls and triangle meshes from a world PHYS resource.
@@ -105,12 +147,12 @@ fn extract(root: &Kv3Value) -> Result<MapGeometry> {
     let mut builder = Builder::default();
     for part in array(field(root, "m_parts")?)? {
         let shape = field(part, "m_rnShape")?;
-        for name in ["m_spheres", "m_capsules"] {
-            if !array(field(shape, name)?)?.is_empty() {
-                return Err(invalid(format!("world {name} are not supported")));
-            }
-        }
-        for (collection, key) in [("m_meshes", "m_Mesh"), ("m_hulls", "m_Hull")] {
+        for (collection, key) in [
+            ("m_meshes", "m_Mesh"),
+            ("m_hulls", "m_Hull"),
+            ("m_spheres", "m_Sphere"),
+            ("m_capsules", "m_Capsule"),
+        ] {
             for descriptor in array(field(shape, collection)?)? {
                 let attribute = index(field(descriptor, "m_nCollisionAttributeIndex")?)?;
                 if !*include
@@ -121,6 +163,23 @@ fn extract(root: &Kv3Value) -> Result<MapGeometry> {
                     continue;
                 }
                 let data = field(descriptor, key)?;
+                if matches!(key, "m_Sphere" | "m_Capsule") {
+                    let radius = scalar(field(data, "m_flRadius")?)?;
+                    let centers = field(data, "m_vCenter")?;
+                    let (start, end) = if key == "m_Sphere" {
+                        let center = vector(centers)?;
+                        (center, center)
+                    } else {
+                        let centers = array(centers)?;
+                        if centers.len() != 2 {
+                            return Err(invalid("capsule requires two centers"));
+                        }
+                        (vector(&centers[0])?, vector(&centers[1])?)
+                    };
+                    builder.capsule(start, end, radius)?;
+                    builder.geometry.included_shapes += 1;
+                    continue;
+                }
                 let Kv3Value::Object(fields) = data else {
                     return Err(invalid("expected shape object"));
                 };
@@ -165,6 +224,77 @@ struct Builder {
 }
 
 impl Builder {
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss,
+        reason = "tessellation count is checked in 8..=256 before casts"
+    )]
+    fn capsule(&mut self, start: [f32; 3], end: [f32; 3], radius: f32) -> Result<()> {
+        if !radius.is_finite() || radius <= 0.0 {
+            return Err(invalid("invalid sphere/capsule radius"));
+        }
+        // Maximum radial chord error 0.25 game units before vertex quantization.
+        let segments = (std::f32::consts::PI / (1.0 - 0.25 / radius).clamp(-1.0, 1.0).acos())
+            .ceil()
+            .max(8.0);
+        if segments > 256.0 {
+            return Err(invalid("sphere/capsule tessellation exceeds limit"));
+        }
+        let segments = segments as usize;
+        let hemisphere_steps = segments.div_ceil(4);
+        let direction = std::array::from_fn(|axis| end[axis] - start[axis]);
+        let length = dot(direction, direction).sqrt();
+        let axis = if length > 0.0 {
+            direction.map(|value| value / length)
+        } else {
+            [0.0, 0.0, 1.0]
+        };
+        let reference = if axis[2].abs() < 0.9 {
+            [0.0, 0.0, 1.0]
+        } else {
+            [0.0, 1.0, 0.0]
+        };
+        let tangent = cross(axis, reference);
+        let magnitude = dot(tangent, tangent).sqrt();
+        let tangent = tangent.map(|value| value / magnitude);
+        let bitangent = cross(axis, tangent);
+        let mut rings = Vec::new();
+        for (hemisphere, center) in [end, start].into_iter().enumerate() {
+            for step in 0..=hemisphere_steps {
+                let angle = (hemisphere as f32 + step as f32 / hemisphere_steps as f32)
+                    * std::f32::consts::FRAC_PI_2;
+                let mut ring = Vec::new();
+                for segment in 0..segments {
+                    let azimuth = segment as f32 / segments as f32 * std::f32::consts::TAU;
+                    let point = std::array::from_fn(|dimension| {
+                        center[dimension]
+                            + radius
+                                * (axis[dimension] * angle.cos()
+                                    + angle.sin()
+                                        * (tangent[dimension] * azimuth.cos()
+                                            + bitangent[dimension] * azimuth.sin()))
+                    });
+                    ring.push(self.vertex(point)?);
+                }
+                rings.push(ring);
+            }
+        }
+        for pair in rings.windows(2) {
+            for segment in 0..segments {
+                let next = (segment + 1) % segments;
+                let quad = [
+                    pair[0][segment],
+                    pair[1][segment],
+                    pair[1][next],
+                    pair[0][next],
+                ];
+                self.triangle(&quad, [0, 1, 2])?;
+                self.triangle(&quad, [0, 2, 3])?;
+            }
+        }
+        Ok(())
+    }
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_precision_loss,
@@ -246,6 +376,18 @@ impl Builder {
     }
 }
 
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a.into_iter().zip(b).map(|(left, right)| left * right).sum()
+}
+
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -275,6 +417,19 @@ mod tests {
     #[test]
     fn keeps_solids_and_filters_tool_collision_without_guessing_unknown_tags() {
         assert!(is_occluder(&attribute(&[])).unwrap());
+        assert!(
+            is_occluder(&attribute(&[
+                "blocklight",
+                "blocklos",
+                "blocksound",
+                "solid"
+            ]))
+            .unwrap()
+        );
+        assert!(is_occluder(&attribute(&["blocksound", "CONTENTS_SOLID"])).unwrap());
+        assert!(!is_occluder(&attribute(&["blocksound"])).unwrap());
+        assert!(!is_occluder(&attribute(&["blocklight", "navclip"])).unwrap());
+        assert!(!is_occluder(&attribute(&["CONTENTS_SOLID_NO_BLOCK_LOS"])).unwrap());
         for tags in [
             vec!["playerclip", "npcclip"],
             vec!["sky"],
@@ -329,6 +484,100 @@ mod tests {
         let mut out_of_range = edges;
         out_of_range[0] = 255;
         assert!(builder.hull(&shape(out_of_range), &vertices).is_err());
+    }
+
+    #[test]
+    fn curved_shapes_are_closed_outward_surfaces_with_bounded_radial_error() {
+        for end in [[1.0, 2.0, 3.0], [21.0, 12.0, 43.0]] {
+            let start = [1.0, 2.0, 3.0];
+            let mut builder = Builder::default();
+            builder.capsule(start, end, 24.0).unwrap();
+            let direction = std::array::from_fn(|axis| end[axis] - start[axis]);
+            let length_squared = dot(direction, direction);
+            let from_axis = |point: [f32; 3]| {
+                let offset = std::array::from_fn(|axis| point[axis] - start[axis]);
+                let t = if length_squared > 0.0 {
+                    (dot(offset, direction) / length_squared).clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                std::array::from_fn(|axis| offset[axis] - t * direction[axis])
+            };
+            let mut edge_counts = HashMap::new();
+            for triangle in &builder.geometry.triangles {
+                let [a, b, c] = triangle.map(|index| builder.geometry.vertices[index as usize]);
+                let normal = cross(
+                    std::array::from_fn(|axis| b[axis] - a[axis]),
+                    std::array::from_fn(|axis| c[axis] - a[axis]),
+                );
+                let centroid = std::array::from_fn(|axis| (a[axis] + b[axis] + c[axis]) / 3.0);
+                let radial = from_axis(centroid);
+                assert!(dot(normal, radial) > 0.0, "outward winding");
+                assert!(
+                    (dot(radial, radial).sqrt() - 24.0).abs() < 0.55,
+                    "bounded surface approximation"
+                );
+                for [mut left, mut right] in [
+                    [triangle[0], triangle[1]],
+                    [triangle[1], triangle[2]],
+                    [triangle[2], triangle[0]],
+                ] {
+                    if left > right {
+                        std::mem::swap(&mut left, &mut right);
+                    }
+                    *edge_counts.entry((left, right)).or_insert(0) += 1;
+                }
+            }
+            assert!(
+                edge_counts.values().all(|count| *count == 2),
+                "closed manifold"
+            );
+        }
+        let mut builder = Builder::default();
+        for radius in [0.0, -1.0, f32::NAN, f32::INFINITY, 1_000_000.0] {
+            assert!(builder.capsule([0.0; 3], [1.0; 3], radius).is_err());
+        }
+    }
+
+    #[test]
+    #[ignore = "requires VIBE_CS2_INSTALL pointing at a real CS2 installation"]
+    fn extracts_real_competitive_maps() {
+        let root = std::path::PathBuf::from(
+            std::env::var_os("VIBE_CS2_INSTALL").expect("VIBE_CS2_INSTALL"),
+        );
+        for map in [
+            "de_mirage",
+            "de_dust2",
+            "de_inferno",
+            "de_nuke",
+            "de_ancient",
+            "de_anubis",
+            "de_train",
+            "de_overpass",
+        ] {
+            let archive =
+                crate::VpkArchive::open(root.join(format!("game/csgo/maps/{map}.vpk"))).unwrap();
+            let bytes = archive
+                .read(&format!("maps/{map}/world_physics.vmdl_c"))
+                .unwrap();
+            let geometry =
+                extract_world_geometry(&bytes).unwrap_or_else(|error| panic!("{map}: {error}"));
+            assert!(geometry.triangles.len() > 10_000, "{map}");
+            assert!(geometry.excluded_shapes > 0, "{map}");
+            assert!(
+                geometry
+                    .triangles
+                    .iter()
+                    .flatten()
+                    .all(|index| (*index as usize) < geometry.vertices.len()),
+                "{map}"
+            );
+            eprintln!(
+                "{map}: {} vertices, {} triangles",
+                geometry.vertices.len(),
+                geometry.triangles.len()
+            );
+        }
     }
 
     #[test]

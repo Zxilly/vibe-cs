@@ -8,8 +8,10 @@ use std::collections::BTreeMap;
 
 use crate::{Result, SourceAssetError};
 
-const MAX_BYTES: usize = 128 * 1024 * 1024;
-const MAX_VALUES: usize = 2_000_000;
+// Inferno's current PHYS blob alone is 141,610,742 bytes. The total remains
+// bounded before decompression; smaller maps allocate only their declared size.
+const MAX_BYTES: usize = 256 * 1024 * 1024;
+const MAX_VALUES: usize = 4_000_000;
 const TRAILER: u32 = 0xffee_dd00;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,7 +67,10 @@ impl<'a> Reader<'a> {
     fn count(&mut self) -> Result<usize> {
         let count = self.u32()? as usize;
         if count > MAX_BYTES {
-            return Err(invalid("count exceeds physics allocation limit"));
+            return Err(invalid(format!(
+                "count {count} at byte {} exceeds physics allocation limit {MAX_BYTES}",
+                self.position - 4
+            )));
         }
         Ok(count)
     }
@@ -385,7 +390,10 @@ impl Context<'_> {
                     self.lanes.four.count()?
                 };
                 if count > self.remaining {
-                    return Err(invalid("KV3 array exceeds value budget"));
+                    return Err(invalid(format!(
+                        "KV3 array type {kind} count {count} exceeds remaining value budget {}",
+                        self.remaining
+                    )));
                 }
                 let subtype = if kind == 8 { None } else { Some(self.kind()?) };
                 if kind == 25 {

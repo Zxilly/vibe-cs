@@ -1,7 +1,7 @@
 //! Read-only inspection of the local map resource used by the 3D feasibility study.
 use std::{error::Error, time::Instant};
 
-use vibe_cs_source_assets::VpkArchive;
+use vibe_cs_source_assets::{Kv3Value, VpkArchive, decode_physics_kv3};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args()
@@ -20,6 +20,30 @@ fn main() -> Result<(), Box<dyn Error>> {
             bytes.len(),
             &bytes[..bytes.len().min(96)]
         );
+        if entry.path().ends_with(".vmdl_c") || entry.path().ends_with(".vphys_c") {
+            let value = decode_physics_kv3(&bytes)?;
+            if let Kv3Value::Object(fields) = value {
+                for (name, value) in fields {
+                    match value {
+                        Kv3Value::Array(values) => {
+                            println!("  {name}: {} entries", values.len());
+                            if name == "m_collisionAttributes" {
+                                for (index, value) in values.iter().enumerate() {
+                                    if let Kv3Value::Object(attribute) = value {
+                                        println!(
+                                            "    {index}: group={:?} tags={:?}",
+                                            attribute.get("m_CollisionGroupString"),
+                                            attribute.get("m_InteractAsStrings")
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        value => println!("  {name}: {value:?}"),
+                    }
+                }
+            }
+        }
     }
     println!(
         "{} entries inspected in {:?}",

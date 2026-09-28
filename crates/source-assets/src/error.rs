@@ -4,6 +4,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SourceAssetError {
+    #[error("invalid or unsupported physics resource: {0}")]
+    InvalidPhysics(String),
     #[error("I/O operation failed for {path}: {source}")]
     Io {
         path: PathBuf,

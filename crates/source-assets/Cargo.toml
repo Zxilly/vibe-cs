@@ -12,6 +12,7 @@ png.workspace = true
 same-file.workspace = true
 thiserror.workspace = true
 texture2ddecoder.workspace = true
+zstd = "0.13"
 
 [dev-dependencies]
 tempfile.workspace = true

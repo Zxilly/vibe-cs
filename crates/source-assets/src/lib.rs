@@ -14,6 +14,7 @@
 mod cosmetics;
 mod cs2;
 mod error;
+mod kv3;
 mod overview;
 mod vpk;
 mod vtex;
@@ -21,6 +22,7 @@ mod vtex;
 pub use cosmetics::*;
 pub use cs2::*;
 pub use error::{Result, SourceAssetError};
+pub use kv3::{Kv3Value, decode_physics_kv3};
 pub use overview::*;
 pub use vpk::*;
 pub use vtex::*;

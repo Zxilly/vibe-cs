@@ -520,8 +520,6 @@ pub enum ReplayFidelityMode {
     EntitySnapshots,
     /// Entity snapshots are enriched with event-only utility/objective evidence.
     Hybrid,
-    /// Only exact ticks carrying positioned game-event evidence are represented.
-    EventSparse,
 }
 
 /// Machine-readable replay provenance. Consumers must use `tick_rate` and the
@@ -554,6 +552,7 @@ pub struct ReplayPlayer {
     pub team: String,
     pub position: [f64; 3],
     pub yaw: f64,
+    pub pitch: f64,
     pub health: u32,
     pub armor: u32,
     pub alive: bool,
@@ -584,7 +583,14 @@ pub struct ReplayInputState {
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct ReplayProjectile {
+    /// Stable identity within this replay, including the entity incarnation.
+    pub id: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub owner_id: Option<String>,
     pub kind: String,
+    pub phase: ReplayProjectilePhase,
+    pub start_tick: u64,
+    pub end_tick: u64,
     pub position: [f64; 3],
     pub active: bool,
     /// Evidence-backed effect radius when the event supplies one, otherwise a
@@ -595,6 +601,18 @@ pub struct ReplayProjectile {
     /// mask. This never implies reconstructed volumetric geometry.
     pub masks_vision: bool,
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ReplayProjectilePhase {
+    Flying,
+    Effect,
+}
+
+pub const REPLAY_MAX_FRAMES: usize = 100_000;
+pub const REPLAY_MAX_PLAYER_RECORDS: usize = 1_000_000;
+pub const REPLAY_MAX_EFFECT_RECORDS: usize = 1_000_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
@@ -865,6 +883,7 @@ mod tests {
             frames: vec![ReplayFrame {
                 tick: 100,
                 players: vec![ReplayPlayer {
+                    pitch: 0.0,
                     id: "76561198000000000".to_owned(),
                     name: "Player".to_owned(),
                     team: "T".to_owned(),
@@ -877,6 +896,11 @@ mod tests {
                     input: None,
                 }],
                 projectiles: vec![ReplayProjectile {
+                    id: "fixture-projectile".to_owned(),
+                    owner_id: None,
+                    phase: crate::ReplayProjectilePhase::Effect,
+                    start_tick: 0,
+                    end_tick: 1_000_000,
                     kind: "smoke".to_owned(),
                     position: [4.0, 5.0, 6.0],
                     active: true,

@@ -1827,6 +1827,7 @@ mod tests {
                 freeze_end_tick: None,
                 players_per_frame: 1,
                 fields: RoundReplayFields {
+                    pitch: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     position: RoundReplayFieldAvailability::Required,
                     yaw: RoundReplayFieldAvailability::Required,
                     health: RoundReplayFieldAvailability::Required,
@@ -1841,8 +1842,11 @@ mod tests {
             },
             frames: (0..frame_count)
                 .map(|index| RoundReplayFrame {
+                    projectiles: Vec::new(),
+                    bomb: None,
                     tick: 110 + u64::try_from(index).expect("bounded index") * 10,
                     players: vec![RoundReplayPlayer {
+                        pitch: 0.0,
                         steam_id: "76561198041683378".to_owned(),
                         name: "NiKo".to_owned(),
                         team: "B".to_owned(),

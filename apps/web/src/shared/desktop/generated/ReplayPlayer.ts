@@ -7,6 +7,7 @@ export type ReplayPlayer = {
   team: string;
   position: [number, number, number];
   yaw: number;
+  pitch: number;
   health: number;
   armor: number;
   alive: boolean;

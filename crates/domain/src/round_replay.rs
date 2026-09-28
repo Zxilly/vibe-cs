@@ -169,6 +169,7 @@ pub enum RoundReplayFieldAvailability {
 pub struct RoundReplayFields {
     pub position: RoundReplayFieldAvailability,
     pub yaw: RoundReplayFieldAvailability,
+    pub pitch: RoundReplayFieldAvailability,
     pub health: RoundReplayFieldAvailability,
     pub armor: RoundReplayFieldAvailability,
     pub life_state: RoundReplayFieldAvailability,
@@ -210,6 +211,7 @@ pub struct RoundReplayPlayer {
     pub side: String,
     pub position: [f64; 3],
     pub yaw: f64,
+    pub pitch: f64,
     pub health: u32,
     pub armor: u32,
     pub life_state: u32,
@@ -227,6 +229,9 @@ pub struct RoundReplayPlayer {
 pub struct RoundReplayFrame {
     pub tick: u64,
     pub players: Vec<RoundReplayPlayer>,
+    pub projectiles: Vec<crate::ReplayProjectile>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub bomb: Option<crate::ReplayBomb>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

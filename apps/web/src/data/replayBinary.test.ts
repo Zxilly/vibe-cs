@@ -1,170 +1,67 @@
-/*
- * The byte-format contract for `ARPL`.
- *
- * These moved out of `features/analysis/` with the decoder in phase 4. They are
- * the only thing pinning the wire layout — the service writes those bytes from
- * Rust and nothing on this side would notice a field being reordered — so they
- * outlive the page they were written beside.
- */
+import { readFileSync } from 'node:fs';
+import { deflateSync, inflateSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
+import { crc32 } from './compressedBinary';
 import { decodeReplayBinary } from './replayBinary';
 
-function text(value: string): number[] {
-  const bytes = [...new TextEncoder().encode(value)];
-  return [bytes.length & 0xff, bytes.length >> 8, ...bytes];
+const fixture = (): ArrayBuffer => Uint8Array.from(readFileSync(new URL('./test/fixtures/replay-v2.bin', import.meta.url))).buffer;
+
+function rewrite(mutate: (payload: Uint8Array) => void): ArrayBuffer {
+  const bytes = new Uint8Array(fixture());
+  const payload = Uint8Array.from(inflateSync(bytes.subarray(16)));
+  mutate(payload);
+  const compressed = deflateSync(payload);
+  const out = new Uint8Array(16 + compressed.length);
+  out.set(bytes.subarray(0, 16)); out.set(compressed, 16);
+  new DataView(out.buffer).setUint32(8, payload.length, true);
+  new DataView(out.buffer).setUint32(12, crc32(payload), true);
+  return out.buffer;
 }
 
-function u32(value: number): number[] {
-  return [value & 0xff, (value >> 8) & 0xff, (value >> 16) & 0xff, (value >> 24) & 0xff];
+function stringTableOffset(payload: Uint8Array): number {
+  const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  const fidelity = 4 + view.getUint32(0, true);
+  return fidelity + 4 + view.getUint32(fidelity, true);
 }
 
-function u64(value: number): number[] {
-  const bytes = new Uint8Array(8);
-  new DataView(bytes.buffer).setBigUint64(0, BigInt(value), true);
-  return [...bytes];
-}
+describe('ARPL v2 replay', () => {
+  it('decodes Rust-produced identities, pose deltas, input, utility lifetimes and bomb state', async () => {
+    const replay = await decodeReplayBinary(fixture());
+    expect(replay.frames.map((frame) => frame.tick)).toEqual([8, 16, 24]);
+    expect(replay.frames[0]?.players[0]).toMatchObject({ id: '76561198000000001', name: 'Player', team: 'A', position: [-1000, 64, 32], yaw: 179, pitch: -32, input: { forward: true, fire: true } });
+    expect(replay.frames[1]?.players[0]).toMatchObject({ position: [-999.9375, 65, 31.9375], yaw: -179, pitch: 45 });
+    expect(replay.frames[0]?.projectiles[0]).toMatchObject({ id: 'projectile:42:3', phase: 'flying', owner_id: '76561198000000001', start_tick: 8, end_tick: 15, radius: null });
+    expect(replay.frames[1]?.projectiles[0]).toMatchObject({ phase: 'effect', kind: 'smoke', radius: 144, start_tick: 16, end_tick: 64, masks_vision: true });
+    expect(replay.frames[2]?.bomb).toEqual({ position: [4, 5, 0], state: 'planted', carrier_id: null });
+  });
 
-function f64(value: number): number[] {
-  const bytes = new Uint8Array(8);
-  new DataView(bytes.buffer).setFloat64(0, value, true);
-  return [...bytes];
-}
+  it('rejects old versions and every truncated prefix instead of returning a partial replay', async () => {
+    const bytes = fixture();
+    for (let length = 0; length < bytes.byteLength; length += 1) await expect(decodeReplayBinary(bytes.slice(0, length))).rejects.toThrow();
+    const old = fixture(); new DataView(old).setUint16(4, 1, true);
+    await expect(decodeReplayBinary(old)).rejects.toThrow();
+    const extra = new Uint8Array(bytes.byteLength + 1); extra.set(new Uint8Array(bytes));
+    await expect(decodeReplayBinary(extra.buffer)).rejects.toThrow();
+  });
 
-function concatBytes(chunks: Uint8Array[]): ArrayBuffer {
-  const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return bytes.buffer;
-}
-
-function replayWithRecords({
-  playerRecords = 0,
-  effectRecords = 0,
-}: {
-  playerRecords?: number;
-  effectRecords?: number;
-}): ArrayBuffer {
-  const cache = new TextEncoder().encode(JSON.stringify({
-    state: 'generated', key: 'key', bytes: 256, generated_at: null, repaired: false, reason: null,
-  }));
-  const frameCount = Math.max(Math.ceil(playerRecords / 64), Math.ceil(effectRecords / 512));
-  const fidelity = new TextEncoder().encode(JSON.stringify({
-    mode: 'event_sparse', tick_rate: 64, frame_count: frameCount, positioned_event_count: 0,
-    start_tick: frameCount === 0 ? 0 : 1, end_tick: frameCount,
-  }));
-  const player = Uint8Array.from([
-    ...text(''), ...text(''), ...text('A'),
-    ...f64(0), ...f64(0), ...f64(0), ...f64(0),
-    ...u32(100), ...u32(0), 1, ...text(''), 0xff, 0xff,
-  ]);
-  const effect = Uint8Array.from([
-    ...text(''), ...f64(0), ...f64(0), ...f64(0), 1, ...f64(144), 1,
-  ]);
-  const chunks = [Uint8Array.from([
-    ...new TextEncoder().encode('ARPL'),
-    ...u32(cache.length), ...cache,
-    ...u32(fidelity.length), ...fidelity,
-    ...u32(frameCount),
-  ])];
-  let remainingPlayers = playerRecords;
-  let remainingEffects = effectRecords;
-  for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-    const playerCount = Math.min(remainingPlayers, 64);
-    const effectCount = Math.min(remainingEffects, 512);
-    const frame = new Uint8Array(8 + 2 + player.length * playerCount + 2 + effect.length * effectCount + 1);
-    const view = new DataView(frame.buffer);
-    view.setBigUint64(0, BigInt(frameIndex + 1), true);
-    view.setUint16(8, playerCount, true);
-    let offset = 10;
-    for (let index = 0; index < playerCount; index += 1) {
-      frame.set(player, offset);
-      offset += player.length;
+  it('rejects allocation bombs, CRC corruption and oversized shared tables', async () => {
+    for (const offset of [8, 12]) {
+      const bytes = fixture(); new DataView(bytes).setUint32(offset, 0xffffffff, true);
+      await expect(decodeReplayBinary(bytes)).rejects.toThrow();
     }
-    view.setUint16(offset, effectCount, true);
-    offset += 2;
-    for (let index = 0; index < effectCount; index += 1) {
-      frame.set(effect, offset);
-      offset += effect.length;
-    }
-    frame[offset] = 0;
-    chunks.push(frame);
-    remainingPlayers -= playerCount;
-    remainingEffects -= effectCount;
-  }
-  return concatBytes(chunks);
-}
-
-function replayBinary(
-  ticks: number[] = [128],
-  fidelityOverrides: Record<string, number> = {},
-  cacheOverrides: Record<string, unknown> = {},
-): ArrayBuffer {
-  const cache = new TextEncoder().encode(JSON.stringify({
-    state: 'generated', key: 'key', bytes: 256, generated_at: null, repaired: false, reason: null,
-    ...cacheOverrides,
-  }));
-  const fidelity = new TextEncoder().encode(JSON.stringify({
-    mode: 'event_sparse', tick_rate: 64, frame_count: ticks.length, positioned_event_count: ticks.length,
-    start_tick: ticks[0] ?? 0, end_tick: ticks.at(-1) ?? 0,
-    ...fidelityOverrides,
-  }));
-  const frames = ticks.flatMap((tick) => [
-    ...u64(tick), 1, 0,
-    ...text('76561197960690195'), ...text('FalleN'), ...text('A'),
-    ...f64(12), ...f64(34), ...f64(5), ...f64(0),
-    64, 0, 0, 0, 20, 0, 0, 0, 1, ...text('ak47'), 0xff, 0xff,
-    0, 0, 0,
-  ]);
-  return Uint8Array.from([
-    ...new TextEncoder().encode('ARPL'),
-    ...u32(cache.length), ...cache,
-    ...u32(fidelity.length), ...fidelity,
-    ...u32(ticks.length), ...frames,
-  ]).buffer;
-}
-
-describe('binary replay decoder', () => {
-  it('rejects unknown cache metadata fields', () => {
-    expect(() => decodeReplayBinary(replayBinary([], {}, { unexpected: true }))).toThrow();
+    const badTable = rewrite((bytes) => new DataView(bytes.buffer).setUint16(stringTableOffset(bytes), 0xffff, true));
+    await expect(decodeReplayBinary(badTable)).rejects.toThrow();
   });
 
-  it('rejects unknown or truncated payloads', () => {
-    expect(() => decodeReplayBinary(new Uint8Array([1, 2, 3]).buffer)).toThrow();
-    expect(() => decodeReplayBinary(new TextEncoder().encode('ARPL\x01').buffer)).toThrow();
-  });
-
-  it('decodes canonical players with truthful sparse fidelity', () => {
-    const replay = decodeReplayBinary(replayBinary());
-
-    expect(replay.frames[0]?.players[0]).toMatchObject({ name: 'FalleN', team: 'A', health: 64 });
-    expect(replay.fidelity).toEqual({
-      mode: 'event_sparse', tick_rate: 64, frame_count: 1, positioned_event_count: 1, start_tick: 128, end_tick: 128,
-    });
-  });
-
-  it('rejects duplicate replay ticks', () => {
-    expect(() => decodeReplayBinary(replayBinary([128, 128]))).toThrow();
-  });
-
-  it('rejects empty payloads whose fidelity advertises non-empty tick bounds', () => {
-    expect(() => decodeReplayBinary(replayBinary([], { start_tick: 1, end_tick: 1 }))).toThrow();
-  });
-
-  it('rejects fidelity that exceeds the positioned-event evidence budget', () => {
-    expect(() => decodeReplayBinary(replayBinary([128], { positioned_event_count: 100_001 }))).toThrow();
-  });
-
-  it('rejects more than two hundred thousand player records', () => {
-    expect(() => decodeReplayBinary(replayWithRecords({ playerRecords: 200_001 }))).toThrow();
-  });
-
-  it('rejects more than one hundred thousand effect records', () => {
-    expect(() => decodeReplayBinary(replayWithRecords({ effectRecords: 100_001 }))).toThrow();
+  it.runIf(process.env.VIBE_REPLAY_V2_BIN !== undefined)('decodes the real dense demo and keeps all measured records', async () => {
+    const bytes = Uint8Array.from(readFileSync(process.env.VIBE_REPLAY_V2_BIN!));
+    const replay = await decodeReplayBinary(bytes.buffer);
+    expect(replay.frames.length).toBeGreaterThan(10_000);
+    expect(replay.frames.reduce((total, frame) => total + frame.players.length, 0)).toBeGreaterThan(100_000);
+    expect(replay.frames.some((frame) => frame.players.some((player) => Math.abs(player.pitch) > 1))).toBe(true);
+    expect(replay.frames.some((frame) => frame.projectiles.some((projectile) => projectile.phase === 'flying'))).toBe(true);
+    expect(replay.frames.some((frame) => frame.projectiles.some((projectile) => projectile.phase === 'effect' && projectile.kind === 'smoke' && projectile.radius !== null))).toBe(true);
   });
 });

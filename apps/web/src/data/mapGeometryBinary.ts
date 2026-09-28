@@ -1,4 +1,5 @@
 import { t } from '@lingui/core/macro';
+import { inflateVerified } from './compressedBinary';
 
 /** Source coordinates (Z up), ready for one indexed scene mesh. */
 export interface MapGeometry {
@@ -10,46 +11,8 @@ export interface MapGeometry {
 
 const maximumBytes = 128 * 1024 * 1024;
 const headerBytes = 32;
-const checksumTable = Uint32Array.from({ length: 256 }, (_, value) => {
-  for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-  return value >>> 0;
-});
-
 function invalid(): never {
   throw new Error(t`地图几何文件无效，请重新生成。`);
-}
-
-function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (const byte of bytes) crc = (crc >>> 8) ^ checksumTable[(crc ^ byte) & 255]!;
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-async function inflate(bytes: Uint8Array<ArrayBuffer>, length: number): Promise<Uint8Array> {
-  const compressed = new ReadableStream<Uint8Array<ArrayBuffer>>({
-    start(controller) { controller.enqueue(bytes); controller.close(); },
-  });
-  const reader = compressed.pipeThrough(new DecompressionStream('deflate')).getReader();
-  const output = new Uint8Array(length);
-  let offset = 0;
-  try {
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      if (offset + chunk.value.length > length) {
-        await reader.cancel();
-        invalid();
-      }
-      output.set(chunk.value, offset);
-      offset += chunk.value.length;
-    }
-  } catch {
-    throw new Error(t`地图几何解压失败，请重新生成。`);
-  } finally {
-    reader.releaseLock();
-  }
-  if (offset !== length) invalid();
-  return output;
 }
 
 /** The VMAP v1 contract is shared with source-assets/geometry_binary.rs. */
@@ -62,8 +25,7 @@ export async function decodeMapGeometry(buffer: ArrayBuffer): Promise<MapGeometr
   const length = header.getUint32(24, true);
   if (vertices === 0 || vertices > 2_000_000 || triangles === 0 || triangles > 4_000_000
     || length > maximumBytes || length < (vertices + triangles) * 3) invalid();
-  const payload = await inflate(new Uint8Array(buffer, headerBytes), length);
-  if (crc32(payload) !== header.getUint32(28, true)) invalid();
+  const payload = await inflateVerified(new Uint8Array(buffer, headerBytes), length, header.getUint32(28, true));
   let offset = 0;
   const delta = (): number => {
     let encoded = 0;

@@ -5,6 +5,7 @@ mod error;
 mod extract;
 mod player;
 mod ports;
+mod replay_binary;
 mod routes;
 mod state;
 

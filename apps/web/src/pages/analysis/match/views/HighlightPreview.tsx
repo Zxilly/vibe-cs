@@ -25,6 +25,8 @@ import {
   buildPlayerTracks,
   clampTick,
   frameIndexAtTick,
+  interpolateReplayFrame,
+  projectileTrails,
   playerMarkers,
   roundBounds,
   sliceReplay,
@@ -43,7 +45,7 @@ const NO_HEAT: HeatDistribution = {
   maxWeight: 0,
 };
 
-const PREVIEW_LAYERS = { players: true, paths: true, kills: false, heat: false } as const;
+const PREVIEW_LAYERS = { players: true, paths: true, kills: false, heat: false, utilities: true } as const;
 
 export function HighlightPreview({
   demoId,
@@ -79,10 +81,9 @@ export function HighlightPreview({
 
   const current = slice === null ? null : clampTick(tick ?? slice.startTick, slice);
   const frameIndex = slice === null || current === null ? -1 : frameIndexAtTick(slice.frames, current);
-  const markers = useMemo(
-    () => (slice === null || frameIndex < 0 ? [] : playerMarkers(slice.frames[frameIndex] ?? null)),
-    [slice, frameIndex],
-  );
+  const presentation = useMemo(() => slice === null || current === null ? null : interpolateReplayFrame(slice.frames, current, slice.tickRate), [slice, current]);
+  const markers = useMemo(() => playerMarkers(presentation), [presentation]);
+  const utilityTrails = useMemo(() => slice === null || frameIndex < 0 ? [] : projectileTrails(slice.frames, slice.frames[frameIndex]!.tick, slice.tickRate), [slice, frameIndex]);
   /* Only the highlight's own player leaves a trail: ten overlapping routes in
      a 300 px box hide the one movement the pick is about. */
   const paths = useMemo(() => {
@@ -97,7 +98,7 @@ export function HighlightPreview({
       if (slice === null || current === null) return;
       const next = current + elapsedSeconds * slice.tickRate;
       // A preview loops: the decision is made while it plays, not after.
-      setTick(next >= slice.endTick ? slice.startTick : Math.round(next));
+      setTick(next >= slice.endTick ? slice.startTick : next);
     },
   });
 
@@ -122,6 +123,8 @@ export function HighlightPreview({
         status={status}
         layers={PREVIEW_LAYERS}
         markers={markers}
+        projectiles={presentation?.projectiles ?? []}
+        projectileTrails={utilityTrails}
         paths={paths}
         engagements={[]}
         distribution={NO_HEAT}

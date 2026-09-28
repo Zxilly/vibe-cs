@@ -118,7 +118,7 @@ export function sliceReplay(
 /** Keeps a playhead inside the slice. Ticks are integers on the wire. */
 export function clampTick(tick: number, range: TickRange): number {
   if (!Number.isFinite(tick)) return range.startTick;
-  return Math.min(range.endTick, Math.max(range.startTick, Math.round(tick)));
+  return Math.min(range.endTick, Math.max(range.startTick, tick));
 }
 
 /**
@@ -152,6 +152,62 @@ export function frameAtTick(
 ): ReplayFrameRecord | null {
   const index = frameIndexAtTick(frames, tick);
   return index < 0 ? null : (frames[index] ?? null);
+}
+
+/** Presentation-only interpolation; discrete health/life/input remain at the
+ * preceding observed sample. Do not interpolate respawns or teleport gaps. */
+export function interpolateReplayFrame(frames: readonly ReplayFrameRecord[], tick: number, tickRate: number): ReplayFrameRecord | null {
+  const index = frameIndexAtTick(frames, tick);
+  const current = frames[index];
+  if (current === undefined) return null;
+  const next = frames[index + 1];
+  const projectiles = current.projectiles.filter((projectile) => tick < projectile.end_tick + 1);
+  if (next === undefined || next.tick - current.tick > tickRate) return { ...current, tick, projectiles };
+  const amount = Math.max(0, Math.min(1, (tick - current.tick) / (next.tick - current.tick)));
+  const point = (left: readonly number[], right: readonly number[]): [number, number, number] => [
+    left[0]! + (right[0]! - left[0]!) * amount,
+    left[1]! + (right[1]! - left[1]!) * amount,
+    left[2]! + (right[2]! - left[2]!) * amount,
+  ];
+  const angle = (left: number, right: number) => left + (((right - left + 180) % 360 + 360) % 360 - 180) * amount;
+  const nextPlayers = new Map(next.players.map((player) => [player.id, player]));
+  const nextProjectiles = new Map(next.projectiles.map((projectile) => [projectile.id, projectile]));
+  return {
+    ...current, tick,
+    players: current.players.map((player) => {
+      const following = nextPlayers.get(player.id);
+      if (following === undefined || following.alive !== player.alive || !player.alive
+        || Math.hypot(...player.position.map((value, axis) => following.position[axis]! - value)) > 512) return player;
+      return { ...player, position: point(player.position, following.position), yaw: angle(player.yaw, following.yaw), pitch: angle(player.pitch, following.pitch) };
+    }),
+    projectiles: projectiles.map((projectile) => {
+      const following = nextProjectiles.get(projectile.id);
+      return following !== undefined && projectile.phase === 'flying'
+        ? { ...projectile, position: point(projectile.position, following.position) } : projectile;
+    }),
+  };
+}
+
+export interface ProjectileTrail {
+  readonly id: string;
+  readonly kind: string;
+  readonly points: readonly { readonly x: number; readonly y: number }[];
+}
+
+/** Short, bounded tails over actual observations; reused by replay and preview. */
+export function projectileTrails(frames: readonly ReplayFrameRecord[], tick: number, tickRate: number): readonly ProjectileTrail[] {
+  const end = frameIndexAtTick(frames, tick);
+  const start = Math.max(0, frameIndexAtTick(frames, tick - tickRate * 2));
+  const trails = new Map<string, { id: string; kind: string; points: { x: number; y: number }[] }>();
+  for (let index = start; index <= end; index += 1) {
+    for (const projectile of frames[index]?.projectiles ?? []) {
+      if (projectile.phase !== 'flying') continue;
+      const trail = trails.get(projectile.id) ?? { id: projectile.id, kind: projectile.kind, points: [] };
+      trail.points.push({ x: projectile.position[0], y: projectile.position[1] });
+      trails.set(projectile.id, trail);
+    }
+  }
+  return [...trails.values()];
 }
 
 /* ── tracks ──────────────────────────────────────────────────────────────── */
@@ -253,6 +309,7 @@ export interface PlayerMarker {
   readonly team: 'A' | 'B';
   readonly health: number;
   readonly weapon: string;
+  readonly yaw: number;
 }
 
 /**
@@ -296,7 +353,8 @@ export function playerMarkers(frame: ReplayFrameRecord | null): readonly PlayerM
       side: normaliseSide(player.team),
       team: player.team === 'A' ? 'A' : 'B',
       health: player.health,
-      weapon: player.weapon,
+        weapon: player.weapon,
+        yaw: player.yaw,
     });
   }
   return markers;

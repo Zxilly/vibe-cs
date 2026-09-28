@@ -9,7 +9,7 @@ const CELL_WIDTH: f64 = 512.0;
 const MAX_COORDINATE: f64 = 16_384.0;
 const REPLAY_DETAIL_KEY: &str = "_entity_replay";
 const REPLAY_UNAVAILABLE_DETAIL_KEY: &str = "_entity_replay_unavailable";
-const MAX_DECODED_FRAMES: usize = 50_000;
+const MAX_DECODED_FRAMES: usize = vibe_cs_domain::REPLAY_MAX_FRAMES;
 const MAX_DECODED_PLAYERS_PER_FRAME: usize = 64;
 
 /// Bounds entity-state sampling independently from the game-event limit.
@@ -26,8 +26,8 @@ pub struct EntityReplayLimits {
 impl Default for EntityReplayLimits {
     fn default() -> Self {
         Self {
-            sample_every_ticks: 64,
-            maximum_frames: 20_000,
+            sample_every_ticks: 16,
+            maximum_frames: vibe_cs_domain::REPLAY_MAX_FRAMES,
             maximum_players_per_frame: 24,
         }
     }
@@ -173,7 +173,8 @@ fn snapshot_player(
         &[".m_angEyeAngles"],
     )?)?;
     let yaw = f64::from(angles[1]);
-    if !yaw.is_finite() {
+    let pitch = f64::from(angles[0]);
+    if !yaw.is_finite() || !pitch.is_finite() {
         return None;
     }
     let health = bounded_u32(field(&pawn_fields, &["m_iHealth"], &[".m_iHealth"])?, 200)?;
@@ -244,6 +245,7 @@ fn snapshot_player(
         team,
         position,
         yaw,
+        pitch,
         health,
         armor,
         alive,
@@ -266,7 +268,7 @@ fn pawn_input(
         &[".m_nButtonDownMaskPrev"],
     )
     .and_then(unsigned)?;
-    let bit = |index: u32| mask & (1_u64 << index) != 0;
+    let mut input = crate::replay_snapshots::input_from_mask(mask);
     let crouch = field(
         pawn_fields,
         &[
@@ -278,26 +280,18 @@ fn pawn_input(
         &[".m_bDesiresDuck", ".m_bDucking"],
     )
     .and_then(boolean)
-    .unwrap_or_else(|| bit(2));
+    .unwrap_or(input.crouch);
     let walk = field(pawn_fields, &["m_bIsWalking"], &[".m_bIsWalking"])
         .and_then(boolean)
-        .unwrap_or_else(|| bit(17) || bit(18));
+        .unwrap_or(input.walk);
     let reload = weapon_fields
         .and_then(|fields| field(fields, &["m_bInReload"], &[".m_bInReload"]))
         .and_then(boolean)
-        .unwrap_or_else(|| bit(13));
-    Some(ReplayInputState {
-        forward: bit(3),
-        left: bit(9),
-        backward: bit(4),
-        right: bit(10),
-        jump: bit(1),
-        crouch,
-        walk,
-        reload,
-        fire: bit(0),
-        secondary_fire: bit(11),
-    })
+        .unwrap_or(input.reload);
+    input.crouch = crouch;
+    input.walk = walk;
+    input.reload = reload;
+    Some(input)
 }
 
 fn exact_handle(context: &Context, handle: u32) -> Option<&Entity> {
@@ -570,7 +564,7 @@ mod tests {
         let limits = EntityReplayLimits::default();
         let maximum_frames = u32::try_from(limits.maximum_frames).expect("frame limit fits u32");
 
-        assert_eq!(limits.sample_every_ticks, 64);
+        assert_eq!(limits.sample_every_ticks, 16);
         assert!(175_000_u32.div_ceil(limits.sample_every_ticks) < maximum_frames);
     }
 
@@ -603,6 +597,7 @@ mod tests {
         ReplayFrame {
             tick,
             players: vec![ReplayPlayer {
+                pitch: 0.0,
                 id: "76561198000000001".to_owned(),
                 name: "Player".to_owned(),
                 team: "T".to_owned(),

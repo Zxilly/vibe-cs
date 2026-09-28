@@ -211,7 +211,7 @@ export function useMapRadarOverview(mapName: string | null, tuning: DataQueryTun
 }
 
 /**
- * The decoded 2D replay: player positions, yaw, health and weapon per frame,
+ * The decoded replay: player positions, yaw/pitch, health and weapon per frame,
  * plus projectiles and the bomb.
  *
  * Three things a caller has to know, all of them consequences of the wire being
@@ -220,9 +220,8 @@ export function useMapRadarOverview(mapName: string | null, tuning: DataQueryTun
  *   * **It is the whole match.** See gap 1 in the header — the per-round route
  *     needs an analysis-run id nothing can look up. Slice by tick on the
  *     client; `fidelity.start_tick` / `end_tick` bound the stream.
- *   * **Decoding is synchronous and on the main thread.** `decodeReplayBinary`
- *     walks up to 20 000 frames; there is no worker seam in `data/` yet. A
- *     visible hitch on open is a known cost, recorded rather than hidden.
+ *   * **The v2 envelope inflates asynchronously.** Shared identities and strings
+ *     are decoded once; poses and projectile lifetimes retain their source ticks.
  *   * **It is off by default.** `enabled` defaults to `false` here — the
  *     opposite of every other hook in this layer — because the workspace opens
  *     on 概览 and seven of the nine views never want megabytes of frames. The

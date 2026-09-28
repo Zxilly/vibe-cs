@@ -57,6 +57,7 @@ function player(
     team,
     position: [x, y, 64],
     yaw: 90,
+    pitch: 0,
     health: alive ? 78 : 0,
     armor: 100,
     alive,

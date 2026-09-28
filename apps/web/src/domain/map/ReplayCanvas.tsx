@@ -41,7 +41,8 @@ import {
   type OverviewTransform,
   type PlayerPath,
 } from '.';
-import type { PlayerMarker } from './replayModel';
+import type { PlayerMarker, ProjectileTrail } from './replayModel';
+import type { ReplayProjectileRecord } from '../../shared/desktop/dto';
 
 /* ── the player layer ────────────────────────────────────────────────────── */
 
@@ -81,6 +82,10 @@ export function PlayerLayer({
         const point = projection.toCanvas(marker);
         const focused = marker.playerId === selectedPlayerId || marker.playerId === selection.hoveredId;
         const half = MARKER_SIZE / 2;
+        const facing = projection.toCanvas({ x: marker.x + Math.cos(marker.yaw * Math.PI / 180), y: marker.y + Math.sin(marker.yaw * Math.PI / 180) });
+        const facingLength = Math.hypot(facing.x - point.x, facing.y - point.y);
+        const dx = facingLength === 0 ? 0 : (facing.x - point.x) / facingLength;
+        const dy = facingLength === 0 ? 0 : (facing.y - point.y) / facingLength;
         return (
           <g
             key={marker.playerId}
@@ -91,6 +96,7 @@ export function PlayerLayer({
             className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             {...selection.itemProps(marker.playerId, index)}
           >
+            <line aria-hidden="true" data-player-facing="" x1={point.x + dx * (half + 2)} y1={point.y + dy * (half + 2)} x2={point.x + dx * (half + 14)} y2={point.y + dy * (half + 14)} strokeWidth={2} className={marker.team === 'A' ? 'stroke-accent' : 'stroke-team-b'} />
             <rect
               x={point.x - half}
               y={point.y - half}
@@ -123,6 +129,7 @@ export interface ReplayLayerVisibility {
   readonly paths: boolean;
   readonly kills: boolean;
   readonly heat: boolean;
+  readonly utilities: boolean;
 }
 
 export interface ReplayCanvasProps {
@@ -136,6 +143,8 @@ export interface ReplayCanvasProps {
   readonly emptyActions?: ReactNode | undefined;
   readonly layers: ReplayLayerVisibility;
   readonly markers: readonly PlayerMarker[];
+  readonly projectiles: readonly ReplayProjectileRecord[];
+  readonly projectileTrails: readonly ProjectileTrail[];
   readonly paths: readonly PlayerPath[];
   readonly engagements: readonly Engagement[];
   readonly distribution: HeatDistribution;
@@ -161,6 +170,8 @@ export function ReplayCanvas({
   emptyActions,
   layers,
   markers,
+  projectiles,
+  projectileTrails,
   paths,
   engagements,
   distribution,
@@ -188,6 +199,7 @@ export function ReplayCanvas({
   if (layers.heat) {
     legend.push({ id: 'heat', label: <Trans>热力叠加</Trans>, glyph: 'swatch', tone: 'accent' });
   }
+  if (layers.utilities) legend.push({ id: 'utilities', label: <Trans>投掷物与范围示意</Trans>, glyph: 'dashed', tone: 'accent' });
 
   return (
     <MapCanvas
@@ -235,6 +247,7 @@ export function ReplayCanvas({
             selectedEngagementId={selectedEngagementId}
             onSelectEngagement={onSelectEngagement}
           />
+          {layers.utilities ? <ReplayUtilityLayer projection={projection} projectiles={projectiles} trails={projectileTrails} /> : null}
           <PlayerLayer
             projection={projection}
             markers={markers}
@@ -245,5 +258,34 @@ export function ReplayCanvas({
         </>
       )}
     </MapCanvas>
+  );
+}
+
+function ReplayUtilityLayer({ projection, projectiles, trails }: {
+  readonly projection: MapProjection;
+  readonly projectiles: readonly ReplayProjectileRecord[];
+  readonly trails: readonly ProjectileTrail[];
+}) {
+  return (
+    <g data-layer="utilities" aria-label={t`投掷物与范围示意`} pointerEvents="none">
+      {trails.map((trail) => {
+        const current = projectiles.find((projectile) => projectile.id === trail.id);
+        const points = current === undefined ? trail.points : [...trail.points, { x: current.position[0], y: current.position[1] }];
+        return <polyline key={trail.id} data-projectile-trail={trail.id} points={points.map((point) => { const pixel = projection.toCanvas(point); return `${pixel.x},${pixel.y}`; }).join(' ')} fill="none" strokeWidth={2} strokeDasharray="4 3" className="stroke-accent opacity-70" />;
+      })}
+      {projectiles.filter((projectile) => projectile.active).map((projectile) => {
+        const point = projection.toCanvas({ x: projectile.position[0], y: projectile.position[1] });
+        const edge = projection.toCanvas({ x: projectile.position[0] + (projectile.radius ?? 0), y: projectile.position[1] });
+        const radius = Math.hypot(edge.x - point.x, edge.y - point.y);
+        const fire = projectile.kind.startsWith('inferno');
+        return (
+          <g key={projectile.id} data-projectile={projectile.id} data-projectile-phase={projectile.phase}>
+            <title>{projectile.kind}</title>
+            {projectile.phase === 'effect' && radius > 0 ? <circle cx={point.x} cy={point.y} r={radius} strokeWidth={1} className={fire ? 'fill-warn/20 stroke-warn/60' : 'fill-neutral-400/20 stroke-neutral-500/60'} /> : null}
+            <circle cx={point.x} cy={point.y} r={projectile.phase === 'flying' ? 4 : 3} className={fire ? 'fill-warn' : 'fill-accent'} />
+          </g>
+        );
+      })}
+    </g>
   );
 }

@@ -17,6 +17,8 @@ import {
   currentEventId,
   frameAtTick,
   frameIndexAtTick,
+  interpolateReplayFrame,
+  projectileTrails,
   heatFloors,
   heatSamplesOf,
   normaliseSide,
@@ -89,8 +91,8 @@ describe('sliceReplay', () => {
 describe('clampTick', () => {
   const range = { startTick: 100, endTick: 200 };
 
-  it('keeps the playhead inside the slice and rounds to a whole tick', () => {
-    expect(clampTick(150.7, range)).toBe(151);
+  it('keeps the playhead inside the slice without losing fractional elapsed ticks', () => {
+    expect(clampTick(150.7, range)).toBe(150.7);
     expect(clampTick(-4, range)).toBe(100);
     expect(clampTick(9_999, range)).toBe(200);
   });
@@ -111,6 +113,38 @@ describe('frameIndexAtTick', () => {
     expect(frameIndexAtTick(REPLAY_FRAMES, 1)).toBe(-1);
     expect(frameAtTick(REPLAY_FRAMES, 1)).toBeNull();
     expect(frameIndexAtTick([], 149_000)).toBe(-1);
+  });
+});
+
+describe('replay presentation interpolation', () => {
+  const player = { ...REPLAY_FRAMES[0]!.players[0]!, id: 'focus', position: [0, 0, 0] as [number, number, number], yaw: 179, pitch: 10, health: 100 };
+  const projectile = { id: 'projectile:1:2', owner_id: 'focus', kind: 'smoke', phase: 'flying' as const, start_tick: 0, end_tick: 15, position: [0, 0, 32] as [number, number, number], active: true, radius: null, masks_vision: false };
+  const frames: ReplayFrameRecord[] = [
+    { tick: 0, players: [player], projectiles: [projectile], bomb: null },
+    { tick: 16, players: [{ ...player, position: [16, 32, 48], yaw: -179, pitch: 30, health: 40 }], projectiles: [{ ...projectile, position: [16, 0, 48], active: false }], bomb: null },
+  ];
+  it('lerps position and shortest-path angles while keeping discrete state at its source tick', () => {
+    const frame = interpolateReplayFrame(frames, 8, 64)!;
+    expect(frame.players[0]).toMatchObject({ position: [8, 16, 24], yaw: 180, pitch: 20, health: 100 });
+    expect(frame.projectiles[0]?.position).toEqual([8, 0, 40]);
+    expect(interpolateReplayFrame(frames, 16, 64)?.players[0]?.health).toBe(40);
+    expect(frames[0]?.players[0]?.position).toEqual([0, 0, 0]);
+  });
+  it('does not smear respawns, teleports or large source gaps', () => {
+    const changed = structuredClone(frames);
+    changed[1]!.players[0]!.alive = false;
+    expect(interpolateReplayFrame(changed, 8, 64)?.players[0]?.position).toEqual([0, 0, 0]);
+    changed[1]!.players[0]!.alive = true;
+    changed[1]!.players[0]!.position = [2000, 0, 0];
+    expect(interpolateReplayFrame(changed, 8, 64)?.players[0]?.position).toEqual([0, 0, 0]);
+    changed[1]!.tick = 128;
+    expect(interpolateReplayFrame(changed, 8, 64)?.players).toBe(changed[0]?.players);
+    expect(interpolateReplayFrame(changed, 32, 64)?.projectiles).toEqual([]);
+    expect(interpolateReplayFrame(frames, 16, 64)?.projectiles).toEqual([]);
+  });
+  it('builds projectile trails from their own identities rather than their owners', () => {
+    const trails = projectileTrails(frames, 16, 64);
+    expect(trails).toEqual([{ id: 'projectile:1:2', kind: 'smoke', points: [{ x: 0, y: 0 }, { x: 16, y: 0 }] }]);
   });
 });
 

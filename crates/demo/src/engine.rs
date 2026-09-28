@@ -981,7 +981,7 @@ fn collect_identities(
     identities
 }
 
-fn timeline_event(
+pub(crate) fn timeline_event(
     raw: &ParsedEvent,
     kind: EventKind,
     tick_rate: f64,

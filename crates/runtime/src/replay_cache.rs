@@ -1,5 +1,6 @@
 use std::{
     ffi::{OsStr, OsString},
+    future::Future,
     io::{ErrorKind, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::Arc,
@@ -23,15 +24,16 @@ use crate::cache_directory::{
     initialize_cache_directory, open_verified_plain_file, remove_verified_file, write_atomic,
 };
 
-const MAXIMUM_CACHE_FILE_BYTES: u64 = 128 * 1024 * 1024;
+// Dense source snapshots are larger than their dictionary/delta-compressed wire.
+const MAXIMUM_CACHE_FILE_BYTES: u64 = 512 * 1024 * 1024;
 const MAXIMUM_CACHE_BYTES: u64 = 512 * 1024 * 1024;
 const MAXIMUM_CACHE_ENTRIES: usize = 128;
 const MAXIMUM_SCAN_ENTRIES: usize = 2_048;
-const MAXIMUM_REPLAY_FRAMES: usize = 20_000;
+const MAXIMUM_REPLAY_FRAMES: usize = vibe_cs_domain::REPLAY_MAX_FRAMES;
 const MAXIMUM_PLAYERS_PER_FRAME: usize = 64;
 const MAXIMUM_EFFECTS_PER_FRAME: usize = 512;
-const MAXIMUM_PLAYER_RECORDS: usize = 200_000;
-const MAXIMUM_EFFECT_RECORDS: usize = 100_000;
+const MAXIMUM_PLAYER_RECORDS: usize = vibe_cs_domain::REPLAY_MAX_PLAYER_RECORDS;
+const MAXIMUM_EFFECT_RECORDS: usize = vibe_cs_domain::REPLAY_MAX_EFFECT_RECORDS;
 const MAXIMUM_TEXT_BYTES: usize = 512;
 
 #[derive(Debug, Clone)]
@@ -141,17 +143,18 @@ impl ReplayCache {
         Ok(directory)
     }
 
-    pub(crate) async fn resolve<F>(
+    pub(crate) async fn resolve<F, Fut>(
         &self,
         demo: &DemoRecord,
         analysis: &MatchAnalysis,
         generate: F,
     ) -> Result<ReplayPayload, DomainError>
     where
-        F: FnOnce() -> Result<ReplayArtifact, DomainError>,
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<ReplayArtifact, DomainError>>,
     {
         let Some(content_sha256) = normalized_sha256(demo.content_sha256.as_deref()) else {
-            let artifact = generate()?;
+            let artifact = generate().await?;
             validate_generated_artifact(&artifact)?;
             return Ok(ReplayPayload {
                 frames: artifact.frames,
@@ -190,7 +193,7 @@ impl ReplayCache {
             });
         }
 
-        let artifact = generate()?;
+        let artifact = generate().await?;
         validate_generated_artifact(&artifact)?;
         let generated_at = Utc::now();
         let document = CacheDocument {
@@ -484,9 +487,16 @@ fn frames_are_valid(frames: &[ReplayFrame]) -> bool {
                 || player.team.len() > MAXIMUM_TEXT_BYTES
                 || player.weapon.len() > MAXIMUM_TEXT_BYTES
                 || !player.yaw.is_finite()
+                || !player.pitch.is_finite()
         }) || frame.projectiles.iter().any(|effect| {
             !valid_coordinates(effect.position)
                 || effect.kind.len() > MAXIMUM_TEXT_BYTES
+                || effect.id.len() > MAXIMUM_TEXT_BYTES
+                || effect
+                    .owner_id
+                    .as_ref()
+                    .is_some_and(|id| id.len() > MAXIMUM_TEXT_BYTES)
+                || effect.start_tick > effect.end_tick
                 || effect
                     .radius
                     .is_some_and(|radius| !radius.is_finite() || !(0.0..=4096.0).contains(&radius))
@@ -515,7 +525,7 @@ fn normalized_sha256(value: Option<&str>) -> Option<String> {
 }
 
 fn cache_key(content_sha256: &str, analysis_sha256: &str) -> String {
-    hex_digest(format!("replay-cache\0{content_sha256}\0{analysis_sha256}").as_bytes())
+    hex_digest(format!("replay-cache-v2\0{content_sha256}\0{analysis_sha256}").as_bytes())
 }
 
 fn analysis_digest(analysis: &MatchAnalysis) -> Result<String, DomainError> {
@@ -645,6 +655,7 @@ mod tests {
         vec![ReplayFrame {
             tick: 1,
             players: vec![ReplayPlayer {
+                pitch: 0.0,
                 id: "1".to_owned(),
                 name: "Player".to_owned(),
                 team: "A".to_owned(),
@@ -665,7 +676,7 @@ mod tests {
         ReplayArtifact {
             frames: frames(),
             fidelity: ReplayFidelityMetadata {
-                mode: ReplayFidelityMode::EventSparse,
+                mode: ReplayFidelityMode::EntitySnapshots,
                 tick_rate: 64.0,
                 frame_count: 1,
                 positioned_event_count: 1,
@@ -690,7 +701,7 @@ mod tests {
     #[test]
     fn generated_artifact_rejects_more_than_two_hundred_thousand_player_records() {
         let player = frames()[0].players[0].clone();
-        let mut remaining = 200_001_usize;
+        let mut remaining = MAXIMUM_PLAYER_RECORDS + 1;
         let mut replay_frames = Vec::new();
         while remaining > 0 {
             let count = remaining.min(MAXIMUM_PLAYERS_PER_FRAME);
@@ -704,7 +715,7 @@ mod tests {
         }
         let artifact = ReplayArtifact {
             fidelity: ReplayFidelityMetadata {
-                mode: ReplayFidelityMode::EventSparse,
+                mode: ReplayFidelityMode::EntitySnapshots,
                 tick_rate: 64.0,
                 frame_count: u64::try_from(replay_frames.len()).unwrap(),
                 positioned_event_count: 0,
@@ -723,13 +734,18 @@ mod tests {
     #[test]
     fn generated_artifact_rejects_more_than_one_hundred_thousand_effect_records() {
         let effect = ReplayProjectile {
+            id: "fixture-projectile".to_owned(),
+            owner_id: None,
+            phase: vibe_cs_domain::ReplayProjectilePhase::Effect,
+            start_tick: 0,
+            end_tick: 1_000_000,
             kind: "smoke".to_owned(),
             position: [1.0, 2.0, 3.0],
             active: true,
             radius: Some(144.0),
             masks_vision: true,
         };
-        let mut remaining = 100_001_usize;
+        let mut remaining = MAXIMUM_EFFECT_RECORDS + 1;
         let mut replay_frames = Vec::new();
         while remaining > 0 {
             let count = remaining.min(MAXIMUM_EFFECTS_PER_FRAME);
@@ -743,7 +759,7 @@ mod tests {
         }
         let artifact = ReplayArtifact {
             fidelity: ReplayFidelityMetadata {
-                mode: ReplayFidelityMode::EventSparse,
+                mode: ReplayFidelityMode::EntitySnapshots,
                 tick_rate: 64.0,
                 frame_count: u64::try_from(replay_frames.len()).unwrap(),
                 positioned_event_count: 0,
@@ -767,14 +783,14 @@ mod tests {
         let analysis = analysis(demo.id);
         let count = AtomicUsize::new(0);
         let first = cache
-            .resolve(&demo, &analysis, || {
+            .resolve(&demo, &analysis, || async {
                 count.fetch_add(1, Ordering::SeqCst);
                 Ok(artifact())
             })
             .await
             .expect("generate");
         let second = cache
-            .resolve(&demo, &analysis, || {
+            .resolve(&demo, &analysis, || async {
                 count.fetch_add(1, Ordering::SeqCst);
                 Ok(artifact())
             })
@@ -793,7 +809,7 @@ mod tests {
         let demo = demo();
         let analysis = analysis(demo.id);
         let first = cache
-            .resolve(&demo, &analysis, || Ok(artifact()))
+            .resolve(&demo, &analysis, || async { Ok(artifact()) })
             .await
             .expect("generate");
         let key = first.cache.key.expect("cache key");
@@ -802,7 +818,7 @@ mod tests {
             .expect("corrupt fixture");
 
         let repaired = cache
-            .resolve(&demo, &analysis, || Ok(artifact()))
+            .resolve(&demo, &analysis, || async { Ok(artifact()) })
             .await
             .expect("repair");
         assert_eq!(repaired.cache.state, ReplayCacheState::Generated);
@@ -816,7 +832,7 @@ mod tests {
         let demo = demo();
         let analysis = analysis(demo.id);
         let first = cache
-            .resolve(&demo, &analysis, || Ok(artifact()))
+            .resolve(&demo, &analysis, || async { Ok(artifact()) })
             .await
             .expect("generate");
         let key = first.cache.key.expect("cache key");
@@ -826,7 +842,7 @@ mod tests {
             .expect("tamper cache team");
 
         let repaired = cache
-            .resolve(&demo, &analysis, || Ok(artifact()))
+            .resolve(&demo, &analysis, || async { Ok(artifact()) })
             .await
             .expect("repair noncanonical team");
 
@@ -849,7 +865,7 @@ mod tests {
         let first_count = Arc::clone(&count);
         let first = tokio::spawn(async move {
             first_cache
-                .resolve(&first_demo, &first_analysis, || {
+                .resolve(&first_demo, &first_analysis, || async {
                     first_count.fetch_add(1, Ordering::SeqCst);
                     std::thread::sleep(std::time::Duration::from_millis(40));
                     Ok(artifact())
@@ -861,7 +877,7 @@ mod tests {
         let second_count = Arc::clone(&count);
         let second = tokio::spawn(async move {
             second_cache
-                .resolve(&demo, &analysis, || {
+                .resolve(&demo, &analysis, || async {
                     second_count.fetch_add(1, Ordering::SeqCst);
                     Ok(artifact())
                 })
@@ -881,7 +897,7 @@ mod tests {
         let cache = ReplayCache::new(temporary.path().join("replay-cache"));
         let demo = demo();
         cache
-            .resolve(&demo, &analysis(demo.id), || Ok(artifact()))
+            .resolve(&demo, &analysis(demo.id), || async { Ok(artifact()) })
             .await
             .expect("generate");
 

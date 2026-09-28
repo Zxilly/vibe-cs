@@ -3135,6 +3135,7 @@ mod tests {
             .map(|(index, tick)| ReplayFrame {
                 tick,
                 players: vec![ReplayPlayer {
+                    pitch: 0.0,
                     id: item.segment.player_id.clone(),
                     name: "FalleN".to_owned(),
                     team: "T".to_owned(),

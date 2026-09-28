@@ -81,6 +81,8 @@ import {
   currentEventId,
   defaultFocusPlayerId,
   frameIndexAtTick,
+  interpolateReplayFrame,
+  projectileTrails,
   heatFloors,
   heatSamplesOf,
   playerMarkers,
@@ -122,6 +124,7 @@ const DEFAULT_LAYERS: ReplayLayerVisibility = {
   paths: true,
   kills: true,
   heat: false,
+  utilities: true,
 };
 
 /* ── the body ────────────────────────────────────────────────────────────── */
@@ -162,10 +165,9 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     () => (slice === null ? { paths: [], stride: 1, frameCount: 0 } : buildPlayerTracks(slice.frames, frameIndex)),
     [slice, frameIndex],
   );
-  const markers = useMemo(
-    () => (slice === null || frameIndex < 0 ? [] : playerMarkers(slice.frames[frameIndex] ?? null)),
-    [slice, frameIndex],
-  );
+  const presentation = useMemo(() => slice === null || effectiveTick === null ? null : interpolateReplayFrame(slice.frames, effectiveTick, slice.tickRate), [slice, effectiveTick]);
+  const markers = useMemo(() => playerMarkers(presentation), [presentation]);
+  const utilityTrails = useMemo(() => slice === null || frameIndex < 0 ? [] : projectileTrails(slice.frames, slice.frames[frameIndex]!.tick, slice.tickRate), [slice, frameIndex]);
   const duels = useMemo(
     () => buildEngagements(events, slice?.frames ?? []),
     [events, slice],
@@ -215,8 +217,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     const now = Date.now();
     if (!immediate && now - wroteAt.current < TICK_URL_THROTTLE_MS) return;
     wroteAt.current = now;
-    written.current = tick;
-    updateContext({ tick }, { replace: true });
+    written.current = Math.round(tick);
+    updateContext({ tick: Math.round(tick) }, { replace: true });
   };
 
   const seekTo = (tick: number) => {
@@ -237,9 +239,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
         publishTick(slice.endTick, true);
         return;
       }
-      const rounded = Math.round(next);
-      setPlayhead(rounded);
-      publishTick(rounded, false);
+      setPlayhead(next);
+      publishTick(next, false);
     },
   });
 
@@ -327,6 +328,9 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 onChange={(next) => setLayers((current) => ({ ...current, heat: next }))}
               >
                 <Trans>热力叠加</Trans>
+              </Checkbox>
+              <Checkbox size="sm" checked={layers.utilities} onChange={(next) => setLayers((current) => ({ ...current, utilities: next }))}>
+                <Trans>投掷物与范围示意</Trans>
               </Checkbox>
             </div>
           </section>
@@ -446,6 +450,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               status={status}
               layers={layers}
               markers={markers}
+              projectiles={presentation?.projectiles ?? []}
+              projectileTrails={utilityTrails}
               paths={tracks.paths}
               engagements={focusedEngagements}
               distribution={distribution}
@@ -559,7 +565,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 size="sm"
                 variant="secondary"
                 disabled={effectiveTick === null}
-                onClick={() => setClipInTick(effectiveTick)}
+                onClick={() => setClipInTick(effectiveTick === null ? null : Math.round(effectiveTick))}
               >
                 <Trans>设入点</Trans>
               </Button>
@@ -567,7 +573,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 size="sm"
                 variant="secondary"
                 disabled={effectiveTick === null}
-                onClick={() => setClipOutTick(effectiveTick)}
+                onClick={() => setClipOutTick(effectiveTick === null ? null : Math.round(effectiveTick))}
               >
                 <Trans>设出点</Trans>
               </Button>

@@ -746,6 +746,7 @@ fn round_replay_camera_frames(artifact: &RoundReplayArtifact) -> Vec<ReplayFrame
                 .players
                 .iter()
                 .map(|player| ReplayPlayer {
+                    pitch: player.pitch,
                     id: player.steam_id.clone(),
                     name: player.name.clone(),
                     team: player.team.clone(),
@@ -758,8 +759,8 @@ fn round_replay_camera_frames(artifact: &RoundReplayArtifact) -> Vec<ReplayFrame
                     input: None,
                 })
                 .collect(),
-            projectiles: Vec::new(),
-            bomb: None,
+            projectiles: frame.projectiles.clone(),
+            bomb: frame.bomb.clone(),
         })
         .collect()
 }
@@ -1750,6 +1751,7 @@ mod tests {
                 freeze_end_tick: None,
                 players_per_frame: 1,
                 fields: vibe_cs_domain::RoundReplayFields {
+                    pitch: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     position: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     yaw: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     health: vibe_cs_domain::RoundReplayFieldAvailability::Required,
@@ -1764,8 +1766,11 @@ mod tests {
                 },
             },
             frames: vec![vibe_cs_domain::RoundReplayFrame {
+                projectiles: Vec::new(),
+                bomb: None,
                 tick: 120,
                 players: vec![vibe_cs_domain::RoundReplayPlayer {
+                    pitch: 0.0,
                     steam_id: "76561198041683378".to_owned(),
                     name: "NiKo".to_owned(),
                     team: "B".to_owned(),

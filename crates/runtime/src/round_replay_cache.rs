@@ -173,15 +173,23 @@ fn validate_artifact(
         || metadata.round != request.round
         || metadata.start_tick != request.start_tick
         || metadata.end_tick != request.end_tick
-        || metadata.sampling_contract_version != 2
+        || metadata.sampling_contract_version
+            != vibe_cs_demo::ROUND_REPLAY_SAMPLING_CONTRACT_VERSION
         || metadata.sample_interval_ticks != 16
         || metadata.players_per_frame != 10
         || metadata
             .freeze_end_tick
             .is_some_and(|tick| !(request.start_tick..=request.end_tick).contains(&tick))
         || metadata.accepted_tick_count as usize != artifact.frames.len()
-        || artifact.frames.first().map(|frame| frame.tick) != Some(request.start_tick)
-        || artifact.frames.last().map(|frame| frame.tick) != Some(request.end_tick)
+        || metadata.accepted_tick_count > metadata.requested_tick_count
+        || artifact
+            .frames
+            .first()
+            .is_none_or(|frame| frame.tick.abs_diff(request.start_tick) > 16)
+        || artifact
+            .frames
+            .last()
+            .is_none_or(|frame| frame.tick.abs_diff(request.end_tick) > 16)
         || artifact
             .frames
             .iter()
@@ -226,6 +234,7 @@ fn validate_artifact(
                     .iter()
                     .any(|value| !value.is_finite() || value.abs() > 1_000_000.0)
                 || !player.yaw.is_finite()
+                || !player.pitch.is_finite()
                 || player.yaw.abs() > 360.0
                 || player.health > 200
                 || player.armor > 200
@@ -334,6 +343,7 @@ mod tests {
             .roster
             .iter()
             .map(|player| RoundReplayPlayer {
+                pitch: 0.0,
                 steam_id: player.steam_id.clone(),
                 name: player.name.clone(),
                 team: player.team.clone(),
@@ -361,7 +371,7 @@ mod tests {
                 start_tick: request.start_tick,
                 end_tick: request.end_tick,
                 tick_rate: request.tick_rate,
-                sampling_contract_version: 2,
+                sampling_contract_version: 3,
                 sample_interval_ticks: 16,
                 requested_tick_count: 2,
                 accepted_tick_count: 2,
@@ -369,6 +379,7 @@ mod tests {
                 freeze_end_tick: Some(100),
                 players_per_frame: 10,
                 fields: RoundReplayFields {
+                    pitch: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     position: RoundReplayFieldAvailability::Required,
                     yaw: RoundReplayFieldAvailability::Required,
                     health: RoundReplayFieldAvailability::Required,
@@ -383,10 +394,14 @@ mod tests {
             },
             frames: vec![
                 RoundReplayFrame {
+                    projectiles: Vec::new(),
+                    bomb: None,
                     tick: request.start_tick,
                     players: players.clone(),
                 },
                 RoundReplayFrame {
+                    projectiles: Vec::new(),
+                    bomb: None,
                     tick: request.end_tick,
                     players,
                 },

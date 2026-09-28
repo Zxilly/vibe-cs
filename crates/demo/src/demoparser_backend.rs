@@ -598,7 +598,7 @@ fn json_u64(value: &Value) -> Option<u64> {
         .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
 }
 
-fn collect_player_identities(
+pub(crate) fn collect_player_identities(
     player_md: &[PlayerEndMetaData],
     roster: &[PlayerEndMetaData],
     events: &[GameEvent],
@@ -660,7 +660,7 @@ fn register_identity(identities: &mut PlayerIdentities, steam_id: u64, name: Opt
     );
 }
 
-fn convert_event(sequence: u64, event: GameEvent) -> ParsedEvent {
+pub(crate) fn convert_event(sequence: u64, event: GameEvent) -> ParsedEvent {
     let mut fields: Map<String, Value> = event
         .fields
         .into_iter()

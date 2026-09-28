@@ -690,7 +690,7 @@ mod tests {
                 start_tick: 100,
                 end_tick: 100,
                 tick_rate: 64.0,
-                sampling_contract_version: 2,
+                sampling_contract_version: 3,
                 sample_interval_ticks: 16,
                 requested_tick_count: 1,
                 accepted_tick_count: 1,
@@ -698,6 +698,7 @@ mod tests {
                 freeze_end_tick: Some(100),
                 players_per_frame: 10,
                 fields: vibe_cs_domain::RoundReplayFields {
+                    pitch: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     position: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     yaw: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                     health: vibe_cs_domain::RoundReplayFieldAvailability::Required,
@@ -712,6 +713,8 @@ mod tests {
                 },
             },
             frames: vec![vibe_cs_domain::RoundReplayFrame {
+                projectiles: Vec::new(),
+                bomb: None,
                 tick: 100,
                 players: Vec::new(),
             }],

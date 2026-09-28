@@ -1,259 +1,14 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use vibe_cs_domain::{
-    EventKind, HeatPoint, ReplayArtifact, ReplayBomb, ReplayFidelityMetadata, ReplayFidelityMode,
-    ReplayFrame, ReplayPlayer, ReplayProjectile, RoundSummary, TimelineEvent,
+    EventKind, HeatPoint, ReplayBomb, ReplayFrame, ReplayProjectile, RoundSummary, TimelineEvent,
 };
 
 use crate::entity_replay::{embedded_entity_replay, entity_replay_unavailable_reason};
 use crate::{DemoError, DemoResult};
 
-const MAXIMUM_REPLAY_FRAMES: usize = 20_000;
-const MAXIMUM_REPLAY_PLAYERS_PER_FRAME: usize = 64;
-// Retains a full ten-player competitive state at the maximum frame budget.
-const MAXIMUM_REPLAY_PLAYER_RECORDS: usize = 200_000;
 const MAXIMUM_REPLAY_EFFECTS_PER_FRAME: usize = 512;
-// Retains five simultaneous effects across every maximum-budget frame.
-const MAXIMUM_REPLAY_EFFECT_RECORDS: usize = 100_000;
-const MAXIMUM_REPLAY_SOURCE_EVENTS: usize = 100_000;
-
-/// Builds deterministic sparse frames from events that carry world positions.
-/// A kill/damage position is assigned to its target; other positioned player
-/// events are assigned to their actor. Unknown attributes remain conservative
-/// (`0`/empty) rather than being fabricated.
-///
-/// # Errors
-///
-/// Returns an unavailable error when no positioned event can form a frame.
-pub fn replay_frames_from_events(events: &[TimelineEvent]) -> DemoResult<Vec<ReplayFrame>> {
-    build_replay_frames(events).map(|(frames, _)| frames)
-}
-
-/// Builds replay frames together with explicit spatial and timing fidelity.
-///
-/// # Errors
-///
-/// Returns an unavailable error when no trustworthy spatial evidence exists,
-/// or a metadata error when `tick_rate` cannot safely drive playback timing.
-pub fn replay_artifact_from_events(
-    events: &[TimelineEvent],
-    tick_rate: f64,
-) -> DemoResult<ReplayArtifact> {
-    if !tick_rate.is_finite() || !(8.0..=1024.0).contains(&tick_rate) {
-        return Err(DemoError::MetadataUnavailable("tick rate"));
-    }
-    let (frames, mode) = build_replay_frames(events)?;
-    let start_tick = frames.first().map_or(0, |frame| frame.tick);
-    let end_tick = frames.last().map_or(0, |frame| frame.tick);
-    Ok(ReplayArtifact {
-        fidelity: ReplayFidelityMetadata {
-            mode,
-            tick_rate,
-            frame_count: u64::try_from(frames.len()).unwrap_or(u64::MAX),
-            positioned_event_count: u64::try_from(
-                events
-                    .iter()
-                    .filter(|event| valid_position(event).is_some())
-                    .count(),
-            )
-            .unwrap_or(u64::MAX),
-            start_tick,
-            end_tick,
-        },
-        frames,
-    })
-}
-
-fn build_replay_frames(
-    events: &[TimelineEvent],
-) -> DemoResult<(Vec<ReplayFrame>, ReplayFidelityMode)> {
-    if events.len() > MAXIMUM_REPLAY_SOURCE_EVENTS {
-        return Err(DemoError::ParserResourceLimit {
-            resource: "replay_source_events".to_owned(),
-            limit: MAXIMUM_REPLAY_SOURCE_EVENTS,
-            actual: events.len(),
-        });
-    }
-    let entity_frames =
-        embedded_entity_replay(events).map_err(|reason| DemoError::Unavailable {
-            capability: "2D replay",
-            reason,
-        })?;
-    if !entity_frames.is_empty() {
-        let event_frames = match sparse_replay_frames_from_events(events) {
-            Ok(frames) => frames,
-            Err(DemoError::Unavailable { .. }) => Vec::new(),
-            Err(error) => return Err(error),
-        };
-        let mode = if event_frames.is_empty() {
-            ReplayFidelityMode::EntitySnapshots
-        } else {
-            ReplayFidelityMode::Hybrid
-        };
-        let mut frames = merge_replay_frames(entity_frames, event_frames)?;
-        apply_replay_state(&mut frames, events)?;
-        return Ok((frames, mode));
-    }
-
-    match sparse_replay_frames_from_events(events) {
-        Ok(mut frames) => {
-            apply_replay_state(&mut frames, events)?;
-            Ok((frames, ReplayFidelityMode::EventSparse))
-        }
-        Err(DemoError::Unavailable { capability, reason }) => {
-            let reason = entity_replay_unavailable_reason(events)
-                .map(|entity_reason| {
-                    format!(
-                        "entity snapshots are unavailable ({entity_reason}); event fallback failed ({reason})"
-                    )
-                })
-                .unwrap_or(reason);
-            Err(DemoError::Unavailable { capability, reason })
-        }
-        Err(error) => Err(error),
-    }
-}
-
-fn sparse_replay_frames_from_events(events: &[TimelineEvent]) -> DemoResult<Vec<ReplayFrame>> {
-    if !events.iter().any(|event| valid_position(event).is_some()) {
-        return Err(DemoError::Unavailable {
-            capability: "2D replay",
-            reason: "the selected events contain no world coordinates".to_owned(),
-        });
-    }
-    let mut by_tick: BTreeMap<u64, Vec<&TimelineEvent>> = BTreeMap::new();
-    for event in events.iter().filter(|event| {
-        valid_position(event).is_some()
-            || matches!(
-                event.kind,
-                EventKind::RoundStart
-                    | EventKind::BombDefuse
-                    | EventKind::BombExplode
-                    | EventKind::Grenade
-            )
-    }) {
-        by_tick.entry(event.tick).or_default().push(event);
-    }
-
-    let mut known_players: HashMap<String, ReplayPlayer> = HashMap::new();
-    let mut frames = Vec::new();
-    let mut player_records = 0;
-    for (tick, tick_events) in by_tick {
-        let mut changed = false;
-        for event in tick_events {
-            if event.kind == EventKind::RoundStart {
-                known_players.clear();
-                continue;
-            }
-            let Some(position) = valid_position(event) else {
-                changed |= matches!(
-                    event.kind,
-                    EventKind::BombDefuse | EventKind::BombExplode | EventKind::Grenade
-                );
-                continue;
-            };
-            if let Some(player) = replay_player_from_event(event, position) {
-                known_players.insert(player.id.clone(), player);
-                if known_players.len() > MAXIMUM_REPLAY_PLAYERS_PER_FRAME {
-                    return Err(DemoError::ParserResourceLimit {
-                        resource: "replay_players_per_frame".to_owned(),
-                        limit: MAXIMUM_REPLAY_PLAYERS_PER_FRAME,
-                        actual: known_players.len(),
-                    });
-                }
-                changed = true;
-            }
-            match event.kind {
-                EventKind::Grenade
-                | EventKind::BombPlant
-                | EventKind::BombDefuse
-                | EventKind::BombExplode => {
-                    changed = true;
-                }
-                _ => {}
-            }
-        }
-        if changed {
-            if frames.len() >= MAXIMUM_REPLAY_FRAMES {
-                return Err(DemoError::ParserResourceLimit {
-                    resource: "sparse_replay_frames".to_owned(),
-                    limit: MAXIMUM_REPLAY_FRAMES,
-                    actual: frames.len().saturating_add(1),
-                });
-            }
-            player_records = checked_record_total(
-                player_records,
-                known_players.len(),
-                "replay_player_records",
-                MAXIMUM_REPLAY_PLAYER_RECORDS,
-            )?;
-            let mut players = known_players.values().cloned().collect::<Vec<_>>();
-            players.sort_by(|left, right| left.id.cmp(&right.id));
-            frames.push(ReplayFrame {
-                tick,
-                players,
-                projectiles: Vec::new(),
-                bomb: None,
-            });
-        }
-    }
-    if frames.is_empty() {
-        Err(DemoError::Unavailable {
-            capability: "2D replay",
-            reason: "positioned events did not identify a player, projectile, or bomb".to_owned(),
-        })
-    } else {
-        Ok(frames)
-    }
-}
-
-fn merge_replay_frames(
-    entity_frames: Vec<ReplayFrame>,
-    event_frames: Vec<ReplayFrame>,
-) -> DemoResult<Vec<ReplayFrame>> {
-    if entity_frames.len() > MAXIMUM_REPLAY_FRAMES {
-        return Err(DemoError::ParserResourceLimit {
-            resource: "replay_frames".to_owned(),
-            limit: MAXIMUM_REPLAY_FRAMES,
-            actual: entity_frames.len(),
-        });
-    }
-    let mut player_records = 0;
-    for frame in &entity_frames {
-        player_records = checked_record_total(
-            player_records,
-            frame.players.len(),
-            "replay_player_records",
-            MAXIMUM_REPLAY_PLAYER_RECORDS,
-        )?;
-    }
-    let mut frames = entity_frames
-        .into_iter()
-        .map(|frame| (frame.tick, frame))
-        .collect::<BTreeMap<_, _>>();
-    for event_frame in event_frames {
-        if let Some(entity_frame) = frames.get_mut(&event_frame.tick) {
-            entity_frame.projectiles.extend(event_frame.projectiles);
-        } else {
-            player_records = checked_record_total(
-                player_records,
-                event_frame.players.len(),
-                "replay_player_records",
-                MAXIMUM_REPLAY_PLAYER_RECORDS,
-            )?;
-            frames.insert(event_frame.tick, event_frame);
-            if frames.len() > MAXIMUM_REPLAY_FRAMES {
-                return Err(DemoError::ParserResourceLimit {
-                    resource: "replay_frames".to_owned(),
-                    limit: MAXIMUM_REPLAY_FRAMES,
-                    actual: frames.len(),
-                });
-            }
-        }
-    }
-
-    Ok(frames.into_values().collect())
-}
+const MAXIMUM_REPLAY_EFFECT_RECORDS: usize = vibe_cs_domain::REPLAY_MAX_EFFECT_RECORDS;
 
 fn checked_record_total(
     current: usize,
@@ -275,6 +30,8 @@ fn checked_record_total(
 
 #[derive(Debug, Clone)]
 struct EffectInterval {
+    id: String,
+    owner_id: Option<String>,
     kind: String,
     position: [f64; 3],
     start_tick: u64,
@@ -292,7 +49,10 @@ enum EffectSignal {
     Exact,
 }
 
-fn apply_replay_state(frames: &mut [ReplayFrame], events: &[TimelineEvent]) -> DemoResult<()> {
+pub(crate) fn apply_replay_state(
+    frames: &mut [ReplayFrame],
+    events: &[TimelineEvent],
+) -> DemoResult<()> {
     frames.sort_by_key(|frame| frame.tick);
     apply_projectile_lifecycles(frames, events)?;
     apply_bomb_state(frames, events);
@@ -314,29 +74,37 @@ fn apply_projectile_lifecycles(
             next += 1;
         }
         active.retain(|effect| effect.end_tick >= frame.tick);
-        if active.len() > MAXIMUM_REPLAY_EFFECTS_PER_FRAME {
+        if active.len() + frame.projectiles.len() > MAXIMUM_REPLAY_EFFECTS_PER_FRAME {
             return Err(DemoError::ParserResourceLimit {
                 resource: "replay_effects_per_frame".to_owned(),
                 limit: MAXIMUM_REPLAY_EFFECTS_PER_FRAME,
-                actual: active.len(),
+                actual: active.len() + frame.projectiles.len(),
             });
         }
         effect_records = checked_record_total(
             effect_records,
-            active.len(),
+            active.len() + frame.projectiles.len(),
             "replay_effect_records",
             MAXIMUM_REPLAY_EFFECT_RECORDS,
         )?;
-        frame.projectiles = active
-            .iter()
-            .map(|effect| ReplayProjectile {
+        frame
+            .projectiles
+            .extend(active.iter().map(|effect| ReplayProjectile {
+                id: effect.id.clone(),
+                owner_id: effect.owner_id.clone(),
+                phase: vibe_cs_domain::ReplayProjectilePhase::Effect,
+                start_tick: effect.start_tick,
+                end_tick: effect.end_tick,
                 kind: effect.kind.clone(),
                 position: effect.position,
                 active: true,
-                radius: effect.radius,
+                radius: effect.radius.or(match effect.kind.as_str() {
+                    "smoke" => Some(144.0),
+                    "inferno" => Some(150.0),
+                    _ => None,
+                }),
                 masks_vision: effect.masks_vision,
-            })
-            .collect();
+            }));
         frame.projectiles.sort_by(|left, right| {
             left.kind
                 .cmp(&right.kind)
@@ -350,7 +118,7 @@ fn apply_projectile_lifecycles(
 fn effect_intervals(events: &[TimelineEvent]) -> Vec<EffectInterval> {
     let tick_rate = evidence_tick_rate(events);
     let mut ordered = events.iter().collect::<Vec<_>>();
-    ordered.sort_by_key(|event| event.tick);
+    ordered.sort_by_key(|event| (event.tick, event.kind != EventKind::RoundStart));
 
     let mut pending = HashMap::<(String, String), VecDeque<&TimelineEvent>>::new();
     let mut intervals = Vec::new();
@@ -383,6 +151,8 @@ fn effect_intervals(events: &[TimelineEvent]) -> Vec<EffectInterval> {
                     && let Some(position) = valid_position(start)
                 {
                     intervals.push(EffectInterval {
+                        id: effect_id(start, kind),
+                        owner_id: start.actor.clone(),
                         kind: kind.to_owned(),
                         position,
                         start_tick: start.tick,
@@ -403,6 +173,8 @@ fn effect_intervals(events: &[TimelineEvent]) -> Vec<EffectInterval> {
                         ticks
                     });
                     intervals.push(EffectInterval {
+                        id: effect_id(event, kind),
+                        owner_id: event.actor.clone(),
                         kind: kind.to_owned(),
                         position,
                         start_tick: event.tick,
@@ -415,6 +187,8 @@ fn effect_intervals(events: &[TimelineEvent]) -> Vec<EffectInterval> {
             EffectSignal::Exact => {
                 if let Some(position) = valid_position(event) {
                     intervals.push(EffectInterval {
+                        id: effect_id(event, &canonical_weapon_kind(event)),
+                        owner_id: event.actor.clone(),
                         kind: canonical_weapon_kind(event),
                         position,
                         start_tick: event.tick,
@@ -440,6 +214,8 @@ fn drain_pending_effects(
         for start in starts {
             if let Some(position) = valid_position(start) {
                 intervals.push(EffectInterval {
+                    id: effect_id(start, &kind),
+                    owner_id: start.actor.clone(),
                     kind: format!("{kind}_event"),
                     position,
                     start_tick: start.tick,
@@ -458,6 +234,33 @@ fn effect_radius(event: &TimelineEvent) -> Option<f64> {
         &["radius", "effect_radius", "smoke_radius", "inferno_radius"],
     )
     .filter(|radius| (0.0..=4096.0).contains(radius))
+}
+
+pub(crate) fn round_boundary(tick: u64, tick_rate: f64) -> DemoResult<TimelineEvent> {
+    Ok(TimelineEvent {
+        id: format!("round_start-{tick}-producer"),
+        tick,
+        seconds: f64::from(
+            u32::try_from(tick)
+                .map_err(|_| DemoError::MetadataUnavailable("round boundary tick"))?,
+        ) / tick_rate,
+        kind: EventKind::RoundStart,
+        actor: None,
+        target: None,
+        weapon: None,
+        headshot: false,
+        penetrated: false,
+        position: None,
+        detail: serde_json::json!({}),
+    })
+}
+
+fn effect_id(event: &TimelineEvent, kind: &str) -> String {
+    format!(
+        "effect:{kind}:{}:{}",
+        lifecycle_key(event).unwrap_or_else(|| event.id.clone()),
+        event.tick
+    )
 }
 
 fn effect_signal(event: &TimelineEvent) -> EffectSignal {
@@ -567,7 +370,7 @@ fn evidence_tick_rate(events: &[TimelineEvent]) -> Option<f64> {
 
 fn apply_bomb_state(frames: &mut [ReplayFrame], events: &[TimelineEvent]) {
     let mut ordered = events.iter().collect::<Vec<_>>();
-    ordered.sort_by_key(|event| event.tick);
+    ordered.sort_by_key(|event| (event.tick, event.kind != EventKind::RoundStart));
     let mut next = 0;
     let mut bomb: Option<ReplayBomb> = None;
     for frame in frames {
@@ -603,75 +406,6 @@ fn apply_bomb_state(frames: &mut [ReplayFrame], events: &[TimelineEvent]) {
         }
         frame.bomb.clone_from(&bomb);
     }
-}
-
-fn replay_player_from_event(event: &TimelineEvent, position: [f64; 3]) -> Option<ReplayPlayer> {
-    let (id, health, alive, name_keys, team_keys, yaw_keys, armor_keys, position, weapon) =
-        match event.kind {
-            EventKind::Kill => (
-                event.target.as_ref()?,
-                0,
-                false,
-                &["target_name", "name"][..],
-                &["target_team", "userteam", "victimteam", "teamnum", "team"][..],
-                &["target_yaw", "yaw"][..],
-                &["target_armor", "armor"][..],
-                combat_target_position(event, position)?,
-                String::new(),
-            ),
-            EventKind::Damage => {
-                let health = detail_u32_option(event, &["health", "health_remaining"]);
-                (
-                    event.target.as_ref()?,
-                    health.unwrap_or(0),
-                    health.is_none_or(|value| value > 0),
-                    &["target_name", "name"][..],
-                    &["target_team", "userteam", "victimteam", "teamnum", "team"][..],
-                    &["target_yaw", "yaw"][..],
-                    &["target_armor", "armor"][..],
-                    combat_target_position(event, position)?,
-                    String::new(),
-                )
-            }
-            EventKind::BombPlant | EventKind::BombDefuse => (
-                event.actor.as_ref()?,
-                detail_u32(event, &["health", "actor_health", "attacker_health"]),
-                true,
-                &["actor_name", "name"][..],
-                &["actor_team", "attackerteam", "teamnum", "team"][..],
-                &["actor_yaw", "yaw"][..],
-                &["actor_armor", "armor"][..],
-                position,
-                event.weapon.clone().unwrap_or_default(),
-            ),
-            EventKind::Purchase => (
-                event.actor.as_ref()?,
-                detail_u32(event, &["health", "actor_health", "attacker_health"]),
-                true,
-                &["actor_name", "name"][..],
-                &["actor_team", "attackerteam", "teamnum", "team"][..],
-                &["actor_yaw", "yaw"][..],
-                &["actor_armor", "armor"][..],
-                position,
-                String::new(),
-            ),
-            EventKind::RoundStart
-            | EventKind::RoundEnd
-            | EventKind::BombExplode
-            | EventKind::Grenade => return None,
-        };
-    Some(ReplayPlayer {
-        id: id.clone(),
-        name: detail_string(event, name_keys).unwrap_or_else(|| id.clone()),
-        team: detail_team(event, team_keys).unwrap_or_default(),
-        position,
-        yaw: detail_f64(event, yaw_keys).unwrap_or(0.0),
-        health,
-        armor: detail_u32(event, armor_keys),
-        alive,
-        weapon,
-        input: None,
-    })
 }
 
 fn detail_position(event: &TimelineEvent, role: &str) -> Option<[f64; 3]> {
@@ -981,30 +715,11 @@ fn floor_index(z: f64) -> i32 {
         .clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
 }
 
-fn detail_u32(event: &TimelineEvent, keys: &[&str]) -> u32 {
-    detail_u32_option(event, keys).unwrap_or(0)
-}
-
-fn detail_u32_option(event: &TimelineEvent, keys: &[&str]) -> Option<u32> {
-    keys.iter()
-        .find_map(|key| event.detail.get(*key))
-        .and_then(serde_json::Value::as_u64)
-        .and_then(|value| u32::try_from(value).ok())
-}
-
 fn detail_f64(event: &TimelineEvent, keys: &[&str]) -> Option<f64> {
     keys.iter()
         .find_map(|key| event.detail.get(*key))
         .and_then(serde_json::Value::as_f64)
         .filter(|value| value.is_finite())
-}
-
-fn detail_string(event: &TimelineEvent, keys: &[&str]) -> Option<String> {
-    keys.iter()
-        .find_map(|key| event.detail.get(*key))
-        .and_then(serde_json::Value::as_str)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
 }
 
 fn detail_team(event: &TimelineEvent, keys: &[&str]) -> Option<String> {
@@ -1033,6 +748,24 @@ mod tests {
 
     use super::*;
     use crate::entity_replay::attach_entity_replay;
+
+    fn utility_frames(events: &[TimelineEvent]) -> DemoResult<Vec<ReplayFrame>> {
+        let ticks = events
+            .iter()
+            .map(|event| event.tick)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut frames = ticks
+            .into_iter()
+            .map(|tick| ReplayFrame {
+                tick,
+                players: Vec::new(),
+                projectiles: Vec::new(),
+                bomb: None,
+            })
+            .collect::<Vec<_>>();
+        apply_replay_state(&mut frames, events)?;
+        Ok(frames)
+    }
 
     fn event(kind: EventKind, tick: u64, position: Option<[f64; 3]>) -> TimelineEvent {
         TimelineEvent {
@@ -1299,61 +1032,7 @@ mod tests {
     }
 
     #[test]
-    fn sparse_replay_groups_positions_by_tick_and_carries_state() {
-        let frames = replay_frames_from_events(&[
-            event(EventKind::Damage, 10, Some([1.0, 2.0, 3.0])),
-            event(EventKind::Grenade, 20, Some([4.0, 5.0, 6.0])),
-        ])
-        .unwrap();
-        assert_eq!(frames.len(), 2);
-        assert_eq!(frames[0].players[0].id, "victim");
-        assert_eq!(frames[0].players[0].health, 63);
-        assert_eq!(frames[1].players.len(), 1);
-        assert_eq!(frames[1].projectiles.len(), 1);
-    }
-
-    #[test]
-    fn sparse_combat_replay_uses_the_target_position_without_attacker_weapon() {
-        let mut damage = event(EventKind::Damage, 10, Some([100.0, 200.0, 300.0]));
-        damage.detail = json!({
-            "user_X": 1.0,
-            "user_Y": 2.0,
-            "user_Z": 3.0,
-            "attacker_X": 100.0,
-            "attacker_Y": 200.0,
-            "attacker_Z": 300.0,
-            "health": 63,
-            "armor": 20
-        });
-
-        let frames = replay_frames_from_events(&[damage]).expect("target evidence frame");
-        let victim = frames[0].players.first().expect("victim marker");
-
-        assert_eq!(victim.id, "victim");
-        assert!(
-            victim
-                .position
-                .into_iter()
-                .zip([1.0, 2.0, 3.0])
-                .all(|(actual, expected)| (actual - expected).abs() < f64::EPSILON)
-        );
-        assert!(victim.weapon.is_empty());
-    }
-
-    #[test]
-    fn purchase_item_evidence_does_not_claim_the_players_equipped_weapon() {
-        let mut purchase = event(EventKind::Purchase, 10, Some([1.0, 2.0, 3.0]));
-        purchase.target = None;
-        purchase.weapon = Some("weapon_ak47".to_owned());
-
-        let frames = replay_frames_from_events(&[purchase]).expect("purchase position evidence");
-
-        assert_eq!(frames[0].players[0].id, "attacker");
-        assert!(frames[0].players[0].weapon.is_empty());
-    }
-
-    #[test]
-    fn embedded_entity_frames_drive_replay_and_movement_heatmap() {
+    fn embedded_entity_frames_drive_movement_heatmap() {
         let mut round_start = event(EventKind::RoundStart, 10, None);
         round_start.actor = None;
         round_start.target = None;
@@ -1372,6 +1051,7 @@ mod tests {
             &[ReplayFrame {
                 tick: 12,
                 players: vec![ReplayPlayer {
+                    pitch: 0.0,
                     id: "76561198000000001".to_owned(),
                     name: "Player".to_owned(),
                     team: "T".to_owned(),
@@ -1389,7 +1069,7 @@ mod tests {
             None,
         );
 
-        let frames = replay_frames_from_events(&rounds[0].events).unwrap();
+        let frames = embedded_entity_replay(&rounds[0].events).unwrap();
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].players[0].id, "76561198000000001");
         assert_eq!(frames[0].players[0].health, 100);
@@ -1407,8 +1087,7 @@ mod tests {
     #[test]
     fn grenade_coordinates_do_not_relocate_the_thrower() {
         let frames =
-            replay_frames_from_events(&[event(EventKind::Grenade, 20, Some([4.0, 5.0, 6.0]))])
-                .unwrap();
+            utility_frames(&[event(EventKind::Grenade, 20, Some([4.0, 5.0, 6.0]))]).unwrap();
 
         assert!(frames[0].players.is_empty());
         assert!(
@@ -1423,7 +1102,7 @@ mod tests {
     #[test]
     fn explicit_effect_lifecycles_span_only_evidenced_frames() {
         let position = [40.0, 50.0, 6.0];
-        let frames = replay_frames_from_events(&[
+        let frames = utility_frames(&[
             named_grenade("smokegrenade_detonate", 10, position),
             event(EventKind::Damage, 15, Some([1.0, 2.0, 3.0])),
             named_grenade("smokegrenade_expired", 20, position),
@@ -1440,8 +1119,7 @@ mod tests {
     #[test]
     fn unmatched_persistent_effect_is_event_only() {
         let frames =
-            replay_frames_from_events(&[named_grenade("inferno_startburn", 10, [4.0, 5.0, 6.0])])
-                .unwrap();
+            utility_frames(&[named_grenade("inferno_startburn", 10, [4.0, 5.0, 6.0])]).unwrap();
 
         assert_eq!(frames[0].projectiles[0].kind, "inferno_event");
         assert_eq!(frames[0].tick, 10);
@@ -1458,13 +1136,13 @@ mod tests {
         let mut expired = named_grenade("smokegrenade_expired", 30, position);
         expired.detail = json!({"entityid": 319});
 
-        let frames = replay_frames_from_events(&[
+        let frames = utility_frames(&[
             start,
             next_round,
             expired,
             event(EventKind::Damage, 40, Some([1.0, 2.0, 3.0])),
         ])
-        .expect("bounded sparse replay");
+        .expect("bounded utility replay");
 
         assert_eq!(frames[0].tick, 10);
         assert_eq!(frames[0].projectiles[0].kind, "smoke_event");
@@ -1478,7 +1156,7 @@ mod tests {
 
     #[test]
     fn instantaneous_effect_uses_evidenced_tick_rate_window() {
-        let frames = replay_frames_from_events(&[
+        let frames = utility_frames(&[
             named_grenade("flashbang_detonate", 64, [4.0, 5.0, 6.0]),
             event(EventKind::Damage, 80, Some([1.0, 2.0, 3.0])),
             event(EventKind::Damage, 96, Some([2.0, 3.0, 4.0])),
@@ -1496,7 +1174,7 @@ mod tests {
         let mut round_start = event(EventKind::RoundStart, 30, None);
         round_start.actor = None;
         round_start.target = None;
-        let frames = replay_frames_from_events(&[
+        let frames = utility_frames(&[
             event(EventKind::BombPlant, 10, Some(planted)),
             event(EventKind::BombDefuse, 20, None),
             round_start,
@@ -1527,259 +1205,12 @@ mod tests {
         exploded.target = None;
         exploded.detail = json!({"user_X": 40.0, "user_Y": 50.0, "user_Z": 6.0});
 
-        let frames = replay_frames_from_events(&[
+        let frames = utility_frames(&[
             exploded,
             named_grenade("hegrenade_detonate", 20, [2.0, 3.0, 4.0]),
         ])
         .expect("effect evidence remains replayable");
 
         assert!(frames.iter().all(|frame| frame.bomb.is_none()));
-    }
-
-    #[test]
-    fn sparse_replay_is_unavailable_without_positions() {
-        let error = replay_frames_from_events(&[event(EventKind::Damage, 10, None)]).unwrap_err();
-        assert!(matches!(
-            error,
-            DemoError::Unavailable {
-                capability: "2D replay",
-                ref reason,
-            } if reason == "the selected events contain no world coordinates"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_has_an_independent_frame_budget() {
-        let events = (1..=20_001)
-            .map(|tick| event(EventKind::Damage, tick, Some([1.0, 2.0, 3.0])))
-            .collect::<Vec<_>>();
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 20_000,
-                actual: 20_001,
-            } if resource == "sparse_replay_frames"
-        ));
-    }
-
-    #[test]
-    fn hybrid_replay_propagates_sparse_resource_failures() {
-        let player = ReplayPlayer {
-            id: "76561198000000001".to_owned(),
-            name: "Player".to_owned(),
-            team: "T".to_owned(),
-            position: [128.0, 256.0, 64.0],
-            yaw: 45.0,
-            health: 100,
-            armor: 50,
-            alive: true,
-            weapon: "CWeaponAK47".to_owned(),
-            input: None,
-        };
-        let mut round_start = event(EventKind::RoundStart, 1, None);
-        round_start.actor = None;
-        round_start.target = None;
-        let mut rounds = vec![RoundSummary {
-            number: 1,
-            start_tick: 1,
-            end_tick: 20_001,
-            winner: "T".to_owned(),
-            reason: String::new(),
-            team_a_score: 1,
-            team_b_score: 0,
-            events: vec![round_start],
-        }];
-        attach_entity_replay(
-            &mut rounds,
-            &[ReplayFrame {
-                tick: 1,
-                players: vec![player],
-                projectiles: Vec::new(),
-                bomb: None,
-            }],
-            None,
-        );
-        let mut events = rounds.pop().expect("round").events;
-        events
-            .extend((1..=20_001).map(|tick| event(EventKind::Damage, tick, Some([1.0, 2.0, 3.0]))));
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 20_000,
-                actual: 20_001,
-            } if resource == "sparse_replay_frames"
-        ));
-    }
-
-    #[test]
-    fn merged_entity_and_event_replay_has_a_total_frame_budget() {
-        let player = ReplayPlayer {
-            id: "76561198000000001".to_owned(),
-            name: "Player".to_owned(),
-            team: "T".to_owned(),
-            position: [128.0, 256.0, 64.0],
-            yaw: 45.0,
-            health: 100,
-            armor: 50,
-            alive: true,
-            weapon: "CWeaponAK47".to_owned(),
-            input: None,
-        };
-        let entity_frames = (1..=20_000)
-            .map(|tick| ReplayFrame {
-                tick,
-                players: vec![player.clone()],
-                projectiles: Vec::new(),
-                bomb: None,
-            })
-            .collect::<Vec<_>>();
-        let mut round_start = event(EventKind::RoundStart, 1, None);
-        round_start.actor = None;
-        round_start.target = None;
-        let mut rounds = vec![RoundSummary {
-            number: 1,
-            start_tick: 1,
-            end_tick: 20_001,
-            winner: "T".to_owned(),
-            reason: String::new(),
-            team_a_score: 1,
-            team_b_score: 0,
-            events: vec![round_start],
-        }];
-        attach_entity_replay(&mut rounds, &entity_frames, None);
-        let mut events = rounds.pop().expect("round").events;
-        events.push(event(EventKind::Damage, 20_001, Some([1.0, 2.0, 3.0])));
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 20_000,
-                actual: 20_001,
-            } if resource == "replay_frames"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_has_a_players_per_frame_budget() {
-        let events = (0..65)
-            .map(|index| {
-                let mut event = event(EventKind::Damage, 64, Some([1.0, 2.0, 3.0]));
-                event.target = Some(format!("player-{index}"));
-                event
-            })
-            .collect::<Vec<_>>();
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 64,
-                actual: 65,
-            } if resource == "replay_players_per_frame"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_bounds_sixty_four_player_records_across_twenty_thousand_frames() {
-        let mut events = (0..64)
-            .map(|index| {
-                let mut event = event(EventKind::Damage, 1, Some([1.0, 2.0, 3.0]));
-                event.id = format!("initial-player-{index}");
-                event.target = Some(format!("player-{index}"));
-                event
-            })
-            .collect::<Vec<_>>();
-        events.extend((2..=20_000).map(|tick| {
-            let mut event = event(EventKind::Damage, tick, Some([1.0, 2.0, 3.0]));
-            event.target = Some("player-0".to_owned());
-            event
-        }));
-
-        let result = replay_artifact_from_events(&events, 64.0);
-
-        assert!(matches!(
-            result,
-            Err(DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 200_000,
-                actual: 200_064,
-            }) if resource == "replay_player_records"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_has_an_effects_per_frame_budget() {
-        let events = (0..513)
-            .map(|index| named_grenade("hegrenade_detonate", 64, [f64::from(index), 2.0, 3.0]))
-            .collect::<Vec<_>>();
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 512,
-                actual: 513,
-            } if resource == "replay_effects_per_frame"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_bounds_five_hundred_twelve_effect_records_across_twenty_thousand_frames() {
-        let mut events = Vec::new();
-        for index in 0..512 {
-            let position = [f64::from(index), 2.0, 3.0];
-            let mut started = named_grenade("smokegrenade_detonate", 1, position);
-            started.detail = json!({"entityid": index});
-            events.push(started);
-            let mut expired = named_grenade("smokegrenade_expired", 20_000, position);
-            expired.detail = json!({"entityid": index});
-            events.push(expired);
-        }
-        events
-            .extend((1..20_000).map(|tick| event(EventKind::Damage, tick, Some([1.0, 2.0, 3.0]))));
-
-        let result = replay_artifact_from_events(&events, 64.0);
-
-        assert!(matches!(
-            result,
-            Err(DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 100_000,
-                actual: 100_352,
-            }) if resource == "replay_effect_records"
-        ));
-    }
-
-    #[test]
-    fn sparse_replay_has_an_independent_source_event_budget() {
-        let events = (0..100_001)
-            .map(|tick| event(EventKind::Damage, tick, None))
-            .collect::<Vec<_>>();
-
-        let error = replay_artifact_from_events(&events, 64.0).unwrap_err();
-
-        assert!(matches!(
-            error,
-            DemoError::ParserResourceLimit {
-                ref resource,
-                limit: 100_000,
-                actual: 100_001,
-            } if resource == "replay_source_events"
-        ));
     }
 }

@@ -141,7 +141,9 @@ describe('the playback loop', () => {
     expect(tick()).toBe(149_000);
     frames?.flush(100);
     // 0.1 s at 1× on a 64-tick stream.
-    expect(tick()).toBe(149_006);
+    expect(tick()).toBeCloseTo(149_006.4);
+    frames?.flush(100);
+    expect(tick()).toBeCloseTo(149_012.8);
   });
 
   it('stops the loop when unmounted, and the queue really is empty', () => {

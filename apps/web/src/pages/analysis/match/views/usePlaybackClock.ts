@@ -41,11 +41,11 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * ~15 steps a second. Chosen against the two rates that bound it: below ~10 Hz
- * motion reads as a slideshow, and above ~20 Hz the map redraw starts to cost
- * more than the frame budget on the 1100×700 window §9 risk 6 is measured at.
+ * About 30 presentation updates per second. Dense replay samples are
+ * interpolated at fractional ticks; elapsed time stays unrounded so repeated
+ * short updates do not accelerate or stall playback.
  */
-export const STEP_MS = 66;
+export const STEP_MS = 32;
 
 export interface PlaybackClockOptions {
   readonly playing: boolean;

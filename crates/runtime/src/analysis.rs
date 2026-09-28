@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     future::Future,
     io::Read as _,
     path::{Path, PathBuf},
@@ -21,19 +20,19 @@ use vibe_cs_application::{
 };
 use vibe_cs_demo::{
     DemoEngine, DemoError, ParseCancellation, ValidationLimits,
-    create_terminal_tail_repair_copy_cancellable, extract_round_replay, heatmap_from_rounds,
-    replay_artifact_from_events, validate_demo,
+    create_terminal_tail_repair_copy_cancellable, extract_replay, extract_round_replay,
+    heatmap_from_rounds, validate_demo,
 };
 use vibe_cs_domain::{
-    AnalysisInputFingerprint, DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayFrame,
-    RoundReplayArtifact, RoundReplayRequest,
+    AnalysisInputFingerprint, DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayArtifact,
+    ReplayRequest, RoundReplayArtifact, RoundReplayRequest,
 };
 
 use crate::replay_cache::ReplayCache;
 use crate::round_replay_cache::RoundReplayCache;
 
 const ANALYSIS_TIMEOUT: Duration = Duration::from_secs(12 * 60);
-const MAXIMUM_WORKER_RESPONSE_BYTES: u64 = 256 * 1024 * 1024;
+const MAXIMUM_WORKER_RESPONSE_BYTES: u64 = 512 * 1024 * 1024;
 const MAXIMUM_DEMO_WORKER_BYTES: u64 = 128 * 1024 * 1024;
 const WORKER_TASK_CLEANUP_ATTEMPTS: usize = 6;
 const WORKER_TASK_CLEANUP_RETRY_DELAY: Duration = Duration::from_millis(25);
@@ -425,12 +424,12 @@ impl RuntimeAnalysisPort {
             .ok_or_else(|| DomainError::NotFound("demo analysis".to_owned()))
     }
 
-    async fn round_replay_with_worker(
+    async fn replay_with_worker<T: serde::de::DeserializeOwned>(
         &self,
         worker: &DemoWorkerSidecar,
-        demo_path: &str,
-        request: &RoundReplayRequest,
-    ) -> Result<RoundReplayArtifact, DomainError> {
+        request: WorkerRequest<'_>,
+        label: &str,
+    ) -> Result<T, DomainError> {
         let _verified_worker = verify_demo_worker(worker).await?;
         tokio::fs::create_dir_all(&self.task_dir)
             .await
@@ -438,7 +437,7 @@ impl RuntimeAnalysisPort {
         let task_id = Uuid::new_v4();
         let request_path = self.task_dir.join(format!("{task_id}.request.json"));
         let response_path = self.task_dir.join(format!("{task_id}.response.json"));
-        let request_bytes = serde_json::to_vec(&WorkerRequest::ReplayRound { demo_path, request })
+        let request_bytes = serde_json::to_vec(&request)
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         write_new(&request_path, &request_bytes).await?;
         let child = tokio::process::Command::new(&worker.path)
@@ -466,7 +465,7 @@ impl RuntimeAnalysisPort {
         };
         let result = match tokio::time::timeout(self.timeout, child.wait()).await {
             Ok(Ok(status)) if status.success() || response_path.is_file() => {
-                read_worker_result::<RoundReplayArtifact>(&response_path, "round replay").await
+                read_worker_result::<T>(&response_path, label).await
             }
             Ok(Ok(status)) => Err(DomainError::Internal(format!(
                 "demo worker exited unsuccessfully with {status}"
@@ -687,22 +686,41 @@ impl AnalysisPort for RuntimeAnalysisPort {
 
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError> {
         let analysis = self.stored_analysis(demo.id).await?;
-        let events = analysis
-            .rounds
-            .iter()
-            .flat_map(|round| round.events.iter().cloned())
-            .collect::<Vec<_>>();
+        let request = ReplayRequest::from_analysis(
+            AnalysisInputFingerprint {
+                sha256: demo.content_sha256.clone().ok_or_else(|| {
+                    DomainError::DependencyUnavailable(
+                        "replay requires a verified source fingerprint; analyze this Demo again"
+                            .to_owned(),
+                    )
+                })?,
+                size: demo.file_size,
+            },
+            &analysis,
+        )?;
         self.replay_cache
-            .resolve(&demo, &analysis, || {
-                let mut artifact = replay_artifact_from_events(&events, analysis.tick_rate)
-                    .map_err(map_demo_error)?;
-                apply_stable_replay_player_identity(&mut artifact.frames, &analysis)?;
-                artifact.fidelity.frame_count =
-                    u64::try_from(artifact.frames.len()).unwrap_or(u64::MAX);
-                artifact.fidelity.start_tick =
-                    artifact.frames.first().map_or(0, |frame| frame.tick);
-                artifact.fidelity.end_tick = artifact.frames.last().map_or(0, |frame| frame.tick);
-                Ok(artifact)
+            .resolve(&demo, &analysis, || async {
+                if let Some(worker) = &self.worker {
+                    return self
+                        .replay_with_worker::<ReplayArtifact>(
+                            worker,
+                            WorkerRequest::Replay {
+                                demo_path: &demo.path,
+                                request: &request,
+                            },
+                            "replay",
+                        )
+                        .await;
+                }
+                let path = demo.path.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_replay(path, &request, &ParseCancellation::default())
+                        .map_err(map_demo_error)
+                })
+                .await
+                .map_err(|error| {
+                    DomainError::Internal(format!("replay extraction task failed: {error}"))
+                })?
             })
             .await
     }
@@ -728,7 +746,7 @@ impl AnalysisPort for RuntimeAnalysisPort {
             .resolve(&request, || async {
                 if let Some(worker) = &self.worker {
                     return self
-                        .round_replay_with_worker(worker, &source.demo.path, &request)
+                        .replay_with_worker(worker, WorkerRequest::ReplayRound { demo_path: &source.demo.path, request: &request }, "round replay")
                         .await;
                 }
                 tracing::warn!(
@@ -773,41 +791,13 @@ fn storage_error(error: vibe_cs_storage::StorageError) -> DomainError {
     }
 }
 
-fn apply_stable_replay_player_identity(
-    frames: &mut Vec<ReplayFrame>,
-    analysis: &MatchAnalysis,
-) -> Result<(), DomainError> {
-    let players = analysis
-        .players
-        .iter()
-        .filter(|player| matches!(player.team.as_str(), "A" | "B"))
-        .map(|player| (player.steam_id.as_str(), player))
-        .collect::<HashMap<_, _>>();
-    for frame in frames.iter_mut() {
-        frame.players.retain_mut(|player| {
-            let Some(identity) = players.get(player.id.as_str()) else {
-                return false;
-            };
-            player.name.clone_from(&identity.name);
-            player.team.clone_from(&identity.team);
-            true
-        });
-    }
-    frames.retain(|frame| {
-        !frame.players.is_empty() || !frame.projectiles.is_empty() || frame.bomb.is_some()
-    });
-    if frames.is_empty() {
-        return Err(DomainError::DependencyUnavailable(
-            "2D replay: positioned events did not resolve to analyzed players or utility"
-                .to_owned(),
-        ));
-    }
-    Ok(())
-}
-
 #[derive(Debug, Serialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 enum WorkerRequest<'a> {
+    Replay {
+        demo_path: &'a str,
+        request: &'a ReplayRequest,
+    },
     Analyze {
         demo_path: &'a str,
         demo_id: Uuid,
@@ -1815,7 +1805,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sparse_replay_uses_stable_analysis_player_identity_and_cache() {
+    async fn replay_rejects_analysis_without_verified_tick_metadata() {
         let temporary = TempDir::new().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
@@ -1922,49 +1912,60 @@ mod tests {
             temporary.path().join("replay-cache"),
         );
 
-        let generated = port.replay(demo.clone()).await.expect("generated replay");
-        let player = generated.frames[0].players.first().expect("replay player");
-        assert_eq!(player.id, "76561197960690195");
-        assert_eq!(player.name, "FalleN");
-        assert_eq!(player.team, "A");
-        assert_eq!(generated.cache.state, ReplayCacheState::Generated);
-        assert_eq!(generated.fidelity.mode, ReplayFidelityMode::EventSparse);
-        assert!((generated.fidelity.tick_rate - 64.0).abs() < f64::EPSILON);
-        assert_eq!(generated.fidelity.frame_count, 1);
-        assert_eq!(generated.fidelity.positioned_event_count, 1);
-        assert_eq!(generated.fidelity.start_tick, 128);
-        assert_eq!(generated.fidelity.end_tick, 128);
-
-        let cached = port.replay(demo).await.expect("cached replay");
-        assert_eq!(cached.cache.state, ReplayCacheState::Hit);
-        assert_eq!(cached.frames, generated.frames);
-        assert_eq!(cached.fidelity, generated.fidelity);
+        let error = port
+            .replay(demo)
+            .await
+            .expect_err("statistics events must not synthesize player snapshots");
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
     }
 
     #[tokio::test]
-    #[ignore = "requires VIBE_CS_REAL_APP_DATA_DIR with the imported Major M1 analysis"]
-    async fn real_major_m1_round_20_sparse_replay_misses_then_hits_without_reparsing() {
-        let data_dir = PathBuf::from(
-            std::env::var("VIBE_CS_REAL_APP_DATA_DIR")
-                .expect("VIBE_CS_REAL_APP_DATA_DIR points at the desktop app-data directory"),
-        );
-        let demo_id = std::env::var("VIBE_CS_REAL_DEMO_ID")
-            .unwrap_or_else(|_| "bc6043de-b77e-4f79-afcb-3193a40a3bf2".to_owned())
-            .parse::<Uuid>()
-            .expect("VIBE_CS_REAL_DEMO_ID is a UUID");
-        let storage = vibe_cs_storage::Storage::open(data_dir.join("vibe-cs.db"))
-            .await
-            .expect("open real desktop storage");
-        let demo = storage
-            .get_demo(demo_id)
-            .await
-            .expect("read real demo")
-            .expect("imported real M1 demo");
-        let analysis = storage
-            .get_analysis(demo_id)
-            .await
-            .expect("read real analysis")
-            .expect("persisted real M1 analysis");
+    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR, VIBE_CS_REAL_ANALYSIS_JSON and VIBE_CS_REAL_WORKER"]
+    async fn real_major_m1_whole_replay_is_dense_and_reuses_its_cache() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let analysis: MatchAnalysis = serde_json::from_slice(
+            &std::fs::read(std::env::var("VIBE_CS_REAL_ANALYSIS_JSON").unwrap()).unwrap(),
+        )
+        .unwrap();
+        let path = PathBuf::from(std::env::var("VIBE_CS_REAL_DEMO_DIR").unwrap())
+            .join("furia-vs-falcons-m1-mirage.dem");
+        let now = Utc::now();
+        let demo = DemoRecord {
+            id: analysis.demo_id,
+            path: path.to_string_lossy().into_owned(),
+            file_name: "furia-vs-falcons-m1-mirage.dem".to_owned(),
+            display_name: "Real replay acceptance".to_owned(),
+            source: "test".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: Some(analysis.map_name.clone()),
+            match_date: None,
+            duration_seconds: Some(analysis.duration_seconds),
+            total_rounds: Some(21),
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: analysis
+                .players
+                .iter()
+                .map(|player| player.name.clone())
+                .collect(),
+            remark: String::new(),
+            content_sha256: Some(
+                "04f26f0f092f24fd13e7939dc56e72a3783a61872500b97b09810ed5a2363697".to_owned(),
+            ),
+            file_size: 438_520_684,
+            created_at: now,
+            updated_at: now,
+        };
+        storage.put_demo(demo.clone()).await.unwrap();
+        persist_completed_analysis(&storage, analysis.clone()).await;
+        let worker_path = PathBuf::from(std::env::var("VIBE_CS_REAL_WORKER").unwrap());
+        let worker = DemoWorkerSidecar::new(
+            worker_path.clone(),
+            hex::encode(Sha256::digest(std::fs::read(worker_path).unwrap())),
+        )
+        .unwrap();
         let round = analysis
             .rounds
             .iter()
@@ -1977,10 +1978,11 @@ mod tests {
             .count();
         let temporary = TempDir::new().expect("temporary replay cache");
         let task_dir = temporary.path().join("worker-tasks");
-        let port = RuntimeAnalysisPort::new(
+        let port = RuntimeAnalysisPort::new_with_worker(
             storage,
             task_dir.clone(),
             temporary.path().join("replay-cache"),
+            Some(worker),
         );
 
         let started = Instant::now();
@@ -2016,16 +2018,21 @@ mod tests {
         );
         assert_eq!(generated.cache.state, ReplayCacheState::Generated);
         assert_eq!(cached.cache.state, ReplayCacheState::Hit);
-        assert_eq!(generated.fidelity.mode, ReplayFidelityMode::EventSparse);
+        assert_eq!(generated.fidelity.mode, ReplayFidelityMode::Hybrid);
         assert!((generated.fidelity.tick_rate - analysis.tick_rate).abs() < f64::EPSILON);
         assert_eq!(cached.frames, generated.frames);
+        assert_eq!(std::fs::read_dir(&task_dir).unwrap().count(), 0);
         assert!(!round_frames.is_empty());
         assert!(players.contains("FalleN"));
         assert!(players.contains("m0NESY"));
         assert!(positioned_events > 0);
+        assert!(round_frames.len() > positioned_events);
         assert!(
-            !task_dir.exists(),
-            "replay must use stored sparse evidence without launching the dense parser"
+            generated
+                .frames
+                .iter()
+                .flat_map(|frame| &frame.players)
+                .any(|player| player.pitch.abs() > 0.01)
         );
     }
 

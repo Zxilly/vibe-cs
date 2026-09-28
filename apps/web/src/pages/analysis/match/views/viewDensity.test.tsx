@@ -77,6 +77,7 @@ function matchFrames(): readonly ReplayFrameRecord[] {
         number,
       ],
       yaw: 0,
+      pitch: 0,
       health: 100,
       armor: 100,
       alive: true,
@@ -120,7 +121,9 @@ describe('density · 回放 with a whole match in the stream', () => {
       <ReplayCanvas
         mapName="de_mirage"
         label="density"
-        layers={{ players: true, paths: true, kills: true, heat: true }}
+        layers={{ players: true, paths: true, kills: true, heat: true, utilities: true }}
+        projectiles={[]}
+        projectileTrails={[]}
         markers={playerMarkers(frames[frames.length - 1] ?? null)}
         paths={tracks.paths}
         engagements={[]}

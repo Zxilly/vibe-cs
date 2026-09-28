@@ -1,3 +1,5 @@
+import { deflateSync } from 'node:zlib';
+import { crc32 } from './compressedBinary';
 /**
  * `interaction` project — the match workspace reads and writes.
  *
@@ -112,40 +114,17 @@ const ANNOTATION: EvidenceAnnotation = {
  */
 function emptyReplayBinary(): ArrayBuffer {
   const encoder = new TextEncoder();
-  const cache = encoder.encode(
-    JSON.stringify({
-      state: 'bypassed',
-      key: null,
-      bytes: 0,
-      generated_at: null,
-      repaired: false,
-      reason: null,
-    }),
-  );
-  const fidelity = encoder.encode(
-    JSON.stringify({
-      mode: 'event_sparse',
-      tick_rate: 64,
-      frame_count: 0,
-      positioned_event_count: 0,
-      start_tick: 0,
-      end_tick: 0,
-    }),
-  );
-
-  const buffer = new ArrayBuffer(4 + 4 + cache.length + 4 + fidelity.length + 4);
-  const bytes = new Uint8Array(buffer);
-  const view = new DataView(buffer);
-  bytes.set(encoder.encode('ARPL'), 0);
-  let at = 4;
-  view.setUint32(at, cache.length, true);
-  bytes.set(cache, at + 4);
-  at += 4 + cache.length;
-  view.setUint32(at, fidelity.length, true);
-  bytes.set(fidelity, at + 4);
-  at += 4 + fidelity.length;
-  view.setUint32(at, 0, true);
-  return buffer;
+  const cache = encoder.encode(JSON.stringify({ state: 'bypassed', key: null, bytes: 0, generated_at: null, repaired: false, reason: null }));
+  const fidelity = encoder.encode(JSON.stringify({ mode: 'entity_snapshots', tick_rate: 64, frame_count: 0, positioned_event_count: 0, start_tick: 0, end_tick: 0 }));
+  const payload = new Uint8Array(4 + cache.length + 4 + fidelity.length + 2 + 2 + 4);
+  const body = new DataView(payload.buffer);
+  body.setUint32(0, cache.length, true); payload.set(cache, 4);
+  const next = 4 + cache.length;
+  body.setUint32(next, fidelity.length, true); payload.set(fidelity, next + 4);
+  const compressed = deflateSync(payload);
+  const bytes = new Uint8Array(16 + compressed.length); bytes.set(encoder.encode('ARPL')); bytes.set(compressed, 16);
+  const header = new DataView(bytes.buffer); header.setUint16(4, 2, true); header.setUint16(6, 1, true); header.setUint32(8, payload.length, true); header.setUint32(12, crc32(payload), true);
+  return bytes.buffer;
 }
 
 describe('useMatchAnalysis — the document eight views share', () => {

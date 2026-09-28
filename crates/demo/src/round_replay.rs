@@ -3,18 +3,6 @@ use std::{
     path::Path,
 };
 
-use ahash::AHashMap;
-use demoparser::{
-    first_pass::{
-        parser_settings::{ParserInputs, rm_user_friendly_names},
-        prop_controller::TICK_ID,
-    },
-    parse_demo::{Parser as FastParser, ParserResourceOptions, ParsingMode},
-    second_pass::{
-        parser_settings::create_huffman_lookup_table,
-        variants::{PropColumn, VarVec},
-    },
-};
 use sha2::{Digest, Sha256};
 use source2_demo::prelude::Parser as MetadataParser;
 use vibe_cs_domain::{
@@ -23,13 +11,11 @@ use vibe_cs_domain::{
 };
 
 use crate::{
-    DemoError, DemoResult, ParseCancellation, ValidationLimits,
-    demoparser_backend::{parser_decode_error, parser_resource_policy_error},
-    engine::verified_replay_metadata,
+    DemoError, DemoResult, ParseCancellation, ValidationLimits, engine::verified_replay_metadata,
     validate_demo,
 };
 
-pub const ROUND_REPLAY_SAMPLING_CONTRACT_VERSION: u32 = 2;
+pub const ROUND_REPLAY_SAMPLING_CONTRACT_VERSION: u32 = 3;
 pub const ROUND_REPLAY_SAMPLE_INTERVAL_TICKS: u32 = 16;
 pub const MAXIMUM_ROUND_REPLAY_FRAMES: usize = 2_048;
 
@@ -80,8 +66,46 @@ pub fn extract_round_replay(
         });
     }
 
-    let freeze_end_tick = parse_freeze_end_tick(&bytes, request, cancellation)?;
-    let frames = parse_selected_ticks(&bytes, request, &requested_ticks, cancellation)?;
+    let requested_tick_count = requested_ticks.len();
+    let requested_ticks = crate::replay_snapshots::select_snapshot_ticks(&bytes, &requested_ticks)?;
+    let mut utility =
+        crate::replay_projectiles::read_utility_events(&bytes, tick_rate, cancellation)?;
+    let freeze_ticks = utility
+        .freeze_ends
+        .into_iter()
+        .filter(|tick| (request.start_tick..=request.end_tick).contains(tick))
+        .collect::<BTreeSet<_>>();
+    if freeze_ticks.len() > 1 {
+        return Err(DemoError::Parse(
+            "selected-round replay contains ambiguous freeze-end events".to_owned(),
+        ));
+    }
+    let freeze_end_tick = freeze_ticks.into_iter().next();
+    utility.events.push(crate::replay::round_boundary(
+        request.start_tick,
+        tick_rate,
+    )?);
+    let mut frames = parse_selected_ticks(&bytes, request, &requested_ticks, cancellation)?;
+    let mut flights = crate::replay_projectiles::read_projectiles(
+        &bytes,
+        &requested_ticks,
+        &utility.events,
+        cancellation,
+    )?;
+    let mut utility_frames = requested_ticks
+        .iter()
+        .map(|tick| vibe_cs_domain::ReplayFrame {
+            tick: *tick,
+            players: Vec::new(),
+            projectiles: flights.remove(tick).unwrap_or_default(),
+            bomb: None,
+        })
+        .collect::<Vec<_>>();
+    crate::replay::apply_replay_state(&mut utility_frames, &utility.events)?;
+    for (frame, utility) in frames.iter_mut().zip(utility_frames) {
+        frame.projectiles = utility.projectiles;
+        frame.bomb = utility.bomb;
+    }
     let tick_count = u32::try_from(requested_ticks.len())
         .map_err(|_| DemoError::MetadataUnavailable("selected-round replay tick count overflow"))?;
     Ok(RoundReplayArtifact {
@@ -96,7 +120,8 @@ pub fn extract_round_replay(
             tick_rate: request.tick_rate,
             sampling_contract_version: ROUND_REPLAY_SAMPLING_CONTRACT_VERSION,
             sample_interval_ticks: ROUND_REPLAY_SAMPLE_INTERVAL_TICKS,
-            requested_tick_count: tick_count,
+            requested_tick_count: u32::try_from(requested_tick_count)
+                .map_err(|_| DemoError::MetadataUnavailable("round requested tick count"))?,
             accepted_tick_count: tick_count,
             event_tick_count: u32::try_from(
                 request
@@ -112,6 +137,7 @@ pub fn extract_round_replay(
             freeze_end_tick,
             players_per_frame: 10,
             fields: RoundReplayFields {
+                pitch: vibe_cs_domain::RoundReplayFieldAvailability::Required,
                 position: RoundReplayFieldAvailability::Required,
                 yaw: RoundReplayFieldAvailability::Required,
                 health: RoundReplayFieldAvailability::Required,
@@ -134,186 +160,21 @@ fn parse_selected_ticks(
     requested_ticks: &[u64],
     cancellation: &ParseCancellation,
 ) -> DemoResult<Vec<RoundReplayFrame>> {
-    let friendly_props = [
-        "X",
-        "Y",
-        "Z",
-        "yaw",
-        "health",
-        "armor",
-        "life_state",
-        "team_num",
-        "balance",
-        "current_equip_value",
-        "round_start_equip_value",
-        "has_helmet",
-        "active_weapon_name",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect::<Vec<_>>();
-    let real_props = rm_user_friendly_names(&friendly_props)
-        .map_err(|error| DemoError::Parse(format!("demoparser replay properties: {error}")))?;
-    let real_name_to_og_name = real_props
-        .iter()
-        .zip(&friendly_props)
-        .map(|(real, friendly)| (real.clone(), friendly.clone()))
-        .collect();
-    let wanted_ticks = requested_ticks
-        .iter()
-        .map(|tick| {
-            i32::try_from(*tick).map_err(|_| {
-                DemoError::Parse("selected-round replay tick exceeds parser range".to_owned())
-            })
-        })
-        .collect::<DemoResult<Vec<_>>>()?;
-    let huffman = create_huffman_lookup_table();
-    let inputs = ParserInputs {
-        real_name_to_og_name,
-        wanted_players: Vec::new(),
-        wanted_player_props: real_props,
-        wanted_other_props: Vec::new(),
-        wanted_prop_states: AHashMap::default(),
-        wanted_ticks,
-        wanted_events: Vec::new(),
-        parse_ents: true,
-        parse_projectiles: false,
-        parse_grenades: false,
-        only_header: true,
-        only_convars: false,
-        huffman_lookup_table: &huffman,
-        order_by_steamid: true,
-        list_props: false,
-        fallback_bytes: None,
-    };
-    let mut parser = FastParser::with_resource_options(
-        inputs,
-        ParsingMode::Normal,
-        ParserResourceOptions {
-            // demoparser still observes the Demo's event stream while resolving
-            // selected entity ticks even when no event payloads are requested.
-            max_game_events: 100_000,
-            max_collected_rows: MAXIMUM_ROUND_REPLAY_FRAMES * 64,
-            ..ParserResourceOptions::default()
-        },
-    )
-    .map_err(parser_resource_policy_error)?;
-    let output = parser.parse_demo(bytes).map_err(parser_decode_error)?;
-    cancellation.check()?;
-
-    let prop_ids = ReplayPropertyIds::from_columns(&output.prop_controller.prop_infos)?;
-    materialize_frames(&output.df_per_player, request, requested_ticks, prop_ids)
-}
-
-fn parse_freeze_end_tick(
-    bytes: &[u8],
-    request: &RoundReplayRequest,
-    cancellation: &ParseCancellation,
-) -> DemoResult<Option<u64>> {
-    cancellation.check()?;
-    let huffman = create_huffman_lookup_table();
-    let inputs = ParserInputs {
-        real_name_to_og_name: AHashMap::default(),
-        wanted_players: Vec::new(),
-        wanted_player_props: Vec::new(),
-        wanted_other_props: Vec::new(),
-        wanted_prop_states: AHashMap::default(),
-        wanted_ticks: Vec::new(),
-        wanted_events: vec!["round_freeze_end".to_owned()],
-        parse_ents: false,
-        parse_projectiles: false,
-        parse_grenades: false,
-        only_header: false,
-        only_convars: false,
-        huffman_lookup_table: &huffman,
-        order_by_steamid: false,
-        list_props: false,
-        fallback_bytes: None,
-    };
-    let mut parser = FastParser::with_resource_options(
-        inputs,
-        ParsingMode::Normal,
-        ParserResourceOptions {
-            max_game_events: 10_000,
-            max_collected_rows: 0,
-            ..ParserResourceOptions::default()
-        },
-    )
-    .map_err(parser_resource_policy_error)?;
-    let output = parser.parse_demo(bytes).map_err(parser_decode_error)?;
-    cancellation.check()?;
-    let ticks = output
-        .game_events
-        .iter()
-        .filter(|event| event.name == "round_freeze_end")
-        .filter_map(|event| u64::try_from(event.tick).ok())
-        .filter(|tick| (request.start_tick..=request.end_tick).contains(tick))
-        .collect::<BTreeSet<_>>();
-    if ticks.len() > 1 {
-        return Err(DemoError::Parse(
-            "selected-round replay contains ambiguous freeze-end events".to_owned(),
-        ));
-    }
-    Ok(ticks.into_iter().next())
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ReplayPropertyIds {
-    x: u32,
-    y: u32,
-    z: u32,
-    yaw: u32,
-    health: u32,
-    armor: u32,
-    life_state: u32,
-    team_num: u32,
-    money: u32,
-    current_equipment_value: u32,
-    round_start_equipment_value: u32,
-    has_helmet: u32,
-    active_weapon_name: u32,
-}
-
-impl ReplayPropertyIds {
-    fn from_columns(
-        infos: &[demoparser::first_pass::prop_controller::PropInfo],
-    ) -> DemoResult<Self> {
-        let find = |name: &str| {
-            infos
-                .iter()
-                .find(|info| info.prop_friendly_name == name)
-                .map(|info| info.id)
-                .ok_or_else(|| {
-                    DemoError::Parse(format!(
-                        "demoparser selected-round property {name} is absent"
-                    ))
-                })
-        };
-        Ok(Self {
-            x: find("X")?,
-            y: find("Y")?,
-            z: find("Z")?,
-            yaw: find("yaw")?,
-            health: find("health")?,
-            armor: find("armor")?,
-            life_state: find("life_state")?,
-            team_num: find("team_num")?,
-            money: find("balance")?,
-            current_equipment_value: find("current_equip_value")?,
-            round_start_equipment_value: find("round_start_equip_value")?,
-            has_helmet: find("has_helmet")?,
-            active_weapon_name: find("active_weapon_name")?,
-        })
-    }
+    let snapshots = crate::replay_snapshots::read_player_snapshots(
+        bytes,
+        requested_ticks,
+        &[],
+        cancellation,
+        MAXIMUM_ROUND_REPLAY_FRAMES * 64,
+    )?;
+    materialize_frames(snapshots, request, requested_ticks)
 }
 
 fn materialize_frames(
-    per_player: &AHashMap<u64, AHashMap<u32, PropColumn>>,
+    snapshots: Vec<crate::replay_snapshots::PlayerSnapshot>,
     request: &RoundReplayRequest,
     requested_ticks: &[u64],
-    ids: ReplayPropertyIds,
 ) -> DemoResult<Vec<RoundReplayFrame>> {
-    let requested = requested_ticks.iter().copied().collect::<HashSet<_>>();
     let roster = request
         .roster
         .iter()
@@ -329,188 +190,61 @@ fn materialize_frames(
         .copied()
         .map(|tick| (tick, Vec::with_capacity(10)))
         .collect::<HashMap<_, _>>();
-
-    for (steam_id, columns) in per_player {
-        let tick_values = tick_values(columns)?;
-        let roster_player = roster.get(steam_id).copied();
-        for (index, tick) in tick_values.iter().enumerate() {
-            let Some(tick) = tick.and_then(|tick| u64::try_from(tick).ok()) else {
-                continue;
-            };
-            if !requested.contains(&tick) {
-                continue;
-            }
-            let observed_side = match numeric_at(columns.get(&ids.team_num), index) {
-                Some(2) => Some("T"),
-                Some(3) => Some("CT"),
-                _ => None,
-            };
-            let Some(roster_player) = roster_player else {
-                if observed_side.is_some() && *steam_id != 0 {
-                    return Err(DemoError::Parse(
-                        "selected-round replay contains an extra competitive player".to_owned(),
-                    ));
-                }
-                continue;
-            };
-            if observed_side != Some(roster_player.side.as_str()) {
-                return Err(DemoError::Parse(format!(
-                    "selected-round replay side conflicts for {} at tick {tick}",
-                    roster_player.steam_id
-                )));
-            }
-            let x = finite_at(columns.get(&ids.x), index)?;
-            let y = finite_at(columns.get(&ids.y), index)?;
-            let z = finite_at(columns.get(&ids.z), index)?;
-            let yaw = finite_at(columns.get(&ids.yaw), index)?;
-            if ![x, y, z]
-                .into_iter()
-                .all(|value| (-1_000_000.0..=1_000_000.0).contains(&value))
-                || !(-360.0..=360.0).contains(&yaw)
-            {
-                return Err(DemoError::Parse(
-                    "selected-round replay contains out-of-range spatial state".to_owned(),
-                ));
-            }
-            let health = bounded_u32_at(columns.get(&ids.health), index, 200)?;
-            let armor = bounded_u32_at(columns.get(&ids.armor), index, 200)?;
-            let life_state = bounded_u32_at(columns.get(&ids.life_state), index, 255)?;
-            let money = bounded_u32_at(columns.get(&ids.money), index, 100_000)?;
-            let current_equipment_value =
-                bounded_u32_at(columns.get(&ids.current_equipment_value), index, 100_000)?;
-            let round_start_equipment_value = bounded_u32_at(
-                columns.get(&ids.round_start_equipment_value),
-                index,
-                100_000,
-            )?;
-            let has_helmet = bool_at(columns.get(&ids.has_helmet), index)?;
-            let active_weapon_name = string_at(columns.get(&ids.active_weapon_name), index)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(ToOwned::to_owned);
-            if active_weapon_name
-                .as_deref()
-                .is_some_and(|value| !is_bounded_text(value, 128))
-            {
-                return Err(DemoError::Parse(
-                    "selected-round replay weapon name is invalid".to_owned(),
-                ));
-            }
-            by_tick
-                .get_mut(&tick)
-                .expect("requested tick exists")
-                .push(RoundReplayPlayer {
-                    steam_id: roster_player.steam_id.clone(),
-                    name: roster_player.name.clone(),
-                    team: roster_player.team.clone(),
-                    side: roster_player.side.clone(),
-                    position: [x, y, z],
-                    yaw,
-                    health,
-                    armor,
-                    life_state,
-                    alive: life_state == 0 && health > 0,
-                    money,
-                    current_equipment_value,
-                    round_start_equipment_value,
-                    has_helmet,
-                    active_weapon_name,
-                });
+    for snapshot in snapshots {
+        let Some(player) = roster.get(&snapshot.steam_id) else {
+            return Err(DemoError::Parse(
+                "selected-round replay contains an extra competitive player".to_owned(),
+            ));
+        };
+        if snapshot.side != player.side {
+            return Err(DemoError::Parse(format!(
+                "selected-round replay side conflicts for {} at tick {}",
+                player.steam_id, snapshot.tick
+            )));
         }
-    }
-
-    let mut frames = Vec::with_capacity(requested_ticks.len());
-    for tick in requested_ticks {
-        let mut players = by_tick.remove(tick).expect("requested tick exists");
-        players.sort_by(|left, right| left.steam_id.cmp(&right.steam_id));
-        if players.len() != 10
-            || players
-                .iter()
-                .map(|player| player.steam_id.as_str())
-                .collect::<HashSet<_>>()
-                .len()
-                != 10
-        {
-            return Err(DemoError::Unavailable {
-                capability: "selected-round replay",
-                reason: format!(
-                    "tick {tick} does not contain the exact verified ten-player roster"
-                ),
+        by_tick
+            .get_mut(&snapshot.tick)
+            .expect("requested snapshot tick")
+            .push(RoundReplayPlayer {
+                steam_id: player.steam_id.clone(),
+                name: player.name.clone(),
+                team: player.team.clone(),
+                side: player.side.clone(),
+                position: snapshot.position,
+                yaw: snapshot.yaw,
+                pitch: snapshot.pitch,
+                health: snapshot.health,
+                armor: snapshot.armor,
+                life_state: snapshot.life_state,
+                alive: snapshot.life_state == 0 && snapshot.health > 0,
+                money: snapshot.money,
+                current_equipment_value: snapshot.current_equipment_value,
+                round_start_equipment_value: snapshot.round_start_equipment_value,
+                has_helmet: snapshot.has_helmet,
+                active_weapon_name: snapshot.active_weapon_name,
             });
-        }
-        frames.push(RoundReplayFrame {
-            tick: *tick,
-            players,
-        });
     }
-    Ok(frames)
-}
-
-fn tick_values(columns: &AHashMap<u32, PropColumn>) -> DemoResult<&[Option<i32>]> {
-    match columns
-        .get(&TICK_ID)
-        .and_then(|column| column.data.as_ref())
-    {
-        Some(VarVec::I32(values)) => Ok(values),
-        _ => Err(DemoError::Parse(
-            "demoparser selected-round tick column is absent".to_owned(),
-        )),
-    }
-}
-
-fn numeric_at(column: Option<&PropColumn>, index: usize) -> Option<i64> {
-    match column.and_then(|column| column.data.as_ref()) {
-        Some(VarVec::I32(values)) => values.get(index).copied().flatten().map(i64::from),
-        Some(VarVec::U32(values)) => values.get(index).copied().flatten().map(i64::from),
-        Some(VarVec::U64(values)) => values
-            .get(index)
-            .copied()
-            .flatten()
-            .and_then(|value| i64::try_from(value).ok()),
-        _ => None,
-    }
-}
-
-fn finite_at(column: Option<&PropColumn>, index: usize) -> DemoResult<f64> {
-    let value = match column.and_then(|column| column.data.as_ref()) {
-        Some(VarVec::F32(values)) => values.get(index).copied().flatten().map(f64::from),
-        Some(VarVec::I32(values)) => values.get(index).copied().flatten().map(f64::from),
-        Some(VarVec::U32(values)) => values.get(index).copied().flatten().map(f64::from),
-        _ => None,
-    }
-    .filter(|value| value.is_finite())
-    .ok_or_else(|| {
-        DemoError::Parse("selected-round replay required numeric state is absent".to_owned())
-    })?;
-    Ok(value)
-}
-
-fn bounded_u32_at(column: Option<&PropColumn>, index: usize, maximum: u32) -> DemoResult<u32> {
-    let value = numeric_at(column, index)
-        .and_then(|value| u32::try_from(value).ok())
-        .filter(|value| *value <= maximum)
-        .ok_or_else(|| {
-            DemoError::Parse("selected-round replay bounded player state is absent".to_owned())
-        })?;
-    Ok(value)
-}
-
-fn string_at(column: Option<&PropColumn>, index: usize) -> Option<&str> {
-    match column.and_then(|column| column.data.as_ref()) {
-        Some(VarVec::String(values)) => values.get(index)?.as_deref(),
-        _ => None,
-    }
-}
-
-fn bool_at(column: Option<&PropColumn>, index: usize) -> DemoResult<bool> {
-    match column.and_then(|column| column.data.as_ref()) {
-        Some(VarVec::Bool(values)) => values.get(index).copied().flatten().ok_or_else(|| {
-            DemoError::Parse("selected-round replay required boolean state is absent".to_owned())
-        }),
-        _ => Err(DemoError::Parse(
-            "selected-round replay required boolean state is absent".to_owned(),
-        )),
-    }
+    requested_ticks
+        .iter()
+        .map(|tick| {
+            let mut players = by_tick.remove(tick).expect("requested tick");
+            players.sort_by(|left, right| left.steam_id.cmp(&right.steam_id));
+            if players.len() != 10 {
+                return Err(DemoError::Unavailable {
+                    capability: "selected-round replay",
+                    reason: format!(
+                        "tick {tick} does not contain the exact verified ten-player roster"
+                    ),
+                });
+            }
+            Ok(RoundReplayFrame {
+                tick: *tick,
+                players,
+                projectiles: Vec::new(),
+                bomb: None,
+            })
+        })
+        .collect()
 }
 
 fn validate_request(request: &RoundReplayRequest) -> DemoResult<()> {
@@ -748,6 +482,18 @@ mod tests {
         assert_eq!(artifact.metadata.requested_tick_count, 319);
         assert_eq!(artifact.metadata.accepted_tick_count, 319);
         assert!(artifact.metadata.freeze_end_tick.is_some());
+        assert!(
+            artifact
+                .frames
+                .iter()
+                .any(|frame| frame.players.iter().any(|player| player.pitch.abs() > 1.0))
+        );
+        assert!(
+            artifact
+                .frames
+                .iter()
+                .any(|frame| !frame.projectiles.is_empty())
+        );
         assert_eq!(artifact.frames.len(), 319);
         assert!(
             artifact

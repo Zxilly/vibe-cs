@@ -9,13 +9,13 @@ use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use vibe_cs_demo::{
-    DemoEngine, DemoEngineConfig, DemoError, DemoParserBackend, ParseCancellation,
-    extract_round_replay, heatmap_from_events, replay_frames_from_events,
+    DemoEngine, DemoEngineConfig, DemoError, DemoParserBackend, ParseCancellation, extract_replay,
+    extract_round_replay, heatmap_from_events,
 };
-use vibe_cs_domain::{MatchAnalysis, RoundReplayRequest, TimelineEvent};
+use vibe_cs_domain::{MatchAnalysis, ReplayRequest, RoundReplayRequest, TimelineEvent};
 
 const MAXIMUM_REQUEST_BYTES: u64 = 8 * 1024 * 1024;
-const MAXIMUM_RESPONSE_BYTES: usize = 256 * 1024 * 1024;
+const MAXIMUM_RESPONSE_BYTES: usize = 512 * 1024 * 1024;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -104,7 +104,8 @@ enum WorkerRequest {
         request: RoundReplayRequest,
     },
     Replay {
-        analysis: MatchAnalysis,
+        demo_path: String,
+        request: ReplayRequest,
     },
     Heatmap {
         analysis: MatchAnalysis,
@@ -174,10 +175,12 @@ async fn execute(request: WorkerRequest) -> Result<Value, WorkerFailure> {
             .map_err(|error| demo_failure(&error))?;
             serde_json::to_value(analysis).map_err(|error| internal(&error))
         }
-        WorkerRequest::Replay { analysis } => {
-            let events = analysis_events(analysis);
-            let replay =
-                replay_frames_from_events(&events).map_err(|error| demo_failure(&error))?;
+        WorkerRequest::Replay { demo_path, request } => {
+            if demo_path.trim().is_empty() {
+                return Err(invalid("replay requires a non-empty demo_path"));
+            }
+            let replay = extract_replay(demo_path, &request, &ParseCancellation::default())
+                .map_err(|error| demo_failure(&error))?;
             serde_json::to_value(replay).map_err(|error| internal(&error))
         }
         WorkerRequest::ReplayRound { demo_path, request } => {
@@ -374,7 +377,7 @@ mod tests {
             .expect("analysis is an object")
             .remove("verified_total_ticks");
         let request = serde_json::from_value::<WorkerRequest>(serde_json::json!({
-            "operation": "replay",
+            "operation": "heatmap",
             "analysis": analysis
         }));
         assert!(request.is_err());
@@ -407,13 +410,13 @@ mod tests {
             highlights: Vec::new(),
         };
         let request: WorkerRequest = serde_json::from_value(serde_json::json!({
-            "operation": "replay",
+            "operation": "heatmap",
             "analysis": analysis
         }))
         .expect("worker request with spectator slot");
 
-        let WorkerRequest::Replay { analysis } = request else {
-            panic!("expected replay request");
+        let WorkerRequest::Heatmap { analysis } = request else {
+            panic!("expected heatmap request");
         };
         assert_eq!(analysis.players[0].spectator_slot, Some(8));
     }

@@ -31,7 +31,7 @@ typography:
   title:
     fontFamily: "'Noto Sans SC Variable', 'Noto Sans SC', sans-serif"
     fontSize: "18px"
-    fontWeight: 700
+    fontWeight: 500
     lineHeight: "26px"
   body:
     fontFamily: "'Noto Sans SC Variable', 'Noto Sans SC', sans-serif"

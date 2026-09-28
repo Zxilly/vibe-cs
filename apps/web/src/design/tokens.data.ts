@@ -226,25 +226,13 @@ export const FIGMA_BINDINGS = [
     "dark": 56
   },
   {
-    "name": "color/state/ink-hover",
+    "name": "color/state/action-hover",
     "css": "var(--color-action-hover)",
     "light": "#1d1f2012",
     "dark": "#e6edf712"
   },
   {
-    "name": "color/state/ink-pressed",
-    "css": "var(--color-action-pressed)",
-    "light": "#1d1f2024",
-    "dark": "#e6edf724"
-  },
-  {
-    "name": "color/state/ghost-hover",
-    "css": "var(--color-action-hover)",
-    "light": "#1d1f2012",
-    "dark": "#e6edf712"
-  },
-  {
-    "name": "color/state/ghost-pressed",
+    "name": "color/state/action-pressed",
     "css": "var(--color-action-pressed)",
     "light": "#1d1f2024",
     "dark": "#e6edf724"
@@ -298,7 +286,7 @@ export const FIGMA_BINDINGS = [
     "dark": "#8db3f4"
   },
   {
-    "name": "color/status/stale",
+    "name": "color/text/fail",
     "css": "var(--color-fail-text)",
     "light": "#723933",
     "dark": "#ec9990"
@@ -434,6 +422,36 @@ export const FIGMA_BINDINGS = [
     "css": "var(--color-media-divider)",
     "light": "#3b4d66",
     "dark": "#3b4d66"
+  },
+  {
+    "name": "color/text/ok",
+    "css": "var(--color-ok-text)",
+    "light": "#3c5a44",
+    "dark": "#82be92"
+  },
+  {
+    "name": "color/border/ok",
+    "css": "var(--color-ok-border)",
+    "light": "#a8c3a9",
+    "dark": "#42684f"
+  },
+  {
+    "name": "color/border/fail",
+    "css": "var(--color-fail-border)",
+    "light": "#c9a8a3",
+    "dark": "#744b50"
+  },
+  {
+    "name": "color/team/a",
+    "css": "var(--color-accent)",
+    "light": "#3268d6",
+    "dark": "#8db3f4"
+  },
+  {
+    "name": "color/team/b",
+    "css": "var(--color-team-b)",
+    "light": "#c9a55a",
+    "dark": "#e3bd78"
   }
 ] as const;
 

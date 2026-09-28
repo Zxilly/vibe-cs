@@ -704,7 +704,14 @@ export function ProjectWorkspacePage() {
     operations: ProjectEditOperation[],
     onSuccess?: (result: ProjectPatchResult) => void,
   ) => {
-    if (readOnly || apply.isPending) return;
+    if (readOnly) return;
+    /* One patch at a time: the next one is built against the revision this
+       one produces. Saying so beats dropping an edit without a word — a field
+       that committed on blur keeps its text and commits again on the next. */
+    if (apply.isPending) {
+      toast.info(t`上一个修改还在保存，稍后再改`);
+      return;
+    }
     apply.mutate({
       project_id: current.id,
       base_revision: current.revision,

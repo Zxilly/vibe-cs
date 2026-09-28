@@ -34,6 +34,7 @@ tracing.workspace = true
 ts-rs.workspace = true
 url.workspace = true
 uuid.workspace = true
+parry3d = { version = "0.28.0", default-features = false, features = ["required-features", "alloc", "enhanced-determinism"] }
 
 [dev-dependencies]
 axum.workspace = true

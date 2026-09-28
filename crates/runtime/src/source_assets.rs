@@ -19,6 +19,12 @@ use vibe_cs_source_assets::{
 const MAXIMUM_CACHED_RADARS: usize = 16;
 const MAXIMUM_RADAR_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
+#[derive(Debug)]
+struct CachedCameraGeometry {
+    key: String,
+    geometry: Arc<crate::CameraGeometry>,
+}
+
 mod geometry;
 
 #[derive(Debug, Clone)]
@@ -45,6 +51,7 @@ pub struct RuntimeSourceAssetPort {
     geometry_root: PathBuf,
     geometry_generation: Arc<Mutex<()>>,
     geometry_activity: Arc<RwLock<HashMap<String, GeometryActivity>>>,
+    camera_geometry: Arc<Mutex<Option<CachedCameraGeometry>>>,
 }
 
 impl RuntimeSourceAssetPort {
@@ -57,7 +64,53 @@ impl RuntimeSourceAssetPort {
             geometry_root,
             geometry_generation: Arc::new(Mutex::new(())),
             geometry_activity: Arc::new(RwLock::new(HashMap::new())),
+            camera_geometry: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Returns one resident map BVH, invalidated by the VMAP source fingerprint.
+    /// Requests serialize construction, so concurrent preview/recording callers
+    /// share the same allocation. Switching maps evicts the previous cache entry.
+    ///
+    /// # Errors
+    /// Returns the same installation, format and cache errors as map geometry.
+    pub async fn camera_geometry(
+        &self,
+        map_name: &str,
+    ) -> Result<Arc<crate::CameraGeometry>, DomainError> {
+        let _generation = self.geometry_generation.lock().await;
+        let store = self.asset_store().await?;
+        let root = self.geometry_root.clone();
+        let name = map_name.to_owned();
+        let source = tokio::task::spawn_blocking(move || {
+            geometry::GeometrySource::open(&store, &root, &name)
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))??;
+        let mut cached = self.camera_geometry.lock().await;
+        if let Some(entry) = cached.as_ref()
+            && entry.key == source.key
+        {
+            return Ok(Arc::clone(&entry.geometry));
+        }
+        // Drop the old map before allocating another large BVH. Active users
+        // retain their Arc until their current shot finishes.
+        *cached = None;
+        let key = source.key.clone();
+        let geometry = tokio::task::spawn_blocking(move || {
+            let data = source.load(false)?;
+            let decoded = vibe_cs_source_assets::decode_map_geometry(&data.bytes)
+                .map_err(map_source_asset_error)?;
+            crate::CameraGeometry::new(decoded)
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("camera BVH task failed: {error}")))??;
+        let geometry = Arc::new(geometry);
+        *cached = Some(CachedCameraGeometry {
+            key,
+            geometry: Arc::clone(&geometry),
+        });
+        Ok(geometry)
     }
 
     async fn asset_store(&self) -> Result<Arc<Cs2AssetStore>, DomainError> {
@@ -158,6 +211,9 @@ impl SourceAssetPort for RuntimeSourceAssetPort {
         rebuild: bool,
     ) -> Result<MapGeometryData, DomainError> {
         let _generation = self.geometry_generation.lock().await;
+        if rebuild {
+            *self.camera_geometry.lock().await = None;
+        }
         let store = self.asset_store().await?;
         let root = self.geometry_root.clone();
         let map_name = map_name.to_ascii_lowercase();
@@ -501,6 +557,12 @@ mod tests {
             .unwrap();
         assert_eq!(status.state, MapGeometryCacheState::Ready);
         assert_eq!(status.bytes, Some(bytes.len() as u64));
+        let (bvh, same_bvh) = tokio::join!(
+            port.camera_geometry("de_mirage"),
+            port.camera_geometry("de_mirage")
+        );
+        let bvh = bvh.unwrap();
+        assert!(Arc::ptr_eq(&bvh, &same_bvh.unwrap()));
         let response = app
             .oneshot(request(
                 "POST",
@@ -512,6 +574,8 @@ mod tests {
         let rebuilt: MapGeometryStatus =
             serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
         assert_eq!(rebuilt, *status);
+        let rebuilt_bvh = port.camera_geometry("de_mirage").await.unwrap();
+        assert!(!Arc::ptr_eq(&bvh, &rebuilt_bvh));
         if let Some(output) = std::env::var_os("VIBE_GEOMETRY_API_OUTPUT") {
             fs::write(output, &bytes).unwrap();
         }

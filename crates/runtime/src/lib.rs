@@ -3,6 +3,7 @@
 mod analysis;
 mod avatar_cache;
 mod cache_directory;
+mod camera_geometry;
 mod camera_planning;
 mod cosmetics;
 mod demo_watch;
@@ -29,6 +30,7 @@ use tokio::sync::RwLock;
 use vibe_cs_integrations::GsiState;
 
 pub use analysis::{DemoWorkerSidecar, RuntimeAnalysisPort};
+pub use camera_geometry::{CameraGeometry, CameraPoseDiagnostic};
 pub use cosmetics::RuntimeCosmeticsPort;
 pub use demo_watch::RuntimeDemoWatchPort;
 pub use export::RuntimeExportPort;

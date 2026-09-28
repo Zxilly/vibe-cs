@@ -12,7 +12,7 @@ import type { Scene3DRenderer } from './Scene3DRenderer';
 import type { Scene3DMode, Scene3DState } from './types';
 
 export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId, onSelectPlayer,
-  cameraSamples = null, showPlayers = true, showUtilities = true, className, initialMode = 'free', readTick = null,
+  cameraSamples = null, cameraAspectRatio = null, showPlayers = true, showUtilities = true, className, initialMode = 'free', readTick = null,
 }: {
   readonly mapName: string | null;
   readonly frames: readonly ReplayFrameRecord[];
@@ -22,6 +22,7 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
   readonly selectedPlayerId: string | null;
   readonly onSelectPlayer?: (playerId: string) => void;
   readonly cameraSamples?: readonly CameraSample[] | null;
+  readonly cameraAspectRatio?: number | null;
   readonly showPlayers?: boolean;
   readonly showUtilities?: boolean;
   readonly className?: string;
@@ -35,15 +36,15 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
   const [attempt, setAttempt] = useState(0);
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [rendererReady, setRendererReady] = useState(false);
-  const inputs = useRef<Scene3DState>({ frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, showPlayers, showUtilities, cutaway });
+  const inputs = useRef<Scene3DState>({ frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, showPlayers, showUtilities, cutaway });
   const map = useRef<MapGeometry | null>(geometry.isError ? null : geometry.data ?? null);
   const select = useRef(onSelectPlayer);
 
   useLayoutEffect(() => {
     select.current = onSelectPlayer;
-    inputs.current = { frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, showPlayers, showUtilities, cutaway };
+    inputs.current = { frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, showPlayers, showUtilities, cutaway };
     controller.current?.setState(inputs.current);
-  }, [frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, showPlayers, showUtilities, cutaway, onSelectPlayer]);
+  }, [frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, showPlayers, showUtilities, cutaway, onSelectPlayer]);
   useLayoutEffect(() => {
     map.current = geometry.isError ? null : geometry.data ?? null;
     controller.current?.setGeometry(map.current);

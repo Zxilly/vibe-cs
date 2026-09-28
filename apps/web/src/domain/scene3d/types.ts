@@ -11,6 +11,7 @@ export interface Scene3DState {
   readonly selectedPlayerId: string | null;
   readonly mode: Scene3DMode;
   readonly cameraSamples: readonly CameraSample[] | null;
+  readonly cameraAspectRatio: number | null;
   readonly showPlayers: boolean;
   readonly showUtilities: boolean;
   readonly cutaway: boolean;

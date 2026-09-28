@@ -653,23 +653,23 @@ msgstr "The 2D map currently uses relative coordinates. Paths and engagements ca
 msgid "32 位十六进制密钥"
 msgstr "32-character hexadecimal key"
 
-#: src/domain/scene3d/Scene3DView.tsx:85
+#: src/domain/scene3d/Scene3DView.tsx:86
 msgid "3D 回放"
 msgstr "3D replay"
 
-#: src/domain/scene3d/Scene3DView.tsx:96
+#: src/domain/scene3d/Scene3DView.tsx:97
 msgid "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
 msgstr "3D map: drag to orbit, right-drag to pan, and scroll to zoom. Arrow keys pan."
 
-#: src/domain/scene3d/Scene3DView.tsx:63
+#: src/domain/scene3d/Scene3DView.tsx:64
 msgid "3D 渲染已中断，请重新加载视图。"
 msgstr "3D rendering was interrupted. Reload the view."
 
-#: src/domain/scene3d/Scene3DView.tsx:87
+#: src/domain/scene3d/Scene3DView.tsx:88
 msgid "3D 视图"
 msgstr "3D view"
 
-#: src/domain/scene3d/Scene3DView.tsx:88
+#: src/domain/scene3d/Scene3DView.tsx:89
 msgid "3D 视角"
 msgstr "3D camera"
 
@@ -3481,7 +3481,7 @@ msgstr "Map: {0}"
 msgid "地图与最近比赛"
 msgstr "Maps and recent matches"
 
-#: src/domain/scene3d/Scene3DView.tsx:111
+#: src/domain/scene3d/Scene3DView.tsx:112
 msgid "地图几何不可用，当前仅显示选手与机位。"
 msgstr "Map geometry is unavailable. Only players and cameras are shown."
 
@@ -3548,7 +3548,7 @@ msgstr "Note"
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "The note was not saved. Retrying will save it to the original match."
 
-#: src/domain/scene3d/Scene3DView.tsx:93
+#: src/domain/scene3d/Scene3DView.tsx:94
 msgid "复位视角"
 msgstr "Reset view"
 
@@ -5605,7 +5605,7 @@ msgstr "Rotate Program view {0}"
 msgid "无"
 msgstr "None"
 
-#: src/domain/scene3d/Scene3DView.tsx:73
+#: src/domain/scene3d/Scene3DView.tsx:74
 msgid "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 msgstr "Unable to start 3D rendering. Check your graphics driver or reload the view."
 
@@ -6143,7 +6143,7 @@ msgstr "{0} expired on this page"
 msgid "本页未下载 {0}"
 msgstr "{0} not downloaded on this page"
 
-#: src/domain/scene3d/Scene3DView.tsx:91
+#: src/domain/scene3d/Scene3DView.tsx:92
 msgid "机位视角"
 msgstr "Planned camera"
 
@@ -6218,7 +6218,7 @@ msgid "查看分析进度"
 msgstr "View analysis progress"
 
 #: src/domain/editing/ClipCameraInspection.tsx:31
-#: src/domain/scene3d/Scene3DView.tsx:115
+#: src/domain/scene3d/Scene3DView.tsx:116
 msgid "查看原因"
 msgstr "Show reason"
 
@@ -6461,7 +6461,7 @@ msgstr "Preparing"
 msgid "正在准备 {0}"
 msgstr "Preparing {0}"
 
-#: src/domain/scene3d/Scene3DView.tsx:109
+#: src/domain/scene3d/Scene3DView.tsx:110
 msgid "正在准备本机地图几何…"
 msgstr "Preparing local map geometry…"
 
@@ -6506,7 +6506,7 @@ msgstr "This task is being cancelled"
 msgid "正在同步…"
 msgstr "Syncing…"
 
-#: src/domain/scene3d/Scene3DView.tsx:102
+#: src/domain/scene3d/Scene3DView.tsx:103
 msgid "正在启动 3D 视图…"
 msgstr "Starting the 3D view…"
 
@@ -7070,7 +7070,7 @@ msgstr "No unlocked adjacent clips to roll edit"
 msgid "没有可用的对位数据"
 msgstr "No matchup data available"
 
-#: src/domain/scene3d/Scene3DView.tsx:105
+#: src/domain/scene3d/Scene3DView.tsx:106
 msgid "没有可用的选手位置数据。"
 msgstr "No player position data is available."
 
@@ -8272,7 +8272,7 @@ msgstr "Version {version}"
 msgid "第一人称"
 msgstr "First person"
 
-#: src/domain/scene3d/Scene3DView.tsx:91
+#: src/domain/scene3d/Scene3DView.tsx:92
 msgid "第一人称视角"
 msgstr "First-person view"
 
@@ -8532,7 +8532,7 @@ msgstr "Winner"
 msgid "胜方未知"
 msgstr "Unknown winner"
 
-#: src/domain/scene3d/Scene3DView.tsx:116
+#: src/domain/scene3d/Scene3DView.tsx:117
 msgid "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
 msgstr "Capsules and utility ranges are illustrative. Finished footage is recorded in CS2."
 
@@ -8566,7 +8566,7 @@ msgstr "Automatic insights · derived from the evidence by rules"
 msgid "自定义指令"
 msgstr "Custom instructions"
 
-#: src/domain/scene3d/Scene3DView.tsx:89
+#: src/domain/scene3d/Scene3DView.tsx:90
 msgid "自由视角"
 msgstr "Free view"
 
@@ -9136,7 +9136,7 @@ msgstr "Distance {metres}m"
 msgid "跟随"
 msgstr "Follow"
 
-#: src/domain/scene3d/Scene3DView.tsx:90
+#: src/domain/scene3d/Scene3DView.tsx:91
 msgid "跟随选手"
 msgstr "Follow player"
 
@@ -10148,7 +10148,7 @@ msgstr "Re-analyse"
 msgid "重新加载"
 msgstr "Reload"
 
-#: src/domain/scene3d/Scene3DView.tsx:100
+#: src/domain/scene3d/Scene3DView.tsx:101
 msgid "重新加载 3D"
 msgstr "Reload 3D"
 
@@ -10240,7 +10240,7 @@ msgstr "Reset filters"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
-#: src/domain/scene3d/Scene3DView.tsx:112
+#: src/domain/scene3d/Scene3DView.tsx:113
 #: src/domain/task/TaskDetail.tsx:161
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
@@ -10433,7 +10433,7 @@ msgstr "Hide panels to the right"
 msgid "隐藏此组所有面板"
 msgstr "Hide all panels in this group"
 
-#: src/domain/scene3d/Scene3DView.tsx:107
+#: src/domain/scene3d/Scene3DView.tsx:108
 msgid "隐藏选手头顶上方的地图几何"
 msgstr "Hide map geometry above the player"
 

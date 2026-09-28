@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { MapGeometry } from '../../data/mapGeometryBinary';
 import type { ReplayFrameRecord, ReplayPlayerRecord } from '../../shared/desktop/dto';
 import { interpolateReplayFrame, projectileTrails } from '../map/replayModel';
-import { cameraSampleAtTick, cameraView, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
+import { cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
 import type { Scene3DState } from './types';
 
 const MAX_TRAIL_POINTS = 128;
@@ -128,7 +128,7 @@ export class Scene3DRenderer {
     this.state = state;
     if (previous?.frames !== state.frames || previous.mode !== state.mode || previous.selectedPlayerId !== state.selectedPlayerId
       || previous.cutaway !== state.cutaway || previous.showPlayers !== state.showPlayers || previous.showUtilities !== state.showUtilities
-      || previous.cameraSamples !== state.cameraSamples) this.dirty = true;
+      || previous.cameraSamples !== state.cameraSamples || previous.cameraAspectRatio !== state.cameraAspectRatio) this.dirty = true;
     if (previous?.frames !== state.frames) this.framed = false;
     if (previous?.cameraSamples !== state.cameraSamples) {
       if (this.path !== null) { this.scene.remove(this.path); this.path.geometry.dispose(); this.path = null; }
@@ -350,6 +350,22 @@ export class Scene3DRenderer {
     if (!this.framed && (this.frame !== null || this.path !== null || this.mapMesh !== null)) this.resetView();
     this.updateCamera(state, tick);
     if (this.dirty) {
+      const viewport = cameraViewport(this.width, this.height, state.mode === 'camera' ? state.cameraAspectRatio : null);
+      const aspect = viewport.width / viewport.height;
+      if (this.camera.aspect !== aspect) {
+        this.camera.aspect = aspect;
+        this.camera.updateProjectionMatrix();
+      }
+      // Clear the entire canvas first so resizing/mode changes cannot leave a
+      // previous image in the letterbox. Scissor limits the scene background too.
+      this.renderer.setScissorTest(false);
+      if (viewport.width !== this.width || viewport.height !== this.height) {
+        this.renderer.setClearColor(this.scene.background as Color);
+        this.renderer.clear();
+      }
+      this.renderer.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
+      this.renderer.setScissor(viewport.x, viewport.y, viewport.width, viewport.height);
+      this.renderer.setScissorTest(true);
       this.renderer.render(this.scene, this.camera);
       this.dirty = false;
     }
@@ -363,7 +379,11 @@ export class Scene3DRenderer {
     this.pointerStart = null;
     if (event.button !== 0 || start === null || Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 4) return;
     const box = this.canvas.getBoundingClientRect();
-    this.mouse.set((event.clientX - box.left) / box.width * 2 - 1, -(event.clientY - box.top) / box.height * 2 + 1);
+    const viewport = cameraViewport(box.width, box.height, this.state?.mode === 'camera' ? this.state.cameraAspectRatio : null);
+    const x = event.clientX - box.left - viewport.x;
+    const y = event.clientY - box.top - viewport.y;
+    if (x < 0 || y < 0 || x > viewport.width || y > viewport.height) return;
+    this.mouse.set(x / viewport.width * 2 - 1, -y / viewport.height * 2 + 1);
     this.ray.setFromCamera(this.mouse, this.camera);
     const bodies = [...this.actors.values()].filter((actor) => actor.group.visible).map((actor) => actor.body);
     const hit = this.ray.intersectObjects(bodies, false)[0];

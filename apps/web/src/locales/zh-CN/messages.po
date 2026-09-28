@@ -652,23 +652,23 @@ msgstr "2D 地图当前使用相对坐标绘制，路线与交战关系可比较
 msgid "32 位十六进制密钥"
 msgstr "32 位十六进制密钥"
 
-#: src/domain/scene3d/Scene3DView.tsx:85
+#: src/domain/scene3d/Scene3DView.tsx:86
 msgid "3D 回放"
 msgstr "3D 回放"
 
-#: src/domain/scene3d/Scene3DView.tsx:96
+#: src/domain/scene3d/Scene3DView.tsx:97
 msgid "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
 msgstr "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
 
-#: src/domain/scene3d/Scene3DView.tsx:63
+#: src/domain/scene3d/Scene3DView.tsx:64
 msgid "3D 渲染已中断，请重新加载视图。"
 msgstr "3D 渲染已中断，请重新加载视图。"
 
-#: src/domain/scene3d/Scene3DView.tsx:87
+#: src/domain/scene3d/Scene3DView.tsx:88
 msgid "3D 视图"
 msgstr "3D 视图"
 
-#: src/domain/scene3d/Scene3DView.tsx:88
+#: src/domain/scene3d/Scene3DView.tsx:89
 msgid "3D 视角"
 msgstr "3D 视角"
 
@@ -3480,7 +3480,7 @@ msgstr "地图：{0}"
 msgid "地图与最近比赛"
 msgstr "地图与最近比赛"
 
-#: src/domain/scene3d/Scene3DView.tsx:111
+#: src/domain/scene3d/Scene3DView.tsx:112
 msgid "地图几何不可用，当前仅显示选手与机位。"
 msgstr "地图几何不可用，当前仅显示选手与机位。"
 
@@ -3547,7 +3547,7 @@ msgstr "备注"
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "备注没有保存。重试会保存到原来的比赛。"
 
-#: src/domain/scene3d/Scene3DView.tsx:93
+#: src/domain/scene3d/Scene3DView.tsx:94
 msgid "复位视角"
 msgstr "复位视角"
 
@@ -5604,7 +5604,7 @@ msgstr "旋转节目画面 {0}"
 msgid "无"
 msgstr "无"
 
-#: src/domain/scene3d/Scene3DView.tsx:73
+#: src/domain/scene3d/Scene3DView.tsx:74
 msgid "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 msgstr "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 
@@ -6142,7 +6142,7 @@ msgstr "本页已过期 {0}"
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
 
-#: src/domain/scene3d/Scene3DView.tsx:91
+#: src/domain/scene3d/Scene3DView.tsx:92
 msgid "机位视角"
 msgstr "机位视角"
 
@@ -6217,7 +6217,7 @@ msgid "查看分析进度"
 msgstr "查看分析进度"
 
 #: src/domain/editing/ClipCameraInspection.tsx:31
-#: src/domain/scene3d/Scene3DView.tsx:115
+#: src/domain/scene3d/Scene3DView.tsx:116
 msgid "查看原因"
 msgstr "查看原因"
 
@@ -6460,7 +6460,7 @@ msgstr "正在准备"
 msgid "正在准备 {0}"
 msgstr "正在准备 {0}"
 
-#: src/domain/scene3d/Scene3DView.tsx:109
+#: src/domain/scene3d/Scene3DView.tsx:110
 msgid "正在准备本机地图几何…"
 msgstr "正在准备本机地图几何…"
 
@@ -6505,7 +6505,7 @@ msgstr "正在取消这条任务"
 msgid "正在同步…"
 msgstr "正在同步…"
 
-#: src/domain/scene3d/Scene3DView.tsx:102
+#: src/domain/scene3d/Scene3DView.tsx:103
 msgid "正在启动 3D 视图…"
 msgstr "正在启动 3D 视图…"
 
@@ -7069,7 +7069,7 @@ msgstr "没有可滚动编辑的未锁定相邻片段"
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
 
-#: src/domain/scene3d/Scene3DView.tsx:105
+#: src/domain/scene3d/Scene3DView.tsx:106
 msgid "没有可用的选手位置数据。"
 msgstr "没有可用的选手位置数据。"
 
@@ -8271,7 +8271,7 @@ msgstr "第 {version} 版"
 msgid "第一人称"
 msgstr "第一人称"
 
-#: src/domain/scene3d/Scene3DView.tsx:91
+#: src/domain/scene3d/Scene3DView.tsx:92
 msgid "第一人称视角"
 msgstr "第一人称视角"
 
@@ -8531,7 +8531,7 @@ msgstr "胜方"
 msgid "胜方未知"
 msgstr "胜方未知"
 
-#: src/domain/scene3d/Scene3DView.tsx:116
+#: src/domain/scene3d/Scene3DView.tsx:117
 msgid "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
 msgstr "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
 
@@ -8565,7 +8565,7 @@ msgstr "自动洞察 · 由规则从证据推出"
 msgid "自定义指令"
 msgstr "自定义指令"
 
-#: src/domain/scene3d/Scene3DView.tsx:89
+#: src/domain/scene3d/Scene3DView.tsx:90
 msgid "自由视角"
 msgstr "自由视角"
 
@@ -9135,7 +9135,7 @@ msgstr "距离 {metres}m"
 msgid "跟随"
 msgstr "跟随"
 
-#: src/domain/scene3d/Scene3DView.tsx:90
+#: src/domain/scene3d/Scene3DView.tsx:91
 msgid "跟随选手"
 msgstr "跟随选手"
 
@@ -10147,7 +10147,7 @@ msgstr "重新分析"
 msgid "重新加载"
 msgstr "重新加载"
 
-#: src/domain/scene3d/Scene3DView.tsx:100
+#: src/domain/scene3d/Scene3DView.tsx:101
 msgid "重新加载 3D"
 msgstr "重新加载 3D"
 
@@ -10239,7 +10239,7 @@ msgstr "重置筛选"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
-#: src/domain/scene3d/Scene3DView.tsx:112
+#: src/domain/scene3d/Scene3DView.tsx:113
 #: src/domain/task/TaskDetail.tsx:161
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
@@ -10432,7 +10432,7 @@ msgstr "隐藏右侧面板"
 msgid "隐藏此组所有面板"
 msgstr "隐藏此组所有面板"
 
-#: src/domain/scene3d/Scene3DView.tsx:107
+#: src/domain/scene3d/Scene3DView.tsx:108
 msgid "隐藏选手头顶上方的地图几何"
 msgstr "隐藏选手头顶上方的地图几何"
 

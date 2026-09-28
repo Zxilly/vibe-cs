@@ -3,6 +3,13 @@ import { MAP_GEOMETRY_QUANTIZATION } from '../../data/mapGeometryBinary';
 
 export type Point3 = readonly [number, number, number];
 
+/** Fit the recording aperture without cropping or stretching its projection. */
+export function cameraViewport(width: number, height: number, aspectRatio: number | null) {
+  const fittedWidth = aspectRatio === null ? width : Math.min(width, height * aspectRatio);
+  const fittedHeight = aspectRatio === null ? height : Math.min(height, width / aspectRatio);
+  return { x: (width - fittedWidth) / 2, y: (height - fittedHeight) / 2, width: fittedWidth, height: fittedHeight };
+}
+
 /** A proper rotation: Source +X forward/+Y left/+Z up -> Three Y-up. */
 export function sourcePoint(point: Point3): [number, number, number] {
   return [point[0], point[2], -point[1]];

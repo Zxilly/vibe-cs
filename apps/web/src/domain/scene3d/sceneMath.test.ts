@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CameraSample } from '../../shared/desktop/dto';
-import { cameraSampleAtTick, cameraView, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
+import { cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
 
 const pose: CameraSample = { tick: 100, timeSeconds: 0, position: { x: 10, y: 20, z: 30 }, quaternion: [0, 0, 0, 1], fov: 90 };
 
 describe('Source camera to Three coordinates', () => {
+  it('keeps the recording composition in wide and tall monitor panels', () => {
+    expect(cameraViewport(800, 600, 16 / 9)).toEqual({ x: 0, y: 75, width: 800, height: 450 });
+    expect(cameraViewport(1200, 600, 4 / 3)).toEqual({ x: 200, y: 0, width: 800, height: 600 });
+    expect(cameraViewport(800, 600, null)).toEqual({ x: 0, y: 0, width: 800, height: 600 });
+    // A vertical recording retains the same source vertical FOV too.
+    const portrait = cameraViewport(800, 600, 9 / 16);
+    expect(portrait.width / portrait.height).toBeCloseTo(9 / 16);
+    expect(portrait.x).toBe(231.25);
+  });
   it('places presentation cutaways between grid levels to avoid coplanar clipping noise', () => {
     expect(cutawayHeight(-168, 64)).toBe(-96.03125);
     expect(cutawayHeight(0, 64)).toBe(71.96875);

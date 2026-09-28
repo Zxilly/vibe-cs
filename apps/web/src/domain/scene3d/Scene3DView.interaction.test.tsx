@@ -26,9 +26,9 @@ const FRAMES: ReplayFrameRecord[] = [{ tick: 100, projectiles: [], bomb: null, p
 beforeEach(() => vi.resetAllMocks());
 afterEach(cleanup);
 
-function tree(tick = 100) {
+function tree(tick = 100, cameraAspectRatio: number | null = null) {
   return <DesktopClientProvider client={{ getMapGeometryBinary: vi.fn().mockRejectedValue(new Error('CS2 unavailable')) } as unknown as DesktopClient}>
-    <Scene3DView mapName="de_mirage" frames={FRAMES} tick={tick} tickRate={64} selectedPlayerId="player" />
+    <Scene3DView mapName="de_mirage" frames={FRAMES} tick={tick} tickRate={64} selectedPlayerId="player" cameraAspectRatio={cameraAspectRatio} />
   </DesktopClientProvider>;
 }
 
@@ -40,6 +40,14 @@ it('keeps the same renderer when time changes and releases it on unmount', async
   expect(renderer.create).toHaveBeenCalledTimes(1);
   view.unmount();
   expect(renderer.dispose).toHaveBeenCalledTimes(1);
+});
+
+it('updates the recording aperture without replacing the renderer or resetting its transport', async () => {
+  const view = renderInteractive(tree(101, 16 / 9));
+  await waitFor(() => expect(renderer.setState).toHaveBeenLastCalledWith(expect.objectContaining({ tick: 101, cameraAspectRatio: 16 / 9 })));
+  view.rerender(tree(102, 4 / 3));
+  await waitFor(() => expect(renderer.setState).toHaveBeenLastCalledWith(expect.objectContaining({ tick: 102, cameraAspectRatio: 4 / 3 })));
+  expect(renderer.create).toHaveBeenCalledTimes(1);
 });
 
 it('retains the 3D player scene when map geometry is unavailable', async () => {

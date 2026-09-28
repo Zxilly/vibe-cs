@@ -28,7 +28,7 @@ export function ActiveProjectsPanel() {
       {projects.isPending ? (
         <div className="flex flex-col gap-2.5"><Skeleton /><Skeleton width="76%" /></div>
       ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
-        <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品。点击「新建作品」开始剪辑，或先到 Demo 资料库选材。</Trans></p>
+        <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品。新建作品开始剪辑，或先到 Demo 资料库选材。</Trans></p>
       ) : (
         <ul className="flex flex-col border border-divider">
           {rows.map((project) => {

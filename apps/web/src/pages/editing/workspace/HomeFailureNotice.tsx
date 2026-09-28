@@ -1,5 +1,5 @@
 /*
- * pages/home — 「失败可恢复」, the brick-red block on 「01 工作台首页」.
+ * pages/home — 「失败可恢复」 on 「01 工作台首页」.
  *
  * The artboard draws one failed task between 进行中 and 最近比赛:
  * 「导出未完成：磁盘空间不足，已保留工程与素材 · 影响范围：仅这一次导出 · 释放
@@ -10,7 +10,8 @@
  * action, so this component is the query plus the decision to show at most one.
  * At most one, because the header already counts them (「1 个失败可恢复」) and a
  * landing page that lists every failure since install is a task record, which
- * is one link away.
+ * is one link away. That Notice is the only failure emphasis: the block keeps
+ * the neutral divider border rather than stacking a second red frame around it.
  *
  * Renders nothing when there is nothing to recover from — 「环境问题只在阻塞
  * 相应任务时出现在这里」 is the same rule applied to failures: an absent block
@@ -63,7 +64,7 @@ export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
   const failed = feed.data?.summary.failed ?? 0;
 
   return (
-    <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-5">
+    <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-divider p-5">
       <TaskCard task={summary} links={bound.links} headingLevel={2} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">

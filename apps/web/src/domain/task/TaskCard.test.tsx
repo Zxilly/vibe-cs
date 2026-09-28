@@ -189,6 +189,9 @@ describe('TaskCard · the progress rule', () => {
 
     expect(markup).toContain('role="progressbar"');
     expect(markup).toContain('64 MB / 187 MB');
+    // Where it stopped, in the fail tone: an accent bar would still read as running.
+    expect(markup).toContain('data-tone="fail"');
+    expect(markup).toContain('bg-fail');
   });
 });
 

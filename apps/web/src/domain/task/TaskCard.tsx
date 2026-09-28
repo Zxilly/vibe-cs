@@ -163,7 +163,7 @@ export function TaskCard({
           ? stages === undefined || stages.length === 0
             ? null
             : <StageBar label={t`任务阶段`} stages={stages} />
-          : <TaskProgressRow progress={task.progress} />}
+          : <TaskProgressRow progress={task.progress} failed={failed} />}
 
         {task.status === 'failed' ? (
           <Alert
@@ -241,8 +241,12 @@ function TaskStageText({ stage }: { stage: NonNullable<TaskSummary['stage']> }) 
   return <Trans>阶段 {index}/{count} {label}</Trans>;
 }
 
-/** The bar plus its right-aligned mono readout, as drawn on the home artboard. */
-function TaskProgressRow({ progress }: { progress: TaskProgress }) {
+/**
+ * The bar plus its right-aligned mono readout, as drawn on the home artboard.
+ * A failed task keeps the bar at the point it stopped, in the fail tone: an
+ * accent bar would still read as work in progress.
+ */
+function TaskProgressRow({ progress, failed }: { progress: TaskProgress; failed: boolean }) {
   const readout = formatTaskProgress(progress);
   const unitLabel = taskProgressUnitLabels()[progress.unit];
 
@@ -253,6 +257,7 @@ function TaskProgressRow({ progress }: { progress: TaskProgress }) {
         max={progress.total}
         label={t`任务进度`}
         valueText={readout}
+        tone={failed ? 'fail' : 'accent'}
         className="flex-1"
       />
       <span className="flex-none text-end font-mono text-sm">

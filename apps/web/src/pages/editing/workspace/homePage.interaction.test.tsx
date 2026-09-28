@@ -207,4 +207,12 @@ describe('工作台首页', () => {
     expect(within(firstRun).getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
     expect(firstRun.className).toContain('border-accent');
   });
+
+  it('puts the shell’s first-run intro above every other block', async () => {
+    renderPage({ element: <HomePage intro={<p data-home-block="intro">intro</p>} />, client: CLIENT, route: '/' });
+
+    await screen.findByText('继续');
+    const layout = document.querySelector('[data-home-layout]') as HTMLElement;
+    expect(layout.firstElementChild?.getAttribute('data-home-block')).toBe('intro');
+  });
 });

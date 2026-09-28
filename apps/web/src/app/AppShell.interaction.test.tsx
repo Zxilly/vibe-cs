@@ -265,18 +265,13 @@ describe('AppShell — route viewport', () => {
 });
 
 describe('AppShell — work modes', () => {
-  it('uses the first-run choice as the initial mode and destination', async () => {
+  it('does not hold a first run behind a mode dialog', () => {
     media = stubMatchMedia(false);
     useShellStore.setState({ onboardingComplete: false });
-    const router = shellRouter('/');
-    const { getByRole } = renderInteractive(<RouterProvider router={router} />);
+    const { container, queryByRole } = renderInteractive(<RouterProvider router={shellRouter('/')} />);
 
-    fireEvent.click(getByRole('button', { name: /分析模式/u }));
-    fireEvent.click(getByRole('button', { name: '进入分析模式' }));
-
-    await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
-    expect(useShellStore.getState().mode).toBe('analysis');
-    expect(useShellStore.getState().onboardingComplete).toBe(true);
+    expect(queryByRole('dialog')).toBeNull();
+    expect(container.querySelector('[data-page="home"]')).not.toBeNull();
   });
 
   it('switches from editing to analysis and back without the route effect overriding the choice', async () => {

@@ -15,7 +15,6 @@ import { buildCommandList, CommandPalette, useCommandPalette, useObjectCommands 
 import { routeCrumb } from './routeCrumb';
 import {
   MODE_LANDING_PATH,
-  FirstRunGuide,
   RouteBreadcrumb,
   SideNav,
   type DesktopWindowAdapter,
@@ -53,8 +52,6 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
   const storedMode = useShellStore((state) => state.mode);
   const setMode = useShellStore((state) => state.setMode);
-  const onboardingComplete = useShellStore((state) => state.onboardingComplete);
-  const completeOnboarding = useShellStore((state) => state.completeOnboarding);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityUnread, setActivityUnread] = useState(0);
   const [paletteQuery, setPaletteQuery] = useState('');
@@ -89,12 +86,6 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
 
   const switchMode = (nextMode: typeof mode) => {
     if (nextMode === mode) return;
-    setMode(nextMode);
-    void navigate(MODE_LANDING_PATH[nextMode]);
-  };
-
-  const finishOnboarding = (nextMode: typeof mode) => {
-    completeOnboarding();
     setMode(nextMode);
     void navigate(MODE_LANDING_PATH[nextMode]);
   };
@@ -165,13 +156,6 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         open={activityOpen}
         onClose={() => setActivityOpen(false)}
         onUnreadChange={setActivityUnread}
-      />
-
-      <FirstRunGuide
-        open={!onboardingComplete}
-        initialMode={mode}
-        onChoose={finishOnboarding}
-        onDismiss={completeOnboarding}
       />
 
       {/* Mounted once, at the shell. What belongs in it and what belongs in an

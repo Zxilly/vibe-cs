@@ -12,6 +12,7 @@ import { createHashRouter, type RouteObject } from 'react-router-dom';
 
 import { AppShell } from './app/AppShell';
 import { NotFound, RouteErrorElement } from './app/boundary';
+import { WorkspaceModeIntro } from './app/shell';
 
 const HomePage = lazy(async () => ({ default: (await import('./pages/editing/workspace/HomePage')).HomePage }));
 const LibraryPage = lazy(async () => ({ default: (await import('./pages/shared/library/LibraryPage')).LibraryPage }));
@@ -39,7 +40,7 @@ const RecoveryPage = lazy(async () => ({ default: (await import('./pages/shared/
 const GuidePage = lazy(async () => ({ default: (await import('./pages/shared/onboarding/GuidePage')).GuidePage }));
 
 export const APP_PAGES = {
-  home: <HomePage />,
+  home: <HomePage intro={<WorkspaceModeIntro />} />,
   library: <LibraryPage />,
   players: <PlayersPage />,
   playerProfile: <PlayerProfilePage />,

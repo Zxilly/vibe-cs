@@ -10,7 +10,6 @@
  * The shell's own state lives in `shellStore`; nothing here reads `uiStore`.
  */
 
-export { FirstRunGuide, type FirstRunGuideProps } from './FirstRunGuide';
 export {
   activeNavItemId,
   MODE_LANDING_PATH,
@@ -39,5 +38,6 @@ export {
   type WindowTitleBarController,
   type WindowTitleBarProps,
 } from './WindowTitleBar';
+export { WorkspaceModeIntro } from './WorkspaceModeIntro';
 export { WorkspaceModeMenu, type WorkspaceModeMenuProps } from './WorkspaceModeMenu';
 export { RouteBreadcrumb, type RouteBreadcrumbProps } from './RouteBreadcrumb';

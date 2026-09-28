@@ -1,6 +1,7 @@
 /** Editing workbench: project activity, recovery actions and recent work. */
 
 import { Trans } from '@lingui/react/macro';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Page, Toolbar } from '../../../design/layout';
@@ -11,7 +12,12 @@ import { FirstRunStrip } from '../../shared/onboarding/FirstRunStrip';
 import { HomeFailureNotice } from './HomeFailureNotice';
 import { RouteLink } from '../../shared/navigation/RouteLink';
 
-export function HomePage() {
+export interface HomePageProps {
+  /** The shell's first-run mode choice; the page only decides where it sits. */
+  readonly intro?: ReactNode;
+}
+
+export function HomePage({ intro }: HomePageProps = {}) {
   const navigate = useNavigate();
 
   return (
@@ -29,6 +35,7 @@ export function HomePage() {
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6" data-home-layout="three-sections">
+        {intro}
         <EnvironmentNotice />
         <HomeFailureNotice />
 

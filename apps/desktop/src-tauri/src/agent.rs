@@ -1679,15 +1679,14 @@ async fn run_agent_chat(
         interval.tick().await;
         loop {
             interval.tick().await;
-            match heartbeat_storage
-                .heartbeat_project_edit_lease(heartbeat_project_id, heartbeat_lease_id)
-                .await
-            {
-                Ok(true) => {}
-                Ok(false) | Err(_) => {
-                    heartbeat_cancellation.cancel();
-                    break;
-                }
+            if !matches!(
+                heartbeat_storage
+                    .heartbeat_project_edit_lease(heartbeat_project_id, heartbeat_lease_id)
+                    .await,
+                Ok(true)
+            ) {
+                heartbeat_cancellation.cancel();
+                break;
             }
         }
     });
@@ -1713,7 +1712,7 @@ async fn run_agent_chat(
     };
     let response = vibe_cs_agent::run_agent(request, cancellation, |event| match event {
         EmbeddedAgentStreamEvent::TextDelta(delta) => {
-            on_event.send(AgentEvent::TextDelta { delta })
+            on_event.send(AgentEvent::TextDelta { delta });
         }
         EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
             on_event.send(AgentEvent::ToolCallStarted {

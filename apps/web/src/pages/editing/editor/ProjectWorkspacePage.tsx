@@ -114,8 +114,7 @@ import {
   interchangeFormatFromPath,
   type TimelineInterchangeFormat,
 } from '../../../domain/editing/timelineInterchange';
-import { planRippleSequenceMarkers } from '../../../domain/editing/timelineMarkers';
-import { expandSyncLockedStoryRippleUpdates } from '../../../domain/editing/timelineSyncLock';
+import { planHumanTrackEdit } from '../../../domain/editing/humanTrackEdit';
 import {
   readTimelineWorkspaceSession,
   writeTimelineWorkspaceSession,
@@ -768,40 +767,23 @@ export function ProjectWorkspacePage() {
       }),
     );
   };
-  const expandTrackClipUpdates = (
-    updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
-  ) => expandSyncLockedStoryRippleUpdates({
-    tracks: current.document.tracks,
-    storyTrackId: current.document.story_track_id,
-    updates,
-    syncLockedTrackIds,
-    fps: current.document.fps,
-  });
+  const mutateTrackEdit = (
+    summary: string,
+    operations: readonly ProjectEditOperation[],
+    onSuccess?: (result: ProjectPatchResult) => void,
+  ) => {
+    const edit = planHumanTrackEdit(current.document, operations, syncLockedTrackIds);
+    mutate(summary, edit.scope, edit.operations, onSuccess);
+  };
   const mutateTrackClipUpdates = (
     updates: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[],
     explicitMarkers?: readonly EditorMarker[],
   ) => {
-    const expanded = expandTrackClipUpdates(updates);
-    const story = current.document.tracks.find((track) => track.id === current.document.story_track_id);
-    const storyUpdate = expanded.find((update) => update.trackId === current.document.story_track_id);
-    const markerPlan = story === undefined || storyUpdate === undefined
-      ? null
-      : planRippleSequenceMarkers(
-          explicitMarkers ?? current.document.markers,
-          story.clips,
-          storyUpdate.clips,
-          current.document.settings.ripple_sequence_markers,
-          current.document.fps,
-        );
-    const nextMarkers = markerPlan?.markers ?? explicitMarkers;
-    mutate(
-      expanded.length === 1 ? `调整轨道片段` : `调整 ${expanded.length} 条轨道的片段`,
-      expanded.length === 1 && nextMarkers === undefined
-        ? { kind: 'track', track_id: expanded[0]!.trackId }
-        : { kind: 'project' },
+    mutateTrackEdit(
+      updates.length === 1 ? `调整轨道片段` : `调整 ${updates.length} 条轨道的片段`,
       [
-        ...expanded.map((update): ProjectEditOperation => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
-        ...(nextMarkers === undefined ? [] : [{ op: 'replace_markers' as const, markers: [...nextMarkers] }]),
+        ...updates.map((update): ProjectEditOperation => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+        ...(explicitMarkers === undefined ? [] : [{ op: 'replace_markers' as const, markers: [...explicitMarkers] }]),
       ],
     );
   };
@@ -969,25 +951,9 @@ export function ProjectWorkspacePage() {
       createId: () => globalThis.crypto.randomUUID(),
     });
     if (editPlan === null) return;
-    const directTrackUpdates = editPlan.operations.flatMap((operation) => operation.op === 'replace_track_clips'
-      ? [{ trackId: operation.track_id, clips: operation.clips }]
-      : []);
-    const expandedTrackUpdates = expandTrackClipUpdates(directTrackUpdates);
-    const operations = [
-      ...editPlan.operations.filter((operation) => operation.op !== 'replace_track_clips'),
-      ...expandedTrackUpdates.map((update): ProjectEditOperation => ({
-        op: 'replace_track_clips',
-        track_id: update.trackId,
-        clips: [...update.clips],
-      })),
-    ];
-    const singleTrackId = operations.length === 1 && operations[0]?.op === 'replace_track_clips'
-      ? operations[0].track_id
-      : null;
-    mutate(
+    mutateTrackEdit(
       `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
-      singleTrackId === null ? { kind: 'project' } : { kind: 'track', track_id: singleTrackId },
-      operations,
+      editPlan.operations,
       editPlan.insertedAudioTrackIndex === null ? undefined : ({ project: updated }) => {
         const insertedTrack = updated.document.tracks[editPlan.insertedAudioTrackIndex!];
         const insertedClip = insertedTrack?.clips.find((clip) => (
@@ -1304,17 +1270,15 @@ export function ProjectWorkspacePage() {
         onReplaceTrackClips: (trackId, clips) => mutateTrackClipUpdates([{ trackId, clips }]),
         onReplaceTrackClipGroups: mutateTrackClipUpdates,
         onApplyCrossTrackMove: (plan: TimelineCrossTrackMovePlan) => {
-          const expanded = expandTrackClipUpdates(plan.updates);
-          mutate(
+          mutateTrackEdit(
             `跨轨移动片段`,
-            { kind: 'project' },
             [
               ...(plan.insertedTrack === null ? [] : [{
                 op: 'insert_track' as const,
                 index: plan.insertedTrack.index,
                 track: plan.insertedTrack.track,
               }]),
-              ...expanded.map((update) => ({
+              ...plan.updates.map((update) => ({
                 op: 'replace_track_clips' as const,
                 track_id: update.trackId,
                 clips: [...update.clips],

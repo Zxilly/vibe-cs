@@ -4398,11 +4398,19 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
-  it('splits Story video and derived audio when moving a compound clip to a free track', async () => {
+  it('splits Story video and derived audio and ripples markers in the same cross-track Human Edit', async () => {
     const applyProjectPatch = vi.fn();
     const elementFromPoint = vi.fn<() => Element | null>();
     Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: elementFromPoint });
-    renderWorkspace({ project: crossTrackProject(), applyProjectPatch });
+    const base = crossTrackProject();
+    renderWorkspace({ project: {
+      ...base,
+      document: {
+        ...base.document,
+        markers: [{ id: 'downstream', time: 8, duration: 0, label: 'Downstream', color: '#2F6FED', kind: 'comment', comment: '' }],
+        settings: { ...base.document.settings, ripple_sequence_markers: true },
+      },
+    }, applyProjectPatch });
 
     const moving = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     fireEvent.pointerDown(moving, { pointerId: 204, button: 0, clientX: 500, clientY: 200 });
@@ -4423,6 +4431,10 @@ describe('unified project workspace', () => {
     expect(movedVideo).toEqual(expect.objectContaining({ placement: expect.objectContaining({ start: 0, volume: 0 }) }));
     expect(movedAudio).toEqual(expect.objectContaining({ placement: expect.objectContaining({ start: 0, volume: 1 }) }));
     expect(movedVideo?.link_group_id).toBeTruthy();
+    expect(patch.operations).toContainEqual({ op: 'replace_markers', markers: [expect.objectContaining({ id: 'downstream', time: 3 })] });
+    expect(patch.scope).toEqual({ kind: 'project' });
+    expect(patch.base_revision).toBe(base.revision);
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
   it('recombines linked free video and audio when moving into Story', async () => {
@@ -5958,7 +5970,7 @@ describe('unified project workspace', () => {
     expect(screen.getByText('源文件不可用')).toBeTruthy();
   });
 
-  it('inserts the Source Monitor In/Out range at the transport through the Premiere comma shortcut', async () => {
+  it.each([false, true])('inserts Source with Sync Lock and marker ripple=%s in one Human Edit', async (rippleMarkers) => {
     const asset: MediaAsset = {
       id: 'asset-new',
       project_id: PROJECT.id,
@@ -5978,7 +5990,16 @@ describe('unified project workspace', () => {
       created_at: PROJECT.updated_at,
     };
     const applyProjectPatch = vi.fn();
-    renderWorkspace({ assets: [asset], applyProjectPatch });
+    const base = syncLockProject();
+    const project: Project = {
+      ...base,
+      document: {
+        ...base.document,
+        markers: [{ id: 'downstream', time: 8, duration: 0, label: 'Downstream', color: '#2F6FED', kind: 'comment', comment: '' }],
+        settings: { ...base.document.settings, ripple_sequence_markers: rippleMarkers },
+      },
+    };
+    renderWorkspace({ project, assets: [asset], applyProjectPatch });
 
     await openSourcePreview();
     fireEvent.click(await screen.findByRole('option', { name: '选择素材 New angle' }));
@@ -5990,6 +6011,8 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(window, { key: ',' });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      base_revision: project.revision,
+      scope: { kind: 'project' },
       operations: [expect.objectContaining({
         op: 'replace_track_clips',
         track_id: STORY_ID,
@@ -6002,8 +6025,16 @@ describe('unified project workspace', () => {
           expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 3 }) }),
           expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 8 }) }),
         ],
-      })],
+      }), expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: '00000000-0000-4000-8000-000000000097',
+        clips: [expect.objectContaining({ placement: expect.objectContaining({ start: 9 }) })],
+      }), ...(rippleMarkers ? [{
+        op: 'replace_markers',
+        markers: [expect.objectContaining({ id: 'downstream', time: 11 })],
+      }] : [])],
     })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
   it('resolves a four-point duration mismatch through Fit to Fill', async () => {

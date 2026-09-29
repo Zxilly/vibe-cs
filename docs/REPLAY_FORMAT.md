@@ -3,7 +3,11 @@
 ARPL v2 is the only whole-match replay wire format. The application writer is
 `crates/application/src/replay_binary.rs`; the browser reader is
 `apps/web/src/data/replayBinary.ts`. Version 1 is rejected, with no conversion path.
-The separate producer-bound round replay contract remains RRPL.
+`GET /api/demos/{id}/replay.bin` reads the current Demo projection;
+`GET /api/analysis-runs/{id}/replay.bin` reads the exact completed producer used
+by camera planning and preview. Both use the same extraction/cache and ARPL
+writer/reader. The separate RRPL contract retains rich per-round Agent evidence
+(including economy and equipment); it is not a second viewport frame format.
 
 ## Source and sampling
 
@@ -15,6 +19,13 @@ then samples player entities every 16 ticks and every 8 ticks inside highlights.
 Event ticks and range endpoints are also requested. Missing packet ticks align to
 the nearest actual packet within the requested bounds, at most 16 ticks away;
 ties choose the earlier packet and duplicates collapse. Larger holes fail explicitly.
+
+Round sampling extends through the same capturable tail used by recording:
+the next RoundStart minus one tick, or the verified Demo end for the final round.
+The statistical RoundEnd often occurs at the winning kill and must not truncate
+preview handles or post-kill footage. The cache key generation is `replay-cache-v3`
+so earlier caches with omitted tails cannot satisfy this request; the ARPL wire
+remains version 2.
 
 Whole-match and selected-round extraction share the player snapshot reader,
 including pitch. A separate bounded grenade pass is necessary because the vendored

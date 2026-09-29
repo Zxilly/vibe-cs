@@ -34,7 +34,7 @@
 | HLAE campath 编译（位置 Cubic、旋转 SphericalCubic、FOV cubic） | `crates/hlae/src/compile.rs`（`compile_camera_path`） |
 | 镜头风格与关键帧生成 | `crates/domain/src/recording.rs`（`HlaeCameraStyle`、`DirectorShot`）、`crates/runtime/src/camera_planning.rs` |
 | agent 镜头校验 | `apps/desktop/src-tauri/src/agent.rs` |
-| 现有镜头预览（2D 虚线示意） | `apps/web/src/domain/map/CameraPathLayer.tsx` |
+| 共享镜头预演 | `apps/web/src/domain/scene3d/CameraPreviewViewport.tsx` |
 
 现有数据缺口：ARPL 只存 yaw，没有 pitch；采样粗（1 秒一帧）；道具只有爆点事件，没有飞行轨迹；格式用 f64 且每帧重复名字字符串（约 1 KB/帧），读取端上限为 20 万条选手记录；没有任何地图几何。
 
@@ -124,15 +124,15 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
   - [x] 选手胶囊体：队伍色、朝向、视线
   - [x] 道具轨迹；烟雾用半透明球体，燃烧用地面贴片
 - [x] 颜色（含 team/a、team/b）运行时读取 `theme.css` 的 CSS 变量，不写页面私有样式
-- [ ] 视角：自由轨道、跟随选手、机位视角
+- [x] 视角：自由轨道、跟随选手、机位视角
 - [x] 回放页（`ReplayView`）在 2D 地图旁加 3D 视图，共用播放时钟、选中选手与时间轴
 - [ ] 性能：WebView2 上稳定 60 fps，内存 < 300 MB
 - [x] 测试：机位与姿态数学用 vitest；用 mock 合成地图配合 agent-browser 截图核对
 
 ## M5 · 镜头预演接入剪辑（1–1.5 周）
 
-- [ ] 片段属性与录制确认弹窗显示 3D 机位预演（使用 M3 的采样结果），画出视锥、机位轨迹，并高亮遮挡区间
-- [ ] 删除 `apps/web/src/domain/map/CameraPathLayer.tsx` 及其测试和导出
+- [x] 片段属性与录制确认弹窗显示 3D 机位预演（使用 M3 的采样结果），画出视锥、机位轨迹，并高亮遮挡区间
+- [x] 删除 `apps/web/src/domain/map/CameraPathLayer.tsx` 及其测试和导出
 - [ ] 未录制片段在 Program Monitor 显示 3D 预演，遵守 `AGENTS.md` 的 Program Monitor 约束：
   - [ ] 画面只受 Timeline Transport 驱动
   - [ ] 按片段维护稳定的预演池
@@ -330,6 +330,19 @@ M4 的渲染基础已接入，但原生性能门槛和生成机位的实际入�
 - 视口与拾取使用同一画幅计算，留边不参与选手拾取；重绘先清理留边，避免尺寸或模式切换残留旧画面。画幅更新复用已有渲染器，不新增播放时钟。
 - 定向验证：场景数学与视图交互共 10 项通过，覆盖 16:9、4:3、竖屏画幅和不重建渲染器；Web lint、分层检查、类型检查通过。
 - 这只是 M5 的共享渲染基础。片段属性/录制弹窗入口、真实片段数据、视锥与问题区间、Program Monitor 预演池和原生画面验收尚未完成，M5 清单保持未勾选。
+
+### 2026-09-29：M5 属性与录制确认预演、回合尾部修复
+
+- 片段属性与录制确认共用 `CameraPreviewViewport`。属性面板通过已有 Timeline 源时间换算联动播放头，并限制在片段源入点/出点；确认弹窗可切换本次范围中的片段和拖动完整录制区间。两者都显示「预演」，不建立新的播放时钟或 Project 写入模型。
+- `CameraPlan` 是录制与预演共用的原生规划结果；`CameraPreview` 另携带实际录制区间、画幅、目标选手和分析 producer 身份。POV 不生成 campath，直接使用该 producer 的选手位置、pitch/yaw 和输入状态。Project 入口继续在计算前后校验 Head revision。
+- 生成机位在自由/跟随视角显示原生采样轨迹、当前视锥，以及原生诊断发现问题的红色区间。前端没有第二套样条或遮挡算法；旧 `CameraPathLayer`、测试和导出已删除。新增真实 Three 场景图回归测试复现并修复了暂停时 campath 切到 POV 后自身胶囊仍可见的问题，同时验证画幅、最新时间合并和绘制后就绪通知。
+- 实际 Mirage 高光复现：合法 Capture Intent 为 `160800..161502`，原选中回合帧却止于统计 RoundEnd `161310`，丢失 3 秒可录制尾部。现在录制规划与预演统一读取 completed producer 的密集回放，并只截取规划需要的帧及前后括号帧；整场采样使用与录制相同的下一回合开始/verified EOF 边界。`replay-cache-v3` 使旧的缺尾部缓存失效，ARPL wire 仍为 v2。
+- 新增 producer 绑定的 `GET /api/analysis-runs/{id}/replay.bin`，与既有 Demo 回放共用提取器、缓存和 ARPL 编解码器。RRPL 保留 Agent 所需的经济/装备等逐回合证据；没有新增 RRPL 前端解码或兼容转换。不同片段通过相同 producer Query Key 共用解码数据。
+- 原生真实 Demo/地图 API 回归通过：Flyby、Crane 均为 241 个机位采样，原始问题各 8 段、修正后剩余 0 段；POV 无 campath，覆盖到 `161502`，验证区间采样间隔不超过 16 tick。新 ARPL 为 **1,094,417 bytes**，仍小于此前 v1 的 **1,841,021 bytes**。证据为 `artifacts/simple-3d/m5-capture-tail-{red,green}.log`、`m5-real-camera-api.json`、`m5-real-run-replay.bin`。
+- 浏览器使用上述真实 API 产物和本机 Mirage VMAP 检查了机位、自由视角、POV、明暗主题和 1100×700。发现确认弹窗的预演被纵向内容挤出后，改为确认信息与预演并排；最终 `m5-full-capture-tail.png` 显示完整画面和 `10.97 / 10.97 s`。Scoped axe 为 27 项通过、0 个 violation；一个颜色判断因图标邻接需人工核查，实测文字对比度 **6.60:1** 且图标不重叠。浏览器无运行时错误。这不是 WebView2 性能或 CS2 实拍验收。
+- 本地验证：完整 Web **312 文件、3306 通过、2 跳过**；`pnpm lint`、`pnpm build`、规范绑定生成、`cargo test --workspace`、严格 workspace/all-targets Clippy 和普通桌面 debug 构建通过。Three 仍为延迟加载 chunk（577.18 kB、gzip 143.82 kB），已有大 chunk 提示保留。
+
+M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接入，Figma 同步尚未完成。M0 坐标/过滤验证、M3 实体内部与游戏实拍、M4 WebView2 性能门槛继续保留未完成。
 
 ## 参考来源
 

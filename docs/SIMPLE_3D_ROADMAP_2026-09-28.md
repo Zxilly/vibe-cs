@@ -70,7 +70,7 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 - [x] 从本机 `game/csgo/maps/de_mirage.vpk` 中用 `crates/source-assets/src/vpk.rs` 列出并读取物理资源；实际路径为 `maps/de_mirage/world_physics.vmdl_c`，原计划的 `.vphys_c` 不存在
 - [x] 评估并实现 Rust 原生二进制 KV3 v5 解码（资源块结构、未压缩/LZ4/Zstd）；参考 ValveResourceFormat [S3]，保留 MIT 声明。真实 Mirage 使用 v5 + Zstd，其他版本明确拒绝。`kv3` 0.2.1 与 `keyvalues3` 1.1.0 均面向文本，不能复用为二进制解码器
 - [x] 备选方案：Source2Viewer-CLI 20.0 已从本机 Mirage 导出物理 GLB；同版本源码分别发布 framework-dependent / self-contained，运行时增量约 80.2 MB，详见决策记录
-- [ ] 坐标对齐：随机抽取 demo 中选手落地时刻，脚底 Z 与网格地面误差 < 2 单位
+- [x] 坐标对齐：随机抽取 demo 中选手落地时刻，脚底 Z 与真实玩家支撑物理网格误差 < 2 单位（含不可见 playerclip；这些支撑面不进入遮挡输出，见决策记录）
 - [ ] 过滤规则：区分天空盒、玩家专用空气墙、挡子弹/挡视线的碰撞属性，只保留挡视线几何
 - [x] 体积与耗时：8 张真实地图 VMAP 全部 < 10 MB，release 下不命中应用缓存的导出 69–892 ms（OS 文件缓存可能已热，详见实测记录）
 - [ ] 结论写入本文件「决策记录」一节（倾向 Rust 原生：无外部运行时、单一实现路径）
@@ -371,6 +371,14 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - tick 77452（karrigan）：初始高度差 2.609375，下一 tick 降为 0.84375 并保持到下一次跳跃。tick 118682（NiKo）：初始差 4.296875，下一 tick 后持续差 2.40625；因此不能把全部误差解释成单 tick 时序差。tick 122610（NiKo）：初始差 7.328125，后续下降至 0.260803，但脚底区域命中的几何在 tick 122618 从 Z=-88 切到 -96，差值又增大；需要核对台阶/边缘支撑，不能挑某个后续时刻代替原样本。
 - 三处接地期间原始 `m_hGroundEntity` 均为 16384（低 14 位实体索引 0），离地后为无效句柄 16777215。它们未指向独立动态支撑实体。尝试请求 old/absolute origin 与 velocity 字段时，独立解析器没有返回对应列，故没有据此宣称已获取模拟位置或定位根因。
 - 证据：忽略目录 `mirage-landings-traced.json`、`m0-alignment-traced.log`、`m0-landing-trace.json`。真实探针仍按预期非零退出，原始样本一致性检查、Rust 格式检查和该 example 的严格 Clippy 通过。M0 坐标验收继续未完成，下一步需区分静态物理表面、玩家支撑碰撞与 Demo 位置时序。
+
+### 2026-09-29：M0 坐标残差定位——玩家支撑与视觉遮挡不同
+
+- 对同一份当前 Mirage VPK、同一组 32 个原始随机落地样本进行单变量对照：生产遮挡过滤为 3 项失败、最大差 7.328125；临时保留全部物理形状为 0 项失败、最大差 1.921875；仅在生产结果上补回属性组 2（`npcclip, playerclip`）也得到完全相同的通过结果。两次临时修改均已恢复，未改变生产的过滤输出。
+- 三个残差对应的玩家支撑表面分别为 Z=-79、-222、-80.893433，原始落地位置与其差值分别为 **1.796875、1.921875、0.221558**。因此此前残差不是地图整体坐标偏移；主因是把剔除了不可见 playerclip 的视觉遮挡网格当成完整玩家地面。接地后的位移仍保留在证据中，但无需靠替换落地时刻通过验收。
+- **决策：** 坐标验证应对照实际玩家支撑几何；相机视线与简易场景继续只使用视觉遮挡几何。玩家空气墙不能因为落地测试需要而混入成片预演或遮挡诊断。未添加生产开关、另一条提取管线或坐标修正。内部 `extract_selected` 复用同一形状解码/三角化/量化实现，额外支撑选择仅在 `cfg(test)` 的真实验收中使用。
+- 新增可复现测试：设置 `VIBE_CS2_INSTALL` 和 `VIBE_ALIGNMENT_SAMPLES`（`sample-demo-landings.py` 的输出），执行 `cargo test -p vibe-cs-source-assets real_landing_coordinates_align_with_player_support -- --ignored --nocapture`。测试检查原始 airborne→grounded 标志、至少 32 个样本全部 <2 单位，并确认 fixture 实际覆盖了不可见支撑。独立脚底面探针由 CLI 与该测试共享，避免两套验证数学。旧 CLI 对遮挡网格仍诚实报告差异。
+- 本机真实测试通过，证据为 `m0-player-support-test.log`；常规 source-assets 测试 37 通过、5 个真实环境测试默认跳过，严格全目标 Clippy 通过。坐标项完成；过滤语义的完整验收、M3 实体内部/游戏实拍和 M4 原生性能仍未完成。
 
 ## 参考来源
 

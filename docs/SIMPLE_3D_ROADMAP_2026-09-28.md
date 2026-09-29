@@ -404,6 +404,7 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 
 - 用户明确回复「这个无所谓，尽量优化就好，可以不管」，取消此前 300 MB 的硬性完成门槛。已有内存测量保留为历史证据，按键对象去重保留；不再以该数值阻塞 M4 或持续重复基线测量。此前各条「门槛未通过」描述的是当时状态，不代表调整后的完成条件。
 - M4 仍须验证原生 WebView2 稳定 60 fps。现有 WebGL 提交探针不足以证明实际呈现稳定性；M0 过滤和 M3 诊断/游戏实拍要求没有调整。
+- 按键对象共享后的内嵌 Release 已构建成功（3 分 26 秒），真实回放加载与跟随/剖切走查正常。尝试 PresentMon 2.6.0 按 QA GPU 子进程 PID 采集：30 秒自由视角 279 条 Present 记录，仅 9 条有显示时间；20 秒跟随视角 587 条记录，仅 8 条有显示时间。两次均未获得足够显示时间数据，不能据此计算实际显示帧率或通过 60 fps 验收。下一步需核对窗口实际可见性、持续移动的存活选手片段及显示事件捕获完整性。证据：`m4-presentmon-release-{playback,follow}.{csv,log}`、`m4-release-follow.png`；[PresentMon 指标定义](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)。
 
 ## 参考来源
 

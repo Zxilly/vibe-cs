@@ -215,15 +215,16 @@ fn tool_catalog() -> Vec<ToolDefinition> {
         definition(
             ToolKind::ReadWorkspace,
             "read_workspace",
-            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Use detail='coverage' with clipIds/trackIds to inspect authored used tick windows and missing key events. Use detail='assets' to discover owned imported media, including unused music; narrow by name/kind or assetIds, and page with offset/maximumAssets. For creation shapes, use detail='editing_reference' with topic='text'/'caption'; before adding a transition, use topic='transitions'. Use detail='timeline' for existing placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the current revision.",
+            "Read live canonical Project context with progressive disclosure. Omit detail or use summary for status, counts, and marker-only refreshes; markers are exact when markersTruncated=false. Otherwise use detail='markers' to page exact markers without timeline tracks; follow nextOffset at the same revision before replacing the full list. Use detail='coverage' with clipIds/trackIds to inspect authored used tick windows and missing key events. Use detail='assets' to discover owned imported media, including unused music; narrow by name/kind or assetIds, and page with offset/maximumAssets. For creation shapes, use detail='editing_reference' with topic='text'/'caption'; before adding a transition, use topic='transitions'. Use detail='timeline' for existing placement, track, clip, effect, or setting fields. If an exact clipId is known, clipIds is required and its enclosing track must not be read. Use trackIds only for an explicitly whole-track scope, and omit selectors only for a deliberate whole-Project operation. Returns the current revision.",
             object_schema(
                 json!({
-                    "detail":{"type":"string","enum":["summary","timeline","editing_reference","assets","coverage"],"default":"summary"},
+                    "detail":{"type":"string","enum":["summary","markers","timeline","editing_reference","assets","coverage"],"default":"summary"},
                     "topic":{"type":"string","enum":["text","caption","transitions"]},
                     "name":{"type":"string","maxLength":256},
                     "kind":{"type":"string","maxLength":32},
                     "assetIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":64},
                     "maximumAssets":{"type":"integer","minimum":1,"maximum":64,"default":32},
+                    "maximumMarkers":{"type":"integer","minimum":1,"maximum":64,"default":32},
                     "offset":{"type":"integer","minimum":0,"default":0},
                     "trackIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":16},
                     "clipIds":{"type":"array","items":uuid_schema(),"minItems":1,"maxItems":64}
@@ -833,6 +834,7 @@ mod tests {
             schema["properties"]["detail"]["enum"],
             json!([
                 "summary",
+                "markers",
                 "timeline",
                 "editing_reference",
                 "assets",

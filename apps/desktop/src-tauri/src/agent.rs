@@ -12,9 +12,9 @@ use tauri::{State, ipc::Channel};
 use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 use vibe_cs_agent::{
-    AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
-    AgentProviderProtocol as EmbeddedAgentProviderProtocol, AgentRequest as EmbeddedAgentRequest,
-    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation,
+    AgentConfig as EmbeddedAgentConfig, AgentProviderProtocol as EmbeddedAgentProviderProtocol,
+    AgentRequest as EmbeddedAgentRequest, AgentStreamEvent as EmbeddedAgentStreamEvent,
+    AgentToolHost, Cancellation,
 };
 use vibe_cs_domain::{
     AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
@@ -27,7 +27,7 @@ use vibe_cs_storage::ProjectLeaseAcquire;
 
 use crate::{
     agent_context::{
-        demo_evidence_with_capture_bounds, model_history, timeline_event_coverage,
+        demo_evidence_with_capture_bounds, model_history, timeline_event_coverage, turn_context,
         workspace_assets, workspace_context, workspace_event_coverage,
     },
     bridge::{DesktopBridge, DesktopCall, DesktopMethod},
@@ -1412,11 +1412,10 @@ async fn run_agent_chat(
     }) as Arc<dyn AgentToolHost>;
     let provider = config.llm.provider.clone();
     let model = config.llm.model.clone();
-    let project_context = serde_json::to_value(&project)
-        .map_err(|error| AgentCommandError::internal(error.to_string()))?;
+    let context = turn_context(&workspace, &project);
     let context_bytes = serde_json::to_vec(&json!({
         "workspace": workspace,
-        "project": project_context,
+        "project": context.project,
     }))
     .map_err(|error| AgentCommandError::internal(error.to_string()))?
     .len();
@@ -1485,10 +1484,7 @@ async fn run_agent_chat(
             custom_instructions: config.llm.prompt,
             provider_parameters: config.llm.parameters,
         },
-        context: EmbeddedAgentContext {
-            workspace,
-            project: project_context,
-        },
+        context,
         tool_host,
     };
     let mut pending_text = String::new();

@@ -12,6 +12,7 @@ use vibe_cs_domain::{
 const MAXIMUM_MODEL_HISTORY_MESSAGES: usize = 40;
 const MAXIMUM_HISTORY_CHECKPOINT_CHARS: usize = 15_000;
 const MAXIMUM_ASSISTANT_PROSE_CHARS: usize = 2_000;
+const MAXIMUM_SUMMARY_TRACKS: usize = 32;
 const MAXIMUM_SUMMARY_CLIPS: usize = 128;
 const MAXIMUM_SUMMARY_CLIPS_PER_TRACK: usize = 32;
 const MAXIMUM_SUMMARY_MARKERS: usize = 32;
@@ -254,6 +255,13 @@ pub(crate) fn demo_evidence_with_capture_bounds(
 
 /// Returns the smallest useful live Project context, expanding the canonical Editing Document
 /// only when the model explicitly requests timeline detail.
+pub(crate) fn turn_context(workspace: &Value, project: &Project) -> vibe_cs_agent::AgentContext {
+    vibe_cs_agent::AgentContext {
+        workspace: workspace.clone(),
+        project: project_summary(project, workspace),
+    }
+}
+
 pub(crate) fn workspace_context(
     workspace: &Value,
     project: &Project,
@@ -266,12 +274,30 @@ pub(crate) fn workspace_context(
     match detail {
         "summary" => Ok(json!({
             "workspace":workspace,
-            "project":project_summary(project),
+            "project":project_summary(project, workspace),
             "context":{
                 "detail":"summary",
                 "next":"Read detail='assets' to discover imported library media, including unused music. Read detail='timeline' with trackIds or clipIds for existing editable fields. Before creating text or caption clips, read detail='editing_reference' with topic='text' or 'caption' for a valid current-type example."
             }
         })),
+        "markers" => {
+            let offset = input.get("offset").map_or(Ok(0), |value| value.as_u64().ok_or("marker offset must be a non-negative integer"))?;
+            let maximum = input.get("maximumMarkers").map_or(Ok(32), |value| value.as_u64().ok_or("maximumMarkers must be an integer"))?;
+            if !(1..=64).contains(&maximum) { return Err("maximumMarkers must be between 1 and 64".to_owned()); }
+            let offset = usize::try_from(offset).map_err(|_| "marker offset is too large")?;
+            let maximum = usize::try_from(maximum).map_err(|_| "marker count is too large")?;
+            let markers = project.document.markers.iter().skip(offset).take(maximum).collect::<Vec<_>>();
+            let next = offset.saturating_add(markers.len());
+            let context = json!({
+                "project": {"id":project.id,"revision":project.revision,"markers":markers},
+                "context":{"detail":"markers"}, "markerCount":project.document.markers.len(),
+                "nextOffset":(next < project.document.markers.len()).then_some(next),
+            });
+            if serde_json::to_vec(&context).map_err(|error| error.to_string())?.len() > 64 * 1024 {
+                return Err("marker page exceeds 64 KiB; reduce maximumMarkers".to_owned());
+            }
+            Ok(context)
+        },
         "timeline" => {
             let track_ids = optional_uuid_filter(input, "trackIds", 16)?;
             let clip_ids = optional_uuid_filter(input, "clipIds", 64)?;
@@ -304,7 +330,7 @@ pub(crate) fn workspace_context(
         }
         "editing_reference" => editing_reference(project, input),
         _ => Err(
-            "read_workspace detail must be 'summary', 'timeline', or 'editing_reference'"
+            "read_workspace detail must be 'summary', 'markers', 'timeline', or 'editing_reference'"
                 .to_owned(),
         ),
     }
@@ -535,7 +561,38 @@ struct AssetContextQuery {
     offset: Option<usize>,
 }
 
-fn project_summary(project: &Project) -> Value {
+fn project_summary(project: &Project, workspace: &Value) -> Value {
+    let focused = workspace.get("selectedClipId").and_then(Value::as_str);
+    let selected = workspace.get("selectedClipIds").and_then(Value::as_array);
+    let targets = workspace.get("targetTrackIds").and_then(Value::as_array);
+    let clip_priority = |clip: &TimelineClip| {
+        let id = clip.id.to_string();
+        if focused == Some(id.as_str()) {
+            0
+        } else if selected
+            .is_some_and(|ids| ids.iter().any(|value| value.as_str() == Some(id.as_str())))
+        {
+            1
+        } else {
+            2
+        }
+    };
+    let mut ordered_tracks = project.document.tracks.iter().collect::<Vec<_>>();
+    ordered_tracks.sort_by_key(|track| {
+        let selection = track.clips.iter().map(clip_priority).min().unwrap_or(2);
+        if selection < 2 {
+            selection
+        } else if targets.is_some_and(|ids| {
+            ids.iter()
+                .any(|value| value.as_str() == Some(track.id.to_string().as_str()))
+        }) {
+            2
+        } else if track.id == project.document.story_track_id {
+            3
+        } else {
+            4
+        }
+    });
     let (planned, takes, assets, sequences) = project
         .document
         .tracks
@@ -551,15 +608,15 @@ fn project_summary(project: &Project) -> Value {
             counts
         });
     let mut remaining_clips = MAXIMUM_SUMMARY_CLIPS;
-    let tracks = project
-        .document
-        .tracks
-        .iter()
+    let tracks = ordered_tracks
+        .into_iter()
+        .take(MAXIMUM_SUMMARY_TRACKS)
         .map(|track| {
             let clip_limit = remaining_clips.min(MAXIMUM_SUMMARY_CLIPS_PER_TRACK);
-            let clips = track
-                .clips
-                .iter()
+            let mut ordered_clips = track.clips.iter().collect::<Vec<_>>();
+            ordered_clips.sort_by_key(|clip| clip_priority(clip));
+            let clips = ordered_clips
+                .into_iter()
                 .take(clip_limit)
                 .map(|clip| {
                     let material = match clip.material {
@@ -570,7 +627,7 @@ fn project_summary(project: &Project) -> Value {
                     };
                     json!({
                         "id":clip.id,
-                        "name":clip.name,
+                        "name":bounded_chars(&clip.name, 256),
                         "material":material,
                         "enabled":clip.placement.enabled,
                         "start":clip.placement.start,
@@ -581,7 +638,7 @@ fn project_summary(project: &Project) -> Value {
             remaining_clips = remaining_clips.saturating_sub(clips.len());
             json!({
                 "id":track.id,
-                "name":track.name,
+                "name":bounded_chars(&track.name, 256),
                 "kind":track.kind,
                 "order":track.order,
                 "muted":track.muted,
@@ -593,9 +650,16 @@ fn project_summary(project: &Project) -> Value {
             })
         })
         .collect::<Vec<_>>();
+    let markers = project
+        .document
+        .markers
+        .iter()
+        .take(MAXIMUM_SUMMARY_MARKERS)
+        .take_while(|marker| serde_json::to_vec(marker).is_ok_and(|json| json.len() <= 2048))
+        .collect::<Vec<_>>();
     json!({
         "id":project.id,
-        "name":project.name,
+        "name":bounded_chars(&project.name, 256),
         "revision":project.revision,
         "timeline":{
             "width":project.document.width,
@@ -603,10 +667,12 @@ fn project_summary(project: &Project) -> Value {
             "fps":project.document.fps,
             "durationSeconds":project.document.duration_seconds,
             "storyTrackId":project.document.story_track_id,
+            "trackCount":project.document.tracks.len(),
+            "tracksTruncated":tracks.len() < project.document.tracks.len(),
             "tracks":tracks,
-            "markers":project.document.markers.iter().take(MAXIMUM_SUMMARY_MARKERS).collect::<Vec<_>>(),
             "markerCount":project.document.markers.len(),
-            "markersTruncated":project.document.markers.len() > MAXIMUM_SUMMARY_MARKERS,
+            "markersTruncated":markers.len() < project.document.markers.len(),
+            "markers":markers,
         },
         "material":{
             "planned":planned,
@@ -1495,6 +1561,123 @@ mod tests {
                     .is_empty()
             );
         }
+    }
+
+    #[test]
+    fn turn_and_tool_context_share_bounded_inventory_and_preserve_focused_selection() {
+        let mut project = project();
+        let template = editing_reference(&project, &json!({"topic":"text"})).unwrap();
+        let operation: ProjectEditOperation =
+            serde_json::from_value(template["reference"]["examplePatch"]["operations"][0].clone())
+                .unwrap();
+        let ProjectEditOperation::InsertTrack { mut track, .. } = operation else {
+            panic!("clip fixture");
+        };
+        let mut clip = track.clips.remove(0);
+        clip.material = TimelineClipMaterial::Sequence {
+            project_id: Uuid::new_v4(),
+            project_revision: 3,
+            media_duration_seconds: 8.0,
+        };
+        // Expensive editable fields belong to a targeted read, never to the model checkpoint.
+        clip.text.as_mut().unwrap().content = "x".repeat(4096);
+        project.document.tracks[0].clips = (0..600)
+            .map(|index| {
+                let mut next = clip.clone();
+                next.id = Uuid::new_v4();
+                next.placement.start = f64::from(index) * next.placement.duration;
+                next
+            })
+            .collect();
+        project.document.duration_seconds = project.document.tracks[0]
+            .clips
+            .iter()
+            .map(|clip| clip.placement.start + clip.placement.duration)
+            .fold(0.0, f64::max);
+        project
+            .document
+            .validate()
+            .expect("large fixture remains a valid Editing Document");
+        assert!(serde_json::to_vec(&project).unwrap().len() > 2 * 1024 * 1024);
+        let selected = project.document.tracks[0].clips.last().unwrap().id;
+        let workspace =
+            json!({"projectId":project.id,"selectedClipId":selected,"selectedClipIds":[selected]});
+        let turn = turn_context(&workspace, &project);
+        let summary =
+            workspace_context(&workspace, &project, &json!({"detail":"summary"})).unwrap();
+        assert!(
+            turn.project.get("document").is_none(),
+            "turn context must not contain the full Editing Document"
+        );
+        assert_eq!(turn.project, summary["project"]);
+        assert_eq!(turn.project["material"]["sequences"], 600);
+        assert_eq!(turn.project["timeline"]["tracks"][0]["clipCount"], 600);
+        assert_eq!(
+            turn.project["timeline"]["tracks"][0]["clipsTruncated"],
+            true
+        );
+        let clips = turn.project["timeline"]["tracks"][0]["clips"]
+            .as_array()
+            .unwrap();
+        assert_eq!(clips.len(), MAXIMUM_SUMMARY_CLIPS_PER_TRACK);
+        assert!(clips.iter().any(|clip| clip["id"] == selected.to_string()));
+        assert!(serde_json::to_vec(&turn.project).unwrap().len() < 32 * 1024);
+        let targeted = workspace_context(
+            &workspace,
+            &project,
+            &json!({"detail":"timeline","clipIds":[selected]}),
+        )
+        .unwrap();
+        assert_eq!(
+            targeted["project"]["document"]["tracks"][0]["clips"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            targeted["project"]["document"]["tracks"][0]["clips"][0]["text"]["content"],
+            "x".repeat(4096)
+        );
+    }
+
+    #[test]
+    fn truncated_marker_inventory_has_revision_bound_pages_without_tracks() {
+        let mut project = project();
+        project.document.markers = (0..40)
+            .map(|index| vibe_cs_domain::EditorMarker {
+                id: Uuid::new_v4(),
+                time: f64::from(index),
+                duration: 0.0,
+                label: format!("Marker {index}"),
+                color: "#ffffff".to_owned(),
+                kind: vibe_cs_domain::EditorMarkerKind::Comment,
+                comment: String::new(),
+            })
+            .collect();
+        let context = turn_context(&json!({}), &project);
+        assert_eq!(context.project["timeline"]["markerCount"], 40);
+        assert_eq!(context.project["timeline"]["markersTruncated"], true);
+        let first = workspace_context(&json!({}), &project, &json!({"detail":"markers"})).unwrap();
+        let second = workspace_context(
+            &json!({}),
+            &project,
+            &json!({"detail":"markers","offset":first["nextOffset"]}),
+        )
+        .unwrap();
+        assert_eq!(first["project"]["revision"], second["project"]["revision"]);
+        assert_eq!(first["project"]["markers"].as_array().unwrap().len(), 32);
+        assert_eq!(second["project"]["markers"].as_array().unwrap().len(), 8);
+        assert!(second["nextOffset"].is_null());
+        assert!(first["project"].get("tracks").is_none());
+        assert!(
+            workspace_context(
+                &json!({}),
+                &project,
+                &json!({"detail":"markers","maximumMarkers":65})
+            )
+            .is_err()
+        );
     }
 
     #[test]

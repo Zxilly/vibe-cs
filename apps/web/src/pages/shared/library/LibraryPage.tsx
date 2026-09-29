@@ -342,7 +342,7 @@ function DemoLibraryPage() {
         label={t`添加标签`}
         triggerLabel={<Trans>添加标签</Trans>}
         align="start"
-        triggerClassName="h-[var(--h-ctl-sm)] border border-divider text-text"
+        triggerClassName="h-[var(--h-ctl-sm)] border border-neutral-400 text-text"
         items={tags.data?.map((tag) => ({
           id: tag.id,
           label: tag.name,

@@ -57,7 +57,7 @@ export function MapGeometrySettings() {
                     <StatusDot status={dots[state]} size="sm" />{stateLabel(state)}
                   </span>
                 </div>
-                {map.reason !== null && state === 'failed' ? <p className="mt-1 break-words text-sm text-fail">{map.reason}</p> : null}
+                {map.reason !== null && state === 'failed' ? <p className="mt-1 break-words text-sm text-fail-text">{map.reason}</p> : null}
               </div>
               <Button size="sm" variant="secondary" disabled={blocked} disabledReason={disabledReason}
                 aria-label={state === 'missing' ? t`生成 ${name} 地图` : t`重新生成 ${name} 地图`}

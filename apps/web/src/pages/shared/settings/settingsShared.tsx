@@ -115,7 +115,7 @@ export function SettingsRow({ label, hint, children, disabledReason }: SettingsR
         <p className="text-base">{label}</p>
         {hint == null ? null : <p className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">{hint}</p>}
         {disabledReason === undefined ? null : (
-          <p className="mt-1 text-xs leading-normal text-warn" data-disabled-reason="">
+          <p className="mt-1 text-xs leading-normal text-warn-text" data-disabled-reason="">
             {disabledReason}
           </p>
         )}
@@ -183,7 +183,7 @@ export function SettingsSwitch({
         />
       </div>
       {disabledReason === undefined ? null : (
-        <p className="text-xs leading-normal text-warn" data-disabled-reason="">
+        <p className="text-xs leading-normal text-warn-text" data-disabled-reason="">
           {disabledReason}
         </p>
       )}

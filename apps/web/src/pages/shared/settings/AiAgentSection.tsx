@@ -572,7 +572,7 @@ function ModelBlock({
               <Trans>连接正常：{testResult}，支持 Agent 工具调用。</Trans>
             </Alert>
           )}
-          {disabledReason === undefined ? null : <p className="text-xs text-warn">{disabledReason}</p>}
+          {disabledReason === undefined ? null : <p className="text-xs text-warn-text">{disabledReason}</p>}
         </div>
       )}
     </SettingsBlock>
@@ -659,7 +659,7 @@ function ProviderParametersEditor({
 
   return (
     <details className="group border border-divider" data-provider-parameters="">
-      <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none items-center gap-3 px-4 py-2.5">
+      <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none items-center gap-x-3 gap-y-1 flex-wrap bg-surface-chrome px-4 py-2.5">
         <span className="font-heading text-sm"><Trans>请求参数</Trans></span>
         <span className="text-xs text-neutral-600"><Trans>使用提供方默认值</Trans></span>
         <span className="text-xs text-neutral-600" data-custom-parameter-count={customCount}>
@@ -675,7 +675,7 @@ function ProviderParametersEditor({
 
       <div className="flex flex-col gap-4 border-t border-divider p-4">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="flex min-w-64 flex-1 flex-col gap-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <p className="text-sm"><Trans>接口格式</Trans></p>
             <Seg
               name="llm-parameter-style"

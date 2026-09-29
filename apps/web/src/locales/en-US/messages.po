@@ -171,6 +171,12 @@ msgstr "{0} · Round {1}"
 msgid "{0} {label}"
 msgstr "{0} {label}"
 
+#. placeholder {0}: duels.length
+#. placeholder {1}: opening.unattributed
+#: src/pages/analysis/match/views/DuelsView.tsx:545
+msgid "{0} 个回合有可归属的首杀 · {1} 个回合无法核实"
+msgstr "{0} rounds with verified opening kills · {1} rounds could not be verified"
+
 #. placeholder {0}: facts.opening.rounds
 #: src/pages/analysis/match/views/OverviewView.tsx:138
 msgid "{0} 个回合有首杀"
@@ -182,18 +188,24 @@ msgstr "{0} rounds with an opening kill"
 msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} rounds with an opening kill · {1} unattributed"
 
+#. placeholder {0}: opening.unattributed
+#: src/pages/analysis/match/views/PlayersView.tsx:251
+#: src/pages/analysis/match/views/PlayersView.tsx:334
+msgid "{0} 个回合的首杀无法核实，首杀与首死总数暂不可用。"
+msgstr "Opening kills could not be verified in {0} rounds. Opening kill and death totals are unavailable."
+
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1591
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1555
 msgid "{0} 个素材未就绪"
 msgstr "{0} assets not ready"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:701
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:700
 msgid "{0} 个素材未就绪，检查素材面板里标红的片段"
 msgstr "{0} clips are not ready; check the clips marked red in the media panel"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:700
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:699
 msgid "{0} 个素材还没录制，先录制缺失片段"
 msgstr "{0} clips are not recorded yet; record the missing clips first"
 
@@ -254,7 +266,7 @@ msgid "{0} 对位 {1} 打出 {2} 比 {3}"
 msgstr "{0} went {2} to {3} against {1}"
 
 #. placeholder {0}: selected.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1920
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1884
 msgid "{0} 战术示意"
 msgstr "{0} tactical view"
 
@@ -283,8 +295,8 @@ msgstr "{0} Interpolation"
 
 #. placeholder {0}: matchup.kills
 #. placeholder {1}: matchup.deaths
-#: src/pages/analysis/match/views/DuelsView.tsx:457
-#: src/pages/analysis/match/views/DuelsView.tsx:705
+#: src/pages/analysis/match/views/DuelsView.tsx:455
+#: src/pages/analysis/match/views/DuelsView.tsx:706
 msgid "{0} 杀 / {1} 死"
 msgstr "{0} K / {1} D"
 
@@ -393,12 +405,12 @@ msgstr "{0}% of head/chest sight lines are blocked"
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
 #. placeholder {1}: next.status === 'cancelled' ? '已取消' : '失败'
 #. placeholder {2}: next.error ?? '未提供错误详情'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:404
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:403
 msgid "{0}任务{1}：{2}。请说明影响和下一步。"
 msgstr "{0} task {1}: {2}. Explain the impact and next step."
 
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:403
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:402
 msgid "{0}任务已完成。请重新读取作品和交付状态，然后继续。"
 msgstr "Task {0} finished. Reload the project and delivery status, then continue."
 
@@ -423,19 +435,19 @@ msgid "{hiddenFocusCount, plural, other {聚焦 #}}"
 msgstr "{hiddenFocusCount, plural, one {# focused} other {# focused}}"
 
 #. placeholder {0}: kills.length
-#: src/pages/analysis/match/views/DuelsView.tsx:387
+#: src/pages/analysis/match/views/DuelsView.tsx:385
 msgid "{killerName} → {victimName} 的 {0} 次交手"
 msgstr "{0} engagements from {killerName} to {victimName}"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:209
+#: src/pages/analysis/match/views/DuelsView.tsx:207
 msgid "{killerName} 击杀 {victimName} {kills} 次"
 msgstr "{killerName} killed {victimName} {kills} times"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:638
+#: src/pages/analysis/match/views/DuelsView.tsx:639
 msgid "{killerName} 的对位"
 msgstr "Matchups of {killerName}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:455
+#: src/pages/analysis/match/views/PlayersView.tsx:465
 msgid "{kills} 杀"
 msgstr "{kills} kills"
 
@@ -604,8 +616,8 @@ msgstr "+ New project"
 msgid "＋ 添加选手"
 msgstr "＋ Add player"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:774
-#: src/pages/analysis/match/views/PlayersView.tsx:519
+#: src/pages/analysis/match/views/DuelsView.tsx:775
+#: src/pages/analysis/match/views/PlayersView.tsx:529
 #: src/pages/analysis/match/views/RoundsView.tsx:703
 msgid "2D 回放"
 msgstr "2D replay"
@@ -646,9 +658,9 @@ msgstr "3D camera"
 msgid "A"
 msgstr "A"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:185
 #: src/pages/analysis/match/views/PlayersView.tsx:186
-#: src/pages/analysis/match/views/PlayersView.tsx:316
+#: src/pages/analysis/match/views/PlayersView.tsx:187
+#: src/pages/analysis/match/views/PlayersView.tsx:321
 #: src/pages/analysis/match/views/TeamsView.tsx:143
 #: src/pages/analysis/match/views/TeamsView.tsx:576
 #: src/pages/analysis/players/PlayerComparePanel.tsx:65
@@ -662,8 +674,8 @@ msgid "ADR"
 msgstr "ADR"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:176
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1546
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1597
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1510
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1561
 msgid "Agent"
 msgstr "Agent"
 
@@ -716,11 +728,11 @@ msgstr "Agent is replying"
 msgid "Agent 正在编辑 · 你暂时只能查看"
 msgstr "Agent is editing · View only for now"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:688
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:687
 msgid "Agent 正在编辑，完成后再导出"
 msgstr "Agent is editing; export once it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:679
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:678
 msgid "Agent 正在编辑，完成后再录制"
 msgstr "Agent is editing; record once it finishes"
 
@@ -732,7 +744,7 @@ msgstr "Agent is editing; the conversation continues once it finishes"
 msgid "Agent 正在编辑，完成后才能调整"
 msgstr "Agent is editing; adjust once it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1593
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1557
 msgid "Agent 编辑中 · 只读"
 msgstr "Agent editing · Read-only"
 
@@ -811,7 +823,7 @@ msgstr "Demo library · table view"
 msgid "Demo 选材"
 msgstr "Demo source"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1662
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1626
 msgid "Fit Clip：范围时长不同"
 msgstr "Fit Clip: Range durations differ"
 
@@ -828,7 +840,7 @@ msgstr "J Play backward"
 msgid "K"
 msgstr "K"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:313
+#: src/pages/analysis/match/views/PlayersView.tsx:318
 #: src/pages/analysis/match/views/TeamsView.tsx:574
 msgid "K / D / A"
 msgstr "K / D / A"
@@ -837,8 +849,8 @@ msgstr "K / D / A"
 msgid "K 暂停时间轴"
 msgstr "K Pause timeline"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:177
 #: src/pages/analysis/match/views/PlayersView.tsx:178
+#: src/pages/analysis/match/views/PlayersView.tsx:179
 #: src/pages/analysis/match/views/TeamsView.tsx:138
 #: src/pages/analysis/match/views/TeamsView.tsx:575
 #: src/pages/analysis/players/PlayerComparePanel.tsx:58
@@ -862,7 +874,7 @@ msgstr "OpenAI-compatible endpoint, including /v1."
 #. placeholder {0}: highlight.round
 #. placeholder {0}: kill.round
 #: src/domain/match/HighlightRow.tsx:123
-#: src/pages/analysis/match/views/DuelsView.tsx:403
+#: src/pages/analysis/match/views/DuelsView.tsx:401
 msgid "R{0}"
 msgstr "R{0}"
 
@@ -927,7 +939,7 @@ msgstr "Steam settings"
 msgid "Steam 验证码"
 msgstr "Steam authentication code"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:901
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:883
 msgid "Story（内嵌音频）"
 msgstr "Story (embedded audio)"
 
@@ -987,7 +999,7 @@ msgstr "Three steps to a first video, and what this machine can do right now."
 msgid "上一个修改"
 msgstr "Previous change"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:713
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:712
 msgid "上一个修改还在保存，稍后再改"
 msgstr "The previous edit is still saving. Try again in a moment."
 
@@ -1226,7 +1238,7 @@ msgstr "Theme"
 #: src/domain/editing/ProjectTimeline.tsx:6412
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:156
 #: src/pages/analysis/match/views/RoundsView.tsx:276
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2052
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2016
 msgid "事件"
 msgstr "Event"
 
@@ -1422,7 +1434,7 @@ msgctxt "evidence-event"
 msgid "伤害"
 msgstr "Damage"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:684
+#: src/pages/analysis/match/views/DuelsView.tsx:685
 msgid "伤害 出 / 入"
 msgstr "Damage dealt / taken"
 
@@ -1451,7 +1463,7 @@ msgstr "Low {0}"
 msgid "作业编号"
 msgstr "Job ID"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1568
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1532
 #: src/pages/editing/projects/ProjectsPage.tsx:43
 #: src/terminology.ts:32
 msgid "作品"
@@ -1470,13 +1482,13 @@ msgstr "Projects, timeline, recording and outputs"
 msgid "作品：{scopeLabel}"
 msgstr "Project: {scopeLabel}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1607
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1806
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1571
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1770
 msgid "作品任务"
 msgstr "Project tasks"
 
 #. placeholder {0}: activeExecutions.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1580
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1544
 msgid "作品任务 {0}"
 msgstr "Project tasks {0}"
 
@@ -1493,8 +1505,8 @@ msgid "作品可能已被修改，请在作品的修订历史里撤销。"
 msgstr "The project may have changed since. Undo it from the project's revision history."
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:593
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:603
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:592
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:602
 msgid "作品工作区"
 msgstr "Project workspace"
 
@@ -1727,11 +1739,11 @@ msgstr "Stop this recording?"
 msgid "停用代理预览"
 msgstr "Disable proxy preview"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1457
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1421
 msgid "允许 Agent 请求的导出操作。"
 msgstr "Allow the export requested by the Agent."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1445
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1409
 msgid "允许 Agent 请求的录制操作。"
 msgstr "Allow the recording requested by the Agent."
 
@@ -1886,12 +1898,12 @@ msgid "全部静音"
 msgstr "Mute everything"
 
 #. placeholder {0}: duels.length
-#: src/pages/analysis/match/views/DuelsView.tsx:546
+#: src/pages/analysis/match/views/DuelsView.tsx:547
 msgid "共 {0} 个回合有可归属的首杀"
 msgstr "{0} rounds have an attributable opening kill"
 
 #. placeholder {0}: rows.length
-#: src/pages/analysis/match/views/PlayersView.tsx:248
+#: src/pages/analysis/match/views/PlayersView.tsx:252
 msgid "共 {0} 名选手"
 msgstr "{0} players"
 
@@ -1990,7 +2002,7 @@ msgstr "Keyword: {0}"
 
 #: src/app/command/CommandPalette.tsx:256
 #: src/design/layout/Inspector.tsx:267
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1827
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1791
 msgid "关闭"
 msgstr "Close"
 
@@ -1999,7 +2011,7 @@ msgid "关闭 Solo"
 msgstr "Disable Solo"
 
 #. placeholder {0}: item?.name ?? id
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1857
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1821
 msgid "关闭序列 {0}"
 msgstr "Close sequence {0}"
 
@@ -2027,7 +2039,7 @@ msgid "关闭窗口"
 msgstr "Close window"
 
 #: src/domain/match/matchEnums.ts:229
-#: src/pages/analysis/match/views/PlayersView.tsx:355
+#: src/pages/analysis/match/views/PlayersView.tsx:365
 msgid "其他"
 msgstr "Other"
 
@@ -2179,8 +2191,8 @@ msgid "出点须晚于入点"
 msgstr "Out must be after In"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:51
-#: src/pages/analysis/match/views/PlayersView.tsx:153
 #: src/pages/analysis/match/views/PlayersView.tsx:154
+#: src/pages/analysis/match/views/PlayersView.tsx:155
 #: src/pages/analysis/match/views/RoundsView.tsx:86
 #: src/pages/analysis/players/PlayerComparePanel.tsx:213
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
@@ -2594,7 +2606,7 @@ msgstr "Placement"
 #: src/pages/analysis/match/views/HighlightsView.tsx:338
 #: src/pages/analysis/match/views/HighlightsView.tsx:377
 #: src/pages/analysis/match/views/OverviewView.tsx:247
-#: src/pages/analysis/match/views/PlayersView.tsx:388
+#: src/pages/analysis/match/views/PlayersView.tsx:398
 #: src/pages/analysis/match/views/ReplayView.tsx:597
 msgid "加入作品"
 msgstr "Add to project"
@@ -2634,8 +2646,8 @@ msgctxt "palette-group"
 msgid "动作"
 msgstr "Actions"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:169
 #: src/pages/analysis/match/views/PlayersView.tsx:170
+#: src/pages/analysis/match/views/PlayersView.tsx:171
 msgid "助攻"
 msgstr "Assists"
 
@@ -2706,11 +2718,11 @@ msgstr "Radius"
 msgid "半起"
 msgstr "Semi buy"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:544
+#: src/pages/analysis/match/views/DuelsView.tsx:543
 msgid "单元格＝行方对列方的击杀数，点开进入这一对的交手"
 msgstr "A cell is the kills of the row player on the column player; open one for the engagements of that pair"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:777
+#: src/pages/analysis/match/views/DuelsView.tsx:778
 msgid "单场记分板"
 msgstr "Match scoreboard"
 
@@ -2932,8 +2944,8 @@ msgstr "Can be started again"
 msgid "右对齐"
 msgstr "Align Right"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:155
-#: src/pages/analysis/match/views/DuelsView.tsx:156
+#: src/pages/analysis/match/views/DuelsView.tsx:153
+#: src/pages/analysis/match/views/DuelsView.tsx:154
 msgid "合计"
 msgstr "Total"
 
@@ -3119,7 +3131,7 @@ msgstr "Command palette"
 msgid "回到任务中心"
 msgstr "Back to task center"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:263
+#: src/pages/analysis/match/views/PlayersView.tsx:267
 #: src/pages/analysis/match/views/RoundsView.tsx:482
 #: src/pages/analysis/match/views/RoundsView.tsx:502
 #: src/pages/analysis/match/views/TeamsView.tsx:203
@@ -3135,8 +3147,8 @@ msgstr "Back to the evidence view"
 msgid "回到资料库"
 msgstr "Back to the library"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:249
-#: src/pages/analysis/match/views/DuelsView.tsx:250
+#: src/pages/analysis/match/views/DuelsView.tsx:247
+#: src/pages/analysis/match/views/DuelsView.tsx:248
 #: src/pages/analysis/match/views/EquipmentChart.tsx:49
 #: src/pages/analysis/match/views/OverviewView.tsx:355
 #: src/pages/analysis/match/views/TeamsView.tsx:238
@@ -3260,7 +3272,7 @@ msgstr "Icon view"
 msgid "在 2D 回放里查看"
 msgstr "View in the 2D replay"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1802
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1766
 msgid "在「作品任务」查看进度，完成后到「成品文件」查看结果。"
 msgstr "Track progress in Project tasks and find the result in Outputs."
 
@@ -3566,7 +3578,7 @@ msgstr "Completed at"
 msgid "完整参数 JSON"
 msgstr "Full parameter JSON"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1792
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1756
 msgid "完整序列"
 msgstr "Full sequence"
 
@@ -3576,9 +3588,9 @@ msgstr "Full path"
 
 #: src/domain/match/EvidenceRow.tsx:87
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:155
-#: src/pages/analysis/match/views/DuelsView.tsx:305
-#: src/pages/analysis/match/views/DuelsView.tsx:312
-#: src/pages/analysis/match/views/DuelsView.tsx:413
+#: src/pages/analysis/match/views/DuelsView.tsx:303
+#: src/pages/analysis/match/views/DuelsView.tsx:310
+#: src/pages/analysis/match/views/DuelsView.tsx:411
 #: src/pages/analysis/match/views/HighlightsView.tsx:325
 #: src/pages/analysis/match/views/RoundsView.tsx:334
 #: src/pages/analysis/match/views/RoundsView.tsx:442
@@ -3600,7 +3612,7 @@ msgstr "Locate file"
 msgid "定格当前帧"
 msgstr "Freeze current frame"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1574
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1538
 msgid "审阅 Agent 修改"
 msgstr "Review Agent edits"
 
@@ -3616,7 +3628,7 @@ msgstr "Density scale, from {minWeight} hits to {maxWeight} hits"
 msgid "密度色阶：每个格子都是 {maxWeight} 次"
 msgstr "Density scale: every cell is {maxWeight} times"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:541
+#: src/pages/analysis/match/views/DuelsView.tsx:540
 #: src/pages/analysis/match/views/TeamsView.tsx:566
 msgid "对位"
 msgstr "Matchups"
@@ -3626,23 +3638,23 @@ msgctxt "match-view"
 msgid "对位"
 msgstr "Matchups"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:681
+#: src/pages/analysis/match/views/DuelsView.tsx:682
 msgid "对位击杀"
 msgstr "Matchup kills"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:682
+#: src/pages/analysis/match/views/DuelsView.tsx:683
 msgid "对位死亡"
 msgstr "Matchup deaths"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:556
+#: src/pages/analysis/match/views/DuelsView.tsx:557
 msgid "对位矩阵"
 msgstr "Matchup matrix"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:170
+#: src/pages/analysis/match/views/DuelsView.tsx:168
 msgid "对位矩阵：行方对列方的击杀数"
 msgstr "Matchup matrix: kills of the row player on the column player"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:554
+#: src/pages/analysis/match/views/DuelsView.tsx:555
 msgid "对位视图"
 msgstr "Matchups view"
 
@@ -3688,7 +3700,7 @@ msgstr "Import"
 msgid "导入 Demo"
 msgstr "Import Demo"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1609
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1573
 msgid "导入 OTIO / XML / EDL…"
 msgstr "Import OTIO / XML / EDL…"
 
@@ -3700,7 +3712,7 @@ msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 msgid "导入文件"
 msgstr "Import Files"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:743
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:742
 msgid "导入时间轴互换文件"
 msgstr "Import Timeline Interchange File"
 
@@ -3714,7 +3726,7 @@ msgid "导入素材"
 msgstr "Imported media"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:320
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1032
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:998
 msgid "导入项目素材"
 msgstr "Import Project Media"
 
@@ -3724,11 +3736,11 @@ msgstr "Import Project Media"
 msgid "导出"
 msgstr "Export"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1612
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1576
 msgid "导出 CMX3600 EDL…"
 msgstr "Export CMX3600 EDL…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1575
 msgid "导出 Final Cut Pro XML…"
 msgstr "Export Final Cut Pro XML…"
 
@@ -3736,7 +3748,7 @@ msgstr "Export Final Cut Pro XML…"
 msgid "导出 HTML"
 msgstr "Export HTML"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1574
 msgid "导出 OpenTimelineIO…"
 msgstr "Export OpenTimelineIO…"
 
@@ -3770,7 +3782,7 @@ msgid "导出已取消"
 msgstr "Export cancelled"
 
 #: src/pages/editing/delivery/OutputsView.tsx:64
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1639
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1603
 msgid "导出成片"
 msgstr "Export"
 
@@ -3786,7 +3798,7 @@ msgstr "exporting a finished cut will fail"
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:731
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:730
 msgid "导出时间轴互换文件"
 msgstr "Export Timeline Interchange File"
 
@@ -3794,7 +3806,7 @@ msgstr "Export Timeline Interchange File"
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1784
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1748
 msgid "导出源范围"
 msgstr "Export Source Range"
 
@@ -3803,7 +3815,7 @@ msgstr "Export Source Range"
 msgid "导出结果"
 msgstr "Export results"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1717
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1681
 msgid "导出设置"
 msgstr "Export Settings"
 
@@ -3815,7 +3827,7 @@ msgstr "Export diagnostics"
 msgid "导出诊断包"
 msgstr "Export a diagnostics bundle"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1771
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1735
 msgid "导出质量"
 msgstr "Export Quality"
 
@@ -4032,7 +4044,7 @@ msgstr "Rejected"
 msgid "已接受 Agent 修改"
 msgstr "Accepted Agent changes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1469
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1433
 msgid "已接受这组 Agent 修改。"
 msgstr "Accepted this set of Agent changes."
 
@@ -4138,7 +4150,7 @@ msgstr "Expired"
 msgid "已过期 · Valve 不再保留"
 msgstr "Expired · Valve no longer keeps it"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1475
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1439
 msgid "已退回这组 Agent 修改。修改意见：{feedback}"
 msgstr "Reverted this set of Agent changes. Feedback: {feedback}"
 
@@ -4214,11 +4226,11 @@ msgstr "Evidence with coordinates"
 msgid "平台"
 msgstr "Platform"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1746
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1710
 msgid "序列"
 msgstr "Sequence"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1794
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1758
 msgid "序列入点到出点"
 msgstr "Sequence In to Out"
 
@@ -4244,7 +4256,7 @@ msgctxt "dialog-confirm"
 msgid "应用"
 msgstr "Apply"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1663
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1627
 msgid "应用四点编辑"
 msgstr "Apply four-point edit"
 
@@ -4285,7 +4297,7 @@ msgstr "Start analysis"
 msgid "开始剪辑"
 msgstr "Start editing"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1718
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1682
 msgid "开始导出"
 msgstr "Start export"
 
@@ -4501,7 +4513,7 @@ msgstr "Recordings"
 msgid "录制结果、导出成片和应用自己的数据都放在这里。"
 msgstr "Recordings, finished cuts and the app's own data all live here."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1625
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1589
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:60
 msgid "录制缺失片段"
 msgstr "Record missing clips"
@@ -4563,11 +4575,11 @@ msgstr "Loop"
 msgid "必填"
 msgstr "Required"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1679
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1643
 msgid "忽略 Timeline 入点"
 msgstr "Ignore Timeline In point"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1680
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1644
 msgid "忽略 Timeline 出点"
 msgstr "Ignore Timeline Out point"
 
@@ -4662,11 +4674,11 @@ msgstr "Keeps the radar in the finished picture."
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "Keeps the game's HUD in the finished picture."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1541
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1505
 msgid "成片预览"
 msgstr "Program monitor"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1483
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1447
 msgid "我已接管这组 Agent 修改，改为手动编辑。"
 msgstr "I've taken over this set of Agent changes and switched to manual editing."
 
@@ -4681,9 +4693,9 @@ msgstr "My notes"
 msgid "战术回放缓存元数据无效"
 msgstr "The tactical replay cache metadata is invalid"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1543
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1996
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1998
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1507
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1960
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1962
 msgid "战术示意"
 msgstr "Tactical view"
 
@@ -4814,7 +4826,7 @@ msgstr "Open match history"
 msgid "打开比赛工作区"
 msgstr "Open match workspace"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1847
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1811
 msgid "打开的序列"
 msgstr "Open sequences"
 
@@ -4853,7 +4865,7 @@ msgstr "Annotate in bulk"
 msgid "批量组接到序列"
 msgstr "Automate to Sequence"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:607
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:606
 msgid "找不到作品的当前版本。"
 msgstr "Can't find the current version of this project."
 
@@ -4861,7 +4873,7 @@ msgstr "Can't find the current version of this project."
 msgid "找不到这个页面"
 msgstr "Page not found"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:606
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:605
 msgid "找不到这份作品"
 msgstr "Project not found"
 
@@ -4907,8 +4919,8 @@ msgstr "Leave a 1-second buffer before every clip"
 msgid "把这个回合加入作品"
 msgstr "Add this round to a project"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:768
-#: src/pages/analysis/match/views/PlayersView.tsx:510
+#: src/pages/analysis/match/views/DuelsView.tsx:769
+#: src/pages/analysis/match/views/PlayersView.tsx:520
 #: src/pages/analysis/match/views/TeamsView.tsx:557
 msgid "把这名选手加入作品"
 msgstr "Add this player to a project"
@@ -4985,7 +4997,7 @@ msgstr "Bomb defused"
 msgid "拒绝"
 msgstr "Reject"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1464
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1428
 msgid "拒绝这次外部执行请求。"
 msgstr "Decline this external execution request."
 
@@ -5264,7 +5276,7 @@ msgstr "Actions"
 msgid "操作未完成，查看错误详情"
 msgstr "Operation incomplete — view error details"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1829
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1793
 msgid "操作没有完成"
 msgstr "The operation didn't complete"
 
@@ -5285,11 +5297,11 @@ msgstr "Collapse sidebar"
 msgid "改为这个目录"
 msgstr "Use this folder"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:605
+#: src/pages/analysis/match/views/DuelsView.tsx:606
 msgid "改看对位矩阵"
 msgstr "Switch to the matchup matrix"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:576
+#: src/pages/analysis/match/views/DuelsView.tsx:577
 msgid "改看首杀对决"
 msgstr "Switch to opening duels"
 
@@ -5441,7 +5453,7 @@ msgstr "Create and add"
 msgid "新建面板分组"
 msgstr "New panel group"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:902
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:884
 msgid "新建音频轨道"
 msgstr "New audio track"
 
@@ -5507,7 +5519,7 @@ msgstr "Cannot display {mapName}. Check the CS2 installation location."
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "Clipboard access failed. Select and copy the full path above manually."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1816
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1780
 msgid "无法读取作品任务。"
 msgstr "Unable to load project tasks."
 
@@ -5582,8 +5594,8 @@ msgstr "Time"
 msgid "时间相对录制开始。"
 msgstr "Times are relative to the start of recording."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:298
-#: src/pages/analysis/match/views/DuelsView.tsx:299
+#: src/pages/analysis/match/views/DuelsView.tsx:296
+#: src/pages/analysis/match/views/DuelsView.tsx:297
 msgid "时间码"
 msgstr "Timecode"
 
@@ -5599,8 +5611,8 @@ msgstr "Unrecorded clips, recorded clips and imported media on the timeline all 
 msgid "时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。"
 msgstr "The timeline still has clips that aren't ready. Record, re-record, or relink them before exporting."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:696
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1589
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:695
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1553
 msgid "时间线还没有片段"
 msgstr "The timeline has no clips yet"
 
@@ -5614,25 +5626,25 @@ msgstr "Time expired"
 
 #: src/domain/editing/ProjectTimeline.tsx:1829
 #: src/domain/editing/ProjectTimeline.tsx:2236
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1544
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1508
 msgid "时间轴"
 msgstr "Timeline"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1609
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1573
 msgid "时间轴互换文件导入失败"
 msgstr "Failed to import timeline interchange file"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1612
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1574
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1575
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1576
 msgid "时间轴互换文件导出失败"
 msgstr "Failed to export timeline interchange file"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:764
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:763
 msgid "时间轴互换文件已导入"
 msgstr "Timeline interchange file imported"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:736
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:735
 msgid "时间轴互换文件已导出"
 msgstr "Timeline interchange file exported"
 
@@ -5797,7 +5809,7 @@ msgstr "No camera issues found so far."
 msgid "更多"
 msgstr "More"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1601
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1565
 msgid "更多作品操作"
 msgstr "More project actions"
 
@@ -5843,7 +5855,7 @@ msgstr "Changes apply to future recordings."
 msgid "更改后仅影响新文件，已有文件保持原位。"
 msgstr "Changes apply to new files only. Existing files stay in place."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1676
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1640
 msgid "更改片段速度（Fit to Fill）"
 msgstr "Change clip speed (Fit to Fill)"
 
@@ -5899,7 +5911,7 @@ msgstr "Source audio channel not enabled"
 msgid "未完成的暂存成品文件"
 msgstr "Unfinished staged files"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:685
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:684
 msgid "未就绪的素材不能靠录制补齐"
 msgstr "The clips that are not ready cannot be fixed by recording"
 
@@ -5973,11 +5985,11 @@ msgstr "Map occlusion could not be checked. Prepare the map in Settings, then tr
 msgid "未选中任何回合"
 msgstr "No round selected"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:744
+#: src/pages/analysis/match/views/DuelsView.tsx:745
 msgid "未选中任何对位"
 msgstr "No matchup selected"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:490
+#: src/pages/analysis/match/views/PlayersView.tsx:500
 #: src/pages/analysis/match/views/TeamsView.tsx:536
 msgid "未选中任何选手"
 msgstr "No player selected"
@@ -6118,7 +6130,7 @@ msgstr "View tool details"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
 #: src/domain/task/useTaskActions.tsx:184
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1608
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1572
 msgid "查看成品"
 msgstr "View finished file"
 
@@ -6173,8 +6185,8 @@ msgstr "The tags were not added. Retrying will use the original matches and tags
 #: src/domain/editing/ProjectTimeline.tsx:2419
 #: src/domain/editing/ProjectTimeline.tsx:6199
 #: src/domain/editing/ProjectTimeline.tsx:6200
-#: src/pages/analysis/match/views/DuelsView.tsx:292
-#: src/pages/analysis/match/views/DuelsView.tsx:293
+#: src/pages/analysis/match/views/DuelsView.tsx:290
+#: src/pages/analysis/match/views/DuelsView.tsx:291
 msgid "标记"
 msgstr "Marks"
 
@@ -6218,7 +6230,7 @@ msgstr "Checks the file header and size; identical content is never cataloged tw
 msgid "校验输入"
 msgstr "Validating input"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1744
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1708
 msgid "格式"
 msgstr "Format"
 
@@ -6233,11 +6245,11 @@ msgstr "Profile"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:665
 #: src/domain/editing/ProjectAgentPanel.tsx:692
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1583
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1547
 msgid "检查交付状态"
 msgstr "Check delivery status"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1826
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1790
 msgid "检查作品版本、录制环境和交付状态后重试。"
 msgstr "Check the project version, recording environment, and delivery status, then try again."
 
@@ -6251,7 +6263,7 @@ msgstr "Inspect source clip"
 msgid "检查镜头范围"
 msgstr "Check shot ranges"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:367
+#: src/pages/analysis/match/views/PlayersView.tsx:377
 msgid "检测器没有在这一场里给他标出高光。"
 msgstr "The detector marked no highlight for this player in this match."
 
@@ -6433,11 +6445,11 @@ msgstr "Locating frame"
 msgid "正在导出"
 msgstr "Exporting"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:692
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:691
 msgid "正在开始导出"
 msgstr "Starting the export"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:683
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:682
 msgid "正在开始录制"
 msgstr "Starting the recording"
 
@@ -6466,7 +6478,7 @@ msgstr "Creating the project"
 msgid "正在更新作品…"
 msgstr "Updating the project…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2045
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2009
 msgid "正在更新战术图"
 msgstr "Updating tactical map"
 
@@ -6496,8 +6508,8 @@ msgstr "Checking"
 msgid "正在检查主轨道…"
 msgstr "Checking the main track…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:681
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:690
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:680
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:689
 msgid "正在检查交付状态"
 msgstr "Checking delivery status"
 
@@ -6553,7 +6565,7 @@ msgstr "Reading"
 msgid "正在读取 {0} 的档案"
 msgstr "Loading the profile for {0}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1817
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1781
 msgid "正在读取任务…"
 msgstr "Loading tasks…"
 
@@ -6569,7 +6581,7 @@ msgstr "Loading recent matches"
 msgid "正在读取恢复状态"
 msgstr "Loading recovery status"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2028
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1992
 msgid "正在读取战术图"
 msgstr "Loading tactical view"
 
@@ -6623,7 +6635,7 @@ msgstr "Reading camera path and tactical context…"
 msgid "正在重新分析，完成后这里会自动刷新"
 msgstr "Re-analysing; this view refreshes when it finishes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1817
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1781
 msgid "此作品尚无录制或导出任务。"
 msgstr "This project has no recording or export tasks yet."
 
@@ -6638,9 +6650,9 @@ msgstr "This device cannot save the layout right now. You can keep using the cur
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:75
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:86
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:157
-#: src/pages/analysis/match/views/DuelsView.tsx:285
-#: src/pages/analysis/match/views/DuelsView.tsx:286
-#: src/pages/analysis/match/views/PlayersView.tsx:330
+#: src/pages/analysis/match/views/DuelsView.tsx:283
+#: src/pages/analysis/match/views/DuelsView.tsx:284
+#: src/pages/analysis/match/views/PlayersView.tsx:340
 msgid "武器"
 msgstr "Weapon"
 
@@ -6658,8 +6670,8 @@ msgstr "Weapon, e.g. AK-47"
 msgid "武器：{0}"
 msgstr "Weapon: {0}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:161
 #: src/pages/analysis/match/views/PlayersView.tsx:162
+#: src/pages/analysis/match/views/PlayersView.tsx:163
 #: src/pages/analysis/players/PlayerComparePanel.tsx:214
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
 #: src/pages/analysis/players/PlayersPage.tsx:156
@@ -6701,7 +6713,7 @@ msgstr "No rank history: these demos carry no rank information."
 msgid "每个回合的购买记录"
 msgstr "The purchases of every round"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:325
+#: src/pages/analysis/match/views/DuelsView.tsx:323
 msgid "每个回合的首杀对决"
 msgstr "The opening duel of every round"
 
@@ -6854,7 +6866,7 @@ msgid "水平缩放"
 msgstr "Horizontal zoom"
 
 #. placeholder {0}: mapName ?? ''
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1940
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1904
 msgid "没有 {0} 的雷达图"
 msgstr "No radar image for {0}"
 
@@ -6920,7 +6932,7 @@ msgstr "No matching player"
 msgid "没有可分割的未锁定片段"
 msgstr "No unlocked clip is available to split"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:595
+#: src/pages/analysis/match/views/DuelsView.tsx:596
 msgid "没有可归属的首杀"
 msgstr "No attributable opening kill"
 
@@ -6940,11 +6952,11 @@ msgstr "No unlocked media clips to slip"
 msgid "没有可滚动编辑的未锁定相邻片段"
 msgstr "No unlocked adjacent clips to roll edit"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:568
+#: src/pages/analysis/match/views/DuelsView.tsx:569
 msgid "没有可用的对位数据"
 msgstr "No matchup data available"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:570
+#: src/pages/analysis/match/views/DuelsView.tsx:571
 msgid "没有可用的对位数据。"
 msgstr "No matchup data available."
 
@@ -7023,11 +7035,11 @@ msgstr "No grenade events were decoded{0}"
 msgid "没有进行中的任务"
 msgstr "No tasks in progress"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:257
+#: src/pages/analysis/match/views/PlayersView.tsx:261
 msgid "没有选手数据，请重新分析比赛。"
 msgstr "No player data. Analyze the match again."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:685
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:684
 msgid "没有需要录制的片段"
 msgstr "No clips need recording"
 
@@ -7057,7 +7069,7 @@ msgstr "Could not open this folder"
 msgid "没能撤销加入"
 msgstr "Could not undo the addition"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:694
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:693
 msgid "没能检查交付状态"
 msgstr "Could not check delivery status"
 
@@ -7198,7 +7210,7 @@ msgstr "Add Text Track"
 msgid "添加标签"
 msgstr "Add tag"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:522
+#: src/pages/analysis/match/views/PlayersView.tsx:532
 #: src/pages/analysis/match/views/ReviewView.tsx:653
 #: src/pages/analysis/match/views/RoundsView.tsx:706
 msgid "添加注释"
@@ -7398,12 +7410,12 @@ msgstr "Source playhead"
 msgid "源素材预览"
 msgstr "Source preview"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1782
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1746
 msgid "源范围"
 msgstr "Source range"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:484
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1542
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1506
 msgid "源预览"
 msgstr "Source preview"
 
@@ -7457,7 +7469,7 @@ msgstr "Rolling edit preview {0}"
 msgid "炸弹引爆"
 msgstr "Bomb exploded"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2051
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2015
 msgid "炸弹点"
 msgstr "Bombsite"
 
@@ -7466,7 +7478,7 @@ msgctxt "evidence-event"
 msgid "炸弹爆炸"
 msgstr "Bomb explosion"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:635
+#: src/pages/analysis/match/views/DuelsView.tsx:636
 msgid "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 msgstr "Click a cell for every engagement of that pair, or a row head for all matchups of that player."
 
@@ -7539,20 +7551,20 @@ msgstr "Molotov / incendiary"
 #: src/domain/match/matchEnums.ts:224
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:163
 #: src/pages/analysis/evidence/EvidenceResults.tsx:74
-#: src/pages/analysis/match/views/DuelsView.tsx:348
+#: src/pages/analysis/match/views/DuelsView.tsx:346
 #: src/pages/analysis/match/views/ReplayView.tsx:665
 #: src/pages/analysis/match/views/RoundsView.tsx:99
 #: src/pages/analysis/match/views/RoundsView.tsx:290
 msgid "爆头"
 msgstr "Headshot"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:683
+#: src/pages/analysis/match/views/DuelsView.tsx:684
 msgid "爆头击杀"
 msgstr "Headshot kills"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:193
 #: src/pages/analysis/match/views/PlayersView.tsx:194
-#: src/pages/analysis/match/views/PlayersView.tsx:317
+#: src/pages/analysis/match/views/PlayersView.tsx:195
+#: src/pages/analysis/match/views/PlayersView.tsx:322
 #: src/pages/analysis/match/views/TeamsView.tsx:146
 #: src/pages/analysis/match/views/TeamsView.tsx:577
 #: src/pages/analysis/players/PlayerComparePanel.tsx:72
@@ -7584,8 +7596,8 @@ msgid "片段名称"
 msgstr "Clip name"
 
 #: src/domain/editing/ClipInspector.tsx:135
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1473
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1509
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1545
 msgid "片段属性"
 msgstr "Clip properties"
 
@@ -7636,7 +7648,7 @@ msgstr "Solo {0}"
 msgid "独立选择"
 msgstr "Independent selection"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:244
+#: src/pages/analysis/match/views/PlayersView.tsx:246
 msgid "玩家"
 msgstr "Players"
 
@@ -8019,7 +8031,7 @@ msgstr "Spatial evidence"
 #: src/domain/match/matchEnums.ts:223
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:162
 #: src/pages/analysis/evidence/EvidenceResults.tsx:74
-#: src/pages/analysis/match/views/DuelsView.tsx:353
+#: src/pages/analysis/match/views/DuelsView.tsx:351
 #: src/pages/analysis/match/views/ReplayView.tsx:664
 #: src/pages/analysis/match/views/RoundsView.tsx:97
 #: src/pages/analysis/match/views/RoundsView.tsx:295
@@ -8104,7 +8116,7 @@ msgstr "2D replay of the round {0} highlight"
 
 #. placeholder {0}: current.revision
 #. placeholder {0}: project.revision
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1571
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1535
 #: src/pages/editing/projects/ProjectsPage.tsx:124
 msgid "第 {0} 版"
 msgstr "Version {0}"
@@ -8204,7 +8216,7 @@ msgstr "Media"
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "There is no media yet. Import a Demo to start your first project from it."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1587
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1551
 msgid "素材就绪"
 msgstr "Media ready"
 
@@ -8220,7 +8232,7 @@ msgstr "Media not ready · showing available frames"
 msgid "素材状态待更新"
 msgstr "Media status needs updating"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1585
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1549
 #: src/pages/editing/projects/ProjectsPage.tsx:130
 msgid "素材状态暂时不可用"
 msgstr "Media status is unavailable"
@@ -8230,7 +8242,7 @@ msgstr "Media status is unavailable"
 msgid "素材落点 {0}"
 msgstr "Drop point {0}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1673
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1637
 msgid "素材选段与时间线选段长度不同，请选择处理方式。"
 msgstr "The source and timeline selections differ in length. Choose how to fit them."
 
@@ -8317,8 +8329,8 @@ msgstr "Some cached files could not be cleared. Please try again."
 msgid "编码"
 msgstr "Encode"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1750
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1752
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1714
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1716
 msgid "编码性能"
 msgstr "Encoding performance"
 
@@ -8401,7 +8413,7 @@ msgstr "Winner"
 msgid "胜方未知"
 msgstr "Unknown winner"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1759
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1723
 msgid "自动（硬件优先，软件回退）"
 msgstr "Auto (hardware first, software fallback)"
 
@@ -8470,11 +8482,11 @@ msgstr "If the project was created, open it from the project list to continue ad
 msgid "行操作"
 msgstr "Row actions"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:115
+#: src/pages/analysis/match/views/DuelsView.tsx:113
 msgid "行方 ＼ 列方"
 msgstr "Row ＼ Column"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:121
+#: src/pages/analysis/match/views/DuelsView.tsx:119
 msgid "行方与列方"
 msgstr "Row side and column side"
 
@@ -8482,20 +8494,20 @@ msgstr "Row side and column side"
 msgid "表格"
 msgstr "Table"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:279
+#: src/pages/analysis/match/views/DuelsView.tsx:277
 msgid "被击杀"
 msgstr "Deaths"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:278
+#: src/pages/analysis/match/views/DuelsView.tsx:276
 msgctxt "duel-column"
 msgid "被击杀"
 msgstr "Victim"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1677
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1641
 msgid "裁切片段头部（左侧）"
 msgstr "Trim clip head (left)"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1678
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1642
 msgid "裁切片段尾部（右侧）"
 msgstr "Trim clip tail (right)"
 
@@ -8515,7 +8527,7 @@ msgstr "Equipment value"
 msgid "装备差额"
 msgstr "Equipment difference"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1800
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1764
 msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
 msgstr "To export part of the sequence, set In and Out points on the timeline using I and O."
 
@@ -8680,7 +8692,7 @@ msgstr "Decoy"
 msgid "说明"
 msgstr "Description"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:626
+#: src/pages/analysis/match/views/DuelsView.tsx:627
 msgid "说明：{unavailableReason}"
 msgstr "Detail: {unavailableReason}"
 
@@ -8910,11 +8922,11 @@ msgstr "Resize panel"
 msgid "警告"
 msgstr "Warning"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1764
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1728
 msgid "质量"
 msgstr "Quality"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1801
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1765
 msgid "质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。"
 msgstr "Higher quality generally improves the picture and increases file size. It does not specify a fixed bitrate or file size."
 
@@ -9061,7 +9073,7 @@ msgstr "Track Volume {0}"
 msgid "转场"
 msgstr "Transition"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1760
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1724
 msgid "软件编码"
 msgstr "Software Encoding"
 
@@ -9090,7 +9102,7 @@ msgstr "Back to Demo library"
 msgid "返回「{name}」"
 msgstr "Back to “{name}”"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:608
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:607
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -9267,7 +9279,7 @@ msgstr "No note on this round yet."
 msgid "这一场没有记到他投出的道具。"
 msgstr "No utility thrown by this player was recorded in this match."
 
-#: src/pages/analysis/match/views/PlayersView.tsx:342
+#: src/pages/analysis/match/views/PlayersView.tsx:352
 msgid "这一场没有记到他的击杀。"
 msgstr "No kill by this player was recorded in this match."
 
@@ -9275,11 +9287,11 @@ msgstr "No kill by this player was recorded in this match."
 msgid "这一场没有记到任何投掷物"
 msgstr "No grenades were recorded in this match"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:115
+#: src/pages/analysis/match/views/PlayersView.tsx:116
 msgid "这一场的记分板"
 msgstr "The scoreboard of this match"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:363
+#: src/pages/analysis/match/views/PlayersView.tsx:373
 msgid "这一场的高光"
 msgstr "The highlights of this match"
 
@@ -9328,19 +9340,19 @@ msgstr "This page failed to open"
 msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 msgstr "New Demos appearing in these folders are added to the library automatically."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:692
+#: src/pages/analysis/match/views/DuelsView.tsx:693
 msgid "这份分析没有这名选手的对位记录。"
 msgstr "This analysis carries no matchup record for this player."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:393
+#: src/pages/analysis/match/views/DuelsView.tsx:391
 msgid "这份分析没有逐条击杀事件，所以列不出这一对的交手。"
 msgstr "This analysis carries no per-kill events, so the engagements of this pair cannot be listed."
 
-#: src/pages/analysis/match/views/PlayersView.tsx:338
+#: src/pages/analysis/match/views/PlayersView.tsx:348
 msgid "这份分析没有逐条击杀事件，武器分布无法统计。"
 msgstr "This analysis carries no per-kill events, so the weapon mix cannot be counted."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:600
+#: src/pages/analysis/match/views/DuelsView.tsx:601
 msgid "这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。"
 msgstr "This analysis carries no per-kill events, and an opening kill can only be derived from the event stream."
 
@@ -9348,7 +9360,7 @@ msgstr "This analysis carries no per-kill events, and an opening kill can only b
 msgid "这份分析结果里没有洞察数据，经济统计无法显示。"
 msgstr "This analysis result carries no insight data, so the economy statistics cannot be shown."
 
-#: src/pages/analysis/match/views/PlayersView.tsx:255
+#: src/pages/analysis/match/views/PlayersView.tsx:259
 msgid "这份分析里没有选手"
 msgstr "No player in this analysis"
 
@@ -9398,7 +9410,7 @@ msgstr "No highlights were detected in this match, so there is nothing here to a
 msgid "这场比赛没有第 {selectedRound} 回合"
 msgstr "This match has no round {selectedRound}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:498
+#: src/pages/analysis/match/views/PlayersView.tsx:508
 msgid "这场比赛没有该选手，请重新选择。"
 msgstr "This player is not in the match. Select another player."
 
@@ -9499,12 +9511,12 @@ msgstr "No replay frames are available for this range."
 msgid "这段点评没有回引证据。"
 msgstr "This commentary cites no evidence back."
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1944
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1908
 msgid "这段素材在 Demo 里没有可用的回放数据"
 msgstr "The Demo has no replay data for this clip"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1938
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2002
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1902
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1966
 msgid "这段素材没有可用的地图上下文"
 msgstr "This clip has no available map context"
 
@@ -9566,7 +9578,7 @@ msgstr "Exit Trim Mode"
 msgid "退回修改"
 msgstr "Request changes"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1477
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1441
 msgid "退回修改意见：{feedback}"
 msgstr "Change request: {feedback}"
 
@@ -9595,19 +9607,19 @@ msgstr "Selected {subject} · Round {0}"
 
 #. placeholder {0}: player.name
 #. placeholder {0}: row.name
-#: src/pages/analysis/match/views/DuelsView.tsx:759
-#: src/pages/analysis/match/views/PlayersView.tsx:507
+#: src/pages/analysis/match/views/DuelsView.tsx:760
+#: src/pages/analysis/match/views/PlayersView.tsx:517
 #: src/pages/analysis/match/views/TeamsView.tsx:554
 msgid "选中：{0}"
 msgstr "Selected: {0}"
 
 #. placeholder {0}: player.name
 #. placeholder {1}: defaultOpponent.name
-#: src/pages/analysis/match/views/DuelsView.tsx:760
+#: src/pages/analysis/match/views/DuelsView.tsx:761
 msgid "选中：{0} → {1}"
 msgstr "Selected: {0} → {1}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:489
+#: src/pages/analysis/match/views/PlayersView.tsx:499
 msgid "选中：{fallbackName}"
 msgstr "Selected: {fallbackName}"
 
@@ -9621,9 +9633,9 @@ msgstr "Selected: round {0}"
 msgid "选中：第 {0} 回合的高光"
 msgstr "Selected: a highlight of round {0}"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:743
+#: src/pages/analysis/match/views/DuelsView.tsx:744
 #: src/pages/analysis/match/views/OverviewView.tsx:298
-#: src/pages/analysis/match/views/PlayersView.tsx:489
+#: src/pages/analysis/match/views/PlayersView.tsx:499
 #: src/pages/analysis/match/views/RoundsView.tsx:676
 #: src/pages/analysis/match/views/TeamsView.tsx:535
 msgid "选中项"
@@ -9636,8 +9648,8 @@ msgstr "Selection detail"
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:71
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:82
 #: src/pages/analysis/match/views/HighlightsView.tsx:479
-#: src/pages/analysis/match/views/PlayersView.tsx:132
 #: src/pages/analysis/match/views/PlayersView.tsx:133
+#: src/pages/analysis/match/views/PlayersView.tsx:134
 #: src/pages/analysis/match/views/ReplayView.tsx:311
 #: src/pages/analysis/match/views/TeamsView.tsx:128
 #: src/pages/analysis/match/views/UtilityView.tsx:72
@@ -9719,7 +9731,7 @@ msgstr "Select, move, and trim timeline clips"
 msgid "选择一条片段后再加入作品。"
 msgstr "Select a clip before adding it to a project."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:749
+#: src/pages/analysis/match/views/DuelsView.tsx:750
 msgid "选择一组对位查看交手记录。"
 msgstr "Select a matchup to view encounters."
 
@@ -9769,7 +9781,7 @@ msgstr "Selects the clip at the click and all clips to its right; hold Shift to 
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "Selects the clip at the click and all clips to its left; hold Shift to select across all tracks"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2002
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1966
 msgid "选择片段后显示路径与事件"
 msgstr "Select a clip to show paths and events"
 
@@ -9815,7 +9827,7 @@ msgstr "Select this highlight"
 msgid "选择选手"
 msgstr "Select player"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:496
+#: src/pages/analysis/match/views/PlayersView.tsx:506
 msgid "选择选手查看本场表现。"
 msgstr "Select a player to view match performance."
 
@@ -9844,7 +9856,7 @@ msgstr "Selection"
 msgid "透明度"
 msgstr "Opacity"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:688
+#: src/pages/analysis/match/views/DuelsView.tsx:689
 msgid "逐个对手"
 msgstr "Per opponent"
 
@@ -9972,7 +9984,7 @@ msgstr "Re-analyse"
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
 #: src/pages/editing/delivery/OutputsView.tsx:192
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1816
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1780
 #: src/pages/editing/projects/ProjectsPage.tsx:53
 #: src/pages/shared/tasks/TaskDetailPage.tsx:61
 msgid "重新加载"
@@ -9992,7 +10004,7 @@ msgid "重新定位"
 msgstr "Relink"
 
 #. placeholder {0}: asset.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1037
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1003
 msgid "重新定位 {0}"
 msgstr "Relocate {0}"
 
@@ -10191,8 +10203,8 @@ msgstr "Gap"
 msgid "间隙 {0} {1} 到 {2}"
 msgstr "Gap {0} {1} to {2}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:141
 #: src/pages/analysis/match/views/PlayersView.tsx:142
+#: src/pages/analysis/match/views/PlayersView.tsx:143
 #: src/pages/analysis/match/views/TeamsView.tsx:501
 msgid "队伍"
 msgstr "Team"
@@ -10267,7 +10279,7 @@ msgstr "Hide panel"
 msgid "雷达"
 msgstr "Radar"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1942
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1906
 msgid "雷达图没能加载"
 msgstr "The radar image failed to load"
 
@@ -10328,7 +10340,7 @@ msgstr "Panel failed to render"
 
 #: src/domain/editing/AudioTrackMixer.tsx:43
 #: src/domain/editing/AudioTrackMixer.tsx:44
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1547
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1511
 msgid "音轨混音器"
 msgstr "Audio track mixer"
 
@@ -10378,7 +10390,7 @@ msgid "音频自动化"
 msgstr "Audio Automation"
 
 #. placeholder {0}: current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:968
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:950
 msgid "音频轨道 {0}"
 msgstr "Audio Track {0}"
 
@@ -10405,7 +10417,7 @@ msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "The page root node #root is missing, so the app cannot start"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:300
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1540
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1504
 msgid "项目素材"
 msgstr "Project Media"
 
@@ -10482,17 +10494,17 @@ msgid "饱和度"
 msgstr "Saturation"
 
 #: src/domain/match/matchEnums.ts:226
-#: src/pages/analysis/match/views/DuelsView.tsx:272
+#: src/pages/analysis/match/views/DuelsView.tsx:270
 msgid "首杀"
 msgstr "Opening kill"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:271
+#: src/pages/analysis/match/views/DuelsView.tsx:269
 msgctxt "duel-column"
 msgid "首杀"
 msgstr "Opening killer"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:208
-#: src/pages/analysis/match/views/PlayersView.tsx:322
+#: src/pages/analysis/match/views/PlayersView.tsx:209
+#: src/pages/analysis/match/views/PlayersView.tsx:327
 msgid "首杀 / 首死"
 msgstr "Opening kills / deaths"
 
@@ -10500,11 +10512,11 @@ msgstr "Opening kills / deaths"
 msgid "首杀、残局胜率和常用地图还没有分析结果，暂不显示。"
 msgstr "Opening kills, clutch win rate and favorite maps have no analysis results yet, so they are not shown."
 
-#: src/pages/analysis/match/views/PlayersView.tsx:209
+#: src/pages/analysis/match/views/PlayersView.tsx:210
 msgid "首杀与首死"
 msgstr "Opening kills and deaths"
 
-#: src/pages/analysis/match/views/DuelsView.tsx:598
+#: src/pages/analysis/match/views/DuelsView.tsx:599
 msgid "首杀事件缺少选手信息，无法显示对位。"
 msgstr "Opening kills lack player information, so matchups are unavailable."
 
@@ -10512,7 +10524,7 @@ msgstr "Opening kills lack player information, so matchups are unavailable."
 msgid "首杀取每个回合最早的一次击杀事件。"
 msgstr "The opening kill is the earliest kill event of each round."
 
-#: src/pages/analysis/match/views/DuelsView.tsx:557
+#: src/pages/analysis/match/views/DuelsView.tsx:558
 msgid "首杀对决"
 msgstr "Opening duels"
 
@@ -10533,8 +10545,8 @@ msgstr "A key is required for the first setup."
 msgid "高 {0}"
 msgstr "High {0}"
 
-#: src/pages/analysis/match/views/PlayersView.tsx:218
 #: src/pages/analysis/match/views/PlayersView.tsx:219
+#: src/pages/analysis/match/views/PlayersView.tsx:220
 #: src/pages/analysis/match/views/TeamsView.tsx:163
 msgid "高光"
 msgstr "Highlights"

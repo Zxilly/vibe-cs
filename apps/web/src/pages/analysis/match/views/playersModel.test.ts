@@ -79,10 +79,15 @@ describe('the scoreboard rows', () => {
     });
   });
 
-  it('derives 首杀 / 首死 from the event stream', () => {
-    expect(rows[0]).toMatchObject({ openingKills: 2, openingDeaths: 1 });
+  it('derives 首杀 / 首死 only from a complete opening event stream', () => {
+    const complete = scoreboardRows({ ...ANALYSIS, rounds: ROUNDS.slice(1) });
+    expect(complete[0]).toMatchObject({ openingKills: 1, openingDeaths: 1 });
     // Rhea was in no opening duel: a measured zero, not a missing value.
-    expect(rows[1]).toMatchObject({ openingKills: 0, openingDeaths: 0 });
+    expect(complete[1]).toMatchObject({ openingKills: 0, openingDeaths: 0 });
+  });
+
+  it('keeps partial opening totals unavailable instead of printing lower bounds as exact counts', () => {
+    expect(rows.every((row) => row.openingKills === null && row.openingDeaths === null)).toBe(true);
   });
 
   it('reports 首杀 as null — never 0 — when there is no event stream', () => {

@@ -138,9 +138,9 @@ describe('首杀对决', () => {
     fireEvent.click(await screen.findByRole('radio', { name: '首杀对决' }));
 
     await waitFor(() => {
-      expect(document.querySelector('[data-row-id="1"]')).not.toBeNull();
+      expect(document.querySelector('[data-row-id="2"]')).not.toBeNull();
     });
-    expect(document.querySelectorAll('[data-row-id]')).toHaveLength(3);
+    expect(document.querySelectorAll('[data-row-id]')).toHaveLength(2);
     expect(document.querySelector('[data-duel-cell]')).toBeNull();
   });
 
@@ -148,16 +148,16 @@ describe('首杀对决', () => {
     open();
     fireEvent.click(await screen.findByRole('radio', { name: '首杀对决' }));
     const row = await waitFor(() => {
-      const found = document.querySelector('[data-row-id="1"]');
+      const found = document.querySelector('[data-row-id="2"]');
       expect(found).not.toBeNull();
       return found as HTMLElement;
     });
 
     fireEvent.click(row);
     await waitFor(() => {
-      expect(address()).toContain('round=1');
+      expect(address()).toContain('round=2');
     });
-    expect(address()).toContain('tick=10100');
+    expect(address()).toContain('tick=20100');
     expect(address()).toContain('view=duels');
   });
 
@@ -171,8 +171,8 @@ describe('首杀对决', () => {
       expect(address()).toContain('view=replay');
     });
     const at = address();
-    expect(at).toContain('round=1');
-    expect(at).toContain('tick=10100');
+    expect(at).toContain('round=2');
+    expect(at).toContain('tick=20100');
   });
 });
 

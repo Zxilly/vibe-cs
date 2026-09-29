@@ -18,7 +18,6 @@ import {
   highlightKindCounts,
   highlightKindOf,
   matchOverviewFacts,
-  openingKills,
   playerDirectory,
   positionedEvidence,
   rankedHighlights,
@@ -30,6 +29,7 @@ import {
   toHighlightCandidate,
   winsByReason,
 } from './matchAggregates';
+import { openingEvidence } from './openingEvidence';
 import { ANALYSIS, BARE_ANALYSIS, PLAYERS } from './test/matchFixture';
 
 describe('identity resolution', () => {
@@ -87,7 +87,6 @@ describe('round tallies', () => {
 });
 
 describe('opening kills', () => {
-  const directory = playerDirectory(PLAYERS);
 
   it('takes the earliest kill of each round, not the first in the array', () => {
     const base = ANALYSIS.rounds[0] as AnalysisWorkspace['rounds'][number];
@@ -100,20 +99,21 @@ describe('opening kills', () => {
       ],
     };
     // The wire promises no order and 「first kill」 is a claim about time.
-    expect(openingKills([round], directory)).toMatchObject({ a: 0, b: 1 });
+    expect(openingEvidence([round], PLAYERS)).toMatchObject({ a: 0, b: 1 });
   });
 
   it('reports what it could not attribute instead of folding it into a side', () => {
-    const opening = openingKills(ANALYSIS.rounds, directory);
-    // Round 5's first kill targets a stranger but its *actor* is known, so the
-    // opening tally is complete; the fixture's unattributed case is a target.
+    const opening = openingEvidence(ANALYSIS.rounds, PLAYERS);
+    // Both participants must resolve, including Round 5's unknown target.
     expect(opening.a + opening.b + opening.unattributed).toBe(opening.rounds);
     expect(opening.rounds).toBe(24);
+    expect(opening.unattributed).toBeGreaterThan(0);
+    expect(opening.complete).toBe(false);
   });
 
   it('counts no rounds at all when the parse produced no kill events', () => {
-    const opening = openingKills(BARE_ANALYSIS.rounds, directory);
-    expect(opening).toEqual({ a: 0, b: 0, rounds: 0, unattributed: 0 });
+    const opening = openingEvidence(BARE_ANALYSIS.rounds, PLAYERS);
+    expect(opening).toMatchObject({ a: 0, b: 0, rounds: 0, unattributed: 0, complete: false });
   });
 });
 

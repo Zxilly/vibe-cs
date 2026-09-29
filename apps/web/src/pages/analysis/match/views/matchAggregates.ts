@@ -18,7 +18,7 @@
  * `null` rather than a guess.
  *
  * Nothing here invents a fallback for a miss. Every function that can fail to
- * attribute an event reports how many it could not — `openingKills.unattributed`,
+ * attribute an event reports how many it could not — `matchOverviewFacts.opening.unattributed`,
  * `RoundDetail.unattributedKills` — so the view can print 「其中 N 条没能归属」
  * instead of quietly folding them into one side. A silently wrong 首杀差 is the
  * kind of number a coach would act on.
@@ -37,6 +37,7 @@
  *     says what it counts.
  */
 
+import { openingEvidence, type OpeningEvidence } from './openingEvidence';
 import type { AnalysisRoundRecord as WireRound } from '../../../../shared/desktop/dto';
 import type {
   AnalysisWorkspace,
@@ -152,43 +153,6 @@ export function roundsWon(rounds: readonly WireRound[]): TeamTally {
     else b += 1;
   }
   return { a, b };
-}
-
-export interface OpeningKills extends TeamTally {
-  /** Rounds that had at least one kill event at all. */
-  readonly rounds: number;
-  /** Opening kills whose actor named nobody in this match. */
-  readonly unattributed: number;
-}
-
-/**
- * 「首杀差 +4」 — the first kill of each round, attributed to the killer's team.
- *
- * The events of a round are walked in tick order rather than in array order:
- * the wire does not promise a sort, and 「first kill」 is a claim about time.
- */
-export function openingKills(
-  rounds: readonly WireRound[],
-  directory: ReadonlyMap<string, PlayerAnalysis>,
-): OpeningKills {
-  let a = 0;
-  let b = 0;
-  let counted = 0;
-  let unattributed = 0;
-
-  for (const round of rounds) {
-    const kills = round.events.filter((event) => event.kind === 'kill');
-    if (kills.length === 0) continue;
-    counted += 1;
-
-    const first = kills.reduce((earliest, event) => (event.tick < earliest.tick ? event : earliest));
-    const team = teamOfActor(first.actor, directory);
-    if (team === 'a') a += 1;
-    else if (team === 'b') b += 1;
-    else unattributed += 1;
-  }
-
-  return { a, b, rounds: counted, unattributed };
 }
 
 export interface PositionedEvidence {
@@ -358,7 +322,7 @@ export function highlightKindCounts(
 export interface MatchOverviewFacts {
   readonly rounds: number;
   readonly won: TeamTally;
-  readonly opening: OpeningKills;
+  readonly opening: OpeningEvidence;
   readonly spatial: PositionedEvidence;
   readonly highlights: number;
   readonly clutchCandidates: number;
@@ -369,11 +333,10 @@ export interface MatchOverviewFacts {
  * passes hidden behind five call sites.
  */
 export function matchOverviewFacts(analysis: AnalysisWorkspace): MatchOverviewFacts {
-  const directory = playerDirectory(analysis.players);
   return {
     rounds: analysis.rounds.length,
     won: roundsWon(analysis.rounds),
-    opening: openingKills(analysis.rounds, directory),
+    opening: openingEvidence(analysis.rounds, analysis.players),
     spatial: positionedEvidence(analysis.rounds),
     highlights: analysis.highlights.length,
     clutchCandidates: highlightKindCounts(analysis.highlights).get('clutch') ?? 0,

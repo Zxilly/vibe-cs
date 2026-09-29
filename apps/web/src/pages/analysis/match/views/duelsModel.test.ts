@@ -14,12 +14,11 @@ import {
   hasKillEvents,
   matchupsAgainst,
   MAX_CELL_WASH_PERCENT,
-  openingDuels,
-  openingTallies,
   pairKills,
   roster,
   rosterIndex,
 } from './duelsModel';
+import { openingEvidence } from './openingEvidence';
 import { ANALYSIS, BARE_ANALYSIS, ROUNDS } from './test/rosterFixtures';
 
 describe('the roster', () => {
@@ -98,35 +97,36 @@ describe('the cell wash', () => {
 });
 
 describe('the opening duel of a round', () => {
-  const duels = openingDuels(ROUNDS);
+  const duels = openingEvidence(ROUNDS, ANALYSIS.players).duels;
 
-  it('is the earliest kill with both ends named, not the earliest event', () => {
+  it('does not promote a later kill when the earliest kill is unattributed', () => {
     // R1's first event is an unattributed kill 50 ticks earlier.
-    expect(duels[0]).toMatchObject({ round: 1, killerId: 'kael', victimId: 'sable', tick: 10_100 });
+    expect(duels.some((duel) => duel.round === 1)).toBe(false);
+    expect(duels[0]).toMatchObject({ round: 2, killerId: 'sable', victimId: 'kael', tick: 20_100 });
   });
 
   it('carries the weapon and the qualifiers verbatim', () => {
-    expect(duels[0]?.weapon).toBe('ak47');
-    expect(duels[0]?.headshot).toBe(true);
-    expect(duels[1]?.penetrated).toBe(false);
+    expect(duels[0]?.weapon).toBe('awp');
+    expect(duels[0]?.headshot).toBe(false);
+    expect(duels[1]?.penetrated).toBe(true);
   });
 
   it('is one per round, in round order', () => {
-    expect(duels.map((duel) => duel.round)).toEqual([1, 2, 3]);
-    expect(duels[1]?.killerId).toBe('sable');
+    expect(duels.map((duel) => duel.round)).toEqual([2, 3]);
+    expect(duels[0]?.killerId).toBe('sable');
   });
 
   it('is empty when nothing in the analysis is an attributed kill', () => {
-    expect(openingDuels(BARE_ANALYSIS.rounds)).toEqual([]);
+    expect(openingEvidence(BARE_ANALYSIS.rounds, BARE_ANALYSIS.players).duels).toEqual([]);
   });
 });
 
 describe('the opening tallies', () => {
-  const tallies = openingTallies(openingDuels(ROUNDS));
+  const tallies = openingEvidence(ROUNDS, ANALYSIS.players).tallies;
 
   it('counts both halves of the exchange', () => {
-    expect(tallies.get('kael')).toEqual({ kills: 2, deaths: 1 });
-    expect(tallies.get('sable')).toEqual({ kills: 1, deaths: 1 });
+    expect(tallies.get('kael')).toEqual({ kills: 1, deaths: 1 });
+    expect(tallies.get('sable')).toEqual({ kills: 1, deaths: 0 });
     expect(tallies.get('corvin')).toEqual({ kills: 0, deaths: 1 });
   });
 

@@ -21,10 +21,10 @@ import {
 import {
   duelMatrix,
   matchupsAgainst,
-  openingDuels,
   pairKills,
   rosterIndex,
 } from './duelsModel';
+import { openingEvidence } from './openingEvidence';
 import { ANALYSIS, BARE_ANALYSIS, densityAnalysis } from './test/rosterFixtures';
 
 const INDEX = rosterIndex(ANALYSIS);
@@ -117,7 +117,7 @@ describe('the spatial half the artboard drew', () => {
 });
 
 describe('the opening duels', () => {
-  const duels = openingDuels(ANALYSIS.rounds);
+  const duels = openingEvidence(ANALYSIS.rounds, ANALYSIS.players).duels;
   const html = renderMarkup(
     <OpeningDuelTable
       duels={duels}
@@ -130,7 +130,7 @@ describe('the opening duels', () => {
   );
 
   it('is one row per round that had an attributed first kill', () => {
-    expect(html.match(/data-row-id="/gu)).toHaveLength(3);
+    expect(html.match(/data-row-id="/gu)).toHaveLength(2);
   });
 
   it('names both ends of the exchange', () => {
@@ -145,13 +145,13 @@ describe('the opening duels', () => {
   });
 
   it('marks 爆头 and 穿墙 with a word, not only a hue', () => {
-    expect(html).toContain('爆头');
+    expect(html).not.toContain('爆头');
     expect(html).toContain('穿墙');
   });
 
   it('offers 定位 on every row and marks the round the address holds', () => {
     // The fourth occurrence is the column's visually hidden header label.
-    expect(html.match(/>定位<\/button>/gu)).toHaveLength(3);
+    expect(html.match(/>定位<\/button>/gu)).toHaveLength(2);
     expect(html).toContain('data-row-id="2" data-active="true"');
   });
 });
@@ -255,7 +255,7 @@ describe('density — the real volumes of `domain/densityFixtures`', () => {
   });
 
   it('keeps the opening-duel table at one row per round', () => {
-    const duels = openingDuels(analysis.rounds);
+    const duels = openingEvidence(analysis.rounds, analysis.players).duels;
     expect(duels).toHaveLength(OVERTIME_ROUNDS);
     const html = renderMarkup(
       <OpeningDuelTable

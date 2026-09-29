@@ -15,7 +15,7 @@ import { markupAt } from '../test/renderWorkspace';
 import type { MatchVideoAction } from '../viewContract';
 import { MatchScoreboard, PlayerMatchDetail } from './PlayersView';
 import { scoreboardRows } from './playersModel';
-import { ANALYSIS, BARE_ANALYSIS, densityAnalysis } from './test/rosterFixtures';
+import { ANALYSIS, BARE_ANALYSIS, ROUNDS, densityAnalysis } from './test/rosterFixtures';
 
 const ROWS = scoreboardRows(ANALYSIS);
 const BARE_ROWS = scoreboardRows(BARE_ANALYSIS);
@@ -101,8 +101,10 @@ describe('what is omitted rather than zeroed', () => {
     expect(html).toContain('ADR');
   });
 
-  it('shows them, including a measured zero, when the events are there', () => {
-    expect(scoreboard()).toContain('首杀 / 首死');
+  it('shows them, including a measured zero, when opening evidence is complete', () => {
+    const html = scoreboard({ rows: scoreboardRows({ ...ANALYSIS, rounds: ROUNDS.slice(1) }) });
+    expect(html).toContain('首杀 / 首死');
+    expect(html).toContain('0 / 0');
   });
 
   it('never prints a hit rate — there is no weapon-fire event to divide by', () => {

@@ -51,7 +51,7 @@ function kill(spec: KillSpec): TimelineEvent {
   };
 }
 
-/** A kill the parser could not attribute — skipped by every derivation here. */
+/** A kill the parser could not attribute; this round's opening is unavailable. */
 function orphanKill(tick: number): TimelineEvent {
   return {
     id: `player_death-${String(tick)}`,

@@ -128,7 +128,7 @@ export function OverviewPanels({
     metrics.push({
       id: 'opening-kills',
       label: <Trans>首杀差</Trans>,
-      value: signedDelta(facts.opening.a - facts.opening.b),
+      value: facts.opening.complete ? signedDelta(facts.opening.a - facts.opening.b) : '—',
       detail:
         facts.opening.unattributed > 0 ? (
           <Trans>

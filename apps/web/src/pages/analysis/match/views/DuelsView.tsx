@@ -48,17 +48,15 @@ import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
   cellWashPercent,
   duelMatrix,
-  hasKillEvents,
   matchupsAgainst,
-  openingDuels,
   pairKills,
   rosterIndex,
   type DuelMatrix,
   type DuelMatrixRow,
-  type OpeningDuel,
   type PairKill,
   type RosterEntry,
 } from './duelsModel';
+import { openingEvidence, type OpeningDuel } from './openingEvidence';
 import { formatFixed, NO_VALUE, teamNames } from './playersModel';
 import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './viewChrome';
 
@@ -504,7 +502,8 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
   const matrix = useMemo(() => duelMatrix(gate.analysis, rowTeam), [gate.analysis, rowTeam]);
   const defaultPair = useMemo(() => strongestMatrixPair(matrix), [matrix]);
   const rounds = gate.analysis?.rounds ?? [];
-  const duels = useMemo(() => openingDuels(rounds), [rounds]);
+  const opening = useMemo(() => openingEvidence(rounds, gate.analysis?.players ?? []), [rounds, gate.analysis?.players]);
+  const duels = opening.duels;
 
   const availability = gate.analysis?.insights?.availability.matchups;
   const matchupsUnavailable = availability !== undefined && !availability.available;
@@ -542,7 +541,9 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
         hint={
           mode === 'matrix' ? (
             <Trans>单元格＝行方对列方的击杀数，点开进入这一对的交手</Trans>
-          ) : gate.analysis === undefined ? undefined : (
+          ) : gate.analysis === undefined ? undefined : opening.unattributed > 0 ? (
+            <Trans>{duels.length} 个回合有可归属的首杀 · {opening.unattributed} 个回合无法核实</Trans>
+          ) : (
             <Trans>共 {duels.length} 个回合有可归属的首杀</Trans>
           )
         }
@@ -594,7 +595,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
               headingLevel={4}
               title={<Trans>没有可归属的首杀</Trans>}
               description={
-                hasKillEvents(rounds) ? (
+                opening.rounds > 0 ? (
                   <Trans>首杀事件缺少选手信息，无法显示对位。</Trans>
                 ) : (
                   <Trans>这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。</Trans>

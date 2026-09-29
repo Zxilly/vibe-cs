@@ -45,6 +45,7 @@ import type { AnalysisWorkspace, Highlight } from '../../../../shared/desktop/vi
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchVideoAction, MatchViewModule, MatchViewProps } from '../viewContract';
 import { rosterIndex } from './duelsModel';
+import { openingEvidence } from './openingEvidence';
 import { highlightSelection } from './highlightModel';
 import { SelectedRoundLine, useAnalysisGate, ViewFrame, ViewPanel } from './viewChrome';
 import {
@@ -234,7 +235,8 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
   const natural = useMemo(() => scoreboardRows(gate.analysis), [gate.analysis]);
   const rows = useMemo(() => sortScoreboardRows(natural, sort), [natural, sort]);
   const activePlayerId = context.player ?? rows[0]?.id ?? null;
-  const showOpeningDuels = natural.some((row) => row.openingKills !== null);
+  const opening = useMemo(() => openingEvidence(gate.analysis?.rounds ?? [], gate.analysis?.players ?? []), [gate.analysis]);
+  const showOpeningDuels = opening.rounds > 0;
   const empty = gate.analysis !== undefined && rows.length === 0;
 
   return (
@@ -245,7 +247,9 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
         fill
         {...(gate.analysis === undefined || empty
           ? {}
-          : { hint: <Trans>共 {rows.length} 名选手</Trans> })}
+          : { hint: opening.unattributed > 0
+            ? <Trans>{opening.unattributed} 个回合的首杀无法核实，首杀与首死总数暂不可用。</Trans>
+            : <Trans>共 {rows.length} 名选手</Trans> })}
       >
         {gate.fallback ??
           (empty ? (
@@ -303,6 +307,7 @@ export interface PlayerMatchDetailProps {
 export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDetailProps) {
   const weapons = weaponBreakdown(analysis.rounds, row.id, WEAPON_LIMIT);
   const highlights = playerHighlights(analysis, row.id);
+  const opening = openingEvidence(analysis.rounds, analysis.players);
 
   return (
     <div data-player-detail={row.id} className="flex flex-col gap-3.5">
@@ -314,16 +319,21 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
           {`${formatFixed(row.kills, 0)} / ${formatFixed(row.deaths, 0)} / ${formatFixed(row.assists, 0)}`}
         </StatCell>
         <StatCell label={<Trans>ADR</Trans>}>{formatFixed(row.adr, 1)}</StatCell>
-        <StatCell label={<Trans>爆头率</Trans>} last={row.openingKills === null}>
+        <StatCell label={<Trans>爆头率</Trans>} last={opening.rounds === 0}>
           {formatPercent(row.headshotRate)}
         </StatCell>
         {/* 首杀 / 首死 only when the round event stream exists — see the table. */}
-        {row.openingKills === null ? null : (
+        {opening.rounds === 0 ? null : (
           <StatCell label={<Trans>首杀 / 首死</Trans>} last>
             {`${formatFixed(row.openingKills, 0)} / ${formatFixed(row.openingDeaths, 0)}`}
           </StatCell>
         )}
       </div>
+      {opening.unattributed > 0 && (
+        <p className="text-xs text-neutral-700">
+          <Trans>{opening.unattributed} 个回合的首杀无法核实，首杀与首死总数暂不可用。</Trans>
+        </p>
+      )}
 
       <section data-player-weapons="" className="border border-divider">
         <PanelHead>

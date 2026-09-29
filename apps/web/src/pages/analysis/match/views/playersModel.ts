@@ -22,9 +22,8 @@
  *     denominator. The column is dropped rather than filled with the numerator
  *     twice.
  *   · **首杀 out of nothing.** 首杀 / 首死 are derived from the round event
- *     stream (`duelsModel.openingDuels`). When the analysis carries no kill
- *     events the columns are `null` and the view omits them — 「没有事件流」 is
- *     not 「零次首杀」.
+ *     stream (`openingEvidence`). Missing or unverified opening evidence keeps
+ *     totals `null`; the view distinguishes that from a measured zero.
  */
 
 import type {
@@ -33,7 +32,8 @@ import type {
   RoundSummary,
 } from '../../../../shared/desktop/viewModels';
 import { TICK_GROUP_SEPARATOR, type HighlightKind } from '../../../../domain/match';
-import { hasKillEvents, openingDuels, openingTallies } from './duelsModel';
+import { hasKillEvents } from './duelsModel';
+import { openingEvidence } from './openingEvidence';
 
 /* ── formatting ──────────────────────────────────────────────────────────── */
 
@@ -110,7 +110,7 @@ export interface ScoreboardRow {
   readonly killDeathRatio: number;
   readonly adr: number;
   readonly headshotRate: number;
-  /** `null` when the analysis carries no kill events at all. */
+  /** `null` when the event stream is absent or an opening cannot be verified. */
   readonly openingKills: number | null;
   readonly openingDeaths: number | null;
   readonly highlights: number;
@@ -143,8 +143,7 @@ export function scoreboardRows(analysis: AnalysisWorkspace | undefined): readonl
   if (analysis === undefined) return [];
 
   const names = teamNames(analysis);
-  const events = hasKillEvents(analysis.rounds);
-  const tallies = openingTallies(openingDuels(analysis.rounds));
+  const opening = openingEvidence(analysis.rounds, analysis.players);
   const highlights = new Map<string, number>();
   for (const highlight of analysis.highlights) {
     highlights.set(highlight.player_id, (highlights.get(highlight.player_id) ?? 0) + 1);
@@ -152,7 +151,7 @@ export function scoreboardRows(analysis: AnalysisWorkspace | undefined): readonl
 
   return analysis.players
     .map((player) => {
-      const tally = tallies.get(player.id);
+      const tally = opening.tallies.get(player.id);
       return {
         id: player.id,
         name: player.name,
@@ -164,8 +163,8 @@ export function scoreboardRows(analysis: AnalysisWorkspace | undefined): readonl
         killDeathRatio: player.kill_death_ratio,
         adr: player.adr,
         headshotRate: player.headshot_rate,
-        openingKills: events ? (tally?.kills ?? 0) : null,
-        openingDeaths: events ? (tally?.deaths ?? 0) : null,
+        openingKills: opening.complete ? (tally?.kills ?? 0) : null,
+        openingDeaths: opening.complete ? (tally?.deaths ?? 0) : null,
         highlights: highlights.get(player.id) ?? 0,
       };
     })

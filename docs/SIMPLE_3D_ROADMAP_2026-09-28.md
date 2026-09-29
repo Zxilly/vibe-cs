@@ -1,6 +1,6 @@
 # 简易 3D 回放与镜头预演 · 路线图
 
-2026-09-28 · 状态：实施中（2026-09-29：M1、M2、M4、M5 完成；M0 过滤语义与 M3 campath 游戏实拍仍待验收）
+2026-09-28 · 状态：实施中（2026-09-29：M1–M5 完成；M0 过滤语义仍待验收）
 
 ## 目标与边界
 
@@ -113,7 +113,7 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 - [x] `apps/desktop/src-tauri/src/agent.rs` 的镜头校验返回结构化诊断（例如「3.2–4.1 s 目标被遮挡 72%」），供 agent 修正
 - [x] 片段属性中显示镜头问题（穿墙、遮挡），仅提示，不硬性拦截录制
 - [x] 验收：真实高光上的 Flyby / Crane 镜头能检出穿模并自动修正（真实静态几何与生产回合数据通过，游戏实拍见下一项）
-- [ ] 验收：同一 campath 用 `mirv_campath draw` 实拍，与采样结果比对，确认插值一致
+- [x] 验收：同一 campath 用 `mirv_campath draw` 实拍，与采样结果比对，确认插值一致（482 个原生采样、475 个已激活的游戏相机观测，见决策记录）
 
 ## M4 · 3D 视图模块（1.5–2 周）
 
@@ -453,6 +453,18 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - source-assets 常规测试 45 通过、5 个环境测试默认跳过；运行时镜头测试 14 通过、6 个环境测试默认跳过，缓存测试 3 通过；前端几何与场景测试含真实 Mirage 共 27 通过。严格 Clippy、绑定生成、Web lint/build 和仓库格式检查通过。证据为 `artifacts/simple-3d/m3-closed-{all-maps,real-runtime-maps,real-player-heads,real-correction,source-tests,runtime-tests,cache-tests,web-scene-tests,clippy}.log`。
 - M3 每帧实体内部/贴墙检查完成。剩余必需验收为 M0 过滤语义和 M3 `mirv_campath draw` 游戏实拍；整个路线图尚未完成。
 - 完整 Release 原生回归通过：`tauri/custom-protocol` 构建完成，运行副本与构建产物 SHA-256 同为 `81BE9FDF3B074983DA5E3DF8FD9CED5C9E6AA10FAE6E9E07E8221663C99F1A8E`。仅用 agent-browser/CDP 9239 操作 QA Tauri，在真实 Mirage tick 118,000 选择 NiKo、跟随与头顶剖切，播放后推进到约 tick 119,399，胶囊体及视角随时间更新；页面错误列表为空。原生缓存 v3 为 459,057 字节，压缩流与单独导出器的字节数不同，但二者解压后均为 800,297 字节，SHA-256 同为 `512E0C965B962E1C5C7E8CB55965A08C83DAC326F0BAD4DB47925B5D383847BE`。证据：`m3-closed-native-release-build.log`、`m3-closed-native-cache.json`、`m3-closed-native-cutaway.png`、`m3-closed-native-after-play.png`。本次没有使用 computer use。
+
+### 2026-09-29 · 原生 HLAE campath 与游戏相机实拍
+
+- 使用真实 Mirage 决赛 Demo 的同一组 Flyby/Crane（tick 160800–161310，64 tick/s）。新增 `crates/hlae/examples/campath_validation_export.rs`，调用生产 `compile_hlae_plan` 与 `sample_camera_shot`，输出原生 XML、命令、类型化计划和 30 fps 预期采样；没有新增产品插值路径。用显式 tick rate 参数重新导出，两条 XML 和采样 JSON 均与本次游戏实际加载文件逐字节相同。
+- 应用原有 HLAE 2.192.1 在当前游戏构建启动时出现 AfxHookSource2 错误；隔离验证改用[官方 HLAE 2.192.6](https://github.com/advancedfx/advancedfx/releases/tag/v2.192.6)，下载包 SHA-256 `b3acae70babb536e3b4a34fbbbe4ca8e55a1028068eaaf5fc98817775b72f4fa` 与官方资产摘要一致。本次不修改应用管理的 HLAE 版本。
+- CS2 在独立 `USRLOCALCSGO` 目录运行，使用 `-afxDisableSteamStorage`，仅复制当前用户所需的引擎配置。每次验证后检查七个来源配置文件的 SHA-256，均保持不变。游戏使用脚本与本机 WebSocket 采集；Tauri 界面继续仅通过 agent-browser/CDP 操作，没有使用 computer use。
+- 将相同 XML 加载到真实 HLAE `AdvancedfxCampath`，逐一计算两条路径各 241 个采样点。482 个采样与 Rust 的最大位置差为 **6.916×10⁻¹³ Source 单位**，最大四元数角差 **4.697×10⁻¹⁴ 度**，FOV 差 **2.843×10⁻¹⁴ 度**。
+- 同时采集 HLAE 已应用路径后的 `cViewRenderSetupView.currentView`。Flyby 238 帧、Crane 237 帧，共 475 帧；最大位置差 **0.00006709 单位**，最大旋转差 **0.000004039 度**，符合游戏 float 精度。录制开始后路径尚未激活的 7 帧单独计数并排除，此项证明路径插值与已激活机位一致，不把启动调度或此前观察者机位算成曲线采样。
+- `mirv_campath draw` 已开启，真实 CS2 帧中可见路径视锥线；Crane 实拍同时包含真实地图、烟雾及升至屋顶的机位。固定俯瞰视角中的路径可能被屋顶深度遮挡，因此不以俯瞰截图作为路径可见性的证据。截图 `artifacts/simple-3d/m3-game-crane-contact.png`，原始 TGA 位于 `game-validation-20260929/attempt-003/*-follow/take0000/`。
+- 新增默认忽略的环境回归 `native_hlae_evaluations_and_active_game_views_match_rust_sampling`。通过 `VIBE_CAMPATH_GAME_PLANS` 指向计划目录、`VIBE_CAMPATH_GAME_EVENTS` 指向 `attempt-003-events.jsonl`，运行 `cargo test --locked -p vibe-cs-hlae native_hlae_evaluations_and_active_game_views_match_rust_sampling -- --ignored --nocapture` 可重放比较。测试要求完整结束事件、两条路径、全部原生采样及每条至少 230 个有效游戏观测，并限制排除帧数。
+- 验证前固定的原生误差上限为位置 `1e-8`、角度 `1e-7`、FOV `1e-8`；游戏相机上限为位置 `0.001`、角度/FOV `0.0001`，全部通过。HLAE 常规测试 132 通过、2 个环境测试默认忽略；严格 Clippy、格式检查通过。证据：`m3-native-campath-comparison.log`、`m3-game-hlae-tests.log`、`m3-game-export-clippy.log`、`m3-game-export-check.log`。
+- M3 完成；M0 的碰撞属性与视觉遮挡过滤仍继续核验。
 
 ## 参考来源
 

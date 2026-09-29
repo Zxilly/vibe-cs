@@ -372,7 +372,9 @@ fn parse_directory_tree(
                     let end = offset
                         .checked_add(data_length)
                         .ok_or(SourceAssetError::ArithmeticOverflow("inline entry range"))?;
-                    if end > u64::from(file_data_section_size) {
+                    // Valve core packages use 0xffffffff for empty entries.
+                    // No body is read when length is zero; the offset is unused.
+                    if data_length > 0 && end > u64::from(file_data_section_size) {
                         return Err(SourceAssetError::EntryOutOfBounds { path });
                     }
                     VpkArchiveLocation::Inline
@@ -624,6 +626,28 @@ mod tests {
 
     use super::*;
     use crate::test_support::{TestEntry, TestLocation, build_vpk, write_vpk};
+
+    #[test]
+    fn reads_empty_inline_entries_with_unused_sentinel_offsets() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("pak01_dir.vpk");
+        let tree = single_entry_tree("cfg", "panorama", "window_keybinds", u32::MAX, 0, u16::MAX);
+        fs::write(&path, wrap_tree(&tree, &[])).unwrap();
+        let archive = VpkArchive::open(&path).unwrap();
+        assert!(
+            archive
+                .read("panorama/window_keybinds.cfg")
+                .unwrap()
+                .is_empty()
+        );
+        // The same offset must still be rejected when bytes would be read.
+        let tree = single_entry_tree("cfg", "panorama", "window_keybinds", u32::MAX, 1, u16::MAX);
+        fs::write(&path, wrap_tree(&tree, &[])).unwrap();
+        assert!(matches!(
+            VpkArchive::open(&path),
+            Err(SourceAssetError::EntryOutOfBounds { .. })
+        ));
+    }
 
     #[test]
     fn reads_standalone_map_package_with_preload_and_crc() {

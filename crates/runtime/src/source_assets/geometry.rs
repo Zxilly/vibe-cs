@@ -61,7 +61,7 @@ fn fingerprint(path: &Path) -> Result<String, DomainError> {
     let mut hash = Sha256::new();
     // Revision covers both extraction policy and VMAP format. Rebuilding a
     // changed extractor bumps this number; obsolete files are discarded locally.
-    hash.update(b"vibe-map-geometry-2\0");
+    hash.update(b"vibe-map-geometry-3\0");
     hash.update(path.to_string_lossy().as_bytes());
     hash.update(metadata.len().to_le_bytes());
     hash.update(modified.as_nanos().to_le_bytes());

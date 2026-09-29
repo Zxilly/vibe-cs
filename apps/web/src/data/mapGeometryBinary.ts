@@ -16,11 +16,11 @@ function invalid(): never {
   throw new Error(t`地图几何文件无效，请重新生成。`);
 }
 
-/** The VMAP v2 contract is shared with source-assets/geometry_binary.rs. */
+/** The VMAP v3 contract is shared with source-assets/geometry_binary.rs. */
 export async function decodeMapGeometry(buffer: ArrayBuffer): Promise<MapGeometry> {
   if (buffer.byteLength < headerBytes || buffer.byteLength > maximumBytes) invalid();
   const header = new DataView(buffer);
-  if (header.getUint32(0, true) !== 0x50414d56 || header.getUint16(4, true) !== 2 || header.getUint16(6, true) !== MAP_GEOMETRY_QUANTIZATION) invalid();
+  if (header.getUint32(0, true) !== 0x50414d56 || header.getUint16(4, true) !== 3 || header.getUint16(6, true) !== MAP_GEOMETRY_QUANTIZATION) invalid();
   const vertices = header.getUint32(8, true);
   const triangles = header.getUint32(12, true);
   const length = header.getUint32(24, true);
@@ -69,6 +69,19 @@ export async function decodeMapGeometry(buffer: ArrayBuffer): Promise<MapGeometr
     for (let vertex = 0; vertex < count; vertex += 1) {
       index += delta();
       if (index < 0 || index >= vertices) invalid();
+    }
+  }
+  const meshes = delta();
+  if (meshes < 0 || meshes > header.getUint32(16, true) || meshes > Math.floor(triangles / 4)) invalid();
+  const referenced = new Uint8Array(meshes === 0 ? 0 : triangles);
+  for (let mesh = 0; mesh < meshes; mesh += 1) {
+    const count = delta();
+    if (count < 4 || count > triangles || count > payload.length - offset) invalid();
+    let index = 0;
+    for (let triangle = 0; triangle < count; triangle += 1) {
+      index += delta();
+      if (index < 0 || index >= triangles || referenced[index]) invalid();
+      referenced[index] = 1;
     }
   }
   if (offset !== payload.length) invalid();

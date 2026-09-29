@@ -11,6 +11,7 @@
     reason = "fallible public methods return the crate's documented SourceAssetError variants"
 )]
 
+mod closed_mesh;
 mod cosmetics;
 mod cs2;
 mod error;
@@ -21,6 +22,7 @@ mod overview;
 mod vpk;
 mod vtex;
 
+pub use closed_mesh::closed_triangle_components;
 pub use cosmetics::*;
 pub use cs2::*;
 pub use error::{Result, SourceAssetError};

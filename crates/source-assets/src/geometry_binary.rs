@@ -1,9 +1,10 @@
-//! VMAP v2: 32-byte header, then zlib-compressed delta/zigzag varints.
+//! VMAP v3: 32-byte header, then zlib-compressed delta/zigzag varints.
 //! All integers are little endian. Vertices are quantized to 1/16 Source unit.
 //! Header: magic, u16 version, u16 scale, u32 vertex/triangle/included/excluded
 //! counts, u32 inflated byte count, u32 CRC32 of the inflated bytes.
 //! After triangles: delta-coded solid count, then vertex count and indices for
 //! each original convex solid. Each count/index sequence starts at zero.
+//! Then closed mesh count, and triangle count/indices for each original mesh.
 use std::io::Write;
 
 use flate2::{Compression, Decompress, FlushDecompress, Status, write::ZlibEncoder};
@@ -108,10 +109,43 @@ pub fn encode_map_geometry(geometry: &MapGeometry) -> Result<Vec<u8>> {
             )?;
         }
     }
+    if geometry.closed_meshes.len() > geometry.included_shapes {
+        return Err(invalid("closed mesh count exceeds included shapes"));
+    }
+    write_delta(
+        &mut payload,
+        i32::try_from(geometry.closed_meshes.len()).map_err(|_| invalid("mesh count overflow"))?,
+        &mut 0,
+    )?;
+    let mut used_triangles = vec![false; geometry.triangles.len()];
+    for mesh in &geometry.closed_meshes {
+        if mesh.len() < 4 || mesh.len() > geometry.triangles.len() {
+            return Err(invalid("closed mesh triangle count outside limits"));
+        }
+        write_delta(
+            &mut payload,
+            i32::try_from(mesh.len()).map_err(|_| invalid("mesh count overflow"))?,
+            &mut 0,
+        )?;
+        let mut previous = 0;
+        for &index in mesh {
+            let used = used_triangles
+                .get_mut(index as usize)
+                .ok_or_else(|| invalid("closed mesh triangle outside table"))?;
+            if std::mem::replace(used, true) {
+                return Err(invalid("duplicate closed mesh triangle"));
+            }
+            write_delta(
+                &mut payload,
+                i32::try_from(index).map_err(|_| invalid("mesh index overflow"))?,
+                &mut previous,
+            )?;
+        }
+    }
     if payload.len() > MAX_BYTES {
         return Err(invalid("payload exceeds limit"));
     }
-    let mut output = b"VMAP\x02\0\x10\0".to_vec();
+    let mut output = b"VMAP\x03\0\x10\0".to_vec();
     for count in [
         geometry.vertices.len(),
         geometry.triangles.len(),
@@ -173,7 +207,7 @@ impl Deltas<'_> {
     reason = "quantized values are bounded to +/-16 million, exact as f32"
 )]
 pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
-    if bytes.len() < HEADER || bytes.len() > MAX_BYTES || &bytes[..8] != b"VMAP\x02\0\x10\0" {
+    if bytes.len() < HEADER || bytes.len() > MAX_BYTES || &bytes[..8] != b"VMAP\x03\0\x10\0" {
         return Err(invalid("unsupported or truncated header"));
     }
     let header = |offset| {
@@ -215,6 +249,7 @@ pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
         included_shapes: header(16) as usize,
         excluded_shapes: header(20) as usize,
         convex_solids: Vec::new(),
+        closed_meshes: Vec::new(),
     };
     let mut previous = [0; 3];
     for _ in 0..vertices {
@@ -271,6 +306,33 @@ pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
         }
         geometry.convex_solids.push(solid);
     }
+    let mesh_count =
+        usize::try_from(deltas.next(&mut 0)?).map_err(|_| invalid("negative mesh count"))?;
+    if mesh_count > geometry.included_shapes || mesh_count > triangles / 4 {
+        return Err(invalid("closed mesh count outside limits"));
+    }
+    let mut used_triangles = vec![false; triangles];
+    for _ in 0..mesh_count {
+        let count = usize::try_from(deltas.next(&mut 0)?)
+            .map_err(|_| invalid("negative mesh triangle count"))?;
+        if count < 4 || count > triangles || count > payload.len() - deltas.offset {
+            return Err(invalid("closed mesh triangle count outside limits"));
+        }
+        let mut mesh = Vec::with_capacity(count);
+        let mut previous = 0;
+        for _ in 0..count {
+            let index = u32::try_from(deltas.next(&mut previous)?)
+                .map_err(|_| invalid("negative mesh triangle index"))?;
+            let used = used_triangles
+                .get_mut(index as usize)
+                .ok_or_else(|| invalid("closed mesh triangle outside table"))?;
+            if std::mem::replace(used, true) {
+                return Err(invalid("duplicate closed mesh triangle"));
+            }
+            mesh.push(index);
+        }
+        geometry.closed_meshes.push(mesh);
+    }
     if deltas.offset != payload.len() {
         return Err(invalid("trailing geometry values"));
     }
@@ -292,6 +354,7 @@ mod tests {
             included_shapes: 2,
             excluded_shapes: 3,
             convex_solids: vec![vec![0, 1, 2]],
+            closed_meshes: Vec::new(),
         }
     }
 
@@ -306,6 +369,21 @@ mod tests {
                 "prefix {length}"
             );
         }
+    }
+
+    #[test]
+    fn closed_mesh_membership_round_trips_and_rejects_duplicate_or_invalid_triangles() {
+        let mut geometry = mesh();
+        geometry.triangles.extend([[0, 1, 2], [0, 2, 1]]);
+        geometry.closed_meshes = vec![vec![0, 1, 2, 3]];
+        let bytes = encode_map_geometry(&geometry).unwrap();
+        assert_eq!(decode_map_geometry(&bytes).unwrap(), geometry);
+        geometry.closed_meshes[0][3] = 2;
+        assert!(encode_map_geometry(&geometry).is_err());
+        geometry.closed_meshes[0][3] = 4;
+        assert!(encode_map_geometry(&geometry).is_err());
+        geometry.closed_meshes[0].pop();
+        assert!(encode_map_geometry(&geometry).is_err());
     }
 
     #[test]
@@ -354,7 +432,7 @@ mod tests {
             vec![vec![0, 1, 2]]
         );
         let mut old = bytes;
-        old[4..6].copy_from_slice(&1_u16.to_le_bytes());
+        old[4..6].copy_from_slice(&2_u16.to_le_bytes());
         assert!(decode_map_geometry(&old).is_err());
         let mut invalid = geometry;
         invalid.convex_solids[0][2] = 3;

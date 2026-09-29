@@ -1,6 +1,8 @@
 //! Camera queries over the same filtered VMAP geometry used by the renderer.
 //! Open mesh surfaces only support distance/ray queries. VMAP retains original
-//! convex physics solids separately so rooms and holes are not called interiors.
+//! convex solids and closed oriented mesh shells separately from open surfaces.
+mod closed_mesh;
+use closed_mesh::MeshInterior;
 use parry3d::{
     bounding_volume::Aabb,
     math::Vector,
@@ -20,6 +22,7 @@ const RAY_ENDPOINT_MARGIN: f32 = 0.125;
 pub struct CameraGeometry {
     mesh: TriMesh,
     solids: Vec<(Aabb, ConvexPolyhedron)>,
+    mesh_interiors: Vec<MeshInterior>,
 }
 
 impl CameraGeometry {
@@ -63,6 +66,7 @@ impl CameraGeometry {
                     .map(|solid| (solid.local_aabb(), solid))
             })
             .collect();
+        let mesh_interiors = MeshInterior::build(&geometry)?;
         let mesh = TriMesh::new(
             geometry
                 .vertices
@@ -72,7 +76,11 @@ impl CameraGeometry {
             geometry.triangles,
         )
         .map_err(|error| DomainError::InvalidInput(format!("camera geometry: {error}")))?;
-        Ok(Self { mesh, solids })
+        Ok(Self {
+            mesh,
+            solids,
+            mesh_interiors,
+        })
     }
 
     fn inside_solid(&self, position: Vector) -> bool {
@@ -85,7 +93,10 @@ impl CameraGeometry {
                     // to avoid cancellation in n.dot(world_position) - plane_offset.
                     face.normal.dot(position - solid.points()[vertex as usize]) <= 0.0
                 })
-        })
+        }) || self
+            .mesh_interiors
+            .iter()
+            .any(|mesh| mesh.contains(position))
     }
 
     fn occluded(&self, start: Vector, end: Vector) -> bool {

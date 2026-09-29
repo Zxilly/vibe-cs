@@ -13,7 +13,7 @@ pub struct CameraPoseDiagnostic {
     pub tick: f64,
     pub wall_distance: f64,
     pub near_wall: bool,
-    /// Contained by an original convex physics solid, never inferred from an open mesh.
+    /// Contained by an original convex solid or closed mesh, never an open surface.
     pub inside_solid: bool,
     pub crossed_surface: bool,
     pub head_occluded: Option<bool>,

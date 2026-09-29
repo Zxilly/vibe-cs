@@ -3,7 +3,7 @@
 //! revision cited by `kv3`; see ../licenses/ValveResourceFormat-MIT.txt.
 use std::collections::HashMap;
 
-use crate::{Kv3Value, Result, SourceAssetError, decode_physics_kv3};
+use crate::{Kv3Value, Result, SourceAssetError, closed_triangle_components, decode_physics_kv3};
 
 // Current Inferno has more than two million opaque collision triangles.
 const MAX_TRIANGLES: usize = 4_000_000;
@@ -14,8 +14,11 @@ pub struct MapGeometry {
     pub vertices: Vec<[f32; 3]>,
     pub triangles: Vec<[u32; 3]>,
     /// Vertex indices of original convex physics solids, before triangle welding
-    /// can connect them to an open world mesh. Mesh surfaces are not solids.
+    /// can connect them to an open world mesh. Open surfaces are not solids.
     pub convex_solids: Vec<Vec<u32>>,
+    /// Triangle indices of closed oriented shells, grouped by original mesh.
+    /// Opposite winding is preserved so a nested inner shell remains a cavity.
+    pub closed_meshes: Vec<Vec<u32>>,
     pub included_shapes: usize,
     pub excluded_shapes: usize,
 }
@@ -204,13 +207,14 @@ fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
                     vertices.push(builder.vertex(point)?);
                 }
                 if key == "m_Mesh" {
+                    let mut triangles = Vec::new();
                     for bytes in blob(data, "m_Triangles", 12)?.chunks_exact(12) {
                         let indices = std::array::from_fn(|axis| {
                             u32::from_le_bytes(bytes[axis * 4..axis * 4 + 4].try_into().unwrap())
-                                as usize
                         });
-                        builder.triangle(&vertices, indices)?;
+                        triangles.push(indices);
                     }
+                    builder.mesh(&vertices, &triangles)?;
                 } else {
                     builder.hull(data, &vertices)?;
                 }
@@ -231,6 +235,46 @@ struct Builder {
 }
 
 impl Builder {
+    fn mesh(&mut self, vertices: &[u32], triangles: &[[u32; 3]]) -> Result<()> {
+        if triangles.len() > MAX_TRIANGLES {
+            return Err(invalid("world triangle limit exceeded"));
+        }
+        let mut emitted = Vec::with_capacity(triangles.len());
+        for triangle in triangles {
+            let before = self.geometry.triangles.len();
+            self.triangle(vertices, triangle.map(|index| index as usize))?;
+            emitted.push((self.geometry.triangles.len() > before).then_some(before));
+        }
+        let mut closed_mesh = Vec::new();
+        for component in closed_triangle_components(triangles) {
+            let indices = component
+                .into_iter()
+                .filter_map(|index| emitted[index])
+                .collect::<Vec<_>>();
+            let quantized = indices
+                .iter()
+                .map(|index| self.geometry.triangles[*index])
+                .collect::<Vec<_>>();
+            // Welding can collapse edges or join faces. Do not certify a shell
+            // unless all its surviving triangles still form closed components.
+            let retained = closed_triangle_components(&quantized);
+            if !quantized.is_empty()
+                && retained.iter().map(Vec::len).sum::<usize>() == quantized.len()
+            {
+                closed_mesh.extend(
+                    indices
+                        .into_iter()
+                        .map(|index| u32::try_from(index).expect("bounded triangle table")),
+                );
+            }
+        }
+        if !closed_mesh.is_empty() {
+            closed_mesh.sort_unstable();
+            self.geometry.closed_meshes.push(closed_mesh);
+        }
+        Ok(())
+    }
+
     #[allow(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -414,6 +458,24 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+
+    #[test]
+    fn mesh_membership_survives_unrelated_welded_surfaces_but_never_seals_an_open_source() {
+        let mut builder = Builder::default();
+        let vertices = [
+            [0.0, 0.0, 0.0],
+            [128.0, 0.0, 0.0],
+            [0.0, 128.0, 0.0],
+            [0.0, 0.0, 128.0],
+        ]
+        .map(|point| builder.vertex(point).unwrap());
+        let tetra = [[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]];
+        builder.mesh(&vertices, &tetra).unwrap();
+        builder.mesh(&vertices, &tetra[..3]).unwrap();
+        assert_eq!(builder.geometry.closed_meshes, vec![vec![0, 1, 2, 3]]);
+        assert_eq!(builder.geometry.triangles.len(), 7);
+        assert!(builder.mesh(&vertices, &[[0, 1, 99]]).is_err());
+    }
 
     #[test]
     #[ignore = "requires VIBE_CS2_INSTALL and VIBE_ALIGNMENT_SAMPLES from a real Demo"]
@@ -670,10 +732,12 @@ mod tests {
             );
             assert!(!geometry.convex_solids.is_empty(), "{map}");
             eprintln!(
-                "{map}: {} vertices, {} triangles, {} convex solids, {} bytes (exact v2 round trip)",
+                "{map}: {} vertices, {} triangles, {} convex solids, {} closed meshes ({} triangles), {} bytes (exact v3 round trip)",
                 geometry.vertices.len(),
                 geometry.triangles.len(),
                 geometry.convex_solids.len(),
+                geometry.closed_meshes.len(),
+                geometry.closed_meshes.iter().map(Vec::len).sum::<usize>(),
                 encoded.len()
             );
         }

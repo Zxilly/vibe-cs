@@ -452,6 +452,7 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - Mirage 的 1,857 个原始凸体中心仍全部命中，其中 38 个距表面超过 16 单位；32 个真实 Demo 选手头部均未被误判。真实 Flyby/Crane 原始问题仍可检测，自动调整后五项问题计数均为零。
 - source-assets 常规测试 45 通过、5 个环境测试默认跳过；运行时镜头测试 14 通过、6 个环境测试默认跳过，缓存测试 3 通过；前端几何与场景测试含真实 Mirage 共 27 通过。严格 Clippy、绑定生成、Web lint/build 和仓库格式检查通过。证据为 `artifacts/simple-3d/m3-closed-{all-maps,real-runtime-maps,real-player-heads,real-correction,source-tests,runtime-tests,cache-tests,web-scene-tests,clippy}.log`。
 - M3 每帧实体内部/贴墙检查完成。剩余必需验收为 M0 过滤语义和 M3 `mirv_campath draw` 游戏实拍；整个路线图尚未完成。
+- 完整 Release 原生回归通过：`tauri/custom-protocol` 构建完成，运行副本与构建产物 SHA-256 同为 `81BE9FDF3B074983DA5E3DF8FD9CED5C9E6AA10FAE6E9E07E8221663C99F1A8E`。仅用 agent-browser/CDP 9239 操作 QA Tauri，在真实 Mirage tick 118,000 选择 NiKo、跟随与头顶剖切，播放后推进到约 tick 119,399，胶囊体及视角随时间更新；页面错误列表为空。原生缓存 v3 为 459,057 字节，压缩流与单独导出器的字节数不同，但二者解压后均为 800,297 字节，SHA-256 同为 `512E0C965B962E1C5C7E8CB55965A08C83DAC326F0BAD4DB47925B5D383847BE`。证据：`m3-closed-native-release-build.log`、`m3-closed-native-cache.json`、`m3-closed-native-cutaway.png`、`m3-closed-native-after-play.png`。本次没有使用 computer use。
 
 ## 参考来源
 

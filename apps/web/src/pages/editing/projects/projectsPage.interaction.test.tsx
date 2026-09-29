@@ -92,7 +92,7 @@ describe('/projects', () => {
 
     const resume = await screen.findByRole('link', { name: '继续剪辑' });
     expect(resume.getAttribute('href')).toBe(`/projects/${PROJECT.id}`);
-    expect(resume.className).toContain('border-divider');
+    // Button's tests own the secondary contrast tokens; this page owns emphasis.
     expect(resume.className).not.toContain('bg-accent');
     expect(document.querySelectorAll('.bg-accent.text-on-accent')).toHaveLength(1);
   });

@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CameraSample } from '../../shared/desktop/dto';
-import { cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
+import fixture from '../../dev/fixtures/camera-preview';
+import { cameraPathSegments, cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
 
 const pose: CameraSample = { tick: 100, timeSeconds: 0, position: { x: 10, y: 20, z: 30 }, quaternion: [0, 0, 0, 1], fov: 90 };
 
 describe('Source camera to Three coordinates', () => {
+  it('draws the supplied camera path and flags only intervals with observed geometric issues', () => {
+    const samples = [pose, { ...pose, tick: 101, position: { x: 40, y: 50, z: 60 } }, { ...pose, tick: 102, position: { x: 70, y: 80, z: 90 } }];
+    const clear = fixture.preview.plan.diagnostics[0]!;
+    const result = cameraPathSegments(samples, [clear, { ...clear, headOccluded: null, chestOccluded: null, targetInView: null }, { ...clear, headOccluded: true }]);
+    expect([...result.positions]).toEqual([10, 30, -20, 40, 60, -50, 40, 60, -50, 70, 90, -80]);
+    expect(result.problems).toEqual([false, true]);
+    expect(cameraPathSegments(samples, []).problems).toEqual([false, false]);
+    expect(cameraPathSegments([pose], []).positions).toHaveLength(0);
+  });
   it('keeps the recording composition in wide and tall monitor panels', () => {
     expect(cameraViewport(800, 600, 16 / 9)).toEqual({ x: 0, y: 75, width: 800, height: 450 });
     expect(cameraViewport(1200, 600, 4 / 3)).toEqual({ x: 200, y: 0, width: 800, height: 600 });

@@ -59,22 +59,14 @@
  *
  * ## Backend gaps this file deliberately does not paper over
  *
- *   1. **No per-round replay without a run id.** The service has
- *      `getAnalysisRunRoundReplayBinary(runId, round)`, but §10.4 gap 8 records
- *      that there is no query for a demo's past analysis runs — only
- *      `getActiveAnalysisRun`, which is `null` once the run finishes. So the
- *      only reachable replay is the whole-match one, and the round scoping is
- *      a client-side slice of it.
- *   2. **The recording queue is not server state.** 「加入视频」 in the artboards
- *      has no command behind it: `planRecording` builds an *ephemeral* plan
- *      (it carries `expires_at`) and the persistent queue lives in
- *      `features/queue/queueStore.ts`, a client-side zustand store that §4.2's
- *      replacement has not been written yet. No hook is invented for it; the
- *      workspace disables the action and says why.
- *   3. **No shot-accuracy data.** 「AK-47 16 杀 · 命中 34%」 on the players
+ *   Camera previews receive an exact producer id from the native Capture
+ *   Intent projection and use `useCameraReplay`. Match replay uses the current
+ *   Demo projection; both reads share the same ARPL decoder and frame model.
+ *
+ *   1. **No shot-accuracy data.** 「AK-47 16 杀 · 命中 34%」 on the players
  *      artboard needs shots fired; `TimelineEvent` has kills and damage and no
  *      weapon-fire event. Kills per weapon are derivable, hit rate is not.
- *   4. **No lineup id for a demo.** `listLineups` is a cross-match directory
+ *   2. **No lineup id for a demo.** `listLineups` is a cross-match directory
  *      keyed by a lineup id nothing maps a demo onto, so the 队伍 view is built
  *      from this match's own `teams` / `insights`, and the /lineups takeover
  *      the merge table describes is not reachable yet.
@@ -98,6 +90,7 @@ import {
  */
 import { decodeReplayBinary } from './replayBinary';
 import type {
+  CameraReplaySource,
   CreateEvidenceAnnotation,
   EvidenceAnnotationQuery,
   EvidenceAnnotationReviewState,
@@ -239,6 +232,17 @@ export function useMatchReplay(demoId: string | null, tuning: DataQueryTuning = 
         ? skipToken
         : async ({ signal }) => decodeReplayBinary(await client.getReplayBinary(demoId, signal)),
     ...resolveQueryTuning(tuning, { enabled: wanted }),
+  });
+}
+
+/** Previews share the exact run chosen by the native camera authority. */
+export function useCameraReplay(source: CameraReplaySource | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery<ReplayPayload>({
+    queryKey: qk.match.producerReplay(source?.demoId ?? '', source?.producerRunId ?? ''),
+    queryFn: source === null ? skipToken : async ({ signal }) =>
+      decodeReplayBinary(await client.getAnalysisRunReplayBinary(source.producerRunId, signal)),
+    ...resolveQueryTuning(tuning, { enabled: source !== null }),
   });
 }
 

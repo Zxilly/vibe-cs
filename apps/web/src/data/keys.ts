@@ -182,6 +182,8 @@ export const qk = {
     heat: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId, 'heat'] as const,
     /** `getReplayBinary` — decoded 2D replay frames. */
     replay: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId, 'replay'] as const,
+    producerReplay: (demoId: string, runId: string) =>
+      [QUERY_NAMESPACE.match, DETAIL, demoId, 'replay', runId] as const,
     /** One round's review note and tags. Below the match, above nothing. */
     roundReview: (demoId: string, round: number) =>
       [QUERY_NAMESPACE.match, DETAIL, demoId, 'round', round, 'review'] as const,

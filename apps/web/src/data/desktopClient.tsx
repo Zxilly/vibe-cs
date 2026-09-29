@@ -125,6 +125,7 @@ export type DesktopClient = Pick<
   | 'getHeatmap'
   | 'getRadarOverview'
   | 'getReplayBinary'
+  | 'getAnalysisRunReplayBinary'
   | 'getRoundReviewMetadata'
   | 'updateRoundReviewMetadata'
   | 'createEvidenceAnnotation'

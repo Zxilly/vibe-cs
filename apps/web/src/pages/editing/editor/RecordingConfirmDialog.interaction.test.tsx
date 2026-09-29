@@ -6,6 +6,11 @@ import type { TimelineClip } from '../../../shared/desktop/dto';
 import { renderInteractive } from '../../../test/render';
 import { RecordingConfirmDialog, type RecordingConfirmDialogProps } from './RecordingConfirmDialog';
 
+vi.mock('../../../domain/editing/ClipCameraInspection', () => ({
+  ClipCameraInspection: ({ projectId, revision, clipId }: { projectId: string; revision: number; clipId: string }) =>
+    <div data-testid="camera-inspection" data-project={projectId} data-revision={revision} data-clip={clipId} />,
+}));
+
 /* Three 384-tick clips (6 s each) with no pre or post roll. */
 const CLIPS: readonly TimelineClip[] = PREVIEW_PROJECT.document.tracks[0]!.clips.slice(0, 3);
 const IDS = CLIPS.map((clip) => clip.id);
@@ -15,6 +20,8 @@ function open(props: Partial<RecordingConfirmDialogProps> = {}) {
   renderInteractive(
     <RecordingConfirmDialog
       open
+      projectId="project"
+      revision={7}
       clips={CLIPS}
       selectedClipIds={[]}
       confirmDisabled={false}
@@ -68,5 +75,16 @@ describe('RecordingConfirmDialog', () => {
     open({ confirmDisabled: true });
 
     expect((screen.getByRole('button', { name: '开始录制' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('previews only the current recording scope under the current Project Head', () => {
+    open({ selectedClipIds: [IDS[1]!] });
+    const preview = () => screen.getByTestId('camera-inspection');
+    expect(preview().getAttribute('data-project')).toBe('project');
+    expect(preview().getAttribute('data-revision')).toBe('7');
+    fireEvent.change(screen.getByRole('combobox', { name: '预演片段' }), { target: { value: IDS[2] } });
+    expect(preview().getAttribute('data-clip')).toBe(IDS[2]);
+    fireEvent.click(screen.getByRole('radio', { name: '只录选中的 1 个' }));
+    expect(preview().getAttribute('data-clip')).toBe(IDS[1]);
   });
 });

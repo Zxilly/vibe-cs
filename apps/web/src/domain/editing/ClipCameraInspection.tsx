@@ -5,26 +5,34 @@ import { dataErrorMessage } from '../../data/errors';
 import { useProjectCameraPreview } from '../../data/projects';
 import { Button } from '../../design/primitives';
 import type { CameraIssueInterval, HlaeCameraStyle } from '../../shared/desktop/dto';
+import { CameraPreviewViewport } from '../scene3d/CameraPreviewViewport';
 
-export function ClipCameraInspection({ projectId, clipId, revision }: {
+export function ClipCameraInspection({ projectId, clipId, revision, sourceTimeSeconds, onSourceTimeChange, sourceRange }: {
   readonly projectId: string;
   readonly clipId: string;
   readonly revision: number;
+  readonly sourceTimeSeconds: number;
+  readonly onSourceTimeChange: (seconds: number) => void;
+  readonly sourceRange?: { readonly start: number; readonly end: number };
 }) {
   const query = useProjectCameraPreview(projectId, clipId, revision);
   const inspection = query.data?.inspection;
   return (
     <section className="mt-3 border-t border-divider pt-3 text-xs leading-5" aria-label={t`镜头检查`} aria-busy={query.isFetching}>
       <div className="flex items-center justify-between gap-2">
-        <h4 className="text-xs font-semibold"><Trans>镜头检查</Trans></h4>
+        <h3 className="text-xs font-semibold"><Trans>镜头检查</Trans></h3>
         <Button size="sm" variant="ghost" disabled={query.isFetching} onClick={() => void query.refetch()}>
           <Trans>重新检查</Trans>
         </Button>
       </div>
-      {query.isFetching && <p role="status" className="mt-1 text-neutral-600"><Trans>正在检查机位与地图遮挡…</Trans></p>}
+      {!query.isError && query.data !== undefined && (
+        <CameraPreviewViewport preview={query.data.preview} sourceTimeSeconds={sourceTimeSeconds} sourceRange={sourceRange}
+          onSourceTimeChange={onSourceTimeChange} className="mt-2 h-80 rounded border border-divider" />
+      )}
+      {query.isFetching && <p role="status" className="mt-1 text-neutral-600"><Trans>正在准备镜头预演…</Trans></p>}
       {query.isError ? (
         <p role="alert" className="mt-2 text-fail-text">{dataErrorMessage(query.error) ?? t`镜头检查失败，请重试。`}</p>
-      ) : inspection === undefined ? null : inspection.geometryUnavailable !== null ? (
+      ) : inspection == null ? null : inspection.geometryUnavailable !== null ? (
         <div className="mt-2 text-warn-text">
           <p><Trans>未能检查地图遮挡。可在设置中准备地图后重试。</Trans></p>
           <details className="mt-1">

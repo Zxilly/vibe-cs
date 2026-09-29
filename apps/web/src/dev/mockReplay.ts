@@ -4,7 +4,7 @@ import { crc32 } from '../data/compressedBinary';
 interface ReplaySource {
   readonly tick_rate: number;
   readonly rounds: readonly { readonly number: number; readonly start_tick: number; readonly end_tick: number }[];
-  readonly players: readonly { readonly steam_id: string; readonly name: string; readonly team: string }[];
+  readonly players: readonly { readonly steam_id: string; readonly name: string; readonly team: string; readonly position?: readonly [number, number, number] }[];
   readonly highlights: readonly { readonly start_tick: number; readonly end_tick: number }[];
 }
 
@@ -29,7 +29,7 @@ class Writer {
   f32(value: number): void { const at = this.take(4); this.view.setFloat32(at, value, true); }
   text(value: string): void { const bytes = encoder.encode(value); this.u16(bytes.length); this.bytes(bytes); }
   json(value: unknown): void { const bytes = encoder.encode(JSON.stringify(value)); this.u32(bytes.length); this.bytes(bytes); }
-  position(point: number[], previous: number[]): void {
+  position(point: readonly number[], previous: number[]): void {
     point.forEach((value, axis) => {
       const quantized = Math.round(value * 16);
       const delta = quantized - previous[axis]!; previous[axis] = quantized;
@@ -74,7 +74,7 @@ export async function mockReplayBinary(source: ReplaySource): Promise<ArrayBuffe
     source.players.forEach((player, index) => {
       const seconds = tick / source.tick_rate; const phase = index * 0.9; const side = player.team === 'A' ? -1 : 1;
       writer.u8(index);
-      writer.position([-670 + side * 700 + Math.cos(seconds * 0.35 + phase) * 650, -850 + Math.sin(seconds * 0.27 + phase * 1.3) * 900, 0], playerPositions[index]!);
+      writer.position(player.position ?? [-670 + side * 700 + Math.cos(seconds * 0.35 + phase) * 650, -850 + Math.sin(seconds * 0.27 + phase * 1.3) * 900, 0], playerPositions[index]!);
       writer.angle(seconds * 40 + index * 36); writer.angle(Math.sin(seconds * 0.6 + phase) * 25);
       writer.u8(100); writer.u8(100); writer.u8(1); writer.u16(intern(index % 5 === 0 ? 'awp' : 'ak47')); writer.u16(0xffff);
     });

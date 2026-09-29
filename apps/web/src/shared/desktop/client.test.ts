@@ -945,13 +945,13 @@ describe('desktop command client', () => {
     });
   });
 
-  it('loads dense replay through the exact producer and selected-round route', async () => {
+  it('loads dense replay through the exact producer replay route', async () => {
     invokeMock.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
 
-    await commands.getAnalysisRunRoundReplayBinary('run/id', 20);
+    await commands.getAnalysisRunReplayBinary('run/id');
 
     expect(invokeMock).toHaveBeenCalledWith('desktop_binary', {
-      path: '/analysis-runs/run%2Fid/replay/rounds/20/replay.bin',
+      path: '/analysis-runs/run%2Fid/replay.bin',
     });
   });
 

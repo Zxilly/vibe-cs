@@ -1,7 +1,9 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use async_trait::async_trait;
-use vibe_cs_application::{AnalysisPort, CameraPreview, CameraPreviewPort};
+use vibe_cs_application::{
+    AnalysisPort, CameraPlan, CameraPreview, CameraPreviewPort, CameraReplaySource,
+};
 use vibe_cs_domain::{DomainError, HlaeCameraStyle, RecordingRequest};
 use vibe_cs_storage::Storage;
 
@@ -36,7 +38,7 @@ impl RuntimeCameraPreviewPort {
 pub(crate) async fn plan_with_local_geometry(
     scene: CameraScene,
     assets: Option<&RuntimeSourceAssetPort>,
-) -> Result<CameraPreview, DomainError> {
+) -> Result<CameraPlan, DomainError> {
     let geometry = if let Some(assets) = assets {
         assets
             .camera_geometry(&scene.map_name)
@@ -56,11 +58,6 @@ pub(crate) async fn plan_with_local_geometry(
 impl CameraPreviewPort for RuntimeCameraPreviewPort {
     async fn preview(&self, request: RecordingRequest) -> Result<CameraPreview, DomainError> {
         request.validate()?;
-        if request.camera_style == HlaeCameraStyle::Pov {
-            return Err(DomainError::InvalidInput(
-                "POV preview follows replay player observations, not a campath".to_owned(),
-            ));
-        }
         let config = self
             .storage
             .get_config()
@@ -91,26 +88,45 @@ impl CameraPreviewPort for RuntimeCameraPreviewPort {
             tick_rate,
             uuid::Uuid::nil(),
         )?;
-        let frames = crate::recording::camera_replay_frames(
+        let (producer_run_id, replay) = crate::recording::camera_replay_source(
             &self.storage,
             self.analysis.as_ref(),
             &demo,
-            analysis.as_ref(),
-            &request,
             &mut HashMap::new(),
         )
         .await?;
+        let mut preview = CameraPreview {
+            replay: CameraReplaySource {
+                demo_id: demo.id,
+                producer_run_id,
+            },
+            map_name: demo.map_name.unwrap_or_default(),
+            player_id: segment.player_id,
+            start_tick: segment.start_tick,
+            end_tick: segment.end_tick,
+            tick_rate,
+            aspect_ratio,
+            plan: None,
+        };
+        if request.camera_style == HlaeCameraStyle::Pov {
+            return Ok(preview);
+        }
         let scene = CameraScene {
             id: "preview".to_owned(),
-            map_name: demo.map_name.unwrap_or_default(),
-            frames,
-            player_id: segment.player_id,
+            map_name: preview.map_name.clone(),
+            frames: crate::recording::capture_replay_frames(
+                &replay,
+                segment.start_tick,
+                segment.end_tick,
+            ),
+            player_id: preview.player_id.clone(),
             start_tick: segment.start_tick,
             end_tick: segment.end_tick,
             tick_rate,
             style: request.camera_style,
             aspect_ratio,
         };
-        plan_with_local_geometry(scene, Some(&self.source_assets)).await
+        preview.plan = Some(plan_with_local_geometry(scene, Some(&self.source_assets)).await?);
+        Ok(preview)
     }
 }

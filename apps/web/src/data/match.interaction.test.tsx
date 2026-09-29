@@ -37,6 +37,7 @@ import {
   useMatchEvidence,
   useMatchHeatPoints,
   useMatchReplay,
+  useCameraReplay,
   useRoundReview,
   useUpdateRoundReview,
 } from './match';
@@ -265,6 +266,23 @@ describe('the replay view’s reads', () => {
     await waitFor(() => expect(result.current.data?.fidelity.tick_rate).toBe(64));
     expect(result.current.data?.frames).toEqual([]);
     expect(replay.calls()).toBe(1);
+  });
+
+  it('loads camera actors from the preview producer and never from the latest demo replay', async () => {
+    const round = countingStub(emptyReplayBinary());
+    const latest = countingStub(emptyReplayBinary());
+    const source = { demoId: DEMO_ID, producerRunId: 'exact-run' };
+    let enabled = false;
+    const { result, rerender } = renderDataHook(() => useCameraReplay(enabled ? source : null), {
+      client: { getAnalysisRunReplayBinary: round.call as never, getReplayBinary: latest.call as never },
+    });
+    expect(round.calls()).toBe(0);
+    enabled = true;
+    rerender();
+    await waitFor(() => expect(result.current.data?.fidelity.tick_rate).toBe(64));
+    expect(round.calls()).toBe(1);
+    expect(round.lastArgs()).toEqual(['exact-run', expect.any(AbortSignal)]);
+    expect(latest.calls()).toBe(0);
   });
 });
 

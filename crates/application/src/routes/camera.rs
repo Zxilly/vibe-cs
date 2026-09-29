@@ -48,7 +48,7 @@ struct ProjectCameraPreviewResponse {
     revision: u64,
     clip_id: Uuid,
     preview: CameraPreview,
-    inspection: crate::CameraInspection,
+    inspection: Option<crate::CameraInspection>,
 }
 
 async fn preview_project_clip(
@@ -93,7 +93,7 @@ async fn preview_project_clip(
         project_id,
         revision: input.revision,
         clip_id,
-        inspection: preview.inspection(),
+        inspection: preview.plan.as_ref().map(crate::CameraPlan::inspection),
         preview,
     }))
 }
@@ -119,6 +119,8 @@ mod tests {
     #[async_trait::async_trait]
     impl crate::CameraPreviewPort for ProbePreview {
         async fn preview(&self, request: RecordingRequest) -> Result<CameraPreview, DomainError> {
+            let demo_id = request.demo_id;
+            let style = request.camera_style;
             self.calls.lock().unwrap().push(request);
             if let Some((storage, id)) = &self.mutate {
                 storage
@@ -141,24 +143,33 @@ mod tests {
                     .unwrap();
             }
             Ok(CameraPreview {
+                replay: crate::CameraReplaySource {
+                    demo_id,
+                    producer_run_id: Uuid::nil(),
+                },
                 map_name: "de_mirage".to_owned(),
+                player_id: "target".to_owned(),
+                start_tick: 100,
+                end_tick: 200,
                 tick_rate: 64.0,
                 aspect_ratio: 16.0 / 9.0,
-                requested_style: HlaeCameraStyle::Flyby,
-                effective_style: HlaeCameraStyle::Flyby,
-                adjusted: false,
-                shot: vibe_cs_hlae::CameraShot {
-                    id: "preview".to_owned(),
-                    start_tick: 100,
-                    end_tick: 200,
-                    position_interpolation: vibe_cs_hlae::PositionInterpolation::Cubic,
-                    rotation_interpolation: vibe_cs_hlae::RotationInterpolation::SphericalCubic,
-                    keyframes: vec![],
-                },
-                samples: vec![],
-                diagnostics: vec![],
-                original_diagnostics: vec![],
-                geometry_unavailable: Some("fixture has no geometry".to_owned()),
+                plan: (style != HlaeCameraStyle::Pov).then_some(crate::CameraPlan {
+                    requested_style: HlaeCameraStyle::Flyby,
+                    effective_style: HlaeCameraStyle::Flyby,
+                    adjusted: false,
+                    shot: vibe_cs_hlae::CameraShot {
+                        id: "preview".to_owned(),
+                        start_tick: 100,
+                        end_tick: 200,
+                        position_interpolation: vibe_cs_hlae::PositionInterpolation::Cubic,
+                        rotation_interpolation: vibe_cs_hlae::RotationInterpolation::SphericalCubic,
+                        keyframes: vec![],
+                    },
+                    samples: vec![],
+                    diagnostics: vec![],
+                    original_diagnostics: vec![],
+                    geometry_unavailable: Some("fixture has no geometry".to_owned()),
+                }),
             })
         }
     }

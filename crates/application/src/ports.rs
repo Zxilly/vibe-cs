@@ -83,6 +83,11 @@ pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
         cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError>;
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError>;
+    async fn replay_from_run(&self, _run_id: uuid::Uuid) -> Result<ReplayPayload, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "producer-bound replay adapter".to_owned(),
+        ))
+    }
     async fn replay_round(
         &self,
         _run_id: uuid::Uuid,

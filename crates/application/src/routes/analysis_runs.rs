@@ -37,6 +37,10 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/analysis-runs/{id}/replay/rounds/{round}/replay.bin",
             get(get_analysis_run_round_replay),
         )
+        .route(
+            "/api/analysis-runs/{id}/replay.bin",
+            get(get_analysis_run_replay),
+        )
 }
 
 #[derive(Debug)]
@@ -522,6 +526,25 @@ async fn get_analysis_run_round_replay(
     Ok(response)
 }
 
+async fn get_analysis_run_replay(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> ApiResult<Response> {
+    let run_id = parse_id(&id, "analysis run id")?;
+    let payload = state.analysis.replay_from_run(run_id).await?;
+    let body = crate::replay_binary::encode_binary_replay(&payload)?;
+    let mut response = Response::new(Body::from(body));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/vnd.vibe-cs.replay"),
+    );
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-store"),
+    );
+    Ok(response)
+}
+
 fn parse_id(value: &str, label: &str) -> ApiResult<Uuid> {
     Uuid::parse_str(value).map_err(|_| ApiError::invalid(format!("{label} must be a UUID")))
 }
@@ -635,6 +658,33 @@ mod tests {
         async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
             unreachable!()
         }
+        async fn replay_from_run(&self, run_id: Uuid) -> Result<crate::ReplayPayload, DomainError> {
+            Ok(crate::ReplayPayload {
+                frames: vec![vibe_cs_domain::ReplayFrame {
+                    tick: 100,
+                    players: Vec::new(),
+                    projectiles: Vec::new(),
+                    bomb: None,
+                }],
+                fidelity: vibe_cs_domain::ReplayFidelityMetadata {
+                    mode: vibe_cs_domain::ReplayFidelityMode::EntitySnapshots,
+                    tick_rate: 64.0,
+                    frame_count: 1,
+                    positioned_event_count: 0,
+                    start_tick: 100,
+                    end_tick: 100,
+                },
+                cache: crate::ReplayCacheMetadata {
+                    state: crate::ReplayCacheState::Generated,
+                    key: Some(run_id.to_string()),
+                    bytes: 0,
+                    generated_at: None,
+                    repaired: false,
+                    reason: None,
+                },
+            })
+        }
+
         async fn replay_round(
             &self,
             run_id: Uuid,
@@ -773,6 +823,51 @@ mod tests {
             serde_json::from_slice(&bytes[12..]).unwrap();
         assert_eq!(artifact.metadata.producer_run_id, run_id);
         assert_eq!(artifact.metadata.round, 20);
+    }
+
+    #[tokio::test]
+    async fn exact_run_replay_uses_the_shared_arpl_encoder() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let directory = tempfile::TempDir::new().unwrap();
+        let run_id = Uuid::new_v4();
+        let response = crate::build_dispatcher(
+            AppState::new(storage, directory.path().join("data"))
+                .with_analysis(Arc::new(BlockingAnalysis::default())),
+        )
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/analysis-runs/{run_id}/replay.bin"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/vnd.vibe-cs.replay"
+        );
+        let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        assert_eq!(&bytes[..8], b"ARPL\x02\0\x01\0");
+        let mut decoded = Vec::new();
+        std::io::Read::read_to_end(
+            &mut flate2::read::ZlibDecoder::new(&bytes[16..]),
+            &mut decoded,
+        )
+        .unwrap();
+        let cache_len = u32::from_le_bytes(decoded[..4].try_into().unwrap()) as usize;
+        let cache: crate::ReplayCacheMetadata =
+            serde_json::from_slice(&decoded[4..4 + cache_len]).unwrap();
+        assert_eq!(cache.key, Some(run_id.to_string()));
+        let offset = 4 + cache_len;
+        let fidelity_len =
+            u32::from_le_bytes(decoded[offset..offset + 4].try_into().unwrap()) as usize;
+        let fidelity: vibe_cs_domain::ReplayFidelityMetadata =
+            serde_json::from_slice(&decoded[offset + 4..offset + 4 + fidelity_len]).unwrap();
+        assert_eq!(fidelity.start_tick, 100);
+        assert_eq!(fidelity.end_tick, 100);
+        assert_eq!(fidelity.frame_count, 1);
     }
 
     #[tokio::test]

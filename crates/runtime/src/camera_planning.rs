@@ -3,7 +3,7 @@ use std::f64::consts::{PI, TAU};
 use vibe_cs_domain::{HlaeCameraStyle, ReplayFrame, ReplayPlayer};
 use vibe_cs_hlae::{CameraKeyframe, CameraPosition, CameraRotation};
 
-use vibe_cs_application::{CameraPoseDiagnostic, CameraPreview};
+use vibe_cs_application::{CameraPlan, CameraPoseDiagnostic};
 use vibe_cs_domain::DomainError;
 use vibe_cs_hlae::{
     CAMERA_PREVIEW_FPS, CameraShot, PositionInterpolation, RotationInterpolation,
@@ -28,14 +28,11 @@ pub(crate) struct CameraScene {
 pub(crate) fn plan_camera_scene(
     scene: &CameraScene,
     geometry: Result<&crate::CameraGeometry, String>,
-) -> Result<CameraPreview, DomainError> {
+) -> Result<CameraPlan, DomainError> {
     let shot = build_shot(scene, scene.style, 1.0, false)?;
     let samples = sample_camera_shot(&shot, scene.tick_rate, CAMERA_PREVIEW_FPS)
         .map_err(|error| DomainError::InvalidInput(error.to_string()))?;
-    let mut result = CameraPreview {
-        map_name: scene.map_name.clone(),
-        tick_rate: scene.tick_rate,
-        aspect_ratio: scene.aspect_ratio,
+    let mut result = CameraPlan {
         requested_style: scene.style,
         effective_style: scene.style,
         adjusted: false,
@@ -115,7 +112,7 @@ pub(crate) fn plan_camera_scene(
 fn consider_candidate(
     scene: &CameraScene,
     geometry: &crate::CameraGeometry,
-    result: &mut CameraPreview,
+    result: &mut CameraPlan,
     candidate: CameraShot,
     style: HlaeCameraStyle,
 ) -> Result<(), DomainError> {
@@ -523,8 +520,21 @@ mod tests {
             sample_camera_shot(&planned.shot, scene.tick_rate, CAMERA_PREVIEW_FPS).unwrap()
         );
         if let Ok(path) = std::env::var("VIBE_CAMERA_SYNTHETIC_FIXTURE_OUTPUT") {
+            let preview = vibe_cs_application::CameraPreview {
+                replay: vibe_cs_application::CameraReplaySource {
+                    demo_id: uuid::Uuid::nil(),
+                    producer_run_id: uuid::Uuid::nil(),
+                },
+                map_name: scene.map_name.clone(),
+                player_id: scene.player_id.clone(),
+                start_tick: scene.start_tick,
+                end_tick: scene.end_tick,
+                tick_rate: scene.tick_rate,
+                aspect_ratio: scene.aspect_ratio,
+                plan: Some(planned.clone()),
+            };
             let fixture = serde_json::to_string_pretty(&serde_json::json!({
-                "preview": planned, "inspection": planned.inspection(),
+                "preview": preview, "inspection": planned.inspection(),
             }))
             .unwrap();
             std::fs::write(

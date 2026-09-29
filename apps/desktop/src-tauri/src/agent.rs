@@ -473,7 +473,7 @@ impl AgentToolHost for DesktopAgentToolHost {
             if let Some(preview) = camera_preview {
                 camera_diagnostics.push(json!({
                     "clipId": timeline_clip.id,
-                    "inspection": preview.inspection(),
+                    "inspection": preview.plan.as_ref().map(vibe_cs_application::CameraPlan::inspection),
                 }));
             }
             timeline_start += timeline_clip.placement.duration;

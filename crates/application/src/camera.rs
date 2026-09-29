@@ -23,10 +23,7 @@ pub struct CameraPoseDiagnostic {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export)]
-pub struct CameraPreview {
-    pub map_name: String,
-    pub tick_rate: f64,
-    pub aspect_ratio: f64,
+pub struct CameraPlan {
     pub requested_style: HlaeCameraStyle,
     pub effective_style: HlaeCameraStyle,
     pub adjusted: bool,
@@ -72,7 +69,7 @@ pub struct CameraInspection {
     pub issues: Vec<CameraIssueInterval>,
 }
 
-impl CameraPreview {
+impl CameraPlan {
     pub fn inspection(&self) -> CameraInspection {
         CameraInspection {
             requested_style: self.requested_style,
@@ -83,6 +80,31 @@ impl CameraPreview {
             issues: camera_issue_intervals(&self.diagnostics),
         }
     }
+}
+
+/// Exact binary replay source used by the planner, not the latest UI analysis.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
+pub struct CameraReplaySource {
+    pub demo_id: uuid::Uuid,
+    pub producer_run_id: uuid::Uuid,
+}
+
+/// A read-only viewport projection. POV uses observed player poses and has no
+/// generated campath. Both modes load actors through the existing ARPL source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
+pub struct CameraPreview {
+    pub replay: CameraReplaySource,
+    pub map_name: String,
+    pub player_id: String,
+    pub start_tick: u64,
+    pub end_tick: u64,
+    pub tick_rate: f64,
+    pub aspect_ratio: f64,
+    pub plan: Option<CameraPlan>,
 }
 
 /// Compact Agent/tool projection; rendering consumes the original per-pose data.

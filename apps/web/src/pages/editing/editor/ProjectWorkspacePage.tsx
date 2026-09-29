@@ -104,6 +104,7 @@ import {
 import {
   clipDemoTickAtTimelineTime,
   clipSourceTimeAtLocalTime,
+  clipLocalTimeAtSourceTime,
   snapTimeToFrame,
   type TimelineRollingPreview,
   type TimelineSlidePreview,
@@ -1509,8 +1510,11 @@ export function ProjectWorkspacePage() {
   const inspectorPanel = (
     <section className="h-full min-h-0 overflow-y-auto p-3" aria-label={t`片段属性`}>
         <ClipInspector
-          cameraPreview={selected?.clip.capture_intent != null && selected.clip.capture_intent.camera_style !== 'pov'
-            ? <ClipCameraInspection projectId={current.id} revision={current.revision} clipId={selected.clip.id} />
+          cameraPreview={selected?.clip.capture_intent != null
+            ? <ClipCameraInspection projectId={current.id} revision={current.revision} clipId={selected.clip.id}
+                sourceTimeSeconds={clipSourceTimeAtLocalTime(selected.clip, transportTimeSeconds - selected.clip.placement.start)}
+                sourceRange={{ start: selected.clip.placement.source_in, end: selected.clip.placement.source_out }}
+                onSourceTimeChange={(seconds) => seekTimeline(selected.clip.placement.start + clipLocalTimeAtSourceTime(selected.clip, seconds))} />
             : null}
           selected={selected}
           readOnly={readOnly || selected?.track.locked === true}
@@ -1692,6 +1696,8 @@ export function ProjectWorkspacePage() {
         </div>
       </Dialog>
       <RecordingConfirmDialog
+        projectId={current.id}
+        revision={current.revision}
         open={externalConfirm?.kind === 'recording'}
         clips={externalConfirm?.kind === 'recording'
           ? externalConfirm.clipIds.flatMap((clipId) => clipById.get(clipId) ?? [])

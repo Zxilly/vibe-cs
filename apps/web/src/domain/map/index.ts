@@ -44,8 +44,6 @@ export type { PathLayerProps, PathSample, PlayerPath } from './PathLayer';
 export { describeEngagement, EngagementLayer } from './EngagementLayer';
 export type { Engagement, EngagementActor, EngagementLayerProps } from './EngagementLayer';
 
-export { CameraPathLayer } from './CameraPathLayer';
-export type { CameraKeyframe, CameraKeyframeKind, CameraPath, CameraPathLayerProps } from './CameraPathLayer';
 
 export { LayerEmpty, type LayerEmptyProps } from './LayerEmpty';
 

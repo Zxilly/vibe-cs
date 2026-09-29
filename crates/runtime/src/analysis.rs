@@ -141,6 +141,50 @@ impl RuntimeAnalysisPort {
         }
     }
 
+    async fn replay_for_analysis(
+        &self,
+        demo: DemoRecord,
+        analysis: MatchAnalysis,
+    ) -> Result<ReplayPayload, DomainError> {
+        let request = ReplayRequest::from_analysis(
+            AnalysisInputFingerprint {
+                sha256: demo.content_sha256.clone().ok_or_else(|| {
+                    DomainError::DependencyUnavailable(
+                        "replay requires a verified source fingerprint; analyze this Demo again"
+                            .to_owned(),
+                    )
+                })?,
+                size: demo.file_size,
+            },
+            &analysis,
+        )?;
+        self.replay_cache
+            .resolve(&demo, &analysis, || async {
+                if let Some(worker) = &self.worker {
+                    return self
+                        .replay_with_worker::<ReplayArtifact>(
+                            worker,
+                            WorkerRequest::Replay {
+                                demo_path: &demo.path,
+                                request: &request,
+                            },
+                            "replay",
+                        )
+                        .await;
+                }
+                let path = demo.path.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_replay(path, &request, &ParseCancellation::default())
+                        .map_err(map_demo_error)
+                })
+                .await
+                .map_err(|error| {
+                    DomainError::Internal(format!("replay extraction task failed: {error}"))
+                })?
+            })
+            .await
+    }
+
     #[cfg(test)]
     fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
@@ -686,43 +730,17 @@ impl AnalysisPort for RuntimeAnalysisPort {
 
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError> {
         let analysis = self.stored_analysis(demo.id).await?;
-        let request = ReplayRequest::from_analysis(
-            AnalysisInputFingerprint {
-                sha256: demo.content_sha256.clone().ok_or_else(|| {
-                    DomainError::DependencyUnavailable(
-                        "replay requires a verified source fingerprint; analyze this Demo again"
-                            .to_owned(),
-                    )
-                })?,
-                size: demo.file_size,
-            },
-            &analysis,
-        )?;
-        self.replay_cache
-            .resolve(&demo, &analysis, || async {
-                if let Some(worker) = &self.worker {
-                    return self
-                        .replay_with_worker::<ReplayArtifact>(
-                            worker,
-                            WorkerRequest::Replay {
-                                demo_path: &demo.path,
-                                request: &request,
-                            },
-                            "replay",
-                        )
-                        .await;
-                }
-                let path = demo.path.clone();
-                tokio::task::spawn_blocking(move || {
-                    extract_replay(path, &request, &ParseCancellation::default())
-                        .map_err(map_demo_error)
-                })
-                .await
-                .map_err(|error| {
-                    DomainError::Internal(format!("replay extraction task failed: {error}"))
-                })?
-            })
+        self.replay_for_analysis(demo, analysis).await
+    }
+
+    async fn replay_from_run(&self, run_id: Uuid) -> Result<ReplayPayload, DomainError> {
+        let source = self
+            .storage
+            .get_analysis_replay_source(run_id)
             .await
+            .map_err(storage_error)?
+            .ok_or_else(|| DomainError::NotFound("analysis run".to_owned()))?;
+        self.replay_for_analysis(source.demo, source.analysis).await
     }
 
     async fn replay_round(
@@ -1948,12 +1966,13 @@ mod tests {
         ));
         let camera = Arc::new(crate::RuntimeCameraPreviewPort::new(
             storage.clone(),
-            runtime_analysis,
+            runtime_analysis.clone(),
             assets,
         ));
         let app = vibe_cs_application::build_dispatcher(
             vibe_cs_application::AppState::new(storage, directory.path().to_path_buf())
-                .with_camera_preview(camera),
+                .with_camera_preview(camera)
+                .with_analysis(runtime_analysis.clone()),
         );
         let highlight = analysis
             .highlights
@@ -1964,15 +1983,21 @@ mod tests {
         for style in [
             vibe_cs_domain::HlaeCameraStyle::Flyby,
             vibe_cs_domain::HlaeCameraStyle::Crane,
+            vibe_cs_domain::HlaeCameraStyle::Pov,
         ] {
             let capture = vibe_cs_domain::RecordingRequest {
                 id: None,
                 demo_id: demo.id,
-                highlight_id: Some(highlight.id.clone()),
+                highlight_id: (style != vibe_cs_domain::HlaeCameraStyle::Pov)
+                    .then(|| highlight.id.clone()),
                 player_id: highlight.player_id.clone(),
                 title: "Real camera acceptance".to_owned(),
                 start_tick: 160_800,
-                end_tick: 161_310,
+                end_tick: if style == vibe_cs_domain::HlaeCameraStyle::Pov {
+                    highlight.end_tick
+                } else {
+                    161_310
+                },
                 pre_roll_seconds: 0.0,
                 post_roll_seconds: 0.0,
                 victim_pov: false,
@@ -2005,20 +2030,81 @@ mod tests {
             );
             let preview: vibe_cs_application::CameraPreview =
                 serde_json::from_slice(&bytes).unwrap();
-            let inspection = preview.inspection();
+            assert_eq!(preview.replay.demo_id, capture.demo_id);
+            assert_eq!(preview.player_id, highlight.player_id);
+            assert_eq!(preview.start_tick, capture.start_tick);
+            assert_eq!(preview.end_tick, capture.end_tick);
+            if style == vibe_cs_domain::HlaeCameraStyle::Pov {
+                let source = runtime_analysis
+                    .replay_from_run(preview.replay.producer_run_id)
+                    .await
+                    .unwrap();
+                let captured = source
+                    .frames
+                    .iter()
+                    .filter(|frame| {
+                        frame.tick >= capture.start_tick.saturating_sub(16)
+                            && frame.tick <= capture.end_tick + 16
+                    })
+                    .collect::<Vec<_>>();
+                assert!(
+                    captured
+                        .windows(2)
+                        .all(|pair| pair[1].tick - pair[0].tick <= 16)
+                );
+                assert!(
+                    captured.last().unwrap().tick + 16 >= capture.end_tick,
+                    "preview frames end at {}, but the valid capture ends at {}",
+                    source.frames.last().unwrap().tick,
+                    capture.end_tick
+                );
+                assert!(
+                    preview.plan.is_none(),
+                    "POV must not invent a generated campath"
+                );
+                let response = app
+                    .clone()
+                    .oneshot(
+                        Request::builder()
+                            .uri(format!(
+                                "/api/analysis-runs/{}/replay.bin",
+                                preview.replay.producer_run_id
+                            ))
+                            .body(Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert!(response.status().is_success());
+                let scene = to_bytes(response.into_body(), 16 * 1024 * 1024)
+                    .await
+                    .unwrap();
+                assert_eq!(&scene[..8], b"ARPL\x02\0\x01\0");
+                if let Ok(output) = std::env::var("VIBE_CAMERA_SCENE_OUTPUT") {
+                    std::fs::write(output, &scene).unwrap();
+                }
+                eprintln!(
+                    "production POV: exact-run scene {} bytes, no campath",
+                    scene.len()
+                );
+                previews.push(serde_json::json!({"preview": preview, "inspection": null}));
+                continue;
+            }
+            let plan = preview.plan.as_ref().unwrap();
+            let inspection = plan.inspection();
             eprintln!(
                 "production camera {style:?}: {} poses, adjusted={}, original intervals={}, remaining={}, {} ms",
-                preview.samples.len(),
-                preview.adjusted,
+                plan.samples.len(),
+                plan.adjusted,
                 inspection.original_issues.len(),
                 inspection.issues.len(),
                 start.elapsed().as_millis()
             );
-            assert!(preview.geometry_unavailable.is_none());
-            assert!(preview.adjusted);
+            assert!(plan.geometry_unavailable.is_none());
+            assert!(plan.adjusted);
             assert!(inspection.issues.is_empty(), "{inspection:?}");
-            assert_eq!(preview.shot.start_tick, capture.start_tick);
-            assert_eq!(preview.shot.end_tick, capture.end_tick);
+            assert_eq!(plan.shot.start_tick, capture.start_tick);
+            assert_eq!(plan.shot.end_tick, capture.end_tick);
             previews.push(serde_json::json!({"preview": preview, "inspection": inspection}));
         }
         if let Ok(output) = std::env::var("VIBE_CAMERA_API_OUTPUT") {

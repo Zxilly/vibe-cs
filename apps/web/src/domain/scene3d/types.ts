@@ -1,4 +1,4 @@
-import type { CameraSample, ReplayFrameRecord } from '../../shared/desktop/dto';
+import type { CameraPoseDiagnostic, CameraSample, ReplayFrameRecord } from '../../shared/desktop/dto';
 
 export type Scene3DMode = 'free' | 'follow' | 'camera';
 
@@ -12,6 +12,7 @@ export interface Scene3DState {
   readonly mode: Scene3DMode;
   readonly cameraSamples: readonly CameraSample[] | null;
   readonly cameraAspectRatio: number | null;
+  readonly cameraDiagnostics: readonly CameraPoseDiagnostic[] | null;
   readonly showPlayers: boolean;
   readonly showUtilities: boolean;
   readonly cutaway: boolean;

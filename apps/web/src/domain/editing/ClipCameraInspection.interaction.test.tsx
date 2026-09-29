@@ -7,6 +7,8 @@ import type { ProjectCameraPreviewResponse } from '../../shared/desktop/dto';
 import { renderInteractive } from '../../test/render';
 import { ClipCameraInspection } from './ClipCameraInspection';
 
+vi.mock('../scene3d/CameraPreviewViewport', () => ({ CameraPreviewViewport: () => <div data-testid="camera-preview" /> }));
+
 afterEach(cleanup);
 
 function response(revision: number): ProjectCameraPreviewResponse {
@@ -16,14 +18,14 @@ function response(revision: number): ProjectCameraPreviewResponse {
 
 function tree(client: Partial<DesktopClient>, revision = 1) {
   return <DesktopClientProvider client={client as DesktopClient}>
-    <ClipCameraInspection projectId="project" clipId="clip" revision={revision} />
+    <ClipCameraInspection projectId="project" clipId="clip" revision={revision} sourceTimeSeconds={0} onSourceTimeChange={() => {}} />
   </DesktopClientProvider>;
 }
 
 it('shows the returned correction and remaining geometric intervals, and allows retry', async () => {
   const value = response(1);
-  value.inspection.effectiveStyle = 'tracking';
-  value.inspection.issues = [{ kind: 'target_occluded', startSeconds: 3.2, endSeconds: 4.1, affectedFraction: 0.75 }];
+  value.inspection!.effectiveStyle = 'tracking';
+  value.inspection!.issues = [{ kind: 'target_occluded', startSeconds: 3.2, endSeconds: 4.1, affectedFraction: 0.75 }];
   const getProjectCameraPreview = vi.fn().mockResolvedValue(value);
   renderInteractive(tree({ getProjectCameraPreview }));
   expect(await screen.findByText('为改善画面，录制将改用跟随机位。')).toBeTruthy();
@@ -39,9 +41,18 @@ it('shows the returned correction and remaining geometric intervals, and allows 
 
 it('does not present unavailable geometry as a clear shot', async () => {
   const value = response(1);
-  value.inspection.geometryUnavailable = 'CS2 installation unavailable';
+  value.inspection!.geometryUnavailable = 'CS2 installation unavailable';
   renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
   expect(await screen.findByText('未能检查地图遮挡。可在设置中准备地图后重试。')).toBeTruthy();
+  expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
+});
+
+it('shows an observed POV preview without claiming that a generated camera was checked', async () => {
+  const value = response(1);
+  value.preview.plan = null;
+  value.inspection = null;
+  renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
+  expect(await screen.findByTestId('camera-preview')).toBeTruthy();
   expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
 });
 
@@ -55,7 +66,7 @@ it('never displays a late reply from an older Project Head', async () => {
   view.rerender(tree({ getProjectCameraPreview }, 2));
   expect(await screen.findByText('当前采样未发现镜头问题。')).toBeTruthy();
   const old = response(1);
-  old.inspection.geometryUnavailable = 'OLD HEAD RESULT';
+  old.inspection!.geometryUnavailable = 'OLD HEAD RESULT';
   await act(async () => { resolveOld(old); await pending; });
   expect(screen.queryByText('OLD HEAD RESULT')).toBeNull();
   expect(getProjectCameraPreview).toHaveBeenLastCalledWith('project', 'clip', 2, expect.any(AbortSignal));

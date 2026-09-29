@@ -11,7 +11,7 @@ import { Scene3DView } from './Scene3DView';
 
 const renderer = vi.hoisted(() => ({ create: vi.fn(), setState: vi.fn(), setGeometry: vi.fn(), resetView: vi.fn(), dispose: vi.fn() }));
 vi.mock('./Scene3DRenderer', () => ({ Scene3DRenderer: class {
-  constructor() { renderer.create(); }
+  constructor(_canvas: HTMLCanvasElement, _select: unknown, _lost: unknown, presented: (tick: number) => void) { renderer.create(presented); }
   setState = renderer.setState;
   setGeometry = renderer.setGeometry;
   resetView = renderer.resetView;
@@ -48,6 +48,22 @@ it('updates the recording aperture without replacing the renderer or resetting i
   view.rerender(tree(102, 4 / 3));
   await waitFor(() => expect(renderer.setState).toHaveBeenLastCalledWith(expect.objectContaining({ tick: 102, cameraAspectRatio: 4 / 3 })));
   expect(renderer.create).toHaveBeenCalledTimes(1);
+});
+
+it('reports a presented frame only from the renderer and ignores callbacks after disposal', async () => {
+  const presented = vi.fn();
+  const view = renderInteractive(<DesktopClientProvider client={{ getMapGeometryBinary: vi.fn().mockRejectedValue(new Error('no map')) } as unknown as DesktopClient}>
+    <Scene3DView mapName="de_mirage" frames={FRAMES} tick={100} tickRate={64} selectedPlayerId="player" onFramePresented={presented} />
+  </DesktopClientProvider>);
+  await screen.findByText('地图几何不可用，当前仅显示选手与机位。');
+  await waitFor(() => expect(renderer.create).toHaveBeenCalledTimes(1));
+  expect(presented).not.toHaveBeenCalled();
+  const rendered = renderer.create.mock.calls[0]![0] as (tick: number) => void;
+  rendered(100);
+  expect(presented).toHaveBeenCalledWith(100);
+  view.unmount();
+  rendered(101);
+  expect(presented).toHaveBeenCalledTimes(1);
 });
 
 it('retains the 3D player scene when map geometry is unavailable', async () => {

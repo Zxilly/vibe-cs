@@ -1,7 +1,7 @@
 /** Loaded only by the mounted 3D viewport. No React or independent playback clock. */
 import {
-  AmbientLight, Box3, BufferAttribute, BufferGeometry, CapsuleGeometry, CircleGeometry,
-  Color, DirectionalLight, DoubleSide, Group, Line, LineBasicMaterial, Mesh,
+  AmbientLight, Box3, BufferAttribute, BufferGeometry, CameraHelper, CapsuleGeometry, CircleGeometry,
+  Color, DirectionalLight, DoubleSide, Group, Line, LineBasicMaterial, LineSegments, Mesh,
   MeshBasicMaterial, MeshLambertMaterial, PerspectiveCamera, Plane, Raycaster, Scene,
   Sphere, SphereGeometry, TorusGeometry, Vector2, Vector3, WebGLRenderer,
 } from 'three';
@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { MapGeometry } from '../../data/mapGeometryBinary';
 import type { ReplayFrameRecord, ReplayPlayerRecord } from '../../shared/desktop/dto';
 import { interpolateReplayFrame, projectileTrails } from '../map/replayModel';
-import { cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
+import { cameraPathSegments, cameraPoseHasIssue, cameraSampleAtTick, cameraView, cameraViewport, cutawayHeight, playerDirection, sourcePoint, verticalFov } from './sceneMath';
 import type { Scene3DState } from './types';
 
 const MAX_TRAIL_POINTS = 128;
@@ -33,6 +33,9 @@ export class Scene3DRenderer {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera = new PerspectiveCamera(55, 1, 2, 50_000);
+  // A short display cone conveys FOV/orientation, not the renderer's far limit.
+  private readonly plannedCamera = new PerspectiveCamera(55, 1, 2, 192);
+  private readonly frustum = new CameraHelper(this.plannedCamera);
   private readonly controls: OrbitControls;
   private readonly solid = new MeshLambertMaterial({ flatShading: true, side: DoubleSide });
   private readonly bodyA = new MeshBasicMaterial();
@@ -43,7 +46,9 @@ export class Scene3DRenderer {
   private readonly fire = new MeshBasicMaterial({ transparent: true, opacity: 0.4, depthWrite: false, side: DoubleSide });
   private readonly headingMaterial = new LineBasicMaterial({ transparent: true, opacity: 0.8 });
   private readonly trailMaterial = new LineBasicMaterial({ transparent: true, opacity: 0.8 });
-  private readonly pathMaterial = new LineBasicMaterial();
+  private readonly pathMaterial = new LineBasicMaterial({ vertexColors: true });
+  private readonly pathColor = new Color();
+  private readonly issueColor = new Color();
   private readonly ambient = new AmbientLight(undefined, 1.5);
   private readonly light = new DirectionalLight(undefined, 2.2);
   private readonly capsule = new CapsuleGeometry(BODY_RADIUS, BODY_HEIGHT - BODY_RADIUS * 2, 4, 8);
@@ -65,7 +70,8 @@ export class Scene3DRenderer {
   private readonly themeObserver: MutationObserver;
   private readonly darkMode = matchMedia('(prefers-color-scheme: dark)');
   private mapMesh: Mesh<BufferGeometry, MeshLambertMaterial> | null = null;
-  private path: Line<BufferGeometry, LineBasicMaterial> | null = null;
+  private path: LineSegments<BufferGeometry, LineBasicMaterial> | null = null;
+  private pathProblems: readonly boolean[] = [];
   private state: Scene3DState | null = null;
   private frame: ReplayFrameRecord | null = null;
   private lastTick = NaN;
@@ -83,12 +89,14 @@ export class Scene3DRenderer {
     private readonly canvas: HTMLCanvasElement,
     private readonly onSelect: (playerId: string) => void,
     private readonly onContextLost: () => void,
+    private readonly onFramePresented: (tick: number) => void,
   ) {
     this.renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.localClippingEnabled = true;
     this.light.position.set(0.4, 1, 0.6);
-    this.scene.add(this.ambient, this.light);
+    this.scene.add(this.ambient, this.light, this.frustum);
+    this.frustum.visible = false;
     this.camera.position.set(800, 1_000, 800);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
@@ -128,14 +136,18 @@ export class Scene3DRenderer {
     this.state = state;
     if (previous?.frames !== state.frames || previous.mode !== state.mode || previous.selectedPlayerId !== state.selectedPlayerId
       || previous.cutaway !== state.cutaway || previous.showPlayers !== state.showPlayers || previous.showUtilities !== state.showUtilities
-      || previous.cameraSamples !== state.cameraSamples || previous.cameraAspectRatio !== state.cameraAspectRatio) this.dirty = true;
+      || previous.cameraSamples !== state.cameraSamples || previous.cameraAspectRatio !== state.cameraAspectRatio
+      || previous.cameraDiagnostics !== state.cameraDiagnostics) this.dirty = true;
     if (previous?.frames !== state.frames) this.framed = false;
-    if (previous?.cameraSamples !== state.cameraSamples) {
+    if (previous?.cameraSamples !== state.cameraSamples || previous.cameraDiagnostics !== state.cameraDiagnostics) {
       if (this.path !== null) { this.scene.remove(this.path); this.path.geometry.dispose(); this.path = null; }
       if (state.cameraSamples !== null && state.cameraSamples.length > 1) {
-        const points = state.cameraSamples.flatMap((pose) => sourcePoint([pose.position.x, pose.position.y, pose.position.z]));
-        const geometry = new BufferGeometry().setAttribute('position', new BufferAttribute(new Float32Array(points), 3));
-        this.path = new Line(geometry, this.pathMaterial);
+        const { positions, problems } = cameraPathSegments(state.cameraSamples, state.cameraDiagnostics ?? []);
+        this.pathProblems = problems;
+        const geometry = new BufferGeometry().setAttribute('position', new BufferAttribute(positions, 3))
+          .setAttribute('color', new BufferAttribute(new Float32Array(positions.length), 3));
+        this.path = new LineSegments(geometry, this.pathMaterial);
+        this.updatePathColors();
         this.scene.add(this.path);
       }
     }
@@ -146,7 +158,8 @@ export class Scene3DRenderer {
       this.camera.fov = 55;
       this.camera.updateProjectionMatrix();
     }
-    if (previous?.frames !== state.frames || previous.showPlayers !== state.showPlayers || previous.showUtilities !== state.showUtilities) this.lastTick = NaN;
+    if (previous?.frames !== state.frames || previous.showPlayers !== state.showPlayers || previous.showUtilities !== state.showUtilities
+      || previous.cameraSamples !== state.cameraSamples) this.lastTick = NaN;
   }
 
   setGeometry(map: MapGeometry | null): void {
@@ -207,8 +220,21 @@ export class Scene3DRenderer {
     this.fire.color.copy(color('--color-warn'));
     this.headingMaterial.color.copy(color('--color-on-media'));
     this.trailMaterial.color.copy(color('--color-warn'));
-    this.pathMaterial.color.copy(color('--color-accent-400'));
+    this.pathColor.copy(color('--color-accent-400'));
+    this.issueColor.copy(color('--color-fail-text'));
+    this.updatePathColors();
   };
+
+  private updatePathColors(): void {
+    if (this.path === null) return;
+    const colors = this.path.geometry.getAttribute('color') as BufferAttribute;
+    this.pathProblems.forEach((problem, index) => {
+      const color = problem ? this.issueColor : this.pathColor;
+      colors.setXYZ(index * 2, color.r, color.g, color.b);
+      colors.setXYZ(index * 2 + 1, color.r, color.g, color.b);
+    });
+    colors.needsUpdate = true;
+  }
 
   private actor(id: string): Actor {
     const existing = this.actors.get(id);
@@ -297,12 +323,29 @@ export class Scene3DRenderer {
     for (const [id, line] of this.trails) if (!activeTrails.has(id)) { this.scene.remove(line); line.geometry.dispose(); this.trails.delete(id); }
   }
 
-  private updateCamera(state: Scene3DState, tick: number): void {
+  private updateCamera(state: Scene3DState, tick: number): boolean {
     this.controls.enabled = state.mode !== 'camera';
     if (this.path !== null) this.path.visible = state.mode !== 'camera';
     const player = this.selectedPlayer();
+    const sample = cameraSampleAtTick(state.cameraSamples ?? [], tick);
+    this.frustum.visible = state.mode !== 'camera' && state.cameraAspectRatio !== null && (sample !== null || player !== undefined);
+    if (this.frustum.visible && this.dirty) {
+      const view = sample === null ? null : cameraView(sample);
+      this.plannedCamera.position.fromArray(view?.position ?? sourcePoint(player!.position));
+      if (view === null) this.plannedCamera.position.y += player!.input?.crouch === true ? 46 : 64;
+      this.plannedCamera.up.fromArray(view?.up ?? [0, 1, 0]);
+      this.direction.fromArray(view?.forward ?? playerDirection(player!.yaw, player!.pitch));
+      this.plannedCamera.lookAt(this.position.copy(this.plannedCamera.position).add(this.direction));
+      this.plannedCamera.fov = view?.fov ?? verticalFov(90);
+      this.plannedCamera.aspect = state.cameraAspectRatio!;
+      this.plannedCamera.updateProjectionMatrix();
+      this.plannedCamera.updateMatrixWorld(true);
+      const index = sample === null ? -1 : state.cameraSamples!.indexOf(sample);
+      const color = cameraPoseHasIssue(state.cameraDiagnostics?.[index]) ? this.issueColor : this.pathColor;
+      this.frustum.setColors(color, color, color, color, color);
+      this.frustum.update();
+    }
     if (state.mode === 'camera') {
-      const sample = cameraSampleAtTick(state.cameraSamples ?? [], tick);
       if (sample !== null) {
         const view = cameraView(sample);
         this.camera.position.fromArray(view.position);
@@ -315,7 +358,7 @@ export class Scene3DRenderer {
         this.camera.up.set(0, 1, 0);
         this.direction.fromArray(playerDirection(player.yaw, player.pitch));
         this.camera.fov = verticalFov(90);
-      } else return;
+      } else return false;
       this.camera.lookAt(this.position.copy(this.camera.position).add(this.direction));
       this.camera.updateProjectionMatrix();
     } else if (state.mode === 'follow' && player !== undefined) {
@@ -332,6 +375,7 @@ export class Scene3DRenderer {
     if (state.mode !== 'camera') this.controls.update();
     this.cutPlane.constant = cutawayHeight(player?.position[2] ?? 0, player?.input?.crouch === true ? 48 : BODY_HEIGHT);
     this.solid.clippingPlanes = state.cutaway && state.mode !== 'camera' && player !== undefined ? [this.cutPlane] : null;
+    return true;
   }
 
   private readonly draw = (): void => {
@@ -348,7 +392,7 @@ export class Scene3DRenderer {
       this.updateUtilities(state, tick);
     }
     if (!this.framed && (this.frame !== null || this.path !== null || this.mapMesh !== null)) this.resetView();
-    this.updateCamera(state, tick);
+    if (!this.updateCamera(state, tick)) return;
     if (this.dirty) {
       const viewport = cameraViewport(this.width, this.height, state.mode === 'camera' ? state.cameraAspectRatio : null);
       const aspect = viewport.width / viewport.height;
@@ -368,6 +412,7 @@ export class Scene3DRenderer {
       this.renderer.setScissorTest(true);
       this.renderer.render(this.scene, this.camera);
       this.dirty = false;
+      this.onFramePresented(tick);
     }
   };
 
@@ -401,6 +446,7 @@ export class Scene3DRenderer {
     this.canvas.removeEventListener('webglcontextlost', this.contextLost);
     this.controls.removeEventListener('change', this.invalidate);
     this.controls.dispose();
+    this.frustum.dispose();
     this.mapMesh?.geometry.dispose(); this.path?.geometry.dispose();
     for (const actor of this.actors.values()) actor.heading.geometry.dispose();
     for (const trail of this.trails.values()) trail.geometry.dispose();

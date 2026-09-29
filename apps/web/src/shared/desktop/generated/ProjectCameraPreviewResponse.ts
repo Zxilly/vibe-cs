@@ -7,5 +7,5 @@ export type ProjectCameraPreviewResponse = {
   revision: number;
   clipId: string;
   preview: CameraPreview;
-  inspection: CameraInspection;
+  inspection: CameraInspection | null;
 };

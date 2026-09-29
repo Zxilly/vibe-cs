@@ -522,7 +522,7 @@ export const commands = {
     request<Project>(`/projects/${encodeURIComponent(projectId)}`, { signal }),
   getProjectCameraPreview: (projectId: string, clipId: string, revision: number, signal?: AbortSignal) =>
     request<ProjectCameraPreviewResponse>(`/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/camera-preview`, {
-      method: 'POST', body: { revision }, signal,
+      method: 'POST', body: { revision }, signal, timeoutMs: 60_000,
     }),
   getProjectDeliveryGate: (projectId: string, signal?: AbortSignal) =>
     request<ProjectDeliveryGate>(`/projects/${encodeURIComponent(projectId)}/delivery-gate`, { signal }),
@@ -994,9 +994,9 @@ export const commands = {
   mapGeometryStatus: (signal?: AbortSignal) => request<MapGeometryStatus[]>('/source-assets/map-geometry', { signal }),
   getMapGeometryBinary: (mapName: string, signal?: AbortSignal) => requestBinary(`/source-assets/map-geometry/${encodeURIComponent(mapName)}`, signal),
   rebuildMapGeometry: (mapName: string) => request<MapGeometryStatus>(`/source-assets/map-geometry/${encodeURIComponent(mapName)}/rebuild`, { method: 'POST', timeoutMs: 60_000 }),
-  getAnalysisRunRoundReplayBinary: (runId: string, round: number, signal?: AbortSignal) =>
+  getAnalysisRunReplayBinary: (runId: string, signal?: AbortSignal) =>
     requestBinary(
-      `/analysis-runs/${encodeURIComponent(runId)}/replay/rounds/${encodeURIComponent(String(round))}/replay.bin`,
+      `/analysis-runs/${encodeURIComponent(runId)}/replay.bin`,
       signal,
     ),
   replayCacheStatus: (signal?: AbortSignal) =>

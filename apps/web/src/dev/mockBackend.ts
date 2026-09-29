@@ -1367,10 +1367,14 @@ const ROUTES: Array<[string, string, Handler]> = [
   /* editing and delivery */
   ['GET', '/projects', () => [mockProject()]],
   ['GET', '/projects/:id', () => mockProject()],
-  ['POST', '/projects/:id/clips/:clip/camera-preview', ({ params, body }) => ({
-    projectId: params['id'], clipId: params['clip'], revision: (body as { revision: number }).revision,
-    ...cameraFixture,
-  })],
+  ['POST', '/projects/:id/clips/:clip/camera-preview', ({ params, body }) => {
+    const clip = mockProject().document.tracks.flatMap((track) => track.clips).find((clip) => clip.id === params['clip']);
+    const pov = clip?.capture_intent?.camera_style === 'pov';
+    return { projectId: params['id'], clipId: params['clip'], revision: (body as { revision: number }).revision,
+      preview: { ...cameraFixture.preview, plan: pov ? null : cameraFixture.preview.plan },
+      inspection: pov ? null : cameraFixture.inspection,
+    };
+  }],
   ['PATCH', '/projects/:id', ({ body }) => applyMockPatch(body as ProjectPatch)],
   ['POST', '/projects/:id/change-groups/:group/revert', ({ params, body }) =>
     revertMockChangeGroup(params['group'] ?? '', (body as { expected_revision: number }).expected_revision)],
@@ -1446,10 +1450,18 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
       const path = (args as { path?: unknown } | undefined)?.path;
       const map = typeof path === 'string' ? /^\/source-assets\/map-geometry\/([^/]+)$/u.exec(path)?.[1] : undefined;
       if (map !== undefined) {
-        readyGeometry(decodeURIComponent(map));
+        if (decodeURIComponent(map) !== 'synthetic') readyGeometry(decodeURIComponent(map));
         const response = await fetch(geometryFixtureUrl);
         if (!response.ok) throw new Error('Development geometry fixture is unavailable');
         return response.arrayBuffer();
+      }
+      if (typeof path === 'string' && path === `/analysis-runs/${cameraFixture.preview.replay.producerRunId}/replay.bin`) {
+        const preview = cameraFixture.preview;
+        return mockReplayBinary({ tick_rate: preview.tickRate,
+          rounds: [{ number: 1, start_tick: preview.startTick, end_tick: preview.endTick }],
+          highlights: [{ start_tick: preview.startTick, end_tick: preview.endTick }],
+          players: [{ steam_id: preview.playerId, name: 'Target', team: 'A', position: [0, 0, 0] }],
+        });
       }
       const demoId = typeof path === 'string' ? /^\/demos\/([^/]+)\/replay\.bin$/u.exec(path)?.[1] : undefined;
       return demoId === undefined ? new ArrayBuffer(0) : mockReplayBinary(analysisOf(decodeURIComponent(demoId)));

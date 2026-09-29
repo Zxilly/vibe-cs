@@ -18,947 +18,956 @@ export default {
     "requestedStyle": "flyby"
   },
   "preview": {
-    "adjusted": true,
     "aspectRatio": 1.7777777777777777,
-    "diagnostics": [
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 100.0,
-        "timeSeconds": 0.0,
-        "wallDistance": 68.80000305175781
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 102.13333333333334,
-        "timeSeconds": 0.03333333333333333,
-        "wallDistance": 69.14486694335938
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 104.26666666666667,
-        "timeSeconds": 0.06666666666666667,
-        "wallDistance": 70.08094787597656
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 106.4,
-        "timeSeconds": 0.1,
-        "wallDistance": 71.4604263305664
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 108.53333333333333,
-        "timeSeconds": 0.13333333333333333,
-        "wallDistance": 73.13551330566406
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 110.66666666666667,
-        "timeSeconds": 0.16666666666666666,
-        "wallDistance": 74.95840454101562
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 112.8,
-        "timeSeconds": 0.2,
-        "wallDistance": 76.78128814697266
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 114.93333333333334,
-        "timeSeconds": 0.23333333333333334,
-        "wallDistance": 78.45637512207031
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 117.06666666666666,
-        "timeSeconds": 0.26666666666666666,
-        "wallDistance": 79.83893585205078
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 119.2,
-        "timeSeconds": 0.3,
-        "wallDistance": 80.85507202148438
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 121.33333333333333,
-        "timeSeconds": 0.3333333333333333,
-        "wallDistance": 81.501708984375
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 123.46666666666667,
-        "timeSeconds": 0.36666666666666664,
-        "wallDistance": 81.7788314819336
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 125.6,
-        "timeSeconds": 0.4,
-        "wallDistance": 81.68645477294922
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 127.73333333333333,
-        "timeSeconds": 0.43333333333333335,
-        "wallDistance": 81.22457885742188
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 129.86666666666667,
-        "timeSeconds": 0.4666666666666667,
-        "wallDistance": 80.39319610595703
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 132.0,
-        "timeSeconds": 0.5,
-        "wallDistance": 79.19230651855469
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 134.13333333333333,
-        "timeSeconds": 0.5333333333333333,
-        "wallDistance": 77.64654541015625
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 136.26666666666665,
-        "timeSeconds": 0.5666666666666667,
-        "wallDistance": 75.87908172607422
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 138.4,
-        "timeSeconds": 0.6,
-        "wallDistance": 74.0377197265625
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 140.53333333333333,
-        "timeSeconds": 0.6333333333333333,
-        "wallDistance": 72.270263671875
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 142.66666666666666,
-        "timeSeconds": 0.6666666666666666,
-        "wallDistance": 70.72450256347656
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 144.8,
-        "timeSeconds": 0.7,
-        "wallDistance": 69.54824829101562
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 146.93333333333334,
-        "timeSeconds": 0.7333333333333333,
-        "wallDistance": 68.88929748535156
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 148.0,
-        "timeSeconds": 0.75,
-        "wallDistance": 68.80000305175781
-      }
-    ],
-    "effectiveStyle": "flyby",
-    "geometryUnavailable": null,
+    "endTick": 148,
     "mapName": "synthetic",
-    "originalDiagnostics": [
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 100.0,
-        "timeSeconds": 0.0,
-        "wallDistance": 72.0
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 102.13333333333334,
-        "timeSeconds": 0.03333333333333333,
-        "wallDistance": 72.57478332519531
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 104.26666666666667,
-        "timeSeconds": 0.06666666666666667,
-        "wallDistance": 74.1349105834961
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 106.4,
-        "timeSeconds": 0.1,
-        "wallDistance": 76.43405151367188
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 108.53333333333333,
-        "timeSeconds": 0.13333333333333333,
-        "wallDistance": 79.22586059570312
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 110.66666666666667,
-        "timeSeconds": 0.16666666666666666,
-        "wallDistance": 82.26400756835938
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 112.8,
-        "timeSeconds": 0.2,
-        "wallDistance": 85.3021469116211
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 114.93333333333334,
-        "timeSeconds": 0.23333333333333334,
-        "wallDistance": 88.09395599365234
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 117.06666666666666,
-        "timeSeconds": 0.26666666666666666,
-        "wallDistance": 90.39823150634766
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 119.2,
-        "timeSeconds": 0.3,
-        "wallDistance": 92.09178924560547
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 121.33333333333333,
-        "timeSeconds": 0.3333333333333333,
-        "wallDistance": 93.16950988769531
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": false,
-        "tick": 123.46666666666667,
-        "timeSeconds": 0.36666666666666664,
-        "wallDistance": 93.63139343261719
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 125.6,
-        "timeSeconds": 0.4,
-        "wallDistance": 93.47743225097656
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 127.73333333333333,
-        "timeSeconds": 0.43333333333333335,
-        "wallDistance": 92.70762634277344
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 129.86666666666667,
-        "timeSeconds": 0.4666666666666667,
-        "wallDistance": 91.32199096679688
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 132.0,
-        "timeSeconds": 0.5,
-        "wallDistance": 89.32051086425781
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 134.13333333333333,
-        "timeSeconds": 0.5333333333333333,
-        "wallDistance": 86.7442398071289
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 136.26666666666665,
-        "timeSeconds": 0.5666666666666667,
-        "wallDistance": 83.79847717285156
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 138.4,
-        "timeSeconds": 0.6,
-        "wallDistance": 80.72953796386719
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 140.53333333333333,
-        "timeSeconds": 0.6333333333333333,
-        "wallDistance": 77.78376770019531
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 142.66666666666666,
-        "timeSeconds": 0.6666666666666666,
-        "wallDistance": 75.20750427246094
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 144.8,
-        "timeSeconds": 0.7,
-        "wallDistance": 73.24707794189453
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 146.93333333333334,
-        "timeSeconds": 0.7333333333333333,
-        "wallDistance": 72.1488265991211
-      },
-      {
-        "chestOccluded": false,
-        "crossedSurface": false,
-        "headOccluded": false,
-        "nearWall": false,
-        "targetInView": true,
-        "tick": 148.0,
-        "timeSeconds": 0.75,
-        "wallDistance": 72.0
-      }
-    ],
-    "requestedStyle": "flyby",
-    "samples": [
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 4.8,
-          "y": 43.2,
-          "z": 68.8
+    "plan": {
+      "adjusted": true,
+      "diagnostics": [
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 100.0,
+          "timeSeconds": 0.0,
+          "wallDistance": 68.80000305175781
         },
-        "quaternion": [
-          0.04095612502083241,
-          0.03665748437071336,
-          -0.7440015867351989,
-          0.6659132553106262
-        ],
-        "tick": 100.0,
-        "timeSeconds": 0.0
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 6.244977777777777,
-          "y": 42.333013333333334,
-          "z": 69.14487056592593
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 102.13333333333334,
+          "timeSeconds": 0.03333333333333333,
+          "wallDistance": 69.14486694335938
         },
-        "quaternion": [
-          0.0451260124525306,
-          0.03638606130749291,
-          -0.756920249705615,
-          0.650931204604796
-        ],
-        "tick": 102.13333333333334,
-        "timeSeconds": 0.03333333333333333
-      },
-      {
-        "fov": 81.99999999999999,
-        "position": {
-          "x": 10.215822222222222,
-          "y": 39.95050666666666,
-          "z": 70.08094781629629
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 104.26666666666667,
+          "timeSeconds": 0.06666666666666667,
+          "wallDistance": 70.08094787597656
         },
-        "quaternion": [
-          0.056132481385244404,
-          0.03551891312931416,
-          -0.7903943224698619,
-          0.6089863433206492
-        ],
-        "tick": 104.26666666666667,
-        "timeSeconds": 0.06666666666666667
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 16.166400000000003,
-          "y": 36.38016,
-          "z": 71.46043008
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 106.4,
+          "timeSeconds": 0.1,
+          "wallDistance": 71.4604263305664
         },
-        "quaternion": [
-          0.07160495684104137,
-          0.03393538135103051,
-          -0.8353509389037819,
-          0.5439760370833653
-        ],
-        "tick": 106.4,
-        "timeSeconds": 0.1
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 23.550577777777775,
-          "y": 31.949653333333334,
-          "z": 73.13551568592592
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 108.53333333333333,
+          "timeSeconds": 0.13333333333333333,
+          "wallDistance": 73.13551330566406
         },
-        "quaternion": [
-          0.08907599061150265,
-          0.03154045551353081,
-          -0.8826146389560354,
-          0.46050197248555375
-        ],
-        "tick": 108.53333333333333,
-        "timeSeconds": 0.13333333333333333
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 31.822222222222223,
-          "y": 26.986666666666668,
-          "z": 74.95840296296296
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 110.66666666666667,
+          "timeSeconds": 0.16666666666666666,
+          "wallDistance": 74.95840454101562
         },
-        "quaternion": [
-          0.10612489055139496,
-          0.02833662357686973,
-          -0.9245108226250695,
-          0.3649853178126959
-        ],
-        "tick": 110.66666666666667,
-        "timeSeconds": 0.16666666666666666
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 40.43520000000001,
-          "y": 21.818879999999996,
-          "z": 76.78129024
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 112.8,
+          "timeSeconds": 0.2,
+          "wallDistance": 76.78128814697266
         },
-        "quaternion": [
-          0.1205858909662184,
-          0.024454235831739696,
-          -0.9561430809213615,
-          0.2658033898504228
-        ],
-        "tick": 112.8,
-        "timeSeconds": 0.2
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 48.84337777777777,
-          "y": 16.773973333333338,
-          "z": 78.45637584592593
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 114.93333333333334,
+          "timeSeconds": 0.23333333333333334,
+          "wallDistance": 78.45637512207031
         },
-        "quaternion": [
-          0.13073104929966595,
-          0.020138789174933586,
-          -0.9760592564197864,
-          0.1726619526034317
-        ],
-        "tick": 114.93333333333334,
-        "timeSeconds": 0.23333333333333334
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 56.517688888888884,
-          "y": 12.169386666666668,
-          "z": 79.83893731111111
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 117.06666666666666,
+          "timeSeconds": 0.26666666666666666,
+          "wallDistance": 79.83893585205078
         },
-        "quaternion": [
-          0.13536515254535816,
-          0.015701030057490045,
-          -0.9860670852002559,
-          0.0954015545794572
-        ],
-        "tick": 117.06666666666666,
-        "timeSeconds": 0.26666666666666666
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 63.32159999999998,
-          "y": 8.08704,
-          "z": 80.8550738
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 119.2,
+          "timeSeconds": 0.3,
+          "wallDistance": 80.85507202148438
         },
-        "quaternion": [
-          0.13466940622400556,
-          0.011394964686939027,
-          -0.9901068434371282,
-          0.03771928400729879
-        ],
-        "tick": 119.2,
-        "timeSeconds": 0.3
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 69.5111111111111,
-          "y": 4.373333333333335,
-          "z": 81.50170611111113
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 121.33333333333333,
+          "timeSeconds": 0.3333333333333333,
+          "wallDistance": 81.501708984375
         },
-        "quaternion": [
-          0.1298045361416149,
-          0.0073699787264931635,
-          -0.9915074578957697,
-          -0.0030703009135576442
-        ],
-        "tick": 121.33333333333333,
-        "timeSeconds": 0.3333333333333333
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 75.35928888888887,
-          "y": 0.8644266666666685,
-          "z": 81.77883424444445
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 123.46666666666667,
+          "timeSeconds": 0.36666666666666664,
+          "wallDistance": 81.7788314819336
         },
-        "quaternion": [
-          0.1217691693522959,
-          0.0037343796950886562,
-          -0.9920905238178347,
-          -0.03024427804393956
-        ],
-        "tick": 123.46666666666667,
-        "timeSeconds": 0.36666666666666664
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 81.13919999999999,
-          "y": -2.6035200000000014,
-          "z": 81.6864582
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 125.6,
+          "timeSeconds": 0.4,
+          "wallDistance": 81.68645477294922
         },
-        "quaternion": [
-          0.11141037252697125,
-          0.0005762336943022292,
-          -0.9926532475857124,
-          -0.047190326399266555
-        ],
-        "tick": 125.6,
-        "timeSeconds": 0.4
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 87.12391111111111,
-          "y": -6.194346666666666,
-          "z": 81.22457797777778
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 127.73333333333333,
+          "timeSeconds": 0.43333333333333335,
+          "wallDistance": 81.22457885742188
         },
-        "quaternion": [
-          0.0994859402326848,
-          -0.0020248172901424707,
-          -0.9933848123480722,
-          -0.057315463944258974
-        ],
-        "tick": 127.73333333333333,
-        "timeSeconds": 0.43333333333333335
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 93.58648888888888,
-          "y": -10.07189333333333,
-          "z": 80.39319357777778
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 129.86666666666667,
+          "timeSeconds": 0.4666666666666667,
+          "wallDistance": 80.39319610595703
         },
-        "quaternion": [
-          0.08671359730939088,
-          -0.003991179405769853,
-          -0.9941661036501421,
-          -0.06402015996317637
-        ],
-        "tick": 129.86666666666667,
-        "timeSeconds": 0.4666666666666667
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 100.8,
-          "y": -14.4,
-          "z": 79.192305
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 132.0,
+          "timeSeconds": 0.5,
+          "wallDistance": 79.19230651855469
         },
-        "quaternion": [
-          0.07380115997771794,
-          -0.00524488672350889,
-          -0.9947502882902838,
-          -0.07069472325144448
-        ],
-        "tick": 132.0,
-        "timeSeconds": 0.5
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 108.9009777777778,
-          "y": -19.26058666666667,
-          "z": 77.6465458562963
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 134.13333333333333,
+          "timeSeconds": 0.5333333333333333,
+          "wallDistance": 77.64654541015625
         },
-        "quaternion": [
-          0.06138868112769551,
-          -0.00575061058483692,
-          -0.9948893178012592,
-          -0.07996002521415951
-        ],
-        "tick": 134.13333333333333,
-        "timeSeconds": 0.5333333333333333
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 117.47982222222221,
-          "y": -24.407893333333334,
-          "z": 75.87908420592593
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 136.26666666666665,
+          "timeSeconds": 0.5666666666666667,
+          "wallDistance": 75.87908172607422
         },
-        "quaternion": [
-          0.049842367262943686,
-          -0.005644850109285821,
-          -0.9945505083365861,
-          -0.09139562604582369
-        ],
-        "tick": 136.26666666666665,
-        "timeSeconds": 0.5666666666666667
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 125.99040000000001,
-          "y": -29.51424,
-          "z": 74.03772172000001
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 138.4,
+          "timeSeconds": 0.6,
+          "wallDistance": 74.0377197265625
         },
-        "quaternion": [
-          0.0394622081273304,
-          -0.005107428514274388,
-          -0.9937993783875767,
-          -0.10382410038210389
-        ],
-        "tick": 138.4,
-        "timeSeconds": 0.6
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 133.88657777777777,
-          "y": -34.25194666666667,
-          "z": 72.27026006962963
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 140.53333333333333,
+          "timeSeconds": 0.6333333333333333,
+          "wallDistance": 72.270263671875
         },
-        "quaternion": [
-          0.030550886737550437,
-          -0.004318562930822888,
-          -0.9927612641851178,
-          -0.11607353560277581
-        ],
-        "tick": 140.53333333333333,
-        "timeSeconds": 0.6333333333333333
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 140.62222222222223,
-          "y": -38.29333333333334,
-          "z": 70.72450092592592
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 142.66666666666666,
+          "timeSeconds": 0.6666666666666666,
+          "wallDistance": 70.72450256347656
         },
-        "quaternion": [
-          0.023412935287737448,
-          -0.003458628895704043,
-          -0.9916229155395319,
-          -0.12697978470706578
-        ],
-        "tick": 142.66666666666666,
-        "timeSeconds": 0.6666666666666666
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 145.6512,
-          "y": -41.310719999999996,
-          "z": 69.54824596
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 144.8,
+          "timeSeconds": 0.7,
+          "wallDistance": 69.54824829101562
         },
-        "quaternion": [
-          0.01835367281787182,
-          -0.002707894534098289,
-          -0.9906191434405819,
-          -0.13538656746640237
-        ],
-        "tick": 144.8,
-        "timeSeconds": 0.7
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 148.4273777777778,
-          "y": -42.976426666666676,
-          "z": 68.88929684296295
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 146.93333333333334,
+          "timeSeconds": 0.7333333333333333,
+          "wallDistance": 68.88929748535156
         },
-        "quaternion": [
-          0.015678261292915642,
-          -0.002246370456105906,
-          -0.9900046746121944,
-          -0.14014239254632432
-        ],
-        "tick": 146.93333333333334,
-        "timeSeconds": 0.7333333333333333
-      },
-      {
-        "fov": 82.0,
-        "position": {
-          "x": 148.8,
-          "y": -43.2,
-          "z": 68.8
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 148.0,
+          "timeSeconds": 0.75,
+          "wallDistance": 68.80000305175781
+        }
+      ],
+      "effectiveStyle": "flyby",
+      "geometryUnavailable": null,
+      "originalDiagnostics": [
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 100.0,
+          "timeSeconds": 0.0,
+          "wallDistance": 72.0
         },
-        "quaternion": [
-          0.015329614197458381,
-          -0.0021802539747748624,
-          -0.9899182374977925,
-          -0.1407910952099843
-        ],
-        "tick": 148.0,
-        "timeSeconds": 0.75
-      }
-    ],
-    "shot": {
-      "endTick": 148,
-      "id": "test",
-      "keyframes": [
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 102.13333333333334,
+          "timeSeconds": 0.03333333333333333,
+          "wallDistance": 72.57478332519531
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 104.26666666666667,
+          "timeSeconds": 0.06666666666666667,
+          "wallDistance": 74.1349105834961
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 106.4,
+          "timeSeconds": 0.1,
+          "wallDistance": 76.43405151367188
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 108.53333333333333,
+          "timeSeconds": 0.13333333333333333,
+          "wallDistance": 79.22586059570312
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 110.66666666666667,
+          "timeSeconds": 0.16666666666666666,
+          "wallDistance": 82.26400756835938
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 112.8,
+          "timeSeconds": 0.2,
+          "wallDistance": 85.3021469116211
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 114.93333333333334,
+          "timeSeconds": 0.23333333333333334,
+          "wallDistance": 88.09395599365234
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 117.06666666666666,
+          "timeSeconds": 0.26666666666666666,
+          "wallDistance": 90.39823150634766
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 119.2,
+          "timeSeconds": 0.3,
+          "wallDistance": 92.09178924560547
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 121.33333333333333,
+          "timeSeconds": 0.3333333333333333,
+          "wallDistance": 93.16950988769531
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": false,
+          "tick": 123.46666666666667,
+          "timeSeconds": 0.36666666666666664,
+          "wallDistance": 93.63139343261719
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 125.6,
+          "timeSeconds": 0.4,
+          "wallDistance": 93.47743225097656
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 127.73333333333333,
+          "timeSeconds": 0.43333333333333335,
+          "wallDistance": 92.70762634277344
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 129.86666666666667,
+          "timeSeconds": 0.4666666666666667,
+          "wallDistance": 91.32199096679688
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 132.0,
+          "timeSeconds": 0.5,
+          "wallDistance": 89.32051086425781
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 134.13333333333333,
+          "timeSeconds": 0.5333333333333333,
+          "wallDistance": 86.7442398071289
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 136.26666666666665,
+          "timeSeconds": 0.5666666666666667,
+          "wallDistance": 83.79847717285156
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 138.4,
+          "timeSeconds": 0.6,
+          "wallDistance": 80.72953796386719
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 140.53333333333333,
+          "timeSeconds": 0.6333333333333333,
+          "wallDistance": 77.78376770019531
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 142.66666666666666,
+          "timeSeconds": 0.6666666666666666,
+          "wallDistance": 75.20750427246094
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 144.8,
+          "timeSeconds": 0.7,
+          "wallDistance": 73.24707794189453
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 146.93333333333334,
+          "timeSeconds": 0.7333333333333333,
+          "wallDistance": 72.1488265991211
+        },
+        {
+          "chestOccluded": false,
+          "crossedSurface": false,
+          "headOccluded": false,
+          "nearWall": false,
+          "targetInView": true,
+          "tick": 148.0,
+          "timeSeconds": 0.75,
+          "wallDistance": 72.0
+        }
+      ],
+      "requestedStyle": "flyby",
+      "samples": [
         {
           "fov": 82.0,
           "position": {
             "x": 4.8,
-            "y": 43.199999999999996,
+            "y": 43.2,
             "z": 68.8
           },
-          "rotation": {
-            "pitch": 6.301726373997192,
-            "roll": 0.0,
-            "yaw": -96.3401917459099
-          },
-          "tick": 100
+          "quaternion": [
+            0.04095612502083241,
+            0.03665748437071336,
+            -0.7440015867351989,
+            0.6659132553106262
+          ],
+          "tick": 100.0,
+          "timeSeconds": 0.0
         },
         {
           "fov": 82.0,
           "position": {
-            "x": 52.8,
-            "y": 14.399999999999999,
-            "z": 79.19230484541326
+            "x": 6.244977777777777,
+            "y": 42.333013333333334,
+            "z": 69.14487056592593
           },
-          "rotation": {
-            "pitch": 15.514358166242856,
-            "roll": 0.0,
-            "yaw": -164.74488129694222
+          "quaternion": [
+            0.0451260124525306,
+            0.03638606130749291,
+            -0.756920249705615,
+            0.650931204604796
+          ],
+          "tick": 102.13333333333334,
+          "timeSeconds": 0.03333333333333333
+        },
+        {
+          "fov": 81.99999999999999,
+          "position": {
+            "x": 10.215822222222222,
+            "y": 39.95050666666666,
+            "z": 70.08094781629629
           },
-          "tick": 116
+          "quaternion": [
+            0.056132481385244404,
+            0.03551891312931416,
+            -0.7903943224698619,
+            0.6089863433206492
+          ],
+          "tick": 104.26666666666667,
+          "timeSeconds": 0.06666666666666667
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 16.166400000000003,
+            "y": 36.38016,
+            "z": 71.46043008
+          },
+          "quaternion": [
+            0.07160495684104137,
+            0.03393538135103051,
+            -0.8353509389037819,
+            0.5439760370833653
+          ],
+          "tick": 106.4,
+          "timeSeconds": 0.1
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 23.550577777777775,
+            "y": 31.949653333333334,
+            "z": 73.13551568592592
+          },
+          "quaternion": [
+            0.08907599061150265,
+            0.03154045551353081,
+            -0.8826146389560354,
+            0.46050197248555375
+          ],
+          "tick": 108.53333333333333,
+          "timeSeconds": 0.13333333333333333
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 31.822222222222223,
+            "y": 26.986666666666668,
+            "z": 74.95840296296296
+          },
+          "quaternion": [
+            0.10612489055139496,
+            0.02833662357686973,
+            -0.9245108226250695,
+            0.3649853178126959
+          ],
+          "tick": 110.66666666666667,
+          "timeSeconds": 0.16666666666666666
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 40.43520000000001,
+            "y": 21.818879999999996,
+            "z": 76.78129024
+          },
+          "quaternion": [
+            0.1205858909662184,
+            0.024454235831739696,
+            -0.9561430809213615,
+            0.2658033898504228
+          ],
+          "tick": 112.8,
+          "timeSeconds": 0.2
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 48.84337777777777,
+            "y": 16.773973333333338,
+            "z": 78.45637584592593
+          },
+          "quaternion": [
+            0.13073104929966595,
+            0.020138789174933586,
+            -0.9760592564197864,
+            0.1726619526034317
+          ],
+          "tick": 114.93333333333334,
+          "timeSeconds": 0.23333333333333334
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 56.517688888888884,
+            "y": 12.169386666666668,
+            "z": 79.83893731111111
+          },
+          "quaternion": [
+            0.13536515254535816,
+            0.015701030057490045,
+            -0.9860670852002559,
+            0.0954015545794572
+          ],
+          "tick": 117.06666666666666,
+          "timeSeconds": 0.26666666666666666
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 63.32159999999998,
+            "y": 8.08704,
+            "z": 80.8550738
+          },
+          "quaternion": [
+            0.13466940622400556,
+            0.011394964686939027,
+            -0.9901068434371282,
+            0.03771928400729879
+          ],
+          "tick": 119.2,
+          "timeSeconds": 0.3
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 69.5111111111111,
+            "y": 4.373333333333335,
+            "z": 81.50170611111113
+          },
+          "quaternion": [
+            0.1298045361416149,
+            0.0073699787264931635,
+            -0.9915074578957697,
+            -0.0030703009135576442
+          ],
+          "tick": 121.33333333333333,
+          "timeSeconds": 0.3333333333333333
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 75.35928888888887,
+            "y": 0.8644266666666685,
+            "z": 81.77883424444445
+          },
+          "quaternion": [
+            0.1217691693522959,
+            0.0037343796950886562,
+            -0.9920905238178347,
+            -0.03024427804393956
+          ],
+          "tick": 123.46666666666667,
+          "timeSeconds": 0.36666666666666664
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 81.13919999999999,
+            "y": -2.6035200000000014,
+            "z": 81.6864582
+          },
+          "quaternion": [
+            0.11141037252697125,
+            0.0005762336943022292,
+            -0.9926532475857124,
+            -0.047190326399266555
+          ],
+          "tick": 125.6,
+          "timeSeconds": 0.4
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 87.12391111111111,
+            "y": -6.194346666666666,
+            "z": 81.22457797777778
+          },
+          "quaternion": [
+            0.0994859402326848,
+            -0.0020248172901424707,
+            -0.9933848123480722,
+            -0.057315463944258974
+          ],
+          "tick": 127.73333333333333,
+          "timeSeconds": 0.43333333333333335
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 93.58648888888888,
+            "y": -10.07189333333333,
+            "z": 80.39319357777778
+          },
+          "quaternion": [
+            0.08671359730939088,
+            -0.003991179405769853,
+            -0.9941661036501421,
+            -0.06402015996317637
+          ],
+          "tick": 129.86666666666667,
+          "timeSeconds": 0.4666666666666667
         },
         {
           "fov": 82.0,
           "position": {
             "x": 100.8,
-            "y": -14.399999999999999,
-            "z": 79.19230484541326
+            "y": -14.4,
+            "z": 79.192305
           },
-          "rotation": {
-            "pitch": 8.486073868084299,
-            "roll": 0.0,
-            "yaw": 171.86989764584405
-          },
-          "tick": 132
+          "quaternion": [
+            0.07380115997771794,
+            -0.00524488672350889,
+            -0.9947502882902838,
+            -0.07069472325144448
+          ],
+          "tick": 132.0,
+          "timeSeconds": 0.5
         },
         {
           "fov": 82.0,
           "position": {
-            "x": 148.79999999999998,
-            "y": -43.199999999999996,
+            "x": 108.9009777777778,
+            "y": -19.26058666666667,
+            "z": 77.6465458562963
+          },
+          "quaternion": [
+            0.06138868112769551,
+            -0.00575061058483692,
+            -0.9948893178012592,
+            -0.07996002521415951
+          ],
+          "tick": 134.13333333333333,
+          "timeSeconds": 0.5333333333333333
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 117.47982222222221,
+            "y": -24.407893333333334,
+            "z": 75.87908420592593
+          },
+          "quaternion": [
+            0.049842367262943686,
+            -0.005644850109285821,
+            -0.9945505083365861,
+            -0.09139562604582369
+          ],
+          "tick": 136.26666666666665,
+          "timeSeconds": 0.5666666666666667
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 125.99040000000001,
+            "y": -29.51424,
+            "z": 74.03772172000001
+          },
+          "quaternion": [
+            0.0394622081273304,
+            -0.005107428514274388,
+            -0.9937993783875767,
+            -0.10382410038210389
+          ],
+          "tick": 138.4,
+          "timeSeconds": 0.6
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 133.88657777777777,
+            "y": -34.25194666666667,
+            "z": 72.27026006962963
+          },
+          "quaternion": [
+            0.030550886737550437,
+            -0.004318562930822888,
+            -0.9927612641851178,
+            -0.11607353560277581
+          ],
+          "tick": 140.53333333333333,
+          "timeSeconds": 0.6333333333333333
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 140.62222222222223,
+            "y": -38.29333333333334,
+            "z": 70.72450092592592
+          },
+          "quaternion": [
+            0.023412935287737448,
+            -0.003458628895704043,
+            -0.9916229155395319,
+            -0.12697978470706578
+          ],
+          "tick": 142.66666666666666,
+          "timeSeconds": 0.6666666666666666
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 145.6512,
+            "y": -41.310719999999996,
+            "z": 69.54824596
+          },
+          "quaternion": [
+            0.01835367281787182,
+            -0.002707894534098289,
+            -0.9906191434405819,
+            -0.13538656746640237
+          ],
+          "tick": 144.8,
+          "timeSeconds": 0.7
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 148.4273777777778,
+            "y": -42.976426666666676,
+            "z": 68.88929684296295
+          },
+          "quaternion": [
+            0.015678261292915642,
+            -0.002246370456105906,
+            -0.9900046746121944,
+            -0.14014239254632432
+          ],
+          "tick": 146.93333333333334,
+          "timeSeconds": 0.7333333333333333
+        },
+        {
+          "fov": 82.0,
+          "position": {
+            "x": 148.8,
+            "y": -43.2,
             "z": 68.8
           },
-          "rotation": {
-            "pitch": 1.7743933488409869,
-            "roll": 0.0,
-            "yaw": 163.81079374297303
-          },
-          "tick": 148
+          "quaternion": [
+            0.015329614197458381,
+            -0.0021802539747748624,
+            -0.9899182374977925,
+            -0.1407910952099843
+          ],
+          "tick": 148.0,
+          "timeSeconds": 0.75
         }
       ],
-      "positionInterpolation": "cubic",
-      "rotationInterpolation": "sphericalCubic",
-      "startTick": 100
+      "shot": {
+        "endTick": 148,
+        "id": "test",
+        "keyframes": [
+          {
+            "fov": 82.0,
+            "position": {
+              "x": 4.8,
+              "y": 43.199999999999996,
+              "z": 68.8
+            },
+            "rotation": {
+              "pitch": 6.301726373997192,
+              "roll": 0.0,
+              "yaw": -96.3401917459099
+            },
+            "tick": 100
+          },
+          {
+            "fov": 82.0,
+            "position": {
+              "x": 52.8,
+              "y": 14.399999999999999,
+              "z": 79.19230484541326
+            },
+            "rotation": {
+              "pitch": 15.514358166242856,
+              "roll": 0.0,
+              "yaw": -164.74488129694222
+            },
+            "tick": 116
+          },
+          {
+            "fov": 82.0,
+            "position": {
+              "x": 100.8,
+              "y": -14.399999999999999,
+              "z": 79.19230484541326
+            },
+            "rotation": {
+              "pitch": 8.486073868084299,
+              "roll": 0.0,
+              "yaw": 171.86989764584405
+            },
+            "tick": 132
+          },
+          {
+            "fov": 82.0,
+            "position": {
+              "x": 148.79999999999998,
+              "y": -43.199999999999996,
+              "z": 68.8
+            },
+            "rotation": {
+              "pitch": 1.7743933488409869,
+              "roll": 0.0,
+              "yaw": 163.81079374297303
+            },
+            "tick": 148
+          }
+        ],
+        "positionInterpolation": "cubic",
+        "rotationInterpolation": "sphericalCubic",
+        "startTick": 100
+      }
     },
+    "playerId": "target",
+    "replay": {
+      "demoId": "00000000-0000-0000-0000-000000000000",
+      "producerRunId": "00000000-0000-0000-0000-000000000000"
+    },
+    "startTick": 100,
     "tickRate": 64.0
   }
 } satisfies { preview: CameraPreview; inspection: CameraInspection };

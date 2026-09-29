@@ -1,4 +1,4 @@
-import type { CameraSample } from '../../shared/desktop/dto';
+import type { CameraPoseDiagnostic, CameraSample } from '../../shared/desktop/dto';
 import { MAP_GEOMETRY_QUANTIZATION } from '../../data/mapGeometryBinary';
 
 export type Point3 = readonly [number, number, number];
@@ -8,6 +8,26 @@ export function cameraViewport(width: number, height: number, aspectRatio: numbe
   const fittedWidth = aspectRatio === null ? width : Math.min(width, height * aspectRatio);
   const fittedHeight = aspectRatio === null ? height : Math.min(height, width / aspectRatio);
   return { x: (width - fittedWidth) / 2, y: (height - fittedHeight) / 2, width: fittedWidth, height: fittedHeight };
+}
+
+export function cameraPoseHasIssue(pose: CameraPoseDiagnostic | undefined): boolean {
+  return pose !== undefined && (pose.nearWall || pose.crossedSurface || pose.headOccluded === true
+    || pose.chestOccluded === true || pose.targetInView === false);
+}
+
+/** Connect only the supplied Rust samples; diagnostics color those exact segments. */
+export function cameraPathSegments(samples: readonly CameraSample[], diagnostics: readonly CameraPoseDiagnostic[]) {
+  const count = Math.max(0, samples.length - 1);
+  const positions = new Float32Array(count * 6);
+  const problems: boolean[] = [];
+  for (let index = 0; index < count; index += 1) {
+    for (let end = 0; end < 2; end += 1) {
+      const point = samples[index + end]!.position;
+      positions.set(sourcePoint([point.x, point.y, point.z]), index * 6 + end * 3);
+    }
+    problems.push(cameraPoseHasIssue(diagnostics[index]) || cameraPoseHasIssue(diagnostics[index + 1]));
+  }
+  return { positions, problems };
 }
 
 /** A proper rotation: Source +X forward/+Y left/+Z up -> Three Y-up. */

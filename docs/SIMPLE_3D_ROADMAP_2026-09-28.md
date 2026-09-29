@@ -380,6 +380,13 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 新增可复现测试：设置 `VIBE_CS2_INSTALL` 和 `VIBE_ALIGNMENT_SAMPLES`（`sample-demo-landings.py` 的输出），执行 `cargo test -p vibe-cs-source-assets real_landing_coordinates_align_with_player_support -- --ignored --nocapture`。测试检查原始 airborne→grounded 标志、至少 32 个样本全部 <2 单位，并确认 fixture 实际覆盖了不可见支撑。独立脚底面探针由 CLI 与该测试共享，避免两套验证数学。旧 CLI 对遮挡网格仍诚实报告差异。
 - 本机真实测试通过，证据为 `m0-player-support-test.log`；常规 source-assets 测试 37 通过、5 个真实环境测试默认跳过，严格全目标 Clippy 通过。坐标项完成；过滤语义的完整验收、M3 实体内部/游戏实拍和 M4 原生性能仍未完成。
 
+### 2026-09-29：本机碰撞规则核对与空 VPK 条目修复
+
+- 读取当前 `game/core/pak01_dir.vpk` 时复现 `panorama/window_keybinds.cfg` 越界：该包的 inline 数据区长度为 0，两个空条目（另一个是 `scripts/vscripts/game/gameinit.lua`）使用 archive 32767、offset `0xffffffff`、length 0、preload 0。偏移没有对应读取，却在建索引时被拒绝。
+- 最小修复只在 body length 非零时校验 inline 数据区范围；读取阶段原本已经跳过零长度 body，CRC 校验继续执行。合成回归先复现失败，修复后验证空文件可读，同样偏移配非零长度仍被拒绝。实际 core 包现在可以打开，并读出碰撞属性与碰撞细节资源。source-assets 38 项通过、5 项真实环境测试默认跳过，严格全目标 Clippy 通过。
+- 本机 `csgo/scripts/collision_properties.txt` 明确说明 window 不阻挡 LOS、solid_no_block_los 不阻挡 LOS，player/npc clip 与 grenadeclip 只服务对应碰撞对象；grating/railing 使用 `passbullets`。后者描述子弹穿透规则，不能单凭标签名称认定视觉透明。当前未据此修改生产遮挡筛选；仍需工具材质或游戏视线实证，M0 过滤项继续未勾选。
+- 原始资源仅保存在本机忽略目录 `csgo-scripts_collision_properties.txt`、`core-scripts_collision_properties.txt` 与 `core-scripts_collision_detail_layers.vdata_c`，不提交游戏资源。
+
 ## 参考来源
 
 外部资料（检索于 2026-09-28）：

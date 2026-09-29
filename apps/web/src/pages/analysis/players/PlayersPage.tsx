@@ -335,7 +335,7 @@ export function PlayersPage() {
               <Alert
                 variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void directory.refetch() }}
-                detail={<Trans>目录是只读的，重试不会改动任何数据。</Trans>}
+
               >
                 <Trans>选手目录没能读出来：{error}</Trans>
               </Alert>
@@ -367,10 +367,10 @@ export function PlayersPage() {
                 }
                 description={
                   state.search === '' ? (
-                    <Trans>目录是从已分析的比赛里累积出来的。分析一场之后，出场的选手就会出现在这里。</Trans>
+                    <Trans>分析比赛后，参赛选手会出现在这里。</Trans>
                   ) : (
                     <Trans>
-                      「{state.search}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。
+                      没有找到「{state.search}」，请尝试其他名字或别名。
                     </Trans>
                   )
                 }

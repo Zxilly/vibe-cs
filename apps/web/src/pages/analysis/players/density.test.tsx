@@ -61,7 +61,7 @@ describe('the heat map at the server cap', () => {
   });
 
   it('says the picture is a sample — a silent truncation is a bug', () => {
-    expect(html).toContain(`取样 ${String(SERVER_HEATMAP_CAP)} / 12480`);
+    expect(html).toContain('热力图基于部分位置数据。');
   });
 });
 

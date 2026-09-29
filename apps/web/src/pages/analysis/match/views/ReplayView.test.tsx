@@ -96,67 +96,20 @@ describe('the body', () => {
     expect(html).toContain('data-layer="players"');
   });
 
-  it('draws the artboard’s four layer switches, and only the four it can draw', () => {
+  it('starts with a focused map and keeps historical overlays out of the way', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps()} />);
-
-    expect(html).toContain('data-match-view="replay"');
-    expect(html).toContain('选手位置');
-    expect(html).toContain('移动路线');
-    expect(html).toContain('击杀事件');
-    expect(html).toContain('热力叠加');
-    // 投掷物与火 / C4 生命周期 have no layer in `domain/map`; an inert checkbox
-    // would be worse than an absent one.
-    expect(html).not.toContain('投掷物与火');
-    expect(html).not.toContain('C4 生命周期');
-  });
-
-  it('mounts the three switched-on layers and leaves heat off', () => {
-    loaded();
-    const html = markupView(<ReplayView.Body {...viewProps()} />);
-
     expect(html).toContain('data-layer="players"');
-    expect(html).toContain('data-layer="paths"');
-    expect(html).toContain('data-layer="engagements"');
-    // 热力叠加 is unchecked on the artboard, so nothing is painted for it.
+    expect(html).not.toContain('data-layer="paths"');
+    expect(html).not.toContain('data-layer="engagements"');
     expect(html).not.toContain('data-layer="heat"');
+    expect(html).not.toContain('data-replay-rail');
+    expect(html).toContain('2D 地图');
+    expect(html).toContain('3D 视图');
+    expect(html).toMatch(/option value="kael" selected/u);
   });
 
-  it('lists the roster and marks the focused player', () => {
-    loaded();
-    const html = markupView(<ReplayView.Body {...viewProps({ context: { player: 'kael' } })} />);
-
-    expect(html).toContain('data-replay-player="kael"');
-    expect(html).toContain('data-replay-player="sable"');
-    expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('data-player-marker="kael"');
-  });
-
-  it('marks each player with a round dot in their team colour, and the focused one with the row fill', () => {
-    loaded();
-    const html = markupView(<ReplayView.Body {...viewProps({ context: { player: 'sable' } })} />);
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const row = (id: string) => doc.querySelector<HTMLElement>(`[data-replay-player="${id}"]`)!;
-
-    expect(row('kael').querySelector('[data-replay-player-team="A"]')?.className).toContain('bg-accent');
-    expect(row('sable').querySelector('[data-replay-player-team="B"]')?.className).toContain('bg-team-b');
-    expect(row('sable').querySelector('[data-replay-player-team]')?.className).toContain('rounded-full');
-    expect(row('sable').textContent).toBe('Sable');
-    expect(row('sable').getAttribute('aria-pressed')).toBe('true');
-    expect(row('sable').className).toContain('bg-accent-100');
-    expect(row('sable').className).toContain('font-medium');
-    expect(row('kael').getAttribute('aria-pressed')).toBe('false');
-    expect(row('kael').className).not.toContain('bg-accent-100');
-  });
-
-  it('focuses the first roster player by default without needing a URL player', () => {
-    loaded();
-    const html = markupView(<ReplayView.Body {...viewProps()} />);
-
-    expect(html).toMatch(/data-replay-player="kael"[^>]*aria-pressed="true"/u);
-  });
-
-  it('prints the playhead in ticks beside the transport', () => {
+  it('keeps the exact playhead for transport without displaying raw ticks', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps({ context: { tick: 149_128 } })} />);
 
@@ -165,19 +118,13 @@ describe('the body', () => {
     expect(html).toContain('播放控制');
   });
 
-  it('states where the numbers came from, including the thinning factor', () => {
+  it('omits implementation metadata from the replay surface', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps()} />);
-    expect(html).toContain('坐标来自本地 overview 雷达标定');
-    // Nine frames is well inside the sample budget, so nothing is thinned and
-    // the sentence about thinning is absent rather than saying 「每 1 帧」.
+    expect(html).not.toContain('坐标来自本地 overview');
     expect(html).not.toContain('帧取一个采样点');
-  });
-
-  it('offers a floor segment only because this cloud has two floors', () => {
-    loaded();
-    const html = markupView(<ReplayView.Body {...viewProps()} />);
-    expect(html).toContain('楼层只筛热力叠加');
+    expect(html).not.toContain('楼层只筛热力叠加');
+    expect(html).not.toContain(' Hz');
   });
 
   it('renders the map’s empty state when the round misses the stream', () => {
@@ -229,7 +176,8 @@ describe('the Inspector', () => {
     expect(html).toContain('data-evidence-row="e-kill-corvin"');
     // `damage` is not a moment; it is a running total the scoreboard states.
     expect(html).not.toContain('data-evidence-row="e-dmg"');
-    expect(html).toContain('只列击杀与目标事件，共 3 条');
+    expect(html).not.toContain('精确来源与身份');
+    expect(new DOMParser().parseFromString(html, 'text/html').body.textContent).not.toContain('tick');
   });
 
   it('carries the workspace’s 加入作品 state and its reason', () => {

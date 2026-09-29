@@ -180,7 +180,7 @@ export function PlayerProfilePage() {
           <Alert
             variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void profile.refetch() }}
-            detail={<Trans>档案是只读的，重试不会改动任何数据。</Trans>}
+
           >
             <Trans>这名选手的档案没能读出来：{profileError}</Trans>
           </Alert>

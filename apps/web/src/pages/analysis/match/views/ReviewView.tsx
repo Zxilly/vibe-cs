@@ -56,7 +56,6 @@ import {
 import { Empty, Skeleton } from '../../../../design/data';
 import { Alert } from '../../../../design/feedback';
 import { Button, Seg, Badge, Input } from '../../../../design/primitives';
-import { formatTickCount } from '../../../../domain/match';
 import type { EvidenceAnnotation } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
@@ -162,7 +161,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             className="flex min-w-0 flex-none flex-col gap-3 border-b border-divider p-4 @min-[720px]/review:min-h-0 @min-[720px]/review:flex-1 @min-[720px]/review:overflow-y-auto @min-[720px]/review:overscroll-y-contain @min-[720px]/review:border-r @min-[720px]/review:border-b-0"
           >
             <Heading>
-              <Trans>自动洞察 · 由规则从证据推出</Trans>
+              <Trans>自动洞察</Trans>
             </Heading>
             {analysis.isPending ? (
               <>
@@ -202,7 +201,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             {review.data === undefined ? (
               <p className="text-sm leading-relaxed text-neutral-600">
                 <Trans>
-                  还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。
+                  还没有点评。连接模型后即可生成。
                 </Trans>
               </p>
             ) : (
@@ -501,7 +500,7 @@ function CitationLink({
         R{citation.round} · {citation.label}
       </Trans>
     ) : citation.actor === null ? (
-      <Trans>R{citation.round} · tick {formatTickCount(citation.tick)}</Trans>
+      <Trans>第 {citation.round} 回合</Trans>
     ) : citation.target === null ? (
       <Trans>
         R{citation.round} · {citation.actor}
@@ -548,7 +547,7 @@ function AnnotationPreview({
   if (rows.length === 0) {
     return (
       <p className="text-xs leading-relaxed text-neutral-600">
-        <Trans>还没有注释。注释挂在具体的 tick 上，先在回放或回合里选中一条证据。</Trans>
+        <Trans>还没有注释。选择一个事件即可添加。</Trans>
       </p>
     );
   }
@@ -648,7 +647,7 @@ function AnnotationsPanel({
             size="sm"
             disabled={anchor === null || draft.trim() === '' || create.isPending}
             {...(anchor === null
-              ? { disabledReason: t`注释要挂在具体的 tick 上：先在回放或回合里选中一条证据` }
+              ? { disabledReason: t`先在回放或回合中选择一个事件` }
               : {})}
           >
             <Trans>添加注释</Trans>
@@ -656,12 +655,12 @@ function AnnotationsPanel({
         </div>
         {anchor === null ? (
           <p className="text-xs leading-normal text-neutral-600">
-            <Trans>注释挂在一条证据的 tick 上，所以要先选中一条证据。</Trans>
+            <Trans>先选择一个事件，再添加注释。</Trans>
           </p>
         ) : (
           <p className="text-xs leading-normal text-neutral-600">
             <Trans>
-              将挂在第 {anchor.round} 回合 tick {formatTickCount(anchor.tick)} 的证据上。
+              注释将添加到第 {anchor.round} 回合的所选事件。
             </Trans>
           </p>
         )}
@@ -717,7 +716,7 @@ function AnnotationsPanel({
               </div>
               <p className="mt-1 font-mono text-xs text-neutral-600">
                 <Trans>
-                  R{row.round} · tick {formatTickCount(row.tick)}
+                  第 {row.round} 回合
                 </Trans>
               </p>
               <div className="mt-2 flex items-center gap-2">
@@ -803,7 +802,7 @@ function ReviewInspector({
               </Trans>
             </h3>
             <p className="mt-1 text-xs leading-normal text-neutral-700">
-              <Trans>首杀取每个回合最早的一次击杀事件；这是规则洞察，不是 AI 生成内容。</Trans>
+              <Trans>首杀指每回合的第一次击杀。</Trans>
             </p>
             <Button
               className="mt-2"

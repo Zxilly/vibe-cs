@@ -59,8 +59,8 @@ describe('a truncated response', () => {
       />,
     );
     // A silent truncation is a bug — §10.3.
-    expect(html).toContain('取样 300 / 12480');
-    expect(html).toContain('不是全部');
+    expect(html).toContain('热力图基于部分位置数据。');
+    expect(html).not.toContain('取样 300 / 12480');
   });
 });
 
@@ -73,7 +73,7 @@ describe('a map with no calibration', () => {
         heatmap={playerHeatmap({ map_name: 'de_unknownmap' })}
       />,
     );
-    expect(html).toContain('缺少这张地图的雷达标定');
+    expect(html).toContain('地图暂不可用');
     expect(html).not.toContain('data-layer="heat"');
   });
 });

@@ -4,7 +4,7 @@
  * Reference: 「04 2D 回放与热力图」 draws each engagement as a dashed axis in the
  * brick red spec §3.1 collects as `--color-fail`, from attacker to victim, with
  * an X at the victim's end, and names it in the legend
- * 「经击杀验证的交战轴」. The event
+ * 「交战方向」. The event
  * list on the right rail gives the same objects in words — 「Kael → Corvin ·
  * 穿墙」, 「交战轴 132° · 距离 18.7m」 — and the artboard's caption states why
  * both exist: 「右侧提供列表式替代视图，不只靠画布传达信息」.
@@ -136,7 +136,7 @@ export function EngagementLayer({
   if (!visible) return null;
 
   if (engagements.length === 0) {
-    return <LayerEmpty layer="engagements" label={t`交火：这一段没有经击杀验证的交战轴`} />;
+    return <LayerEmpty layer="engagements" label={t`交火：这一段没有交战方向`} />;
   }
 
   return (

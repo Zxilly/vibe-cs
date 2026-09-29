@@ -80,7 +80,7 @@ describe('自动洞察', () => {
     expect(html).toContain('data-insight="opening-kills"');
     expect(html).toContain('data-insight="matchup"');
     expect(html).toContain('data-insight="utility"');
-    expect(html).toContain('自动洞察 · 由规则从证据推出');
+    expect(html).toContain('自动洞察');
   });
 
   it('states the count each rule was derived from', () => {
@@ -115,7 +115,7 @@ describe('AI 点评', () => {
   it('says what an empty column means rather than showing nothing', () => {
     scene();
     const html = markupView(<ReviewView.Body {...viewProps()} />);
-    expect(html).toContain('没有配置模型时这一栏不会有内容，自动洞察不受影响');
+    expect(html).toContain('连接模型后即可生成');
     expect(html).toContain('语气：专业');
   });
 
@@ -168,7 +168,7 @@ describe('the Inspector', () => {
     const html = markupView(<Inspector {...viewProps()} />);
     expect(html).toContain('data-review-default-insight');
     expect(html).toContain('自动洞察');
-    expect(html).toContain('这是规则洞察，不是 AI 生成内容');
+    expect(html).toContain('首杀指每回合的第一次击杀');
   });
 
   it('changes its sentence once the address carries an anchor', () => {

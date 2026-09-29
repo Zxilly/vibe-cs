@@ -25,10 +25,10 @@ describe('EvidenceRow', () => {
     expect(html).not.toContain('min-h-[52px]');
   });
 
-  it('prints the tick both as the number a deep link carries and as a timecode', () => {
+  it('shows readable time while retaining exact event identity', () => {
     const html = renderMarkup(<EvidenceRow evidence={EVIDENCE} />);
 
-    expect(html).toContain(`148${TICK_GROUP_SEPARATOR}920`);
+    expect(html).not.toContain(`148${TICK_GROUP_SEPARATOR}920`);
     expect(html).toContain('38:46.875');
     expect(html).toContain('data-tick="148920"');
   });
@@ -62,8 +62,8 @@ describe('EvidenceRow', () => {
 
     expect(html).toContain('38:46');
     expect(html).not.toContain(`>148${TICK_GROUP_SEPARATOR}920<`);
-    // The raw number is still reachable, on the title of the same span.
-    expect(html).toContain(formatTickCount(148_920));
+    // Raw protocol positions are not part of the visible copy or tooltip.
+    expect(html).not.toContain(formatTickCount(148_920));
   });
 
   it('names the evidence kind in words as well as with a glyph', () => {

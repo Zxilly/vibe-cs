@@ -100,7 +100,7 @@ describe('HeatLayer', () => {
       </svg>,
     );
     expect(html).toContain('data-layer-state="empty"');
-    expect(html).toContain('没有采样点');
+    expect(html).toContain('没有位置数据');
     expect(html).not.toContain('<rect');
   });
 
@@ -144,7 +144,7 @@ describe('HeatLegend', () => {
 
   it('draws no scale at all when nothing was measured', () => {
     const html = renderMarkup(<HeatLegend distribution={empty} />);
-    expect(html).toContain('没有采样点');
+    expect(html).toContain('没有位置数据');
     expect(html).not.toContain('data-testid="heat-legend"');
     expect(html).not.toContain('0 次');
   });

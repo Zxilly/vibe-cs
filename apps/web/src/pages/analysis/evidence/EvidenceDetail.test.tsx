@@ -9,7 +9,6 @@
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { TICK_GROUP_SEPARATOR } from '../../../domain/match';
 import { renderMarkup } from '../../../test/render';
 import { EvidenceDetail } from './EvidenceDetail';
 import { annotation, evidenceItem } from './test/fixtures';
@@ -41,17 +40,13 @@ describe('with nothing selected', () => {
 describe('with a row selected', () => {
   const html = render(<EvidenceDetail {...handlers} row={evidenceItem()} />);
 
-  it('names the moment down to the tick', () => {
+  it('identifies the event without exposing raw ticks', () => {
     expect(html).toContain('Kael');
     expect(html).toContain('Corvin');
     expect(html).toContain('Aurora vs Meridian');
     expect(html).toContain('de_mirage');
     expect(html).toContain('第 21 回合');
-    // `formatTickCount` groups with a narrow no-break space (U+202F) so the
-    // number cannot break across lines; the panel prints the grouped form
-    // verbatim and keeps 「tick」 glued to it.
-    expect(TICK_GROUP_SEPARATOR).toBe('\u202f');
-    expect(html).toMatch(/whitespace-nowrap[^>]*>tick 149\u202f380</u);
+    expect(html).not.toContain('>tick ');
   });
 
   it('reports the qualifiers the projector recorded', () => {
@@ -105,7 +100,7 @@ describe('a row with no position', () => {
 describe('the annotation block', () => {
   it('says the row has no notes, and offers to write one', () => {
     const html = render(<EvidenceDetail {...handlers} row={evidenceItem()} />);
-    expect(html).toContain('这条证据还没有注释');
+    expect(html).toContain('还没有注释');
     expect(html).toContain('data-evidence-note-composer');
     expect(html).toContain('写注释');
   });
@@ -118,7 +113,7 @@ describe('the annotation block', () => {
         notes={[annotation(), annotation({ id: 'ann-2', body: '第二条', review_state: 'resolved' })]}
       />,
     );
-    expect(html).not.toContain('这条证据还没有注释');
+    expect(html).not.toContain('还没有注释');
     expect(html).toContain('这堵墙的穿点可以单独做一条教学。');
     expect(html).toContain('第二条');
     expect(html).toContain('待处理');

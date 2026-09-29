@@ -154,7 +154,7 @@ export function PlayerHeatmapPanel({
         label={t`${playerName} 在 ${mapName} 的位置热图`}
         status={loading ? 'loading' : distribution === null || distribution.bins.length === 0 ? 'empty' : 'ready'}
         emptyDescription={
-          <Trans>这张地图上还没有这名选手的位置样本。分析更多这张图的比赛之后就会有。</Trans>
+          <Trans>还没有位置数据，请先分析该选手在这张地图上的比赛。</Trans>
         }
         emptyActions={null}
         /* Only a cut sample gets a footnote. A complete one is already counted
@@ -163,8 +163,7 @@ export function PlayerHeatmapPanel({
         footnote={
           truncation === null || !truncation.truncated ? undefined : (
             <Trans>
-              取样 {truncation.shown} / {truncation.total} 个位置（上限 {truncation.limit}）。
-              这张图画的是这批取样，不是全部。
+              热力图基于部分位置数据。
             </Trans>
           )
         }
@@ -181,7 +180,7 @@ export function PlayerHeatmapPanel({
           distribution={distribution}
           caption={
             <Trans>
-              当前统计：{subject}，共 {distribution.sampleCount} 个采样点。
+              {subject}
             </Trans>
           }
         />

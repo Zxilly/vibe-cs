@@ -568,7 +568,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
                 title={<Trans>没有可用的对位数据</Trans>}
                 description={
                   <Trans>
-                    这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。
+                    没有可用的对位数据。
                   </Trans>
                 }
                 actions={
@@ -595,7 +595,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
               title={<Trans>没有可归属的首杀</Trans>}
               description={
                 hasKillEvents(rounds) ? (
-                  <Trans>每个回合的第一次击杀都缺少击杀者或被击杀者，因此无法成对。</Trans>
+                  <Trans>首杀事件缺少选手信息，无法显示对位。</Trans>
                 ) : (
                   <Trans>这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。</Trans>
                 )
@@ -746,7 +746,7 @@ function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         collapsed={collapsed}
       >
         <p className="text-sm text-neutral-700">
-          <Trans>点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。</Trans>
+          <Trans>选择一组对位查看交手记录。</Trans>
         </p>
       </MatchInspectorPanel>
     );

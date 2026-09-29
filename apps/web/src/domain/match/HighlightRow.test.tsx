@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { renderMarkup } from '../../test/render';
 import { HighlightRow, HighlightRowSkeleton } from './HighlightRow';
 import { HIGHLIGHT } from './matchFixtures.testing';
-import { TICK_GROUP_SEPARATOR, TICK_RANGE_DASH } from './matchTime';
 
 describe('HighlightRow', () => {
   it('draws the 「高光列表」 row of the 比赛工作区子视图 artboard', () => {
@@ -17,12 +16,10 @@ describe('HighlightRow', () => {
     expect(html).toContain('三杀后拆包，剩余 1.8 秒');
   });
 
-  it('is a tick range, which is what makes it a clip and not a point', () => {
+  it('shows the clip time range and duration', () => {
     const html = renderMarkup(<HighlightRow highlight={HIGHLIGHT} />);
 
-    expect(html).toContain(
-      `148${TICK_GROUP_SEPARATOR}920${TICK_RANGE_DASH}150${TICK_GROUP_SEPARATOR}440`,
-    );
+    expect(html).toContain('38:46–39:10');
     // And the same interval in seconds, which is what a person judges a clip by.
     expect(html).toContain('23.8');
   });

@@ -417,7 +417,7 @@ export function EvidencePage() {
                   title={<Trans>还没有注释</Trans>}
                   description={
                     <Trans>
-                      在证据视图里选一条结果，在右侧「注释」栏写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。
+                      选择事件并添加注释，即可在这里检索。
                     </Trans>
                   }
                   actions={

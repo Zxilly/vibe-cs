@@ -99,7 +99,7 @@ describe('picking a player', () => {
   it('keeps the selection visible when the analysis does not know the id', async () => {
     open('&player=STEAM_1%3A0%3A404');
     expect(await screen.findByText(/STEAM_1:0:404/u)).toBeTruthy();
-    expect(screen.getByText(/这份分析里没有这名选手/u)).toBeTruthy();
+    expect(screen.getByText(/这场比赛没有该选手/u)).toBeTruthy();
   });
 });
 

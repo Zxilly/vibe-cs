@@ -35,7 +35,7 @@ import { Empty, Skeleton } from '../../../design/data';
 import { Alert, StatusDot } from '../../../design/feedback';
 import { Inspector } from '../../../design/layout';
 import { Badge, Button, Input } from '../../../design/primitives';
-import { EVIDENCE_KIND, formatTickCount, formatWeaponName } from '../../../domain/match';
+import { EVIDENCE_KIND, formatWeaponName } from '../../../domain/match';
 import type { EvidenceAnnotation, EvidenceSearchItem } from '../../../shared/desktop/dto';
 import { evidenceEventLabel } from './evidenceEventLabel';
 import { evidenceKindOf, evidencePosition, formatMatchDay } from './evidenceItems';
@@ -104,7 +104,6 @@ export function EvidenceDetail({
   const eventText = i18n._(eventLabel ?? EVIDENCE_KIND[evidenceKindOf(row)].label);
   /* 「tick 105 600」 is one value: the group separator cannot break, and
      neither can the gap between the word and the number. */
-  const tick = <span className="whitespace-nowrap font-mono">tick {formatTickCount(row.tick)}</span>;
 
   return (
     <Inspector
@@ -112,7 +111,7 @@ export function EvidenceDetail({
       label={t`证据详情`}
       summary={
         <Trans>
-          选中 {subject} · 第 {row.round} 回合 · {tick}
+          选中 {subject} · 第 {row.round} 回合
         </Trans>
       }
       summaryActions={
@@ -148,7 +147,7 @@ export function EvidenceDetail({
         </div>
         <div className="mt-0.5 text-xs text-neutral-700">
           <Trans>
-            {row.demo_display_name} · {row.map_name} · 第 {row.round} 回合 · {tick}
+            {row.demo_display_name} · {row.map_name} · 第 {row.round} 回合
           </Trans>
         </div>
       </div>
@@ -166,9 +165,6 @@ export function EvidenceDetail({
               <span className="text-neutral-600">—</span>
             ) : null}
           </span>
-        </Field>
-        <Field label={<Trans>来源</Trans>}>
-          {row.source_kind === 'highlight' ? <Trans>高光检测</Trans> : <Trans>逐事件时间轴</Trans>}
         </Field>
         <Field label={<Trans>比赛日期</Trans>}>
           {day === '' ? <span className="text-neutral-600">—</span> : day}
@@ -198,7 +194,7 @@ export function EvidenceDetail({
           </div>
         ) : notes.length === 0 ? notesReadError === undefined ? (
           <p className="text-xs leading-normal text-neutral-700">
-            <Trans>这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。</Trans>
+            <Trans>还没有注释。</Trans>
           </p>
         ) : null : (
           <ul className="flex list-none flex-col gap-2">

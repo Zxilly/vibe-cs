@@ -72,7 +72,6 @@ import {
   HIGHLIGHT_KIND,
   HighlightRow,
   HighlightRowSkeleton,
-  formatTickRange,
   formatTickRangeSeconds,
   type HighlightKind,
 } from '../../../../domain/match';
@@ -241,7 +240,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
         <Empty
           className="m-3.5"
           title={<Trans>这场比赛没有检出高光</Trans>}
-          description={<Trans>检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。</Trans>}
+          description={<Trans>没有找到残局、多杀或穿墙等高光。</Trans>}
           actions={
             <Button variant="secondary" onClick={() => updateContext({ view: 'rounds' })}>
               <Trans>逐回合看</Trans>
@@ -448,7 +447,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
           {highlights.length === 0 ? (
             <Trans>这场比赛没有检出高光，这里没有可以加入作品的片段。</Trans>
           ) : (
-            <Trans>选择一条高光后，这里会显示它的类型、选手、tick 区间和时长。</Trans>
+            <Trans>选择高光查看详情。</Trans>
           )}
         </p>
       </MatchInspectorPanel>
@@ -484,12 +483,6 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         )}
         <Row label={<Trans>时长</Trans>}>
           <Trans>{seconds} 秒</Trans>
-        </Row>
-        {/* Precise source parameters trail the readable facts (DESIGN.md). */}
-        <Row label={<Trans>tick 区间</Trans>}>
-          <span className="font-mono text-xs text-neutral-600">
-            {formatTickRange(highlight.startTick, highlight.endTick)}
-          </span>
         </Row>
       </dl>
     </MatchInspectorPanel>

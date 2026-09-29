@@ -255,7 +255,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
               title={<Trans>这份分析里没有选手</Trans>}
               description={
                 <Trans>
-                  解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。
+                  没有选手数据，请重新分析比赛。
                 </Trans>
               }
               actions={
@@ -493,9 +493,9 @@ function PlayersInspector({
       >
         <p className="text-sm text-neutral-700">
           {context.player === null ? (
-            <Trans>选择一名选手后，这里会显示其本场的 K/D/A、武器分布和高光。</Trans>
+            <Trans>选择选手查看本场表现。</Trans>
           ) : (
-            <Trans>这份分析里没有这名选手。地址上的选择保留着，换一场比赛可能就能对上。</Trans>
+            <Trans>这场比赛没有该选手，请重新选择。</Trans>
           )}
         </p>
       </MatchInspectorPanel>

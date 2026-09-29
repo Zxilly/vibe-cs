@@ -41,6 +41,10 @@ vi.mock('../../../../data/match', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../../domain/scene3d/Scene3DView', () => ({
+  Scene3DView: ({ tick }: { tick: number }) => <div data-testid="scene-preview" data-tick={tick} />,
+}));
+
 /* ── the hand-driven frame queue ─────────────────────────────────────────── */
 
 interface FrameQueue {
@@ -99,9 +103,10 @@ it('keeps every returned floor available in one compact control and applies its 
     HEAT_POINTS.map((point, index) => ({ ...point, floor: index - 2 })),
   ) as never);
   renderView(<ReplayView.Body {...viewProps()} />);
+  fireEvent.click(screen.getByRole('button', { name: '图层' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: '热力叠加' }));
   const floor = screen.getByRole('combobox', { name: '楼层' }) as HTMLSelectElement;
   expect([...floor.options].map((option) => option.value)).toEqual(['all', '-2', '-1', '0', '1', '2', '3']);
-  fireEvent.click(screen.getByRole('checkbox', { name: '热力叠加' }));
   fireEvent.change(floor, { target: { value: '3' } });
   expect(floor.value).toBe('3');
   expect(floor.selectedOptions[0]?.textContent).toContain('3');
@@ -213,6 +218,7 @@ describe('the layer switches', () => {
     renderView(<ReplayView.Body {...viewProps({ context: { round: 21 } })} />);
     expect(document.querySelector('[data-layer="heat"]')).toBeNull();
 
+    fireEvent.click(screen.getByRole('button', { name: '图层' }));
     fireEvent.click(screen.getByRole('checkbox', { name: '热力叠加' }));
 
     const heat = document.querySelector('[data-layer="heat"]');
@@ -226,6 +232,8 @@ describe('the layer switches', () => {
 
   it('takes a layer away again', () => {
     renderView(<ReplayView.Body {...viewProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: '图层' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '移动路线' }));
     expect(document.querySelector('[data-layer="paths"]')).not.toBeNull();
 
     fireEvent.click(screen.getByRole('checkbox', { name: '移动路线' }));
@@ -259,7 +267,7 @@ describe('selection', () => {
 
     // No `?player=`: the rail follows Kael by default, and the Inspector's
     // 「加入作品」 must mean the same person rather than 「先选择一个选手」.
-    expect(document.querySelector('[data-replay-player="kael"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByRole('combobox', { name: '选手' }) as HTMLSelectElement).value).toBe('kael');
     const add = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
     expect(add.disabled).toBe(false);
     fireEvent.click(add);
@@ -270,7 +278,7 @@ describe('selection', () => {
     const updateContext = vi.fn<(patch: MatchContextPatch, options?: MatchContextUpdateOptions) => void>();
     renderView(<ReplayView.Body {...viewProps({ updateContext })} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Kael/u }));
+    fireEvent.change(screen.getByRole('combobox', { name: '选手' }), { target: { value: 'kael' } });
     expect(updateContext).toHaveBeenCalledWith({ player: 'kael' });
   });
 
@@ -278,6 +286,8 @@ describe('selection', () => {
     const updateContext = vi.fn<(patch: MatchContextPatch, options?: MatchContextUpdateOptions) => void>();
     renderView(<ReplayView.Body {...viewProps({ updateContext, context: { round: 21 } })} />);
 
+    fireEvent.click(screen.getByRole('button', { name: '图层' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '击杀事件' }));
     const duel = document.querySelector('[data-engagement="e-kill-sable"]');
     expect(duel).not.toBeNull();
     fireEvent.click(duel as Element);
@@ -287,4 +297,23 @@ describe('selection', () => {
       { replace: true },
     );
   });
+});
+
+it('switches the primary view without resetting playback or the selected range', () => {
+  renderView(<ReplayView.Body {...viewProps()} />);
+  fireEvent.click(screen.getByRole('button', { name: '设入点' }));
+  play();
+  frames?.flush(100);
+  frames?.flush(100);
+  const before = tick();
+  fireEvent.click(screen.getByRole('radio', { name: '3D 视图' }));
+  expect(screen.getByTestId('scene-preview').getAttribute('data-tick')).toBe(String(before));
+  expect(document.querySelector('[data-layer="players"]')).toBeNull();
+  frames?.flush(100);
+  expect(tick()).toBeGreaterThan(before);
+  fireEvent.click(screen.getByRole('radio', { name: '2D 地图' }));
+  expect(screen.queryByTestId('scene-preview')).toBeNull();
+  expect(document.querySelector('[data-layer="players"]')).not.toBeNull();
+  expect(document.querySelector('[data-replay-clip-range]')?.textContent).toContain('38:48.125');
+  expect(screen.getByRole('button', { name: '暂停' })).toBeTruthy();
 });

@@ -122,6 +122,8 @@ export interface MapCanvasProps {
   readonly basemap?: ReactNode | undefined;
   /** Optional local world region to fill the canvas instead of the whole map. */
   readonly focusBounds?: MapWorldBounds | null | undefined;
+  /** Fit a bounded replay viewport without cropping the square map. */
+  readonly fitToHeight?: boolean;
   readonly status?: MapCanvasStatus | undefined;
   /** Set to render the failure path; carries its own recovery action. */
   readonly error?: MapCanvasError | null | undefined;
@@ -177,9 +179,9 @@ function LegendGlyph({ glyph, tone }: { glyph: MapLegendGlyph; tone: MapTone }) 
 }
 
 /** The square frame every state is drawn inside, so the layout never jumps. */
-function CanvasFrame({ children, className }: { children: ReactNode; className?: string }) {
+function CanvasFrame({ children, className, fitToHeight }: { children: ReactNode; className?: string; fitToHeight: boolean }) {
   return (
-    <Blueprint className={cn('relative aspect-square w-full max-w-[720px] bg-bg', className)}>{children}</Blueprint>
+    <Blueprint className={cn('relative aspect-square max-w-[720px] bg-bg', fitToHeight ? 'w-[min(100cqw,100cqh)]' : 'w-full', className)}>{children}</Blueprint>
   );
 }
 
@@ -190,6 +192,7 @@ export function MapCanvas({
   label,
   basemap,
   focusBounds,
+  fitToHeight = false,
   status = 'ready',
   error,
   emptyDescription,
@@ -218,7 +221,7 @@ export function MapCanvas({
     // No percentage and no fake grid: the states artboard forbids a made-up
     // denominator, and a partially drawn map would be exactly that.
     body = (
-      <CanvasFrame className="animate-pulse bg-neutral-200">
+      <CanvasFrame fitToHeight={fitToHeight} className="animate-pulse bg-neutral-200">
         <span role="status" aria-busy="true" className="sr-only">
           <Trans>正在读取空间证据</Trans>
         </span>
@@ -227,10 +230,10 @@ export function MapCanvas({
   } else if (!usable) {
     body = (
       <Empty
-        title={<Trans>缺少这张地图的雷达标定</Trans>}
+        title={<Trans>地图暂不可用</Trans>}
         description={
           <Trans>
-            没有找到 {mapName} 的雷达标定，暂时无法显示位置。安装 CS2 后可从本地雷达读取。
+            无法显示 {mapName} 的地图，请检查 CS2 安装位置。
           </Trans>
         }
         actions={emptyActions}
@@ -240,7 +243,7 @@ export function MapCanvas({
     body = (
       <Empty
         title={<Trans>这张地图还没有空间证据</Trans>}
-        description={emptyDescription ?? <Trans>分析完成后才有位置样本、朝向与经击杀验证的交战轴。</Trans>}
+        description={emptyDescription ?? <Trans>分析完成后才有位置样本、朝向与交战方向。</Trans>}
         actions={emptyActions}
       />
     );
@@ -265,7 +268,7 @@ export function MapCanvas({
       top: `${(-focus.y / focus.size) * 100}%`,
     };
     body = (
-      <CanvasFrame>
+      <CanvasFrame fitToHeight={fitToHeight}>
         {basemap === undefined ? null : (
           <div
             className="absolute inset-0 overflow-hidden"
@@ -327,7 +330,7 @@ export function MapCanvas({
 
   return (
     <figure className={cn('flex min-h-0 min-w-0 flex-col gap-3', className)} data-map-name={mapName}>
-      <div className="flex min-h-0 flex-1 items-center justify-center p-5">{body}</div>
+      <div className="flex min-h-0 flex-1 p-5"><div className={cn('flex min-h-0 min-w-0 flex-1 items-center justify-center', fitToHeight && '[container-type:size]')}>{body}</div></div>
       <figcaption id={captionId} className="flex flex-col gap-1 text-xs leading-normal text-neutral-700">
         {/*
           The selection's written form. `aria-live` because selecting a shape on
@@ -340,7 +343,7 @@ export function MapCanvas({
         )}
         {provisional ? (
           <p data-testid="map-calibration-warning" className="text-warn-text">
-            <Trans>{resolved.mapName} 还没有本地雷达数据，位置按通用参数估算，可能整体偏移。安装 CS2 后会改用本地雷达的数据。</Trans>
+            <Trans>{resolved.mapName} 的位置为估算值，可能存在偏移。</Trans>
           </p>
         ) : null}
         {footnote === undefined ? null : <p>{footnote}</p>}

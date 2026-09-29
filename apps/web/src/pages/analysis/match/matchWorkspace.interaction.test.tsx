@@ -196,7 +196,7 @@ describe('what the shell reads', () => {
     // 「Mirage · 2026-08-14 · 3 回合 · 64 tick」 — the round count is the parsed
     // list, and the tick rate is stated rather than assumed.
     expect(screen.getByText('Mirage')).toBeTruthy();
-    expect(screen.getByText('64 tick')).toBeTruthy();
+    expect(screen.queryByText('64 tick')).toBeNull();
   });
 
   it('badges 高光 with the real count once the analysis lands, and not before', async () => {

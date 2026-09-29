@@ -29,20 +29,20 @@ describe('MatchContextBar', () => {
     expect(html).not.toContain('h-[56px]');
   });
 
-  it('states the tick rate rather than assuming 64 everywhere downstream', () => {
+  it('omits technical tick rates from match context', () => {
     const sixtyFour = renderMarkup(<MatchContextBar {...BASE} />);
     const oneTwentyEight = renderMarkup(
       <MatchContextBar {...BASE} match={{ ...MATCH, tickRate: 128 }} />,
     );
 
-    expect(sixtyFour).toContain('64 tick');
-    expect(oneTwentyEight).toContain('128 tick');
+    expect(sixtyFour).not.toContain('64 tick');
+    expect(oneTwentyEight).not.toContain('128 tick');
   });
 
-  it('falls back to the CS2 rate when the demo header carried none', () => {
+  it('does not manufacture technical metadata when the rate is absent', () => {
     const html = renderMarkup(<MatchContextBar {...BASE} match={{ ...MATCH, tickRate: undefined }} />);
 
-    expect(html).toContain('64 tick');
+    expect(html).not.toContain('64 tick');
   });
 
   it('draws no map plate for a map with no known abbreviation', () => {

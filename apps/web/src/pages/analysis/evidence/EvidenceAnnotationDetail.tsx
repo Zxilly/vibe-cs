@@ -22,7 +22,6 @@ import type { ReactNode } from 'react';
 import { Empty } from '../../../design/data';
 import { Inspector } from '../../../design/layout';
 import { Badge, Button } from '../../../design/primitives';
-import { formatTickCount } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
 
 export interface EvidenceAnnotationDetailProps {
@@ -58,7 +57,6 @@ export function EvidenceAnnotationDetail({
   }
 
   const resolved = annotation.review_state === 'resolved';
-  const tick = <span className="whitespace-nowrap font-mono">tick {formatTickCount(annotation.tick)}</span>;
 
   return (
     <Inspector
@@ -66,7 +64,7 @@ export function EvidenceAnnotationDetail({
       label={t`注释详情`}
       summary={
         <Trans>
-          {annotation.demo_display_name} · 第 {annotation.round} 回合 · {tick}
+          {annotation.demo_display_name} · 第 {annotation.round} 回合
         </Trans>
       }
       summaryActions={
@@ -95,7 +93,7 @@ export function EvidenceAnnotationDetail({
         <div className="font-heading text-xl">{annotation.demo_display_name}</div>
         <div className="mt-0.5 text-xs text-neutral-700">
           <Trans>
-            {annotation.map_name} · 第 {annotation.round} 回合 · {tick}
+            {annotation.map_name} · 第 {annotation.round} 回合
           </Trans>
         </div>
       </div>

@@ -95,7 +95,7 @@ describe('MatchContextBar across its own breakpoint', () => {
     const details = container.querySelector('[data-match-details]');
     expect(details).not.toBeNull();
     expect(details?.textContent).toContain('Mirage');
-    expect(details?.textContent).toContain('64 tick');
+    expect(details?.textContent).not.toContain('64 tick');
     expect(details?.textContent).toContain('Kael');
 
     // The disclosure names the panel it controls, so the two are tied for

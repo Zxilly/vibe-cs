@@ -144,7 +144,7 @@ describe('EngagementLayer', () => {
       </svg>,
     );
     expect(html).toContain('data-layer-state="empty"');
-    expect(html).toContain('没有经击杀验证的交战轴');
+    expect(html).toContain('没有交战方向');
     expect(html).not.toContain('<line');
   });
 

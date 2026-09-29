@@ -77,7 +77,7 @@ describe('MapCanvas', () => {
   it('says so on screen when it is drawing from a placeholder calibration', () => {
     const html = renderMarkup(<MapCanvas mapName="de_inferno" label="Inferno" />);
     expect(html).toContain('data-testid="map-calibration-warning"');
-    expect(html).toContain('可能整体偏移');
+    expect(html).toContain('可能存在偏移');
     expect(html).toContain('text-warn-text');
   });
 
@@ -88,7 +88,7 @@ describe('MapCanvas', () => {
 
   it('renders a state instead of an empty picture when no calibration can be found', () => {
     const html = renderMarkup(<MapCanvas mapName="de_nuke" label="Nuke" />);
-    expect(html).toContain('缺少这张地图的雷达标定');
+    expect(html).toContain('地图暂不可用');
     expect(html).not.toContain('data-testid="map-blueprint-grid"');
   });
 
@@ -128,12 +128,12 @@ describe('MapCanvas', () => {
         label="Mirage"
         legend={[
           { id: 'path', label: 'Kael 移动路线', glyph: 'line', tone: 'accent' },
-          { id: 'duel', label: '经击杀验证的交战轴', glyph: 'dashed', tone: 'fail' },
+          { id: 'duel', label: '交战方向', glyph: 'dashed', tone: 'fail' },
         ]}
       />,
     );
     expect(html).toContain('Kael 移动路线');
-    expect(html).toContain('经击杀验证的交战轴');
+    expect(html).toContain('交战方向');
     expect(html).toContain('bg-accent-800');
     expect(html).toContain('border-fail');
   });

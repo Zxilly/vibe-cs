@@ -385,7 +385,7 @@ describe('writing a note on a hit', () => {
     const error = await screen.findByRole('alert');
     expect(error.textContent).toContain('annotation refresh unavailable');
     expect(screen.getByText('已经保存的战术笔记')).toBeTruthy();
-    expect(screen.queryByText(/这条证据还没有注释/u)).toBeNull();
+    expect(screen.queryByText(/还没有注释/u)).toBeNull();
     fireEvent.click(within(error).getByRole('button', { name: '重试' }));
     await screen.findByText('补充第二条注释');
     expect(screen.getByText('已经保存的战术笔记')).toBeTruthy();
@@ -400,7 +400,7 @@ describe('writing a note on a hit', () => {
     mount('/evidence', { ...client, listEvidenceAnnotations: loadNotes });
     const error = await screen.findByRole('alert');
     expect(error.textContent).toContain('annotation storage unavailable');
-    expect(screen.queryByText(/这条证据还没有注释/u)).toBeNull();
+    expect(screen.queryByText(/还没有注释/u)).toBeNull();
     fireEvent.click(within(error).getByRole('button', { name: '重试' }));
     await screen.findByText('已经保存的战术笔记');
     expect(loadNotes).toHaveBeenCalledTimes(2);
@@ -412,7 +412,7 @@ describe('writing a note on a hit', () => {
     const { client, writes } = stubClient();
     mount('/evidence', client);
     await screen.findByText('命中 47 条 · 排序：时间倒序');
-    await screen.findByText('这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。');
+    await screen.findByText('还没有注释。');
 
     fireEvent.change(screen.getByLabelText('注释内容'), { target: { value: '这堵墙的穿点可以做教学' } });
     fireEvent.click(screen.getByRole('button', { name: '写注释' }));

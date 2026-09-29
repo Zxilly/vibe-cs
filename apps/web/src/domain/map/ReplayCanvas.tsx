@@ -194,7 +194,7 @@ export function ReplayCanvas({
     legend.push({ id: 'paths', label: <Trans>移动路线</Trans>, glyph: 'line', tone: 'accent' });
   }
   if (layers.kills) {
-    legend.push({ id: 'kills', label: <Trans>经击杀验证的交战轴</Trans>, glyph: 'dashed', tone: 'fail' });
+    legend.push({ id: 'kills', label: <Trans>交战方向</Trans>, glyph: 'dashed', tone: 'fail' });
   }
   if (layers.heat) {
     legend.push({ id: 'heat', label: <Trans>热力叠加</Trans>, glyph: 'swatch', tone: 'accent' });
@@ -203,6 +203,7 @@ export function ReplayCanvas({
 
   return (
     <MapCanvas
+      fitToHeight
       mapName={mapName}
       basemap={basemap}
       overviewTransform={overviewTransform}

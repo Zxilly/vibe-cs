@@ -26,7 +26,7 @@ import type { ReactNode } from 'react';
 import { Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Badge, cn } from '../../../design/primitives';
-import { EvidenceRowSkeleton, formatTickCount } from '../../../domain/match';
+import { EvidenceRowSkeleton } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
 import { EVIDENCE_PAGE_SIZE } from './evidenceSearchParams';
 
@@ -126,9 +126,6 @@ export function EvidenceAnnotations({
                   <span className="truncate">{annotation.map_name}</span>
                 </span>
                 <span className="flex flex-wrap items-baseline gap-2.5">
-                  <span className="whitespace-nowrap font-mono text-xs text-accent-700">
-                    <Trans>tick {formatTickCount(annotation.tick)}</Trans>
-                  </span>
                   <span className="text-xs text-neutral-600">
                     <Trans>第 {annotation.round} 回合</Trans>
                   </span>

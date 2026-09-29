@@ -679,7 +679,7 @@ function RoundsInspector({ demoId, context, updateContext, addToVideo, collapsed
         collapsed={collapsed}
       >
         <p className="text-sm text-neutral-700">
-          <Trans>在回合时间线里点一格，这一回合的证据与注释会出现在这里。</Trans>
+          <Trans>选择回合查看事件和注释。</Trans>
         </p>
       </MatchInspectorPanel>
     );

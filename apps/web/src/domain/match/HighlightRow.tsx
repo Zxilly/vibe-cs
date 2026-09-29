@@ -48,7 +48,7 @@ import type { ReactNode } from 'react';
 import { Skeleton } from '../../design/data';
 import { Checkbox, cn, Badge } from '../../design/primitives';
 import { HIGHLIGHT_KIND } from './matchEnums';
-import { CS2_TICK_RATE, formatTickRange, formatTickRangeSeconds } from './matchTime';
+import { CS2_TICK_RATE, formatTickClock, formatTickRangeSeconds } from './matchTime';
 import type { HighlightCandidate } from './types';
 
 export type HighlightDensity = 'default' | 'compact';
@@ -162,7 +162,7 @@ export function HighlightRow({
         data-highlight-range=""
         className="flex flex-none flex-col items-end font-mono text-xs text-neutral-600"
       >
-        {density === 'compact' ? null : <span>{formatTickRange(highlight.startTick, highlight.endTick)}</span>}
+        {density === 'compact' ? null : <span>{`${formatTickClock(highlight.startTick, rate)}–${formatTickClock(highlight.endTick, rate)}`}</span>}
         <span>
           <Trans>{seconds} 秒</Trans>
         </span>

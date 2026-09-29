@@ -119,7 +119,7 @@ describe('the annotation composer', () => {
     const submit = screen.getByRole('button', { name: '添加注释' });
     expect(submit).toHaveProperty('disabled', true);
     expect(screen.getByLabelText('注释内容')).toHaveProperty('disabled', true);
-    expect(document.body.textContent).toContain('注释挂在一条证据的 tick 上');
+    expect(document.body.textContent).toContain('先选择一个事件，再添加注释');
   });
 
   it('writes the note against the evidence in the address', () => {

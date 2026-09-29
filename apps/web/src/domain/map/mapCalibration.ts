@@ -90,7 +90,7 @@ export const OVERVIEW_IMAGE_SIZE = 1024;
  *
  * Two entries, both required by the task, and no more: an entry nobody has
  * checked is worse than a missing one, because a missing one produces the
- * 「缺少这张地图的雷达标定」 state instead of a plausible wrong picture.
+ * 「地图暂不可用」 state instead of a plausible wrong picture.
  */
 export const MAP_CALIBRATIONS: readonly MapCalibration[] = [
   {
@@ -176,7 +176,7 @@ export function calibrationFromOverview(
  * The resolution order the components use: a live transform beats the built-in
  * table, the table beats nothing, and an unusable value at either level falls
  * through instead of being repaired. Returning `null` is a real answer — it is
- * what puts `MapCanvas` into its 「缺少这张地图的雷达标定」 state.
+ * what puts `MapCanvas` into its 「地图暂不可用」 state.
  */
 export function resolveMapCalibration(
   mapName: string,

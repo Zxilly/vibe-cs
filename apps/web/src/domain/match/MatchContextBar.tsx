@@ -81,7 +81,6 @@ import { Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { CONTEXT_BAR_BREAKPOINT_PX, useCollapsed } from '../../design/layout';
 import { cn, Badge } from '../../design/primitives';
-import { CS2_TICK_RATE } from './matchTime';
 import { Scoreboard } from './Scoreboard';
 import type { LoadFailure, MatchIdentity, MatchPeriod, TeamScore } from './types';
 
@@ -158,7 +157,6 @@ export function MatchContextBar({
   const detailsId = useId();
 
   const players = focusedPlayers ?? [];
-  const tickRate = match.tickRate ?? CS2_TICK_RATE;
   const hasPeriods = periods !== undefined && periods.length > 0;
 
   /* What the expanded bar can hold, and what it has to hand to the disclosure.
@@ -196,12 +194,6 @@ export function MatchContextBar({
           </span>
         </>
       )}
-      <Separator />
-      {/* The rate is stated, not assumed: a 128-tick demo prints 128 and every
-          timecode in the workspace is derived from the same number. */}
-      <span className="font-mono">
-        <Trans>{tickRate} tick</Trans>
-      </span>
       {roundRange === undefined ? null : (
         <>
           <Separator />

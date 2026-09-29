@@ -372,7 +372,7 @@ describe('search', () => {
 });
 
 describe('an empty search', () => {
-  it('states the matching contract instead of apologising', async () => {
+  it('offers another search and keeps the clear action available', async () => {
     mount('/players?q=zzz', {
       listPlayers: () =>
         Promise.resolve({
@@ -383,7 +383,7 @@ describe('an empty search', () => {
           coverage: { projected_demos: 248, total_analyses: 248, projection_complete: true },
         }),
     });
-    expect(await screen.findByText(/不做拼音和模糊匹配/u)).toBeTruthy();
+    expect(await screen.findByText(/请尝试其他名字或别名/u)).toBeTruthy();
     expect(screen.getByText('清空搜索')).toBeTruthy();
   });
 });

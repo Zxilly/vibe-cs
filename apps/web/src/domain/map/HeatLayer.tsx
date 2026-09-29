@@ -93,7 +93,7 @@ export function HeatLayer({ projection, distribution, visible = true, subject, c
     return (
       <LayerEmpty
         layer="heat"
-        label={subject === undefined ? t`热力叠加：没有采样点` : t`热力叠加：${subject} 没有采样点`}
+        label={subject === undefined ? t`热力叠加：没有位置数据` : t`热力叠加：${subject} 没有位置数据`}
       />
     );
   }
@@ -157,7 +157,7 @@ export function HeatLegend({ distribution, caption, className }: HeatLegendProps
     return (
       <div className={cn('flex flex-col gap-2 text-xs leading-normal text-neutral-700', className)}>
         <p>
-          <Trans>当前条件下没有采样点，因此没有密度可比。</Trans>
+          <Trans>当前条件下没有位置数据。</Trans>
         </p>
         {caption}
       </div>

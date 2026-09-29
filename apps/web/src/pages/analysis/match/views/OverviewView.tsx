@@ -301,7 +301,7 @@ function OverviewInspector({
         collapsed={collapsed}
       >
         <p className="text-sm text-neutral-700">
-          <Trans>选择一个回合、选手或高光后，这里会显示可定位、可加入作品的真实上下文。</Trans>
+          <Trans>选择回合、选手或高光查看详情。</Trans>
         </p>
       </MatchInspectorPanel>
     );
@@ -361,18 +361,6 @@ function OverviewInspector({
           </div>
         )}
       </dl>
-      {/* Precise source parameters trail the human-readable facts. */}
-      <section className="flex flex-col gap-1 border-t border-divider pt-3">
-        <h4 className="text-xs font-medium text-neutral-600">
-          <Trans>精确信息</Trans>
-        </h4>
-        <dl className="flex items-baseline justify-between gap-3 text-xs text-neutral-600">
-          <dt><Trans>tick 区间</Trans></dt>
-          <dd className="font-mono">
-            {candidate.startTick}–{candidate.endTick}
-          </dd>
-        </dl>
-      </section>
     </MatchInspectorPanel>
   );
 }

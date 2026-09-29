@@ -110,16 +110,16 @@ describe('PathLayer', () => {
     expect(html).toContain('data-side="T"');
   });
 
-  it('names each track in words, with the tick range it covers', () => {
+  it('names each track without raw protocol metadata', () => {
     const html = renderMarkup(
       <svg>
         <PathLayer projection={projection} paths={[kael]} />
       </svg>,
     );
     expect(html).toContain('Kael 的移动路线');
-    expect(html).toContain('3 个位置样本');
-    expect(html).toContain('148812');
-    expect(html).toContain('149356');
+    expect(html).not.toContain('3 个位置样本');
+    expect(html).not.toContain('tick 148812');
+    expect(html).not.toContain('tick 149356');
   });
 
   it('is inert without an onSelectPlayer — no tab stop, no listbox', () => {

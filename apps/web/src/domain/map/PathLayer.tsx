@@ -125,8 +125,6 @@ export function PathLayer({
           previous && last && polylineLength(points) >= MIN_TRACK_LENGTH_FOR_HEAD
             ? arrowHeadCommand(previous, last, HEAD_SIZE)
             : '';
-        const firstSample = path.samples[0];
-        const lastSample = path.samples[path.samples.length - 1];
 
         return (
           <g
@@ -134,7 +132,7 @@ export function PathLayer({
             data-path={path.playerId}
             data-side={path.side ?? 'unknown'}
             data-selected={path.playerId === selectedPlayerId}
-            aria-label={t`${path.playerName} 的移动路线，${path.samples.length} 个位置样本，tick ${firstSample?.tick ?? 0} 到 ${lastSample?.tick ?? 0}`}
+            aria-label={t`${path.playerName} 的移动路线`}
             className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             {...selection.itemProps(path.playerId, index)}
           >

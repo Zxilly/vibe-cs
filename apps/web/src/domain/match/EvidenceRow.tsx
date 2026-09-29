@@ -37,7 +37,7 @@ import { formatMillisecondTimecode } from '../../design/timeline';
 import { Skeleton } from '../../design/data';
 import { Button, cn, Badge } from '../../design/primitives';
 import { EVIDENCE_KIND } from './matchEnums';
-import { CS2_TICK_RATE, formatTickClock, formatTickCount } from './matchTime';
+import { CS2_TICK_RATE, formatTickClock } from './matchTime';
 import type { EvidenceItem } from './types';
 
 export type EvidenceDensity = 'comfortable' | 'default' | 'inline';
@@ -84,7 +84,6 @@ const SELECTED_CLASS = 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]
     `design/data/DataTable` gives its clickable rows. */
 const SELECTABLE_CLASS = 'hover:bg-surface';
 
-const TICK_LABEL = msg`tick`;
 const LOCATE_LABEL = msg`定位`;
 
 export function EvidenceRow({
@@ -115,12 +114,9 @@ export function EvidenceRow({
           human compares against a video. The one-line densities show the clock,
           which is what their artboards draw. */}
       <span className="flex flex-none flex-col text-left font-mono text-xs">
-        <span className="text-accent-700" title={`${i18n._(TICK_LABEL)} ${formatTickCount(evidence.tick)}`}>
+        <span className="text-accent-700">
           {density === 'default' ? formatMillisecondTimecode(evidence.tick / rate) : formatTickClock(evidence.tick, rate)}
         </span>
-        {density === 'default' ? (
-          <span className="text-neutral-600">{i18n._(TICK_LABEL)} {formatTickCount(evidence.tick)}</span>
-        ) : null}
       </span>
 
       <KindIcon size={13} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />

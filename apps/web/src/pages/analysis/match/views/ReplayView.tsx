@@ -56,7 +56,7 @@ import { dataErrorMessage } from '../../../../data/errors';
 import { useNativeShell } from '../../../../data/nativeShell';
 import { Empty, Skeleton } from '../../../../design/data';
 import { StatusDot } from '../../../../design/feedback';
-import { Button, Checkbox, NativeSelect, cn } from '../../../../design/primitives';
+import { Button, Checkbox, NativeSelect, Seg } from '../../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
   DEFAULT_HEAT_STEPS,
@@ -66,7 +66,7 @@ import {
   resolveMapCalibration,
   type HeatDistribution,
 } from '../../../../domain/map';
-import { EvidenceRow, formatTickCount, formatWeaponName, type EvidenceItem } from '../../../../domain/match';
+import { EvidenceRow, formatWeaponName, type EvidenceItem } from '../../../../domain/match';
 import { DEFAULT_PLAYBACK_RATES, Transport } from '../../../../domain/media';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { NotAnalysedState } from './viewChrome';
@@ -119,11 +119,10 @@ const EMPTY_DISTRIBUTION: HeatDistribution = {
 };
 
 const DEFAULT_LAYERS: ReplayLayerVisibility = {
-  /* Artboard 04's own defaults: the first three switches are filled, 热力叠加 is
-     not — the map is a replay first and a density plot on demand. */
+  // Replay starts with the current action; historical overlays are opt-in.
   players: true,
-  paths: true,
-  kills: true,
+  paths: false,
+  kills: false,
   heat: false,
   utilities: true,
 };
@@ -147,6 +146,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [show3D, setShow3D] = useState(false);
+  const [showLayers, setShowLayers] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [clipInTick, setClipInTick] = useState<number | null>(null);
   const [clipOutTick, setClipOutTick] = useState<number | null>(null);
@@ -304,17 +304,25 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
 
   return (
     <ViewFrame state={status === 'loading' ? 'loading' : status === 'empty' ? 'empty' : 'ready'}>
+      <div className="flex flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-4 py-2">
+        <Seg name="replay-view" aria-label={t`回放视图`} value={show3D ? '3d' : '2d'}
+          options={[{ value: '2d', label: t`2D 地图` }, { value: '3d', label: t`3D 视图` }]}
+          onChange={(value) => setShow3D(value === '3d')} />
+        <NativeSelect size="sm" className="w-auto max-w-48" aria-label={t`选手`} value={effectivePlayerId ?? ''}
+          onChange={(event) => updateContext({ player: event.currentTarget.value || null })}>
+          <option value=""><Trans>选择选手</Trans></option>
+          {(analysis.data?.players ?? []).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
+        </NativeSelect>
+        <Button size="sm" variant="ghost" aria-expanded={showLayers} onClick={() => setShowLayers((value) => !value)}><Trans>图层</Trans></Button>
+      </div>
       <div className="flex min-h-0 min-w-0 flex-1">
         {/* ── the layer rail ─────────────────────────────────────────────── */}
-        <aside
+        {showLayers && <aside
           data-replay-rail=""
           aria-label={t`回放图层与选手`}
           className="flex w-[var(--w-subnav)] flex-none flex-col gap-4 overflow-y-auto overscroll-y-contain border-r border-divider p-3.5"
         >
           <section>
-            <div className="mb-4">
-              <Checkbox size="sm" checked={show3D} onChange={setShow3D}><Trans>显示 3D 视图</Trans></Checkbox>
-            </div>
             <RailHeading>
               <Trans>图层</Trans>
             </RailHeading>
@@ -326,6 +334,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               >
                 <Trans>选手位置</Trans>
               </Checkbox>
+              {!show3D && <>
               <Checkbox
                 size="sm"
                 checked={layers.paths}
@@ -347,13 +356,14 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               >
                 <Trans>热力叠加</Trans>
               </Checkbox>
+              </>}
               <Checkbox size="sm" checked={layers.utilities} onChange={(next) => setLayers((current) => ({ ...current, utilities: next }))}>
                 <Trans>投掷物与范围示意</Trans>
               </Checkbox>
             </div>
           </section>
 
-          {layers.heat && distribution.bins.length > 0 ? (
+          {!show3D && layers.heat && distribution.bins.length > 0 ? (
             <section className="border-t border-divider pt-3.5">
               <RailHeading>
                 <Trans>热力图图例</Trans>
@@ -374,7 +384,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
           {/* 楼层 only exists where there is more than one. §10.3 gap 6 left the
               decision here; a two-option segment on a single-storey map would be
               a control that cannot change anything. */}
-          {floors.length > 1 ? (
+          {!show3D && layers.heat && floors.length > 1 ? (
             <section className="border-t border-divider pt-3.5">
               <RailHeading>
                 <Trans>楼层</Trans>
@@ -391,74 +401,28 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                   <option key={value} value={String(value)}><FloorLabel floor={value} /></option>
                 ))}
               </NativeSelect>
-              <p className="mt-2 text-xs leading-normal text-neutral-600">
-                <Trans>楼层只筛热力叠加：回放数据不记录楼层。</Trans>
-              </p>
+
             </section>
           ) : null}
 
-          <section className="border-t border-divider pt-3.5">
-            <RailHeading>
-              <Trans>选手</Trans>
-            </RailHeading>
-            {analysis.isPending ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton width="80%" />
-                <Skeleton width="70%" />
-                <Skeleton width="76%" />
-              </div>
-            ) : (
-              <ul className="flex list-none flex-col gap-1">
-                {(analysis.data?.players ?? []).map((player) => {
-                  const focused = player.id === effectivePlayerId;
-                  const explicitlyFocused = player.id === context.player;
-                  return (
-                    <li key={player.id}>
-                      <button
-                        type="button"
-                        data-replay-player={player.id}
-                        aria-pressed={focused}
-                        onClick={() =>
-                          updateContext({ player: explicitlyFocused ? null : player.id })
-                        }
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-sm px-2 py-1 text-left text-sm',
-                          'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                          focused ? 'bg-accent-100 font-medium text-accent-800' : 'hover:bg-action-hover',
-                        )}
-                      >
-                        {/* The team's own marker colour, not a checkbox: selection is the row's fill. */}
-                        <span
-                          aria-hidden="true"
-                          data-replay-player-team={player.team}
-                          className={cn('size-2 flex-none rounded-full', player.team === 'A' ? 'bg-accent' : 'bg-team-b')}
-                        />
-                        <span className="min-w-0 truncate">{player.name}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </aside>
+        </aside>}
 
         {/* ── canvas + transport ─────────────────────────────────────────── */}
         <div className="@container flex min-h-0 min-w-0 flex-1 flex-col">
-          {!radar.isPending && radar.data?.transform === undefined ? (
+          {!show3D && !radar.isPending && radar.data?.transform === undefined ? (
             <div
               role="status"
               className="m-3.5 mb-0 flex items-start gap-2.5 border border-warn-border bg-warn-surface px-3 py-2.5 text-sm text-warn-text"
             >
               <StatusDot status="warn" className="mt-1" />
               <Trans>
-                2D 地图当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。
+                地图底图不可用，当前仅显示选手之间的相对位置。
               </Trans>
             </div>
           ) : null}
           <div className="flex min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
-            <ReplayCanvas
-              className={cn('flex-1', show3D && 'hidden @xl:flex @xl:basis-0')}
+            {!show3D && <ReplayCanvas
+              className="flex-1"
               mapName={mapName ?? ''}
               overviewTransform={radar.data?.transform}
               basemap={radarSrc === null ? undefined : (
@@ -512,27 +476,10 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 )
               }
               {...(selectedDuel === null ? {} : { selectionSummary: describeEngagement(selectedDuel) })}
-              /* No provenance line until there is something to be provenant
-                 about: 「这一段有 0 帧」 under a loading canvas is a claim. */
-              {...(slice === null
-                ? {}
-                : {
-                    footnote: (
-                      <ReplayProvenance
-                        frameCount={slice.frames.length}
-                        totalFrames={slice.totalFrames}
-                        tickRate={slice.tickRate}
-                        stride={tracks.stride}
-                        heatSamples={distribution.sampleCount}
-                        heatSkipped={distribution.skippedCount}
-                        duelsSkipped={duels.skipped}
-                      />
-                    ),
-                  })}
-            />
+            />}
             {show3D && (
               <Scene3DView
-                className="min-h-0 flex-1 border-divider @xl:basis-0 @xl:border-l"
+                className="min-h-0 flex-1"
                 mapName={mapName}
                 frames={slice?.frames ?? []}
                 tick={effectiveTick ?? 0}
@@ -550,7 +497,6 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
             data-replay-transport=""
             className="flex flex-none flex-col gap-2.5 border-t border-divider px-5 py-3"
           >
-            {slice === null || effectiveTick === null ? null : <p className="text-xs text-neutral-600"><Trans>比赛时间</Trans> {formatMillisecondTimecode(effectiveTick / slice.tickRate)} · {context.round === null ? <Trans>整场回放</Trans> : <Trans>回合内</Trans>} {formatMillisecondTimecode(currentSeconds)} · {slice.tickRate} Hz</p>}
             <Transport
               currentTime={currentSeconds}
               durationSeconds={durationSeconds}
@@ -571,31 +517,12 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               }}
               onRateChange={setRate}
             />
-            {/* The playhead in ticks leads the mono line under the transport
-                rather than riding the transport's trailing slot: with a docked
-                Inspector that slot is ~70px, and 「tick 149 128」 folded onto
-                two lines there. This line is one truncating run, so it never
-                breaks mid-label. */}
-            <div
-              className="flex min-w-0 items-center gap-2 border-t border-divider pt-2"
-              data-replay-clip-range=""
-            >
-              <p className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-600">
-                <span data-replay-tick={effectiveTick ?? ''}>
-                  {effectiveTick === null ? (
-                    <Trans>tick 未定位</Trans>
-                  ) : (
-                    <Trans>tick {formatTickCount(effectiveTick)}</Trans>
-                  )}
-                </span>
-                {' · '}
-                <Trans>
-                  入点 {clipInTick === null ? '—' : formatTickCount(clipInTick)}
-                  {' · '}
-                  出点 {clipOutTick === null ? '—' : formatTickCount(clipOutTick)}
-                  {' · '}
-                  镜头跟随 {effectivePlayer?.name ?? t`未选择选手`}
-                </Trans>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-divider pt-2" data-replay-clip-range="">
+              <p className="min-w-0 flex-1 text-xs text-neutral-600" data-replay-tick={effectiveTick ?? ''}>
+                <Trans>选段</Trans>{' '}
+                {clipInTick === null ? '—' : formatMillisecondTimecode(clipInTick / (slice?.tickRate ?? 64))}
+                {' – '}
+                {clipOutTick === null ? '—' : formatMillisecondTimecode(clipOutTick / (slice?.tickRate ?? 64))}
               </p>
               <Button
                 size="sm"
@@ -623,7 +550,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                   addToVideo.onAdd?.({
                     ...(context.round === null ? {} : { round: context.round }),
                     playerId: effectivePlayerId,
-                    label: `${effectivePlayer?.name ?? effectivePlayerId} · ${formatTickCount(clipRange.startTick)}–${formatTickCount(clipRange.endTick)}`,
+                    label: `${effectivePlayer?.name ?? effectivePlayerId} · ${formatMillisecondTimecode(clipRange.startTick / slice.tickRate)}–${formatMillisecondTimecode(clipRange.endTick / slice.tickRate)}`,
                     startTick: clipRange.startTick,
                     endTick: clipRange.endTick,
                     tickRate: slice.tickRate,
@@ -658,7 +585,6 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
   const tickRate = analysis.data?.tick_rate;
   const names = playerNameIndex(analysis.data);
   const highlight = matchHighlights(analysis.data).find((entry) => entry.id === context.highlight) ?? null;
-  const focusedEvent = rows.find((row) => row.id === current) ?? null;
 
   const title =
     context.round === null ? <Trans>整场 · 事件</Trans> : <Trans>第 {context.round} 回合 · 事件</Trans>;
@@ -719,10 +645,6 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
                 </li>
               ))}
             </ul>
-            <p className="px-1 pt-2.5 text-xs leading-normal text-neutral-600">
-              <Trans>只列击杀与目标事件，共 {rows.length} 条。</Trans>
-            </p>
-            {focusedEvent === null ? null : <details className="mt-3 border-t border-divider pt-3 text-xs text-neutral-600"><summary className="cursor-pointer"><Trans>精确来源与身份</Trans></summary><p className="mt-2 break-all font-mono">tick {focusedEvent.tick}<br />{focusedEvent.actor}<br />{focusedEvent.target}</p></details>}
           </>
         )}
       </div>
@@ -747,8 +669,8 @@ function toEvidenceItem(row: ReplayEventRow, names: ReadonlyMap<string, string>)
     tick: row.tick,
     kind: row.kind,
     round: row.round,
-    ...(row.actor === null ? {} : { actor: <span title={row.actor}>{names.get(row.actor) ?? row.actor}</span> }),
-    ...(row.target === null ? {} : { target: <span title={row.target}>{names.get(row.target) ?? row.target}</span> }),
+    ...(row.actor === null ? {} : { actor: <span>{names.get(row.actor) ?? row.actor}</span> }),
+    ...(row.target === null ? {} : { target: <span>{names.get(row.target) ?? row.target}</span> }),
     ...(row.weapon === null || row.weapon === '' ? {} : { weapon: formatWeaponName(row.weapon) }),
     ...(qualifiers.length === 0 ? {} : { description: qualifiers.join(' · ') }),
   };
@@ -787,62 +709,6 @@ function FloorLabel({ floor }: { readonly floor: number }) {
   if (floor === 0) return <Trans>地面</Trans>;
   if (floor === 1) return <Trans>高层</Trans>;
   return <Trans>第 {floor} 层</Trans>;
-}
-
-/**
- * The artboard's 「坐标来自本地 overview 与 VPK 雷达，采样 64 tick。」, with the
- * numbers this build actually has. Every count is measured — the thinning
- * factor, the samples that were binned, the samples that fell outside the
- * artwork, and the kills that had no position to draw an axis from.
- */
-function ReplayProvenance({
-  frameCount,
-  totalFrames,
-  tickRate,
-  stride,
-  heatSamples,
-  heatSkipped,
-  duelsSkipped,
-}: {
-  readonly frameCount: number;
-  readonly totalFrames: number;
-  readonly tickRate: number;
-  readonly stride: number;
-  readonly heatSamples: number;
-  readonly heatSkipped: number;
-  readonly duelsSkipped: number;
-}) {
-  return (
-    <>
-      <Trans>
-        坐标来自本地 overview 雷达标定；这一段有 {frameCount} 帧，整场 {totalFrames} 帧，{tickRate} tick。
-      </Trans>
-      {stride > 1 ? (
-        <>
-          {' '}
-          <Trans>移动路线每 {stride} 帧取一个采样点。</Trans>
-        </>
-      ) : null}
-      {heatSamples > 0 ? (
-        <>
-          {' '}
-          <Trans>热力叠加统计了 {heatSamples} 个位置事件。</Trans>
-        </>
-      ) : null}
-      {heatSkipped > 0 ? (
-        <>
-          {' '}
-          <Trans>{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。</Trans>
-        </>
-      ) : null}
-      {duelsSkipped > 0 ? (
-        <>
-          {' '}
-          <Trans>{duelsSkipped} 次击杀在这一段没有位置样本，交战轴画不出来。</Trans>
-        </>
-      ) : null}
-    </>
-  );
 }
 
 export const ReplayView: MatchViewModule = {

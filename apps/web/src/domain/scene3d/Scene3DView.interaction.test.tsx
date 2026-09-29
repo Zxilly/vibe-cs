@@ -56,7 +56,7 @@ it('reports a presented frame only from the renderer and ignores callbacks after
   const view = renderInteractive(<DesktopClientProvider client={{ getMapGeometryBinary: vi.fn().mockRejectedValue(new Error('no map')) } as unknown as DesktopClient}>
     <Scene3DView mapName="de_mirage" frames={FRAMES} tick={100} tickRate={64} selectedPlayerId="player" onFramePresented={presented} />
   </DesktopClientProvider>);
-  await screen.findByText('地图几何不可用，当前仅显示选手与机位。');
+  await screen.findByText('地图暂不可用，当前仅显示选手与镜头。');
   await waitFor(() => expect(renderer.create).toHaveBeenCalledTimes(1));
   expect(presented).not.toHaveBeenCalled();
   const rendered = renderer.create.mock.calls[0]![0] as (tick: number) => void;
@@ -69,7 +69,7 @@ it('reports a presented frame only from the renderer and ignores callbacks after
 
 it('retains the 3D player scene when map geometry is unavailable', async () => {
   renderInteractive(tree());
-  expect(await screen.findByText('地图几何不可用，当前仅显示选手与机位。')).toBeTruthy();
+  expect(await screen.findByText('地图暂不可用，当前仅显示选手与镜头。')).toBeTruthy();
   expect(screen.getByRole('application')).toBeTruthy();
   expect(renderer.setGeometry).toHaveBeenCalledWith(null);
   expect(renderer.setState).toHaveBeenCalledWith(expect.objectContaining({ frames: FRAMES }));
@@ -93,7 +93,7 @@ it('removes an old cached mesh when refreshing that map fails', async () => {
   renderInteractive(<QueryClientProvider client={client}>{tree()}</QueryClientProvider>);
   await waitFor(() => expect(renderer.setGeometry).toHaveBeenLastCalledWith(map));
   await act(() => client.invalidateQueries({ queryKey: qk.config.mapGeometry('de_mirage') }));
-  expect(await screen.findByText('地图几何不可用，当前仅显示选手与机位。')).toBeTruthy();
+  expect(await screen.findByText('地图暂不可用，当前仅显示选手与镜头。')).toBeTruthy();
   expect(renderer.setGeometry).toHaveBeenLastCalledWith(null);
   expect(screen.getByRole('application')).toBeTruthy();
 });

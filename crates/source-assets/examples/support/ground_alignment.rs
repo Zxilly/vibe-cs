@@ -1,6 +1,10 @@
 use super::MapGeometry;
 
-pub(super) fn ground_below(geometry: &MapGeometry, point: [f64; 3], half_width: f64) -> Option<f64> {
+pub(super) fn ground_below(
+    geometry: &MapGeometry,
+    point: [f64; 3],
+    half_width: f64,
+) -> Option<f64> {
     let mut highest: Option<f64> = None;
     for triangle in &geometry.triangles {
         let [a, b, c] = triangle.map(|index| geometry.vertices[index as usize].map(f64::from));

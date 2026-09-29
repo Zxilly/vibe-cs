@@ -73,3 +73,11 @@ it('does not present stale scene data after the source request fails', () => {
   fireEvent.click(screen.getByRole('button', { name: '重试' }));
   expect(retry).toHaveBeenCalledTimes(1);
 });
+
+it('keeps the previous presented pool surface mounted when its shared source refresh fails', () => {
+  seam.replay.mockReturnValue({ data: { frames: [] }, isError: true, error: new Error('Source unavailable'), refetch: vi.fn() });
+  renderInteractive(<CameraPreviewViewport preview={fixture.preview} sourceTimeSeconds={0.25} presented active={false} />);
+  expect(screen.getByTestId('scene')).toBeTruthy();
+  expect(seam.scene.mock.lastCall![0]).toMatchObject({ presented: true, active: false });
+  expect(screen.queryByRole('alert')).toBeNull();
+});

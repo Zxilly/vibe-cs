@@ -79,6 +79,9 @@ export class Scene3DRenderer {
   private framed = false;
   private width = 0;
   private height = 0;
+  private drawnWidth = 0;
+  private drawnHeight = 0;
+  private presentationHeld = false;
   private raf = 0;
   private stopped = false;
   private dirty = true;
@@ -110,7 +113,6 @@ export class Scene3DRenderer {
       this.width = Math.max(0, Math.floor(entry.contentRect.width));
       this.height = Math.max(0, Math.floor(entry.contentRect.height));
       if (this.width === 0 || this.height === 0) return;
-      this.renderer.setSize(this.width, this.height, false);
       this.dirty = true;
       this.camera.aspect = this.width / this.height;
       this.camera.updateProjectionMatrix();
@@ -160,6 +162,13 @@ export class Scene3DRenderer {
     }
     if (previous?.frames !== state.frames || previous.showPlayers !== state.showPlayers || previous.showUtilities !== state.showUtilities
       || previous.cameraSamples !== state.cameraSamples) this.lastTick = NaN;
+  }
+
+  /** A previously presented pool slot keeps its actual framebuffer unchanged. */
+  setPresentationHeld(held: boolean): void {
+    if (this.presentationHeld === held) return;
+    this.presentationHeld = held;
+    if (!held) this.dirty = true;
   }
 
   setGeometry(map: MapGeometry | null): void {
@@ -382,7 +391,7 @@ export class Scene3DRenderer {
     if (this.stopped) return;
     this.raf = requestAnimationFrame(this.draw);
     const state = this.state;
-    if (state === null || this.width === 0 || this.height === 0 || !this.visible || document.hidden) return;
+    if (state === null || this.width === 0 || this.height === 0 || !this.visible || this.presentationHeld || document.hidden) return;
     const tick = state.readTick?.() ?? state.tick;
     if (tick !== this.lastTick) {
       this.dirty = true;
@@ -394,6 +403,12 @@ export class Scene3DRenderer {
     if (!this.framed && (this.frame !== null || this.path !== null || this.mapMesh !== null)) this.resetView();
     if (!this.updateCamera(state, tick)) return;
     if (this.dirty) {
+      // Resizing clears a canvas. Keep held buffers intact and resize only in
+      // the same animation frame that submits their replacement image.
+      if (this.drawnWidth !== this.width || this.drawnHeight !== this.height) {
+        this.renderer.setSize(this.width, this.height, false);
+        this.drawnWidth = this.width; this.drawnHeight = this.height;
+      }
       const viewport = cameraViewport(this.width, this.height, state.mode === 'camera' ? state.cameraAspectRatio : null);
       const aspect = viewport.width / viewport.height;
       if (this.camera.aspect !== aspect) {

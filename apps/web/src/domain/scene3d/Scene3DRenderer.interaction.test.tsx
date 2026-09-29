@@ -7,12 +7,12 @@ import type { Scene3DState } from './types';
 
 // Keep the real scene graph, camera projection and OrbitControls. Only the GPU
 // boundary is replaced; the browser acceptance separately exercises WebGL.
-const gpu = vi.hoisted(() => ({ render: vi.fn(), viewport: vi.fn(), dispose: vi.fn(), lose: vi.fn() }));
+const gpu = vi.hoisted(() => ({ render: vi.fn(), viewport: vi.fn(), size: vi.fn(), dispose: vi.fn(), lose: vi.fn() }));
 vi.mock('three', async (original) => ({
   ...await original<typeof import('three')>(),
   WebGLRenderer: class {
     setPixelRatio() {}
-    setSize() {}
+    setSize = gpu.size;
     setViewport = gpu.viewport;
     setScissor() {}
     setScissorTest() {}
@@ -35,6 +35,7 @@ const state: Scene3DState = { frames, tick: 100, readTick: null, tickRate: 64, s
 const controllers: Scene3DRenderer[] = [];
 const callbacks = new Map<number, FrameRequestCallback>();
 let nextFrame = 0;
+let resize: (entries: unknown[]) => void;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -44,7 +45,7 @@ beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callbacks.set(++nextFrame, callback); return nextFrame; });
   vi.stubGlobal('cancelAnimationFrame', (id: number) => callbacks.delete(id));
   vi.stubGlobal('ResizeObserver', class {
-    constructor(private callback: (entries: unknown[]) => void) {}
+    constructor(private callback: (entries: unknown[]) => void) { resize = callback; }
     observe() { this.callback([{ contentRect: { width: 800, height: 600 } }]); }
     disconnect() {}
   });
@@ -115,4 +116,21 @@ it('coalesces owner time changes before drawing and reports readiness only after
   expect(gpu.render).toHaveBeenCalledTimes(1);
   frame();
   expect(gpu.render).toHaveBeenCalledTimes(1);
+});
+
+it('holds the last framebuffer across geometry and size changes until it can redraw', () => {
+  const controller = create();
+  frame();
+  expect(gpu.size).toHaveBeenCalledTimes(1);
+  controller.setPresentationHeld(true);
+  controller.setGeometry(null);
+  resize([{ contentRect: { width: 1200, height: 600 } }]);
+  frame();
+  expect(gpu.render).toHaveBeenCalledTimes(1);
+  expect(gpu.size).toHaveBeenCalledTimes(1);
+  controller.setPresentationHeld(false);
+  expect(gpu.size).toHaveBeenCalledTimes(1);
+  frame();
+  expect(gpu.size).toHaveBeenLastCalledWith(1200, 600, false);
+  expect(gpu.render).toHaveBeenCalledTimes(2);
 });

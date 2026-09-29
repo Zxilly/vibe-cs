@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { evaluatePreviewTransition } from './programVisual';
 
 import type { EditorTransitionKind, MediaAsset, TimelineClip } from '../../shared/desktop/dto';
-import { advanceTimelineTransport, evaluatePreviewTransition, programPreviewStreamPath, transportReachedBoundary } from './TimelineProgramMonitor';
+import { advanceTimelineTransport, programPreviewStreamPath, transportReachedBoundary } from './TimelineProgramMonitor';
 
 function clip(transition: EditorTransitionKind): TimelineClip {
   return {

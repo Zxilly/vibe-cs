@@ -1008,9 +1008,9 @@ describe('unified project workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: '录制缺失片段' }));
     fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
 
-    const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toContain('操作没有完成');
-    expect(alert.textContent).toContain('this shot needs at least four spatial replay samples for camera movement');
+    const alert = (await screen.findByText('操作没有完成')).closest('[role="alert"]');
+    expect(alert?.textContent).toContain('操作没有完成');
+    expect(alert?.textContent).toContain('this shot needs at least four spatial replay samples for camera movement');
   });
 
   it('refreshes the Project Head and media library when a recording reaches a terminal state', async () => {

@@ -203,7 +203,7 @@ msgid "{0} 像素/秒，{1} 像素/帧"
 msgstr "{0} 像素/秒，{1} 像素/帧"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:955
+#: src/domain/editing/TimelineProgramMonitor.tsx:1003
 msgid "{0} 入点预览"
 msgstr "{0} 入点预览"
 
@@ -213,17 +213,17 @@ msgid "{0} 全场回放"
 msgstr "{0} 全场回放"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:954
+#: src/domain/editing/TimelineProgramMonitor.tsx:1002
 msgid "{0} 出点预览"
 msgstr "{0} 出点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:956
+#: src/domain/editing/TimelineProgramMonitor.tsx:1004
 msgid "{0} 前片段出点预览"
 msgstr "{0} 前片段出点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:959
+#: src/domain/editing/TimelineProgramMonitor.tsx:1007
 msgid "{0} 后片段入点预览"
 msgstr "{0} 后片段入点预览"
 
@@ -258,12 +258,12 @@ msgid "{0} 战术示意"
 msgstr "{0} 战术示意"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:957
+#: src/domain/editing/TimelineProgramMonitor.tsx:1005
 msgid "{0} 所选片段入点预览"
 msgstr "{0} 所选片段入点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:958
+#: src/domain/editing/TimelineProgramMonitor.tsx:1006
 msgid "{0} 所选片段出点预览"
 msgstr "{0} 所选片段出点预览"
 
@@ -327,7 +327,7 @@ msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "{0} 的道具打出 {1} 点伤害"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:960
+#: src/domain/editing/TimelineProgramMonitor.tsx:1008
 msgid "{0} 视频预览"
 msgstr "{0} 视频预览"
 
@@ -637,23 +637,23 @@ msgstr "2D 地图当前使用相对坐标绘制，路线与交战关系可比较
 msgid "32 位十六进制密钥"
 msgstr "32 位十六进制密钥"
 
-#: src/domain/scene3d/Scene3DView.tsx:96
+#: src/domain/scene3d/Scene3DView.tsx:106
 msgid "3D 回放"
 msgstr "3D 回放"
 
-#: src/domain/scene3d/Scene3DView.tsx:109
+#: src/domain/scene3d/Scene3DView.tsx:120
 msgid "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
 msgstr "3D 地图：拖动旋转，右键平移，滚轮缩放；方向键可平移。"
 
-#: src/domain/scene3d/Scene3DView.tsx:72
+#: src/domain/scene3d/Scene3DView.tsx:81
 msgid "3D 渲染已中断，请重新加载视图。"
 msgstr "3D 渲染已中断，请重新加载视图。"
 
-#: src/domain/scene3d/Scene3DView.tsx:98
+#: src/domain/scene3d/Scene3DView.tsx:108
 msgid "3D 视图"
 msgstr "3D 视图"
 
-#: src/domain/scene3d/Scene3DView.tsx:99
+#: src/domain/scene3d/Scene3DView.tsx:109
 msgid "3D 视角"
 msgstr "3D 视角"
 
@@ -852,7 +852,7 @@ msgstr "Fit Clip：范围时长不同"
 msgid "HUD"
 msgstr "HUD"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:905
+#: src/domain/editing/TimelineProgramMonitor.tsx:953
 msgid "J 反向播放"
 msgstr "J 反向播放"
 
@@ -865,7 +865,7 @@ msgstr "K"
 msgid "K / D / A"
 msgstr "K / D / A"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:909
+#: src/domain/editing/TimelineProgramMonitor.tsx:957
 msgid "K 暂停时间轴"
 msgstr "K 暂停时间轴"
 
@@ -883,7 +883,7 @@ msgstr "K 暂停时间轴"
 msgid "K/D"
 msgstr "K/D"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:914
+#: src/domain/editing/TimelineProgramMonitor.tsx:962
 msgid "L 正向播放"
 msgstr "L 正向播放"
 
@@ -1081,7 +1081,7 @@ msgstr "上一个目标轨编辑点"
 msgid "上一回合"
 msgstr "上一回合"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:900
+#: src/domain/editing/TimelineProgramMonitor.tsx:948
 #: src/domain/media/Transport.tsx:177
 msgid "上一帧"
 msgstr "上一帧"
@@ -1146,7 +1146,7 @@ msgstr "下一个目标轨编辑点"
 msgid "下一回合"
 msgstr "下一回合"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:915
+#: src/domain/editing/TimelineProgramMonitor.tsx:963
 #: src/domain/media/Transport.tsx:200
 msgid "下一帧"
 msgstr "下一帧"
@@ -1404,7 +1404,7 @@ msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。
 msgid "从所选片段创建嵌套序列…"
 msgstr "从所选片段创建嵌套序列…"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:401
+#: src/domain/editing/TimelineProgramMonitor.tsx:431
 msgid "从时间轴选择一个片段"
 msgstr "从时间轴选择一个片段"
 
@@ -1867,7 +1867,7 @@ msgstr "入切线"
 msgid "入库时间"
 msgstr "入库时间"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:654
+#: src/domain/editing/TimelineProgramMonitor.tsx:701
 msgid "入点"
 msgstr "入点"
 
@@ -2222,7 +2222,7 @@ msgstr "准备采集组件"
 msgid "出切线"
 msgstr "出切线"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:653
+#: src/domain/editing/TimelineProgramMonitor.tsx:700
 msgid "出点"
 msgstr "出点"
 
@@ -2391,7 +2391,7 @@ msgstr "切换为 HH:MM:SS:FF 时间码"
 msgid "切换为总帧计数"
 msgstr "切换为总帧计数"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:993
+#: src/domain/editing/TimelineProgramMonitor.tsx:1041
 msgid "切换到摄像机 {angle} {name}"
 msgstr "切换到摄像机 {angle} {name}"
 
@@ -2587,7 +2587,7 @@ msgstr "刷新状态"
 msgid "剃刀工具 (C)"
 msgstr "剃刀工具 (C)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:645
+#: src/domain/editing/TimelineProgramMonitor.tsx:692
 msgid "前 Out"
 msgstr "前 Out"
 
@@ -3056,7 +3056,7 @@ msgstr "名称"
 msgid "名称不能为空"
 msgstr "名称不能为空"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:648
+#: src/domain/editing/TimelineProgramMonitor.tsx:695
 msgid "后 In"
 msgstr "后 In"
 
@@ -3423,7 +3423,7 @@ msgid "在源播放头添加或编辑片段标记"
 msgstr "在源播放头添加或编辑片段标记"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1445
+#: src/domain/editing/TimelineProgramMonitor.tsx:1498
 msgid "在节目画布中移动 {0}"
 msgstr "在节目画布中移动 {0}"
 
@@ -3465,8 +3465,8 @@ msgstr "地图：{0}"
 msgid "地图与最近比赛"
 msgstr "地图与最近比赛"
 
-#: src/domain/scene3d/Scene3DView.tsx:117
-#: src/domain/scene3d/Scene3DView.tsx:126
+#: src/domain/scene3d/Scene3DView.tsx:128
+#: src/domain/scene3d/Scene3DView.tsx:137
 msgid "地图几何不可用，当前仅显示选手与机位。"
 msgstr "地图几何不可用，当前仅显示选手与机位。"
 
@@ -3533,7 +3533,7 @@ msgstr "备注"
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "备注没有保存。重试会保存到原来的比赛。"
 
-#: src/domain/scene3d/Scene3DView.tsx:104
+#: src/domain/scene3d/Scene3DView.tsx:114
 msgid "复位视角"
 msgstr "复位视角"
 
@@ -3566,7 +3566,7 @@ msgstr "外观与语言"
 msgid "外部文件"
 msgstr "外部文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:622
+#: src/domain/editing/TimelineProgramMonitor.tsx:669
 msgid "多机位视图"
 msgstr "多机位视图"
 
@@ -4095,7 +4095,7 @@ msgstr "已应用到时间线"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1417
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
-#: src/domain/editing/TimelineProgramMonitor.tsx:1768
+#: src/domain/editing/TimelineProgramMonitor.tsx:1733
 msgid "已录制"
 msgstr "已录制"
 
@@ -4146,7 +4146,7 @@ msgstr "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没�
 msgid "已检查片段使用范围和录制边界，实际画面仍需录制后检查。"
 msgstr "已检查片段使用范围和录制边界，实际画面仍需录制后检查。"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:1108
+#: src/domain/editing/TimelineProgramMonitor.tsx:1156
 msgid "已渲染时间轴预览"
 msgstr "已渲染时间轴预览"
 
@@ -4433,7 +4433,7 @@ msgstr "当前只显示这一状态的后台任务。"
 msgid "当前回放缓存字段无效"
 msgstr "当前回放缓存字段无效"
 
-#: src/domain/scene3d/Scene3DView.tsx:116
+#: src/domain/scene3d/Scene3DView.tsx:127
 msgid "当前时刻缺少选手位置，无法预演第一人称画面。"
 msgstr "当前时刻缺少选手位置，无法预演第一人称画面。"
 
@@ -4794,11 +4794,11 @@ msgstr "战术示意"
 msgid "所有记录都能找到文件"
 msgstr "所有记录都能找到文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:646
+#: src/domain/editing/TimelineProgramMonitor.tsx:693
 msgid "所选 In"
 msgstr "所选 In"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:647
+#: src/domain/editing/TimelineProgramMonitor.tsx:694
 msgid "所选 Out"
 msgstr "所选 Out"
 
@@ -5341,7 +5341,7 @@ msgstr "播放序列 (Space)"
 msgid "播放控制"
 msgstr "播放控制"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:909
+#: src/domain/editing/TimelineProgramMonitor.tsx:957
 msgid "播放时间轴"
 msgstr "播放时间轴"
 
@@ -5586,7 +5586,7 @@ msgid "旋转"
 msgstr "旋转"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1512
+#: src/domain/editing/TimelineProgramMonitor.tsx:1565
 msgid "旋转节目画面 {0}"
 msgstr "旋转节目画面 {0}"
 
@@ -5594,7 +5594,7 @@ msgstr "旋转节目画面 {0}"
 msgid "无"
 msgstr "无"
 
-#: src/domain/scene3d/Scene3DView.tsx:84
+#: src/domain/scene3d/Scene3DView.tsx:94
 msgid "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 msgstr "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 
@@ -5855,7 +5855,7 @@ msgstr "暂不支持导出复盘网页"
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:917
+#: src/domain/editing/TimelineProgramMonitor.tsx:965
 #: src/domain/media/Transport.tsx:188
 msgid "暂停"
 msgstr "暂停"
@@ -6027,8 +6027,8 @@ msgstr "未归队"
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/ProjectTimeline.tsx:4837
-#: src/domain/editing/TimelineProgramMonitor.tsx:1765
-#: src/domain/editing/TimelineProgramMonitor.tsx:1768
+#: src/domain/editing/TimelineProgramMonitor.tsx:1730
+#: src/domain/editing/TimelineProgramMonitor.tsx:1733
 msgid "未录制"
 msgstr "未录制"
 
@@ -6132,8 +6132,8 @@ msgstr "本页已过期 {0}"
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
 
-#: src/domain/scene3d/Scene3DView.tsx:102
-#: src/domain/scene3d/Scene3DView.tsx:109
+#: src/domain/scene3d/Scene3DView.tsx:112
+#: src/domain/scene3d/Scene3DView.tsx:120
 msgid "机位视角"
 msgstr "机位视角"
 
@@ -6208,7 +6208,7 @@ msgid "查看分析进度"
 msgstr "查看分析进度"
 
 #: src/domain/editing/ClipCameraInspection.tsx:39
-#: src/domain/scene3d/Scene3DView.tsx:130
+#: src/domain/scene3d/Scene3DView.tsx:141
 msgid "查看原因"
 msgstr "查看原因"
 
@@ -6451,7 +6451,7 @@ msgstr "正在准备"
 msgid "正在准备 {0}"
 msgstr "正在准备 {0}"
 
-#: src/domain/scene3d/Scene3DView.tsx:124
+#: src/domain/scene3d/Scene3DView.tsx:135
 msgid "正在准备本机地图几何…"
 msgstr "正在准备本机地图几何…"
 
@@ -6488,7 +6488,8 @@ msgstr "正在加载…"
 msgid "正在加载作品…"
 msgstr "正在加载作品…"
 
-#: src/domain/scene3d/CameraPreviewViewport.tsx:40
+#: src/domain/editing/PooledCameraPreview.tsx:81
+#: src/domain/scene3d/CameraPreviewViewport.tsx:44
 msgid "正在加载预演…"
 msgstr "正在加载预演…"
 
@@ -6504,7 +6505,7 @@ msgstr "正在取消这条任务"
 msgid "正在同步…"
 msgstr "正在同步…"
 
-#: src/domain/scene3d/Scene3DView.tsx:115
+#: src/domain/scene3d/Scene3DView.tsx:126
 msgid "正在启动 3D 视图…"
 msgstr "正在启动 3D 视图…"
 
@@ -6524,7 +6525,7 @@ msgstr "正在处理"
 msgid "正在处理上一次操作"
 msgstr "正在处理上一次操作"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:663
+#: src/domain/editing/TimelineProgramMonitor.tsx:711
 msgid "正在定位帧"
 msgstr "正在定位帧"
 
@@ -7064,7 +7065,7 @@ msgstr "没有可滚动编辑的未锁定相邻片段"
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
 
-#: src/domain/scene3d/Scene3DView.tsx:120
+#: src/domain/scene3d/Scene3DView.tsx:131
 msgid "没有可用的选手位置数据。"
 msgstr "没有可用的选手位置数据。"
 
@@ -7522,7 +7523,7 @@ msgstr "滑动 {0}"
 msgid "滑动工具 (U)"
 msgstr "滑动工具 (U)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:394
+#: src/domain/editing/TimelineProgramMonitor.tsx:424
 msgid "滑动编辑预览"
 msgstr "滑动编辑预览"
 
@@ -7545,7 +7546,7 @@ msgstr "滚动编辑 {0} / {1}"
 msgid "滚动编辑工具 (N)"
 msgstr "滚动编辑工具 (N)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:394
+#: src/domain/editing/TimelineProgramMonitor.tsx:424
 msgid "滚动编辑预览"
 msgstr "滚动编辑预览"
 
@@ -8000,7 +8001,7 @@ msgstr "磁盘空间不足"
 msgid "视图"
 msgstr "视图"
 
-#: src/domain/scene3d/Scene3DView.tsx:132
+#: src/domain/scene3d/Scene3DView.tsx:143
 msgid "视锥表示当前机位朝向；红色路径表示采样发现的镜头问题。"
 msgstr "视锥表示当前机位朝向；红色路径表示采样发现的镜头问题。"
 
@@ -8039,8 +8040,8 @@ msgstr "视频缩略图：连续帧"
 msgid "视频转场"
 msgstr "视频转场"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:372
-#: src/domain/editing/TimelineProgramMonitor.tsx:394
+#: src/domain/editing/TimelineProgramMonitor.tsx:401
+#: src/domain/editing/TimelineProgramMonitor.tsx:424
 msgid "视频预览"
 msgstr "视频预览"
 
@@ -8262,8 +8263,8 @@ msgstr "第 {version} 版"
 msgid "第一人称"
 msgstr "第一人称"
 
-#: src/domain/scene3d/Scene3DView.tsx:102
-#: src/domain/scene3d/Scene3DView.tsx:109
+#: src/domain/scene3d/Scene3DView.tsx:112
+#: src/domain/scene3d/Scene3DView.tsx:120
 msgid "第一人称视角"
 msgstr "第一人称视角"
 
@@ -8338,7 +8339,7 @@ msgstr "素材就绪 → 可以导出"
 msgid "素材时间: {0}s"
 msgstr "素材时间: {0}s"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:640
+#: src/domain/editing/TimelineProgramMonitor.tsx:687
 msgid "素材未就绪 · 当前显示可用帧"
 msgstr "素材未就绪 · 当前显示可用帧"
 
@@ -8478,7 +8479,7 @@ msgid "缩放至所选片段"
 msgstr "缩放至所选片段"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1576
+#: src/domain/editing/TimelineProgramMonitor.tsx:1629
 msgid "缩放节目画面 {0}"
 msgstr "缩放节目画面 {0}"
 
@@ -8523,7 +8524,7 @@ msgstr "胜方"
 msgid "胜方未知"
 msgstr "胜方未知"
 
-#: src/domain/scene3d/Scene3DView.tsx:131
+#: src/domain/scene3d/Scene3DView.tsx:142
 msgid "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
 msgstr "胶囊体与道具范围为示意；成片画面仍由 CS2 录制。"
 
@@ -8557,7 +8558,7 @@ msgstr "自动洞察 · 由规则从证据推出"
 msgid "自定义指令"
 msgstr "自定义指令"
 
-#: src/domain/scene3d/Scene3DView.tsx:100
+#: src/domain/scene3d/Scene3DView.tsx:110
 msgid "自由视角"
 msgstr "自由视角"
 
@@ -8582,7 +8583,7 @@ msgstr "致盲时长"
 msgid "节目化"
 msgstr "节目化"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:427
+#: src/domain/editing/TimelineProgramMonitor.tsx:457
 msgid "节目画布"
 msgstr "节目画布"
 
@@ -9127,7 +9128,7 @@ msgstr "距离 {metres}m"
 msgid "跟随"
 msgstr "跟随"
 
-#: src/domain/scene3d/Scene3DView.tsx:101
+#: src/domain/scene3d/Scene3DView.tsx:111
 msgid "跟随选手"
 msgstr "跟随选手"
 
@@ -10139,7 +10140,7 @@ msgstr "重新分析"
 msgid "重新加载"
 msgstr "重新加载"
 
-#: src/domain/scene3d/Scene3DView.tsx:113
+#: src/domain/scene3d/Scene3DView.tsx:124
 msgid "重新加载 3D"
 msgstr "重新加载 3D"
 
@@ -10227,12 +10228,13 @@ msgid "重置筛选"
 msgstr "重置筛选"
 
 #: src/app/boundary/RouteBoundary.tsx:129
+#: src/domain/editing/PooledCameraPreview.tsx:79
 #: src/domain/editing/ProjectWorkspaceDock.tsx:131
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
-#: src/domain/scene3d/CameraPreviewViewport.tsx:38
-#: src/domain/scene3d/Scene3DView.tsx:127
+#: src/domain/scene3d/CameraPreviewViewport.tsx:42
+#: src/domain/scene3d/Scene3DView.tsx:138
 #: src/domain/task/TaskDetail.tsx:161
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
@@ -10417,7 +10419,7 @@ msgstr "隐藏右侧面板"
 msgid "隐藏此组所有面板"
 msgstr "隐藏此组所有面板"
 
-#: src/domain/scene3d/Scene3DView.tsx:122
+#: src/domain/scene3d/Scene3DView.tsx:133
 msgid "隐藏选手头顶上方的地图几何"
 msgstr "隐藏选手头顶上方的地图几何"
 
@@ -10458,8 +10460,8 @@ msgstr "需要配置"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1416
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
-#: src/domain/editing/TimelineProgramMonitor.tsx:1764
-#: src/domain/editing/TimelineProgramMonitor.tsx:1767
+#: src/domain/editing/TimelineProgramMonitor.tsx:1729
+#: src/domain/editing/TimelineProgramMonitor.tsx:1732
 msgid "需要重录"
 msgstr "需要重录"
 
@@ -10591,14 +10593,19 @@ msgstr "项目素材顺序"
 msgid "项目还没有素材"
 msgstr "项目还没有素材"
 
-#: src/domain/scene3d/CameraPreviewViewport.tsx:34
+#: src/domain/scene3d/CameraPreviewViewport.tsx:38
 msgid "预演"
 msgstr "预演"
 
-#: src/domain/scene3d/CameraPreviewViewport.tsx:49
-#: src/domain/scene3d/CameraPreviewViewport.tsx:50
+#: src/domain/scene3d/CameraPreviewViewport.tsx:53
+#: src/domain/scene3d/CameraPreviewViewport.tsx:54
 msgid "预演位置"
 msgstr "预演位置"
+
+#: src/domain/editing/PooledCameraPreview.tsx:78
+#: src/domain/scene3d/CameraPreviewViewport.tsx:41
+msgid "预演暂时不可用，请重试。"
+msgstr "预演暂时不可用，请重试。"
 
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:98
 msgid "预演片段"

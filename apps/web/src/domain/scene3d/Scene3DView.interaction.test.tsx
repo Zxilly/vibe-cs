@@ -13,6 +13,7 @@ const renderer = vi.hoisted(() => ({ create: vi.fn(), setState: vi.fn(), setGeom
 vi.mock('./Scene3DRenderer', () => ({ Scene3DRenderer: class {
   constructor(_canvas: HTMLCanvasElement, _select: unknown, _lost: unknown, presented: (tick: number) => void) { renderer.create(presented); }
   setState = renderer.setState;
+  setPresentationHeld() {}
   setGeometry = renderer.setGeometry;
   resetView = renderer.resetView;
   dispose = renderer.dispose;

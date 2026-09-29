@@ -89,7 +89,29 @@ fn main() -> Result<(), Box<dyn Error>> {
         let error = ground.map_or(f64::INFINITY, |height| (height - point[2]).abs());
         maximum = maximum.max(error);
         if error >= 2.0 {
-            errors.push(serde_json::json!({"sample": sample, "ground_z": ground, "error": error}));
+            let mut trace = Vec::new();
+            if let Some(observations) = sample["following_observations"].as_array() {
+                for observation in observations {
+                    let mut position = [0.0; 3];
+                    for (axis, coordinate) in position.iter_mut().enumerate() {
+                        *coordinate = observation["position"][axis]
+                            .as_f64()
+                            .ok_or("missing trace position")?;
+                    }
+                    let surface = ground_below(&geometry, position, 16.0);
+                    trace.push(serde_json::json!({
+                        "tick": observation["tick"], "position": position,
+                        "flags": observation["flags"], "ground_entity": observation["ground_entity"],
+                        "alive": observation["alive"], "ground_z": surface,
+                        "signed_offset": surface.map(|height| position[2] - height),
+                    }));
+                }
+            }
+            errors.push(serde_json::json!({
+                "tick": sample["tick"], "steam_id": sample["steam_id"],
+                "position": point, "ground_z": ground, "error": error,
+                "following_observations": trace,
+            }));
         }
     }
     println!(

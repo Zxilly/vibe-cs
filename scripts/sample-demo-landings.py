@@ -41,6 +41,26 @@ for player_id, player in states.groupby("steamid"):
         previous = row
 assert len(landings) >= 32, f"only {len(landings)} grounded transitions found"
 samples = sorted(rng.sample(landings, 32), key=lambda sample: (sample["tick"], sample["steam_id"]))
+# Preserve the original randomly selected landing; follow-up observations are
+# diagnostic evidence, never replacements chosen to reduce geometry error.
+trace_ticks = sorted({tick for sample in samples for tick in range(sample["tick"], sample["tick"] + 17)})
+trace_states = parser.parse_ticks(
+    ["X", "Y", "Z", "CCSPlayerPawn.m_fFlags", "CCSPlayerPawn.m_hGroundEntity", "is_alive"],
+    ticks=trace_ticks,
+)
+for sample in samples:
+    rows = trace_states[
+        (trace_states["steamid"].astype(str) == sample["steam_id"])
+        & (trace_states["tick"] >= sample["tick"])
+        & (trace_states["tick"] <= sample["tick"] + 16)
+    ].sort_values("tick")
+    sample["following_observations"] = [{
+        "tick": int(row["tick"]),
+        "position": [float(row[axis]) for axis in ["X", "Y", "Z"]],
+        "flags": int(row["CCSPlayerPawn.m_fFlags"]),
+        "ground_entity": int(row["CCSPlayerPawn.m_hGroundEntity"]),
+        "alive": bool(row["is_alive"]),
+    } for row in rows.to_dict("records")]
 with options.demo.open("rb") as demo:
     fingerprint = hashlib.file_digest(demo, "sha256").hexdigest()
 evidence = {

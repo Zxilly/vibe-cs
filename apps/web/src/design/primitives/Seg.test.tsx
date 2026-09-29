@@ -55,7 +55,8 @@ describe('Seg markup', () => {
 
   it('lays out naturally by default and splits the width evenly when filled', () => {
     const natural = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
-    expect(natural).not.toContain('w-full');
+    expect(natural).toContain('w-fit');
+    expect(natural).not.toMatch(/(?<![-\w])w-full(?![-\w])/u);
     expect(natural).not.toContain('flex-1');
 
     const filled = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} fill aria-label="视图" />);

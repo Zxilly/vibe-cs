@@ -20,7 +20,7 @@ describe('InputGroup markup', () => {
   it('owns the border, and the input inside it does not', () => {
     const html = search();
 
-    expect(html).toContain('border-divider');
+    expect(html).toContain('border-neutral-400');
     expect(html).toContain('focus-within:border-accent');
     expect(html).toMatch(/<input[^>]*class="[^"]*border-0/u);
   });

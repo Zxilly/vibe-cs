@@ -67,7 +67,7 @@ export interface ToggleProps
 
 const TRACK_CLASS =
   'relative block h-[18px] w-[34px] flex-none rounded-full transition-colors ' +
-  'data-[state=checked]:bg-accent data-[state=unchecked]:bg-neutral-300 ' +
+  'data-[state=checked]:bg-accent data-[state=unchecked]:bg-neutral-400 ' +
   'disabled:opacity-45';
 
 const KNOB_CLASS =

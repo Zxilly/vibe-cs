@@ -29,7 +29,7 @@ describe('Slider markup', () => {
   it('paints the range and the thumb from the accent token', () => {
     const html = renderMarkup(<Slider value={50} aria-label="x" />);
     expect(html).toContain('bg-accent');
-    expect(html).toContain('bg-neutral-300');
+    expect(html).toContain('bg-neutral-400');
     expect(html).not.toMatch(/#[0-9a-f]{3,8}/iu);
   });
 

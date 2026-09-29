@@ -82,7 +82,7 @@ export function Input({
         INPUT_BASE_CLASS,
         CONTROL_HEIGHT_CLASS[size],
         CONTROL_TEXT_CLASS[size],
-        invalid ? 'border-fail' : 'border-divider',
+        invalid ? 'border-fail' : 'border-neutral-400',
         ground === 'bg' ? 'bg-bg' : 'bg-transparent',
         mono && 'font-mono',
         className,

@@ -16,7 +16,7 @@ describe('Button markup', () => {
     // inside forms, where the platform default would submit.
     expect(html).toContain('type="button"');
     expect(html).toContain('取消');
-    expect(html).toContain('border-divider');
+    expect(html).toContain('border-neutral-400');
     expect(html).not.toContain('bg-accent');
   });
 

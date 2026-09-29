@@ -25,7 +25,7 @@ describe('Toggle markup', () => {
 
   it('fills the track with the accent when on and the neutral step when off', () => {
     expect(renderMarkup(<Toggle checked aria-label="x" />)).toContain('bg-accent');
-    expect(renderMarkup(<Toggle checked={false} aria-label="x" />)).toContain('bg-neutral-300');
+    expect(renderMarkup(<Toggle checked={false} aria-label="x" />)).toContain('bg-neutral-400');
   });
 
   it('pins the 16px knob to the side that matches the state', () => {

@@ -28,7 +28,7 @@ describe('NativeSelect markup', () => {
   });
 
   it('outlines with the divider, and with fail when invalid', () => {
-    expect(renderMarkup(shotKind())).toContain('border-divider');
+    expect(renderMarkup(shotKind())).toContain('border-neutral-400');
 
     const invalid = renderMarkup(shotKind({ invalid: true }));
     expect(invalid).toContain('border-fail');

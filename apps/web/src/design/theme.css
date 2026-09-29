@@ -21,17 +21,17 @@
   --color-transparent: transparent;
   --color-current: currentColor;
   --color-bg: #ffffff;
-  --color-surface: #f1f3f6;
-  --color-surface-chrome: #f6f7f9;
+  --color-surface: #e9edf3;
+  --color-surface-chrome: #f2f5f9;
   --color-text: #1d1f20;
-  --color-neutral-600: #606c7e;
+  --color-neutral-600: #48566a;
   --color-neutral-700: #465265;
-  --color-neutral-500: #606c7e;
+  --color-neutral-500: #48566a;
   --color-accent: #3268d6;
   --color-accent-600: #285abd;
   --color-accent-700: #214b98;
   --color-accent-100: #eef4ff;
-  --color-divider: #dfe3e9;
+  --color-divider: #bdc7d5;
   --color-neutral-300: #d8dee8;
   --color-neutral-200: #edf0f4;
   --color-ok: #4d7a5a;
@@ -50,7 +50,7 @@
   --color-fail-text: #723933;
   --color-warn-text: #74582f;
   --color-warn-border: #d8bb86;
-  --color-neutral-400: #aab3c1;
+  --color-neutral-400: #7c899b;
   --color-accent-300: #b9d1ff;
   --color-neutral-800: #303b4d;
   --color-media-badge: #1b2637;
@@ -69,7 +69,7 @@
   --color-ok-text: #3c5a44;
   --color-ok-border: #a8c3a9;
   --color-fail-border: #c9a8a3;
-  --color-team-b: #c9a55a;
+  --color-team-b: #876629;
   --color-grid: color-mix(in oklab, var(--color-text) 5%, var(--color-bg));
   --shadow-sm: 0 1px 2px #2b2b2d24;
   --shadow-md: 0 3px 10px #2b2b2d29;
@@ -273,7 +273,7 @@
   height: var(--h-ctl-sm);
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--color-divider);
+  border: 1px solid var(--color-neutral-400);
   border-radius: var(--radius-md);
 }
 .project-media-view-toggle [data-state='checked'] { border-color: var(--color-accent); }
@@ -300,7 +300,7 @@
 .timeline-zoom::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: var(--radius-full);
-  background: var(--color-neutral-200);
+  background: var(--color-neutral-400);
 }
 
 .timeline-zoom::-webkit-slider-thumb {

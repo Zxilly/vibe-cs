@@ -224,7 +224,7 @@ export function Inspector({
           data-inspector-trigger
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}
-          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 border border-divider px-3 text-sm"
+          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 border border-neutral-400 px-3 text-sm"
           onClick={() => setOpen(!isOpen)}
         >
           {openLabel ?? <Trans>详情</Trans>}

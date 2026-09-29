@@ -8,7 +8,7 @@ describe('Textarea markup', () => {
     const html = renderMarkup(<Textarea aria-label="镜头意图" />);
 
     expect(html).toMatch(/^<textarea/u);
-    expect(html).toContain('border-divider');
+    expect(html).toContain('border-neutral-400');
     expect(html).toContain('focus:border-accent');
     expect(html).toContain('caret-accent');
   });

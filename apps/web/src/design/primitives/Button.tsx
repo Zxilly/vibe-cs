@@ -27,7 +27,7 @@ export const buttonVariants = cva(
         primary:
           'border-accent bg-accent text-on-accent hover:not-disabled:bg-accent-600 active:not-disabled:bg-accent-700',
         secondary:
-          'border-divider text-text ' +
+          'border-neutral-400 text-text ' +
           'hover:not-disabled:bg-action-hover ' +
           'active:not-disabled:bg-action-pressed',
         ghost:

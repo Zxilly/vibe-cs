@@ -56,7 +56,7 @@ export function Pagination({
     <nav
       aria-label={t`分页`}
       className={cn(
-        'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider px-6',
+        'flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-3 py-1.5 border-t border-divider px-6',
         className,
       )}
     >
@@ -137,7 +137,7 @@ function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex size-[var(--h-ctl-sm)] items-center justify-center border border-divider hover:bg-surface disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+      className="inline-flex size-[var(--h-ctl-sm)] items-center justify-center border border-neutral-400 hover:bg-surface disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
     >
       {icon}
     </button>

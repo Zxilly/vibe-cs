@@ -70,7 +70,7 @@ export function Textarea({
       className={cn(
         BASE_CLASS,
         resize === 'none' ? 'resize-none' : 'resize-y',
-        invalid ? 'border-fail' : 'border-divider',
+        invalid ? 'border-fail' : 'border-neutral-400',
         className,
       )}
     />

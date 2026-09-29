@@ -61,7 +61,7 @@ export function InputGroup({
         GROUP_CLASS,
         CONTROL_HEIGHT_CLASS[size],
         CONTROL_TEXT_CLASS[size],
-        invalid ? 'border-fail' : 'border-divider',
+        invalid ? 'border-fail' : 'border-neutral-400',
         ground === 'bg' ? 'bg-bg' : 'bg-transparent',
         className,
       )}

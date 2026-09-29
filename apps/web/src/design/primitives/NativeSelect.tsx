@@ -57,7 +57,7 @@ export function NativeSelect({
         BASE_CLASS,
         CONTROL_HEIGHT_CLASS[size],
         CONTROL_TEXT_CLASS[size],
-        invalid ? 'border-fail' : 'border-divider',
+        invalid ? 'border-fail' : 'border-neutral-400',
         className,
       )}
     />

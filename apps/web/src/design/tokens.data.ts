@@ -24,13 +24,13 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/bg/surface",
     "css": "var(--color-surface)",
-    "light": "#f1f3f6",
+    "light": "#e9edf3",
     "dark": "#182234"
   },
   {
     "name": "color/bg/chrome",
     "css": "var(--color-surface-chrome)",
-    "light": "#f6f7f9",
+    "light": "#f2f5f9",
     "dark": "#141e30"
   },
   {
@@ -42,7 +42,7 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/text/muted",
     "css": "var(--color-neutral-600)",
-    "light": "#606c7e",
+    "light": "#48566a",
     "dark": "#b3c1d1"
   },
   {
@@ -54,7 +54,7 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/text/subtle",
     "css": "var(--color-neutral-500)",
-    "light": "#606c7e",
+    "light": "#48566a",
     "dark": "#a5b4c7"
   },
   {
@@ -84,7 +84,7 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/border/default",
     "css": "var(--color-divider)",
-    "light": "#dfe3e9",
+    "light": "#bdc7d5",
     "dark": "#2f4058"
   },
   {
@@ -312,7 +312,7 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/icon/subtle",
     "css": "var(--color-neutral-400)",
-    "light": "#aab3c1",
+    "light": "#7c899b",
     "dark": "#8191a6"
   },
   {
@@ -450,7 +450,7 @@ export const FIGMA_BINDINGS = [
   {
     "name": "color/team/b",
     "css": "var(--color-team-b)",
-    "light": "#c9a55a",
+    "light": "#876629",
     "dark": "#e3bd78"
   }
 ] as const;
@@ -460,17 +460,17 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--color-transparent": "transparent",
   "--color-current": "currentColor",
   "--color-bg": "#ffffff",
-  "--color-surface": "#f1f3f6",
-  "--color-surface-chrome": "#f6f7f9",
+  "--color-surface": "#e9edf3",
+  "--color-surface-chrome": "#f2f5f9",
   "--color-text": "#1d1f20",
-  "--color-neutral-600": "#606c7e",
+  "--color-neutral-600": "#48566a",
   "--color-neutral-700": "#465265",
-  "--color-neutral-500": "#606c7e",
+  "--color-neutral-500": "#48566a",
   "--color-accent": "#3268d6",
   "--color-accent-600": "#285abd",
   "--color-accent-700": "#214b98",
   "--color-accent-100": "#eef4ff",
-  "--color-divider": "#dfe3e9",
+  "--color-divider": "#bdc7d5",
   "--color-neutral-300": "#d8dee8",
   "--color-neutral-200": "#edf0f4",
   "--color-ok": "#4d7a5a",
@@ -489,7 +489,7 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--color-fail-text": "#723933",
   "--color-warn-text": "#74582f",
   "--color-warn-border": "#d8bb86",
-  "--color-neutral-400": "#aab3c1",
+  "--color-neutral-400": "#7c899b",
   "--color-accent-300": "#b9d1ff",
   "--color-neutral-800": "#303b4d",
   "--color-media-badge": "#1b2637",
@@ -508,7 +508,7 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--color-ok-text": "#3c5a44",
   "--color-ok-border": "#a8c3a9",
   "--color-fail-border": "#c9a8a3",
-  "--color-team-b": "#c9a55a",
+  "--color-team-b": "#876629",
   "--color-grid": "color-mix(in oklab, var(--color-text) 5%, var(--color-bg))",
   "--shadow-sm": "0 1px 2px #2b2b2d24",
   "--shadow-md": "0 3px 10px #2b2b2d29",
@@ -586,11 +586,11 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#111827"
   },
   "--color-surface": {
-    "light": "#f1f3f6",
+    "light": "#e9edf3",
     "dark": "#182234"
   },
   "--color-surface-chrome": {
-    "light": "#f6f7f9",
+    "light": "#f2f5f9",
     "dark": "#141e30"
   },
   "--color-text": {
@@ -598,7 +598,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#e6edf7"
   },
   "--color-neutral-600": {
-    "light": "#606c7e",
+    "light": "#48566a",
     "dark": "#b3c1d1"
   },
   "--color-neutral-700": {
@@ -606,7 +606,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#c6d2e2"
   },
   "--color-neutral-500": {
-    "light": "#606c7e",
+    "light": "#48566a",
     "dark": "#a5b4c7"
   },
   "--color-accent": {
@@ -626,7 +626,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#243953"
   },
   "--color-divider": {
-    "light": "#dfe3e9",
+    "light": "#bdc7d5",
     "dark": "#2f4058"
   },
   "--color-neutral-300": {
@@ -702,7 +702,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#6c5537"
   },
   "--color-neutral-400": {
-    "light": "#aab3c1",
+    "light": "#7c899b",
     "dark": "#8191a6"
   },
   "--color-accent-300": {
@@ -778,7 +778,7 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
     "dark": "#744b50"
   },
   "--color-team-b": {
-    "light": "#c9a55a",
+    "light": "#876629",
     "dark": "#e3bd78"
   },
   "--color-grid": {

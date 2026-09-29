@@ -15,7 +15,7 @@ describe('Input markup', () => {
   it('is the bordered box itself, so the base.css focus ring lands outside it', () => {
     const html = renderMarkup(<Input />);
     expect(html).toMatch(/<input[^>]*class="[^"]*\bborder\b/u);
-    expect(html).toContain('border-divider');
+    expect(html).toContain('border-neutral-400');
     expect(html).not.toContain('outline-none');
   });
 
@@ -33,7 +33,7 @@ describe('Input markup', () => {
   it('switches the border to --color-fail when invalid, and says so', () => {
     const html = renderMarkup(<Input invalid />);
     expect(html).toContain('border-fail');
-    expect(html).not.toContain('border-divider');
+    expect(html).not.toContain('border-neutral-400');
     expect(html).toContain('aria-invalid="true"');
   });
 

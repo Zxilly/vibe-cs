@@ -59,8 +59,8 @@ export interface SegProps<Value extends string> {
   className?: string;
 }
 
-/** Industry's `.seg`: hairline box, square corners, options clipped to it. */
-const GROUP_CLASS = 'inline-flex overflow-hidden rounded-md border border-divider';
+/** Content-sized by default; wrap options instead of hiding them in narrow panels. */
+const GROUP_CLASS = 'inline-flex flex-wrap rounded-md border border-neutral-400';
 
 /**
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`
@@ -70,14 +70,11 @@ const GROUP_CLASS = 'inline-flex overflow-hidden rounded-md border border-divide
  * face with deep accent text and a 1px inset accent hairline, never the solid
  * accent fill. A solid fill would compete with the view's one primary button.
  *
- * The focus ring is inset here rather than taking base.css's 2px offset: the
- * group clips its options (`overflow-hidden`), so an outset ring on the first
- * or last option would be cut in half by the box it sits in. On the checked
- * option — where Tab lands, because the radio group's roving tabindex always
- * enters on the selection — the 2px ring reads as a thicker hairline.
+ * The inset focus ring remains distinct from the group border, including
+ * when options wrap. Radix keeps arrow-key navigation across every option.
  */
 const OPTION_CLASS =
-  'inline-flex h-full items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
+  'inline-flex items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
   'cursor-pointer select-none ' +
   'data-[state=checked]:bg-accent-100 data-[state=checked]:font-medium data-[state=checked]:text-accent-700 ' +
   'data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-accent)] ' +
@@ -101,7 +98,7 @@ export function Seg<Value extends string>({
       name={name}
       value={value}
       orientation="horizontal"
-      className={cn(GROUP_CLASS, CONTROL_HEIGHT_CLASS[size], fill && 'flex w-full', className)}
+      className={cn(GROUP_CLASS, fill ? 'flex w-full' : 'w-fit max-w-full shrink-0', className)}
       onValueChange={(next) => {
         /* Radix reports every activation, including one that lands on the
            option already selected — a native radio group fires no change for
@@ -117,6 +114,7 @@ export function Seg<Value extends string>({
           disabled={option.disabled ?? false}
           className={cn(
             OPTION_CLASS,
+            CONTROL_HEIGHT_CLASS[size],
             /* Industry's `.seg-opt + .seg-opt` divider, resolved here because
                a sibling combinator cannot be written as a utility. */
             index > 0 && 'border-l border-divider',

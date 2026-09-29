@@ -203,3 +203,30 @@ describe('base.css', () => {
     expect(stripComments(baseSource)).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });
+
+// Exercise the actual theme values, including placeholder text and control edges.
+function contrastRatio(foreground: string, background: string): number {
+  const luminance = (hex: string) => {
+    const channels = [1, 3, 5].map(offset => {
+      const value = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+  };
+  const a = luminance(foreground);
+  const b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+describe('readable form contrast', () => {
+  for (const [name, tokens] of [['light', themeTokens], ['dark', darkAttrTokens]] as const) {
+    it(`${name}: text and placeholders remain readable on every UI surface`, () => {
+      for (const surface of ['--color-bg', '--color-surface', '--color-surface-chrome']) {
+        for (const text of ['--color-text', '--color-neutral-500', '--color-neutral-600', '--color-neutral-700', '--color-ok-text', '--color-warn-text', '--color-fail-text', '--color-team-b']) {
+          expect(contrastRatio(tokens.get(text)!, tokens.get(surface)!), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+        }
+        expect(contrastRatio(tokens.get('--color-neutral-400')!, tokens.get(surface)!), `control edge on ${surface}`).toBeGreaterThanOrEqual(3);
+      }
+    });
+  }
+});

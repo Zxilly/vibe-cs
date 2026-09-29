@@ -1,3 +1,4 @@
+import { dependencyLabel } from '../../../domain/environment/dependencyLabel';
 /*
  * pages/settings — 设置 · 游戏与录制 (artboard 「12 设置与诊断」, the one section
  * that board draws in full).
@@ -122,7 +123,7 @@ export function GameSection() {
       <SettingsBlock
         id="game"
         title={<Trans>游戏</Trans>}
-        description={<Trans>这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。</Trans>}
+        description={<Trans>更改仅影响之后的录制。</Trans>}
       >
         {current === undefined ? (
           <Skeleton />
@@ -163,7 +164,7 @@ export function GameSection() {
               /* Not a field of its own — see the module comment. */
               hint={
                 <Trans>
-                  新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。
+                  在「文件与资料库」中更改录制保存位置。
                 </Trans>
               }
             >
@@ -266,8 +267,8 @@ export function GameSection() {
               {encoderChecks(checks.data?.checks ?? []).map((check) => (
                 <li key={check.kind} className="flex items-center gap-2.5 text-sm">
                   <StatusDot status={dotStatus(check.state)} />
-                  <span>{check.label}</span>
-                  <span className="text-xs text-neutral-600">{check.detail}</span>
+                  <span>{dependencyLabel(check.kind)}</span>
+                  <span className="text-xs text-neutral-600">{check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}</span>
                 </li>
               ))}
             </ul>

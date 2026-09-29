@@ -2937,7 +2937,7 @@ export function ProjectTimeline({
             onChange={(event) => setNestedSequenceName(event.currentTarget.value)}
           />
         </label>
-        <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。</Trans></p>
+        <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>将所选片段合并为嵌套片段，双击可继续编辑。</Trans></p>
       </Dialog>
 
       <Dialog
@@ -3255,7 +3255,7 @@ function TimelineTimecodeControl({ seconds, durationSeconds, fps, mode, onModeCh
           }
         }}
       />
-      <Tooltip content={t`水平拖动 scrub；方向键 1 帧，Shift 5 帧`} side="top">
+      <Tooltip content={t`水平拖动预览；方向键调整 1 帧，Shift 调整 5 帧`} side="top">
         <button
           type="button"
           role="slider"

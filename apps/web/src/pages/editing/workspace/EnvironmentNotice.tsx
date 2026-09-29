@@ -1,3 +1,4 @@
+import { dependencyLabel } from '../../../domain/environment/dependencyLabel';
 /*
  * pages/home — 环境提示.
  *
@@ -68,7 +69,7 @@ export function EnvironmentNotice() {
         detail={
           <ul className="flex flex-col gap-1">
             {blocking.map((check) => (
-              <li key={`${check.kind}:${check.label}`} data-blocking-check={check.kind}>
+              <li key={`${check.kind}:${dependencyLabel(check.kind)}`} data-blocking-check={check.kind}>
                 {blockingSentence(check)}
               </li>
             ))}
@@ -91,9 +92,7 @@ export function EnvironmentNotice() {
  */
 function blockingSentence(check: DependencyCheck): string {
   const consequence = consequenceOf(check.kind);
-  return check.detail === ''
-    ? `${check.label} — ${consequence}`
-    : `${check.label} — ${consequence}（${check.detail}）`;
+  return `${dependencyLabel(check.kind)} — ${consequence}`;
 }
 
 /**

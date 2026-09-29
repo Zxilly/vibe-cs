@@ -230,7 +230,7 @@ export function TaskCard({
   );
 }
 
-/** 「阶段 3/5 位置采样」, or just the stage name when there is no count. */
+/** 「阶段 3/5 准备回放」, or just the stage name when there is no count. */
 function TaskStageText({ stage }: { stage: NonNullable<TaskSummary['stage']> }) {
   const label = stage.label;
 

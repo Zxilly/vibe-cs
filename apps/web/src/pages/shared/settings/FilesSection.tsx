@@ -117,7 +117,7 @@ export function FilesSection() {
               label={<Trans>位置</Trans>}
               hint={
                 <Trans>
-                  之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。
+                  更改后仅影响新文件，已有文件保持原位。
                 </Trans>
               }
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
@@ -156,7 +156,6 @@ export function FilesSection() {
 
             <SettingsRow
               label={<Trans>占用</Trans>}
-              hint={<Trans>这个目录占用的磁盘空间。需要清理时，前往「成品文件」。</Trans>}
             >
               {storage.isPending ? (
                 <Skeleton width="10rem" />
@@ -357,9 +356,6 @@ export function FilesSection() {
                 )}
               </Field>
             </div>
-            <p className="text-xs leading-normal text-neutral-600">
-              <Trans>密钥只保存在本机配置中，页面和诊断包都不会回显它们。</Trans>
-            </p>
             <div>
               <Button
                 variant="primary"

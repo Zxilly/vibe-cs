@@ -936,8 +936,9 @@ function mediaSourceDetail(item: ProjectMediaItem): string | null {
   const clip = item.timelineClip;
   if (clip === null) return item.sourceAsset?.path ?? null;
   if (clip.capture_intent !== null) {
-    const { start_tick: startTick, end_tick: endTick } = clip.capture_intent;
-    return t`Demo tick ${startTick}–${endTick}`;
+    const from = formatSourceTime(clip.placement.start);
+    const to = formatSourceTime(clip.placement.start + clip.placement.duration);
+    return t`时间线 ${from}–${to}`;
   }
   const sourceIn = formatSourceTime(clip.placement.source_in);
   const sourceOut = formatSourceTime(clip.placement.source_out);

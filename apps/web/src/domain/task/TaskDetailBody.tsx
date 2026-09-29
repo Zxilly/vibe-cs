@@ -119,7 +119,7 @@ function detailFacts(item: ActivityItem): readonly TaskFact[] {
 }
 
 /**
- * 「技术细节 · 进程、tick、编码参数」.
+ * 「技术细节 · 查看诊断信息」.
  *
  * None of those three are on the wire. What is: the locator the service
  * addresses this record by, the job id underneath it, and the export subtype —

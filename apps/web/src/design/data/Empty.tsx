@@ -138,7 +138,7 @@ const PRESET_CONTENT: Record<EmptyPreset, PresetContent> = {
   },
   'not-analysed': {
     title: <Trans>这场还没分析</Trans>,
-    description: <Trans>分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。</Trans>,
+    description: <Trans>分析比赛后即可查看回合、事件和高光。</Trans>,
   },
   'no-hits': {
     title: <Trans>没有命中的证据</Trans>,
@@ -146,7 +146,7 @@ const PRESET_CONTENT: Record<EmptyPreset, PresetContent> = {
   },
   'no-outputs': {
     title: <Trans>还没有成片</Trans>,
-    description: <Trans>完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。</Trans>,
+    description: <Trans>录制和导出的文件会出现在这里。</Trans>,
   },
   error: {
     title: <Trans>这个页面没能打开</Trans>,

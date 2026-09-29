@@ -226,7 +226,7 @@ describe('文件与资料库', () => {
     // part a user has to read before they press anything.
     render(<FilesSection />);
     await loaded('位置');
-    expect(document.body.textContent).toContain('不会被搬走');
+    expect(document.body.textContent).toContain('已有文件保持原位');
   });
 
   it('saves the complete Steam history connection without resetting other settings', async () => {
@@ -277,9 +277,11 @@ describe('游戏与录制', () => {
     render(<GameSection />);
     await loaded('成品生成能力');
     await waitFor(() => {
-      expect(document.body.textContent).toContain('未探测到编码器');
+      expect(document.body.textContent).toContain('需要配置');
+      expect(document.body.textContent).not.toContain('未探测到编码器');
     });
-    expect(document.body.textContent).toContain('未探测到编码器');
+    expect(document.body.textContent).toContain('需要配置');
+      expect(document.body.textContent).not.toContain('未探测到编码器');
     expect(document.body.textContent).toContain('上次检查');
   });
 
@@ -342,10 +344,10 @@ describe('游戏与录制', () => {
     });
   });
 
-  it('states 「改动只影响之后新建的录制任务」 once, at the top', async () => {
+  it('states 「更改仅影响之后的录制」 once, at the top', async () => {
     render(<GameSection />);
     await loaded('游戏');
-    expect(document.body.textContent).toContain('改动只影响之后新建的录制任务');
+    expect(document.body.textContent).toContain('更改仅影响之后的录制');
   });
 
   it('never writes a partial recording object', async () => {
@@ -398,13 +400,14 @@ describe('高级与诊断', () => {
       }),
     });
 
-    expect(await screen.findByText(/录制作业会启动新的受管 HLAE/u)).toBeTruthy();
+    expect(await screen.findByText('采集组件')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Recording jobs launch');
     expect(document.body.textContent).not.toContain('proposal exports remain process-free');
   });
 
   it('names states and the runtime session in words, not wire enums', async () => {
     render(<AdvancedSection />, DIAGNOSTIC_STUBS);
-    await loaded('运行时');
+    await loaded('运行状态');
 
     await waitFor(() => {
       expect(document.querySelector('[data-check="encoder"]')).not.toBeNull();
@@ -418,7 +421,7 @@ describe('高级与诊断', () => {
 
   it('labels the data directory, and reaches 恢复中心 and 使用引导', async () => {
     render(<AdvancedSection />, DIAGNOSTIC_STUBS);
-    await loaded('运行时');
+    await loaded('运行状态');
 
     await waitFor(() => {
       expect(document.querySelector('[data-path]')).not.toBeNull();
@@ -430,7 +433,7 @@ describe('高级与诊断', () => {
 
   it('uses title rails for diagnostic readouts', async () => {
     render(<AdvancedSection />, DIAGNOSTIC_STUBS);
-    await loaded('运行时');
+    await loaded('运行状态');
 
     expect(document.querySelectorAll('[data-settings-layout="split"]')).toHaveLength(5);
   });

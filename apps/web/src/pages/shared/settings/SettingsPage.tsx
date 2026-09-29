@@ -2,7 +2,7 @@
  * pages/ — 12 设置与诊断 (spec §7 `/settings?section=…`, phase 3g).
  *
  * §7 names the five sections and records the fifth-round rename: the fourth is
- * 「AI 与 Agent」, split into 模型 / 会话 / 行为边界. The section ids are the
+ * 「AI 与 Agent」, split into 模型 / 会话 / 操作确认. The section ids are the
  * addressable part, so they are fixed here and the labels travel with them.
  *
  * ── The seam phase 3g fills in ────────────────────────────────────────────

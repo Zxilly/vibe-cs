@@ -78,7 +78,6 @@ import { ProjectTimeline } from '../../../domain/editing/ProjectTimeline';
 import { ProjectWorkspaceDock, type ProjectWorkspaceDockHandle } from '../../../domain/editing/ProjectWorkspaceDock';
 import { TimelineProgramMonitor } from '../../../domain/editing/TimelineProgramMonitor';
 import { planAutomateToSequence } from '../../../domain/editing/automateSequence';
-import { clipLocalTimeAtTimeline } from '../../../domain/editing/keyframeEditing';
 import { mediaAssetEditDuration, projectMediaAssetKind } from '../../../domain/editing/mediaDrag';
 import { projectHistoryCommands } from '../../../domain/editing/projectHistory';
 import type { ProjectWorkspacePanel } from '../../../domain/editing/projectWorkspaceLayout';
@@ -1201,7 +1200,6 @@ export function ProjectWorkspacePage() {
     <TacticalPreview
       selected={transportClip}
       timelineTimeSeconds={transportTimeSeconds}
-      fps={current.document.fps}
       showHeader={false}
     />
   );
@@ -1672,7 +1670,7 @@ export function ProjectWorkspacePage() {
         }}
         onClose={() => setPendingFitEdit(null)}
       >
-        <p className="mb-3"><Trans>Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点编辑。</Trans></p>
+        <p className="mb-3"><Trans>素材选段与时间线选段长度不同，请选择处理方式。</Trans></p>
         <div className="space-y-2">
           {([
             ['fit_to_fill', t`更改片段速度（Fit to Fill）`],
@@ -1801,7 +1799,7 @@ export function ProjectWorkspacePage() {
             </label>
             {!hasExportRange ? <p id="export-range-help" className="text-xs leading-relaxed text-neutral-600"><Trans>要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。</Trans></p> : null}
             <p id="export-quality-help" className="text-xs leading-relaxed text-neutral-600"><Trans>质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。</Trans></p>
-            <p className="text-xs text-neutral-600"><Trans>文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。</Trans></p>
+            <p className="text-xs text-neutral-600"><Trans>在「作品任务」查看进度，完成后到「成品文件」查看结果。</Trans></p>
           </div>
         )}
       </Dialog>
@@ -1864,10 +1862,9 @@ function ProjectSequenceTabs({ ids, activeId, projects, onOpen, onClose }: {
   );
 }
 
-const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSeconds, fps, showHeader = true }: {
+const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSeconds, showHeader = true }: {
   readonly selected: TimelineClip | null;
   readonly timelineTimeSeconds: number;
-  readonly fps: number;
   readonly showHeader?: boolean;
 }) {
   const intent = selected?.capture_intent ?? null;
@@ -1884,8 +1881,6 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
     [intent],
   );
   const replaySlice = useMemo(() => sliceReplay(replay.data, bounds), [bounds, replay.data]);
-  const localTime = selected === null ? 0 : clipLocalTimeAtTimeline(selected, timelineTimeSeconds, fps);
-  const sourceTimeSeconds = selected === null ? 0 : clipSourceTimeAtLocalTime(selected, localTime);
   const transportDemoTick = selected === null || replaySlice === null
     ? null
     : clipDemoTickAtTimelineTime(selected, timelineTimeSeconds, replaySlice.tickRate);
@@ -2056,10 +2051,6 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
                 <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>
                 <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
               </ul>
-              <div className="absolute inset-x-0 bottom-0 z-20 flex h-8 items-center border-t border-divider bg-bg/95 px-3 text-xs text-text backdrop-blur-sm">
-                <span><Trans>Demo tick: {currentTick ?? displayed.tick}</Trans></span>
-                <span className="ml-4 font-mono"><Trans>素材时间: {sourceTimeSeconds.toFixed(3)}s</Trans></span>
-              </div>
             </>
           )}
         </div>

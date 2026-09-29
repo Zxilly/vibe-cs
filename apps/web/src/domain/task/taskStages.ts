@@ -27,7 +27,7 @@ import type { TaskKind, TaskStatus } from './types';
  * §4.3 states and the count the home artboard prints as 「阶段 3/5」. Taking the
  * backend's own ids rather than inventing user-facing ones means the page layer
  * can match `ActivityItem.stage` against this list without a translation table;
- * the Chinese the artboard shows for one of them (「位置采样」) is a label, and
+ * the Chinese the artboard shows for one of them (「准备回放」) is a label, and
  * labels are supplied by the caller.
  */
 export const ANALYSIS_STAGE_IDS = [

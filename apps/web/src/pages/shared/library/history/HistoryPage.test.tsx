@@ -35,7 +35,7 @@ describe('the page frame', () => {
     // Page-scoped counts say so: the service pages the list (§10.3).
     expect(html).toContain('本页未下载 0');
     expect(html).toContain('本页已入库 0');
-    expect(html).toContain('Valve 官方链路');
+    expect(html).toContain('同步 Steam 竞技比赛');
   });
 
   it('offers 同步最近比赛 and the Steam settings link', () => {

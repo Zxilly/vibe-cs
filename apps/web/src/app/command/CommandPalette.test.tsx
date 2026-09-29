@@ -116,11 +116,11 @@ describe('CommandPalette markup', () => {
     expect(html).toContain('>动作</div>');
   });
 
-  it('states the matching contract instead of an empty box when nothing matches', () => {
+  it('offers a useful next step when nothing matches', () => {
     const html = render({ commands: [] });
     expect(html).toContain('role="status"');
     expect(html).toContain('没有匹配的结果');
-    expect(html).toContain('不做拼音和模糊匹配');
+    expect(html).toContain('请尝试更短的关键词或页面名称');
     expect(html).not.toContain('role="listbox"');
   });
 

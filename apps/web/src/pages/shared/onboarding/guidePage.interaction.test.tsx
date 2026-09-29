@@ -179,8 +179,9 @@ describe('使用引导', () => {
       expect(document.querySelector('[data-guide-check="hlae"]')).not.toBeNull();
     });
     expect(document.body.textContent).toContain('导入、分析和剪辑都不受影响');
-    // The service's own words are kept beside the consequence.
-    expect(document.body.textContent).toContain('未探测到可执行文件');
+    // Implementation diagnostics do not appear in onboarding.
+    expect(document.body.textContent).not.toContain('未探测到可执行文件');
+    expect(document.body.textContent).toContain('录制组件');
   });
 
   it('points at the diagnostics section for the raw states', async () => {

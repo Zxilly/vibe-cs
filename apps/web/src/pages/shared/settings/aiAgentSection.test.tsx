@@ -29,11 +29,11 @@ function settingsAt(url: string): string {
 }
 
 describe('the three blocks the fifth round split the section into', () => {
-  it('draws 模型 / 对话 / 行为边界', () => {
+  it('draws 模型 / 对话 / 操作确认', () => {
     const html = section();
     expect(html).toContain('模型');
     expect(html).toContain('对话');
-    expect(html).toContain('行为边界');
+    expect(html).toContain('操作确认');
   });
 
   /* The stored controls — the retention `Seg`, the take slider and 立即应用 —

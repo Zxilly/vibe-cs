@@ -1,3 +1,4 @@
+import { dependencyLabel } from '../../../domain/environment/dependencyLabel';
 /*
  * pages/settings — 设置 · 高级与诊断.
  *
@@ -71,12 +72,12 @@ export function AdvancedSection() {
       <SettingsBlock
         id="runtime"
         layout="split"
-        title={<Trans>运行时</Trans>}
+        title={<Trans>运行状态</Trans>}
         description={<Trans>版本、数据目录和当前录制占用。</Trans>}
       >
         {runtimeError !== null ? (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void runtime.refetch() }}>
-            <Trans>读不到运行时状态：{runtimeError}</Trans>
+            <Trans>无法读取运行状态：{runtimeError}</Trans>
           </Alert>
         ) : runtime.data === undefined ? (
           <Skeleton />
@@ -91,7 +92,7 @@ export function AdvancedSection() {
               label={<Trans>当前运行状态</Trans>}
               hint={
                 <Trans>
-                  录制与回放是互斥的，这个状态说明为什么某个动作现在不可用。
+                  录制期间无法同时回放。
                 </Trans>
               }
             >
@@ -111,7 +112,7 @@ export function AdvancedSection() {
             )}
             <SettingsRow
               label={<Trans>数据目录</Trans>}
-              hint={<Trans>应用写出的所有文件都在这里。要改请到「文件与资料库」。</Trans>}
+              hint={<Trans>在「文件与资料库」中更改保存位置。</Trans>}
             />
             <PathReadout path={runtime.data.data_dir} empty={<Trans>没有数据目录</Trans>} />
           </>
@@ -134,17 +135,14 @@ export function AdvancedSection() {
           <>
             <ul className="flex flex-col gap-2.5">
               {(checks.data?.checks ?? []).map((check) => (
-                <li key={`${check.kind}:${check.label}`} className="flex flex-col gap-1" data-check={check.kind}>
+                <li key={`${check.kind}:${dependencyLabel(check.kind)}`} className="flex flex-col gap-1" data-check={check.kind}>
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
-                    <span>{check.label}</span>
+                    <span>{dependencyLabel(check.kind)}</span>
                     <span className="text-xs text-neutral-600" data-check-state={check.state}>
                       {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>缺失</Trans>}
                     </span>
                   </div>
-                  {check.detail === '' ? null : (
-                    <p className="ms-5 break-all text-xs leading-normal text-neutral-600">{check.detail}</p>
-                  )}
                 </li>
               ))}
             </ul>
@@ -177,7 +175,7 @@ export function AdvancedSection() {
         id="capture"
         layout="split"
         title={<Trans>采集组件</Trans>}
-        description={<Trans>受管 HLAE 的安装状态与安全边界。</Trans>}
+        description={<Trans>安装和检查录制所需组件。</Trans>}
       >
         {hlaeError !== null ? (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void hlae.refetch() }}>
@@ -189,7 +187,6 @@ export function AdvancedSection() {
           <>
             <SettingsRow
               label={<Trans>可用性</Trans>}
-              hint={<Trans>不可用时录制无法启动。</Trans>}
             >
               <span className="flex items-center gap-2 text-xs text-neutral-700">
                 <StatusDot status={hlae.data.available ? 'ok' : 'fail'} />
@@ -198,7 +195,6 @@ export function AdvancedSection() {
             </SettingsRow>
             <SettingsRow
               label={<Trans>启动方式</Trans>}
-              hint={<Trans>录制时是否由本应用拉起游戏。</Trans>}
             >
               <span className="text-xs text-neutral-700">
                 {hlae.data.automatic_launch_enabled ? <Trans>自动启动</Trans> : <Trans>手动启动</Trans>}
@@ -208,19 +204,9 @@ export function AdvancedSection() {
               <>
                 <SettingsRow
                   label={<Trans>可执行文件</Trans>}
-                  hint={<Trans>录制时启动的 HLAE 程序。</Trans>}
                 />
                 <PathReadout path={hlae.data.executable} empty={null} />
               </>
-            )}
-            {hlae.data.messages.length === 0 ? null : (
-              <ul className="flex flex-col gap-1">
-                {hlae.data.messages.map((message) => (
-                  <li key={message} className="text-xs leading-normal text-neutral-600">
-                    <HlaeMessage message={message} />
-                  </li>
-                ))}
-              </ul>
             )}
             {hlae.data.available ? null : (
               <div className="flex flex-col items-start gap-2">
@@ -236,7 +222,7 @@ export function AdvancedSection() {
                   {prepareHlae.isPending ? <Trans>正在准备</Trans> : <Trans>准备采集组件</Trans>}
                 </Button>
                 <p className="text-xs leading-normal text-neutral-600">
-                  <Trans>下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到应用数据目录。</Trans>
+                  <Trans>下载并安装录制所需组件。</Trans>
                 </p>
               </div>
             )}
@@ -256,7 +242,6 @@ export function AdvancedSection() {
         id="diagnostics"
         layout="split"
         title={<Trans>日志与诊断包</Trans>}
-        description={<Trans>这里用于排查运行问题。</Trans>}
       >
         <SettingsRow
           label={<Trans>导出诊断包</Trans>}
@@ -318,7 +303,7 @@ export function AdvancedSection() {
       >
         <SettingsRow
           label={<Trans>恢复中心</Trans>}
-          hint={<Trans>配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。</Trans>}
+          hint={<Trans>修复配置或清理残留文件。</Trans>}
         >
           <RouteLink to="/recovery" data-settings-link="recovery">
             <Trans>打开恢复中心</Trans>
@@ -358,19 +343,6 @@ function RuntimeSessionLabel({ session }: { readonly session: string }) {
     default:
       return <span className="font-mono">{session}</span>;
   }
-}
-
-const MANAGED_HLAE_BOUNDARY_MESSAGE =
-  'Recording jobs launch a fresh managed HLAE and CS2 process for offline Demo playback with -insecure; proposal exports remain process-free';
-
-/** Known service guidance is product copy; unknown diagnostics stay verbatim. */
-function HlaeMessage({ message }: { readonly message: string }) {
-  if (message !== MANAGED_HLAE_BOUNDARY_MESSAGE) return <>{message}</>;
-  return (
-    <Trans>
-      录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；导出剪辑单不会启动游戏进程。
-    </Trans>
-  );
 }
 
 /** Two states, so two dots — the same reading as `GameSection`'s. */

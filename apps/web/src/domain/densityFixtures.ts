@@ -402,7 +402,7 @@ export function makeTasks(count: number, options: { readonly running?: number } 
       return {
         ...base,
         status: 'running',
-        stage: { id: 'capture', label: '位置采样', index: 3, count: 6 },
+        stage: { id: 'capture', label: '准备回放', index: 3, count: 6 },
         progress: { completed: 2, total: 6, unit: 'clips' },
       };
     }

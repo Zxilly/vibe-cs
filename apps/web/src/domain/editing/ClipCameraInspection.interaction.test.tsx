@@ -15,9 +15,9 @@ it('explains a solid interior separately from wall clearance', async () => {
   const value = response(1);
   value.inspection!.issues = [{ kind: 'inside_solid', startSeconds: 1, endSeconds: 2, affectedFraction: 1 }];
   renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
-  expect(await screen.findByText('机位位于地图实体内部')).toBeTruthy();
+  expect(await screen.findByText('镜头进入了墙体或地形')).toBeTruthy();
   expect(screen.getByText('1.00–2.00 秒')).toBeTruthy();
-  expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
+  expect(screen.queryByText('暂未发现镜头问题。')).toBeNull();
 });
 
 function response(revision: number): ProjectCameraPreviewResponse {
@@ -53,7 +53,7 @@ it('does not present unavailable geometry as a clear shot', async () => {
   value.inspection!.geometryUnavailable = 'CS2 installation unavailable';
   renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
   expect(await screen.findByText('未能检查地图遮挡。可在设置中准备地图后重试。')).toBeTruthy();
-  expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
+  expect(screen.queryByText('暂未发现镜头问题。')).toBeNull();
 });
 
 it('shows an observed POV preview without claiming that a generated camera was checked', async () => {
@@ -62,7 +62,7 @@ it('shows an observed POV preview without claiming that a generated camera was c
   value.inspection = null;
   renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
   expect(await screen.findByTestId('camera-preview')).toBeTruthy();
-  expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
+  expect(screen.queryByText('暂未发现镜头问题。')).toBeNull();
 });
 
 it('never displays a late reply from an older Project Head', async () => {
@@ -73,7 +73,7 @@ it('never displays a late reply from an older Project Head', async () => {
   const view = renderInteractive(tree({ getProjectCameraPreview }));
   await waitFor(() => expect(getProjectCameraPreview).toHaveBeenCalledTimes(1));
   view.rerender(tree({ getProjectCameraPreview }, 2));
-  expect(await screen.findByText('当前采样未发现镜头问题。')).toBeTruthy();
+  expect(await screen.findByText('暂未发现镜头问题。')).toBeTruthy();
   const old = response(1);
   old.inspection!.geometryUnavailable = 'OLD HEAD RESULT';
   await act(async () => { resolveOld(old); await pending; });

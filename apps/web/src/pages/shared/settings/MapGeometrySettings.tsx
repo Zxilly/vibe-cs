@@ -7,7 +7,7 @@ import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Button } from '../../../design/primitives';
 import type { MapGeometryCacheState } from '../../../shared/desktop/dto';
-import { formatBytes, SettingsBlock } from './settingsShared';
+import { SettingsBlock } from './settingsShared';
 
 const mapNames: Record<string, string> = {
   de_mirage: 'Mirage', de_dust2: 'Dust II', de_inferno: 'Inferno', de_nuke: 'Nuke',
@@ -35,13 +35,13 @@ export function MapGeometrySettings() {
   const rebuildError = dataErrorMessage(rebuild.error);
   return (
     <SettingsBlock id="map-geometry" title={<Trans>地图 3D 预演</Trans>}
-      description={<Trans>从本机 CS2 生成简化地图，用于回放和镜头预演。游戏更新后会自动重新生成，文件只保存在本机。</Trans>}
+      description={<Trans>准备回放和镜头预演所需的地图。</Trans>}
       actions={<Button variant="ghost" size="sm" onClick={() => void status.refetch()}><Trans>刷新状态</Trans></Button>}
     >
       {error !== null ? <Alert variant="warning" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}><Trans>暂时读不到地图，请先确认上方的 CS2 位置。</Trans> {error}</Alert> : null}
       {rebuildError !== null ? <Alert variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => rebuild.reset() }}><Trans>地图没有生成成功：</Trans>{rebuildError}</Alert> : null}
       {status.isPending ? <Skeleton /> : null}
-      <ul className="divide-y divide-divider" aria-label={t`地图几何状态`}>
+      <ul className="divide-y divide-divider" aria-label={t`地图状态`}>
         {(status.data ?? []).map((map) => {
           const name = mapNames[map.map_name] ?? map.map_name;
           const active = rebuild.isPending && rebuild.variables === map.map_name;
@@ -55,7 +55,6 @@ export function MapGeometrySettings() {
                   <span className="text-sm font-medium">{name}</span>
                   <span className="inline-flex items-center gap-1.5 text-xs text-neutral-600" role="status">
                     <StatusDot status={dots[state]} size="sm" />{stateLabel(state)}
-                    {state === 'ready' && map.bytes !== null ? <span className="tabular-nums">{formatBytes(map.bytes)}</span> : null}
                   </span>
                 </div>
                 {map.reason !== null && state === 'failed' ? <p className="mt-1 break-words text-sm text-fail">{map.reason}</p> : null}

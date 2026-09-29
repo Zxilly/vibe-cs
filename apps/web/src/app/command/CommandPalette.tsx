@@ -265,7 +265,7 @@ export function CommandPalette({
             {/* States the matching contract instead of apologising: the search
                 is prefix / substring only, so "为什么搜不到" has an answer. */}
             <p className="text-xs leading-normal text-neutral-600">
-              <Trans>换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。</Trans>
+              <Trans>请尝试更短的关键词或页面名称。</Trans>
             </p>
           </div>
         ) : (

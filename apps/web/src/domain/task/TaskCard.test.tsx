@@ -20,7 +20,7 @@ const DONE: TaskSummary = {
   artifacts: [{ id: 'out', label: '查看结果 Kael_Mirage_1v3.mp4', href: '#/delivery/outputs/1' }],
 };
 
-/** 「分析 · Kestrel vs Halcyon · 运行中 · 阶段 3/5 位置采样 · 已用 1 分 52 秒」. */
+/** 「分析 · Kestrel vs Halcyon · 运行中 · 阶段 3/5 准备回放 · 已用 1 分 52 秒」. */
 const RUNNING: TaskSummary = {
   id: '#N-908',
   kind: 'analysis',
@@ -28,7 +28,7 @@ const RUNNING: TaskSummary = {
   subject: 'Kestrel vs Halcyon',
   startedAt: '2026-08-15T08:50:00Z',
   durationMs: MINUTE + 52 * SECOND,
-  stage: { id: 'projecting', label: '位置采样', index: 3, count: 5 },
+  stage: { id: 'projecting', label: '准备回放', index: 3, count: 5 },
   progress: { completed: 62, total: 100, unit: 'percent' },
 };
 
@@ -97,11 +97,11 @@ describe('TaskCard', () => {
     expect(renderMarkup(<TaskCard task={DONE} {...UTC} />)).toContain('08-15 09:12');
   });
 
-  it('writes 「阶段 3/5 位置采样」 when the backend gave a position', () => {
+  it('writes 「阶段 3/5 准备回放」 when the backend gave a position', () => {
     const markup = renderMarkup(<TaskCard task={RUNNING} {...UTC} />);
 
     expect(markup).toContain('阶段 3/5');
-    expect(markup).toContain('位置采样');
+    expect(markup).toContain('准备回放');
   });
 });
 

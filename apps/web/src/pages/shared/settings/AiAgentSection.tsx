@@ -3,7 +3,7 @@
  * Agent 会话历史与设置」).
  *
  * The fifth round renamed 「AI」 to 「AI 与 Agent」 and split it into three
- * blocks: 模型 / 会话 / 行为边界. All three are drawn here; what is *in* them is
+ * blocks: 模型 / 会话 / 操作确认. All three are drawn here; what is *in* them is
  * only what the wire carries.
  *
  * ═══════════════════════════════════════════════════════════════════════════
@@ -42,7 +42,7 @@
  * ── The five switches that used to have nowhere to go ────────────────────
  *
  * 「自动带入当前选中的 Demo 与选手」 in 会话, and 「应用剪辑变更前先预览」 /
- * 「显示 Agent 读取了哪些证据」 / 「默认成片时长」 / 「点评语气」 in 行为边界
+ * 「显示 Agent 读取了哪些证据」 / 「默认成片时长」 / 「点评语气」 in 操作确认
  * were all absent through phase 3e, because `AgentWorkspaceSettings` was
  * `{ session_retention, take_limit }` and a switch with nowhere to store its
  * answer lies the moment the panel is reopened.
@@ -281,7 +281,7 @@ export function AiAgentSection() {
 
       <SettingsBlock
         id="behavior"
-        title={<Trans>行为边界</Trans>}
+        title={<Trans>操作确认</Trans>}
         description={<Trans>Agent 做视频时默认遵守的规则。</Trans>}
       >
         <SettingsSwitch
@@ -555,7 +555,7 @@ function ModelBlock({
           />
           <Field
             label={<Trans>自定义指令</Trans>}
-            hint={<Trans>这些指令会随每轮请求发送给模型。留空时使用 Agent 的系统指令。</Trans>}
+            hint={<Trans>留空使用默认指令。</Trans>}
           >
             {(control) => (
               <Textarea {...control} rows={2} value={draft.prompt} disabled={disabled}
@@ -606,7 +606,7 @@ function validateProviderParameterObject(parameters: ProviderParameterObject | n
   if (parameters === null) return t`请输入 JSON 对象（键值对象）`;
   const reserved = Object.keys(parameters).find((key) =>
     RUNTIME_PROVIDER_PARAMETER_KEYS.has(key.toLowerCase()));
-  if (reserved !== undefined) return t`${reserved} 由 Agent 运行时统一生成`;
+  if (reserved !== undefined) return t`${reserved} 由应用管理，请移除该项`;
   return null;
 }
 
@@ -745,7 +745,7 @@ function ProviderParametersEditor({
         </Field>
         {rawError === null ? null : <p className="text-xs text-danger">{rawError}</p>}
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>Agent 运行时统一生成 model、messages、tools、tool_choice、stream 与认证字段。</Trans>
+          <Trans>模型、消息、工具和认证参数由应用管理，无需填写。</Trans>
         </p>
       </div>
     </details>
@@ -888,7 +888,7 @@ function VideoLengthRow({ value, disabled, disabledReason, onCommit }: VideoLeng
   return (
     <SettingsRow
       label={<Trans>默认成片时长</Trans>}
-      hint={<Trans>Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。</Trans>}
+      hint={<Trans>用于规划剪辑时长，不会裁切成片。</Trans>}
       {...(disabledReason === undefined ? {} : { disabledReason })}
     >
       <div className="flex w-40 flex-col gap-1">

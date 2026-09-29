@@ -185,7 +185,7 @@ describe('TaskDetail · technical details', () => {
     expect(markup).toContain('<details');
     expect(markup).not.toContain('<details open');
     expect(markup).toContain('技术细节');
-    expect(markup).toContain('进程、tick、编码参数');
+    expect(markup).toContain('查看诊断信息');
   });
 
   it('can expose export metadata on first paint', () => {

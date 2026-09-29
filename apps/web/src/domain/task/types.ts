@@ -124,7 +124,7 @@ export interface TaskProgress {
 export interface TaskStagePosition {
   /** Stage id, e.g. `capture`. Matches `taskStages.ts`'s sequence for the kind. */
   readonly id: string;
-  /** 「位置采样」. `ActivityItem.stage` after the page has named it. */
+  /** 「准备回放」. `ActivityItem.stage` after the page has named it. */
   readonly label: ReactNode;
   /** 1-based, for 「阶段 3/5」. Omitted when the kind has no drawn sequence. */
   readonly index?: number | undefined;

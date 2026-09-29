@@ -130,7 +130,7 @@ function analysisEventLabels(): Readonly<Record<AnalysisRunEventCode, ReactNode>
     input_verified: <Trans>输入文件校验通过</Trans>,
     parser_started: <Trans>开始解析比赛数据</Trans>,
     input_revalidation_started: <Trans>解析后复核输入</Trans>,
-    projection_started: <Trans>开始位置采样</Trans>,
+    projection_started: <Trans>开始准备回放</Trans>,
     completed: <Trans>分析完成</Trans>,
     failed: <Trans>分析失败</Trans>,
     interrupted: <Trans>分析被中断</Trans>,

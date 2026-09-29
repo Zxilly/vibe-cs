@@ -47,7 +47,7 @@ msgid "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 
 msgstr "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
 
 #. placeholder {0}: watchPaths.length
-#: src/pages/shared/settings/FilesSection.tsx:260
+#: src/pages/shared/settings/FilesSection.tsx:259
 msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个目录里的新 Demo 会自动进入资料库。}}"
 msgstr "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个目录里的新 Demo 会自动进入资料库。}}"
 
@@ -166,7 +166,7 @@ msgid "{0} · 第 {1} 回合"
 msgstr "{0} · 第 {1} 回合"
 
 #. placeholder {0}: keyframe.property
-#: src/domain/editing/ClipInspector.tsx:527
+#: src/domain/editing/ClipInspector.tsx:526
 msgid "{0} {label}"
 msgstr "{0} {label}"
 
@@ -182,17 +182,17 @@ msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} 个回合有首杀 · {1} 条未归属"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1593
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1591
 msgid "{0} 个素材未就绪"
 msgstr "{0} 个素材未就绪"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:702
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:701
 msgid "{0} 个素材未就绪，检查素材面板里标红的片段"
 msgstr "{0} 个素材未就绪，检查素材面板里标红的片段"
 
 #. placeholder {0}: deliveryBlockers.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:701
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:700
 msgid "{0} 个素材还没录制，先录制缺失片段"
 msgstr "{0} 个素材还没录制，先录制缺失片段"
 
@@ -253,7 +253,7 @@ msgid "{0} 对位 {1} 打出 {2} 比 {3}"
 msgstr "{0} 对位 {1} 打出 {2} 比 {3}"
 
 #. placeholder {0}: selected.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1925
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1920
 msgid "{0} 战术示意"
 msgstr "{0} 战术示意"
 
@@ -276,7 +276,7 @@ msgid "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 msgstr "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 
 #. placeholder {0}: keyframe.property
-#: src/domain/editing/ClipInspector.tsx:496
+#: src/domain/editing/ClipInspector.tsx:495
 msgid "{0} 插值"
 msgstr "{0} 插值"
 
@@ -334,8 +334,8 @@ msgid "{0} 视频预览"
 msgstr "{0} 视频预览"
 
 #. placeholder {0}: shown.toFixed(1)
-#: src/pages/shared/settings/GameSection.tsx:407
-#: src/pages/shared/settings/GameSection.tsx:412
+#: src/pages/shared/settings/GameSection.tsx:408
+#: src/pages/shared/settings/GameSection.tsx:413
 msgid "{0} 秒"
 msgstr "{0} 秒"
 
@@ -392,12 +392,12 @@ msgstr "{0}% 的头胸视线被遮挡"
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
 #. placeholder {1}: next.status === 'cancelled' ? '已取消' : '失败'
 #. placeholder {2}: next.error ?? '未提供错误详情'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:405
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:404
 msgid "{0}任务{1}：{2}。请说明影响和下一步。"
 msgstr "{0}任务{1}：{2}。请说明影响和下一步。"
 
 #. placeholder {0}: next.kind === 'recording' ? '录制' : '导出'
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:404
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:403
 msgid "{0}任务已完成。请重新读取作品和交付状态，然后继续。"
 msgstr "{0}任务已完成。请重新读取作品和交付状态，然后继续。"
 
@@ -467,8 +467,8 @@ msgid "{removed, plural, other {已删除 # 条对话，剪辑单、后台任务
 msgstr "{removed, plural, other {已删除 # 条对话，剪辑单、后台任务和成片都还在}}"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:609
-msgid "{reserved} 由 Agent 运行时统一生成"
-msgstr "{reserved} 由 Agent 运行时统一生成"
+msgid "{reserved} 由应用管理，请移除该项"
+msgstr "{reserved} 由应用管理，请移除该项"
 
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:116
 msgid "{rest} 秒"
@@ -617,7 +617,7 @@ msgstr "2D 回放定位"
 msgid "2D 地图"
 msgstr "2D 地图"
 
-#: src/pages/shared/settings/FilesSection.tsx:303
+#: src/pages/shared/settings/FilesSection.tsx:302
 msgid "32 位十六进制密钥"
 msgstr "32 位十六进制密钥"
 
@@ -661,8 +661,8 @@ msgid "ADR"
 msgstr "ADR"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:176
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1548
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1599
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1546
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1597
 msgid "Agent"
 msgstr "Agent"
 
@@ -673,10 +673,6 @@ msgstr "Agent · 完整回复"
 #: src/domain/editing/ProjectAgentPanel.tsx:235
 msgid "Agent · 工具"
 msgstr "Agent · 工具"
-
-#: src/pages/shared/settings/AiAgentSection.tsx:891
-msgid "Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。"
-msgstr "Agent 会以这个时长规划剪辑单，不会强行截断更长的成片。"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:467
 msgid "Agent 使用的模型和连接方式。"
@@ -719,11 +715,11 @@ msgstr "Agent 正在回复"
 msgid "Agent 正在编辑 · 你暂时只能查看"
 msgstr "Agent 正在编辑 · 你暂时只能查看"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:689
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:688
 msgid "Agent 正在编辑，完成后再导出"
 msgstr "Agent 正在编辑，完成后再导出"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:680
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:679
 msgid "Agent 正在编辑，完成后再录制"
 msgstr "Agent 正在编辑，完成后再录制"
 
@@ -735,13 +731,9 @@ msgstr "Agent 正在编辑，完成后才能继续对话"
 msgid "Agent 正在编辑，完成后才能调整"
 msgstr "Agent 正在编辑，完成后才能调整"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1595
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1593
 msgid "Agent 编辑中 · 只读"
 msgstr "Agent 编辑中 · 只读"
-
-#: src/pages/shared/settings/AiAgentSection.tsx:748
-msgid "Agent 运行时统一生成 model、messages、tools、tool_choice、stream 与认证字段。"
-msgstr "Agent 运行时统一生成 model、messages、tools、tool_choice、stream 与认证字段。"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:173
 msgid "Agent 面板"
@@ -769,7 +761,7 @@ msgstr "API 密钥"
 msgid "API 密钥和私密请求头由上方的连接配置保管。"
 msgstr "API 密钥和私密请求头由上方的连接配置保管。"
 
-#: src/pages/shared/settings/GameSection.tsx:132
+#: src/pages/shared/settings/GameSection.tsx:133
 msgid "CS2 位置"
 msgstr "CS2 位置"
 
@@ -795,15 +787,6 @@ msgstr "D"
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:940
-msgid "Demo tick {startTick}–{endTick}"
-msgstr "Demo tick {startTick}–{endTick}"
-
-#. placeholder {0}: currentTick ?? displayed.tick
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2060
-msgid "Demo tick: {0}"
-msgstr "Demo tick: {0}"
-
 #: src/pages/analysis/match/views/viewChrome.tsx:346
 msgid "Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。反复失败时，到<0>设置与诊断</0>导出诊断包。"
 msgstr "Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。反复失败时，到<0>设置与诊断</0>导出诊断包。"
@@ -827,12 +810,12 @@ msgstr "Demo 资料库 · 表格视图"
 msgid "Demo 选材"
 msgstr "Demo 选材"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1664
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1662
 msgid "Fit Clip：范围时长不同"
 msgstr "Fit Clip：范围时长不同"
 
-#: src/pages/shared/settings/GameSection.tsx:214
-#: src/pages/shared/settings/GameSection.tsx:217
+#: src/pages/shared/settings/GameSection.tsx:215
+#: src/pages/shared/settings/GameSection.tsx:218
 msgid "HUD"
 msgstr "HUD"
 
@@ -905,20 +888,16 @@ msgstr "Review 分区"
 msgid "Solo：只监听所有已 Solo 的音频轨"
 msgstr "Solo：只监听所有已 Solo 的音频轨"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1675
-msgid "Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点编辑。"
-msgstr "Source In/Out 与 Timeline In/Out 时长不同。选择如何满足四点编辑。"
-
 #. placeholder {0}: formatSyncedAt(syncedAt)
 #: src/pages/shared/library/history/HistoryPage.tsx:131
 msgid "Steam · 上次同步 {0}"
 msgstr "Steam · 上次同步 {0}"
 
-#: src/pages/shared/settings/FilesSection.tsx:280
+#: src/pages/shared/settings/FilesSection.tsx:279
 msgid "Steam ID"
 msgstr "Steam ID"
 
-#: src/pages/shared/settings/FilesSection.tsx:293
+#: src/pages/shared/settings/FilesSection.tsx:292
 msgid "Steam Web API 密钥"
 msgstr "Steam Web API 密钥"
 
@@ -926,7 +905,7 @@ msgstr "Steam Web API 密钥"
 #: src/pages/shared/library/LibraryPage.tsx:113
 #: src/pages/shared/library/LibraryPage.tsx:435
 #: src/pages/shared/library/LibraryPage.tsx:438
-#: src/pages/shared/settings/FilesSection.tsx:272
+#: src/pages/shared/settings/FilesSection.tsx:271
 msgid "Steam 下载"
 msgstr "Steam 下载"
 
@@ -934,7 +913,7 @@ msgstr "Steam 下载"
 msgid "Steam 比赛历史"
 msgstr "Steam 比赛历史"
 
-#: src/pages/shared/settings/FilesSection.tsx:312
+#: src/pages/shared/settings/FilesSection.tsx:311
 msgid "Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。"
 msgstr "Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。"
 
@@ -943,11 +922,11 @@ msgstr "Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。"
 msgid "Steam 设置"
 msgstr "Steam 设置"
 
-#: src/pages/shared/settings/FilesSection.tsx:310
+#: src/pages/shared/settings/FilesSection.tsx:309
 msgid "Steam 验证码"
 msgstr "Steam 验证码"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:902
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:901
 msgid "Story（内嵌音频）"
 msgstr "Story（内嵌音频）"
 
@@ -990,20 +969,16 @@ msgstr "Through Edit 标记"
 msgid "Top P"
 msgstr "Top P"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:181
-msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
-msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
-
 #: src/pages/analysis/evidence/evidenceEventLabel.ts:38
 msgctxt "evidence-event"
 msgid "一枪"
 msgstr "一枪"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:41
+#: src/pages/shared/onboarding/GuidePage.tsx:42
 msgid "三步做出第一条视频，以及这台机器现在能做什么"
 msgstr "三步做出第一条视频，以及这台机器现在能做什么"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:329
+#: src/pages/shared/settings/AdvancedSection.tsx:314
 msgid "三步做出第一条视频，以及这台机器现在能做什么。"
 msgstr "三步做出第一条视频，以及这台机器现在能做什么。"
 
@@ -1011,11 +986,11 @@ msgstr "三步做出第一条视频，以及这台机器现在能做什么。"
 msgid "上一个修改"
 msgstr "上一个修改"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:714
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:713
 msgid "上一个修改还在保存，稍后再改"
 msgstr "上一个修改还在保存，稍后再改"
 
-#: src/domain/editing/ClipInspector.tsx:553
+#: src/domain/editing/ClipInspector.tsx:552
 msgid "上一个关键帧"
 msgstr "上一个关键帧"
 
@@ -1045,7 +1020,7 @@ msgstr "上一帧"
 msgid "上一页"
 msgstr "上一页"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:959
+#: src/domain/editing/ProjectMediaWorkspace.tsx:960
 msgid "上次代理生成失败，可以重新生成"
 msgstr "上次代理生成失败，可以重新生成"
 
@@ -1062,13 +1037,13 @@ msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 msgstr "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 
 #. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
-#: src/pages/shared/settings/AdvancedSection.tsx:159
-#: src/pages/shared/settings/GameSection.tsx:284
+#: src/pages/shared/settings/AdvancedSection.tsx:157
+#: src/pages/shared/settings/GameSection.tsx:285
 msgid "上次检查 {0}"
 msgstr "上次检查 {0}"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:655
+#: src/domain/editing/ClipInspector.tsx:654
 msgid "上移效果 {0}"
 msgstr "上移效果 {0}"
 
@@ -1080,7 +1055,7 @@ msgstr "上移轨道"
 msgid "下一个修改"
 msgstr "下一个修改"
 
-#: src/domain/editing/ClipInspector.tsx:560
+#: src/domain/editing/ClipInspector.tsx:559
 msgid "下一个关键帧"
 msgstr "下一个关键帧"
 
@@ -1106,7 +1081,7 @@ msgstr "下一回合"
 msgid "下一帧"
 msgstr "下一帧"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:89
+#: src/pages/shared/onboarding/GuidePage.tsx:90
 msgid "下一步"
 msgstr "下一步"
 
@@ -1124,7 +1099,7 @@ msgid "下包"
 msgstr "下包"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:656
+#: src/domain/editing/ClipInspector.tsx:655
 msgid "下移效果 {0}"
 msgstr "下移效果 {0}"
 
@@ -1153,9 +1128,9 @@ msgstr "下载后自动分析"
 msgid "下载失败"
 msgstr "下载失败"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:239
-msgid "下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到应用数据目录。"
-msgstr "下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到应用数据目录。"
+#: src/pages/shared/settings/AdvancedSection.tsx:225
+msgid "下载并安装录制所需组件。"
+msgstr "下载并安装录制所需组件。"
 
 #. placeholder {0}: selected.size
 #: src/pages/shared/library/history/HistoryPage.tsx:195
@@ -1180,13 +1155,9 @@ msgstr "不再显示"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:921
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:175
-#: src/pages/shared/settings/AdvancedSection.tsx:196
+#: src/pages/shared/settings/AdvancedSection.tsx:193
 msgid "不可用"
 msgstr "不可用"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:192
-msgid "不可用时录制无法启动。"
-msgstr "不可用时录制无法启动。"
 
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:106
 msgid "不接受符号链接根目录"
@@ -1241,20 +1212,20 @@ msgstr "为改善画面，录制将改用{0}机位。"
 msgid "主导航"
 msgstr "主导航"
 
+#: src/domain/editing/ProjectAgentPanel.tsx:710
+msgid "主轨道已替换。"
+msgstr "主轨道已替换。"
+
 #: src/pages/shared/settings/AppSection.tsx:114
 #: src/pages/shared/settings/AppSection.tsx:122
 msgid "主题"
 msgstr "主题"
 
-#: src/pages/shared/settings/FilesSection.tsx:119
-msgid "之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。"
-msgstr "之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。"
-
 #: src/domain/editing/ProjectTimeline.tsx:6411
 #: src/domain/editing/ProjectTimeline.tsx:6412
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:156
 #: src/pages/analysis/match/views/RoundsView.tsx:276
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2057
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2052
 msgid "事件"
 msgstr "事件"
 
@@ -1309,7 +1280,7 @@ msgstr "交火"
 msgid "交火：这一段没有交战方向"
 msgstr "交火：这一段没有交战方向"
 
-#: src/domain/editing/ClipInspector.tsx:882
+#: src/domain/editing/ClipInspector.tsx:881
 msgid "亮度"
 msgstr "亮度"
 
@@ -1327,7 +1298,7 @@ msgstr "仅爆头"
 msgid "仍有镜头问题，可调整录制视角或范围后重新检查。"
 msgstr "仍有镜头问题，可调整录制视角或范围后重新检查。"
 
-#: src/pages/shared/settings/FilesSection.tsx:329
+#: src/pages/shared/settings/FilesSection.tsx:328
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 
@@ -1339,7 +1310,7 @@ msgstr "从 Demo 中找到精彩片段，加入作品后录制并导出成片。
 msgid "从 Demo 创建剪辑"
 msgstr "从 Demo 创建剪辑"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:51
+#: src/pages/shared/onboarding/GuidePage.tsx:52
 msgid "从 Demo 到第一条视频"
 msgstr "从 Demo 到第一条视频"
 
@@ -1367,10 +1338,6 @@ msgstr "从所选片段创建嵌套序列…"
 msgid "从时间轴选择一个片段"
 msgstr "从时间轴选择一个片段"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:38
-msgid "从本机 CS2 生成简化地图，用于回放和镜头预演。游戏更新后会自动重新生成，文件只保存在本机。"
-msgstr "从本机 CS2 生成简化地图，用于回放和镜头预演。游戏更新后会自动重新生成，文件只保存在本机。"
-
 #. placeholder {0}: clip.name
 #: src/domain/editing/ProjectTimeline.tsx:5051
 msgid "从终点比率伸缩 {0}"
@@ -1395,11 +1362,11 @@ msgid "代理失败"
 msgstr "代理失败"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:923
-#: src/domain/editing/ProjectMediaWorkspace.tsx:975
+#: src/domain/editing/ProjectMediaWorkspace.tsx:976
 msgid "代理就绪"
 msgstr "代理就绪"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:957
+#: src/domain/editing/ProjectMediaWorkspace.tsx:958
 msgid "代理已就绪；重新生成会替换现有代理文件"
 msgstr "代理已就绪；重新生成会替换现有代理文件"
 
@@ -1416,6 +1383,10 @@ msgstr "以剪辑点为中心"
 #: src/pages/shared/tasks/TaskCenterPage.tsx:47
 msgid "任务中心"
 msgstr "任务中心"
+
+#: src/pages/shared/tasks/TaskDetailPage.tsx:44
+msgid "任务地址无效，请从任务列表重新打开。"
+msgstr "任务地址无效，请从任务列表重新打开。"
 
 #: src/domain/task/TaskDetail.tsx:201
 msgid "任务概览"
@@ -1470,10 +1441,6 @@ msgstr "位置 X"
 msgid "位置 Y"
 msgstr "位置 Y"
 
-#: src/domain/task/taskModel.tsx:169
-msgid "位置采样"
-msgstr "位置采样"
-
 #. placeholder {0}: printValue(metric, points.length === 0 ? null : geometry.minimum)
 #: src/pages/analysis/players/PlayerTrend.tsx:207
 msgid "低 {0}"
@@ -1483,7 +1450,7 @@ msgstr "低 {0}"
 msgid "作业编号"
 msgstr "作业编号"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1570
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1568
 #: src/pages/editing/projects/ProjectsPage.tsx:43
 #: src/terminology.ts:32
 msgid "作品"
@@ -1502,13 +1469,13 @@ msgstr "作品、时间轴、录制与成品"
 msgid "作品：{scopeLabel}"
 msgstr "作品：{scopeLabel}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1609
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1808
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1607
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1806
 msgid "作品任务"
 msgstr "作品任务"
 
 #. placeholder {0}: activeExecutions.length
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1582
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1580
 msgid "作品任务 {0}"
 msgstr "作品任务 {0}"
 
@@ -1525,8 +1492,8 @@ msgid "作品可能已被修改，请在作品的修订历史里撤销。"
 msgstr "作品可能已被修改，请在作品的修订历史里撤销。"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:594
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:604
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:593
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:603
 msgid "作品工作区"
 msgstr "作品工作区"
 
@@ -1561,8 +1528,8 @@ msgstr "你仍可查看预览和时间轴。Agent 完成后即可继续编辑。
 
 #: src/app/command/commandRegistry.ts:228
 #: src/app/routeCrumb.ts:74
-#: src/pages/shared/onboarding/GuidePage.tsx:40
-#: src/pages/shared/settings/AdvancedSection.tsx:328
+#: src/pages/shared/onboarding/GuidePage.tsx:41
+#: src/pages/shared/settings/AdvancedSection.tsx:313
 msgid "使用引导"
 msgstr "使用引导"
 
@@ -1574,7 +1541,7 @@ msgstr "使用提供方默认值"
 msgid "例如：R21 的穿墙点可做教学"
 msgstr "例如：R21 的穿墙点可做教学"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:124
+#: src/pages/shared/settings/AdvancedSection.tsx:125
 msgid "依赖检查"
 msgstr "依赖检查"
 
@@ -1583,7 +1550,7 @@ msgstr "依赖检查"
 msgid "保存"
 msgstr "保存"
 
-#: src/pages/shared/settings/FilesSection.tsx:380
+#: src/pages/shared/settings/FilesSection.tsx:376
 msgid "保存 Steam 设置"
 msgstr "保存 Steam 设置"
 
@@ -1622,7 +1589,7 @@ msgstr "保存标记"
 msgid "保存模型设置"
 msgstr "保存模型设置"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1337
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1338
 msgid "保存片段标记"
 msgstr "保存片段标记"
 
@@ -1639,7 +1606,7 @@ msgstr "保存的视图只保留到关闭应用为止"
 msgid "保存面板的位置、大小和分组，可用于其他作品。切换布局会载入已保存的位置；切换前请保存需要保留的调整。"
 msgstr "保存面板的位置、大小和分组，可用于其他作品。切换布局会载入已保存的位置；切换前请保存需要保留的调整。"
 
-#: src/domain/editing/ClipInspector.tsx:506
+#: src/domain/editing/ClipInspector.tsx:505
 msgid "保持"
 msgstr "保持"
 
@@ -1668,9 +1635,13 @@ msgstr "保留策略没有应用成功"
 msgid "修剪模式"
 msgstr "修剪模式"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:317
+#: src/pages/shared/settings/AdvancedSection.tsx:302
 msgid "修复损坏的配置和残留文件，或重看三步引导。"
 msgstr "修复损坏的配置和残留文件，或重看三步引导。"
+
+#: src/pages/shared/settings/AdvancedSection.tsx:306
+msgid "修复配置或清理残留文件。"
+msgstr "修复配置或清理残留文件。"
 
 #: src/terminology.ts:29
 msgid "修改"
@@ -1751,11 +1722,11 @@ msgstr "停止这次录制？"
 msgid "停用代理预览"
 msgstr "停用代理预览"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1459
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1457
 msgid "允许 Agent 请求的导出操作。"
 msgstr "允许 Agent 请求的导出操作。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1447
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1445
 msgid "允许 Agent 请求的录制操作。"
 msgstr "允许 Agent 请求的录制操作。"
 
@@ -1826,7 +1797,7 @@ msgstr "先配置 Agent 模型"
 msgid "入出点范围 {0} 到 {1}"
 msgstr "入出点范围 {0} 到 {1}"
 
-#: src/domain/editing/ClipInspector.tsx:516
+#: src/domain/editing/ClipInspector.tsx:515
 msgid "入切线"
 msgstr "入切线"
 
@@ -1848,7 +1819,7 @@ msgstr "入点 {0} · 出点 {1}"
 msgid "入点已设置"
 msgstr "入点已设置"
 
-#: src/domain/editing/ClipInspector.tsx:845
+#: src/domain/editing/ClipInspector.tsx:844
 msgid "入点须早于出点"
 msgstr "入点须早于出点"
 
@@ -1885,7 +1856,7 @@ msgid "全部作品"
 msgstr "全部作品"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:848
-#: src/pages/shared/settings/GameSection.tsx:306
+#: src/pages/shared/settings/GameSection.tsx:307
 msgid "全部保留"
 msgstr "全部保留"
 
@@ -1905,7 +1876,7 @@ msgstr "全部就绪"
 msgid "全部状态"
 msgstr "全部状态"
 
-#: src/pages/shared/settings/GameSection.tsx:310
+#: src/pages/shared/settings/GameSection.tsx:311
 msgid "全部静音"
 msgstr "全部静音"
 
@@ -1988,8 +1959,8 @@ msgstr "关键帧"
 msgid "关键帧 {0} {count} 个属性"
 msgstr "关键帧 {0} {count} 个属性"
 
+#: src/domain/editing/ClipInspector.tsx:488
 #: src/domain/editing/ClipInspector.tsx:489
-#: src/domain/editing/ClipInspector.tsx:490
 msgid "关键帧插值"
 msgstr "关键帧插值"
 
@@ -2014,7 +1985,7 @@ msgstr "关键词：{0}"
 
 #: src/app/command/CommandPalette.tsx:256
 #: src/design/layout/Inspector.tsx:267
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1829
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1827
 msgid "关闭"
 msgstr "关闭"
 
@@ -2023,7 +1994,7 @@ msgid "关闭 Solo"
 msgstr "关闭 Solo"
 
 #. placeholder {0}: item?.name ?? id
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1859
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1857
 msgid "关闭序列 {0}"
 msgstr "关闭序列 {0}"
 
@@ -2125,7 +2096,7 @@ msgstr "最近出场"
 msgid "最近出场 {lastSeen}"
 msgstr "最近出场 {lastSeen}"
 
-#: src/pages/shared/settings/FilesSection.tsx:327
+#: src/pages/shared/settings/FilesSection.tsx:326
 msgid "最近分享代码"
 msgstr "最近分享代码"
 
@@ -2166,7 +2137,7 @@ msgstr "写注释"
 msgid "决定对话列表保留多久。成片和后台任务不会删除。"
 msgstr "决定对话列表保留多久。成片和后台任务不会删除。"
 
-#: src/pages/shared/settings/GameSection.tsx:236
+#: src/pages/shared/settings/GameSection.tsx:237
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "决定录制音轨里保留谁的语音。"
 
@@ -2174,11 +2145,19 @@ msgstr "决定录制音轨里保留谁的语音。"
 msgid "冻结结束装备价值（$）"
 msgstr "冻结结束装备价值（$）"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:236
+#: src/domain/task/taskModel.tsx:169
+msgid "准备回放"
+msgstr "准备回放"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:38
+msgid "准备回放和镜头预演所需的地图。"
+msgstr "准备回放和镜头预演所需的地图。"
+
+#: src/pages/shared/settings/AdvancedSection.tsx:222
 msgid "准备采集组件"
 msgstr "准备采集组件"
 
-#: src/domain/editing/ClipInspector.tsx:517
+#: src/domain/editing/ClipInspector.tsx:516
 msgid "出切线"
 msgstr "出切线"
 
@@ -2194,7 +2173,7 @@ msgstr "出点已设置"
 msgid "出点必须晚于入点。请取消并调整选材范围，作品尚未修改。"
 msgstr "出点必须晚于入点。请取消并调整选材范围，作品尚未修改。"
 
-#: src/domain/editing/ClipInspector.tsx:846
+#: src/domain/editing/ClipInspector.tsx:845
 msgid "出点须晚于入点"
 msgstr "出点须晚于入点"
 
@@ -2274,10 +2253,6 @@ msgstr "分析中"
 msgid "分析任务已提交，可在后台任务中查看进度。"
 msgstr "分析任务已提交，可在后台任务中查看进度。"
 
-#: src/design/data/Empty.tsx:141
-msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
-msgstr "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
-
 #. placeholder {0}: String(value)
 #: src/shared/desktop/client.ts:361
 msgid "分析响应包含未知阵营：{0}"
@@ -2311,6 +2286,10 @@ msgstr "分析模式"
 #: src/pages/analysis/players/PlayersPage.tsx:370
 msgid "分析比赛后，参赛选手会出现在这里。"
 msgstr "分析比赛后，参赛选手会出现在这里。"
+
+#: src/design/data/Empty.tsx:141
+msgid "分析比赛后即可查看回合、事件和高光。"
+msgstr "分析比赛后即可查看回合、事件和高光。"
 
 #: src/domain/task/taskDetailModel.tsx:136
 msgid "分析被中断"
@@ -2468,8 +2447,8 @@ msgstr "删除所选标记"
 msgid "删除所选片段并闭合间隙"
 msgstr "删除所选片段并闭合间隙"
 
-#: src/domain/editing/ClipInspector.tsx:476
-#: src/domain/editing/ClipInspector.tsx:597
+#: src/domain/editing/ClipInspector.tsx:475
+#: src/domain/editing/ClipInspector.tsx:596
 msgid "删除播放头的 {label} 关键帧"
 msgstr "删除播放头的 {label} 关键帧"
 
@@ -2478,7 +2457,7 @@ msgid "删除播放头的轨道关键帧"
 msgstr "删除播放头的轨道关键帧"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:657
+#: src/domain/editing/ClipInspector.tsx:656
 msgid "删除效果 {0}"
 msgstr "删除效果 {0}"
 
@@ -2499,7 +2478,7 @@ msgstr "删除标记"
 msgid "删除此布局…"
 msgstr "删除此布局…"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1323
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1324
 msgid "删除片段标记"
 msgstr "删除片段标记"
 
@@ -2555,7 +2534,7 @@ msgstr "剃刀工具 (C)"
 msgid "前 Out"
 msgstr "前 Out"
 
-#: src/pages/shared/settings/GameSection.tsx:199
+#: src/pages/shared/settings/GameSection.tsx:200
 msgid "前留白"
 msgstr "前留白"
 
@@ -2594,7 +2573,7 @@ msgid "剪辑模式"
 msgstr "剪辑模式"
 
 #. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/shared/settings/GameSection.tsx:173
+#: src/pages/shared/settings/GameSection.tsx:174
 msgid "剩余 {0}"
 msgstr "剩余 {0}"
 
@@ -2657,10 +2636,6 @@ msgstr "加载后台任务"
 msgctxt "palette-group"
 msgid "动作"
 msgstr "动作"
-
-#: src/domain/editing/ClipInspector.tsx:608
-msgid "动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。"
-msgstr "动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。"
 
 #: src/pages/analysis/match/views/PlayersView.tsx:169
 #: src/pages/analysis/match/views/PlayersView.tsx:170
@@ -2726,7 +2701,7 @@ msgstr "区间速度"
 msgid "升降"
 msgstr "升降"
 
-#: src/domain/editing/ClipInspector.tsx:885
+#: src/domain/editing/ClipInspector.tsx:884
 msgid "半径"
 msgstr "半径"
 
@@ -2776,7 +2751,7 @@ msgstr "去 Demo 资料库"
 msgid "去比赛工作区做集锦"
 msgstr "去比赛工作区做集锦"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:63
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:64
 msgid "去设置"
 msgstr "去设置"
 
@@ -2878,20 +2853,16 @@ msgstr "取消面板分组"
 msgid "受害者被闪"
 msgstr "受害者被闪"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:180
-msgid "受管 HLAE 的安装状态与安全边界。"
-msgstr "受管 HLAE 的安装状态与安全边界。"
-
 #: src/pages/editing/delivery/OutputCard.tsx:86
 msgid "受管文件"
 msgstr "受管文件"
 
-#: src/domain/editing/ClipInspector.tsx:548
+#: src/domain/editing/ClipInspector.tsx:547
 #: src/domain/editing/ProjectTimeline.tsx:2954
 msgid "变换"
 msgstr "变换"
 
-#: src/domain/editing/ClipInspector.tsx:546
+#: src/domain/editing/ClipInspector.tsx:545
 msgid "变换与关键帧"
 msgstr "变换与关键帧"
 
@@ -2904,7 +2875,7 @@ msgstr "另有 {0} 条失败记录"
 msgid "只保留击杀最多的三个片段"
 msgstr "只保留击杀最多的三个片段"
 
-#: src/pages/shared/settings/GameSection.tsx:309
+#: src/pages/shared/settings/GameSection.tsx:310
 msgid "只保留目标选手"
 msgstr "只保留目标选手"
 
@@ -2924,7 +2895,7 @@ msgstr "只接受 https:// 开头的完整地址，例如 https://example.com/ma
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "只有桌面端能在文件管理器里定位文件。"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:962
+#: src/domain/editing/ProjectMediaWorkspace.tsx:963
 msgid "只有视频素材可生成代理"
 msgstr "只有视频素材可生成代理"
 
@@ -2940,11 +2911,11 @@ msgstr "只移除项目中的素材记录；磁盘上的源文件不会删除。
 msgid "可以画进 2D 回放的事件"
 msgstr "可以画进 2D 回放的事件"
 
-#: src/pages/shared/settings/FilesSection.tsx:343
+#: src/pages/shared/settings/FilesSection.tsx:342
 msgid "可填写 1 到 100 场。"
 msgstr "可填写 1 到 100 场。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:210
+#: src/pages/shared/settings/AdvancedSection.tsx:206
 msgid "可执行文件"
 msgstr "可执行文件"
 
@@ -2952,7 +2923,7 @@ msgstr "可执行文件"
 msgid "可用"
 msgstr "可用"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:191
+#: src/pages/shared/settings/AdvancedSection.tsx:189
 msgid "可用性"
 msgstr "可用性"
 
@@ -2960,7 +2931,7 @@ msgstr "可用性"
 msgid "可重新发起"
 msgstr "可重新发起"
 
-#: src/domain/editing/ClipInspector.tsx:413
+#: src/domain/editing/ClipInspector.tsx:412
 msgid "右对齐"
 msgstr "右对齐"
 
@@ -2972,6 +2943,10 @@ msgstr "合计"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:772
 msgid "同名片段标记"
 msgstr "同名片段标记"
+
+#: src/pages/shared/library/history/HistoryPage.tsx:181
+msgid "同步 Steam 竞技比赛"
+msgstr "同步 Steam 竞技比赛"
 
 #: src/pages/shared/library/history/HistoryPage.tsx:249
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
@@ -3027,7 +3002,7 @@ msgstr "后台任务，{activityUnreadCount} 条未读"
 msgid "后台任务详情"
 msgstr "后台任务详情"
 
-#: src/pages/shared/settings/GameSection.tsx:206
+#: src/pages/shared/settings/GameSection.tsx:207
 msgid "后留白"
 msgstr "后留白"
 
@@ -3070,7 +3045,7 @@ msgstr "向所选切口应用默认转场"
 msgid "启动"
 msgstr "启动"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:200
+#: src/pages/shared/settings/AdvancedSection.tsx:197
 msgid "启动方式"
 msgstr "启动方式"
 
@@ -3091,15 +3066,15 @@ msgid "启用所选片段"
 msgstr "启用所选片段"
 
 #. placeholder {0}: effectLabel(effect.kind)
-#: src/domain/editing/ClipInspector.tsx:644
+#: src/domain/editing/ClipInspector.tsx:643
 msgid "启用效果 {0}"
 msgstr "启用效果 {0}"
 
-#: src/domain/editing/ClipInspector.tsx:427
+#: src/domain/editing/ClipInspector.tsx:426
 msgid "启用文字背景"
 msgstr "启用文字背景"
 
-#: src/domain/editing/ClipInspector.tsx:773
+#: src/domain/editing/ClipInspector.tsx:772
 msgid "启用片段"
 msgstr "启用片段"
 
@@ -3229,19 +3204,19 @@ msgstr "回合结束方式"
 msgid "回合胜负"
 msgstr "回合胜负"
 
-#: src/pages/shared/settings/GameSection.tsx:133
+#: src/pages/shared/settings/GameSection.tsx:134
 msgid "回放与录制都从这个目录启动游戏。"
 msgstr "回放与录制都从这个目录启动游戏。"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:197
+#: src/pages/shared/onboarding/GuidePage.tsx:195
 msgid "回放与录制都用它。"
 msgstr "回放与录制都用它。"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:112
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:111
 msgid "回放与录制都起不来"
 msgstr "回放与录制都起不来"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:196
+#: src/pages/shared/onboarding/GuidePage.tsx:194
 msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 msgstr "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 
@@ -3250,7 +3225,7 @@ msgctxt "match-view"
 msgid "回放与热力图"
 msgstr "回放与热力图"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:353
+#: src/pages/shared/settings/AdvancedSection.tsx:338
 msgid "回放中"
 msgstr "回放中"
 
@@ -3288,6 +3263,18 @@ msgstr "图标视图"
 msgid "在 2D 回放里查看"
 msgstr "在 2D 回放里查看"
 
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1802
+msgid "在「作品任务」查看进度，完成后到「成品文件」查看结果。"
+msgstr "在「作品任务」查看进度，完成后到「成品文件」查看结果。"
+
+#: src/pages/shared/settings/AdvancedSection.tsx:115
+msgid "在「文件与资料库」中更改保存位置。"
+msgstr "在「文件与资料库」中更改保存位置。"
+
+#: src/pages/shared/settings/GameSection.tsx:166
+msgid "在「文件与资料库」中更改录制保存位置。"
+msgstr "在「文件与资料库」中更改录制保存位置。"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:300
 msgid "在工作进度里展开 Agent 每次读取的回合与事件。"
 msgstr "在工作进度里展开 Agent 每次读取的回合与事件。"
@@ -3322,8 +3309,8 @@ msgstr "在播放头标记入点"
 msgid "在播放头标记出点"
 msgstr "在播放头标记出点"
 
-#: src/domain/editing/ClipInspector.tsx:476
-#: src/domain/editing/ClipInspector.tsx:597
+#: src/domain/editing/ClipInspector.tsx:475
+#: src/domain/editing/ClipInspector.tsx:596
 msgid "在播放头添加 {label} 关键帧"
 msgstr "在播放头添加 {label} 关键帧"
 
@@ -3367,7 +3354,7 @@ msgstr "在播放头覆盖 {0}"
 msgid "在比赛工作区打开"
 msgstr "在比赛工作区打开"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1248
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1249
 msgid "在源播放头添加或编辑片段标记"
 msgstr "在源播放头添加或编辑片段标记"
 
@@ -3414,10 +3401,6 @@ msgstr "地图与最近比赛"
 msgid "地图几何文件无效，请重新生成。"
 msgstr "地图几何文件无效，请重新生成。"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:44
-msgid "地图几何状态"
-msgstr "地图几何状态"
-
 #: src/pages/shared/settings/MapGeometrySettings.tsx:23
 msgid "地图已更新"
 msgstr "地图已更新"
@@ -3438,6 +3421,10 @@ msgstr "地图暂不可用，当前仅显示选手与镜头。"
 #: src/pages/shared/settings/MapGeometrySettings.tsx:42
 msgid "地图没有生成成功："
 msgstr "地图没有生成成功："
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:44
+msgid "地图状态"
+msgstr "地图状态"
 
 #: src/pages/analysis/players/PlayerProfilePage.tsx:200
 msgid "地图统计没能读出来：{mapsError}"
@@ -3469,7 +3456,7 @@ msgstr "填写 Steam ID、API 密钥、验证码和最近分享代码后再同�
 msgid "填写一个目录的完整路径"
 msgstr "填写一个目录的完整路径"
 
-#: src/domain/editing/ClipInspector.tsx:445
+#: src/domain/editing/ClipInspector.tsx:444
 msgid "声像"
 msgstr "声像"
 
@@ -3549,17 +3536,17 @@ msgstr "失败可恢复"
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
 
-#: src/domain/editing/ClipInspector.tsx:370
-#: src/domain/editing/ClipInspector.tsx:373
+#: src/domain/editing/ClipInspector.tsx:369
+#: src/domain/editing/ClipInspector.tsx:372
 msgid "字体"
 msgstr "字体"
 
-#: src/domain/editing/ClipInspector.tsx:376
+#: src/domain/editing/ClipInspector.tsx:375
 msgid "字体不能为空"
 msgstr "字体不能为空"
 
-#: src/domain/editing/ClipInspector.tsx:380
-#: src/domain/editing/ClipInspector.tsx:388
+#: src/domain/editing/ClipInspector.tsx:379
+#: src/domain/editing/ClipInspector.tsx:387
 msgid "字号"
 msgstr "字号"
 
@@ -3582,9 +3569,9 @@ msgctxt "task-progress"
 msgid "字节"
 msgstr "字节"
 
-#: src/design/data/Empty.tsx:149
-msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
-msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
+#: src/pages/shared/settings/AdvancedSection.tsx:178
+msgid "安装和检查录制所需组件。"
+msgstr "安装和检查录制所需组件。"
 
 #: src/pages/editing/delivery/OutputCard.tsx:113
 msgid "完成时间"
@@ -3594,7 +3581,7 @@ msgstr "完成时间"
 msgid "完整参数 JSON"
 msgstr "完整参数 JSON"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1794
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1792
 msgid "完整序列"
 msgstr "完整序列"
 
@@ -3620,7 +3607,7 @@ msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
 #: src/pages/shared/library/LibraryInspector.tsx:191
-#: src/pages/shared/settings/AdvancedSection.tsx:281
+#: src/pages/shared/settings/AdvancedSection.tsx:266
 msgid "定位文件"
 msgstr "定位文件"
 
@@ -3628,7 +3615,7 @@ msgstr "定位文件"
 msgid "定格当前帧"
 msgstr "定格当前帧"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1576
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1574
 msgid "审阅 Agent 修改"
 msgstr "审阅 Agent 修改"
 
@@ -3643,10 +3630,6 @@ msgstr "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 #: src/domain/map/HeatLayer.tsx:173
 msgid "密度色阶：每个格子都是 {maxWeight} 次"
 msgstr "密度色阶：每个格子都是 {maxWeight} 次"
-
-#: src/pages/shared/settings/FilesSection.tsx:361
-msgid "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
-msgstr "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
 
 #: src/pages/analysis/match/views/DuelsView.tsx:541
 #: src/pages/analysis/match/views/TeamsView.tsx:566
@@ -3682,7 +3665,7 @@ msgstr "对位视图"
 msgid "对位统计不可用"
 msgstr "对位统计不可用"
 
-#: src/domain/editing/ClipInspector.tsx:883
+#: src/domain/editing/ClipInspector.tsx:882
 msgid "对比度"
 msgstr "对比度"
 
@@ -3703,12 +3686,12 @@ msgstr "对话保存失败，请重试。{detail}"
 msgid "对话保留多久"
 msgstr "对话保留多久"
 
-#: src/domain/editing/ClipInspector.tsx:404
+#: src/domain/editing/ClipInspector.tsx:403
 msgid "对齐"
 msgstr "对齐"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:324
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1418
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1419
 msgid "导入"
 msgstr "导入"
 
@@ -3720,7 +3703,7 @@ msgstr "导入"
 msgid "导入 Demo"
 msgstr "导入 Demo"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1609
 msgid "导入 OTIO / XML / EDL…"
 msgstr "导入 OTIO / XML / EDL…"
 
@@ -3732,7 +3715,7 @@ msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 msgid "导入文件"
 msgstr "导入文件"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:744
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:743
 msgid "导入时间轴互换文件"
 msgstr "导入时间轴互换文件"
 
@@ -3746,21 +3729,21 @@ msgid "导入素材"
 msgstr "导入素材"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:320
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1033
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1032
 msgid "导入项目素材"
 msgstr "导入项目素材"
 
 #: src/domain/task/taskVocabulary.tsx:30
-#: src/pages/shared/settings/AdvancedSection.tsx:273
+#: src/pages/shared/settings/AdvancedSection.tsx:258
 #: src/pages/shared/settings/AiAgentSection.tsx:1016
 msgid "导出"
 msgstr "导出"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1614
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1612
 msgid "导出 CMX3600 EDL…"
 msgstr "导出 CMX3600 EDL…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1613
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
 msgid "导出 Final Cut Pro XML…"
 msgstr "导出 Final Cut Pro XML…"
 
@@ -3768,7 +3751,7 @@ msgstr "导出 Final Cut Pro XML…"
 msgid "导出 HTML"
 msgstr "导出 HTML"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1612
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
 msgid "导出 OpenTimelineIO…"
 msgstr "导出 OpenTimelineIO…"
 
@@ -3780,6 +3763,10 @@ msgstr "导出 SRT 字幕"
 #: src/pages/shared/library/LibraryFilters.tsx:237
 msgid "导出元数据"
 msgstr "导出元数据"
+
+#: src/pages/editing/delivery/OutputsView.tsx:223
+msgid "导出后，成片会出现在这里。"
+msgstr "导出后，成片会出现在这里。"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:12
 msgid "导出失败"
@@ -3798,23 +3785,23 @@ msgid "导出已取消"
 msgstr "导出已取消"
 
 #: src/pages/editing/delivery/OutputsView.tsx:64
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1641
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1639
 msgid "导出成片"
 msgstr "导出成片"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:205
+#: src/pages/shared/onboarding/GuidePage.tsx:203
 msgid "导出成片与波形分析用它。"
 msgstr "导出成片与波形分析用它。"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:116
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:115
 msgid "导出成片会失败"
 msgstr "导出成片会失败"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:204
+#: src/pages/shared/onboarding/GuidePage.tsx:202
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "导出成片需要它。录制与分析不受影响，但导不出文件。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:732
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:731
 msgid "导出时间轴互换文件"
 msgstr "导出时间轴互换文件"
 
@@ -3822,7 +3809,7 @@ msgstr "导出时间轴互换文件"
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1786
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1784
 msgid "导出源范围"
 msgstr "导出源范围"
 
@@ -3831,7 +3818,7 @@ msgstr "导出源范围"
 msgid "导出结果"
 msgstr "导出结果"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1719
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1717
 msgid "导出设置"
 msgstr "导出设置"
 
@@ -3839,21 +3826,17 @@ msgstr "导出设置"
 msgid "导出诊断"
 msgstr "导出诊断"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:262
+#: src/pages/shared/settings/AdvancedSection.tsx:247
 msgid "导出诊断包"
 msgstr "导出诊断包"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1773
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1771
 msgid "导出质量"
 msgstr "导出质量"
 
 #: src/pages/shared/library/LibraryPage.tsx:226
 msgid "导出资料库元数据"
 msgstr "导出资料库元数据"
-
-#: src/pages/editing/delivery/OutputsView.tsx:223
-msgid "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
-msgstr "导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。"
 
 #. placeholder {0}: current?.name
 #: src/domain/editing/ProjectWorkspaceManager.tsx:221
@@ -3868,6 +3851,10 @@ msgstr "将启动 CS2 和采集组件，录制 {count} 个还没有素材的片�
 msgid "将当前布局另存为…"
 msgstr "将当前布局另存为…"
 
+#: src/domain/editing/ProjectTimeline.tsx:2940
+msgid "将所选片段合并为嵌套片段，双击可继续编辑。"
+msgstr "将所选片段合并为嵌套片段，双击可继续编辑。"
+
 #: src/pages/shared/settings/RecoveryPage.tsx:160
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 msgstr "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
@@ -3880,13 +3867,14 @@ msgstr "尚未加入比较"
 msgid "尚未生成"
 msgstr "尚未生成"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:136
-#: src/pages/shared/settings/AdvancedSection.tsx:142
-#: src/pages/shared/settings/AdvancedSection.tsx:196
+#: src/pages/shared/onboarding/GuidePage.tsx:137
+#: src/pages/shared/settings/AdvancedSection.tsx:143
+#: src/pages/shared/settings/AdvancedSection.tsx:193
+#: src/pages/shared/settings/GameSection.tsx:271
 msgid "就绪"
 msgstr "就绪"
 
-#: src/domain/editing/ClipInspector.tsx:412
+#: src/domain/editing/ClipInspector.tsx:411
 msgid "居中"
 msgstr "居中"
 
@@ -3949,11 +3937,7 @@ msgstr "工作台"
 msgid "工作模式"
 msgstr "工作模式"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:711
-msgid "工具已返回结果。"
-msgstr "工具已返回结果。"
-
-#: src/domain/editing/ClipInspector.tsx:411
+#: src/domain/editing/ClipInspector.tsx:410
 msgid "左对齐"
 msgstr "左对齐"
 
@@ -3972,6 +3956,10 @@ msgstr "已入库"
 #: src/pages/shared/settings/MapGeometrySettings.tsx:25
 msgid "已准备"
 msgstr "已准备"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:703
+msgid "已准备好编辑。"
+msgstr "已准备好编辑。"
 
 #: src/pages/analysis/evidence/EvidenceEmpty.tsx:85
 msgid "已分析 {totalAnalyses} 场，证据还没有写进索引。稍等片刻再检索。"
@@ -4011,10 +3999,14 @@ msgstr "已复制完整路径"
 #: src/domain/editing/ProjectAgentPanel.tsx:549
 #: src/domain/task/TaskActivityList.tsx:15
 #: src/domain/task/taskVocabulary.tsx:46
-#: src/pages/shared/onboarding/GuidePage.tsx:86
+#: src/pages/shared/onboarding/GuidePage.tsx:87
 #: src/pages/shared/tasks/TaskCenterPage.tsx:58
 msgid "已完成"
 msgstr "已完成"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:711
+msgid "已完成。"
+msgstr "已完成。"
 
 #: src/pages/shared/library/libraryFormat.ts:170
 msgid "已导入"
@@ -4035,7 +4027,7 @@ msgstr "已应用到时间线"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:421
 #: src/domain/editing/ProjectMediaWorkspace.tsx:443
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1417
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1418
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/TimelineProgramMonitor.tsx:1733
@@ -4063,7 +4055,7 @@ msgstr "已拒绝"
 msgid "已接受 Agent 修改"
 msgstr "已接受 Agent 修改"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1471
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1469
 msgid "已接受这组 Agent 修改。"
 msgstr "已接受这组 Agent 修改。"
 
@@ -4079,6 +4071,22 @@ msgstr "已有 {indexedItems} 条证据，但这次检索一条也没匹配上�
 msgid "已有同名布局，请换一个名称。"
 msgstr "已有同名布局，请换一个名称。"
 
+#: src/domain/editing/ProjectAgentPanel.tsx:704
+msgid "已查看作品和素材。"
+msgstr "已查看作品和素材。"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:701
+msgid "已查看作品素材。"
+msgstr "已查看作品素材。"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:704
+msgid "已查看时间线。"
+msgstr "已查看时间线。"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:706
+msgid "已查看比赛事件。"
+msgstr "已查看比赛事件。"
+
 #. placeholder {0}: cleanup.data.inspected
 #. placeholder {1}: cleanup.data.deleted
 #: src/pages/editing/delivery/DeliveryPage.tsx:75
@@ -4086,8 +4094,8 @@ msgid "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没有
 msgstr "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没有变化。"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:702
-msgid "已检查片段使用范围和录制边界，实际画面仍需录制后检查。"
-msgstr "已检查片段使用范围和录制边界，实际画面仍需录制后检查。"
+msgid "已检查录制范围，请在录制后确认画面。"
+msgstr "已检查录制范围，请在录制后确认画面。"
 
 #: src/domain/editing/TimelineProgramMonitor.tsx:1156
 msgid "已渲染时间轴预览"
@@ -4099,7 +4107,7 @@ msgstr "已生成"
 
 #. placeholder {0}: formatBytes(storage.data.directory_bytes)
 #. placeholder {1}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/shared/settings/FilesSection.tsx:169
+#: src/pages/shared/settings/FilesSection.tsx:168
 msgid "已用 {0} · 可用 {1}"
 msgstr "已用 {0} · 可用 {1}"
 
@@ -4131,29 +4139,9 @@ msgstr "已自动调整机位，录制会使用调整后的路径。"
 msgid "已要求 Agent 继续修改"
 msgstr "已要求 Agent 继续修改"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:704
-msgid "已读取作品版本、轨道和素材概况。"
-msgstr "已读取作品版本、轨道和素材概况。"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:701
-msgid "已读取作品素材库，包含尚未加入时间线的素材。"
-msgstr "已读取作品素材库，包含尚未加入时间线的素材。"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:703
-msgid "已读取当前编辑操作的字段示例。"
-msgstr "已读取当前编辑操作的字段示例。"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:704
-msgid "已读取目标轨道或片段的可编辑时间线字段。"
-msgstr "已读取目标轨道或片段的可编辑时间线字段。"
-
 #: src/domain/editing/ProjectAgentPanel.tsx:708
 msgid "已读取素材完整性和导出文件信息。"
 msgstr "已读取素材完整性和导出文件信息。"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:706
-msgid "已读取经过验证的 Demo 事件。"
-msgstr "已读取经过验证的 Demo 事件。"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:707
 msgid "已读取镜头路径与战术上下文。"
@@ -4167,7 +4155,7 @@ msgstr "已过期"
 msgid "已过期 · Valve 不再保留"
 msgstr "已过期 · Valve 不再保留"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1477
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1475
 msgid "已退回这组 Agent 修改。修改意见：{feedback}"
 msgstr "已退回这组 Agent 修改。修改意见：{feedback}"
 
@@ -4243,11 +4231,11 @@ msgstr "带坐标证据"
 msgid "平台"
 msgstr "平台"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1748
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1746
 msgid "序列"
 msgstr "序列"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1796
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1794
 msgid "序列入点到出点"
 msgstr "序列入点到出点"
 
@@ -4273,11 +4261,7 @@ msgctxt "dialog-confirm"
 msgid "应用"
 msgstr "应用"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:114
-msgid "应用写出的所有文件都在这里。要改请到「文件与资料库」。"
-msgstr "应用写出的所有文件都在这里。要改请到「文件与资料库」。"
-
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1665
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1663
 msgid "应用四点编辑"
 msgstr "应用四点编辑"
 
@@ -4306,8 +4290,8 @@ msgid "开始 tick"
 msgstr "开始 tick"
 
 #: src/domain/task/taskDetailModel.tsx:133
-msgid "开始位置采样"
-msgstr "开始位置采样"
+msgid "开始准备回放"
+msgstr "开始准备回放"
 
 #: src/pages/analysis/match/views/viewChrome.tsx:222
 #: src/pages/shared/library/LibraryInspector.tsx:167
@@ -4318,7 +4302,7 @@ msgstr "开始分析"
 msgid "开始剪辑"
 msgstr "开始剪辑"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1720
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1718
 msgid "开始导出"
 msgstr "开始导出"
 
@@ -4427,17 +4411,13 @@ msgstr "当前统计：这场比赛的全部位置事件。"
 msgid "当前轨道自动化值 {label}"
 msgstr "当前轨道自动化值 {label}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:91
+#: src/pages/shared/settings/AdvancedSection.tsx:92
 msgid "当前运行状态"
 msgstr "当前运行状态"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:182
 msgid "当前配置完整，备份恢复保持关闭"
 msgstr "当前配置完整，备份恢复保持关闭"
-
-#: src/domain/editing/ClipCameraInspection.tsx:53
-msgid "当前采样未发现镜头问题。"
-msgstr "当前采样未发现镜头问题。"
 
 #: src/pages/analysis/match/views/ReviewView.tsx:827
 msgid "当前锚点是一条证据，可以在「我的注释」里为它写注释。"
@@ -4451,22 +4431,18 @@ msgstr "录制"
 msgid "录制、导出、下载和分析开始后会出现在这里。"
 msgstr "录制、导出、下载和分析开始后会出现在这里。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:93
-msgid "录制与回放是互斥的，这个状态说明为什么某个动作现在不可用。"
-msgstr "录制与回放是互斥的，这个状态说明为什么某个动作现在不可用。"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:357
+#: src/pages/shared/settings/AdvancedSection.tsx:342
 msgid "录制中"
 msgstr "录制中"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:370
-msgid "录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；导出剪辑单不会启动游戏进程。"
-msgstr "录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；导出剪辑单不会启动游戏进程。"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:288
 #: src/pages/shared/settings/AiAgentSection.tsx:291
 msgid "录制前始终由你确认"
 msgstr "录制前始终由你确认"
+
+#: src/design/data/Empty.tsx:149
+msgid "录制和导出的文件会出现在这里。"
+msgstr "录制和导出的文件会出现在这里。"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:12
 msgid "录制失败"
@@ -4488,17 +4464,9 @@ msgstr "录制已取消"
 msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
 msgstr "录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。"
 
-#: src/pages/shared/settings/GameSection.tsx:162
+#: src/pages/shared/settings/GameSection.tsx:163
 msgid "录制文件目录"
 msgstr "录制文件目录"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:211
-msgid "录制时启动的 HLAE 程序。"
-msgstr "录制时启动的 HLAE 程序。"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:201
-msgid "录制时是否由本应用拉起游戏。"
-msgstr "录制时是否由本应用拉起游戏。"
 
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:83
 msgid "录制时长"
@@ -4507,6 +4475,10 @@ msgstr "录制时长"
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:93
 msgid "录制期间 CS2 会占用屏幕和声音，请不要操作电脑。进度和结果可以在「作品任务」里查看。"
 msgstr "录制期间 CS2 会占用屏幕和声音，请不要操作电脑。进度和结果可以在「作品任务」里查看。"
+
+#: src/pages/shared/settings/AdvancedSection.tsx:94
+msgid "录制期间无法同时回放。"
+msgstr "录制期间无法同时回放。"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:516
 msgid "录制此片段"
@@ -4521,11 +4493,11 @@ msgstr "录制片段 {0}"
 msgid "录制环境未就绪"
 msgstr "录制环境未就绪"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:78
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:79
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "录制环境还没准备好，需要它的任务现在起不来。"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:201
+#: src/pages/shared/onboarding/GuidePage.tsx:199
 msgid "录制用它接管画面。"
 msgstr "录制用它接管画面。"
 
@@ -4533,6 +4505,10 @@ msgstr "录制用它接管画面。"
 #: src/domain/editing/ClipInspector.tsx:319
 msgid "录制视角"
 msgstr "录制视角"
+
+#: src/domain/environment/dependencyLabel.ts:7
+msgid "录制组件"
+msgstr "录制组件"
 
 #: src/pages/editing/delivery/OutputsView.tsx:63
 msgid "录制结果"
@@ -4542,7 +4518,7 @@ msgstr "录制结果"
 msgid "录制结果、导出成片和应用自己的数据都放在这里。"
 msgstr "录制结果、导出成片和应用自己的数据都放在这里。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1627
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1625
 #: src/pages/editing/editor/RecordingConfirmDialog.tsx:60
 msgid "录制缺失片段"
 msgstr "录制缺失片段"
@@ -4554,19 +4530,19 @@ msgstr "录制缺失片段"
 msgid "录制范围"
 msgstr "录制范围"
 
-#: src/pages/shared/settings/GameSection.tsx:243
+#: src/pages/shared/settings/GameSection.tsx:244
 msgid "录制语音"
 msgstr "录制语音"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:114
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:113
 msgid "录制起不来，分析与编辑不受影响"
 msgstr "录制起不来，分析与编辑不受影响"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:200
+#: src/pages/shared/onboarding/GuidePage.tsx:198
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "录制需要它。导入、分析和剪辑都不受影响。"
 
-#: src/pages/shared/settings/GameSection.tsx:193
+#: src/pages/shared/settings/GameSection.tsx:194
 msgid "录制默认值"
 msgstr "录制默认值"
 
@@ -4604,11 +4580,11 @@ msgstr "循环"
 msgid "必填"
 msgstr "必填"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1681
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1679
 msgid "忽略 Timeline 入点"
 msgstr "忽略 Timeline 入点"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1682
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1680
 msgid "忽略 Timeline 出点"
 msgstr "忽略 Timeline 出点"
 
@@ -4620,17 +4596,17 @@ msgstr "总时长"
 msgid "恐怖分子"
 msgstr "恐怖分子"
 
-#: src/domain/editing/ClipInspector.tsx:724
+#: src/domain/editing/ClipInspector.tsx:723
 msgid "恒定功率"
 msgstr "恒定功率"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:316
+#: src/pages/shared/settings/AdvancedSection.tsx:301
 msgid "恢复与引导"
 msgstr "恢复与引导"
 
 #: src/app/command/commandRegistry.ts:222
 #: src/app/routeCrumb.ts:73
-#: src/pages/shared/settings/AdvancedSection.tsx:320
+#: src/pages/shared/settings/AdvancedSection.tsx:305
 #: src/pages/shared/settings/RecoveryPage.tsx:93
 msgid "恢复中心"
 msgstr "恢复中心"
@@ -4679,7 +4655,7 @@ msgstr "成品播放 {title}"
 msgid "成品文件"
 msgstr "成品文件"
 
-#: src/pages/shared/settings/GameSection.tsx:258
+#: src/pages/shared/settings/GameSection.tsx:259
 msgid "成品生成能力"
 msgstr "成品生成能力"
 
@@ -4695,19 +4671,19 @@ msgstr "成片导出"
 msgid "成片已准备好导出。确认后才会写出 MP4 文件。"
 msgstr "成片已准备好导出。确认后才会写出 MP4 文件。"
 
-#: src/pages/shared/settings/GameSection.tsx:225
+#: src/pages/shared/settings/GameSection.tsx:226
 msgid "成片画面里保留左上角的小地图。"
 msgstr "成片画面里保留左上角的小地图。"
 
-#: src/pages/shared/settings/GameSection.tsx:215
+#: src/pages/shared/settings/GameSection.tsx:216
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "成片画面里保留游戏的 HUD 界面元素。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1543
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1541
 msgid "成片预览"
 msgstr "成片预览"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1485
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1483
 msgid "我已接管这组 Agent 修改，改为手动编辑。"
 msgstr "我已接管这组 Agent 修改，改为手动编辑。"
 
@@ -4722,9 +4698,9 @@ msgstr "我的注释"
 msgid "战术回放缓存元数据无效"
 msgstr "战术回放缓存元数据无效"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1545
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2001
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2003
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1543
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1996
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1998
 msgid "战术示意"
 msgstr "战术示意"
 
@@ -4748,15 +4724,11 @@ msgstr "所选修改"
 msgid "所选片段信息"
 msgstr "所选片段信息"
 
-#: src/domain/editing/ProjectTimeline.tsx:2940
-msgid "所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。"
-msgstr "所选连续 Story 片段会移动到新的源序列；父时间轴用一个可双击打开的嵌套片段替换它们。"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:204
+#: src/pages/shared/settings/AdvancedSection.tsx:200
 msgid "手动启动"
 msgstr "手动启动"
 
-#: src/pages/shared/settings/GameSection.tsx:342
+#: src/pages/shared/settings/GameSection.tsx:343
 msgid "手动指定"
 msgstr "手动指定"
 
@@ -4813,7 +4785,7 @@ msgctxt "palette-hint"
 msgid "打开作品"
 msgstr "打开作品"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:332
+#: src/pages/shared/settings/AdvancedSection.tsx:317
 msgid "打开使用引导"
 msgstr "打开使用引导"
 
@@ -4834,7 +4806,7 @@ msgctxt "palette-hint"
 msgid "打开工作区"
 msgstr "打开工作区"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:324
+#: src/pages/shared/settings/AdvancedSection.tsx:309
 msgid "打开恢复中心"
 msgstr "打开恢复中心"
 
@@ -4859,12 +4831,12 @@ msgstr "打开比赛历史"
 msgid "打开比赛工作区"
 msgstr "打开比赛工作区"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1849
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1847
 msgid "打开的序列"
 msgstr "打开的序列"
 
 #: src/pages/shared/settings/FilesSection.tsx:132
-#: src/pages/shared/settings/GameSection.tsx:182
+#: src/pages/shared/settings/GameSection.tsx:183
 msgid "打开目录"
 msgstr "打开目录"
 
@@ -4898,7 +4870,7 @@ msgstr "批量注释"
 msgid "批量组接到序列"
 msgstr "批量组接到序列"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:608
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:607
 msgid "找不到作品的当前版本。"
 msgstr "找不到作品的当前版本。"
 
@@ -4906,7 +4878,7 @@ msgstr "找不到作品的当前版本。"
 msgid "找不到这个页面"
 msgstr "找不到这个页面"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:607
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:606
 msgid "找不到这份作品"
 msgstr "找不到这份作品"
 
@@ -4939,7 +4911,7 @@ msgstr "把播放头移到未锁定的片段内再分割"
 msgid "把播放头移到未锁定的目标轨片段内再分割"
 msgstr "把播放头移到未锁定的目标轨片段内再分割"
 
-#: src/pages/shared/settings/FilesSection.tsx:389
+#: src/pages/shared/settings/FilesSection.tsx:385
 msgid "把数据目录改到这里？"
 msgstr "把数据目录改到这里？"
 
@@ -4995,20 +4967,20 @@ msgid "折叠面板分组"
 msgstr "折叠面板分组"
 
 #. placeholder {0}: exportDiagnostics.data.path
-#: src/pages/shared/settings/AdvancedSection.tsx:296
+#: src/pages/shared/settings/AdvancedSection.tsx:281
 msgid "报告已写入 {0}，不含任何密钥或媒体内容。"
 msgstr "报告已写入 {0}，不含任何密钥或媒体内容。"
 
 #. placeholder {0}: exportDiagnostics.data.path
-#: src/pages/shared/settings/AdvancedSection.tsx:294
+#: src/pages/shared/settings/AdvancedSection.tsx:279
 msgid "报告已写入 {0}。"
 msgstr "报告已写入 {0}。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:263
+#: src/pages/shared/settings/AdvancedSection.tsx:248
 msgid "报告问题时可以附上的一份运行记录。"
 msgstr "报告问题时可以附上的一份运行记录。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:85
+#: src/pages/shared/settings/AdvancedSection.tsx:86
 msgid "报告问题时附上这个号码。"
 msgstr "报告问题时附上这个号码。"
 
@@ -5030,7 +5002,7 @@ msgstr "拆弹成功"
 msgid "拒绝"
 msgstr "拒绝"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1466
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1464
 msgid "拒绝这次外部执行请求。"
 msgstr "拒绝这次外部执行请求。"
 
@@ -5060,18 +5032,18 @@ msgstr "持平"
 
 #. placeholder {0}: formatMillisecondTimecode(marker.duration)
 #. placeholder {0}: formatSourceTime(marker.duration)
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1283
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1284
 #: src/domain/editing/ProjectTimeline.tsx:4970
 #: src/domain/editing/ProjectTimeline.tsx:6303
 msgid "持续 {0}"
 msgstr "持续 {0}"
 
-#: src/domain/editing/ClipInspector.tsx:752
+#: src/domain/editing/ClipInspector.tsx:751
 #: src/domain/editing/MarkerEditorFields.tsx:39
 msgid "持续时间"
 msgstr "持续时间"
 
-#: src/domain/editing/ClipInspector.tsx:744
+#: src/domain/editing/ClipInspector.tsx:743
 #: src/domain/editing/ProjectTimeline.tsx:3124
 msgid "持续时间（秒）"
 msgstr "持续时间（秒）"
@@ -5119,10 +5091,6 @@ msgstr "按高光类型统计，胜负未记录"
 #: src/app/shell/WorkspaceModeIntro.tsx:31
 msgid "挑选精彩片段，编排时间轴，录制并导出成片。"
 msgstr "挑选精彩片段，编排时间轴，录制并导出成片。"
-
-#: src/app/command/CommandPalette.tsx:268
-msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
-msgstr "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 
 #: src/pages/analysis/players/PlayerProfilePage.tsx:227
 msgid "换一张图"
@@ -5283,7 +5251,7 @@ msgstr "播放控制"
 msgid "播放时间轴"
 msgstr "播放时间轴"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1244
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1245
 msgid "播放源素材"
 msgstr "播放源素材"
 
@@ -5313,11 +5281,15 @@ msgstr "操作"
 msgid "操作未完成，查看错误详情"
 msgstr "操作未完成，查看错误详情"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1831
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1829
 msgid "操作没有完成"
 msgstr "操作没有完成"
 
-#: src/domain/editing/ClipInspector.tsx:733
+#: src/pages/shared/settings/AiAgentSection.tsx:284
+msgid "操作确认"
+msgstr "操作确认"
+
+#: src/domain/editing/ClipInspector.tsx:732
 msgid "擦除"
 msgstr "擦除"
 
@@ -5326,7 +5298,7 @@ msgstr "擦除"
 msgid "收起侧栏"
 msgstr "收起侧栏"
 
-#: src/pages/shared/settings/FilesSection.tsx:390
+#: src/pages/shared/settings/FilesSection.tsx:386
 msgid "改为这个目录"
 msgstr "改为这个目录"
 
@@ -5358,12 +5330,12 @@ msgstr "放宽时间范围通常最有效。"
 msgid "放置"
 msgstr "放置"
 
-#: src/domain/editing/ClipInspector.tsx:736
+#: src/domain/editing/ClipInspector.tsx:735
 msgid "故障"
 msgstr "故障"
 
-#: src/domain/editing/ClipInspector.tsx:613
-#: src/domain/editing/ClipInspector.tsx:615
+#: src/domain/editing/ClipInspector.tsx:612
+#: src/domain/editing/ClipInspector.tsx:614
 #: src/domain/editing/ProjectTimeline.tsx:2955
 msgid "效果"
 msgstr "效果"
@@ -5372,7 +5344,7 @@ msgstr "效果"
 msgid "数据不可用"
 msgstr "数据不可用"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:113
+#: src/pages/shared/settings/AdvancedSection.tsx:114
 #: src/pages/shared/settings/FilesSection.tsx:109
 msgid "数据目录"
 msgstr "数据目录"
@@ -5384,10 +5356,6 @@ msgstr "整场 · 事件"
 #: src/domain/project/createDemoProject.ts:69
 msgid "整场比赛"
 msgstr "整场比赛"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:710
-msgid "整条 Story 轨道已替换。"
-msgstr "整条 Story 轨道已替换。"
 
 #: src/pages/shared/library/LibraryInspector.tsx:243
 msgid "文件"
@@ -5404,10 +5372,6 @@ msgstr "文件与资料库"
 #: src/domain/editing/ProjectExecutionCard.tsx:43
 msgid "文件信息"
 msgstr "文件信息"
-
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1804
-msgid "文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。"
-msgstr "文件写入「成品文件」。顶部「作品任务」可查看进度或取消，不必留在 Agent 对话中。"
 
 #: src/pages/editing/delivery/OutputCard.tsx:116
 msgid "文件参数"
@@ -5451,19 +5415,19 @@ msgstr "文件路径"
 msgid "文字"
 msgstr "文字"
 
-#: src/domain/editing/ClipInspector.tsx:358
-#: src/domain/editing/ClipInspector.tsx:362
+#: src/domain/editing/ClipInspector.tsx:357
+#: src/domain/editing/ClipInspector.tsx:361
 #: src/domain/editing/ProjectTimeline.tsx:3113
 msgid "文字内容"
 msgstr "文字内容"
 
+#: src/domain/editing/ClipInspector.tsx:354
 #: src/domain/editing/ClipInspector.tsx:355
-#: src/domain/editing/ClipInspector.tsx:356
 msgid "文字样式"
 msgstr "文字样式"
 
-#: src/domain/editing/ClipInspector.tsx:395
-#: src/domain/editing/ClipInspector.tsx:397
+#: src/domain/editing/ClipInspector.tsx:394
+#: src/domain/editing/ClipInspector.tsx:396
 msgid "文字颜色"
 msgstr "文字颜色"
 
@@ -5494,15 +5458,11 @@ msgstr "新建并加入"
 msgid "新建面板分组"
 msgstr "新建面板分组"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:903
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:902
 msgid "新建音频轨道"
 msgstr "新建音频轨道"
 
-#: src/pages/shared/settings/GameSection.tsx:165
-msgid "新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。"
-msgstr "新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。"
-
-#: src/pages/shared/settings/FilesSection.tsx:399
+#: src/pages/shared/settings/FilesSection.tsx:395
 msgid "新文件会写到 {movingTo}。旧目录里的录制结果、成片和索引不会移动， 资料库记录仍指向原位置。"
 msgstr "新文件会写到 {movingTo}。旧目录里的录制结果、成片和索引不会移动， 资料库记录仍指向原位置。"
 
@@ -5515,7 +5475,7 @@ msgid "方法"
 msgstr "方法"
 
 #: src/domain/editing/ClipInspector.tsx:118
-#: src/domain/editing/ClipInspector.tsx:737
+#: src/domain/editing/ClipInspector.tsx:736
 msgid "旋转"
 msgstr "旋转"
 
@@ -5524,7 +5484,7 @@ msgstr "旋转"
 msgid "旋转节目画面 {0}"
 msgstr "旋转节目画面 {0}"
 
-#: src/domain/editing/ClipInspector.tsx:721
+#: src/domain/editing/ClipInspector.tsx:720
 msgid "无"
 msgstr "无"
 
@@ -5564,13 +5524,17 @@ msgstr "无法显示 {mapName} 的地图，请检查 CS2 安装位置。"
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "无法访问剪贴板，请选择上方完整路径手动复制。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1818
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1816
 msgid "无法读取作品任务。"
 msgstr "无法读取作品任务。"
 
 #: src/domain/project/AddToProjectDialog.tsx:120
 msgid "无法读取目标作品。"
 msgstr "无法读取目标作品。"
+
+#: src/pages/shared/settings/AdvancedSection.tsx:80
+msgid "无法读取运行状态：{runtimeError}"
+msgstr "无法读取运行状态：{runtimeError}"
 
 #: src/shared/desktop/client.ts:187
 #: src/shared/desktop/client.ts:214
@@ -5588,7 +5552,7 @@ msgstr "无视频目标"
 msgid "无音频目标"
 msgstr "无音频目标"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:258
+#: src/pages/shared/settings/AdvancedSection.tsx:244
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
@@ -5620,7 +5584,7 @@ msgstr "时长 {duration}"
 msgid "时长待解析"
 msgstr "时长待解析"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1402
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1403
 msgid "时长未知"
 msgstr "时长未知"
 
@@ -5640,6 +5604,10 @@ msgstr "时间相对录制开始。"
 msgid "时间码"
 msgstr "时间码"
 
+#: src/domain/editing/ProjectMediaWorkspace.tsx:941
+msgid "时间线 {from}–{to}"
+msgstr "时间线 {from}–{to}"
+
 #: src/domain/editing/ProjectMediaWorkspace.tsx:469
 msgid "时间线上未录制的片段、已录制的片段和导入素材都会显示在这里。"
 msgstr "时间线上未录制的片段、已录制的片段和导入素材都会显示在这里。"
@@ -5648,8 +5616,8 @@ msgstr "时间线上未录制的片段、已录制的片段和导入素材都会
 msgid "时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。"
 msgstr "时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:697
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1591
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:696
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1589
 msgid "时间线还没有片段"
 msgstr "时间线还没有片段"
 
@@ -5663,25 +5631,25 @@ msgstr "时间耗尽"
 
 #: src/domain/editing/ProjectTimeline.tsx:1829
 #: src/domain/editing/ProjectTimeline.tsx:2236
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1546
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1544
 msgid "时间轴"
 msgstr "时间轴"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1609
 msgid "时间轴互换文件导入失败"
 msgstr "时间轴互换文件导入失败"
 
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1611
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1612
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1613
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1614
 msgid "时间轴互换文件导出失败"
 msgstr "时间轴互换文件导出失败"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:765
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:764
 msgid "时间轴互换文件已导入"
 msgstr "时间轴互换文件已导入"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:737
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:736
 msgid "时间轴互换文件已导出"
 msgstr "时间轴互换文件已导出"
 
@@ -5802,7 +5770,7 @@ msgstr "暂停序列"
 msgid "暂停序列 (Space)"
 msgstr "暂停序列 (Space)"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1244
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1245
 msgid "暂停源素材"
 msgstr "暂停源素材"
 
@@ -5834,11 +5802,15 @@ msgstr "暂时不能输入：{disabledReason}"
 msgid "暂时读不到地图，请先确认上方的 CS2 位置。"
 msgstr "暂时读不到地图，请先确认上方的 CS2 位置。"
 
+#: src/domain/editing/ClipCameraInspection.tsx:53
+msgid "暂未发现镜头问题。"
+msgstr "暂未发现镜头问题。"
+
 #: src/design/layout/OverflowMenu.tsx:111
 msgid "更多"
 msgstr "更多"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1603
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1601
 msgid "更多作品操作"
 msgstr "更多作品操作"
 
@@ -5850,6 +5822,10 @@ msgstr "更多操作"
 #: src/pages/shared/library/libraryColumns.tsx:259
 msgid "更多操作：{0}"
 msgstr "更多操作：{0}"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:157
+msgid "更多检查结果见<0>设置 · 高级与诊断</0>。"
+msgstr "更多检查结果见<0>设置 · 高级与诊断</0>。"
 
 #: src/design/layout/SubNav.tsx:189
 msgid "更多视图"
@@ -5868,11 +5844,19 @@ msgid "更换片段的源入点和源出点，不改变时间轴位置与时长"
 msgstr "更换片段的源入点和源出点，不改变时间轴位置与时长"
 
 #: src/pages/shared/settings/FilesSection.tsx:151
-#: src/pages/shared/settings/GameSection.tsx:153
+#: src/pages/shared/settings/GameSection.tsx:154
 msgid "更改"
 msgstr "更改"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1678
+#: src/pages/shared/settings/GameSection.tsx:126
+msgid "更改仅影响之后的录制。"
+msgstr "更改仅影响之后的录制。"
+
+#: src/pages/shared/settings/FilesSection.tsx:119
+msgid "更改后仅影响新文件，已有文件保持原位。"
+msgstr "更改后仅影响新文件，已有文件保持原位。"
+
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1676
 msgid "更改片段速度（Fit to Fill）"
 msgstr "更改片段速度（Fit to Fill）"
 
@@ -5928,7 +5912,7 @@ msgstr "未启用源声道"
 msgid "未完成的暂存成品文件"
 msgstr "未完成的暂存成品文件"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:686
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:685
 msgid "未就绪的素材不能靠录制补齐"
 msgstr "未就绪的素材不能靠录制补齐"
 
@@ -5956,8 +5940,8 @@ msgstr "未归队"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:420
 #: src/domain/editing/ProjectMediaWorkspace.tsx:430
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1222
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1415
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1223
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1416
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/ProjectTimeline.tsx:4837
@@ -5970,7 +5954,7 @@ msgstr "未录制"
 msgid "未录制 {plannedCount}"
 msgstr "未录制 {plannedCount}"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1119
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1120
 msgid "未录制，暂不能播放"
 msgstr "未录制，暂不能播放"
 
@@ -6062,10 +6046,6 @@ msgstr "本页已过期 {0}"
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
 
-#: src/domain/editing/ClipCameraInspection.tsx:89
-msgid "机位位于地图实体内部"
-msgstr "机位位于地图实体内部"
-
 #: src/domain/scene3d/Scene3DView.tsx:112
 #: src/domain/scene3d/Scene3DView.tsx:123
 msgid "机位视角"
@@ -6155,7 +6135,7 @@ msgstr "查看工具详情"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
 #: src/domain/task/useTaskActions.tsx:184
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1610
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1608
 msgid "查看成品"
 msgstr "查看成品"
 
@@ -6172,6 +6152,10 @@ msgstr "查看比赛数据、回合事件与战术回放。"
 #: src/domain/editing/ProjectTimeline.tsx:2992
 msgid "查看片段详情 {0}"
 msgstr "查看片段详情 {0}"
+
+#: src/domain/task/TaskDetail.tsx:239
+msgid "查看诊断信息"
+msgstr "查看诊断信息"
 
 #: src/domain/task/TaskCard.tsx:221
 #: src/pages/editing/delivery/OutputCard.tsx:102
@@ -6235,11 +6219,11 @@ msgstr "标记已处理"
 msgid "标记操作"
 msgstr "标记操作"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1249
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1250
 msgid "标记源入点"
 msgstr "标记源入点"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1250
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1251
 msgid "标记源出点"
 msgstr "标记源出点"
 
@@ -6251,7 +6235,7 @@ msgstr "校验文件头与大小；同一份内容不会重复入库"
 msgid "校验输入"
 msgstr "校验输入"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1746
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1744
 msgid "格式"
 msgstr "格式"
 
@@ -6266,11 +6250,11 @@ msgstr "档案"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:665
 #: src/domain/editing/ProjectAgentPanel.tsx:692
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1585
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1583
 msgid "检查交付状态"
 msgstr "检查交付状态"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1828
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1826
 msgid "检查作品版本、录制环境和交付状态后重试。"
 msgstr "检查作品版本、录制环境和交付状态后重试。"
 
@@ -6320,6 +6304,10 @@ msgstr "概览"
 msgid "模型"
 msgstr "模型"
 
+#: src/pages/shared/settings/AiAgentSection.tsx:748
+msgid "模型、消息、工具和认证参数由应用管理，无需填写。"
+msgstr "模型、消息、工具和认证参数由应用管理，无需填写。"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:218
 msgid "模型设置没有保存成功"
 msgstr "模型设置没有保存成功"
@@ -6328,13 +6316,13 @@ msgstr "模型设置没有保存成功"
 msgid "模型连接失败：{testError}"
 msgstr "模型连接失败：{testError}"
 
-#: src/domain/editing/ClipInspector.tsx:625
-#: src/domain/editing/ClipInspector.tsx:735
-#: src/domain/editing/ClipInspector.tsx:875
+#: src/domain/editing/ClipInspector.tsx:624
+#: src/domain/editing/ClipInspector.tsx:734
+#: src/domain/editing/ClipInspector.tsx:874
 msgid "模糊"
 msgstr "模糊"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:232
+#: src/pages/shared/settings/AdvancedSection.tsx:218
 msgid "正在下载并校验采集组件"
 msgstr "正在下载并校验采集组件"
 
@@ -6351,26 +6339,30 @@ msgstr "正在为作品选材"
 #: src/pages/shared/settings/AiAgentSection.tsx:471
 #: src/pages/shared/settings/AppSection.tsx:60
 #: src/pages/shared/settings/AppSection.tsx:173
-#: src/pages/shared/settings/FilesSection.tsx:210
+#: src/pages/shared/settings/FilesSection.tsx:209
 msgid "正在保存"
 msgstr "正在保存"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:355
+#: src/pages/shared/settings/AdvancedSection.tsx:340
 msgid "正在停止回放"
 msgstr "正在停止回放"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:270
+#: src/pages/shared/settings/AdvancedSection.tsx:255
 msgid "正在写入报告"
 msgstr "正在写入报告"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:236
+#: src/pages/shared/settings/AdvancedSection.tsx:222
 msgid "正在准备"
 msgstr "正在准备"
 
 #. placeholder {0}: item.name
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1230
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1231
 msgid "正在准备 {0}"
 msgstr "正在准备 {0}"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:687
+msgid "正在准备编辑…"
+msgstr "正在准备编辑…"
 
 #: src/domain/editing/ClipCameraInspection.tsx:32
 msgid "正在准备镜头预演…"
@@ -6430,16 +6422,20 @@ msgstr "正在同步…"
 msgid "正在启动 3D 视图…"
 msgstr "正在启动 3D 视图…"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:351
+#: src/pages/shared/settings/AdvancedSection.tsx:336
 msgid "正在启动回放"
 msgstr "正在启动回放"
 
 #: src/design/feedback/Dialog.tsx:133
 #: src/pages/shared/settings/FilesSection.tsx:68
-#: src/pages/shared/settings/GameSection.tsx:98
+#: src/pages/shared/settings/GameSection.tsx:99
 #: src/pages/shared/settings/RecoveryPage.tsx:82
 msgid "正在处理"
 msgstr "正在处理"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:695
+msgid "正在处理…"
+msgstr "正在处理…"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:1014
 #: src/pages/shared/settings/AiAgentSection.tsx:1022
@@ -6454,16 +6450,16 @@ msgstr "正在定位帧"
 msgid "正在导出"
 msgstr "正在导出"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:693
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:692
 msgid "正在开始导出"
 msgstr "正在开始导出"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:684
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:683
 msgid "正在开始录制"
 msgstr "正在开始录制"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:16
-#: src/pages/shared/settings/AdvancedSection.tsx:104
+#: src/pages/shared/settings/AdvancedSection.tsx:105
 msgid "正在录制"
 msgstr "正在录制"
 
@@ -6471,17 +6467,9 @@ msgstr "正在录制"
 msgid "正在打开这个页面"
 msgstr "正在打开这个页面"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:695
-msgid "正在执行工具…"
-msgstr "正在执行工具…"
-
 #: src/pages/shared/settings/RecoveryPage.tsx:87
 msgid "正在扫描清理范围"
 msgstr "正在扫描清理范围"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:688
-msgid "正在按目标身份读取可编辑时间线字段…"
-msgstr "正在按目标身份读取可编辑时间线字段…"
 
 #: src/pages/analysis/match/views/viewChrome.tsx:222
 msgid "正在提交…"
@@ -6491,7 +6479,11 @@ msgstr "正在提交…"
 msgid "正在新建作品"
 msgstr "正在新建作品"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2050
+#: src/domain/editing/ProjectAgentPanel.tsx:693
+msgid "正在更新作品…"
+msgstr "正在更新作品…"
+
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2045
 msgid "正在更新战术图"
 msgstr "正在更新战术图"
 
@@ -6499,22 +6491,30 @@ msgstr "正在更新战术图"
 msgid "正在查找作品中导入的素材…"
 msgstr "正在查找作品中导入的素材…"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:693
-msgid "正在校验并提交增量修改…"
-msgstr "正在校验并提交增量修改…"
+#: src/domain/editing/ProjectAgentPanel.tsx:688
+msgid "正在查看作品…"
+msgstr "正在查看作品…"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:108
-#: src/pages/shared/settings/AdvancedSection.tsx:166
-#: src/pages/shared/settings/GameSection.tsx:291
+#: src/domain/editing/ProjectAgentPanel.tsx:688
+msgid "正在查看时间线…"
+msgstr "正在查看时间线…"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:690
+msgid "正在查看比赛事件…"
+msgstr "正在查看比赛事件…"
+
+#: src/pages/shared/onboarding/GuidePage.tsx:109
+#: src/pages/shared/settings/AdvancedSection.tsx:164
+#: src/pages/shared/settings/GameSection.tsx:292
 msgid "正在检查"
 msgstr "正在检查"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:686
-msgid "正在检查事件覆盖与录制边界…"
-msgstr "正在检查事件覆盖与录制边界…"
+#: src/domain/editing/ProjectAgentPanel.tsx:694
+msgid "正在检查主轨道…"
+msgstr "正在检查主轨道…"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:682
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:691
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:681
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:690
 msgid "正在检查交付状态"
 msgstr "正在检查交付状态"
 
@@ -6522,9 +6522,9 @@ msgstr "正在检查交付状态"
 msgid "正在检查当前作品能否交付。"
 msgstr "正在检查当前作品能否交付。"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:694
-msgid "正在检查整条 Story 轨道…"
-msgstr "正在检查整条 Story 轨道…"
+#: src/domain/editing/ProjectAgentPanel.tsx:686
+msgid "正在检查录制范围…"
+msgstr "正在检查录制范围…"
 
 #: src/pages/editing/projects/ProjectsPage.tsx:130
 msgid "正在检查素材…"
@@ -6549,7 +6549,7 @@ msgid "正在渲染预览…"
 msgstr "正在渲染预览…"
 
 #: src/pages/shared/settings/MapGeometrySettings.tsx:24
-#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+#: src/pages/shared/settings/MapGeometrySettings.tsx:65
 msgid "正在生成"
 msgstr "正在生成"
 
@@ -6557,7 +6557,7 @@ msgstr "正在生成"
 msgid "正在生成…"
 msgstr "正在生成…"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:961
+#: src/domain/editing/ProjectMediaWorkspace.tsx:962
 msgid "正在生成可拖动预览使用的低分辨率代理"
 msgstr "正在生成可拖动预览使用的低分辨率代理"
 
@@ -6578,17 +6578,13 @@ msgstr "正在读取"
 msgid "正在读取 {0} 的档案"
 msgstr "正在读取 {0} 的档案"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1819
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1817
 msgid "正在读取任务…"
 msgstr "正在读取任务…"
 
 #: src/pages/shared/tasks/TaskDetailPage.tsx:71
 msgid "正在读取任务详情"
 msgstr "正在读取任务详情"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:688
-msgid "正在读取作品版本和素材概况…"
-msgstr "正在读取作品版本和素材概况…"
 
 #: src/pages/analysis/players/PlayerProfilePage.tsx:252
 msgid "正在读取最近比赛"
@@ -6598,7 +6594,7 @@ msgstr "正在读取最近比赛"
 msgid "正在读取恢复状态"
 msgstr "正在读取恢复状态"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2033
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2028
 msgid "正在读取战术图"
 msgstr "正在读取战术图"
 
@@ -6635,14 +6631,6 @@ msgstr "正在读取监听状态"
 msgid "正在读取空间证据"
 msgstr "正在读取空间证据"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:690
-msgid "正在读取经过验证的 Demo 事件…"
-msgstr "正在读取经过验证的 Demo 事件…"
-
-#: src/domain/editing/ProjectAgentPanel.tsx:687
-msgid "正在读取该编辑操作的字段示例…"
-msgstr "正在读取该编辑操作的字段示例…"
-
 #: src/pages/shared/library/LibraryCards.tsx:92
 #: src/pages/shared/library/LibraryTable.tsx:127
 msgid "正在读取资料库"
@@ -6660,7 +6648,7 @@ msgstr "正在读取镜头路径与战术上下文…"
 msgid "正在重新分析，完成后这里会自动刷新"
 msgstr "正在重新分析，完成后这里会自动刷新"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1819
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1817
 msgid "此作品尚无录制或导出任务。"
 msgstr "此作品尚无录制或导出任务。"
 
@@ -6746,7 +6734,7 @@ msgstr "每个回合的首杀对决"
 msgid "每个格子都是 {maxWeight} 次，没有疏密之分"
 msgstr "每个格子都是 {maxWeight} 次，没有疏密之分"
 
-#: src/pages/shared/settings/GameSection.tsx:395
+#: src/pages/shared/settings/GameSection.tsx:396
 msgid "每个片段在正式内容之外多录的时长。"
 msgstr "每个片段在正式内容之外多录的时长。"
 
@@ -6758,7 +6746,7 @@ msgstr "每名选手的道具使用"
 msgid "每回合按阵营统计的购买事件"
 msgstr "每回合按阵营统计的购买事件"
 
-#: src/pages/shared/settings/FilesSection.tsx:343
+#: src/pages/shared/settings/FilesSection.tsx:342
 msgid "每次最多同步"
 msgstr "每次最多同步"
 
@@ -6883,15 +6871,15 @@ msgid "比较 {0} 与 {1}"
 msgstr "比较 {0} 与 {1}"
 
 #: src/domain/editing/ProjectTimeline.tsx:3258
-msgid "水平拖动 scrub；方向键 1 帧，Shift 5 帧"
-msgstr "水平拖动 scrub；方向键 1 帧，Shift 5 帧"
+msgid "水平拖动预览；方向键调整 1 帧，Shift 调整 5 帧"
+msgstr "水平拖动预览；方向键调整 1 帧，Shift 调整 5 帧"
 
 #: src/domain/editing/ClipInspector.tsx:116
 msgid "水平缩放"
 msgstr "水平缩放"
 
 #. placeholder {0}: mapName ?? ''
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1945
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1940
 msgid "没有 {0} 的雷达图"
 msgstr "没有 {0} 的雷达图"
 
@@ -7034,11 +7022,11 @@ msgstr "没有找到残局、多杀或穿墙等高光。"
 msgid "没有把素材加入作品：{failure}"
 msgstr "没有把素材加入作品：{failure}"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:152
+#: src/pages/shared/onboarding/GuidePage.tsx:150
 msgid "没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。"
 msgstr "没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:116
+#: src/pages/shared/settings/AdvancedSection.tsx:117
 msgid "没有数据目录"
 msgstr "没有数据目录"
 
@@ -7064,7 +7052,7 @@ msgstr "没有进行中的任务"
 msgid "没有选手数据，请重新分析比赛。"
 msgstr "没有选手数据，请重新分析比赛。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:686
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:685
 msgid "没有需要录制的片段"
 msgstr "没有需要录制的片段"
 
@@ -7094,7 +7082,7 @@ msgstr "没能打开这个目录"
 msgid "没能撤销加入"
 msgstr "没能撤销加入"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:695
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:694
 msgid "没能检查交付状态"
 msgstr "没能检查交付状态"
 
@@ -7187,7 +7175,7 @@ msgstr "测试连接"
 msgid "浏览…"
 msgstr "浏览…"
 
-#: src/domain/editing/ClipInspector.tsx:729
+#: src/domain/editing/ClipInspector.tsx:728
 msgid "淡化"
 msgstr "淡化"
 
@@ -7213,11 +7201,11 @@ msgstr "添加字幕"
 msgid "添加字幕轨道"
 msgstr "添加字幕轨道"
 
-#: src/domain/editing/ClipInspector.tsx:630
+#: src/domain/editing/ClipInspector.tsx:629
 msgid "添加效果"
 msgstr "添加效果"
 
-#: src/domain/editing/ClipInspector.tsx:618
+#: src/domain/editing/ClipInspector.tsx:617
 msgid "添加效果类型"
 msgstr "添加效果类型"
 
@@ -7251,7 +7239,7 @@ msgstr "添加监听目录"
 
 #: src/pages/shared/library/LibraryPage.tsx:294
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:82
-#: src/pages/shared/settings/FilesSection.tsx:256
+#: src/pages/shared/settings/FilesSection.tsx:255
 msgid "添加目录"
 msgstr "添加目录"
 
@@ -7359,7 +7347,7 @@ msgstr "清除全部标记"
 msgid "清除出点"
 msgstr "清除出点"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1251
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1252
 msgid "清除源入出点"
 msgstr "清除源入出点"
 
@@ -7367,7 +7355,7 @@ msgstr "清除源入出点"
 msgid "渲染入点到出点"
 msgstr "渲染入点到出点"
 
-#: src/pages/shared/settings/GameSection.tsx:124
+#: src/pages/shared/settings/GameSection.tsx:125
 msgid "游戏"
 msgstr "游戏"
 
@@ -7379,7 +7367,7 @@ msgstr "游戏与录制"
 msgid "游戏内回放"
 msgstr "游戏内回放"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:944
+#: src/domain/editing/ProjectMediaWorkspace.tsx:945
 msgid "源 {sourceIn}–{sourceOut}"
 msgstr "源 {sourceIn}–{sourceOut}"
 
@@ -7395,7 +7383,7 @@ msgstr "源入点"
 msgid "源出点"
 msgstr "源出点"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1216
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1217
 msgid "源文件不可用"
 msgstr "源文件不可用"
 
@@ -7403,7 +7391,7 @@ msgstr "源文件不可用"
 msgid "源文件不可用，请重新定位。"
 msgstr "源文件不可用，请重新定位。"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1117
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1118
 msgid "源文件不可用，重新定位后才能播放"
 msgstr "源文件不可用，重新定位后才能播放"
 
@@ -7411,32 +7399,32 @@ msgstr "源文件不可用，重新定位后才能播放"
 msgid "源文件不在原位"
 msgstr "源文件不在原位"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1242
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1243
 msgid "源素材上一帧"
 msgstr "源素材上一帧"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1246
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1247
 msgid "源素材下一帧"
 msgstr "源素材下一帧"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1300
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1301
 msgid "源素材播放头"
 msgstr "源素材播放头"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1129
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1130
 msgid "源素材预览"
 msgstr "源素材预览"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1784
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1782
 msgid "源范围"
 msgstr "源范围"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:484
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1544
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1542
 msgid "源预览"
 msgstr "源预览"
 
-#: src/domain/editing/ClipInspector.tsx:734
+#: src/domain/editing/ClipInspector.tsx:733
 msgid "滑动"
 msgstr "滑动"
 
@@ -7486,7 +7474,7 @@ msgstr "滚动编辑预览 {0}"
 msgid "炸弹引爆"
 msgstr "炸弹引爆"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2056
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2051
 msgid "炸弹点"
 msgstr "炸弹点"
 
@@ -7604,7 +7592,7 @@ msgctxt "task-progress"
 msgid "片段"
 msgstr "片段"
 
-#: src/domain/editing/ClipInspector.tsx:565
+#: src/domain/editing/ClipInspector.tsx:564
 msgid "片段内"
 msgstr "片段内"
 
@@ -7613,20 +7601,20 @@ msgid "片段名称"
 msgstr "片段名称"
 
 #: src/domain/editing/ClipInspector.tsx:135
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1511
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1547
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1509
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1545
 msgid "片段属性"
 msgstr "片段属性"
 
 #. placeholder {0}: sourceMarkers.length + 1
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1092
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1093
 msgid "片段标记 {0}"
 msgstr "片段标记 {0}"
 
 #. placeholder {0}: marker.label
 #. placeholder {1}: formatMillisecondTimecode(marker.time)
 #. placeholder {1}: formatSourceTime(marker.time)
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1279
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1280
 #: src/domain/editing/ProjectTimeline.tsx:4966
 msgid "片段标记 {0} {1}"
 msgstr "片段标记 {0} {1}"
@@ -7639,11 +7627,11 @@ msgstr "片段详情"
 msgid "片段顺序，共 {count} 段，合计 {total}"
 msgstr "片段顺序，共 {count} 段，合计 {total}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:85
+#: src/pages/shared/settings/AdvancedSection.tsx:86
 msgid "版本"
 msgstr "版本"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:75
+#: src/pages/shared/settings/AdvancedSection.tsx:76
 msgid "版本、数据目录和当前录制占用。"
 msgstr "版本、数据目录和当前录制占用。"
 
@@ -7700,11 +7688,11 @@ msgstr "现在还不能导出结果"
 msgid "现在还不能批量注释"
 msgstr "现在还不能批量注释"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+#: src/pages/shared/settings/MapGeometrySettings.tsx:65
 msgid "生成"
 msgstr "生成"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:64
+#: src/pages/shared/settings/MapGeometrySettings.tsx:63
 msgid "生成 {name} 地图"
 msgstr "生成 {name} 地图"
 
@@ -7712,16 +7700,16 @@ msgstr "生成 {name} 地图"
 msgid "生成 AI 点评"
 msgstr "生成 AI 点评"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:975
+#: src/domain/editing/ProjectMediaWorkspace.tsx:976
 msgid "生成代理"
 msgstr "生成代理"
 
 #. placeholder {0}: asset.name
-#: src/domain/editing/ProjectMediaWorkspace.tsx:955
+#: src/domain/editing/ProjectMediaWorkspace.tsx:956
 msgid "生成代理 {0}"
 msgstr "生成代理 {0}"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:962
+#: src/domain/editing/ProjectMediaWorkspace.tsx:963
 msgid "生成低分辨率代理；导出仍使用原始素材"
 msgstr "生成低分辨率代理；导出仍使用原始素材"
 
@@ -7762,6 +7750,10 @@ msgstr "用 Agent 制作（{0}）"
 msgid "用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。"
 msgstr "用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。"
 
+#: src/pages/shared/settings/AiAgentSection.tsx:891
+msgid "用于规划剪辑时长，不会裁切成片。"
+msgstr "用于规划剪辑时长，不会裁切成片。"
+
 #: src/pages/shared/settings/RecoveryPage.tsx:187
 msgid "用备份恢复"
 msgstr "用备份恢复"
@@ -7801,14 +7793,18 @@ msgstr "界面文案使用的语言。改动会保存，下次启动应用时生
 msgid "界面语言"
 msgstr "界面语言"
 
-#: src/pages/shared/settings/GameSection.tsx:406
+#: src/pages/shared/settings/GameSection.tsx:407
 msgid "留白"
 msgstr "留白"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:515
-#: src/pages/shared/settings/FilesSection.tsx:295
+#: src/pages/shared/settings/FilesSection.tsx:294
 msgid "留空会保留已经安全保存的密钥。"
 msgstr "留空会保留已经安全保存的密钥。"
+
+#: src/pages/shared/settings/AiAgentSection.tsx:558
+msgid "留空使用默认指令。"
+msgstr "留空使用默认指令。"
 
 #: src/domain/task/taskVocabulary.tsx:70
 msgctxt "task-progress"
@@ -7819,7 +7815,7 @@ msgstr "百分比"
 #: src/pages/shared/library/LibraryPage.tsx:463
 #: src/pages/shared/library/LibraryPage.tsx:469
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:74
-#: src/pages/shared/settings/FilesSection.tsx:190
+#: src/pages/shared/settings/FilesSection.tsx:189
 msgid "监听目录"
 msgstr "监听目录"
 
@@ -7827,7 +7823,7 @@ msgstr "监听目录"
 msgid "目录"
 msgstr "目录"
 
-#: src/pages/shared/settings/FilesSection.tsx:181
+#: src/pages/shared/settings/FilesSection.tsx:180
 msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
 msgstr "目录太大，这次只统计了一部分，实际占用比上面多。"
 
@@ -7901,7 +7897,7 @@ msgstr "看道具与经济"
 #: src/pages/shared/settings/AiAgentSection.tsx:571
 #: src/pages/shared/settings/AppSection.tsx:84
 #: src/pages/shared/settings/FilesSection.tsx:96
-#: src/pages/shared/settings/GameSection.tsx:117
+#: src/pages/shared/settings/GameSection.tsx:118
 #: src/pages/shared/settings/MapGeometrySettings.tsx:42
 #: src/pages/shared/settings/RecoveryPage.tsx:122
 msgid "知道了"
@@ -7920,15 +7916,19 @@ msgstr "视图"
 msgid "视频"
 msgstr "视频"
 
-#: src/domain/editing/ClipInspector.tsx:690
+#: src/domain/editing/ClipInspector.tsx:689
 #: src/domain/editing/ProjectTimeline.tsx:5432
 msgid "视频入场转场"
 msgstr "视频入场转场"
 
-#: src/domain/editing/ClipInspector.tsx:691
+#: src/domain/editing/ClipInspector.tsx:690
 #: src/domain/editing/ProjectTimeline.tsx:5432
 msgid "视频出场转场"
 msgstr "视频出场转场"
+
+#: src/domain/environment/dependencyLabel.ts:8
+msgid "视频编码器"
+msgstr "视频编码器"
 
 #: src/domain/editing/ProjectTimeline.tsx:2460
 msgid "视频缩略图：不显示"
@@ -8007,7 +8007,7 @@ msgstr "移动路线：这一段没有位置样本"
 msgid "移动面板组"
 msgstr "移动面板组"
 
-#: src/pages/shared/settings/FilesSection.tsx:221
+#: src/pages/shared/settings/FilesSection.tsx:220
 msgid "移除"
 msgstr "移除"
 
@@ -8037,7 +8037,7 @@ msgstr "稳定"
 msgid "空格"
 msgstr "空格"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:349
+#: src/pages/shared/settings/AdvancedSection.tsx:334
 msgid "空闲"
 msgstr "空闲"
 
@@ -8134,7 +8134,7 @@ msgstr "第 {0} 回合高光的 2D 回放"
 
 #. placeholder {0}: current.revision
 #. placeholder {0}: project.revision
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1573
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1571
 #: src/pages/editing/projects/ProjectsPage.tsx:124
 msgid "第 {0} 版"
 msgstr "第 {0} 版"
@@ -8234,18 +8234,13 @@ msgstr "素材"
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1589
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1587
 msgid "素材就绪"
 msgstr "素材就绪"
 
 #: src/pages/editing/projects/ProjectsPage.tsx:99
 msgid "素材就绪 → 可以导出"
 msgstr "素材就绪 → 可以导出"
-
-#. placeholder {0}: sourceTimeSeconds.toFixed(3)
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2061
-msgid "素材时间: {0}s"
-msgstr "素材时间: {0}s"
 
 #: src/domain/editing/TimelineProgramMonitor.tsx:687
 msgid "素材未就绪 · 当前显示可用帧"
@@ -8255,7 +8250,7 @@ msgstr "素材未就绪 · 当前显示可用帧"
 msgid "素材状态待更新"
 msgstr "素材状态待更新"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1587
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1585
 #: src/pages/editing/projects/ProjectsPage.tsx:130
 msgid "素材状态暂时不可用"
 msgstr "素材状态暂时不可用"
@@ -8264,6 +8259,10 @@ msgstr "素材状态暂时不可用"
 #: src/domain/editing/ProjectTimeline.tsx:3773
 msgid "素材落点 {0}"
 msgstr "素材落点 {0}"
+
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1673
+msgid "素材选段与时间线选段长度不同，请选择处理方式。"
+msgstr "素材选段与时间线选段长度不同，请选择处理方式。"
 
 #: src/pages/shared/library/LibraryFilters.tsx:53
 #: src/pages/shared/library/libraryFormat.ts:137
@@ -8275,11 +8274,11 @@ msgstr "索引中"
 msgid "索引失败"
 msgstr "索引失败"
 
-#: src/domain/editing/ClipInspector.tsx:507
+#: src/domain/editing/ClipInspector.tsx:506
 msgid "线性"
 msgstr "线性"
 
-#: src/domain/editing/ClipInspector.tsx:725
+#: src/domain/editing/ClipInspector.tsx:724
 msgid "线性淡化"
 msgstr "线性淡化"
 
@@ -8344,8 +8343,8 @@ msgstr "继续剪辑"
 msgid "编码"
 msgstr "编码"
 
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1750
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1752
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1754
 msgid "编码性能"
 msgstr "编码性能"
 
@@ -8357,7 +8356,7 @@ msgstr "编辑所选标记"
 msgid "编辑标记"
 msgstr "编辑标记"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1309
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1310
 msgid "编辑片段标记"
 msgstr "编辑片段标记"
 
@@ -8365,9 +8364,13 @@ msgstr "编辑片段标记"
 msgid "缩小时间轴"
 msgstr "缩小时间轴"
 
-#: src/domain/editing/ClipInspector.tsx:732
+#: src/domain/editing/ClipInspector.tsx:731
 msgid "缩放"
 msgstr "缩放"
+
+#: src/domain/editing/ClipInspector.tsx:607
+msgid "缩放动画与旋转动画不能同时启用。"
+msgstr "缩放动画与旋转动画不能同时启用。"
 
 #: src/domain/editing/TimelineToolStrip.tsx:102
 msgid "缩放工具 (Z)"
@@ -8392,7 +8395,7 @@ msgstr "缩放节目画面 {0}"
 msgid "缩略图条，共 {0} 帧"
 msgstr "缩略图条，共 {0} 帧"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:142
+#: src/pages/shared/settings/AdvancedSection.tsx:143
 msgid "缺失"
 msgstr "缺失"
 
@@ -8408,8 +8411,8 @@ msgstr "缺少目标位置，无法检查"
 msgid "聚焦选手"
 msgstr "聚焦选手"
 
-#: src/domain/editing/ClipInspector.tsx:431
-#: src/domain/editing/ClipInspector.tsx:433
+#: src/domain/editing/ClipInspector.tsx:430
+#: src/domain/editing/ClipInspector.tsx:432
 msgid "背景颜色"
 msgstr "背景颜色"
 
@@ -8424,7 +8427,7 @@ msgstr "胜方"
 msgid "胜方未知"
 msgstr "胜方未知"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1761
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1759
 msgid "自动（硬件优先，软件回退）"
 msgstr "自动（硬件优先，软件回退）"
 
@@ -8433,11 +8436,11 @@ msgstr "自动（硬件优先，软件回退）"
 msgid "自动化模式 {0}"
 msgstr "自动化模式 {0}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:204
+#: src/pages/shared/settings/AdvancedSection.tsx:200
 msgid "自动启动"
 msgstr "自动启动"
 
-#: src/pages/shared/settings/GameSection.tsx:344
+#: src/pages/shared/settings/GameSection.tsx:345
 msgid "自动检测到"
 msgstr "自动检测到"
 
@@ -8488,10 +8491,6 @@ msgstr "花费"
 msgid "若作品已创建，可从作品列表打开并继续添加素材。"
 msgstr "若作品已创建，可从作品列表打开并继续添加素材。"
 
-#: src/pages/shared/settings/AiAgentSection.tsx:284
-msgid "行为边界"
-msgstr "行为边界"
-
 #: src/pages/shared/library/libraryColumns.tsx:162
 #: src/pages/shared/library/libraryColumns.tsx:163
 msgid "行操作"
@@ -8518,11 +8517,11 @@ msgctxt "duel-column"
 msgid "被击杀"
 msgstr "被击杀"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1679
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1677
 msgid "裁切片段头部（左侧）"
 msgstr "裁切片段头部（左侧）"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1680
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1678
 msgid "裁切片段尾部（右侧）"
 msgstr "裁切片段尾部（右侧）"
 
@@ -8542,7 +8541,7 @@ msgstr "装备价值"
 msgid "装备差额"
 msgstr "装备差额"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1802
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1800
 msgid "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
 msgstr "要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。"
 
@@ -8673,7 +8672,7 @@ msgstr "证据还在整理中"
 msgid "评论"
 msgstr "评论"
 
-#: src/domain/editing/ClipInspector.tsx:659
+#: src/domain/editing/ClipInspector.tsx:658
 msgid "该效果不受当前渲染器支持，请禁用或删除。"
 msgstr "该效果不受当前渲染器支持，请禁用或删除。"
 
@@ -8694,7 +8693,7 @@ msgstr "语气：专业"
 msgid "语言"
 msgstr "语言"
 
-#: src/pages/shared/settings/GameSection.tsx:235
+#: src/pages/shared/settings/GameSection.tsx:236
 msgid "语音"
 msgstr "语音"
 
@@ -8743,9 +8742,13 @@ msgstr "请先重试扫描，确认需要清理的内容"
 msgid "请先重试读取恢复状态"
 msgstr "请先重试读取恢复状态"
 
-#: src/pages/shared/settings/FilesSection.tsx:369
+#: src/pages/shared/settings/FilesSection.tsx:365
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
 msgstr "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
+
+#: src/app/command/CommandPalette.tsx:268
+msgid "请尝试更短的关键词或页面名称。"
+msgstr "请尝试更短的关键词或页面名称。"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:663
 msgid "请求参数"
@@ -8782,12 +8785,12 @@ msgstr "请补齐提供方、模型、API 地址和密钥"
 msgid "请输入 JSON 对象（键值对象）"
 msgstr "请输入 JSON 对象（键值对象）"
 
-#: src/domain/editing/ClipInspector.tsx:843
+#: src/domain/editing/ClipInspector.tsx:842
 msgid "请输入 时:分:秒:帧 时间码"
 msgstr "请输入 时:分:秒:帧 时间码"
 
 #: src/domain/editing/ClipInspector.tsx:91
-#: src/domain/editing/ClipInspector.tsx:860
+#: src/domain/editing/ClipInspector.tsx:859
 msgid "请输入数字"
 msgstr "请输入数字"
 
@@ -8799,15 +8802,19 @@ msgstr "请输入有效的 JSON 对象"
 msgid "请选择连续、启用且未锁定的 Story 片段"
 msgstr "请选择连续、启用且未锁定的 Story 片段"
 
+#: src/pages/shared/library/history/HistoryPage.tsx:230
+msgid "请重试，或检查 Steam 连接设置。"
+msgstr "请重试，或检查 Steam 连接设置。"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:239
 msgid "读不到 Agent 的对话设置：{settingsError}"
 msgstr "读不到 Agent 的对话设置：{settingsError}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:129
+#: src/pages/shared/settings/AdvancedSection.tsx:130
 msgid "读不到依赖检查：{checksError}"
 msgstr "读不到依赖检查：{checksError}"
 
-#: src/pages/shared/settings/FilesSection.tsx:165
+#: src/pages/shared/settings/FilesSection.tsx:164
 msgid "读不到占用统计"
 msgstr "读不到占用统计"
 
@@ -8837,25 +8844,21 @@ msgstr "读不到注释：{error}"
 msgid "读不到状态"
 msgstr "读不到状态"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:117
+#: src/pages/shared/onboarding/GuidePage.tsx:118
 msgid "读不到环境自检：{error}"
 msgstr "读不到环境自检：{error}"
 
 #: src/pages/shared/settings/AppSection.tsx:80
 #: src/pages/shared/settings/FilesSection.tsx:89
-#: src/pages/shared/settings/GameSection.tsx:113
+#: src/pages/shared/settings/GameSection.tsx:114
 msgid "读不到设置：{configError}"
 msgstr "读不到设置：{configError}"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:79
-msgid "读不到运行时状态：{runtimeError}"
-msgstr "读不到运行时状态：{runtimeError}"
 
 #: src/pages/analysis/match/views/ReplayView.tsx:463
 msgid "读不到这场比赛的回放：{replayError}"
 msgstr "读不到这场比赛的回放：{replayError}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:184
+#: src/pages/shared/settings/AdvancedSection.tsx:182
 msgid "读不到采集组件状态：{hlaeError}"
 msgstr "读不到采集组件状态：{hlaeError}"
 
@@ -8883,10 +8886,6 @@ msgstr "读取成片列表失败。"
 msgid "读取时间线详情"
 msgstr "读取时间线详情"
 
-#: src/pages/shared/library/history/HistoryPage.tsx:230
-msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
-msgstr "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
-
 #: src/domain/editing/ProjectAgentPanel.tsx:658
 msgid "读取素材库"
 msgstr "读取素材库"
@@ -8902,10 +8901,6 @@ msgstr "读取镜头上下文"
 #: src/domain/task/TaskDetailBody.tsx:84
 msgid "读取阶段日志失败。"
 msgstr "读取阶段日志失败。"
-
-#: src/domain/editing/ClipInspector.tsx:305
-msgid "调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段会随之波纹移动。"
-msgstr "调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段会随之波纹移动。"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:470
 msgid "调整搜索词或素材状态筛选。"
@@ -8933,6 +8928,10 @@ msgstr "调整范围"
 msgid "调整轨道高度 {0}"
 msgstr "调整轨道高度 {0}"
 
+#: src/domain/editing/ClipInspector.tsx:305
+msgid "调整速度会改变片段时长，后续片段将随之移动。"
+msgstr "调整速度会改变片段时长，后续片段将随之移动。"
+
 #: src/domain/editing/ProjectWorkspaceDock.tsx:129
 msgid "调整面板尺寸"
 msgstr "调整面板尺寸"
@@ -8941,11 +8940,11 @@ msgstr "调整面板尺寸"
 msgid "警告"
 msgstr "警告"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1766
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1764
 msgid "质量"
 msgstr "质量"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1803
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1801
 msgid "质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。"
 msgstr "质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。"
 
@@ -8995,11 +8994,11 @@ msgstr "赛点"
 msgid "超出保留范围的对话会被删除。剪辑单、录制任务和成片不受影响。"
 msgstr "超出保留范围的对话会被删除。剪辑单、录制任务和成片不受影响。"
 
-#: src/domain/editing/ClipInspector.tsx:854
+#: src/domain/editing/ClipInspector.tsx:853
 msgid "超出可调整范围"
 msgstr "超出可调整范围"
 
-#: src/domain/editing/ClipInspector.tsx:848
+#: src/domain/editing/ClipInspector.tsx:847
 msgid "超出源素材时长"
 msgstr "超出源素材时长"
 
@@ -9021,7 +9020,7 @@ msgstr "跟随"
 msgid "跟随选手"
 msgstr "跟随选手"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:125
+#: src/pages/shared/settings/AdvancedSection.tsx:126
 msgid "路径、进程与编码器的逐项检查。"
 msgstr "路径、进程与编码器的逐项检查。"
 
@@ -9092,7 +9091,7 @@ msgstr "轨道音量 {0}"
 msgid "转场"
 msgstr "转场"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1762
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1760
 msgid "软件编码"
 msgstr "软件编码"
 
@@ -9104,9 +9103,9 @@ msgstr "输入文件校验通过"
 msgid "运行中"
 msgstr "运行中"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:74
-msgid "运行时"
-msgstr "运行时"
+#: src/pages/shared/settings/AdvancedSection.tsx:75
+msgid "运行状态"
+msgstr "运行状态"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:343
 msgid "近 {RECENT_WINDOW_DAYS} 天"
@@ -9121,7 +9120,7 @@ msgstr "返回 Demo 资料库"
 msgid "返回「{name}」"
 msgstr "返回「{name}」"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:609
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:608
 msgid "返回作品列表"
 msgstr "返回作品列表"
 
@@ -9196,7 +9195,7 @@ msgstr "还没有成片"
 msgid "还没有打开一场比赛"
 msgstr "还没有打开一场比赛"
 
-#: src/pages/shared/settings/GameSection.tsx:346
+#: src/pages/shared/settings/GameSection.tsx:347
 msgid "还没有找到 CS2。点「更改」选择安装目录。"
 msgstr "还没有找到 CS2。点「更改」选择安装目录。"
 
@@ -9233,7 +9232,7 @@ msgstr "还没有点评。连接模型后即可生成。"
 msgid "还没有片段"
 msgstr "还没有片段"
 
-#: src/pages/shared/settings/FilesSection.tsx:199
+#: src/pages/shared/settings/FilesSection.tsx:198
 msgid "还没有监听目录。加一个之后，新的 Demo 会自己进来。"
 msgstr "还没有监听目录。加一个之后，新的 Demo 会自己进来。"
 
@@ -9250,7 +9249,7 @@ msgid "还没有缩略图"
 msgstr "还没有缩略图"
 
 #: src/pages/shared/settings/FilesSection.tsx:155
-#: src/pages/shared/settings/GameSection.tsx:186
+#: src/pages/shared/settings/GameSection.tsx:187
 msgid "还没有设置"
 msgstr "还没有设置"
 
@@ -9338,14 +9337,6 @@ msgstr "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgid "这个地址不存在。其余功能不受影响。"
 msgstr "这个地址不存在。其余功能不受影响。"
 
-#: src/pages/shared/tasks/TaskDetailPage.tsx:44
-msgid "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
-msgstr "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
-
-#: src/pages/shared/settings/FilesSection.tsx:159
-msgid "这个目录占用的磁盘空间。需要清理时，前往「成品文件」。"
-msgstr "这个目录占用的磁盘空间。需要清理时，前往「成品文件」。"
-
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:163
 msgid "这个目录已经在监听中"
 msgstr "这个目录已经在监听中"
@@ -9354,7 +9345,7 @@ msgstr "这个目录已经在监听中"
 msgid "这个类型下没有高光"
 msgstr "这个类型下没有高光"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1123
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1124
 msgid "这个素材还没有可预览的媒体"
 msgstr "这个素材还没有可预览的媒体"
 
@@ -9363,17 +9354,9 @@ msgstr "这个素材还没有可预览的媒体"
 msgid "这个页面没能打开"
 msgstr "这个页面没能打开"
 
-#: src/pages/shared/settings/AiAgentSection.tsx:558
-msgid "这些指令会随每轮请求发送给模型。留空时使用 Agent 的系统指令。"
-msgstr "这些指令会随每轮请求发送给模型。留空时使用 Agent 的系统指令。"
-
-#: src/pages/shared/settings/FilesSection.tsx:191
+#: src/pages/shared/settings/FilesSection.tsx:190
 msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 msgstr "这些文件夹里出现新的 Demo 会被自动收进资料库。"
-
-#: src/pages/shared/settings/GameSection.tsx:125
-msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
-msgstr "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 
 #: src/pages/analysis/match/views/DuelsView.tsx:692
 msgid "这份分析没有这名选手的对位记录。"
@@ -9399,7 +9382,7 @@ msgstr "这份分析结果里没有洞察数据，经济统计无法显示。"
 msgid "这份分析里没有选手"
 msgstr "这份分析里没有选手"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:102
+#: src/pages/shared/onboarding/GuidePage.tsx:103
 msgid "这台机器现在能做什么"
 msgstr "这台机器现在能做什么"
 
@@ -9522,15 +9505,15 @@ msgstr "这次操作没有成功：{writeError}"
 
 #: src/pages/shared/settings/AppSection.tsx:85
 #: src/pages/shared/settings/FilesSection.tsx:103
-#: src/pages/shared/settings/GameSection.tsx:118
+#: src/pages/shared/settings/GameSection.tsx:119
 msgid "这次改动没有保存：{writeError}"
 msgstr "这次改动没有保存：{writeError}"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:153
+#: src/pages/shared/settings/AdvancedSection.tsx:151
 msgid "这次检查没有返回任何项。"
 msgstr "这次检查没有返回任何项。"
 
-#: src/pages/shared/settings/GameSection.tsx:278
+#: src/pages/shared/settings/GameSection.tsx:279
 msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 msgstr "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 
@@ -9546,12 +9529,12 @@ msgstr "这段没有可用的回放帧。"
 msgid "这段点评没有回引证据。"
 msgstr "这段点评没有回引证据。"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1949
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1944
 msgid "这段素材在 Demo 里没有可用的回放数据"
 msgstr "这段素材在 Demo 里没有可用的回放数据"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1943
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2007
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1938
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2002
 msgid "这段素材没有可用的地图上下文"
 msgstr "这段素材没有可用的地图上下文"
 
@@ -9563,15 +9546,11 @@ msgstr "这段素材还没有分析出峰值，或者它本来就没有声音。
 msgid "这组修改已应用到时间线，请检查效果。"
 msgstr "这组修改已应用到时间线，请检查效果。"
 
-#: src/pages/shared/settings/GameSection.tsx:259
+#: src/pages/shared/settings/GameSection.tsx:260
 msgid "这里显示本机的成片生成能力，结果来自编码器检查。"
 msgstr "这里显示本机的成片生成能力，结果来自编码器检查。"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:259
-msgid "这里用于排查运行问题。"
-msgstr "这里用于排查运行问题。"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:105
+#: src/pages/shared/settings/AdvancedSection.tsx:106
 msgid "这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "这项任务结束前，其它录制与回放都会被拒绝。"
 
@@ -9583,23 +9562,23 @@ msgstr "进入分析"
 msgid "进度"
 msgstr "进度"
 
-#: src/domain/task/TaskDetail.tsx:239
-msgid "进程、tick、编码参数"
-msgstr "进程、tick、编码参数"
-
 #: src/design/feedback/StageBar.tsx:69
 #: src/domain/task/TaskActivityList.tsx:13
 #: src/pages/shared/tasks/TaskCenterPage.tsx:56
 msgid "进行中"
 msgstr "进行中"
 
-#: src/pages/shared/settings/FilesSection.tsx:273
+#: src/pages/shared/settings/FilesSection.tsx:272
 msgid "连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。"
 msgstr "连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:490
 msgid "连接信息"
 msgstr "连接信息"
+
+#: src/domain/editing/ProjectAgentPanel.tsx:186
+msgid "连接模型后即可开始。"
+msgstr "连接模型后即可开始。"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:572
 msgid "连接正常：{testResult}，支持 Agent 工具调用。"
@@ -9617,7 +9596,7 @@ msgstr "退出修剪模式"
 msgid "退回修改"
 msgstr "退回修改"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1479
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1477
 msgid "退回修改意见：{feedback}"
 msgstr "退回修改意见：{feedback}"
 
@@ -9758,7 +9737,7 @@ msgstr "选手道具明细"
 msgid "选择 {0}"
 msgstr "选择 {0}"
 
-#: src/pages/shared/settings/GameSection.tsx:145
+#: src/pages/shared/settings/GameSection.tsx:146
 msgid "选择 CS2 安装目录"
 msgstr "选择 CS2 安装目录"
 
@@ -9820,7 +9799,7 @@ msgstr "选择点击位置及其右侧的片段；按 Shift 跨所有轨道"
 msgid "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 msgstr "选择点击位置及其左侧的片段；按 Shift 跨所有轨道"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2007
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:2002
 msgid "选择片段后显示路径与事件"
 msgstr "选择片段后显示路径与事件"
 
@@ -9833,7 +9812,7 @@ msgstr "选择片段后编辑"
 msgid "选择素材 {0}"
 msgstr "选择素材 {0}"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1210
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1211
 msgid "选择素材以预览源画面"
 msgstr "选择素材以预览源画面"
 
@@ -9841,7 +9820,7 @@ msgstr "选择素材以预览源画面"
 msgid "选择素材后可检查源片段"
 msgstr "选择素材后可检查源片段"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1115
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1116
 msgid "选择素材后才能播放"
 msgstr "选择素材后才能播放"
 
@@ -9854,7 +9833,7 @@ msgid "选择要导入的 Demo 文件"
 msgstr "选择要导入的 Demo 文件"
 
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:83
-#: src/pages/shared/settings/FilesSection.tsx:237
+#: src/pages/shared/settings/FilesSection.tsx:236
 msgid "选择要监听的目录"
 msgstr "选择要监听的目录"
 
@@ -9909,11 +9888,7 @@ msgstr "逐回合看"
 msgid "逐回合详情"
 msgstr "逐回合详情"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:159
-msgid "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
-msgstr "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
-
-#: src/domain/editing/ClipInspector.tsx:863
+#: src/domain/editing/ClipInspector.tsx:862
 msgid "速度须在 {MIN_TIMELINE_CLIP_SPEED}–{MAX_TIMELINE_CLIP_SPEED} 倍之间"
 msgstr "速度须在 {MIN_TIMELINE_CLIP_SPEED}–{MAX_TIMELINE_CLIP_SPEED} 倍之间"
 
@@ -9955,10 +9930,6 @@ msgstr "都由这次分析的回合与事件推出"
 msgid "配置恢复"
 msgstr "配置恢复"
 
-#: src/domain/editing/ProjectAgentPanel.tsx:186
-msgid "配置提供方、模型、API 地址和密钥后即可在这里继续。"
-msgstr "配置提供方、模型、API 地址和密钥后即可在这里继续。"
-
 #: src/pages/shared/settings/RecoveryPage.tsx:155
 msgid "配置文件状态正常"
 msgstr "配置文件状态正常"
@@ -9966,10 +9937,6 @@ msgstr "配置文件状态正常"
 #: src/pages/shared/settings/RecoveryPage.tsx:147
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
-
-#: src/pages/shared/settings/AdvancedSection.tsx:321
-msgid "配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。"
-msgstr "配置读不出来、暂存成片残留或记录指向不存在的文件时，在那里清理。"
 
 #: src/pages/shared/library/LibraryPage.tsx:254
 msgid "配置还没读出来，稍后再试"
@@ -9980,12 +9947,12 @@ msgstr "配置还没读出来，稍后再试"
 msgid "采集"
 msgstr "采集"
 
-#: src/pages/shared/settings/AdvancedSection.tsx:179
+#: src/pages/shared/settings/AdvancedSection.tsx:177
 msgid "采集组件"
 msgstr "采集组件"
 
 #. placeholder {0}: dataErrorMessage(prepareHlae.error)
-#: src/pages/shared/settings/AdvancedSection.tsx:248
+#: src/pages/shared/settings/AdvancedSection.tsx:234
 msgid "采集组件没有准备完成：{0}"
 msgstr "采集组件没有准备完成：{0}"
 
@@ -10035,7 +10002,7 @@ msgstr "重新分析"
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
 #: src/pages/editing/delivery/OutputsView.tsx:192
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1818
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1816
 #: src/pages/editing/projects/ProjectsPage.tsx:53
 #: src/pages/shared/tasks/TaskDetailPage.tsx:61
 msgid "重新加载"
@@ -10055,11 +10022,11 @@ msgid "重新定位"
 msgstr "重新定位"
 
 #. placeholder {0}: asset.name
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1038
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1037
 msgid "重新定位 {0}"
 msgstr "重新定位 {0}"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1217
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1218
 msgid "重新定位后可继续预览和编辑。"
 msgstr "重新定位后可继续预览和编辑。"
 
@@ -10073,7 +10040,7 @@ msgstr "重新定位素材 {0}"
 msgid "重新录制"
 msgstr "重新录制"
 
-#: src/domain/editing/ClipInspector.tsx:349
+#: src/domain/editing/ClipInspector.tsx:348
 msgid "重新录制（保留旧文件）"
 msgstr "重新录制（保留旧文件）"
 
@@ -10088,9 +10055,9 @@ msgid "重新扫描"
 msgstr "重新扫描"
 
 #: src/domain/editing/ClipCameraInspection.tsx:25
-#: src/pages/shared/onboarding/GuidePage.tsx:111
-#: src/pages/shared/settings/AdvancedSection.tsx:169
-#: src/pages/shared/settings/GameSection.tsx:294
+#: src/pages/shared/onboarding/GuidePage.tsx:112
+#: src/pages/shared/settings/AdvancedSection.tsx:167
+#: src/pages/shared/settings/GameSection.tsx:295
 #: src/pages/shared/settings/RecoveryPage.tsx:98
 #: src/pages/shared/settings/RecoveryPage.tsx:102
 msgid "重新检查"
@@ -10102,16 +10069,16 @@ msgstr "重新检查"
 msgid "重新检索"
 msgstr "重新检索"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:66
+#: src/pages/shared/settings/MapGeometrySettings.tsx:65
 msgid "重新生成"
 msgstr "重新生成"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:64
+#: src/pages/shared/settings/MapGeometrySettings.tsx:63
 msgid "重新生成 {name} 地图"
 msgstr "重新生成 {name} 地图"
 
 #. placeholder {0}: asset.name
-#: src/domain/editing/ProjectMediaWorkspace.tsx:955
+#: src/domain/editing/ProjectMediaWorkspace.tsx:956
 msgid "重新生成代理 {0}"
 msgstr "重新生成代理 {0}"
 
@@ -10168,12 +10135,12 @@ msgstr "重置筛选"
 #: src/pages/shared/library/LibraryPage.tsx:528
 #: src/pages/shared/library/LibraryTable.tsx:101
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:89
-#: src/pages/shared/onboarding/GuidePage.tsx:116
-#: src/pages/shared/settings/AdvancedSection.tsx:78
-#: src/pages/shared/settings/AdvancedSection.tsx:128
-#: src/pages/shared/settings/AdvancedSection.tsx:183
-#: src/pages/shared/settings/AdvancedSection.tsx:246
-#: src/pages/shared/settings/AdvancedSection.tsx:304
+#: src/pages/shared/onboarding/GuidePage.tsx:117
+#: src/pages/shared/settings/AdvancedSection.tsx:79
+#: src/pages/shared/settings/AdvancedSection.tsx:129
+#: src/pages/shared/settings/AdvancedSection.tsx:181
+#: src/pages/shared/settings/AdvancedSection.tsx:232
+#: src/pages/shared/settings/AdvancedSection.tsx:289
 #: src/pages/shared/settings/AiAgentSection.tsx:237
 #: src/pages/shared/settings/AiAgentSection.tsx:480
 #: src/pages/shared/settings/AiAgentSection.tsx:566
@@ -10181,7 +10148,7 @@ msgstr "重置筛选"
 #: src/pages/shared/settings/AiAgentSection.tsx:975
 #: src/pages/shared/settings/AppSection.tsx:79
 #: src/pages/shared/settings/FilesSection.tsx:88
-#: src/pages/shared/settings/GameSection.tsx:112
+#: src/pages/shared/settings/GameSection.tsx:113
 #: src/pages/shared/settings/MapGeometrySettings.tsx:41
 #: src/pages/shared/settings/RecoveryPage.tsx:109
 #: src/pages/shared/settings/RecoveryPage.tsx:114
@@ -10225,6 +10192,10 @@ msgstr "镜头检查"
 msgid "镜头检查失败，请重试。"
 msgstr "镜头检查失败，请重试。"
 
+#: src/domain/editing/ClipCameraInspection.tsx:89
+msgid "镜头进入了墙体或地形"
+msgstr "镜头进入了墙体或地形"
+
 #: src/pages/analysis/match/views/utilityModel.ts:41
 msgctxt "utility-item"
 msgid "闪光弹"
@@ -10234,7 +10205,7 @@ msgstr "闪光弹"
 msgid "闪光效果统计不可用"
 msgstr "闪光效果统计不可用"
 
-#: src/domain/editing/ClipInspector.tsx:731
+#: src/domain/editing/ClipInspector.tsx:730
 msgid "闪白"
 msgstr "闪白"
 
@@ -10328,12 +10299,12 @@ msgstr "隐藏此组所有面板"
 msgid "隐藏面板"
 msgstr "隐藏面板"
 
-#: src/pages/shared/settings/GameSection.tsx:224
-#: src/pages/shared/settings/GameSection.tsx:227
+#: src/pages/shared/settings/GameSection.tsx:225
+#: src/pages/shared/settings/GameSection.tsx:228
 msgid "雷达"
 msgstr "雷达"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1947
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1942
 msgid "雷达图没能加载"
 msgstr "雷达图没能加载"
 
@@ -10354,11 +10325,12 @@ msgstr "需要桌面应用才能导出 SRT"
 msgid "需要至少 {0} 个序列标记；当前只有 {sequenceMarkerCount} 个。"
 msgstr "需要至少 {0} 个序列标记；当前只有 {sequenceMarkerCount} 个。"
 
-#: src/pages/shared/onboarding/GuidePage.tsx:136
+#: src/pages/shared/onboarding/GuidePage.tsx:137
+#: src/pages/shared/settings/GameSection.tsx:271
 msgid "需要配置"
 msgstr "需要配置"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1416
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1417
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/TimelineProgramMonitor.tsx:1729
@@ -10370,7 +10342,7 @@ msgstr "需要重录"
 msgid "需要重新定位"
 msgstr "需要重新定位"
 
-#: src/domain/editing/ProjectMediaWorkspace.tsx:1121
+#: src/domain/editing/ProjectMediaWorkspace.tsx:1122
 msgid "静态图片没有可播放的画面"
 msgstr "静态图片没有可播放的画面"
 
@@ -10383,10 +10355,6 @@ msgstr "静态地图检查不包含烟雾，仅作提示，不阻止录制。"
 msgid "静音 {0}"
 msgstr "静音 {0}"
 
-#: src/domain/editing/ClipInspector.tsx:339
-msgid "非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。"
-msgstr "非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。"
-
 #: src/domain/editing/ProjectWorkspaceDock.tsx:98
 msgid "面板操作"
 msgstr "面板操作"
@@ -10397,11 +10365,11 @@ msgstr "面板渲染失败"
 
 #: src/domain/editing/AudioTrackMixer.tsx:43
 #: src/domain/editing/AudioTrackMixer.tsx:44
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1549
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1547
 msgid "音轨混音器"
 msgstr "音轨混音器"
 
-#: src/domain/editing/ClipInspector.tsx:444
+#: src/domain/editing/ClipInspector.tsx:443
 msgid "音量"
 msgstr "音量"
 
@@ -10419,12 +10387,12 @@ msgstr "音频"
 msgid "音频 {0}"
 msgstr "音频 {0}"
 
-#: src/domain/editing/ClipInspector.tsx:692
+#: src/domain/editing/ClipInspector.tsx:691
 #: src/domain/editing/ProjectTimeline.tsx:5433
 msgid "音频入场转场"
 msgstr "音频入场转场"
 
-#: src/domain/editing/ClipInspector.tsx:693
+#: src/domain/editing/ClipInspector.tsx:692
 #: src/domain/editing/ProjectTimeline.tsx:5433
 msgid "音频出场转场"
 msgstr "音频出场转场"
@@ -10442,12 +10410,12 @@ msgstr "音频波形，全长 {total}"
 msgid "音频波形，全长 {total}，已选 {from} 至 {to}"
 msgstr "音频波形，全长 {total}，已选 {from} 至 {to}"
 
-#: src/domain/editing/ClipInspector.tsx:448
+#: src/domain/editing/ClipInspector.tsx:447
 msgid "音频自动化"
 msgstr "音频自动化"
 
 #. placeholder {0}: current.document.tracks.filter((candidate) => candidate.kind === 'audio').length + 1
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:969
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:968
 msgid "音频轨道 {0}"
 msgstr "音频轨道 {0}"
 
@@ -10474,7 +10442,7 @@ msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "页面根节点 #root 不存在，应用无法启动"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:300
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1542
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1540
 msgid "项目素材"
 msgstr "项目素材"
 
@@ -10537,8 +10505,8 @@ msgstr "预计用时包含启动 CS2 和逐个加载片段，实际时间会有�
 msgid "颜色"
 msgstr "颜色"
 
-#: src/domain/editing/ClipInspector.tsx:623
-#: src/domain/editing/ClipInspector.tsx:873
+#: src/domain/editing/ClipInspector.tsx:622
+#: src/domain/editing/ClipInspector.tsx:872
 msgid "颜色调整"
 msgstr "颜色调整"
 
@@ -10546,7 +10514,7 @@ msgstr "颜色调整"
 msgid "飞越"
 msgstr "飞越"
 
-#: src/domain/editing/ClipInspector.tsx:884
+#: src/domain/editing/ClipInspector.tsx:883
 msgid "饱和度"
 msgstr "饱和度"
 
@@ -10652,12 +10620,12 @@ msgstr "高级操作"
 msgid "高级时间轴操作"
 msgstr "高级时间轴操作"
 
-#: src/domain/editing/ClipInspector.tsx:730
+#: src/domain/editing/ClipInspector.tsx:729
 msgid "黑场"
 msgstr "黑场"
 
-#: src/domain/editing/ClipInspector.tsx:624
-#: src/domain/editing/ClipInspector.tsx:874
+#: src/domain/editing/ClipInspector.tsx:623
+#: src/domain/editing/ClipInspector.tsx:873
 msgid "黑白"
 msgstr "黑白"
 

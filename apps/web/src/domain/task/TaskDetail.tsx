@@ -4,7 +4,7 @@
  * 「补齐 · 规范与状态」draws it as 任务详情与阶段日志: a 52px header (类型 · 目标
  * 对象, the id in mono, a state tag, the source link, 打开结果), then a two-column
  * body — stage bar over 阶段日志 on the left, a 340px rail of facts on the right
- * that ends with a collapsed 「技术细节 · 进程、tick、编码参数」 row.
+ * that ends with a collapsed 「技术细节 · 查看诊断信息」 row.
  *
  * This is that body, not the page: the route, the toolbar and the surrounding
  * `Page` belong to `pages/delivery`, and this component never assumes it is
@@ -73,7 +73,7 @@ export interface TaskDetailProps {
   readonly artifacts?: readonly TaskArtifact[] | undefined;
   /** 「来源方案 #P-118」 and friends. */
   readonly links?: readonly TaskLink[] | undefined;
-  /** 进程、tick、编码参数. Facts, never a stack — see the module note. */
+  /** 查看诊断信息. Facts, never a stack — see the module note. */
   readonly technicalDetails?: readonly TaskFact[] | undefined;
   /** Export details expose their output path immediately; other kinds stay compact. */
   readonly technicalDetailsExpanded?: boolean | undefined;
@@ -236,7 +236,7 @@ export function TaskDetail({
                 />
                 <Trans>技术细节</Trans>
                 <span className="text-xs text-neutral-600">
-                  <Trans>进程、tick、编码参数</Trans>
+                  <Trans>查看诊断信息</Trans>
                 </span>
               </summary>
               <dl className="m-0 flex flex-col gap-2.5 border-t border-divider px-3 py-2.5 text-xs">

@@ -302,7 +302,7 @@ export function ClipInspector({
                   </li>
                 ))}
               </ol>
-              <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>调整区间速度会改变该区间和片段时长，但保持源 In/Out 不变；Story 后续片段会随之波纹移动。</Trans></p>
+              <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>调整速度会改变片段时长，后续片段将随之移动。</Trans></p>
             </>
           )}
         </section>
@@ -336,7 +336,6 @@ export function ClipInspector({
             <CaptureIntentNumberField label={t`前留白（秒）`} value={clip.capture_intent.pre_roll_seconds} step={0.1} readOnly={readOnly} onCommit={commitNumber((value) => updateCaptureIntent(clip, { pre_roll_seconds: Math.max(0, value) }))} />
             <CaptureIntentNumberField label={t`后留白（秒）`} value={clip.capture_intent.post_roll_seconds} step={0.1} readOnly={readOnly} onCommit={commitNumber((value) => updateCaptureIntent(clip, { post_roll_seconds: Math.max(0, value) }))} />
           </div>
-          <span className="mt-1 block text-xs text-neutral-500"><Trans>非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。</Trans></span>
           {cameraPreview}
           {clip.material.kind === 'planned' ? null : (
             <Button
@@ -605,7 +604,7 @@ export function ClipInspector({
             );
           })}
           {clip.keyframes.some((keyframe) => ['scale_x', 'scale_y', 'rotation'].includes(keyframe.property))
-            ? <p className="mt-2 text-xs text-neutral-500"><Trans>动画缩放与旋转不能同时启用；这是导出渲染器的组合约束。</Trans></p>
+            ? <p className="mt-2 text-xs text-neutral-500"><Trans>缩放动画与旋转动画不能同时启用。</Trans></p>
             : null}
         </section>
       )}

@@ -156,7 +156,7 @@ export const RECORDING_STAGE_BY_MESSAGE: Readonly<Record<string, string>> = {
  * Spec §10.3 gap 4: `ANALYSIS_STAGE_IDS` are the service's own ids and 「剩下的
  * 裸 id 由页面层传 label」. These are that copy. They are a proposal — the ids
  * describe the pipeline's internals (`verifying_input_after_parse`) and the
- * artboard only ever prints one stage name (「阶段 3/5 位置采样」) — so they are
+ * artboard only ever prints one stage name (「阶段 3/5 准备回放」) — so they are
  * written where a product decision can replace them, in one table, rather than
  * spread over the page.
  */
@@ -166,7 +166,7 @@ export function analysisStageLabels(): Readonly<Record<string, ReactNode>> {
     parser_queued: <Trans>排队等待解析</Trans>,
     parser_running: <Trans>解析比赛数据</Trans>,
     verifying_input_after_parse: <Trans>复核解析结果</Trans>,
-    projecting: <Trans>位置采样</Trans>,
+    projecting: <Trans>准备回放</Trans>,
   };
 }
 

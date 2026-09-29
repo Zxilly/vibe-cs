@@ -1,3 +1,4 @@
+import { dependencyLabel } from '../../../domain/environment/dependencyLabel';
 /*
  * pages/onboarding — 使用引导: the three steps beside what this machine can do.
  *
@@ -125,13 +126,13 @@ export function GuidePage() {
             <ul className="flex flex-col">
               {(checks.data?.checks ?? []).map((check) => (
                 <li
-                  key={`${check.kind}:${check.label}`}
+                  key={`${check.kind}:${dependencyLabel(check.kind)}`}
                   className="flex flex-col gap-1 border-b border-divider py-4 first:pt-2 last:border-b-0"
                   data-guide-check={check.kind}
                 >
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
-                    <span>{check.label}</span>
+                    <span>{dependencyLabel(check.kind)}</span>
                     <span className={cn('ml-auto flex-none text-sm', check.state === 'ready' ? 'text-ok-text' : 'text-fail-text')}>
                       {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
                     </span>
@@ -142,9 +143,6 @@ export function GuidePage() {
                         to know they can still import and analyse today. */}
                     {enablesSentence(check)}
                   </p>
-                  {check.detail === '' ? null : (
-                    <p className="ms-5 break-all text-sm leading-relaxed text-neutral-600">{check.detail}</p>
-                  )}
                 </li>
               ))}
               {(checks.data?.checks ?? []).length === 0 ? (
@@ -157,7 +155,7 @@ export function GuidePage() {
 
           <p className="text-xs leading-normal text-neutral-600">
             <Trans>
-              逐项的原始状态与路径校验在
+              更多检查结果见
               <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。
             </Trans>
           </p>

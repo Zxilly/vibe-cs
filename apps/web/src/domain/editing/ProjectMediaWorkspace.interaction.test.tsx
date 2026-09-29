@@ -73,27 +73,27 @@ it('keeps same-round source evidence in descriptions and the selected source mon
   const track = storyTrack([first, second]);
   const props = panelProps({timelineTracks: [track]});
   const {rerender} = renderInteractive(<WorkspaceHarness {...props} />);
-  const firstOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /Demo tick 10000–10384$/u});
+  const firstOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:00.000–00:06.000$/u});
   expect(firstOption.textContent).not.toContain('Demo tick');
   expect(firstOption.textContent).not.toContain('未录制');
-  expect(firstOption.getAttribute('aria-description')).toBe('Demo tick 10000–10384 · 未录制');
-  const secondOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /Demo tick 10512–10896$/u});
+  expect(firstOption.getAttribute('aria-description')).toBe('时间线 00:00.000–00:06.000 · 未录制');
+  const secondOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:06.000–00:12.000$/u});
   expect(secondOption.textContent).not.toContain('Demo tick');
-  expect(secondOption.getAttribute('aria-description')).toBe('Demo tick 10512–10896 · 未录制');
+  expect(secondOption.getAttribute('aria-description')).toBe('时间线 00:06.000–00:12.000 · 未录制');
   fireEvent.click(secondOption);
   expect(props.onSelectTimelineClip).toHaveBeenCalledExactlyOnceWith('moment-b', 6);
   openSourcePreview();
-  expect(within(screen.getByRole('region', {name: '源预览'})).getByText('Demo tick 10512–10896')).toBeTruthy();
+  expect(within(screen.getByRole('region', {name: '源预览'})).getByText('时间线 00:06.000–00:12.000')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', {name: '录制片段 Mirage R1 · s1mple'}));
   expect(props.onRequestRecording).toHaveBeenCalledExactlyOnceWith('moment-b');
 
   fireEvent.click(screen.getByRole('radio', {name: '图标视图'}));
-  expect(screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /Demo tick 10512–10896$/u}).getAttribute('aria-description')).toBe('Demo tick 10512–10896 · 未录制');
+  expect(screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:06.000–00:12.000$/u}).getAttribute('aria-description')).toBe('时间线 00:06.000–00:12.000 · 未录制');
   const recorded = {...second, material: {kind: 'asset' as const, asset_id: ASSET.id, media_duration_seconds: 10}};
   rerender(<WorkspaceHarness {...props} assets={[ASSET]} timelineTracks={[storyTrack([first, recorded])]} />);
   fireEvent.change(screen.getByRole('combobox', {name: '筛选素材状态'}), {target: {value: 'recorded'}});
   expect(screen.getAllByRole('option', {name: '选择素材 Mirage R1 · s1mple'})).toHaveLength(1);
-  expect(screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /Demo tick 10512–10896$/u}).getAttribute('aria-description')).toBe('Demo tick 10512–10896 · 已录制');
+  expect(screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:06.000–00:12.000$/u}).getAttribute('aria-description')).toBe('时间线 00:06.000–00:12.000 · 已录制');
 });
 
 it('shows real source In/Out for repeated imported footage and inserts the chosen range', () => {

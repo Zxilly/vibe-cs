@@ -18,7 +18,7 @@
  *          background:var(--color-bg)`, pinned `right:1px` on, `left:1px` off
  *   locked an extra `position:absolute;inset:0;
  *          border:1px solid var(--color-accent-700)` — the 「不可关闭」 switch
- *          of 设置 · 行为边界, drawn on and unreachable because spec §4.5.3
+ *          of 设置 · 操作确认, drawn on and unreachable because spec §4.5.3
  *          rule ① makes 「录制只由一次显式确认启动」 a rule of the system, not
  *          a preference
  *

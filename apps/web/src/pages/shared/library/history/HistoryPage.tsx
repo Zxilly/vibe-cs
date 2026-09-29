@@ -6,7 +6,7 @@
  * 「补齐 · 暗色与其余页面」 draws it as a 944 × 560 panel: a 48px head
  * (「比赛历史 · Steam · 上次同步 08-15 08:40」, then 「Steam 设置」 and
  * 「同步最近比赛」), a 42px filter strip carrying four state counts and the note
- * 「Valve 官方链路。FACEIT 等平台连接器尚未提供」, the table, and an accent-100
+ * 「同步 Steam 竞技比赛」, the table, and an accent-100
  * selection bar with 「下载后自动分析」 and 「下载选中的 2 场」. Promoted to a route,
  * the head becomes the `Toolbar` and the strip becomes `Page`'s `bar` slot.
  *
@@ -178,7 +178,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
           )}
           <div className="flex-1" aria-hidden="true" />
           <span className="text-xs text-neutral-600">
-            <Trans>Valve 官方链路。FACEIT 等平台连接器尚未提供</Trans>
+            <Trans>同步 Steam 竞技比赛</Trans>
           </span>
         </div>
       }
@@ -227,7 +227,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
             detail={
               steamConfigurationMissing
                 ? <Trans>填写 Steam ID、API 密钥、验证码和最近分享代码后再同步。</Trans>
-                : <Trans>读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。</Trans>
+                : <Trans>请重试，或检查 Steam 连接设置。</Trans>
             }
           >
             {steamConfigurationMissing

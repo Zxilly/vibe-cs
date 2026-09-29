@@ -50,7 +50,7 @@ export function ClipCameraInspection({ projectId, clipId, revision, sourceTimeSe
             </p>
           )}
           {inspection.issues.length === 0 ? (
-            <p className="mt-2 text-neutral-700"><Trans>当前采样未发现镜头问题。</Trans></p>
+            <p className="mt-2 text-neutral-700"><Trans>暂未发现镜头问题。</Trans></p>
           ) : (
             <>
               <p className="mt-2 text-warn-text"><Trans>仍有镜头问题，可调整录制视角或范围后重新检查。</Trans></p>
@@ -86,7 +86,7 @@ function IssueList({ issues }: { readonly issues: readonly CameraIssueInterval[]
 
 function issueLabel(issue: CameraIssueInterval): string {
   switch (issue.kind) {
-    case 'inside_solid': return t`机位位于地图实体内部`;
+    case 'inside_solid': return t`镜头进入了墙体或地形`;
     case 'near_wall': return t`机位距离墙面不足 16 单位`;
     case 'surface_crossing': return t`机位路径穿过地图表面`;
     case 'target_occluded': return t`${Math.round(issue.affectedFraction * 100)}% 的头胸视线被遮挡`;

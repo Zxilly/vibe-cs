@@ -183,7 +183,7 @@ export const AgentPanel = memo(function AgentPanel({
                   <CircleAlert className="size-4" aria-hidden="true" />
                   <Trans>还没配置 Agent 模型</Trans>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>配置提供方、模型、API 地址和密钥后即可在这里继续。</Trans></p>
+                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>连接模型后即可开始。</Trans></p>
                 <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
               </ConversationShell>
             ) : null}
@@ -683,32 +683,32 @@ function toolSummary(call: AgentToolCall | ProjectAgentToolActivity): string {
       case 'read_workspace': {
         const detail = jsonObject(call.input)?.detail;
         return detail === 'assets' ? t`正在查找作品中导入的素材…`
-          : detail === 'coverage' ? t`正在检查事件覆盖与录制边界…`
-          : detail === 'editing_reference' ? t`正在读取该编辑操作的字段示例…`
-          : detail === 'timeline' ? t`正在按目标身份读取可编辑时间线字段…` : t`正在读取作品版本和素材概况…`;
+          : detail === 'coverage' ? t`正在检查录制范围…`
+          : detail === 'editing_reference' ? t`正在准备编辑…`
+          : detail === 'timeline' ? t`正在查看时间线…` : t`正在查看作品…`;
       }
-      case 'read_demo_evidence': return t`正在读取经过验证的 Demo 事件…`;
+      case 'read_demo_evidence': return t`正在查看比赛事件…`;
       case 'read_cinematic_context': return t`正在读取镜头路径与战术上下文…`;
       case 'read_project_delivery': return t`检查交付状态`;
-      case 'apply_project_patch': return t`正在校验并提交增量修改…`;
-      case 'replace_story_timeline': return t`正在检查整条 Story 轨道…`;
-      default: return t`正在执行工具…`;
+      case 'apply_project_patch': return t`正在更新作品…`;
+      case 'replace_story_timeline': return t`正在检查主轨道…`;
+      default: return t`正在处理…`;
     }
   }
   switch (call.name) {
     case 'read_workspace': {
       const detail = jsonObject(call.input)?.detail;
-      return detail === 'assets' ? t`已读取作品素材库，包含尚未加入时间线的素材。`
-        : detail === 'coverage' ? t`已检查片段使用范围和录制边界，实际画面仍需录制后检查。`
-        : detail === 'editing_reference' ? t`已读取当前编辑操作的字段示例。`
-        : detail === 'timeline' ? t`已读取目标轨道或片段的可编辑时间线字段。` : t`已读取作品版本、轨道和素材概况。`;
+      return detail === 'assets' ? t`已查看作品素材。`
+        : detail === 'coverage' ? t`已检查录制范围，请在录制后确认画面。`
+        : detail === 'editing_reference' ? t`已准备好编辑。`
+        : detail === 'timeline' ? t`已查看时间线。` : t`已查看作品和素材。`;
     }
-    case 'read_demo_evidence': return t`已读取经过验证的 Demo 事件。`;
+    case 'read_demo_evidence': return t`已查看比赛事件。`;
     case 'read_cinematic_context': return t`已读取镜头路径与战术上下文。`;
     case 'read_project_delivery': return t`已读取素材完整性和导出文件信息。`;
     case 'apply_project_patch': return t`修改已写入时间线。`;
-    case 'replace_story_timeline': return t`整条 Story 轨道已替换。`;
-    default: return t`工具已返回结果。`;
+    case 'replace_story_timeline': return t`主轨道已替换。`;
+    default: return t`已完成。`;
   }
 }
 

@@ -220,7 +220,7 @@ export function OutputsView({ now }: OutputsViewProps) {
           ) : (
             <Empty
               title={<Trans>「{scopeLabel}」还没有成品文件</Trans>}
-              description={<Trans>导出这个作品后，成片会出现在这里。其他作品的成品文件不受影响。</Trans>}
+              description={<Trans>导出后，成片会出现在这里。</Trans>}
               actions={
                 <RouteLink to="/delivery">
                   <Trans>查看全部成品文件</Trans>

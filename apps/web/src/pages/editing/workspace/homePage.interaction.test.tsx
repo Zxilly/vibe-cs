@@ -179,9 +179,10 @@ describe('工作台首页', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-home-block="environment"]')).not.toBeNull();
     });
-    // The consequence, beside the service's own words.
+    // Explain the consequence without dumping service diagnostics.
     expect(document.body.textContent).toContain('录制起不来');
-    expect(document.body.textContent).toContain('未探测到可执行文件');
+    expect(document.body.textContent).not.toContain('未探测到可执行文件');
+    expect(document.body.textContent).toContain('录制组件');
     // A warning is worth reading in diagnostics and is not worth a banner.
     expect(document.querySelector('[data-blocking-check="cs2"]')).toBeNull();
   });

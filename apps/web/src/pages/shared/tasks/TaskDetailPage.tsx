@@ -41,7 +41,7 @@ export function TaskDetailPage() {
           <Empty
             variant="error"
             title={<Trans>找不到这条任务</Trans>}
-            description={<Trans>这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。</Trans>}
+            description={<Trans>任务地址无效，请从任务列表重新打开。</Trans>}
             actions={
               <RouteLink to="/tasks">
                 <Trans>回到任务中心</Trans>

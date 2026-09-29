@@ -50,6 +50,7 @@ _Avoid_: answering current counts from old assistant messages, replaying the ful
 
 **Agent Context Assembly**:
 The Desktop-hosted Module that builds one model turn from the durable AgentSession, Current Turn Checkpoint, Workspace View State, resource manifest, and targeted tool results. It excludes the active streaming placeholder, compacts old tool evidence, and discloses full Editing Document fields only through explicit just-in-time reads.
+The initial checkpoint and later summary use the same typed projection, preserving exact material counts while bounding tracks, clips and markers. Selection is prioritized; truncated marker lists have revision-bound pages before any full-list replacement.
 _Avoid_: web-authored model history, replaying a second local thread, injecting the complete Project or raw Demo evidence into every turn
 
 **Agent**:
@@ -74,6 +75,7 @@ _Avoid_: full transcript replay, event sourcing, generic orchestration framework
 
 **Human Edit**:
 A precise direct manipulation made through the unified editing interface, such as trimming, moving, keyframing, or mixing. Human Edits and Agent Operations share document validation, revision history, and undo semantics without sharing the same granularity.
+Completed track edits compose Sync Lock, sequence-marker ripple and Project Patch scope in one Module before binding to the current Project revision, regardless of whether they originated in the Timeline, Source Monitor or Inspector.
 _Avoid_: requiring a matching Agent tool for every control
 
 **Cross-Lens Change**:
@@ -142,6 +144,7 @@ _Avoid_: persisted recorded boolean
 
 **Delivery Gate**:
 The completeness rule for final export. Every enabled **Timeline Clip** must have compatible materialization; draft preview may show placeholders, but final export never omits or substitutes unresolved clips.
+The gate resolves the confirmed Project snapshot and its exact media into one prepared render input. Delivery status and execution share that resolution, including nested Sequence previews; the render Adapter does not reread Project Head after confirmation.
 _Avoid_: best-effort export, silent skip, stale Take fallback
 
 **Project Projection**:

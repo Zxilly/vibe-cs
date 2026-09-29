@@ -46,6 +46,10 @@ without copying their framework-specific command hierarchies:
   filtering, link/group eligibility and contiguous Story selection use this one Interface.
 - `domain/editing/timelineEditing.ts` and `timelineInteraction.ts` own frame-snapped edit semantics.
   They return candidate Timeline Clips and Tracks; they do not persist pointer-move intermediates.
+- `domain/editing/humanTrackEdit.ts` completes the shared Human Edit: it expands Sync Lock,
+  applies sequence-marker ripple and selects Project Patch scope for Timeline gestures, Source
+  insertion and cross-track movement. These callers submit their direct track changes without
+  independently choosing which ripple side effects to include.
 - `design/timeline` is the only time geometry. Ruler, playhead, zoom, scroll and gesture calculations
   consume it rather than introducing percentages or page-private coordinate systems.
 - `TimelineProgramMonitor.tsx` consumes Timeline Transport and materialization. It does not own
@@ -123,8 +127,8 @@ Head and Change Group already form the one edit and undo authority.
   hexadecimal Web API key are syntactically valid, and the record belongs to that current account. A
   failed or cancelled recording exposes retry only when storage can prove one unclaimed unpublished
   suffix; Activity never guesses a resumable capture tick. Activity is private to the desktop process.
-- `agent` owns one in-process Rig model/tool loop, provider URL policy, streaming limits, the
-  Current Turn Checkpoint and eight typed Project/evidence/execution tools. The loop has no
+- `agent` owns one in-process Rig model/tool loop, provider URL policy, streaming limits,
+  checkpoint prompt framing and eight typed Project/evidence/execution tools. The loop has no
   product-defined total turn or tool-call ceiling; explicit cancellation and the desktop request
   deadline own liveness. There is one complete tool catalog and one prompt; no Guide/Edit/HLAE
   runtime modes. The model has no filesystem, shell or process execution tool.
@@ -134,7 +138,10 @@ Head and Change Group already form the one edit and undo authority.
   not a compatibility source. The webview sends `sessionId`, the current instruction and Workspace
   View State; it never authors model history.
 - Project context is progressively disclosed. The Current Turn Checkpoint and
-  `read_workspace(detail=summary)` expose an exact revision plus bounded inventory. Exact editable
+  `read_workspace(detail=summary)` use the same typed host projection: exact revision and material
+  counts plus bounded, selection-prioritized track and clip inventory. Truncated marker inventory
+  has revision-bound `detail=markers` pages; full-list replacement requires every page from one
+  revision. The initial model request never serializes the full Editing Document. Exact editable
   fields require `detail=timeline` and may be filtered by track or clip identities. Demo evidence
   and cinematic context remain bounded targeted reads; they are not eagerly duplicated into every
   turn. This keeps the model's attention on the
@@ -150,6 +157,11 @@ Head and Change Group already form the one edit and undo authority.
   real Timeline duration; no second clip library or pre-timeline plan is persisted.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
+- `application/project_delivery` resolves Delivery Gate evidence and prepared render inputs from
+  one confirmed Project snapshot. It selects the exact existing source media, including a successful
+  full nested Sequence preview even when a newer attempt failed. The render Adapter consumes that
+  snapshot and source selection without reopening Project Head; delivery status uses the same
+  resolver. An unavailable enabled source blocks both readiness and execution.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
   process lifecycle.
 - `web` keeps DTOs at the desktop command seam and uses feature-local state for analysis, queue,
@@ -215,6 +227,10 @@ Head and Change Group already form the one edit and undo authority.
   player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
   directional matrix is row-actor/column-target; selecting a cell filters the same canonical atomic
   evidence. It never promotes a later kill or infers trades, KAST or rating.
+  Match Overview, Duels and Players share `openingEvidence`: the earliest kill is selected before
+  identity resolution, unique names resolve to canonical player IDs, and ambiguous or missing
+  participants remain unavailable. Duels shows verified rows plus the unavailable count; exact
+  team and player opening totals are unavailable when any observed opening cannot be verified.
   Man Advantage Review is a separate current-analysis projection. It requires two stable five-player
   summary rosters, one exact ten-player roster for every uniquely numbered round, one in-bounds
   canonical round-end, unique canonical event IDs and resolvable death targets. It starts each round

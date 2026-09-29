@@ -414,6 +414,13 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 验收范围是当前本机 WebView2 153、默认 1440×900 QA 窗口和真实 Mirage 回放，3D canvas 缓冲 489×763。结果证明该配置持续超过 60 fps，但不是所有地图/显卡都通过，也不表示完全没有偶发长帧。内存已按用户要求改为尽量优化。M4 清单完成，M0 过滤与 M3 实体内部/游戏实拍仍待完成。
 - 原始证据：本机忽略目录 `m4-presentmon-foreground-niko.csv`、`m4-presentmon-foreground-niko-summary.json`、`m4-presentmon-foreground-niko-per-second.json`、`m4-presentmon-foreground-sustained.csv`、`m4-presentmon-foreground-sustained-summary.json` 及对应采集日志。工具及指标定义见 [PresentMon 官方说明](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)。
 
+### 2026-09-29：M3 实体判定的数据基础
+
+- 对 Mirage 的生产遮挡三角网格检查边连接：122,643 个三角形形成 2,827 个分量，其中 1,334 个闭合、边朝向一致且有正体积（24,408 个三角形）；另 1,493 个分量有开放边或非流形连接。直接把整个 TriMesh 的有符号距离当成实体内部会引入错误。原始 PHYS 含 8 个 mesh 和 1,933 个 hull；生产过滤后保留 1,857 个 hull，不能靠焊接后拓扑完整恢复其归属。
+- 唯一 VMAP 格式升级为 v2，在相同渲染三角网格后保存原始凸包/球/胶囊的顶点索引集合。开放 mesh 不声明为实体；没有第二条地图提取路径。Rust 和前端都校验成员数量、引用范围及截断数据，前端只保留渲染数组，不复制内部碰撞数据。旧 v1 直接拒绝，缓存指纹同步更新；合成 VPK 通过同一生产提取器重建前端 fixture。
+- 8 张本机真实地图完成 v2 精确往返校验，仍全部 <10 MB。凸体数/编码字节：Mirage 1,857 / 459,351；Dust2 10,103 / 1,492,676；Inferno 6,069 / 8,691,022；Nuke 4,877 / 484,464；Ancient 295 / 3,609,108；Anubis 14,869 / 1,975,496；Train 6,109 / 4,765,605；Overpass 1,753 / 2,613,711。顶点和三角形数保持不变。
+- 常规 source-assets 39 项通过、5 项真实环境默认跳过；8 地图真实测试通过，运行时缓存测试 3 项通过，前端含真实 Mirage 的二进制测试 5 项通过，严格 Clippy、Web lint、仓库格式检查通过。证据：`m3-physics-shape-inventory.log`、`m3-solid-membership-all-maps.log`、`m3-solid-codec-tests.log`、`m3-vmap-v2-runtime-tests.log`。该提交只完成数据基础，镜头诊断尚未使用凸体，M3 实体内部项继续未勾选。
+
 ## 参考来源
 
 外部资料（检索于 2026-09-28）：

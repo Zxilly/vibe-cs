@@ -126,7 +126,7 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 - [x] 颜色（含 team/a、team/b）运行时读取 `theme.css` 的 CSS 变量，不写页面私有样式
 - [x] 视角：自由轨道、跟随选手、机位视角
 - [x] 回放页（`ReplayView`）在 2D 地图旁加 3D 视图，共用播放时钟、选中选手与时间轴
-- [ ] 性能：WebView2 上稳定 60 fps；内存尽量优化，300 MB 不再作为硬性验收门槛（2026-09-29 用户确认）
+- [x] 性能：WebView2 上稳定 60 fps（本机真实 Mirage、前台 Release 持续 60 秒呈现验证，见决策记录）；内存尽量优化，300 MB 不再作为硬性验收门槛（2026-09-29 用户确认）
 - [x] 测试：机位与姿态数学用 vitest；用 mock 合成地图配合 agent-browser 截图核对
 
 ## M5 · 镜头预演接入剪辑（1–1.5 周）
@@ -405,6 +405,14 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 用户明确回复「这个无所谓，尽量优化就好，可以不管」，取消此前 300 MB 的硬性完成门槛。已有内存测量保留为历史证据，按键对象去重保留；不再以该数值阻塞 M4 或持续重复基线测量。此前各条「门槛未通过」描述的是当时状态，不代表调整后的完成条件。
 - M4 仍须验证原生 WebView2 稳定 60 fps。现有 WebGL 提交探针不足以证明实际呈现稳定性；M0 过滤和 M3 诊断/游戏实拍要求没有调整。
 - 按键对象共享后的内嵌 Release 已构建成功（3 分 26 秒），真实回放加载与跟随/剖切走查正常。尝试 PresentMon 2.6.0 按 QA GPU 子进程 PID 采集：30 秒自由视角 279 条 Present 记录，仅 9 条有显示时间；20 秒跟随视角 587 条记录，仅 8 条有显示时间。两次均未获得足够显示时间数据，不能据此计算实际显示帧率或通过 60 fps 验收。下一步需核对窗口实际可见性、持续移动的存活选手片段及显示事件捕获完整性。证据：`m4-presentmon-release-{playback,follow}.{csv,log}`、`m4-release-follow.png`；[PresentMon 指标定义](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)。
+
+### 2026-09-29：M4 原生显示呈现验收
+
+- 用原生窗口 API 激活已运行的独立 Release QA 窗口，选取真实 Mirage Demo tick 118000 附近仍存活的 NiKo，跟随选手并开启顶部剖切。原生截图确认胶囊体、朝向线、地图、2D 回放与共享时钟正在显示。此前 CDP 截图可在窗口被遮挡时生成，不能单独证明窗口正在屏幕上呈现；前台激活后有效显示事件数量显著恢复。
+- PresentMon 2.6.0 仅按该 QA 实例 GPU 子进程 PID 140896 采集，同一个 DXGI swapchain。首轮 30 秒有 4,274 次 Present，其中 3,954 次带有效显示时间；28 个完整秒窗口呈现量 **97–145 fps**，平均 **132.0 fps**，显示间隔 p95 **13.4 ms**、p99 **22.4 ms**、最大 **43.1 ms**。
+- 继续播放并独立采集 60 秒：8,906 次 Present，其中 **8,372 次有效显示**；58 个完整秒窗口全部为 **123–152 fps**，平均 **139.7 fps**。显示间隔 p95 **12.6 ms**、p99 **18.8 ms**、最大 **41.2 ms**。帧率按有效显示事件的 `TimeInMs + MsUntilDisplayed` 分秒统计，不把未显示的 Present 或 WebGL clear 算作显示帧；所有完整秒均有记录，首尾不完整秒不计入逐秒范围。
+- 验收范围是当前本机 WebView2 153、默认 1440×900 QA 窗口和真实 Mirage 回放，3D canvas 缓冲 489×763。结果证明该配置持续超过 60 fps，但不是所有地图/显卡都通过，也不表示完全没有偶发长帧。内存已按用户要求改为尽量优化。M4 清单完成，M0 过滤与 M3 实体内部/游戏实拍仍待完成。
+- 原始证据：本机忽略目录 `m4-presentmon-foreground-niko.csv`、`m4-presentmon-foreground-niko-summary.json`、`m4-presentmon-foreground-niko-per-second.json`、`m4-presentmon-foreground-sustained.csv`、`m4-presentmon-foreground-sustained-summary.json` 及对应采集日志。工具及指标定义见 [PresentMon 官方说明](https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md)。
 
 ## 参考来源
 

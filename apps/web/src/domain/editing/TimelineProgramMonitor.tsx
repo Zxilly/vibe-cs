@@ -25,6 +25,7 @@ import { evaluateTimelineAudioMix, timelineTrackAudible } from './timelineAudioM
 import { activeProjectRenderPreview, projectRenderPreviewStreamPath } from './renderPreview';
 import { multicamAnglesAtTime } from './multicamEditing';
 import { PooledCameraPreview, type CameraPreviewEntry } from './PooledCameraPreview';
+import { usePreviewVideoSeek } from './usePreviewVideoSeek';
 
 interface PreviewMedia {
   readonly clip: TimelineClip;
@@ -1029,11 +1030,7 @@ const MulticamAnglePreviewVideo = memo(function MulticamAnglePreviewVideo({
   readonly onSelect: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video === null || video.seeking || Math.abs(video.currentTime - sourceTime) <= 0.5 / Math.max(1, fps)) return;
-    try { video.currentTime = sourceTime; } catch { /* loadedmetadata retries */ }
-  }, [fps, sourceTime]);
+  usePreviewVideoSeek({ videoRef, sourceTime, fps, seekEnabled: true });
   return (
     <button
       type="button"
@@ -1050,7 +1047,6 @@ const MulticamAnglePreviewVideo = memo(function MulticamAnglePreviewVideo({
         preload="auto"
         muted
         playsInline
-        onLoadedMetadata={(event) => { event.currentTarget.currentTime = sourceTime; }}
       />
       <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1 bg-media/80 px-1 py-0.5 text-left text-xs text-on-media">
         <strong className="font-mono">{angle}</strong><span className="truncate">{name}</span>
@@ -1084,38 +1080,11 @@ const RenderPreviewVideo = memo(function RenderPreviewVideo({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const desiredTime = Math.min(rangeEnd - rangeStart, Math.max(0, timelineTime - rangeStart));
-  const desiredTimeRef = useRef(desiredTime);
-  desiredTimeRef.current = desiredTime;
-  const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   onTimelineTimeChangeRef.current = onTimelineTimeChange;
   const playingForward = playing && playbackRate > 0 && presented;
 
-  const seekLatest = () => {
-    if (playingForward) return;
-    const video = videoRef.current;
-    if (video === null || video.seeking) return;
-    if (Math.abs(video.currentTime - desiredTimeRef.current) <= 0.5 / Math.max(1, fps)) return;
-    try {
-      video.currentTime = desiredTimeRef.current;
-    } catch {
-      // Metadata or the target keyframe is not available yet; media events retry.
-    }
-  };
-  const reportReady = () => {
-    const video = videoRef.current;
-    if (video === null
-      || video.seeking
-      || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
-      || Math.abs(video.currentTime - desiredTimeRef.current) > 0.5 / Math.max(1, fps)) return;
-    onReadyRef.current();
-  };
-
-  useEffect(() => {
-    seekLatest();
-    reportReady();
-  }, [desiredTime, fps, playingForward]);
+  usePreviewVideoSeek({ videoRef, sourceTime: desiredTime, fps, seekEnabled: !playingForward, onReady });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1155,9 +1124,6 @@ const RenderPreviewVideo = memo(function RenderPreviewVideo({
       muted={!presented}
       aria-label={t`已渲染时间轴预览`}
       data-render-preview-video
-      onLoadedMetadata={() => { seekLatest(); reportReady(); }}
-      onLoadedData={reportReady}
-      onSeeked={() => { seekLatest(); reportReady(); }}
       onTimeUpdate={(event) => {
         if (playingForward && typeof event.currentTarget.requestVideoFrameCallback !== 'function') {
           onTimelineTimeChangeRef.current(Math.min(rangeEnd, rangeStart + event.currentTarget.currentTime));
@@ -1230,12 +1196,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const outputMuted = forceMuted || poolRole === 'trim' || !presented;
   useMediaAudioOutput(videoRef, audioGain, clipPan, trackPan, outputMuted);
   const desiredSourceTime = clipSourceTimeAtLocalTime(clip, offsetSeconds);
-  const desiredTimeRef = useRef(desiredSourceTime);
-  desiredTimeRef.current = desiredSourceTime;
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   onTimelineTimeChangeRef.current = onTimelineTimeChange;
-  const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
   const evaluatedTransform = evaluatePreviewTransform(clip, offsetSeconds);
   const clipCanonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', offsetSeconds, clip.placement.volume);
   const clipFadeFactor = clipAudioFadeFactor(clip, offsetSeconds);
@@ -1279,39 +1241,14 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     && clip.placement.frame_hold_source_time === null;
   const videoDrivesTimeline = videoPlaysForward && drivesTimeline;
 
-  const seekLatest = () => {
-    if (videoPlaysForward || (!target && presented)) return;
-    const video = videoRef.current;
-    if (video === null || video.seeking) return;
-    const targetTime = desiredTimeRef.current;
-    if (Math.abs(video.currentTime - targetTime) <= 0.5 / Math.max(1, fps)) return;
-    try {
-      video.currentTime = targetTime;
-    } catch {
-      // Metadata has not arrived yet. loadedmetadata/loadeddata retries below.
-    }
-  };
-  const reportReadyIfCurrent = () => {
-    const video = videoRef.current;
-    if (video === null
-      || !target
-      || video.seeking
-      || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
-      || Math.abs(video.currentTime - desiredTimeRef.current) > 0.5 / Math.max(1, fps)) return;
-    onReadyRef.current();
-  };
-
-  useEffect(() => {
-    seekLatest();
-  }, [clip, fps, offsetSeconds, videoPlaysForward, target, presented]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (video !== null) {
-      seekLatest();
-      reportReadyIfCurrent();
-    }
-  }, [readinessKey, target]);
+  usePreviewVideoSeek({
+    videoRef,
+    sourceTime: desiredSourceTime,
+    fps,
+    seekEnabled: !videoPlaysForward && (target || !presented),
+    readinessKey,
+    onReady: target ? onReady : undefined,
+  });
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1457,25 +1394,12 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-canonical-volume={clipCanonicalVolume}
       data-preview-fade-factor={clipFadeFactor}
       data-preview-output-volume={audioGain}
-      data-preview-source-time={desiredTimeRef.current}
+      data-preview-source-time={desiredSourceTime}
       data-preview-clip-speed={clip.placement.speed}
       data-preview-effects={previewFilter.kinds.join(',')}
       data-preview-filter={previewFilter.filter}
       data-preview-transition={previewTransition.kind}
       data-preview-transition-progress={previewTransition.progress}
-      onLoadedMetadata={seekLatest}
-      onLoadedData={() => {
-        seekLatest();
-        reportReadyIfCurrent();
-      }}
-      onCanPlay={() => {
-        seekLatest();
-        reportReadyIfCurrent();
-      }}
-      onSeeked={() => {
-        seekLatest();
-        reportReadyIfCurrent();
-      }}
       onTimeUpdate={(event) => {
         if (!videoDrivesTimeline || typeof event.currentTarget.requestVideoFrameCallback === 'function') return;
         if (target

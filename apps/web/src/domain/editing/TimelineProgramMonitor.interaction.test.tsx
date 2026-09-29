@@ -77,6 +77,32 @@ it('freezes the last presented video frame while the next clip is seeking', () =
   expect(first.style.opacity).toBe('1');
 });
 
+it.each(['program', 'multicam'] as const)('%s retries only the newest Timeline seek after an in-flight seek finishes', (kind) => {
+  const value = project();
+  const story = value.document.tracks[0]!;
+  story.clips = story.clips.slice(0, 1);
+  const first = story.clips[0]!;
+  first.metadata = { multicam: { group_id: 'group', angle: 1, angle_name: 'First', switch_audio: true } };
+  value.document.tracks.push({ ...story, id: 'second-angle', order: 1, clips: [{
+    ...first, id: 'second-clip',
+    material: { kind: 'asset', asset_id: 'second-asset', media_duration_seconds: 6 },
+    placement: { ...first.placement, enabled: false },
+    metadata: { multicam: { group_id: 'group', angle: 2, angle_name: 'Second', switch_audio: true } },
+  }] });
+  const view = renderInteractive(tree(value, 1));
+  const video = kind === 'program'
+    ? document.querySelector<HTMLVideoElement>('video[data-preview-pool-role="program"]')!
+    : screen.getByRole('button', { name: '切换到摄像机 2 Second' }).querySelector('video')!;
+  expect(video.currentTime).toBe(1);
+  Object.defineProperty(video, 'seeking', { configurable: true, value: true });
+  view.rerender(tree(value, 2));
+  view.rerender(tree(value, 3));
+  expect(video.currentTime).toBe(1);
+  Object.defineProperty(video, 'seeking', { configurable: true, value: false });
+  fireEvent.seeked(video);
+  expect(video.currentTime).toBe(3);
+});
+
 it('keeps clip-keyed scene instances and presents only the newest transport target', async () => {
   const value = planned();
   const view = renderInteractive(tree(value, 3));

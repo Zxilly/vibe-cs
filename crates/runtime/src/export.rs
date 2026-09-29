@@ -6,10 +6,9 @@ use std::{
 
 use async_trait::async_trait;
 use chrono::Utc;
-use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 use uuid::Uuid;
-use vibe_cs_application::ExportPort;
+use vibe_cs_application::{ExportPort, PreparedProjectRender, ProjectRenderOptions};
 use vibe_cs_domain::{DomainError, ExportJob, JobFailureCode, JobStatus};
 use vibe_cs_media::{
     EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, FilterPlan,
@@ -25,24 +24,6 @@ pub struct RuntimeExportPort {
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
     active: Arc<Mutex<HashMap<Uuid, ProcessCancellation>>>,
-}
-
-/// The editor export request body.
-///
-/// It reaches this port as a `serde_json::Value` forwarded by the HTTP layer,
-/// so this struct is the only place the shape is written down and therefore
-/// the only honest source for the TypeScript binding.
-#[derive(Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProjectRenderRequest {
-    /// Encoder selection. `auto` lets the media layer choose.
-    encoder: String,
-    quality: u8,
-    /// Trim the export to a window of the timeline. Both bounds may be omitted.
-    #[serde(default)]
-    range_start_seconds: Option<f64>,
-    #[serde(default)]
-    range_end_seconds: Option<f64>,
 }
 
 impl std::fmt::Debug for RuntimeExportPort {
@@ -102,18 +83,15 @@ impl RuntimeExportPort {
     async fn prepare(
         &self,
         kind: &str,
-        project_id: Uuid,
-        request: &Value,
+        input: PreparedProjectRender,
+        request: &ProjectRenderOptions,
     ) -> Result<(ExportJobRecord, FilterPlan), DomainError> {
         if !matches!(kind, "project" | "project_preview") {
             return Err(DomainError::InvalidInput(format!(
                 "unsupported export kind: {kind}"
             )));
         }
-        let request: ProjectRenderRequest =
-            serde_json::from_value(request.clone()).map_err(|error| {
-                DomainError::InvalidInput(format!("invalid export options: {error}"))
-            })?;
+        let project_id = input.project().id;
         let export_dir = self.data_dir.join(if kind == "project_preview" {
             "previews"
         } else {
@@ -125,7 +103,7 @@ impl RuntimeExportPort {
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
         let (plan, project_revision, range_start_seconds, range_end_seconds) =
-            self.project_plan(project_id, &output, &request).await?;
+            self.project_plan(input, &output, request).await?;
         let now = Utc::now();
         let job = ExportJob {
             id,
@@ -152,131 +130,24 @@ impl RuntimeExportPort {
 
     async fn project_plan(
         &self,
-        project_id: Uuid,
+        input: PreparedProjectRender,
         output: &Path,
-        request: &ProjectRenderRequest,
+        request: &ProjectRenderOptions,
     ) -> Result<(FilterPlan, u64, f64, f64), DomainError> {
-        let project = self
-            .storage
-            .get_project(project_id)
-            .await
-            .map_err(|error| storage_error(&error))?
-            .ok_or_else(|| DomainError::NotFound("project".to_owned()))?;
+        let (project, sources) = input.into_parts();
         let mut assets = HashMap::new();
-        let mut referenced_assets = project
-            .document
-            .tracks
-            .iter()
-            .flat_map(|track| &track.clips)
-            .filter(|clip| clip.placement.enabled)
-            .filter_map(|clip| match clip.material {
-                vibe_cs_domain::TimelineClipMaterial::Take { asset_id, .. }
-                | vibe_cs_domain::TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
-                vibe_cs_domain::TimelineClipMaterial::Planned
-                | vibe_cs_domain::TimelineClipMaterial::Sequence { .. } => None,
-            })
-            .collect::<Vec<_>>();
-        referenced_assets.extend(
-            project
-                .document
-                .tracks
-                .iter()
-                .flat_map(|track| &track.clips)
-                .filter(|clip| clip.placement.enabled)
-                .filter_map(|clip| clip.text.as_ref()?.font_asset_id),
-        );
-        for asset_id in referenced_assets {
-            if assets.contains_key(&asset_id.to_string()) {
-                continue;
-            }
-            let (path, kind) = if let Some(asset) = self
-                .storage
-                .get_asset(asset_id)
-                .await
-                .map_err(|error| storage_error(&error))?
-            {
-                (asset.path, editor_media_kind(&asset.kind))
-            } else if let Some(clip) = self
-                .storage
-                .get_recorded_clip(asset_id)
-                .await
-                .map_err(|error| storage_error(&error))?
-            {
-                // Recorded clips are first-class editor sources. Keeping their
-                // identifier avoids copying a potentially large local video.
-                (clip.path, EditorMediaKind::Video)
-            } else {
-                return Err(DomainError::NotFound(format!("media source {asset_id}")));
-            };
-            let path = PathBuf::from(path);
+        for (source_id, source) in sources {
+            let kind = editor_media_kind(&source.kind);
             let has_audio = match kind {
                 EditorMediaKind::Audio => true,
                 EditorMediaKind::Image | EditorMediaKind::Font => false,
-                EditorMediaKind::Video => self.probe_has_audio(&path).await.unwrap_or(true),
+                EditorMediaKind::Video => self.probe_has_audio(&source.path).await.unwrap_or(true),
             };
             assets.insert(
-                asset_id.to_string(),
+                source_id.to_string(),
                 EditorMediaSource {
-                    path,
+                    path: source.path,
                     kind,
-                    has_audio,
-                },
-            );
-        }
-        for clip in project
-            .document
-            .tracks
-            .iter()
-            .flat_map(|track| &track.clips)
-            .filter(|clip| clip.placement.enabled)
-        {
-            let vibe_cs_domain::TimelineClipMaterial::Sequence {
-                project_id: nested_project_id,
-                project_revision,
-                media_duration_seconds,
-            } = &clip.material
-            else {
-                continue;
-            };
-            let nested = self
-                .storage
-                .get_project(*nested_project_id)
-                .await
-                .map_err(|error| storage_error(&error))?
-                .ok_or_else(|| {
-                    DomainError::NotFound(format!("nested sequence {nested_project_id}"))
-                })?;
-            if nested.revision != *project_revision {
-                return Err(DomainError::Conflict(format!(
-                    "nested sequence {nested_project_id} is at revision {}, parent expects {project_revision}",
-                    nested.revision
-                )));
-            }
-            let preview = self
-                .storage
-                .list_export_jobs(Some(*nested_project_id))
-                .await
-                .map_err(|error| storage_error(&error))?
-                .into_iter()
-                .find(|record| {
-                    record.kind == "project_preview"
-                        && record.job.project_revision == *project_revision
-                        && record.job.status == JobStatus::Completed
-                        && record.job.range_start_seconds <= 0.001
-                        && record.job.range_end_seconds + 0.001 >= *media_duration_seconds
-                })
-                .ok_or_else(|| {
-                    DomainError::Conflict(format!(
-                        "nested sequence {nested_project_id} has no current full render preview"
-                    ))
-                })?;
-            let path = PathBuf::from(preview.job.output_path);
-            let has_audio = self.probe_has_audio(&path).await.unwrap_or(true);
-            assets.insert(
-                nested_project_id.to_string(),
-                EditorMediaSource {
-                    path,
-                    kind: EditorMediaKind::Video,
                     has_audio,
                 },
             );
@@ -418,10 +289,10 @@ impl ExportPort for RuntimeExportPort {
     async fn start(
         &self,
         kind: &str,
-        project_id: Uuid,
-        request: Value,
+        input: PreparedProjectRender,
+        request: ProjectRenderOptions,
     ) -> Result<ExportJob, DomainError> {
-        let (record, plan) = self.prepare(kind, project_id, &request).await?;
+        let (record, plan) = self.prepare(kind, input, &request).await?;
         let cancellation = ProcessCancellation::default();
         self.active
             .lock()
@@ -544,17 +415,71 @@ fn export_failure_code(error: &MediaError) -> JobFailureCode {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{Value, json};
+    use vibe_cs_application::ProjectDelivery;
 
     use super::*;
 
+    /// Changes the Head at the application/runtime handoff, before the real
+    /// runtime prepares its native filter plan. No encoder process is started.
+    #[derive(Debug)]
+    struct EditAtExportHandoff(Arc<RuntimeExportPort>);
+
+    #[async_trait]
+    impl ExportPort for EditAtExportHandoff {
+        async fn start(
+            &self,
+            kind: &str,
+            input: PreparedProjectRender,
+            options: ProjectRenderOptions,
+        ) -> Result<ExportJob, DomainError> {
+            let confirmed = input.project();
+            let confirmed_revision = confirmed.revision;
+            self.0
+                .storage
+                .apply_project_patch(
+                    vibe_cs_domain::ProjectPatch {
+                        project_id: confirmed.id,
+                        base_revision: confirmed.revision,
+                        scope: vibe_cs_domain::ProjectPatchScope::Project,
+                        author: vibe_cs_domain::ProjectChangeAuthor::Human,
+                        reverts_change_group_id: None,
+                        summary: "Clear Story after export confirmation".to_owned(),
+                        operations: vec![vibe_cs_domain::ProjectEditOperation::ReplaceTrackClips {
+                            track_id: confirmed.document.story_track_id,
+                            clips: Vec::new(),
+                        }],
+                    },
+                    Uuid::new_v4(),
+                    Utc::now(),
+                )
+                .await
+                .map_err(|error| storage_error(&error))?;
+            let (record, plan) = self.0.prepare(kind, input, &options).await?;
+            assert_eq!(record.job.project_revision, confirmed_revision);
+            assert_eq!(plan.duration_seconds, 5.0);
+            Ok(record.job)
+        }
+
+        async fn cancel(&self, _job_id: Uuid) -> Result<ExportJob, DomainError> {
+            unreachable!("this test never starts a render")
+        }
+
+        async fn encoders(&self) -> Vec<String> {
+            Vec::new()
+        }
+    }
+
     #[tokio::test]
-    async fn export_dependencies_follow_enabled_clips() {
+    async fn export_handoff_keeps_confirmed_revision_and_enabled_dependencies() {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
         let directory = tempfile::tempdir().expect("temporary directory");
-        let runtime = RuntimeExportPort::new(storage.clone(), directory.path().to_owned());
+        let runtime = Arc::new(RuntimeExportPort::new(
+            storage.clone(),
+            directory.path().to_owned(),
+        ));
         let text = json!({
             "content":"Keep this title", "font_family":"Arial", "font_asset_id":null,
             "font_size":36.0, "color":"#ffffff", "background":null, "align":"center"
@@ -594,27 +519,56 @@ mod tests {
                     "created_at":Utc::now(),"updated_at":Utc::now()
                 })).expect("project");
                 let id = project.id;
-                storage.create_project(project).await.expect("save project");
-                let result = runtime
-                    .project_plan(
-                        id,
-                        &directory.path().join(format!("{id}.mp4")),
-                        &ProjectRenderRequest {
-                            encoder: "libopenh264".to_owned(),
-                            quality: 80,
-                            range_start_seconds: None,
-                            range_end_seconds: None,
-                        },
-                    )
-                    .await;
+                storage
+                    .create_project(project.clone())
+                    .await
+                    .expect("save project");
+                let input = ProjectDelivery::resolve(&storage, project)
+                    .await
+                    .expect("delivery")
+                    .into_render("project_delivery_gate_failed");
                 if enabled {
-                    assert!(
-                        matches!(result, Err(DomainError::NotFound(_))),
-                        "{result:?}"
-                    );
-                } else {
-                    assert!(result.is_ok(), "disabled source blocked export: {result:?}");
+                    assert!(input.is_err(), "enabled missing source passed delivery");
+                    continue;
                 }
+                assert!(input.is_ok(), "disabled source must not block delivery");
+                let state = vibe_cs_application::AppState::new(
+                    storage.clone(),
+                    directory.path().to_owned(),
+                )
+                .with_exports(Arc::new(EditAtExportHandoff(Arc::clone(&runtime))));
+                let router = vibe_cs_application::build_dispatcher(state);
+                use tower::ServiceExt as _;
+                let response = router
+                    .oneshot(
+                        axum::http::Request::builder()
+                            .method("POST")
+                            .uri(format!("/api/projects/{id}/export"))
+                            .header("content-type", "application/json")
+                            .body(axum::body::Body::from(
+                                json!({
+                                    "expected_revision": 1, "confirm": true,
+                                    "encoder": "libopenh264", "quality": 80,
+                                })
+                                .to_string(),
+                            ))
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                let status = response.status();
+                let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    status,
+                    axum::http::StatusCode::OK,
+                    "{}",
+                    String::from_utf8_lossy(&body)
+                );
+                let changed = storage.get_project(id).await.unwrap().unwrap();
+                assert_eq!(changed.revision, 2);
+                assert_eq!(changed.document.duration_seconds, 0.0);
             }
         }
     }

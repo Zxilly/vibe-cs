@@ -9,14 +9,16 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditingDocument, EditingDocumentSettings, JobStatus, MediaMetadataStatus, Project,
-    ProjectChangeAuthor, ProjectChangeGroup, ProjectEditLease, ProjectEditOperation, ProjectPatch,
-    ProjectPatchScope, TimelineClip, TimelineClipMaterial, TimelineClipMaterializationState,
-    TimelineClipTransitions, TimelinePlacement, TimelineTrack, TrackKind, Transform,
+    EditingDocument, EditingDocumentSettings, Project, ProjectChangeAuthor, ProjectChangeGroup,
+    ProjectEditLease, ProjectEditOperation, ProjectPatch, ProjectPatchScope, TimelineClip,
+    TimelineClipMaterial, TimelineClipMaterializationState, TimelineClipTransitions,
+    TimelinePlacement, TimelineTrack, TrackKind, Transform,
 };
 use vibe_cs_storage::ExportJobRecord;
 
-use super::media::project_media_availability;
+use crate::project_delivery::{
+    NestedSequenceMedia, ProjectDelivery, ProjectRenderOptions, resolve_sequence_media,
+};
 use crate::{ApiError, ApiJson, ApiResult, AppState};
 
 const PROJECT_RESOURCE: &str = "project";
@@ -164,29 +166,6 @@ struct CreateNestedSequenceResponse {
     preview_job_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-enum NestedSequenceMediaStatus {
-    Ready,
-    Rendering,
-    Stale,
-    Failed,
-    Missing,
-}
-
-#[derive(Debug, Serialize, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-struct NestedSequenceMedia {
-    clip_id: Uuid,
-    project_id: Uuid,
-    expected_revision: u64,
-    current_revision: u64,
-    status: NestedSequenceMediaStatus,
-    preview_job_id: Option<Uuid>,
-}
-
 #[derive(Debug, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
@@ -219,97 +198,6 @@ async fn get_project(
         .ok_or_else(|| ApiError::not_found("project"))
 }
 
-/// Every enabled media clip that cannot be delivered as it stands.
-///
-/// The domain answers for capture identity and placement coverage; this adds
-/// the two checks that need storage: a nested sequence must have a completed
-/// preview render of its current revision, and a Take or imported Asset whose
-/// source file is gone (`MediaMetadataStatus::Unavailable`, the state
-/// 「重新定位」 recovers from) cannot be rendered. Availability is read the way
-/// the media panel reads it — `project_media_availability` overlays the file
-/// system on the stored row — rather than from the persisted status alone,
-/// which still says `Ready` after the file is deleted underneath it. The
-/// delivery gate, the final export and the preview render all read the same
-/// list, so 「素材就绪」 in the header means exactly what the export route will
-/// accept.
-async fn delivery_blockers(
-    state: &AppState,
-    project: &Project,
-) -> ApiResult<Vec<ProjectDeliveryBlocker>> {
-    let mut blockers = project
-        .delivery_blockers()?
-        .into_iter()
-        .map(|(clip_id, state)| ProjectDeliveryBlocker { clip_id, state })
-        .collect::<Vec<_>>();
-    for clip in project
-        .document
-        .tracks
-        .iter()
-        .flat_map(|track| &track.clips)
-        .filter(|clip| clip.placement.enabled && clip.text.is_none())
-    {
-        if blockers.iter().any(|blocker| blocker.clip_id == clip.id) {
-            continue;
-        }
-        let ready = match clip.material {
-            TimelineClipMaterial::Planned => continue,
-            TimelineClipMaterial::Sequence {
-                project_id,
-                project_revision,
-                media_duration_seconds,
-            } => {
-                let nested = state.storage.get_project(project_id).await?;
-                nested
-                    .as_ref()
-                    .is_some_and(|nested| nested.revision == project_revision)
-                    && state
-                        .storage
-                        .list_export_jobs(Some(project_id))
-                        .await?
-                        .into_iter()
-                        .any(|record| {
-                            record.kind == "project_preview"
-                                && record.job.project_revision == project_revision
-                                && record.job.status == JobStatus::Completed
-                                && record.job.range_start_seconds <= 0.001
-                                && record.job.range_end_seconds + 0.001 >= media_duration_seconds
-                        })
-            }
-            TimelineClipMaterial::Take { asset_id, .. }
-            | TimelineClipMaterial::Asset { asset_id, .. } => {
-                match state.storage.get_asset(asset_id).await? {
-                    None => true,
-                    Some(asset) => !matches!(
-                        project_media_availability(asset).await.metadata_status,
-                        MediaMetadataStatus::Unavailable { .. }
-                    ),
-                }
-            }
-        };
-        if !ready {
-            blockers.push(ProjectDeliveryBlocker {
-                clip_id: clip.id,
-                state: TimelineClipMaterializationState::Stale,
-            });
-        }
-    }
-    Ok(blockers)
-}
-
-fn require_deliverable(blockers: &[ProjectDeliveryBlocker], code: &'static str) -> ApiResult<()> {
-    if blockers.is_empty() {
-        return Ok(());
-    }
-    Err(ApiError::new(
-        StatusCode::PRECONDITION_FAILED,
-        code,
-        format!(
-            "{} enabled clips do not have compatible media",
-            blockers.len()
-        ),
-    ))
-}
-
 async fn get_delivery_gate(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -319,7 +207,12 @@ async fn get_delivery_gate(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
-    let blockers = delivery_blockers(&state, &project).await?;
+    let blockers = ProjectDelivery::resolve(&state.storage, project.clone())
+        .await?
+        .blockers
+        .into_iter()
+        .map(|(clip_id, state)| ProjectDeliveryBlocker { clip_id, state })
+        .collect::<Vec<_>>();
     // An empty sequence has nothing to block and nothing to deliver either:
     // the export route rejects a zero-length range, so the gate must not
     // report it as ready.
@@ -484,21 +377,20 @@ async fn export_project(
         .ok_or_else(|| ApiError::not_found("project"))?;
     require_project_revision(&project, request.expected_revision, "export confirmation")?;
     validate_project_export_request(&request, project.document.duration_seconds)?;
-    require_deliverable(
-        &delivery_blockers(&state, &project).await?,
-        "project_delivery_gate_failed",
-    )?;
+    let input = ProjectDelivery::resolve(&state.storage, project)
+        .await?
+        .into_render("project_delivery_gate_failed")?;
     let job = state
         .exports
         .start(
             "project",
-            id,
-            serde_json::json!({
-                "encoder": request.encoder,
-                "quality": request.quality,
-                "range_start_seconds": request.range_start_seconds,
-                "range_end_seconds": request.range_end_seconds,
-            }),
+            input,
+            ProjectRenderOptions {
+                encoder: request.encoder,
+                quality: request.quality,
+                range_start_seconds: request.range_start_seconds,
+                range_end_seconds: request.range_end_seconds,
+            },
         )
         .await?;
     state.events.publish("export_job", "created", Some(job.id));
@@ -541,21 +433,20 @@ async fn render_project_preview(
         range_end_seconds: Some(request.range_end_seconds),
     };
     validate_project_export_request(&export_request, project.document.duration_seconds)?;
-    require_deliverable(
-        &delivery_blockers(&state, &project).await?,
-        "project_preview_delivery_gate_failed",
-    )?;
+    let input = ProjectDelivery::resolve(&state.storage, project)
+        .await?
+        .into_render("project_preview_delivery_gate_failed")?;
     let job = state
         .exports
         .start(
             "project_preview",
-            id,
-            serde_json::json!({
-                "encoder": export_request.encoder,
-                "quality": export_request.quality,
-                "range_start_seconds": export_request.range_start_seconds,
-                "range_end_seconds": export_request.range_end_seconds,
-            }),
+            input,
+            ProjectRenderOptions {
+                encoder: export_request.encoder,
+                quality: export_request.quality,
+                range_start_seconds: export_request.range_start_seconds,
+                range_end_seconds: export_request.range_end_seconds,
+            },
         )
         .await?;
     state.events.publish("export_job", "created", Some(job.id));
@@ -627,60 +518,41 @@ async fn list_nested_sequence_media(
         else {
             continue;
         };
-        let nested = state.storage.get_project(project_id).await?;
-        let current_revision = nested.as_ref().map_or(0, |project| project.revision);
-        let preview = state
-            .storage
-            .list_export_jobs(Some(project_id))
-            .await?
-            .into_iter()
-            .find(|record| {
-                record.kind == "project_preview"
-                    && record.job.project_revision == project_revision
-                    && record.job.range_start_seconds <= 0.001
-                    && record.job.range_end_seconds + 0.001 >= media_duration_seconds
-            });
-        let status = if nested.is_none() {
-            NestedSequenceMediaStatus::Missing
-        } else if current_revision != project_revision {
-            NestedSequenceMediaStatus::Stale
-        } else {
-            match preview.as_ref().map(|record| record.job.status) {
-                Some(JobStatus::Completed) => NestedSequenceMediaStatus::Ready,
-                Some(
-                    JobStatus::Queued
-                    | JobStatus::Preparing
-                    | JobStatus::Running
-                    | JobStatus::Cancelling,
-                ) => NestedSequenceMediaStatus::Rendering,
-                Some(JobStatus::Failed | JobStatus::Cancelled) => NestedSequenceMediaStatus::Failed,
-                None => NestedSequenceMediaStatus::Missing,
-            }
-        };
-        items.push(NestedSequenceMedia {
-            clip_id: clip.id,
+        let (media, _) = resolve_sequence_media(
+            &state.storage,
+            clip.id,
             project_id,
-            expected_revision: project_revision,
-            current_revision,
-            status,
-            preview_job_id: preview.map(|record| record.job.id),
-        });
+            project_revision,
+            media_duration_seconds,
+        )
+        .await?;
+        items.push(media);
     }
     Ok(Json(items))
 }
 
 async fn start_nested_preview(state: &AppState, nested: &Project) -> Option<Uuid> {
+    let input = match ProjectDelivery::resolve(&state.storage, nested.clone())
+        .await
+        .and_then(|delivery| delivery.into_render("project_preview_delivery_gate_failed"))
+    {
+        Ok(input) => input,
+        Err(error) => {
+            tracing::warn!(%error, project_id = %nested.id, "nested sequence is not ready to preview");
+            return None;
+        }
+    };
     match state
         .exports
         .start(
             "project_preview",
-            nested.id,
-            serde_json::json!({
-                "encoder":"auto",
-                "quality":70,
-                "range_start_seconds":0.0,
-                "range_end_seconds":nested.document.duration_seconds,
-            }),
+            input,
+            ProjectRenderOptions {
+                encoder: "auto".to_owned(),
+                quality: 70,
+                range_start_seconds: Some(0.0),
+                range_end_seconds: Some(nested.document.duration_seconds),
+            },
         )
         .await
     {
@@ -1355,6 +1227,12 @@ mod tests {
     #[tokio::test]
     async fn consecutive_story_clips_become_one_atomic_nested_project_and_parent_clip() {
         let storage = Storage::open_in_memory().await.expect("storage");
+        let media = tempfile::tempdir().unwrap();
+        let path = media.path().join("ready.wav");
+        std::fs::write(&path, b"RIFF").unwrap();
+        let asset_id = put_ready_audio_asset(&storage, &path).await;
+        let mut keep = clip_json(Uuid::new_v4(), "Keep", 0.0);
+        keep["material"]["asset_id"] = json!(asset_id);
         let (router, _directory) = dispatcher(storage);
         let (_, created) = call(
             &router,
@@ -1461,7 +1339,7 @@ mod tests {
                 "author":{"kind":"human"},
                 "reverts_change_group_id":null,
                 "summary":"Disable unfinished nested sequence",
-                "operations":[{"op":"replace_track_clips","track_id":story_id,"clips":[clip_json(Uuid::new_v4(),"Keep",0.0),disabled_nested]}]
+                "operations":[{"op":"replace_track_clips","track_id":story_id,"clips":[keep,disabled_nested]}]
             })),
         )
         .await;
@@ -1519,6 +1397,115 @@ mod tests {
                 10.0,
             )
             .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn nested_readiness_and_render_input_choose_the_same_existing_preview() {
+        let storage = Storage::open_in_memory().await.unwrap();
+        let (router, directory) = dispatcher(storage.clone());
+        let (nested_id, _) = project_with_asset_clip(&router, Uuid::new_v4()).await;
+        let (parent_id, clip_id) = project_with_asset_clip(&router, Uuid::new_v4()).await;
+        let nested_id = Uuid::parse_str(&nested_id).unwrap();
+        let parent_id = Uuid::parse_str(&parent_id).unwrap();
+        let parent = storage.get_project(parent_id).await.unwrap().unwrap();
+        let mut clip = parent.document.tracks[0].clips[0].clone();
+        clip.material = TimelineClipMaterial::Sequence {
+            project_id: nested_id,
+            project_revision: 2,
+            media_duration_seconds: 5.0,
+        };
+        let (parent, _) = storage
+            .apply_project_patch(
+                ProjectPatch {
+                    project_id: parent_id,
+                    base_revision: parent.revision,
+                    scope: ProjectPatchScope::Project,
+                    author: ProjectChangeAuthor::Human,
+                    reverts_change_group_id: None,
+                    summary: "Use nested preview".to_owned(),
+                    operations: vec![ProjectEditOperation::ReplaceClip {
+                        clip_id,
+                        clip: Box::new(clip),
+                    }],
+                },
+                Uuid::new_v4(),
+                Utc::now(),
+            )
+            .await
+            .unwrap();
+        let path = directory.path().join("completed.mp4");
+        std::fs::write(&path, b"preview").unwrap();
+        let now = Utc::now();
+        let complete_id = Uuid::new_v4();
+        for (id, status, updated_at) in [
+            (complete_id, JobStatus::Completed, now),
+            (
+                Uuid::new_v4(),
+                JobStatus::Failed,
+                now + chrono::Duration::seconds(1),
+            ),
+        ] {
+            storage
+                .put_export_job(ExportJobRecord {
+                    kind: "project_preview".to_owned(),
+                    job: ExportJob {
+                        id,
+                        project_id: nested_id,
+                        project_revision: 2,
+                        range_start_seconds: 0.0,
+                        range_end_seconds: 5.0,
+                        status,
+                        progress: 1.0,
+                        output_path: path.to_string_lossy().into_owned(),
+                        error: None,
+                        error_code: None,
+                        created_at: now,
+                        updated_at,
+                    },
+                })
+                .await
+                .unwrap();
+        }
+        let (_, media) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{parent_id}/nested-sequences"),
+            None,
+        )
+        .await;
+        assert_eq!(media[0]["status"], "ready");
+        assert_eq!(media[0]["preview_job_id"], complete_id.to_string());
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{parent_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], true);
+        let (_, sources) = ProjectDelivery::resolve(&storage, parent.clone())
+            .await
+            .unwrap()
+            .into_render("test")
+            .unwrap()
+            .into_parts();
+        assert_eq!(sources[&nested_id].path, path);
+        std::fs::remove_file(&path).unwrap();
+        let (_, gate) = call(
+            &router,
+            Method::GET,
+            &format!("/api/projects/{parent_id}/delivery-gate"),
+            None,
+        )
+        .await;
+        assert_eq!(gate["ready"], false);
+        assert!(
+            ProjectDelivery::resolve(&storage, parent)
+                .await
+                .unwrap()
+                .into_render("test")
+                .is_err()
         );
     }
 

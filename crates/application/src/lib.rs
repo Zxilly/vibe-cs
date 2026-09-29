@@ -6,6 +6,7 @@ mod error;
 mod extract;
 mod player;
 mod ports;
+mod project_delivery;
 mod replay_binary;
 mod routes;
 mod state;
@@ -28,6 +29,9 @@ pub use ports::{
     RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
     ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
     SourceAssetPort,
+};
+pub use project_delivery::{
+    PreparedProjectRender, ProjectDelivery, ProjectRenderOptions, ProjectRenderSource,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
 pub use vibe_cs_domain::{

@@ -29,6 +29,7 @@ use vibe_cs_storage::{ExportJobRecord, MediaAssetUpdate};
 use crate::{
     ApiError, ApiJson, ApiMultipart, ApiQuery, ApiResult, AppState,
     extract::{multipart_error, persist_multipart_field, read_multipart_text},
+    project_delivery::project_media_availability,
 };
 
 const MAXIMUM_ASSET_UPLOAD_FILES: usize = 64;
@@ -568,28 +569,6 @@ async fn get_asset(
         .await?
         .ok_or_else(|| ApiError::not_found("media asset"))?;
     Ok(Json(project_media_availability(asset).await))
-}
-
-/// Overlay the file system on a stored media row: a source that is gone from
-/// disk reads as `Unavailable` (the state 「重新定位」 recovers from) without
-/// mutating storage. The media list, the media detail and the project's
-/// delivery gate all go through this, so one asset never reads 「不可用」 in
-/// the panel and 「素材就绪」 in the header at the same time.
-pub(super) async fn project_media_availability(mut asset: MediaAsset) -> MediaAsset {
-    let unavailable = match tokio::fs::metadata(&asset.path).await {
-        Ok(metadata) if metadata.is_file() => None,
-        Ok(_) => Some("source media path is not a regular file".to_owned()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            Some("source media file is missing; relink it to continue editing".to_owned())
-        }
-        Err(_) => {
-            Some("source media file is unavailable; relink it to continue editing".to_owned())
-        }
-    };
-    if let Some(message) = unavailable {
-        asset.metadata_status = MediaMetadataStatus::Unavailable { message };
-    }
-    asset
 }
 
 #[cfg(test)]

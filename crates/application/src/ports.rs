@@ -425,8 +425,8 @@ pub trait ExportPort: Send + Sync + std::fmt::Debug {
     async fn start(
         &self,
         kind: &str,
-        project_id: Uuid,
-        request: Value,
+        input: crate::PreparedProjectRender,
+        options: crate::ProjectRenderOptions,
     ) -> Result<ExportJob, DomainError>;
 
     /// Persists the cancellation request before signalling the active process.
@@ -449,8 +449,8 @@ impl ExportPort for DisabledExportPort {
     async fn start(
         &self,
         kind: &str,
-        _project_id: Uuid,
-        _request: Value,
+        _input: crate::PreparedProjectRender,
+        _options: crate::ProjectRenderOptions,
     ) -> Result<ExportJob, DomainError> {
         Err(DomainError::DependencyUnavailable(format!(
             "{kind} export adapter"

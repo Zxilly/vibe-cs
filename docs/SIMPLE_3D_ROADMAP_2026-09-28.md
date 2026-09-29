@@ -1,6 +1,6 @@
 # 简易 3D 回放与镜头预演 · 路线图
 
-2026-09-28 · 状态：实施中（2026-09-29：M1 密集回放和 M2 地图几何管线完成，M0 坐标残差及 M3–M5 继续实施）
+2026-09-28 · 状态：实施中（2026-09-29：M1、M2、M5 完成，M0 坐标/过滤及 M3、M4 剩余验收继续实施）
 
 ## 目标与边界
 
@@ -364,6 +364,13 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 设计入口：[Program Monitor](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=997-5767)、[片段属性](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=1164-11110)、[录制确认](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=1164-11137)。本机复核截图为 `artifacts/simple-3d/m5-figma-verified-{program,inspector,recording}.png`。
 - M5 清单完成：生产入口、旧图层删除、Transport/Clip/Head 预演池与最新目标、上一帧保留、预演角标、DESIGN 规则、Figma 同步与中英文案都有代码、交互或远端画板证据。2,394 条文案英文缺项为 0，本轮再次执行严格词典编译通过。M5 完成不代表 M0/M3/M4 的独立验收完成。
 - WebView2 生产前端资源继续播放 30 秒，1 秒一次记录的 renderer 私有内存范围 **197.2–263.5 MiB**，均值 **243.5 MiB**，原始文件 `m5-webview-dist-steady-memory.json`。这说明此前 337.6 MiB 不是持续基线，但不能豁免该峰值，也不能代替宿主/GPU/其他 WebView2 进程的总量与完整 release 验收。M4 性能门槛继续未通过。
+
+### 2026-09-29：M0 落地残差逐 tick 证据
+
+- 重新运行原始 32 个落地样本，仍有 3 项失败，最大误差 7.328125；没有修改地图坐标、容差或随机样本。`sample-demo-landings.py` 现在为每个已选样本另存落地 tick 至后续 16 tick 的位置、alive、flags 和 ground entity；`geometry_alignment` 对失败样本输出各次地面命中与有符号高度差。对比确认 32 个原始样本逐字段未变，每个均有 17 个连续观测。
+- tick 77452（karrigan）：初始高度差 2.609375，下一 tick 降为 0.84375 并保持到下一次跳跃。tick 118682（NiKo）：初始差 4.296875，下一 tick 后持续差 2.40625；因此不能把全部误差解释成单 tick 时序差。tick 122610（NiKo）：初始差 7.328125，后续下降至 0.260803，但脚底区域命中的几何在 tick 122618 从 Z=-88 切到 -96，差值又增大；需要核对台阶/边缘支撑，不能挑某个后续时刻代替原样本。
+- 三处接地期间原始 `m_hGroundEntity` 均为 16384（低 14 位实体索引 0），离地后为无效句柄 16777215。它们未指向独立动态支撑实体。尝试请求 old/absolute origin 与 velocity 字段时，独立解析器没有返回对应列，故没有据此宣称已获取模拟位置或定位根因。
+- 证据：忽略目录 `mirage-landings-traced.json`、`m0-alignment-traced.log`、`m0-landing-trace.json`。真实探针仍按预期非零退出，原始样本一致性检查、Rust 格式检查和该 example 的严格 Clippy 通过。M0 坐标验收继续未完成，下一步需区分静态物理表面、玩家支撑碰撞与 Demo 位置时序。
 
 ## 参考来源
 

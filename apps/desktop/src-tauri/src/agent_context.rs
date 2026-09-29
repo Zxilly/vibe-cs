@@ -83,7 +83,7 @@ fn capture_boundary_validation(
         .iter()
         .filter(|round| round.start_tick <= capture.start_tick)
         .max_by_key(|round| round.start_tick)
-        .and_then(|round| analysis.round_capture_bounds(round.number, &capture.player_id));
+        .and_then(|round| analysis.round_capture_bounds(round.number, Some(&capture.player_id)));
     let demo_end = analysis
         .verified_total_ticks
         .filter(|ticks| *ticks > 0)
@@ -227,7 +227,7 @@ pub(crate) fn demo_evidence_with_capture_bounds(
         .as_array_mut()
         .expect("MatchAnalysis serializes a highlight array");
     for (highlight, row) in analysis.highlights.iter().zip(rows) {
-        let bounds = analysis.round_capture_bounds(highlight.round, &highlight.player_id);
+        let bounds = analysis.round_capture_bounds(highlight.round, Some(&highlight.player_id));
         row["captureBounds"] = json!({
             "roundStartTick":bounds.map(|bounds| bounds.round_start_tick),
             "roundEndTick":bounds.map(|bounds| bounds.round_end_tick),

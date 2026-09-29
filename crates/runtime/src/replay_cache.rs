@@ -525,7 +525,7 @@ fn normalized_sha256(value: Option<&str>) -> Option<String> {
 }
 
 fn cache_key(content_sha256: &str, analysis_sha256: &str) -> String {
-    hex_digest(format!("replay-cache-v2\0{content_sha256}\0{analysis_sha256}").as_bytes())
+    hex_digest(format!("replay-cache-v3\0{content_sha256}\0{analysis_sha256}").as_bytes())
 }
 
 fn analysis_digest(analysis: &MatchAnalysis) -> Result<String, DomainError> {

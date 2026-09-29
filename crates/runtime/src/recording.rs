@@ -1379,7 +1379,7 @@ pub(crate) fn build_segment_plan(
             .iter()
             .filter(|round| round.start_tick <= request.start_tick)
             .max_by_key(|round| round.start_tick)?;
-        analysis.round_capture_bounds(round.number, &camera_player_id)
+        analysis.round_capture_bounds(round.number, Some(&camera_player_id))
     });
     let verified_total_ticks = analysis
         .and_then(|analysis| analysis.verified_total_ticks)

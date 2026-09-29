@@ -33,19 +33,27 @@ impl ReplayRequest {
     ///
     /// # Errors
     /// Returns unavailable when analysis lacks verified source tick metadata.
+    ///
+    /// # Panics
+    /// Panics if capture-bound construction violates the invariant that a round
+    /// from this analysis and a verified nonzero EOF always have a capture bound.
     pub fn from_analysis(
         input: AnalysisInputFingerprint,
         analysis: &MatchAnalysis,
     ) -> Result<Self, DomainError> {
+        let verified_total_ticks = analysis
+            .verified_total_ticks
+            .filter(|ticks| *ticks > 0)
+            .ok_or_else(|| {
+                DomainError::DependencyUnavailable(
+                    "analysis has no verified replay tick boundary".to_owned(),
+                )
+            })?;
         Ok(Self {
             demo_id: analysis.demo_id,
             input,
             tick_rate: analysis.tick_rate,
-            verified_total_ticks: analysis.verified_total_ticks.ok_or_else(|| {
-                DomainError::DependencyUnavailable(
-                    "analysis has no verified replay tick boundary".to_owned(),
-                )
-            })?,
+            verified_total_ticks,
             roster: analysis
                 .players
                 .iter()
@@ -58,7 +66,16 @@ impl ReplayRequest {
             rounds: analysis
                 .rounds
                 .iter()
-                .map(|round| [round.start_tick, round.end_tick])
+                .map(|round| {
+                    [
+                        round.start_tick,
+                        analysis
+                            .round_capture_bounds(round.number, None)
+                            .expect("round belongs to this analysis")
+                            .recordable_end_tick
+                            .expect("verified replay boundary supplies the final capture bound"),
+                    ]
+                })
                 .collect(),
             highlights: analysis
                 .highlights

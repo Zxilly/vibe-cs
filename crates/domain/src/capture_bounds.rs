@@ -24,7 +24,7 @@ impl MatchAnalysis {
     pub fn round_capture_bounds(
         &self,
         round_number: u32,
-        player_id: &str,
+        player_id: Option<&str>,
     ) -> Option<RoundCaptureBounds> {
         let round = self
             .rounds
@@ -45,14 +45,16 @@ impl MatchAnalysis {
             (Some(next_end), Some(demo_end)) => Some(next_end.min(demo_end)),
             (next_end, demo_end) => next_end.or(demo_end),
         };
-        let player_death_tick = round
-            .events
-            .iter()
-            .filter(|event| {
-                event.kind == EventKind::Kill && event.target.as_deref() == Some(player_id)
-            })
-            .map(|event| event.tick)
-            .min();
+        let player_death_tick = player_id.and_then(|player_id| {
+            round
+                .events
+                .iter()
+                .filter(|event| {
+                    event.kind == EventKind::Kill && event.target.as_deref() == Some(player_id)
+                })
+                .map(|event| event.tick)
+                .min()
+        });
         Some(RoundCaptureBounds {
             round_number: round.number,
             round_start_tick: round.start_tick,
@@ -97,13 +99,35 @@ mod tests {
     #[test]
     fn statistical_end_does_not_remove_the_tail_before_the_next_round() {
         let analysis = analysis();
-        let bounds = analysis.round_capture_bounds(1, "player").unwrap();
+        let bounds = analysis.round_capture_bounds(1, Some("player")).unwrap();
         assert_eq!(bounds.round_end_tick, 200);
         assert_eq!(bounds.next_round_start_tick, Some(300));
         assert_eq!(bounds.recordable_end_tick, Some(299));
-        let final_round = analysis.round_capture_bounds(2, "player").unwrap();
+        let final_round = analysis.round_capture_bounds(2, Some("player")).unwrap();
         assert_eq!(final_round.recordable_end_tick, Some(450));
         assert_eq!(final_round.demo_end_tick, Some(450));
+    }
+
+    #[test]
+    fn dense_replay_requests_cover_the_same_capturable_tails_without_a_highlight() {
+        let analysis = analysis();
+        let request = crate::ReplayRequest::from_analysis(
+            crate::AnalysisInputFingerprint {
+                sha256: "a".repeat(64),
+                size: 1,
+            },
+            &analysis,
+        )
+        .unwrap();
+        assert!(request.highlights.is_empty());
+        assert_eq!(request.rounds, vec![[300, 450], [100, 299]]);
+        assert_eq!(
+            analysis
+                .round_capture_bounds(1, None)
+                .unwrap()
+                .player_death_tick,
+            None
+        );
     }
 
     #[test]
@@ -112,14 +136,14 @@ mod tests {
         analysis.verified_total_ticks = None;
         assert_eq!(
             analysis
-                .round_capture_bounds(1, "player")
+                .round_capture_bounds(1, Some("player"))
                 .unwrap()
                 .recordable_end_tick,
             Some(299)
         );
         assert_eq!(
             analysis
-                .round_capture_bounds(2, "player")
+                .round_capture_bounds(2, Some("player"))
                 .unwrap()
                 .recordable_end_tick,
             None
@@ -142,12 +166,12 @@ mod tests {
             position: None,
             detail: serde_json::Value::Null,
         });
-        let bounds = analysis.round_capture_bounds(1, "player").unwrap();
+        let bounds = analysis.round_capture_bounds(1, Some("player")).unwrap();
         assert_eq!(bounds.player_death_tick, Some(180));
         assert_eq!(bounds.recordable_end_tick, Some(299));
         assert_eq!(
             analysis
-                .round_capture_bounds(1, "another-player")
+                .round_capture_bounds(1, Some("another-player"))
                 .unwrap()
                 .player_death_tick,
             None

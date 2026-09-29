@@ -30,10 +30,12 @@ _Avoid_: deriving the playhead from a native video control, resetting to source 
 
 **Preview Media Pool**:
 Stable clip-keyed media elements and decoded radar images retained around the Timeline Transport. Seeks coalesce to the latest requested source time, the previous presented frame remains visible until the target is ready, and changing Timeline Clip identity never rewrites the visible media element's source.
+Readiness belongs to a mounted media element and its current decoded frame, not merely a completed render job. Revisiting a rendered range requires readiness from the newly mounted element.
 _Avoid_: selected clip directly replacing video src, loading fallback tearing down the prior map, React reconciliation at frame rate
 
 **Ripple Edit**:
 A Story Track move, trim, split, or delete that preserves clip order and closes downstream gaps in the same Human Edit. Free-position tracks do not inherit ripple semantics merely because Story does.
+Explicitly Sync Locked tracks and enabled sequence-marker ripple share one cumulative Story time mapping, including multiple edit points and a return to zero offset after local changes.
 _Avoid_: overlapping Story clips after drag, deleting without closing the narrative gap, applying ripple to every track kind
 
 **Agent Panel**:
@@ -42,6 +44,7 @@ _Avoid_: Agent page, Agent workspace, Agent lens
 
 **Agent Conversation Projection**:
 The single UI stream that combines durable AgentSession messages, completed tool calls, HITL decisions, External Execution progress/results, delivery actions, and the Edit Lease state. It renders host-owned truth and sends instructions, cancel, approve, or reject intents; it does not own another Agent runtime.
+The host atomically begins each user request and assistant turn, persists terminal tool evidence and releases that turn's Edit Lease before reporting completion. Renderer cancellation, Channel loss and dropped IPC waiters cannot take ownership of terminal persistence; startup terminalizes interrupted turns. Only human HITL decisions remain renderer-authored durable entries.
 _Avoid_: inferring running tools from completed outputs, JSON-scanned workflow state, a second chat runtime
 
 **Current Turn Checkpoint**:
@@ -151,6 +154,10 @@ _Avoid_: best-effort export, silent skip, stale Take fallback
 **Project Projection**:
 Derived, rebuildable Project data used for search, lists, activity, materialization, or delivery status. A projection never accepts edits and never becomes a second editing truth.
 _Avoid_: client-side project aggregation, editable read model
+
+**Opening Evidence**:
+The shared Match Analysis projection used by Overview, Duels and Players. It selects each round's earliest kill before resolving both participants to canonical player IDs. Missing or ambiguous identities make that opening unavailable; verified rows remain inspectable, while exact totals require complete evidence.
+_Avoid_: promoting a later kill to opening, treating unavailable evidence as zero, view-specific opening selection
 
 ## Flagged ambiguities
 

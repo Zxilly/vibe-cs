@@ -215,7 +215,7 @@ msgid "{0} 像素/秒，{1} 像素/帧"
 msgstr "{0} 像素/秒，{1} 像素/帧"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1003
+#: src/domain/editing/TimelineProgramMonitor.tsx:1009
 msgid "{0} 入点预览"
 msgstr "{0} 入点预览"
 
@@ -225,17 +225,17 @@ msgid "{0} 全场回放"
 msgstr "{0} 全场回放"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1002
+#: src/domain/editing/TimelineProgramMonitor.tsx:1008
 msgid "{0} 出点预览"
 msgstr "{0} 出点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1004
+#: src/domain/editing/TimelineProgramMonitor.tsx:1010
 msgid "{0} 前片段出点预览"
 msgstr "{0} 前片段出点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1007
+#: src/domain/editing/TimelineProgramMonitor.tsx:1013
 msgid "{0} 后片段入点预览"
 msgstr "{0} 后片段入点预览"
 
@@ -270,12 +270,12 @@ msgid "{0} 战术示意"
 msgstr "{0} 战术示意"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1005
+#: src/domain/editing/TimelineProgramMonitor.tsx:1011
 msgid "{0} 所选片段入点预览"
 msgstr "{0} 所选片段入点预览"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1006
+#: src/domain/editing/TimelineProgramMonitor.tsx:1012
 msgid "{0} 所选片段出点预览"
 msgstr "{0} 所选片段出点预览"
 
@@ -341,7 +341,7 @@ msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "{0} 的道具打出 {1} 点伤害"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1008
+#: src/domain/editing/TimelineProgramMonitor.tsx:1014
 msgid "{0} 视频预览"
 msgstr "{0} 视频预览"
 
@@ -831,7 +831,7 @@ msgstr "Fit Clip：范围时长不同"
 msgid "HUD"
 msgstr "HUD"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:953
+#: src/domain/editing/TimelineProgramMonitor.tsx:959
 msgid "J 反向播放"
 msgstr "J 反向播放"
 
@@ -844,7 +844,7 @@ msgstr "K"
 msgid "K / D / A"
 msgstr "K / D / A"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:957
+#: src/domain/editing/TimelineProgramMonitor.tsx:963
 msgid "K 暂停时间轴"
 msgstr "K 暂停时间轴"
 
@@ -862,7 +862,7 @@ msgstr "K 暂停时间轴"
 msgid "K/D"
 msgstr "K/D"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:962
+#: src/domain/editing/TimelineProgramMonitor.tsx:968
 msgid "L 正向播放"
 msgstr "L 正向播放"
 
@@ -1023,7 +1023,7 @@ msgstr "上一个目标轨编辑点"
 msgid "上一回合"
 msgstr "上一回合"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:948
+#: src/domain/editing/TimelineProgramMonitor.tsx:954
 #: src/domain/media/Transport.tsx:177
 msgid "上一帧"
 msgstr "上一帧"
@@ -1088,7 +1088,7 @@ msgstr "下一个目标轨编辑点"
 msgid "下一回合"
 msgstr "下一回合"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:963
+#: src/domain/editing/TimelineProgramMonitor.tsx:969
 #: src/domain/media/Transport.tsx:200
 msgid "下一帧"
 msgstr "下一帧"
@@ -1264,7 +1264,7 @@ msgstr "二进制数据不完整或校验失败，请重试。"
 msgid "二进制数据解压失败，请重试。"
 msgstr "二进制数据解压失败，请重试。"
 
-#: src/shared/desktop/client.ts:235
+#: src/shared/desktop/client.ts:234
 msgid "二进制数据超过 128 MiB 上限。"
 msgstr "二进制数据超过 128 MiB 上限。"
 
@@ -1346,7 +1346,7 @@ msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。
 msgid "从所选片段创建嵌套序列…"
 msgstr "从所选片段创建嵌套序列…"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:431
+#: src/domain/editing/TimelineProgramMonitor.tsx:437
 msgid "从时间轴选择一个片段"
 msgstr "从时间轴选择一个片段"
 
@@ -1683,7 +1683,7 @@ msgstr "修改筛选"
 msgid "停止 Agent"
 msgstr "停止 Agent"
 
-#: src/data/sessions.ts:404
+#: src/data/sessions.ts:316
 msgid "停止 Agent 时发生错误：{detail}"
 msgstr "停止 Agent 时发生错误：{detail}"
 
@@ -1821,7 +1821,7 @@ msgstr "入切线"
 msgid "入库时间"
 msgstr "入库时间"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:701
+#: src/domain/editing/TimelineProgramMonitor.tsx:707
 msgid "入点"
 msgstr "入点"
 
@@ -2173,7 +2173,7 @@ msgstr "准备采集组件"
 msgid "出切线"
 msgstr "出切线"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:700
+#: src/domain/editing/TimelineProgramMonitor.tsx:706
 msgid "出点"
 msgstr "出点"
 
@@ -2266,7 +2266,7 @@ msgid "分析任务已提交，可在后台任务中查看进度。"
 msgstr "分析任务已提交，可在后台任务中查看进度。"
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:361
+#: src/shared/desktop/client.ts:360
 msgid "分析响应包含未知阵营：{0}"
 msgstr "分析响应包含未知阵营：{0}"
 
@@ -2346,7 +2346,7 @@ msgstr "切换为 HH:MM:SS:FF 时间码"
 msgid "切换为总帧计数"
 msgstr "切换为总帧计数"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:1041
+#: src/domain/editing/TimelineProgramMonitor.tsx:1043
 msgid "切换到摄像机 {angle} {name}"
 msgstr "切换到摄像机 {angle} {name}"
 
@@ -2538,7 +2538,7 @@ msgstr "刷新所选嵌套序列"
 msgid "剃刀工具 (C)"
 msgstr "剃刀工具 (C)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:692
+#: src/domain/editing/TimelineProgramMonitor.tsx:698
 msgid "前 Out"
 msgstr "前 Out"
 
@@ -2802,7 +2802,7 @@ msgstr "反恐精英"
 msgid "发布"
 msgstr "发布"
 
-#: src/shared/desktop/client.ts:1268
+#: src/shared/desktop/client.ts:1262
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
@@ -2991,7 +2991,7 @@ msgstr "名称"
 msgid "名称不能为空"
 msgstr "名称不能为空"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:695
+#: src/domain/editing/TimelineProgramMonitor.tsx:701
 msgid "后 In"
 msgstr "后 In"
 
@@ -3367,7 +3367,7 @@ msgid "在源播放头添加或编辑片段标记"
 msgstr "在源播放头添加或编辑片段标记"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1498
+#: src/domain/editing/TimelineProgramMonitor.tsx:1427
 msgid "在节目画布中移动 {0}"
 msgstr "在节目画布中移动 {0}"
 
@@ -3498,7 +3498,7 @@ msgstr "外观与语言"
 msgid "外部文件"
 msgstr "外部文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:669
+#: src/domain/editing/TimelineProgramMonitor.tsx:675
 msgid "多机位视图"
 msgstr "多机位视图"
 
@@ -3528,7 +3528,7 @@ msgstr "失败"
 msgid "失败可恢复"
 msgstr "失败可恢复"
 
-#: src/shared/desktop/client.ts:173
+#: src/shared/desktop/client.ts:172
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
 
@@ -3674,7 +3674,7 @@ msgstr "对照预览"
 msgid "对话"
 msgstr "对话"
 
-#: src/data/sessions.ts:578
+#: src/data/sessions.ts:366
 msgid "对话保存失败，请重试。{detail}"
 msgstr "对话保存失败，请重试。{detail}"
 
@@ -4018,7 +4018,7 @@ msgstr "已应用到时间线"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1418
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
-#: src/domain/editing/TimelineProgramMonitor.tsx:1733
+#: src/domain/editing/TimelineProgramMonitor.tsx:1662
 msgid "已录制"
 msgstr "已录制"
 
@@ -4085,7 +4085,7 @@ msgstr "已检查 {0} 条记录，移除 {1} 条无效记录。磁盘文件没�
 msgid "已检查录制范围，请在录制后确认画面。"
 msgstr "已检查录制范围，请在录制后确认画面。"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:1156
+#: src/domain/editing/TimelineProgramMonitor.tsx:1130
 msgid "已渲染时间轴预览"
 msgstr "已渲染时间轴预览"
 
@@ -4702,11 +4702,11 @@ msgstr "战术示意"
 msgid "所有记录都能找到文件"
 msgstr "所有记录都能找到文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:693
+#: src/domain/editing/TimelineProgramMonitor.tsx:699
 msgid "所选 In"
 msgstr "所选 In"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:694
+#: src/domain/editing/TimelineProgramMonitor.tsx:700
 msgid "所选 Out"
 msgstr "所选 Out"
 
@@ -5241,7 +5241,7 @@ msgstr "播放序列 (Space)"
 msgid "播放控制"
 msgstr "播放控制"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:957
+#: src/domain/editing/TimelineProgramMonitor.tsx:963
 msgid "播放时间轴"
 msgstr "播放时间轴"
 
@@ -5474,7 +5474,7 @@ msgid "旋转"
 msgstr "旋转"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1565
+#: src/domain/editing/TimelineProgramMonitor.tsx:1494
 msgid "旋转节目画面 {0}"
 msgstr "旋转节目画面 {0}"
 
@@ -5530,11 +5530,11 @@ msgstr "无法读取目标作品。"
 msgid "无法读取运行状态：{runtimeError}"
 msgstr "无法读取运行状态：{runtimeError}"
 
-#: src/shared/desktop/client.ts:187
-#: src/shared/desktop/client.ts:214
-#: src/shared/desktop/client.ts:240
-#: src/shared/desktop/client.ts:299
-#: src/shared/desktop/client.ts:490
+#: src/shared/desktop/client.ts:186
+#: src/shared/desktop/client.ts:213
+#: src/shared/desktop/client.ts:239
+#: src/shared/desktop/client.ts:298
+#: src/shared/desktop/client.ts:489
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "无法连接到本地服务，请确认服务正在运行。"
 
@@ -5751,7 +5751,7 @@ msgstr "暂不支持导出复盘网页"
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:965
+#: src/domain/editing/TimelineProgramMonitor.tsx:971
 #: src/domain/media/Transport.tsx:188
 msgid "暂停"
 msgstr "暂停"
@@ -5943,8 +5943,8 @@ msgstr "未归队"
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
 #: src/domain/editing/ProjectTimeline.tsx:4837
-#: src/domain/editing/TimelineProgramMonitor.tsx:1730
-#: src/domain/editing/TimelineProgramMonitor.tsx:1733
+#: src/domain/editing/TimelineProgramMonitor.tsx:1659
+#: src/domain/editing/TimelineProgramMonitor.tsx:1662
 msgid "未录制"
 msgstr "未录制"
 
@@ -5968,7 +5968,7 @@ msgstr "未知原因"
 msgid "未知地图"
 msgstr "未知地图"
 
-#: src/shared/desktop/client.ts:432
+#: src/shared/desktop/client.ts:431
 msgid "未知玩家"
 msgstr "未知玩家"
 
@@ -6001,7 +6001,7 @@ msgstr "未选中比赛"
 msgid "未选中高光"
 msgstr "未选中高光"
 
-#: src/shared/desktop/client.ts:273
+#: src/shared/desktop/client.ts:272
 msgid "本地数据库读写失败"
 msgstr "本地数据库读写失败"
 
@@ -6009,7 +6009,7 @@ msgstr "本地数据库读写失败"
 msgid "本地文件"
 msgstr "本地文件"
 
-#: src/shared/desktop/client.ts:275
+#: src/shared/desktop/client.ts:274
 msgid "本地文件读写失败"
 msgstr "本地文件读写失败"
 
@@ -6436,7 +6436,7 @@ msgstr "正在处理…"
 msgid "正在处理上一次操作"
 msgstr "正在处理上一次操作"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:711
+#: src/domain/editing/TimelineProgramMonitor.tsx:717
 msgid "正在定位帧"
 msgstr "正在定位帧"
 
@@ -7431,7 +7431,7 @@ msgstr "滑动 {0}"
 msgid "滑动工具 (U)"
 msgstr "滑动工具 (U)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:424
+#: src/domain/editing/TimelineProgramMonitor.tsx:430
 msgid "滑动编辑预览"
 msgstr "滑动编辑预览"
 
@@ -7454,7 +7454,7 @@ msgstr "滚动编辑 {0} / {1}"
 msgid "滚动编辑工具 (N)"
 msgstr "滚动编辑工具 (N)"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:424
+#: src/domain/editing/TimelineProgramMonitor.tsx:430
 msgid "滚动编辑预览"
 msgstr "滚动编辑预览"
 
@@ -7931,8 +7931,8 @@ msgstr "视频缩略图：连续帧"
 msgid "视频转场"
 msgstr "视频转场"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:401
-#: src/domain/editing/TimelineProgramMonitor.tsx:424
+#: src/domain/editing/TimelineProgramMonitor.tsx:407
+#: src/domain/editing/TimelineProgramMonitor.tsx:430
 msgid "视频预览"
 msgstr "视频预览"
 
@@ -8223,7 +8223,7 @@ msgstr "素材就绪"
 msgid "素材就绪 → 可以导出"
 msgstr "素材就绪 → 可以导出"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:687
+#: src/domain/editing/TimelineProgramMonitor.tsx:693
 msgid "素材未就绪 · 当前显示可用帧"
 msgstr "素材未就绪 · 当前显示可用帧"
 
@@ -8371,7 +8371,7 @@ msgid "缩放至所选片段"
 msgstr "缩放至所选片段"
 
 #. placeholder {0}: clip.name
-#: src/domain/editing/TimelineProgramMonitor.tsx:1629
+#: src/domain/editing/TimelineProgramMonitor.tsx:1558
 msgid "缩放节目画面 {0}"
 msgstr "缩放节目画面 {0}"
 
@@ -8464,7 +8464,7 @@ msgstr "致盲时长"
 msgid "节目化"
 msgstr "节目化"
 
-#: src/domain/editing/TimelineProgramMonitor.tsx:457
+#: src/domain/editing/TimelineProgramMonitor.tsx:463
 msgid "节目画布"
 msgstr "节目画布"
 
@@ -8751,10 +8751,10 @@ msgstr "请求导出"
 msgid "请求录制片段"
 msgstr "请求录制片段"
 
-#: src/shared/desktop/client.ts:184
-#: src/shared/desktop/client.ts:207
-#: src/shared/desktop/client.ts:222
-#: src/shared/desktop/client.ts:231
+#: src/shared/desktop/client.ts:183
+#: src/shared/desktop/client.ts:206
+#: src/shared/desktop/client.ts:221
+#: src/shared/desktop/client.ts:230
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
@@ -10307,8 +10307,8 @@ msgstr "需要配置"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1417
 #: src/domain/editing/ProjectTimeline.tsx:4790
 #: src/domain/editing/ProjectTimeline.tsx:4795
-#: src/domain/editing/TimelineProgramMonitor.tsx:1729
-#: src/domain/editing/TimelineProgramMonitor.tsx:1732
+#: src/domain/editing/TimelineProgramMonitor.tsx:1658
+#: src/domain/editing/TimelineProgramMonitor.tsx:1661
 msgid "需要重录"
 msgstr "需要重录"
 

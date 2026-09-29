@@ -137,6 +137,13 @@ Head and Change Group already form the one edit and undo authority.
   passes only that host-owned history to `agent`. The removed local `agent/threads/*.json` store is
   not a compatibility source. The webview sends `sessionId`, the current instruction and Workspace
   View State; it never authors model history.
+- The Desktop host owns Agent turn persistence as well as execution. One supervised turn begins its
+  user entry and assistant placeholder atomically, retains bounded completed tool evidence, then
+  persists terminal state and releases its exact Edit Lease in one storage transaction before the
+  renderer receives completion. Cancellation, Channel loss and dropped IPC waiters leave that
+  persistence owner alive; startup resolves interrupted turns. The renderer only sends intents and
+  projects host results. Its assistant-entry and terminal-update write routes have been removed;
+  human HITL decisions retain their existing append Interface.
 - Project context is progressively disclosed. The Current Turn Checkpoint and
   `read_workspace(detail=summary)` use the same typed host projection: exact revision and material
   counts plus bounded, selection-prioritized track and clip inventory. Truncated marker inventory

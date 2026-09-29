@@ -30,9 +30,11 @@ for low, high in [((-512, 256, 0), (512, 288, 192)),
 root = {
     "m_bindPose": [],
     "m_collisionAttributes": [{"m_InteractAsStrings": []}],
+    "m_surfacePropertyHashes": [1977497166],  # StringToken("default")
     "m_parts": [{"m_rnShape": {
         "m_spheres": [], "m_capsules": [], "m_hulls": [],
-        "m_meshes": [{"m_nCollisionAttributeIndex": 0, "m_Mesh": {
+        "m_meshes": [{"m_nCollisionAttributeIndex": 0, "m_nSurfacePropertyIndex": 0, "m_Mesh": {
+            "m_Materials": [],
             "m_Vertices": b"".join(struct.pack("<3f", *point) for point in vertices),
             "m_Triangles": b"".join(struct.pack("<3I", *triangle) for triangle in triangles),
         }}],

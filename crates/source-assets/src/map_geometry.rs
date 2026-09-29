@@ -8,6 +8,9 @@ use crate::{Kv3Value, Result, SourceAssetError, closed_triangle_components, deco
 // Current Inferno has more than two million opaque collision triangles.
 const MAX_TRIANGLES: usize = 4_000_000;
 const QUANTIZATION: f32 = 16.0;
+// CS2 materials/tools/toolsblockbullets_cs.vmat has nodraw=1 and this
+// PhysicsSurfaceProperties value. StringToken("blockbullets"), Murmur2 seed pi.
+const BLOCK_BULLETS_SURFACE: usize = 2_711_388_870;
 
 #[derive(Debug, Default, PartialEq)]
 pub struct MapGeometry {
@@ -154,6 +157,16 @@ fn extract(root: &Kv3Value) -> Result<MapGeometry> {
 }
 
 fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
+    let surfaces = array(field(root, "m_surfacePropertyHashes")?)?
+        .iter()
+        .map(|value| index(value).map(|hash| hash != BLOCK_BULLETS_SURFACE))
+        .collect::<Result<Vec<_>>>()?;
+    let keeps_surface = |surface: usize| {
+        surfaces
+            .get(surface)
+            .copied()
+            .ok_or_else(|| invalid("surface property outside table"))
+    };
     let mut builder = Builder::default();
     for part in array(field(root, "m_parts")?)? {
         let shape = field(part, "m_rnShape")?;
@@ -173,6 +186,12 @@ fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
                     continue;
                 }
                 let data = field(descriptor, key)?;
+                let surface = index(field(descriptor, "m_nSurfacePropertyIndex")?)?;
+                let default_surface = keeps_surface(surface)?;
+                if key != "m_Mesh" && !default_surface {
+                    builder.geometry.excluded_shapes += 1;
+                    continue;
+                }
                 if matches!(key, "m_Sphere" | "m_Capsule") {
                     let radius = scalar(field(data, "m_flRadius")?)?;
                     let centers = field(data, "m_vCenter")?;
@@ -207,13 +226,32 @@ fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
                     vertices.push(builder.vertex(point)?);
                 }
                 if key == "m_Mesh" {
+                    let bytes = blob(data, "m_Triangles", 12)?;
+                    let materials = array(field(data, "m_Materials")?)?;
+                    if !materials.is_empty() && materials.len() != bytes.len() / 12 {
+                        return Err(invalid("mesh surface count does not match triangles"));
+                    }
                     let mut triangles = Vec::new();
-                    for bytes in blob(data, "m_Triangles", 12)?.chunks_exact(12) {
+                    for (triangle, bytes) in bytes.chunks_exact(12).enumerate() {
+                        let keep = if materials.is_empty() {
+                            default_surface
+                        } else {
+                            keeps_surface(index(&materials[triangle])?)?
+                        };
+                        if !keep {
+                            continue;
+                        }
                         let indices = std::array::from_fn(|axis| {
                             u32::from_le_bytes(bytes[axis * 4..axis * 4 + 4].try_into().unwrap())
                         });
                         triangles.push(indices);
                     }
+                    if triangles.is_empty() {
+                        builder.geometry.excluded_shapes += 1;
+                        continue;
+                    }
+                    // Determine closed shells after removing invisible faces;
+                    // a tool face must never seal a solid for camera diagnostics.
                     builder.mesh(&vertices, &triangles)?;
                 } else {
                     builder.hull(data, &vertices)?;
@@ -565,6 +603,95 @@ mod tests {
         )])
     }
 
+    fn surface_filter_fixture(materials: &[u64], surface: u64) -> Kv3Value {
+        let points = [
+            [0.0_f32, 0.0, 0.0],
+            [128.0, 0.0, 0.0],
+            [0.0, 128.0, 0.0],
+            [0.0, 0.0, 128.0],
+        ];
+        let triangles = [[0_u32, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]];
+        let mesh = object([
+            ("m_nCollisionAttributeIndex", Kv3Value::Unsigned(0)),
+            ("m_nSurfacePropertyIndex", Kv3Value::Unsigned(surface)),
+            (
+                "m_Mesh",
+                object([
+                    (
+                        "m_Vertices",
+                        Kv3Value::Blob(
+                            points
+                                .into_iter()
+                                .flatten()
+                                .flat_map(f32::to_le_bytes)
+                                .collect(),
+                        ),
+                    ),
+                    (
+                        "m_Triangles",
+                        Kv3Value::Blob(
+                            triangles
+                                .into_iter()
+                                .flatten()
+                                .flat_map(u32::to_le_bytes)
+                                .collect(),
+                        ),
+                    ),
+                    (
+                        "m_Materials",
+                        Kv3Value::Array(
+                            materials.iter().copied().map(Kv3Value::Unsigned).collect(),
+                        ),
+                    ),
+                ]),
+            ),
+        ]);
+        object([
+            ("m_bindPose", Kv3Value::Array(vec![])),
+            (
+                "m_collisionAttributes",
+                Kv3Value::Array(vec![attribute(&[])]),
+            ),
+            (
+                "m_surfacePropertyHashes",
+                Kv3Value::Array(vec![
+                    Kv3Value::Unsigned(1_977_497_166),
+                    Kv3Value::Unsigned(2_711_388_870),
+                ]),
+            ),
+            (
+                "m_parts",
+                Kv3Value::Array(vec![object([(
+                    "m_rnShape",
+                    object([
+                        ("m_meshes", Kv3Value::Array(vec![mesh])),
+                        ("m_hulls", Kv3Value::Array(vec![])),
+                        ("m_spheres", Kv3Value::Array(vec![])),
+                        ("m_capsules", Kv3Value::Array(vec![])),
+                    ]),
+                )])]),
+            ),
+        ])
+    }
+
+    #[test]
+    fn excludes_invisible_bullet_faces_without_certifying_the_remaining_open_shell() {
+        let complete = extract(&surface_filter_fixture(&[0, 0, 0, 0], 0)).unwrap();
+        assert_eq!(complete.triangles.len(), 4);
+        assert_eq!(complete.closed_meshes.len(), 1);
+        assert_eq!(extract(&surface_filter_fixture(&[], 0)).unwrap(), complete);
+        assert_eq!(
+            extract(&surface_filter_fixture(&[0, 0, 0, 0], 1)).unwrap(),
+            complete
+        );
+        let filtered = extract(&surface_filter_fixture(&[0, 1, 0, 0], 0)).unwrap();
+        assert_eq!(filtered.triangles.len(), 3);
+        assert!(filtered.closed_meshes.is_empty());
+        assert!(extract(&surface_filter_fixture(&[], 1)).is_err());
+        assert!(extract(&surface_filter_fixture(&[0, 2, 0, 0], 0)).is_err());
+        assert!(extract(&surface_filter_fixture(&[0, 0], 0)).is_err());
+    }
+
     #[test]
     fn keeps_solids_and_filters_tool_collision_without_guessing_unknown_tags() {
         assert!(is_occluder(&attribute(&[])).unwrap());
@@ -578,6 +705,7 @@ mod tests {
             .unwrap()
         );
         assert!(is_occluder(&attribute(&["blocksound", "CONTENTS_SOLID"])).unwrap());
+        assert!(is_occluder(&attribute(&["solid", "passbullets"])).unwrap());
         assert!(!is_occluder(&attribute(&["blocksound"])).unwrap());
         assert!(!is_occluder(&attribute(&["blocklight", "navclip"])).unwrap());
         assert!(!is_occluder(&attribute(&["CONTENTS_SOLID_NO_BLOCK_LOS"])).unwrap());
@@ -585,6 +713,8 @@ mod tests {
             vec!["playerclip", "npcclip"],
             vec!["sky"],
             vec!["window", "passbullets"],
+            vec!["passbullets"],
+            vec!["ladder", "passbullets"],
             vec!["csgo_grenadeclip"],
         ] {
             assert!(!is_occluder(&attribute(&tags)).unwrap());

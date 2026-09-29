@@ -12,6 +12,9 @@ use crate::{
 mod quaternion;
 use quaternion::{QuaternionSpline, from_angles, slerp};
 
+#[cfg(test)]
+mod native_game_validation;
+
 pub const CAMERA_PREVIEW_FPS: u32 = 30;
 const MAXIMUM_SAMPLES: u32 = 100_000;
 

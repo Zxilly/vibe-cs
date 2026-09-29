@@ -47,7 +47,6 @@ import type {
   AgentStatus,
   AgentWorkspaceSettings,
   AppConfig,
-  MapGeometryStatus,
   AvatarCacheStatus,
   DeleteOutputResult,
   DemoRecord,
@@ -1159,8 +1158,8 @@ type Handler = (context: {
  * accordingly.
  */
 const ROUTES: Array<[string, string, Handler]> = [
-  ['GET', '/source-assets/map-geometry', () => GEOMETRY_STATUS.map((status) => ({ ...status }))],
-  ['POST', '/source-assets/map-geometry/:map/rebuild', ({ params }) => readyGeometry(params['map']!)],
+  ['GET', '/source-assets/map-geometry', () => ({ files: GEOMETRY_CACHE.size, bytes: [...GEOMETRY_CACHE.values()].reduce((sum, bytes) => sum + bytes, 0) })],
+  ['DELETE', '/source-assets/map-geometry', () => { GEOMETRY_CACHE.clear(); return undefined; }],
   /* setup and runtime */
   ['GET', '/app/runtime-state', () => ({
     version: '0.1.0-dev',
@@ -1450,10 +1449,11 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
       const path = (args as { path?: unknown } | undefined)?.path;
       const map = typeof path === 'string' ? /^\/source-assets\/map-geometry\/([^/]+)$/u.exec(path)?.[1] : undefined;
       if (map !== undefined) {
-        if (decodeURIComponent(map) !== 'synthetic') readyGeometry(decodeURIComponent(map));
         const response = await fetch(geometryFixtureUrl);
         if (!response.ok) throw new Error('Development geometry fixture is unavailable');
-        return response.arrayBuffer();
+        const bytes = await response.arrayBuffer();
+        GEOMETRY_CACHE.set(decodeURIComponent(map), bytes.byteLength);
+        return bytes;
       }
       if (typeof path === 'string' && path === `/analysis-runs/${cameraFixture.preview.replay.producerRunId}/replay.bin`) {
         const preview = cameraFixture.preview;
@@ -1486,18 +1486,4 @@ export async function handleCommand(command: string, args: unknown): Promise<unk
 
 // Original synthetic floor, wall and boxes. Generated through the production
 // Rust VPK -> PHYS -> VMAP path; no game assets are distributed with the mock.
-const GEOMETRY_STATUS: MapGeometryStatus[] = [
-  'de_mirage', 'de_dust2', 'de_inferno', 'de_nuke', 'de_ancient', 'de_anubis', 'de_train', 'de_overpass',
-].map((map_name, index) => ({
-  map_name, state: index < 2 ? 'ready' : index === 2 ? 'stale' : 'missing',
-  bytes: index < 2 ? 143 : null, reason: null,
-}));
-
-function readyGeometry(map: string): MapGeometryStatus {
-  const status = GEOMETRY_STATUS.find((candidate) => candidate.map_name === map);
-  if (status === undefined) throw new Error(`No development geometry fixture for ${map}`);
-  status.state = 'ready';
-  status.bytes = 143;
-  status.reason = null;
-  return { ...status };
-}
+const GEOMETRY_CACHE = new Map<string, number>();

@@ -24,10 +24,10 @@ pub use ports::{
     DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort,
     DisabledIntegrationPort, DisabledMediaPort, DisabledRecordingPort, DisabledReviewPort,
     DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
-    MapGeometryCacheState, MapGeometryData, MapGeometryStatus, MediaPort, MediaProxyRequest,
-    ProbedMediaMetadata, RadarImageData, RadarOverviewData, RadarTransformData, RecordingPort,
-    ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState, ReplayCacheStatus, ReplayPayload,
-    ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
+    MapGeometryCacheSummary, MediaPort, MediaProxyRequest, ProbedMediaMetadata, RadarImageData,
+    RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
+    ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
+    SourceAssetPort,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
 pub use vibe_cs_domain::{

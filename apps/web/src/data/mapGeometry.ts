@@ -5,11 +5,11 @@ import { qk } from './keys';
 import { decodeMapGeometry } from './mapGeometryBinary';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
 
-export function useMapGeometryStatus(tuning: DataQueryTuning = {}) {
+export function useMapGeometryCache(tuning: DataQueryTuning = {}) {
   const client = useDesktopClient();
   return useQuery({
-    queryKey: qk.config.mapGeometryStatus(),
-    queryFn: ({ signal }) => client.mapGeometryStatus(signal),
+    queryKey: qk.config.mapGeometryCache(),
+    queryFn: ({ signal }) => client.mapGeometryCache(signal),
     ...resolveQueryTuning(tuning),
   });
 }
@@ -31,15 +31,17 @@ export function useMapGeometry(mapName: string | null, tuning: DataQueryTuning =
   });
 }
 
-export function useRebuildMapGeometry() {
+export function useClearMapGeometryCache() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (mapName: string) => client.rebuildMapGeometry(mapName),
-    onSuccess: (_status, mapName) => Promise.all([
-      queryClient.invalidateQueries({ queryKey: qk.config.mapGeometry(mapName) }),
-      queryClient.invalidateQueries({ queryKey: qk.projects.cameraPreviews() }),
+    mutationFn: () => client.clearMapGeometryCache(),
+    // Existing views keep their presented frame. Reload only when needed again;
+    // immediately refetching active meshes would undo the user's cleanup.
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.config.mapGeometries(), refetchType: 'none' }),
+      queryClient.invalidateQueries({ queryKey: qk.projects.cameraPreviews(), refetchType: 'none' }),
     ]).then(() => undefined),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: qk.config.mapGeometryStatus() }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: qk.config.mapGeometryCache() }),
   });
 }

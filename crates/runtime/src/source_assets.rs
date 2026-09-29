@@ -7,8 +7,7 @@ use std::{
 use async_trait::async_trait;
 use tokio::sync::{Mutex, RwLock};
 use vibe_cs_application::{
-    MapGeometryCacheState, MapGeometryData, MapGeometryStatus, RadarImageData, RadarOverviewData,
-    RadarTransformData, SourceAssetPort,
+    MapGeometryCacheSummary, RadarImageData, RadarOverviewData, RadarTransformData, SourceAssetPort,
 };
 use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::discover_paths;
@@ -27,13 +26,6 @@ struct CachedCameraGeometry {
 
 mod geometry;
 
-#[derive(Debug, Clone)]
-struct GeometryActivity {
-    key: String,
-    state: MapGeometryCacheState,
-    reason: Option<String>,
-}
-
 #[derive(Debug, Default)]
 struct AssetStoreCache {
     installation_root: Option<PathBuf>,
@@ -50,7 +42,6 @@ pub struct RuntimeSourceAssetPort {
     radar_generation: Arc<Mutex<()>>,
     geometry_root: PathBuf,
     geometry_generation: Arc<Mutex<()>>,
-    geometry_activity: Arc<RwLock<HashMap<String, GeometryActivity>>>,
     camera_geometry: Arc<Mutex<Option<CachedCameraGeometry>>>,
 }
 
@@ -63,7 +54,6 @@ impl RuntimeSourceAssetPort {
             radar_generation: Arc::new(Mutex::new(())),
             geometry_root,
             geometry_generation: Arc::new(Mutex::new(())),
-            geometry_activity: Arc::new(RwLock::new(HashMap::new())),
             camera_geometry: Arc::new(Mutex::new(None)),
         }
     }
@@ -78,7 +68,7 @@ impl RuntimeSourceAssetPort {
         &self,
         map_name: &str,
     ) -> Result<Arc<crate::CameraGeometry>, DomainError> {
-        let _generation = self.geometry_generation.lock().await;
+        let generation = Arc::clone(&self.geometry_generation).lock_owned().await;
         let store = self.asset_store().await?;
         let root = self.geometry_root.clone();
         let name = map_name.to_owned();
@@ -97,11 +87,11 @@ impl RuntimeSourceAssetPort {
         // retain their Arc until their current shot finishes.
         *cached = None;
         let key = source.key.clone();
-        let geometry = tokio::task::spawn_blocking(move || {
-            let data = source.load(false)?;
-            let decoded = vibe_cs_source_assets::decode_map_geometry(&data.bytes)
+        let (geometry, _generation) = tokio::task::spawn_blocking(move || {
+            let data = source.load()?;
+            let decoded = vibe_cs_source_assets::decode_map_geometry(&data)
                 .map_err(map_source_asset_error)?;
-            crate::CameraGeometry::new(decoded)
+            crate::CameraGeometry::new(decoded).map(|geometry| (geometry, generation))
         })
         .await
         .map_err(|error| DomainError::Internal(format!("camera BVH task failed: {error}")))??;
@@ -205,73 +195,40 @@ impl RuntimeSourceAssetPort {
 
 #[async_trait]
 impl SourceAssetPort for RuntimeSourceAssetPort {
-    async fn map_geometry(
-        &self,
-        map_name: String,
-        rebuild: bool,
-    ) -> Result<MapGeometryData, DomainError> {
-        let _generation = self.geometry_generation.lock().await;
-        if rebuild {
-            *self.camera_geometry.lock().await = None;
-        }
+    async fn map_geometry(&self, map_name: String) -> Result<Vec<u8>, DomainError> {
+        let generation = Arc::clone(&self.geometry_generation).lock_owned().await;
         let store = self.asset_store().await?;
         let root = self.geometry_root.clone();
-        let map_name = map_name.to_ascii_lowercase();
-        let map_for_source = map_name.clone();
-        let source = tokio::task::spawn_blocking(move || {
-            geometry::GeometrySource::open(&store, &root, &map_for_source)
+        tokio::task::spawn_blocking(move || {
+            // A closing view must not release the lock while extraction still writes.
+            let _generation = generation;
+            geometry::GeometrySource::open(&store, &root, &map_name)?.load()
         })
         .await
-        .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))??;
-        let key = source.key.clone();
-        self.geometry_activity.write().await.insert(
-            map_name.clone(),
-            GeometryActivity {
-                key: key.clone(),
-                state: MapGeometryCacheState::Building,
-                reason: None,
-            },
-        );
-        let result = tokio::task::spawn_blocking(move || source.load(rebuild))
-            .await
-            .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))
-            .and_then(std::convert::identity);
-        let (state, reason) = match &result {
-            Ok(_) => (MapGeometryCacheState::Ready, None),
-            Err(error) => (MapGeometryCacheState::Failed, Some(error.to_string())),
-        };
-        self.geometry_activity
-            .write()
-            .await
-            .insert(map_name, GeometryActivity { key, state, reason });
-        result
+        .map_err(|error| DomainError::Internal(format!("geometry task failed: {error}")))?
     }
 
-    async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError> {
-        let store = self.asset_store().await?;
+    async fn map_geometry_cache(&self) -> Result<MapGeometryCacheSummary, DomainError> {
         let root = self.geometry_root.clone();
-        let entries = tokio::task::spawn_blocking(move || geometry::statuses(&store, &root))
-            .await
-            .map_err(|error| {
-                DomainError::Internal(format!("geometry status task failed: {error}"))
-            })?;
-        let activity = self.geometry_activity.read().await;
-        Ok(entries
-            .into_iter()
-            .map(|(mut status, key)| {
-                if let Some(active) = activity.get(&status.map_name)
-                    && key.as_ref() == Some(&active.key)
-                    && matches!(
-                        active.state,
-                        MapGeometryCacheState::Building | MapGeometryCacheState::Failed
-                    )
-                {
-                    status.state = active.state;
-                    status.reason.clone_from(&active.reason);
-                }
-                status
-            })
-            .collect())
+        let generation = Arc::clone(&self.geometry_generation).lock_owned().await;
+        tokio::task::spawn_blocking(move || {
+            let _generation = generation;
+            geometry::cache_contents(&root, false)
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("geometry cache task failed: {error}")))?
+    }
+
+    async fn clear_map_geometry_cache(&self) -> Result<(), DomainError> {
+        let generation = Arc::clone(&self.geometry_generation).lock_owned().await;
+        *self.camera_geometry.lock().await = None;
+        let root = self.geometry_root.clone();
+        tokio::task::spawn_blocking(move || {
+            let _generation = generation;
+            geometry::cache_contents(&root, true).map(|_| ())
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("geometry cleanup task failed: {error}")))?
     }
 
     async fn radar_overview(&self, map_name: String) -> Result<RadarOverviewData, DomainError> {
@@ -417,6 +374,67 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    async fn geometry_cache_is_lazy_shared_and_cleared_without_an_installation() {
+        let root = tempdir().unwrap();
+        let executable = root.path().join("game/bin/win64/cs2.exe");
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"stub").unwrap();
+        fs::create_dir_all(root.path().join("game/csgo/resource/overviews")).unwrap();
+        let maps = root.path().join("game/csgo/maps");
+        fs::create_dir_all(&maps).unwrap();
+        fs::write(
+            maps.join("de_fixture.vpk"),
+            include_bytes!("../../source-assets/tests/fixtures/de_fixture.vpk"),
+        )
+        .unwrap();
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        storage
+            .put_config(AppConfig {
+                cs2_path: executable.to_string_lossy().into_owned(),
+                ..AppConfig::default()
+            })
+            .await
+            .unwrap();
+        let port = RuntimeSourceAssetPort::new(storage, root.path().join("cache"));
+        assert_eq!(
+            port.map_geometry_cache().await.unwrap(),
+            MapGeometryCacheSummary::default()
+        );
+        let (mesh, bvh) = tokio::join!(
+            port.map_geometry("de_fixture".to_owned()),
+            port.camera_geometry("de_fixture")
+        );
+        let mesh = mesh.unwrap();
+        let bvh = bvh.unwrap();
+        assert_eq!(
+            port.map_geometry_cache().await.unwrap(),
+            MapGeometryCacheSummary {
+                files: 1,
+                bytes: mesh.len() as u64
+            }
+        );
+        assert!(Arc::ptr_eq(
+            &bvh,
+            &port.camera_geometry("de_fixture").await.unwrap()
+        ));
+        // Cleanup must not depend on CS2 still being installed.
+        fs::remove_file(&executable).unwrap();
+        port.clear_map_geometry_cache().await.unwrap();
+        assert!(port.camera_geometry.lock().await.is_none());
+        assert_eq!(
+            port.map_geometry_cache().await.unwrap(),
+            MapGeometryCacheSummary::default()
+        );
+        fs::write(&executable, b"stub").unwrap();
+        let regenerated = port.camera_geometry("de_fixture").await.unwrap();
+        assert!(!Arc::ptr_eq(&bvh, &regenerated));
+        assert_eq!(
+            port.map_geometry("de_fixture".to_owned()).await.unwrap(),
+            mesh
+        );
+    }
+
+    #[tokio::test]
     async fn reads_loose_radar_assets_from_the_configured_installation() {
         let root = tempdir().expect("installation root");
         let executable = root.path().join("game/bin/win64/cs2.exe");
@@ -502,7 +520,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires VIBE_CS2_INSTALL pointing at a real CS2 installation"]
-    async fn real_map_geometry_passes_through_dispatcher_cache_status_and_rebuild() {
+    async fn real_map_geometry_passes_through_dispatcher_cache_clear_and_regeneration() {
         use axum::{
             body::{Body, to_bytes},
             http::Request,
@@ -545,18 +563,11 @@ mod tests {
             .unwrap();
         let mesh = vibe_cs_source_assets::decode_map_geometry(&bytes).unwrap();
         assert!(mesh.triangles.len() > 100_000);
-        let cached = port
-            .map_geometry("de_mirage".to_owned(), false)
-            .await
-            .unwrap();
-        assert_eq!(cached.bytes, bytes);
-        let statuses = port.map_geometry_status().await.unwrap();
-        let status = statuses
-            .iter()
-            .find(|status| status.map_name == "de_mirage")
-            .unwrap();
-        assert_eq!(status.state, MapGeometryCacheState::Ready);
-        assert_eq!(status.bytes, Some(bytes.len() as u64));
+        let cached = port.map_geometry("de_mirage".to_owned()).await.unwrap();
+        assert_eq!(cached, bytes);
+        let summary = port.map_geometry_cache().await.unwrap();
+        assert_eq!(summary.files, 1);
+        assert_eq!(summary.bytes, bytes.len() as u64);
         let (bvh, same_bvh) = tokio::join!(
             port.camera_geometry("de_mirage"),
             port.camera_geometry("de_mirage")
@@ -564,23 +575,21 @@ mod tests {
         let bvh = bvh.unwrap();
         assert!(Arc::ptr_eq(&bvh, &same_bvh.unwrap()));
         let response = app
-            .oneshot(request(
-                "POST",
-                "/api/source-assets/map-geometry/de_mirage/rebuild",
-            ))
+            .oneshot(request("DELETE", "/api/source-assets/map-geometry"))
             .await
             .unwrap();
         assert!(response.status().is_success());
-        let rebuilt: MapGeometryStatus =
-            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
-        assert_eq!(rebuilt, *status);
+        assert_eq!(
+            port.map_geometry_cache().await.unwrap(),
+            MapGeometryCacheSummary::default()
+        );
         let rebuilt_bvh = port.camera_geometry("de_mirage").await.unwrap();
         assert!(!Arc::ptr_eq(&bvh, &rebuilt_bvh));
         if let Some(output) = std::env::var_os("VIBE_GEOMETRY_API_OUTPUT") {
             fs::write(output, &bytes).unwrap();
         }
         eprintln!(
-            "real Mirage API: {} vertices, {} triangles, {} bytes; cache hit and rebuild verified",
+            "real Mirage API: {} vertices, {} triangles, {} bytes; cache hit, cleanup and automatic regeneration verified",
             mesh.vertices.len(),
             mesh.triangles.len(),
             bytes.len()

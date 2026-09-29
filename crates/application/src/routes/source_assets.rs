@@ -4,59 +4,50 @@ use axum::{
     extract::{Path, State},
     http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::get,
 };
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::{ApiError, ApiResult, AppState, MapGeometryStatus, RadarOverviewData};
+use crate::{ApiError, ApiResult, AppState, MapGeometryCacheSummary, RadarOverviewData};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/maps/{map_name}/radar", get(radar_image))
         .route("/api/maps/{map_name}/radar/metadata", get(radar_metadata))
-        .route("/api/source-assets/map-geometry", get(map_geometry_status))
+        .route(
+            "/api/source-assets/map-geometry",
+            get(map_geometry_cache).delete(clear_map_geometry_cache),
+        )
         .route(
             "/api/source-assets/map-geometry/{map_name}",
             get(map_geometry),
         )
-        .route(
-            "/api/source-assets/map-geometry/{map_name}/rebuild",
-            post(rebuild_map_geometry),
-        )
 }
 
-async fn map_geometry_status(
+async fn map_geometry_cache(
     State(state): State<AppState>,
-) -> ApiResult<Json<Vec<MapGeometryStatus>>> {
-    Ok(Json(state.source_assets.map_geometry_status().await?))
+) -> ApiResult<Json<MapGeometryCacheSummary>> {
+    Ok(Json(state.source_assets.map_geometry_cache().await?))
 }
 
-async fn rebuild_map_geometry(
-    State(state): State<AppState>,
-    Path(map_name): Path<String>,
-) -> ApiResult<Json<MapGeometryStatus>> {
-    Ok(Json(
-        state
-            .source_assets
-            .map_geometry(map_name, true)
-            .await?
-            .status,
-    ))
+async fn clear_map_geometry_cache(State(state): State<AppState>) -> ApiResult<StatusCode> {
+    state.source_assets.clear_map_geometry_cache().await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn map_geometry(
     State(state): State<AppState>,
     Path(map_name): Path<String>,
 ) -> ApiResult<Response> {
-    let geometry = state.source_assets.map_geometry(map_name, false).await?;
-    let mut response = Body::from(geometry.bytes).into_response();
+    let geometry = state.source_assets.map_geometry(map_name).await?;
+    let mut response = Body::from(geometry).into_response();
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/vnd.vibe-cs.map-geometry"),
     );
     // The source package fingerprint is checked on every request. A browser's
-    // day-long cache must not hide a CS2 map update or an explicit rebuild.
+    // day-long cache must not hide a CS2 map update or a cache cleanup.
     response
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
@@ -169,38 +160,24 @@ mod tests {
     use vibe_cs_domain::DomainError;
 
     use super::*;
-    use crate::{
-        MapGeometryCacheState, MapGeometryData, RadarImageData, RadarTransformData, SourceAssetPort,
-    };
+    use crate::{RadarImageData, RadarTransformData, SourceAssetPort};
 
     #[derive(Debug)]
     struct FixtureAssets;
 
     #[async_trait]
     impl SourceAssetPort for FixtureAssets {
-        async fn map_geometry(
-            &self,
-            map_name: String,
-            rebuild: bool,
-        ) -> Result<MapGeometryData, DomainError> {
-            Ok(MapGeometryData {
-                bytes: b"VMAPfixture".to_vec(),
-                status: MapGeometryStatus {
-                    map_name,
-                    state: MapGeometryCacheState::Ready,
-                    bytes: Some(11),
-                    reason: rebuild.then(|| "rebuilt".to_owned()),
-                },
+        async fn map_geometry(&self, _map_name: String) -> Result<Vec<u8>, DomainError> {
+            Ok(b"VMAPfixture".to_vec())
+        }
+        async fn map_geometry_cache(&self) -> Result<MapGeometryCacheSummary, DomainError> {
+            Ok(MapGeometryCacheSummary {
+                files: 1,
+                bytes: 11,
             })
         }
-
-        async fn map_geometry_status(&self) -> Result<Vec<MapGeometryStatus>, DomainError> {
-            Ok(vec![MapGeometryStatus {
-                map_name: "de_safe".to_owned(),
-                state: MapGeometryCacheState::Missing,
-                bytes: None,
-                reason: None,
-            }])
+        async fn clear_map_geometry_cache(&self) -> Result<(), DomainError> {
+            Ok(())
         }
 
         async fn radar_overview(&self, map_name: String) -> Result<RadarOverviewData, DomainError> {
@@ -268,7 +245,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn geometry_routes_dispatch_binary_status_and_explicit_rebuild() {
+    async fn geometry_routes_dispatch_binary_cache_summary_and_cleanup() {
         use axum::http::Request;
         use tower::ServiceExt;
         let (_directory, state) = test_state().await;
@@ -303,22 +280,25 @@ mod tests {
             )
             .await
             .unwrap();
-        let status: Vec<MapGeometryStatus> =
+        let summary: MapGeometryCacheSummary =
             serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
-        assert_eq!(status[0].state, MapGeometryCacheState::Missing);
+        assert_eq!(
+            summary,
+            MapGeometryCacheSummary {
+                files: 1,
+                bytes: 11
+            }
+        );
         let response = app
             .oneshot(
                 Request::builder()
-                    .method("POST")
-                    .uri("/api/source-assets/map-geometry/de_safe/rebuild")
+                    .method("DELETE")
+                    .uri("/api/source-assets/map-geometry")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .unwrap();
-        let status: MapGeometryStatus =
-            serde_json::from_slice(&to_bytes(response.into_body(), 4096).await.unwrap()).unwrap();
-        assert_eq!(status.state, MapGeometryCacheState::Ready);
-        assert_eq!(status.reason.as_deref(), Some("rebuilt"));
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
     }
 }

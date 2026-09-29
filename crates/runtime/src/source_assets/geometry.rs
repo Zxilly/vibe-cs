@@ -7,7 +7,7 @@ use std::{
 
 use cap_std::fs::Dir;
 use sha2::{Digest, Sha256};
-use vibe_cs_application::{MapGeometryCacheState, MapGeometryData, MapGeometryStatus};
+use vibe_cs_application::MapGeometryCacheSummary;
 use vibe_cs_domain::DomainError;
 use vibe_cs_source_assets::{
     Cs2AssetStore, VpkArchive, decode_map_geometry, encode_map_geometry, extract_world_geometry,
@@ -19,16 +19,6 @@ use crate::cache_directory::{
     open_verified_plain_file, remove_verified_file, write_atomic,
 };
 
-const MAPS: [&str; 8] = [
-    "de_mirage",
-    "de_dust2",
-    "de_inferno",
-    "de_nuke",
-    "de_ancient",
-    "de_anubis",
-    "de_train",
-    "de_overpass",
-];
 const MAX_CACHE_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -110,46 +100,6 @@ impl GeometrySource {
         })
     }
 
-    fn status(&self) -> MapGeometryStatus {
-        let failed = |reason| MapGeometryStatus {
-            map_name: self.map_name.clone(),
-            state: MapGeometryCacheState::Failed,
-            bytes: None,
-            reason: Some(reason),
-        };
-        let ready_bytes = match open_verified_plain_file(&self.directory, self.cache_name()) {
-            Ok((_, metadata)) if (32..=MAX_CACHE_BYTES).contains(&metadata.len()) => {
-                Some(metadata.len())
-            }
-            Ok(_) => {
-                return failed("The cached map geometry is incomplete; regenerate it.".to_owned());
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(error) => {
-                return failed(format!("The cached map geometry cannot be read: {error}"));
-            }
-        };
-        let stale = ready_bytes.is_none()
-            && self.directory.entries().is_ok_and(|entries| {
-                entries
-                    .take(256)
-                    .flatten()
-                    .any(|entry| managed_name(&entry.file_name()))
-            });
-        MapGeometryStatus {
-            map_name: self.map_name.clone(),
-            state: if ready_bytes.is_some() {
-                MapGeometryCacheState::Ready
-            } else if stale {
-                MapGeometryCacheState::Stale
-            } else {
-                MapGeometryCacheState::Missing
-            },
-            bytes: ready_bytes,
-            reason: None,
-        }
-    }
-
     fn cached(&self) -> Result<Option<Vec<u8>>, DomainError> {
         ensure_cache_directory_mapping(&self.directory, &self.cache_dir)?;
         let (mut file, metadata) =
@@ -172,9 +122,9 @@ impl GeometrySource {
         Ok(Some(bytes))
     }
 
-    pub(super) fn load(&self, rebuild: bool) -> Result<MapGeometryData, DomainError> {
-        if !rebuild && let Some(bytes) = self.cached()? {
-            return Ok(self.data(bytes));
+    pub(super) fn load(&self) -> Result<Vec<u8>, DomainError> {
+        if let Some(bytes) = self.cached()? {
+            return Ok(bytes);
         }
         let package = VpkArchive::open(&self.package).map_err(map_source_asset_error)?;
         let resource = package
@@ -206,17 +156,7 @@ impl GeometrySource {
                 }
             }
         }
-        Ok(self.data(bytes))
-    }
-
-    fn data(&self, bytes: Vec<u8>) -> MapGeometryData {
-        let status = MapGeometryStatus {
-            map_name: self.map_name.clone(),
-            state: MapGeometryCacheState::Ready,
-            bytes: Some(bytes.len() as u64),
-            reason: None,
-        };
-        MapGeometryData { bytes, status }
+        Ok(bytes)
     }
 
     fn cache_name(&self) -> &std::ffi::OsStr {
@@ -236,33 +176,52 @@ fn managed_name(name: &std::ffi::OsStr) -> bool {
     })
 }
 
-pub(super) fn statuses(
-    store: &Cs2AssetStore,
+/// Inspect or remove only generated files, without requiring a game installation.
+pub(super) fn cache_contents(
     root: &Path,
-) -> Vec<(MapGeometryStatus, Option<String>)> {
-    MAPS.into_iter()
-        .map(
-            |map_name| match GeometrySource::open(store, root, map_name) {
-                Ok(source) => (source.status(), Some(source.key)),
-                Err(error) => (
-                    MapGeometryStatus {
-                        map_name: map_name.to_owned(),
-                        state: if matches!(
-                            error,
-                            DomainError::DependencyUnavailable(_) | DomainError::NotFound(_)
-                        ) {
-                            MapGeometryCacheState::Unavailable
-                        } else {
-                            MapGeometryCacheState::Failed
-                        },
-                        bytes: None,
-                        reason: Some(error.to_string()),
-                    },
-                    None,
-                ),
-            },
-        )
-        .collect()
+    clear: bool,
+) -> Result<MapGeometryCacheSummary, DomainError> {
+    let (root, directory) = initialize_cache_directory(root)?;
+    let mut summary = MapGeometryCacheSummary::default();
+    for entry in directory
+        .entries()
+        .map_err(|error| io_error("list geometry cache", error))?
+    {
+        let entry = entry.map_err(|error| io_error("read geometry cache entry", error))?;
+        let name = entry.file_name();
+        let metadata = directory
+            .symlink_metadata(&name)
+            .map_err(|error| io_error("inspect geometry cache directory", error))?;
+        if !metadata.is_dir() || metadata.is_symlink() || capability_metadata_is_reparse(&metadata)
+        {
+            continue;
+        }
+        let map_dir = directory
+            .open_dir(&name)
+            .map_err(|error| io_error("open geometry cache directory", error))?;
+        ensure_cache_directory_mapping(&map_dir, &root.join(&name))?;
+        for file in map_dir
+            .entries()
+            .map_err(|error| io_error("list map cache", error))?
+        {
+            let name = file
+                .map_err(|error| io_error("read map cache entry", error))?
+                .file_name();
+            if !managed_name(&name) {
+                continue;
+            }
+            let (file, metadata) = open_verified_plain_file(&map_dir, &name)
+                .map_err(|error| io_error("inspect generated map cache", error))?;
+            if clear {
+                remove_verified_file(&map_dir, &name, &file)
+                    .map_err(|error| io_error("clear generated map cache", error))?;
+            } else {
+                summary.files += 1;
+                summary.bytes += metadata.len();
+            }
+        }
+    }
+    Ok(summary)
 }
 
 #[cfg(test)]
@@ -291,14 +250,12 @@ mod tests {
         let (root, store, package) = fixture();
         let cache = root.path().join("cache");
         let source = GeometrySource::open(&store, &cache, "de_fixture").unwrap();
-        assert_eq!(source.status().state, MapGeometryCacheState::Missing);
-        let first = source.load(false).unwrap();
-        let geometry = decode_map_geometry(&first.bytes).unwrap();
+        let first = source.load().unwrap();
+        let geometry = decode_map_geometry(&first).unwrap();
         assert_eq!(
             (geometry.vertices.len(), geometry.triangles.len()),
             (28, 38)
         );
-        assert_eq!(source.status().state, MapGeometryCacheState::Ready);
 
         let historical = UNIX_EPOCH + Duration::from_secs(1_600_000_000);
         fs::File::options()
@@ -307,7 +264,7 @@ mod tests {
             .unwrap()
             .set_modified(historical)
             .unwrap();
-        assert_eq!(source.load(false).unwrap().bytes, first.bytes);
+        assert_eq!(source.load().unwrap(), first);
         assert_eq!(
             fs::metadata(&source.cache_path)
                 .unwrap()
@@ -319,13 +276,8 @@ mod tests {
 
         fs::write(&source.cache_path, b"corrupt cache").unwrap();
         assert_eq!(
-            source.status().state,
-            MapGeometryCacheState::Failed,
-            "a broken current cache is not a game update"
-        );
-        assert_eq!(
-            source.load(false).unwrap().bytes,
-            first.bytes,
+            source.load().unwrap(),
+            first,
             "corrupt cache is regenerated from VPK"
         );
         let old_key = source.key.clone();
@@ -337,8 +289,7 @@ mod tests {
             .unwrap();
         let updated = GeometrySource::open(&store, &cache, "de_fixture").unwrap();
         assert_ne!(updated.key, old_key);
-        assert_eq!(updated.status().state, MapGeometryCacheState::Stale);
-        assert_eq!(updated.load(false).unwrap().bytes, first.bytes);
+        assert_eq!(updated.load().unwrap(), first);
         assert!(
             !source.cache_path.exists(),
             "old generation retired only after publication"
@@ -360,7 +311,44 @@ mod tests {
             .unwrap();
         let resized = GeometrySource::open(&store, &cache, "de_fixture").unwrap();
         assert_ne!(resized.key, updated.key, "size alone invalidates the cache");
-        assert_eq!(resized.load(false).unwrap().bytes, first.bytes);
+        assert_eq!(resized.load().unwrap(), first);
+    }
+
+    #[test]
+    fn clears_generated_files_and_regenerates_on_the_next_read() {
+        let (root, store, package) = fixture();
+        let cache = root.path().join("cache");
+        assert_eq!(
+            cache_contents(&cache, false).unwrap(),
+            MapGeometryCacheSummary::default()
+        );
+        let source = GeometrySource::open(&store, &cache, "de_fixture").unwrap();
+        let bytes = source.load().unwrap();
+        let unrelated = source.cache_dir.join("user-note.txt");
+        fs::write(&unrelated, b"keep").unwrap();
+        let obsolete = source.cache_dir.join(format!("{}.vmap", "a".repeat(64)));
+        fs::write(&obsolete, b"old cache").unwrap();
+        assert_eq!(
+            cache_contents(&cache, false).unwrap(),
+            MapGeometryCacheSummary {
+                files: 2,
+                bytes: bytes.len() as u64 + 9,
+            }
+        );
+        cache_contents(&cache, true).unwrap();
+        assert!(!source.cache_path.exists());
+        assert!(!obsolete.exists());
+        assert_eq!(fs::read(&unrelated).unwrap(), b"keep");
+        assert_eq!(
+            fs::read(&package).unwrap(),
+            include_bytes!("../../../source-assets/tests/fixtures/de_fixture.vpk")
+        );
+        assert_eq!(
+            cache_contents(&cache, false).unwrap(),
+            MapGeometryCacheSummary::default()
+        );
+        assert_eq!(source.load().unwrap(), bytes);
+        assert_eq!(cache_contents(&cache, false).unwrap().files, 1);
     }
 
     #[test]
@@ -368,15 +356,16 @@ mod tests {
         let (root, store, package) = fixture();
         let cache = root.path().join("cache");
         let source = GeometrySource::open(&store, &cache, "de_fixture").unwrap();
-        let original = source.load(false).unwrap().bytes;
+        source.load().unwrap();
         fs::File::options()
             .write(true)
             .open(&package)
             .unwrap()
             .set_modified(SystemTime::now() + Duration::from_secs(5))
             .unwrap();
-        assert!(matches!(source.load(true), Err(DomainError::Conflict(_))));
-        assert_eq!(fs::read(&source.cache_path).unwrap(), original);
+        fs::remove_file(&source.cache_path).unwrap();
+        assert!(matches!(source.load(), Err(DomainError::Conflict(_))));
+        assert!(!source.cache_path.exists());
         for name in ["../de_fixture", "de_fixture/other", "C:fixture", ""] {
             assert!(matches!(
                 GeometrySource::open(&store, &cache, name),
@@ -407,6 +396,7 @@ mod tests {
             String::from_utf8_lossy(&result.stderr)
         );
         assert!(GeometrySource::open(&store, &cache, "de_fixture").is_err());
+        assert_eq!(cache_contents(&cache, true).unwrap().files, 0);
         assert_eq!(fs::read(&sentinel).unwrap(), b"external user file");
         assert_eq!(fs::read_dir(external.path()).unwrap().count(), 1);
         fs::remove_dir(&map_cache).unwrap();

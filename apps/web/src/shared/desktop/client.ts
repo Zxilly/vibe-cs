@@ -39,7 +39,7 @@ import type {
   AnalysisRun,
   AnalysisRunDetail,
   AppConfig,
-  MapGeometryStatus,
+  MapGeometryCacheSummary,
   AudioAnalysis,
   AudioAnalysisOptions,
   AvatarCacheCleanup,
@@ -991,9 +991,9 @@ export const commands = {
     }),
   getReplayBinary: (id: string, signal?: AbortSignal) =>
     requestBinary(`/demos/${encodeURIComponent(id)}/replay.bin`, signal),
-  mapGeometryStatus: (signal?: AbortSignal) => request<MapGeometryStatus[]>('/source-assets/map-geometry', { signal }),
+  mapGeometryCache: (signal?: AbortSignal) => request<MapGeometryCacheSummary>('/source-assets/map-geometry', { signal, timeoutMs: null }),
   getMapGeometryBinary: (mapName: string, signal?: AbortSignal) => requestBinary(`/source-assets/map-geometry/${encodeURIComponent(mapName)}`, signal),
-  rebuildMapGeometry: (mapName: string) => request<MapGeometryStatus>(`/source-assets/map-geometry/${encodeURIComponent(mapName)}/rebuild`, { method: 'POST', timeoutMs: 60_000 }),
+  clearMapGeometryCache: () => request<void>('/source-assets/map-geometry', { method: 'DELETE', timeoutMs: null }),
   getAnalysisRunReplayBinary: (runId: string, signal?: AbortSignal) =>
     requestBinary(
       `/analysis-runs/${encodeURIComponent(runId)}/replay.bin`,

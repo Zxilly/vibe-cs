@@ -1462,7 +1462,7 @@ msgctxt "palette-group"
 msgid "作品"
 msgstr "Projects"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:79
+#: src/app/shell/WorkspaceModeMenu.tsx:78
 msgid "作品、时间轴、录制与成品"
 msgstr "Projects, timeline, recording and outputs"
 
@@ -1526,6 +1526,10 @@ msgstr "You · Delivery Review"
 #: src/domain/editing/ProjectAgentPanel.tsx:248
 msgid "你仍可查看预览和时间轴。Agent 完成后即可继续编辑。"
 msgstr "You can still view the preview and timeline. Editing resumes when the Agent finishes."
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:15
+msgid "使用地图时按需生成缓存，地图更新后自动重新生成。"
+msgstr "Maps are cached automatically when needed and regenerated after game updates."
 
 #: src/app/command/commandRegistry.ts:228
 #: src/app/routeCrumb.ts:74
@@ -2150,10 +2154,6 @@ msgstr "Equipment at freeze end ($)"
 msgid "准备回放"
 msgstr "Preparing replay"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:38
-msgid "准备回放和镜头预演所需的地图。"
-msgstr "Prepare maps for replay and camera previews."
-
 #: src/pages/shared/settings/AdvancedSection.tsx:222
 msgid "准备采集组件"
 msgstr "Prepare capture component"
@@ -2279,8 +2279,8 @@ msgstr "Analysis cancelled"
 msgid "分析已提交"
 msgstr "Analysis submitted"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:35
-#: src/app/shell/WorkspaceModeMenu.tsx:84
+#: src/app/shell/WorkspaceModeMenu.tsx:34
+#: src/app/shell/WorkspaceModeMenu.tsx:83
 msgid "分析模式"
 msgstr "Analysis mode"
 
@@ -2343,7 +2343,7 @@ msgstr "Switch to camera {angle} {name}"
 msgid "切换同步锁定 {label}"
 msgstr "Toggle sync lock {label}"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:41
+#: src/app/shell/WorkspaceModeMenu.tsx:40
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "Switch work mode, current: {currentModeLabel}"
 
@@ -2523,10 +2523,6 @@ msgstr "Refresh"
 msgid "刷新所选嵌套序列"
 msgstr "Refresh Selected Nested Sequences"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:39
-msgid "刷新状态"
-msgstr "Refresh status"
-
 #: src/domain/editing/TimelineToolStrip.tsx:138
 msgid "剃刀工具 (C)"
 msgstr "Razor Tool (C)"
@@ -2568,8 +2564,8 @@ msgstr "Shot list"
 msgid "剪辑操作"
 msgstr "Edit"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:35
-#: src/app/shell/WorkspaceModeMenu.tsx:78
+#: src/app/shell/WorkspaceModeMenu.tsx:34
+#: src/app/shell/WorkspaceModeMenu.tsx:77
 msgid "剪辑模式"
 msgstr "Editing mode"
 
@@ -3381,10 +3377,6 @@ msgstr "Map"
 msgid "地图 {0}"
 msgstr "Map {0}"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:37
-msgid "地图 3D 预演"
-msgstr "3D map previews"
-
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:97
 msgid "地图，例如 de_mirage"
 msgstr "Map, e.g. de_mirage"
@@ -3402,10 +3394,6 @@ msgstr "Maps and recent matches"
 msgid "地图几何文件无效，请重新生成。"
 msgstr "The map geometry file is invalid. Regenerate it."
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:23
-msgid "地图已更新"
-msgstr "Map updated"
-
 #: src/pages/analysis/match/views/ReplayView.tsx:418
 msgid "地图底图不可用，当前仅显示选手之间的相对位置。"
 msgstr "Map image unavailable. Showing relative player positions."
@@ -3419,17 +3407,13 @@ msgstr "Map unavailable"
 msgid "地图暂不可用，当前仅显示选手与镜头。"
 msgstr "Map unavailable. Showing players and cameras only."
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:42
-msgid "地图没有生成成功："
-msgstr "The map could not be generated: "
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:44
-msgid "地图状态"
-msgstr "Map status"
-
 #: src/pages/analysis/players/PlayerProfilePage.tsx:200
 msgid "地图统计没能读出来：{mapsError}"
 msgstr "Could not load map statistics: {mapsError}"
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:14
+msgid "地图缓存"
+msgstr "Map cache"
 
 #: src/pages/analysis/match/views/ReplayView.tsx:709
 msgid "地面"
@@ -3864,10 +3848,6 @@ msgstr "This will overwrite the current config file with the last automatic back
 msgid "尚未加入比较"
 msgstr "Not added to comparison"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:22
-msgid "尚未生成"
-msgstr "Not generated"
-
 #: src/pages/shared/onboarding/GuidePage.tsx:137
 #: src/pages/shared/settings/AdvancedSection.tsx:143
 #: src/pages/shared/settings/AdvancedSection.tsx:193
@@ -3933,8 +3913,8 @@ msgstr "Workspace panels"
 msgid "工作台"
 msgstr "Dashboard"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:62
-#: src/app/shell/WorkspaceModeMenu.tsx:67
+#: src/app/shell/WorkspaceModeMenu.tsx:61
+#: src/app/shell/WorkspaceModeMenu.tsx:66
 msgid "工作模式"
 msgstr "Work mode"
 
@@ -3953,10 +3933,6 @@ msgstr "Allowed"
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:39
 msgid "已入库"
 msgstr "In library"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:25
-msgid "已准备"
-msgstr "Ready"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:703
 msgid "已准备好编辑。"
@@ -4131,6 +4107,12 @@ msgstr "Already the first round"
 #: src/pages/shared/library/SaveViewDialog.tsx:55
 msgid "已经有一个同名的视图"
 msgstr "A view with this name already exists"
+
+#. placeholder {0}: cache.data.files
+#. placeholder {1}: formatBytes(cache.data.bytes)
+#: src/pages/shared/settings/MapGeometrySettings.tsx:23
+msgid "已缓存 {0} 份地图 · 占用 {1}"
+msgstr "{0} cached map files · {1} used"
 
 #: src/domain/editing/ClipCameraInspection.tsx:48
 msgid "已自动调整机位，录制会使用调整后的路径。"
@@ -5787,6 +5769,10 @@ msgstr "Unfinished files in the staging directory will be deleted. If a recordin
 msgid "暂存目录里没有未完成的文件"
 msgstr "No unfinished files in the staging folder"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:23
+msgid "暂无地图缓存"
+msgstr "No cached maps"
+
 #: src/pages/analysis/match/views/EquipmentChart.tsx:38
 msgid "暂无装备价值数据"
 msgstr "No equipment value data"
@@ -5799,9 +5785,9 @@ msgstr "Not available: {disabledReason}"
 msgid "暂时不能输入：{disabledReason}"
 msgstr "Can't type right now: {disabledReason}"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:41
-msgid "暂时读不到地图，请先确认上方的 CS2 位置。"
-msgstr "Maps are unavailable. Check the CS2 location above."
+#: src/pages/shared/settings/MapGeometrySettings.tsx:27
+msgid "暂时无法读取缓存占用。"
+msgstr "Cache usage is temporarily unavailable."
 
 #: src/domain/editing/ClipCameraInspection.tsx:53
 msgid "暂未发现镜头问题。"
@@ -5958,10 +5944,6 @@ msgstr "Unrecorded {plannedCount}"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1120
 msgid "未录制，暂不能播放"
 msgstr "Not recorded yet, so it cannot play"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:27
-msgid "未找到地图"
-msgstr "Map not found"
 
 #: src/domain/match/Scoreboard.tsx:45
 msgid "未知"
@@ -6542,17 +6524,13 @@ msgstr "Testing"
 
 #: src/pages/editing/delivery/DeliveryPage.tsx:48
 #: src/pages/editing/delivery/DeliveryPage.tsx:58
+#: src/pages/shared/settings/MapGeometrySettings.tsx:18
 msgid "正在清理…"
 msgstr "Cleaning up…"
 
 #: src/domain/editing/ProjectTimeline.tsx:2484
 msgid "正在渲染预览…"
 msgstr "Rendering preview…"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:24
-#: src/pages/shared/settings/MapGeometrySettings.tsx:65
-msgid "正在生成"
-msgstr "Generating"
 
 #: src/pages/analysis/match/views/ReviewView.tsx:152
 msgid "正在生成…"
@@ -6561,10 +6539,6 @@ msgstr "Generating…"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:962
 msgid "正在生成可拖动预览使用的低分辨率代理"
 msgstr "Generating a low-resolution proxy for the draggable preview"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:50
-msgid "正在生成地图，请稍候。"
-msgstr "A map is being generated. Please wait."
 
 #: src/domain/media/FilmStrip.tsx:77
 msgid "正在生成缩略图"
@@ -6794,7 +6768,7 @@ msgctxt "palette-group"
 msgid "比赛"
 msgstr "Matches"
 
-#: src/app/shell/WorkspaceModeMenu.tsx:85
+#: src/app/shell/WorkspaceModeMenu.tsx:84
 msgid "比赛、选手、证据与回放"
 msgstr "Matches, players, evidence, and replays"
 
@@ -7261,6 +7235,10 @@ msgstr "Add Audio Track"
 msgid "清理"
 msgstr "Clean up"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:25
+msgid "清理不影响游戏文件，下次使用时会自动生成。"
+msgstr "Clearing the cache leaves game files intact. Maps are regenerated the next time they are needed."
+
 #: src/domain/editing/ProjectMediaWorkspace.tsx:372
 msgid "清理代理媒体"
 msgstr "Clean up proxy media"
@@ -7289,6 +7267,10 @@ msgstr "Clean unfinished staged files?"
 #: src/pages/editing/delivery/DeliveryPage.tsx:69
 msgid "清理没有完成，请重试。"
 msgstr "Cleanup did not finish. Try again."
+
+#: src/pages/shared/settings/MapGeometrySettings.tsx:18
+msgid "清理缓存"
+msgstr "Clear cache"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:391
 msgid "清空会删除全部对话记录。剪辑单、录制任务和成片继续保留。"
@@ -7689,14 +7671,6 @@ msgstr "Results can't be exported yet"
 msgid "现在还不能批量注释"
 msgstr "Batch annotation isn't available yet"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:65
-msgid "生成"
-msgstr "Generate"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:63
-msgid "生成 {name} 地图"
-msgstr "Generate {name} geometry"
-
 #: src/pages/analysis/match/views/ReviewView.tsx:152
 msgid "生成 AI 点评"
 msgstr "Generate AI commentary"
@@ -7713,10 +7687,6 @@ msgstr "Generate proxy {0}"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:963
 msgid "生成低分辨率代理；导出仍使用原始素材"
 msgstr "Generate a low-resolution proxy; exports still use the original media"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:26
-msgid "生成失败"
-msgstr "Generation failed"
 
 #. placeholder {0}: dataErrorMessage(review.error) ?? t`服务没有给出原因`
 #: src/pages/analysis/match/views/ReviewView.tsx:197
@@ -7899,7 +7869,6 @@ msgstr "See utility & economy"
 #: src/pages/shared/settings/AppSection.tsx:84
 #: src/pages/shared/settings/FilesSection.tsx:96
 #: src/pages/shared/settings/GameSection.tsx:118
-#: src/pages/shared/settings/MapGeometrySettings.tsx:42
 #: src/pages/shared/settings/RecoveryPage.tsx:122
 msgid "知道了"
 msgstr "Got it"
@@ -8339,6 +8308,10 @@ msgstr "Continue"
 msgid "继续剪辑"
 msgstr "Continue editing"
 
+#: src/pages/shared/settings/MapGeometrySettings.tsx:29
+msgid "缓存未能完全清理，请重试。"
+msgstr "Some cached files could not be cleared. Please try again."
+
 #: src/design/feedback/StageBar.tsx:123
 #: src/domain/task/taskModel.tsx:222
 msgid "编码"
@@ -8726,10 +8699,6 @@ msgstr "Disable the unsupported effect first"
 #: src/domain/editing/ClipInspector.tsx:137
 msgid "请先停用不支持的效果，再修改片段。"
 msgstr "Disable the unsupported effect before editing this clip."
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:50
-msgid "请先在 CS2 中安装这张地图。"
-msgstr "Install this map in CS2 first."
 
 #: src/pages/shared/library/LibraryPage.tsx:654
 msgid "请先读取应用配置"
@@ -10070,14 +10039,6 @@ msgstr "Check again"
 msgid "重新检索"
 msgstr "Search again"
 
-#: src/pages/shared/settings/MapGeometrySettings.tsx:65
-msgid "重新生成"
-msgstr "Regenerate"
-
-#: src/pages/shared/settings/MapGeometrySettings.tsx:63
-msgid "重新生成 {name} 地图"
-msgstr "Regenerate {name} geometry"
-
 #. placeholder {0}: asset.name
 #: src/domain/editing/ProjectMediaWorkspace.tsx:956
 msgid "重新生成代理 {0}"
@@ -10150,7 +10111,8 @@ msgstr "Reset filters"
 #: src/pages/shared/settings/AppSection.tsx:79
 #: src/pages/shared/settings/FilesSection.tsx:88
 #: src/pages/shared/settings/GameSection.tsx:113
-#: src/pages/shared/settings/MapGeometrySettings.tsx:41
+#: src/pages/shared/settings/MapGeometrySettings.tsx:26
+#: src/pages/shared/settings/MapGeometrySettings.tsx:29
 #: src/pages/shared/settings/RecoveryPage.tsx:109
 #: src/pages/shared/settings/RecoveryPage.tsx:114
 msgid "重试"

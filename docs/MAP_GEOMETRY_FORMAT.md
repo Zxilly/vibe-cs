@@ -14,7 +14,7 @@ The 32-byte header uses little-endian integers:
 | Offset | Type | Meaning |
 |---:|---|---|
 | 0 | 4 bytes | ASCII `VMAP` |
-| 4 | u16 | Version `1` |
+| 4 | u16 | Version `3` |
 | 6 | u16 | Coordinate scale `16` |
 | 8 | u32 | Vertex count, 1–2,000,000 |
 | 12 | u32 | Triangle count, 1–4,000,000 |
@@ -36,12 +36,47 @@ The decompressed payload consists of canonical unsigned base-128 varints:
 2. `triangle_count * 3` indices. Maintain one signed integer accumulator,
    initially zero. Zigzag-decode each value and add it to the accumulator. The
    result is the next zero-based vertex index.
+3. Convex-solid count, then a vertex count and vertex-index sequence for each
+   original convex hull. Every count is a zigzag varint relative to zero;
+   each solid's index accumulator starts at zero. A solid has at least three
+   vertices; total references are bounded by 12,000,000.
+4. Closed-mesh count, then a triangle count and triangle-index sequence for
+   each original physics mesh. Counts and sequences use the same reset rules.
+   Each group has at least four triangles. Triangle references must be in
+   range and unique across all groups. Original winding is preserved, including
+   oppositely oriented inner shells that represent cavities.
+
+Both group counts are bounded by the included shape count. The native runtime
+uses this membership for solid-interior queries. The browser validates it,
+then retains only the vertex/index render arrays.
 
 Zigzag decoding is `(value >> 1) ^ -(value & 1)`. Each varint uses at most five
 bytes; its fifth byte must be at most 15. Overlong encodings are rejected.
 Decoded quantized coordinates must remain in `[-16,000,000, 16,000,000]` and
 indices in `[0, vertex_count)`. No payload bytes may remain after all records.
 Unsupported versions return an error; there is no compatibility reader.
+
+## Collision filtering
+
+The extractor retains default world collision and explicit `solid`,
+`CONTENTS_SOLID`, or `blocklos` geometry. It excludes window/no-LOS, sky,
+player/NPC/navigation/grenade/drone-only clips and light/sound-only tools.
+`passbullets` alone is used for grates and railings and does not establish an
+opaque barrier; an explicit solid tag still takes precedence unless a no-LOS
+tag is also present. Unknown interaction tags fail extraction.
+
+Surface properties provide a second, independent filter. The installed CS2
+`toolsblockbullets_cs` material is invisible (`mapbuilder.nodraw=1`) and uses
+the `blockbullets` surface token (`2711388870`). Those faces are excluded even
+inside a default solid mesh. A mesh's nonempty `m_Materials` table specifies
+one surface index per triangle; otherwise the descriptor's surface applies.
+Indices and table lengths are checked before use. Closed-shell membership is
+computed after filtering so removed tool faces cannot seal an interior.
+
+Extraction revision `vibe-map-geometry-4` invalidates earlier cached filtering
+results; the wire format remains VMAP v3. This is static collision-based
+previsualization: it does not reconstruct material alpha, individual grate
+holes, moving doors, breakable-state changes or rendered smoke opacity.
 
 For a reproducible local export and persisted round-trip check:
 

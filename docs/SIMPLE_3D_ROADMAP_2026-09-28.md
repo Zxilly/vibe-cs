@@ -1,6 +1,6 @@
 # 简易 3D 回放与镜头预演 · 路线图
 
-2026-09-28 · 状态：实施中（2026-09-29：M1–M5 完成；M0 过滤语义仍待验收）
+2026-09-28 · 状态：最终验证中（2026-09-29：M0–M5 实现与专项验收完成；最终原生回归、远端检查待收尾）
 
 ## 目标与边界
 
@@ -71,9 +71,9 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 - [x] 评估并实现 Rust 原生二进制 KV3 v5 解码（资源块结构、未压缩/LZ4/Zstd）；参考 ValveResourceFormat [S3]，保留 MIT 声明。真实 Mirage 使用 v5 + Zstd，其他版本明确拒绝。`kv3` 0.2.1 与 `keyvalues3` 1.1.0 均面向文本，不能复用为二进制解码器
 - [x] 备选方案：Source2Viewer-CLI 20.0 已从本机 Mirage 导出物理 GLB；同版本源码分别发布 framework-dependent / self-contained，运行时增量约 80.2 MB，详见决策记录
 - [x] 坐标对齐：随机抽取 demo 中选手落地时刻，脚底 Z 与真实玩家支撑物理网格误差 < 2 单位（含不可见 playerclip；这些支撑面不进入遮挡输出，见决策记录）
-- [ ] 过滤规则：区分天空盒、玩家专用空气墙、挡子弹/挡视线的碰撞属性，只保留挡视线几何
+- [x] 过滤规则：区分天空盒、玩家专用空气墙、挡子弹/挡视线的碰撞属性，只保留挡视线几何（包括按三角形排除不可见 `blockbullets` 表面；静态碰撞近似的边界见最终决策）
 - [x] 体积与耗时：8 张真实地图 VMAP 全部 < 10 MB，release 下不命中应用缓存的导出 69–892 ms（OS 文件缓存可能已热，详见实测记录）
-- [ ] 结论写入本文件「决策记录」一节（倾向 Rust 原生：无外部运行时、单一实现路径）
+- [x] 结论写入本文件「决策记录」一节：Rust 原生，无外部运行时、单一实现路径
 
 ## M1 · 回放数据 ARPL v2（约 1 周）
 
@@ -169,8 +169,8 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 ## 决策记录
 
-- [x] M0：几何获取方案——Rust 原生；已解码本机 Mirage 的 PHYS 数据，不引入 .NET 旁挂。CLI 导出能力/包体对照仍待记录，不能视为该验收项完成
-- [ ] M0：网格过滤规则——待定
+- [x] M0：几何获取方案——Rust 原生；八张本机地图均已解码，CLI 导出能力与包体对照已记录，不引入 .NET 旁挂
+- [x] M0：网格过滤规则——碰撞交互标签与每面 surface property 共同筛选，详见最终决策
 - [x] M1：默认采样间隔——16 tick，高光内 8 tick；缺失网络 tick 对齐到实际 packet，详见 ARPL v2 格式
 
 ### 2026-09-29 · M0 首轮实测
@@ -465,6 +465,16 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 新增默认忽略的环境回归 `native_hlae_evaluations_and_active_game_views_match_rust_sampling`。通过 `VIBE_CAMPATH_GAME_PLANS` 指向计划目录、`VIBE_CAMPATH_GAME_EVENTS` 指向 `attempt-003-events.jsonl`，运行 `cargo test --locked -p vibe-cs-hlae native_hlae_evaluations_and_active_game_views_match_rust_sampling -- --ignored --nocapture` 可重放比较。测试要求完整结束事件、两条路径、全部原生采样及每条至少 230 个有效游戏观测，并限制排除帧数。
 - 验证前固定的原生误差上限为位置 `1e-8`、角度 `1e-7`、FOV `1e-8`；游戏相机上限为位置 `0.001`、角度/FOV `0.0001`，全部通过。HLAE 常规测试 132 通过、2 个环境测试默认忽略；严格 Clippy、格式检查通过。证据：`m3-native-campath-comparison.log`、`m3-game-hlae-tests.log`、`m3-game-export-clippy.log`、`m3-game-export-check.log`。
 - M3 完成；M0 的碰撞属性与视觉遮挡过滤仍继续核验。
+
+### 2026-09-29 · M0 过滤最终决策与不可见挡弹面修复
+
+- 采用 Rust 原生 PHYS/KV3 提取，保留默认实体、`solid` / `CONTENTS_SOLID` / `blocklos`，排除天空、玩家/NPC/导航/手雷/无人机专用 clip、仅挡光/声音以及 `window` / `CONTENTS_SOLID_NO_BLOCK_LOS`。混合标签逐项判断，不因附带 `blocksound` 等标签而丢弃真正实体；未知标签明确报错。
+- Mirage 的 `passbullets` 实际对应 70 个金属栏门组成凸体及 1 个 chainlink 格栅凸体。通过原始 shape 索引、顶点坐标、surface hash 与真实 CS2 定点实拍对应：hull 490 为商铺卷帘格栅，hulls 1046–1055 为铁栏门，均能看到后方物体。单独的 `passbullets` 不作为整面不透明遮挡；与显式 solid 混合时仍保留 solid。这是有空隙栏杆的碰撞近似，不模拟每根细杆的像素遮挡。有效截图位于 `game-validation-20260929/filter-attempt-004/`；早期加载遮罩/错误机位截图不参与验收。
+- 进一步从本机 CS2 专用 `materials/tools/toolsblockbullets_cs.vmat_c` 解出 `mapbuilder.nodraw=1` 和 `PhysicsSurfaceProperties=blockbullets`。该 token 的 StringToken/Murmur2 hash 为 **2711388870**。不能只按标签排除挡弹刷：Inferno、Nuke、Overpass 的默认实体 mesh 中分别混入 **24、26、120** 个这种不可见三角形。
+- 回归先复现旧提取器保留挡弹面的问题，再修复生产提取：验证 `m_surfacePropertyHashes` 与 mesh 的逐面 `m_Materials` 索引；空 material 表才使用 descriptor 的默认表面；删除不可见挡弹面后重新计算闭合拓扑。测试同时证明剩余开放壳不会被标为实体内部，非法索引/表长度明确拒绝。提取缓存版本升为 `vibe-map-geometry-4`，VMAP 线格式保持 v3；合成 VPK 已按真实结构补齐 surface 字段，无旧格式读取分支。
+- 八张本机地图重新提取及精确 VMAP 往返均通过，最大仍为 Inferno **8,724,109 bytes**，全部小于 10 MiB。变化地图的三角形数/编码字节为：Inferno **2,527,356 / 8,724,109**，Nuke **163,567 / 484,717**，Overpass **711,090 / 2,622,078**；其余五张保持原结果。运行时八地图封闭内部与独立有向射线对照通过，未把删除面后的开放结构当成闭合体。
+- 常规 source-assets 测试 **46 通过、5 个环境测试默认忽略**；专项八地图提取与运行时测试通过，严格 Clippy 通过。证据：`m0-filter-shapes.json`、`m0-eight-map-surfaces.json`、`csgo-tool-materials/materials/tools/toolsblockbullets_cs.vmat`、`m0-bullet-filter-{red,green}.log`、`m0-filter-{eight-maps,real-runtime,clippy}.log`。游戏验证使用同一真实 Mirage Demo 和隔离 HLAE 配置，七个来源 Steam 配置文件哈希均未变化。
+- 本阶段交付静态碰撞几何上的遮挡预判与镜头预演，不重建材质透明像素、可破坏物状态、动态门或烟雾的真实视觉遮挡；这些限制不由把所有物理碰撞画成实心墙来掩盖。成片仍由 CS2/HLAE 生成，问题仅提示，不硬性阻止录制。M6 的贴图与扩展地图继续按需，不作为本轮门槛。
 
 ## 参考来源
 

@@ -31,7 +31,6 @@ const ITEM_CLASS =
   'text-left outline-none data-[highlighted]:bg-accent-100 data-[state=checked]:text-accent-800';
 
 export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceModeMenuProps) {
-  const ModeIcon = mode === 'edit' ? Clapperboard : ChartNoAxesCombined;
   const currentModeLabel = mode === 'edit' ? t`剪辑模式` : t`分析模式`;
 
   return (
@@ -41,12 +40,12 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
         aria-label={t`切换工作模式，当前：${currentModeLabel}`}
         data-workspace-mode-trigger
         className={cn(
-          'flex h-full w-full items-center gap-3 text-text focus-visible:-outline-offset-2 hover:bg-neutral-200 ' +
+          'flex h-full w-full items-center text-text focus-visible:-outline-offset-2 hover:bg-neutral-200 ' +
             'data-[state=open]:bg-neutral-200',
-          collapsed ? 'justify-center px-1.5' : 'px-6',
+          collapsed ? 'justify-center gap-1 px-1.5' : 'gap-3 px-6',
         )}
       >
-        <ModeIcon size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
+        <img src="/favicon.svg" alt="" aria-hidden="true" className="size-6 flex-none" />
         {collapsed ? null : (
           <span className="min-w-0 flex-1 truncate text-left text-base font-medium">
             {currentModeLabel}

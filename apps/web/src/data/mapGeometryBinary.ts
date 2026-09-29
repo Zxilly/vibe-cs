@@ -16,11 +16,11 @@ function invalid(): never {
   throw new Error(t`地图几何文件无效，请重新生成。`);
 }
 
-/** The VMAP v1 contract is shared with source-assets/geometry_binary.rs. */
+/** The VMAP v2 contract is shared with source-assets/geometry_binary.rs. */
 export async function decodeMapGeometry(buffer: ArrayBuffer): Promise<MapGeometry> {
   if (buffer.byteLength < headerBytes || buffer.byteLength > maximumBytes) invalid();
   const header = new DataView(buffer);
-  if (header.getUint32(0, true) !== 0x50414d56 || header.getUint16(4, true) !== 1 || header.getUint16(6, true) !== MAP_GEOMETRY_QUANTIZATION) invalid();
+  if (header.getUint32(0, true) !== 0x50414d56 || header.getUint16(4, true) !== 2 || header.getUint16(6, true) !== MAP_GEOMETRY_QUANTIZATION) invalid();
   const vertices = header.getUint32(8, true);
   const triangles = header.getUint32(12, true);
   const length = header.getUint32(24, true);
@@ -56,6 +56,20 @@ export async function decodeMapGeometry(buffer: ArrayBuffer): Promise<MapGeometr
     previousIndex += delta();
     if (previousIndex < 0 || previousIndex >= vertices) invalid();
     indices[index] = previousIndex;
+  }
+  // Solid membership is used by Rust camera diagnostics. Validate it here, but
+  // retain only the render arrays rather than duplicating collision structures.
+  const solids = delta();
+  if (solids < 0 || solids > header.getUint32(16, true) || solids > 4_000_000) invalid();
+  let references = 0;
+  for (let solid = 0; solid < solids; solid += 1) {
+    const count = delta(); references += count;
+    if (count < 3 || count > vertices || references > 12_000_000 || count > payload.length - offset) invalid();
+    let index = 0;
+    for (let vertex = 0; vertex < count; vertex += 1) {
+      index += delta();
+      if (index < 0 || index >= vertices) invalid();
+    }
   }
   if (offset !== payload.length) invalid();
   return { positions, indices, includedShapes: header.getUint32(16, true), excludedShapes: header.getUint32(20, true) };

@@ -13,6 +13,9 @@ const QUANTIZATION: f32 = 16.0;
 pub struct MapGeometry {
     pub vertices: Vec<[f32; 3]>,
     pub triangles: Vec<[u32; 3]>,
+    /// Vertex indices of original convex physics solids, before triangle welding
+    /// can connect them to an open world mesh. Mesh surfaces are not solids.
+    pub convex_solids: Vec<Vec<u32>>,
     pub included_shapes: usize,
     pub excluded_shapes: usize,
 }
@@ -297,6 +300,10 @@ impl Builder {
                 self.triangle(&quad, [0, 2, 3])?;
             }
         }
+        let mut solid = rings.into_iter().flatten().collect::<Vec<_>>();
+        solid.sort_unstable();
+        solid.dedup();
+        self.geometry.convex_solids.push(solid);
         Ok(())
     }
     #[allow(
@@ -376,6 +383,12 @@ impl Builder {
                 self.triangle(vertices, [polygon[0], pair[0], pair[1]])?;
             }
         }
+        let mut solid = vertices.to_vec();
+        solid.sort_unstable();
+        solid.dedup();
+        // Quantization may collapse very thin solids to a plane. The runtime's
+        // convex constructor verifies volume; keep source membership intact.
+        self.geometry.convex_solids.push(solid);
         Ok(())
     }
 }
@@ -648,10 +661,20 @@ mod tests {
                     .all(|index| (*index as usize) < geometry.vertices.len()),
                 "{map}"
             );
+            let encoded = crate::encode_map_geometry(&geometry).unwrap();
+            assert!(encoded.len() < 10 * 1024 * 1024, "{map}");
+            assert_eq!(
+                crate::decode_map_geometry(&encoded).unwrap(),
+                geometry,
+                "{map}"
+            );
+            assert!(!geometry.convex_solids.is_empty(), "{map}");
             eprintln!(
-                "{map}: {} vertices, {} triangles",
+                "{map}: {} vertices, {} triangles, {} convex solids, {} bytes (exact v2 round trip)",
                 geometry.vertices.len(),
-                geometry.triangles.len()
+                geometry.triangles.len(),
+                geometry.convex_solids.len(),
+                encoded.len()
             );
         }
     }

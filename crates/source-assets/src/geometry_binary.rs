@@ -1,7 +1,9 @@
-//! VMAP v1: 32-byte header, then zlib-compressed delta/zigzag varints.
+//! VMAP v2: 32-byte header, then zlib-compressed delta/zigzag varints.
 //! All integers are little endian. Vertices are quantized to 1/16 Source unit.
 //! Header: magic, u16 version, u16 scale, u32 vertex/triangle/included/excluded
 //! counts, u32 inflated byte count, u32 CRC32 of the inflated bytes.
+//! After triangles: delta-coded solid count, then vertex count and indices for
+//! each original convex solid. Each count/index sequence starts at zero.
 use std::io::Write;
 
 use flate2::{Compression, Decompress, FlushDecompress, Status, write::ZlibEncoder};
@@ -70,10 +72,46 @@ pub fn encode_map_geometry(geometry: &MapGeometry) -> Result<Vec<u8>> {
             &mut previous_index,
         )?;
     }
+    if geometry.convex_solids.len() > geometry.included_shapes
+        || geometry.convex_solids.len() > MAX_TRIANGLES
+    {
+        return Err(invalid("solid count exceeds included shapes"));
+    }
+    write_delta(
+        &mut payload,
+        i32::try_from(geometry.convex_solids.len()).map_err(|_| invalid("solid count overflow"))?,
+        &mut 0,
+    )?;
+    let mut references = 0_usize;
+    for solid in &geometry.convex_solids {
+        references += solid.len();
+        if solid.len() < 3
+            || solid.len() > geometry.vertices.len()
+            || references > MAX_TRIANGLES * 3
+        {
+            return Err(invalid("solid vertex count outside limits"));
+        }
+        write_delta(
+            &mut payload,
+            i32::try_from(solid.len()).map_err(|_| invalid("solid count overflow"))?,
+            &mut 0,
+        )?;
+        let mut previous = 0;
+        for index in solid {
+            if *index as usize >= geometry.vertices.len() {
+                return Err(invalid("solid index outside vertex table"));
+            }
+            write_delta(
+                &mut payload,
+                i32::try_from(*index).map_err(|_| invalid("solid index overflow"))?,
+                &mut previous,
+            )?;
+        }
+    }
     if payload.len() > MAX_BYTES {
         return Err(invalid("payload exceeds limit"));
     }
-    let mut output = b"VMAP\x01\0\x10\0".to_vec();
+    let mut output = b"VMAP\x02\0\x10\0".to_vec();
     for count in [
         geometry.vertices.len(),
         geometry.triangles.len(),
@@ -135,7 +173,7 @@ impl Deltas<'_> {
     reason = "quantized values are bounded to +/-16 million, exact as f32"
 )]
 pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
-    if bytes.len() < HEADER || bytes.len() > MAX_BYTES || &bytes[..8] != b"VMAP\x01\0\x10\0" {
+    if bytes.len() < HEADER || bytes.len() > MAX_BYTES || &bytes[..8] != b"VMAP\x02\0\x10\0" {
         return Err(invalid("unsupported or truncated header"));
     }
     let header = |offset| {
@@ -176,6 +214,7 @@ pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
         triangles: Vec::with_capacity(triangles),
         included_shapes: header(16) as usize,
         excluded_shapes: header(20) as usize,
+        convex_solids: Vec::new(),
     };
     let mut previous = [0; 3];
     for _ in 0..vertices {
@@ -201,6 +240,37 @@ pub fn decode_map_geometry(bytes: &[u8]) -> Result<MapGeometry> {
         }
         geometry.triangles.push(triangle);
     }
+    let solid_count =
+        usize::try_from(deltas.next(&mut 0)?).map_err(|_| invalid("negative solid count"))?;
+    if solid_count > geometry.included_shapes || solid_count > MAX_TRIANGLES {
+        return Err(invalid("solid count outside limits"));
+    }
+    let mut references = 0_usize;
+    for _ in 0..solid_count {
+        let count = usize::try_from(deltas.next(&mut 0)?)
+            .map_err(|_| invalid("negative solid vertex count"))?;
+        references = references
+            .checked_add(count)
+            .ok_or_else(|| invalid("solid count overflow"))?;
+        if count < 3
+            || count > vertices
+            || references > MAX_TRIANGLES * 3
+            || count > payload.len() - deltas.offset
+        {
+            return Err(invalid("solid vertex count outside limits"));
+        }
+        let mut solid = Vec::with_capacity(count);
+        let mut previous = 0;
+        for _ in 0..count {
+            let index = u32::try_from(deltas.next(&mut previous)?)
+                .map_err(|_| invalid("negative solid index"))?;
+            if index as usize >= vertices {
+                return Err(invalid("solid index outside vertex table"));
+            }
+            solid.push(index);
+        }
+        geometry.convex_solids.push(solid);
+    }
     if deltas.offset != payload.len() {
         return Err(invalid("trailing geometry values"));
     }
@@ -221,6 +291,7 @@ mod tests {
             triangles: vec![[0, 2, 1], [2, 0, 1]],
             included_shapes: 2,
             excluded_shapes: 3,
+            convex_solids: vec![vec![0, 1, 2]],
         }
     }
 
@@ -272,5 +343,25 @@ mod tests {
         geometry.triangles[0][0] = 0;
         geometry.vertices[0][0] = f32::NAN;
         assert!(encode_map_geometry(&geometry).is_err());
+    }
+
+    #[test]
+    fn preserves_solid_membership_and_rejects_invalid_references_and_old_version() {
+        let geometry = mesh();
+        let bytes = encode_map_geometry(&geometry).unwrap();
+        assert_eq!(
+            decode_map_geometry(&bytes).unwrap().convex_solids,
+            vec![vec![0, 1, 2]]
+        );
+        let mut old = bytes;
+        old[4..6].copy_from_slice(&1_u16.to_le_bytes());
+        assert!(decode_map_geometry(&old).is_err());
+        let mut invalid = geometry;
+        invalid.convex_solids[0][2] = 3;
+        assert!(encode_map_geometry(&invalid).is_err());
+        invalid.convex_solids = vec![vec![0, 1]];
+        assert!(encode_map_geometry(&invalid).is_err());
+        invalid.convex_solids = vec![vec![0, 1, 2]; 3];
+        assert!(encode_map_geometry(&invalid).is_err());
     }
 }

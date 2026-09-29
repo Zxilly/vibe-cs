@@ -1,12 +1,36 @@
 import { readFileSync } from 'node:fs';
+import { deflateSync, inflateSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
 import { decodeMapGeometry } from './mapGeometryBinary';
+import { crc32 } from './compressedBinary';
 
 const fixture = (): ArrayBuffer => Uint8Array.from(readFileSync(new URL('../dev/fixtures/scene3d.vmap', import.meta.url))).buffer;
 
 describe('VMAP binary geometry', () => {
+  it('validates solid membership even though rendering only retains mesh buffers', async () => {
+    const original = new Uint8Array(fixture());
+    const payload = inflateSync(original.subarray(32));
+    expect(payload.at(-1)).toBe(0); // Synthetic fixture contains only an open mesh.
+    const withSolids = (values: number[]) => {
+      const updated = Uint8Array.from([...payload.subarray(0, -1), ...values]);
+      const compressed = deflateSync(updated);
+      const output = new Uint8Array(32 + compressed.length);
+      output.set(original.subarray(0, 32)); output.set(compressed, 32);
+      const header = new DataView(output.buffer);
+      header.setUint32(24, updated.length, true); header.setUint32(28, crc32(updated), true);
+      return output.buffer;
+    };
+    // Zigzag count=1, three vertices, indices 0,1,2.
+    await expect(decodeMapGeometry(withSolids([2, 6, 0, 2, 2]))).resolves.toMatchObject({ includedShapes: 1 });
+    for (const tail of [[2, 6, 0, 2, 56], [2, 4, 0, 2], [4], [1], [2, 6, 0]]) {
+      await expect(decodeMapGeometry(withSolids(tail))).rejects.toThrow();
+    }
+    const old = fixture(); new DataView(old).setUint16(4, 1, true);
+    await expect(decodeMapGeometry(old)).rejects.toThrow();
+  });
+
   it('decodes the fixture produced by the Rust VPK extraction and encoder', async () => {
     const geometry = await decodeMapGeometry(fixture());
     expect(geometry.positions.length / 3).toBe(28);

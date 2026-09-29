@@ -133,14 +133,14 @@ web: domain/scene3d（three.js，渲染循环与 React 解耦）
 
 - [x] 片段属性与录制确认弹窗显示 3D 机位预演（使用 M3 的采样结果），画出视锥、机位轨迹，并高亮遮挡区间
 - [x] 删除 `apps/web/src/domain/map/CameraPathLayer.tsx` 及其测试和导出
-- [ ] 未录制片段在 Program Monitor 显示 3D 预演，遵守 `AGENTS.md` 的 Program Monitor 约束：
-  - [ ] 画面只受 Timeline Transport 驱动
-  - [ ] 按片段维护稳定的预演池
-  - [ ] 连续跳转只处理最新目标
-  - [ ] 新画面就绪前保留上一帧
-- [ ] 画面角标写「预演」，与已录制素材区分
-- [ ] `apps/web/DESIGN.md` 增加 3D 预演规则；Figma 同步对应画板
-- [ ] 补 zh-CN / en-US 文案
+- [x] 未录制片段在 Program Monitor 显示 3D 预演，遵守 `AGENTS.md` 的 Program Monitor 约束：
+  - [x] 画面只受 Timeline Transport 驱动
+  - [x] 按片段维护稳定的预演池
+  - [x] 连续跳转只处理最新目标
+  - [x] 新画面就绪前保留上一帧
+- [x] 画面角标写「预演」，与已录制素材区分
+- [x] `apps/web/DESIGN.md` 增加 3D 预演规则；Figma 同步对应画板
+- [x] 补 zh-CN / en-US 文案
 
 ## M6 · 打磨（按需）
 
@@ -357,6 +357,13 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 生产资源走查复现中文界面显示翻译 ID：中文启动分支加载空词典，开发宏附带的默认文案掩盖了问题。改为加载已编译的中文词典；移除默认文案的回归断言修复前 2 项失败、修复后 5 项测试通过。重新构建并刷新原生视图后，中文导航与回放控件恢复正常。
 - 10 秒 WebGL clear 探针：开发资源 1,585 次绘制、p95 间隔 6.9 ms；生产前端资源 1,597 次绘制、p95 6.7 ms。该探针统计提交绘制，不等同于显示器实际呈现帧率。生产前端 JS 堆约 81.3 MiB，但 renderer 私有内存约 337.6 MiB / 工作集 400.1 MiB；GPU 子进程私有内存另约 208.4 MiB。因此 **300 MB 内存门槛未通过**，不得用 JS 堆数字代替整体内存验收。
 - 原始证据保存于本机忽略目录：`m5-webview-{dev,dist}-{performance,memory}.json`、`m5-webview-dist-replay.png`、`m5-native-dist-build.log`、`m5-native-locale-build.log`。后续需做原生内存基线/场景增量剖析、完整 release 与更长播放复验。M4 性能项保持未勾选。
+
+### 2026-09-29：M5 完成与 Figma 远端复核
+
+- 重新读取 Figma 文件 `N05FPVtPTwWV3ONlE48Fwv` 的实际节点，并重新导出三处截图：Program canvas `997:5767` 的实例 `1178:11116`（544×260）、片段属性 `1164:11110` 的实例 `1178:11150`（334×320）、录制确认 `1164:11137` 的实例 `1178:11185`（571.2×320）。三处均为可见的 `CameraPreviewViewport` 实例，显示「预演」；属性和录制确认保留镜头检查、视角与位置控制，录制确认按钮与画面同时可见。截图检查未见重叠或裁切。
+- 设计入口：[Program Monitor](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=997-5767)、[片段属性](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=1164-11110)、[录制确认](https://www.figma.com/design/N05FPVtPTwWV3ONlE48Fwv?node-id=1164-11137)。本机复核截图为 `artifacts/simple-3d/m5-figma-verified-{program,inspector,recording}.png`。
+- M5 清单完成：生产入口、旧图层删除、Transport/Clip/Head 预演池与最新目标、上一帧保留、预演角标、DESIGN 规则、Figma 同步与中英文案都有代码、交互或远端画板证据。2,394 条文案英文缺项为 0，本轮再次执行严格词典编译通过。M5 完成不代表 M0/M3/M4 的独立验收完成。
+- WebView2 生产前端资源继续播放 30 秒，1 秒一次记录的 renderer 私有内存范围 **197.2–263.5 MiB**，均值 **243.5 MiB**，原始文件 `m5-webview-dist-steady-memory.json`。这说明此前 337.6 MiB 不是持续基线，但不能豁免该峰值，也不能代替宿主/GPU/其他 WebView2 进程的总量与完整 release 验收。M4 性能门槛继续未通过。
 
 ## 参考来源
 

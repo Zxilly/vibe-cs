@@ -101,21 +101,28 @@ into unrelated files. Damaged content is checked and regenerated on load.
 
 These are internal application-dispatcher routes, carried through Tauri IPC:
 
-- `GET /api/source-assets/map-geometry`: states for the eight supported maps.
+- `GET /api/source-assets/map-geometry`: generated cache file count and total
+  bytes, independent of the current CS2 installation.
 - `GET /api/source-assets/map-geometry/<map>`: a verified VMAP, generated when
   missing or stale. MIME is `application/vnd.vibe-cs.map-geometry`; `no-store`
   prevents a browser HTTP cache from hiding package updates.
-- `POST /api/source-assets/map-geometry/<map>/rebuild`: force generation and
-  return the resulting status after publication.
+- `DELETE /api/source-assets/map-geometry`: clear generated disk files and the
+  resident camera BVH. Returns 204 when complete. The next consumer regenerates
+  the map automatically.
 
-Status values are `missing`, `stale`, `building`, `ready`, `failed` and
-`unavailable`. Status reads do not decompress every stored map. The complete
-payload, checksum and indices are validated before serving cached bytes.
+Settings expose only usage and one cleanup action. Cache inspection does not
+extract maps. Cleanup shares the generation lock, including when a requesting
+view closes during extraction; workers cannot publish old data after cleanup.
+Only generated VMAP files are removed, with directory junctions skipped and
+file identities verified. The complete payload, checksum and indices are
+validated before serving cached bytes.
 
 The browser decodes VMAP only in `data/mapGeometryBinary.ts`, yielding a
 `Float32Array` of XYZ positions and a `Uint32Array` of triangle indices.
-`data/mapGeometry.ts` owns query caching and rebuild invalidation. Changes to
-CS2 configuration invalidate both status and geometry queries. Typed arrays
+`data/mapGeometry.ts` owns query caching and cleanup invalidation. Active views
+retain their presented mesh until it is needed again rather than immediately
+recreating a just-cleared cache. Changes to CS2 configuration invalidate both
+cache usage and geometry queries. Typed arrays
 skip JSON structural sharing and unused map data expires after one minute.
 
 The development map is an original floor/wall/boxes fixture generated through

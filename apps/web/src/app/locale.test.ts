@@ -11,6 +11,12 @@ beforeEach(() => {
 });
 
 describe('application locale activation', () => {
+  it('resolves source-locale IDs without development-only default messages', async () => {
+    await activateAppLocale('zh-CN');
+
+    expect(i18n._({ id: DASHBOARD.id })).toBe('工作台');
+  });
+
   it('loads the compiled English catalog before the application renders', async () => {
     await activateAppLocale('en-US');
 
@@ -23,6 +29,7 @@ describe('application locale activation', () => {
 
     expect(i18n.locale).toBe('zh-CN');
     expect(i18n._(DASHBOARD)).toBe('工作台');
+    expect(i18n._({ id: DASHBOARD.id })).toBe('工作台');
   });
 
   it('activates the persisted locale returned by the desktop host', async () => {
@@ -40,5 +47,6 @@ describe('application locale activation', () => {
 
     expect(i18n.locale).toBe('zh-CN');
     expect(i18n._(DASHBOARD)).toBe('工作台');
+    expect(i18n._({ id: DASHBOARD.id })).toBe('工作台');
   });
 });

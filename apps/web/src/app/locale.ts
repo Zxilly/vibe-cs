@@ -6,7 +6,8 @@ const SOURCE_LOCALE: AppLocale = 'zh-CN';
 
 export async function activateAppLocale(locale: string): Promise<AppLocale> {
   if (locale !== 'en-US') {
-    i18n.loadAndActivate({ locale: SOURCE_LOCALE, messages: {} });
+    const { messages } = await import('../locales/zh-CN/messages');
+    i18n.loadAndActivate({ locale: SOURCE_LOCALE, messages });
     return SOURCE_LOCALE;
   }
 

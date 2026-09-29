@@ -1,6 +1,6 @@
 # 简易 3D 回放与镜头预演 · 路线图
 
-2026-09-28 · 状态：最终验证中（2026-09-29：M0–M5 实现与专项验收完成；最终原生回归、远端检查待收尾）
+2026-09-28 · 状态：M0–M5 实现、专项验收与原生回归完成（2026-09-29）；M6 按需。各提交的持续集成结果以仓库 Checks 为准。
 
 ## 目标与边界
 
@@ -475,6 +475,25 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 八张本机地图重新提取及精确 VMAP 往返均通过，最大仍为 Inferno **8,724,109 bytes**，全部小于 10 MiB。变化地图的三角形数/编码字节为：Inferno **2,527,356 / 8,724,109**，Nuke **163,567 / 484,717**，Overpass **711,090 / 2,622,078**；其余五张保持原结果。运行时八地图封闭内部与独立有向射线对照通过，未把删除面后的开放结构当成闭合体。
 - 常规 source-assets 测试 **46 通过、5 个环境测试默认忽略**；专项八地图提取与运行时测试通过，严格 Clippy 通过。证据：`m0-filter-shapes.json`、`m0-eight-map-surfaces.json`、`csgo-tool-materials/materials/tools/toolsblockbullets_cs.vmat`、`m0-bullet-filter-{red,green}.log`、`m0-filter-{eight-maps,real-runtime,clippy}.log`。游戏验证使用同一真实 Mirage Demo 和隔离 HLAE 配置，七个来源 Steam 配置文件哈希均未变化。
 - 本阶段交付静态碰撞几何上的遮挡预判与镜头预演，不重建材质透明像素、可破坏物状态、动态门或烟雾的真实视觉遮挡；这些限制不由把所有物理碰撞画成实心墙来掩盖。成片仍由 CS2/HLAE 生成，问题仅提示，不硬性阻止录制。M6 的贴图与扩展地图继续按需，不作为本轮门槛。
+
+### 2026-09-29 · 最终原生回归与完成审计
+
+- 修复后的完整 Release 构建通过（`tauri/custom-protocol`，4 分钟）；运行副本与构建产物 SHA-256 同为 `F9CA2A1BE0114A83FE8D157E99258D730EA061A3D80C519F667E20678723E8FC`。隔离 QA 的直接启动需要把仓库 `.deps/ffmpeg/bin` 加入进程 PATH；不修改系统 PATH。通过 agent-browser/CDP 9240 连接新实例，全程未用 computer use。
+- 从设置页实际点击「生成 Nuke 地图」，页面进入「已准备」。原生缓存 v3 为 **489,043 bytes / 163,567 个三角形**，与独立提取器的压缩字节不同，但解压载荷逐字节相同，SHA-256 为 `a32f4bd0b0b8d64048d1a868c42fe634a600fa08ef144997ce41e9b20032434f`。
+- 原生真实 Mirage 回放重新开启 3D 后自动生成新提取版本缓存，旧文件已退休；内容仍为 122,643 个三角形。NiKo 跟随与头顶剖切正常，播放从 tick **119,399** 推进到 **120,955** 后暂停，页面错误列表为空。证据：`m0-filter-native-{build.log,settings.png,replay.png,after-play.png,cache.json}`。
+- 合成 VPK 补齐 surface 字段后，经生产提取器重新输出的前端 VMAP 仍为相同的 **150 bytes / 28 顶点 / 38 三角形**；应用缓存回归 3 项及仓库格式检查通过。证据：`m0-filter-{fixture,cache-tests,format}.log`。
+
+| 范围 | 完成依据与限制 |
+|---|---|
+| M0 方案、坐标、过滤、体积 | 本机 PHYS 与 CLI 对照、32 个真实落地样本、碰撞标签及逐面表面过滤、真实格栅实拍、八地图精确往返；仅本机读取游戏资源 |
+| M1 数据与回放 | ARPL v2 唯一读写路径；pitch、16/8 tick 采样、道具轨迹、压缩与前端消费；真实完整回放体积和浏览器验证记录见 M1，原 v1 仅保留比较证据 |
+| M2 提取与缓存 | 八地图原生提取、校验和、损坏重建、原子发布、提取版本失效、设置页生成；真实 Nuke UI 与生成文件已核对 |
+| M3 镜头诊断 | 生产唯一 Cubic/SphericalCubic 采样；BVH、凸体和闭合 mesh 内部、贴墙/穿墙/头胸遮挡/视锥检查；原始 Flyby/Crane 与自动修正、482 个 HLAE 采样和 475 个游戏机位对照 |
+| M4 场景模块 | 延迟加载 Three、独立 rAF、共享主题色、胶囊/朝向/道具、自由/跟随/机位；当前 Release 实机回放；已有相同 Mirage 几何与渲染代码的 60 秒真实显示性能证据；300 MB 按用户指示不作门槛 |
+| M5 剪辑预演 | Inspector/录制确认/Program Monitor 同一预演模块；Head/Clip 键控池、Transport 唯一时钟、最新跳转、上一帧保留与错误重试均有交互回归；旧 CameraPathLayer 已删除；中英词典、DESIGN 与三处 Figma 画板证据齐全 |
+| 单一实现与交付 | 沿用 Editing Document、Project Head、Timeline Clip 和现有录制/导出接口；无旧 ARPL/VMAP 兼容读写、并行插值或游戏资源分发；代码与文档分职责提交，最终提交持续集成由仓库 Checks 复核 |
+
+M6 的贴图、额外地图和分块剔除未列入本轮完成范围。静态几何无法替代游戏成片的限制及各项实测配置保留在对应决策记录中。
 
 ## 参考来源
 

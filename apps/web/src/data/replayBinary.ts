@@ -2,7 +2,7 @@
 import { t } from '@lingui/core/macro';
 
 import { inflateVerified, MAXIMUM_BINARY_BYTES } from './compressedBinary';
-import type { ReplayCacheMetadata, ReplayFidelityMetadata, ReplayFrameRecord, ReplayPayload } from '../shared/desktop/dto';
+import type { ReplayCacheMetadata, ReplayFidelityMetadata, ReplayFrameRecord, ReplayInputState, ReplayPayload } from '../shared/desktop/dto';
 
 const maximumPlayerRecords = 1_000_000;
 const maximumEffectRecords = 1_000_000;
@@ -112,6 +112,9 @@ export async function decodeReplayBinary(buffer: ArrayBuffer): Promise<ReplayPay
   const projectilePositions = new Map<number, number[]>();
   const bombPosition = [0, 0, 0];
   const frames: ReplayFrameRecord[] = [];
+  // A dense match has hundreds of thousands of player records, but only 1,024
+  // possible input masks. Share frozen values; player poses remain independent.
+  const inputs = new Map<number, ReplayInputState>();
   let previousTick = -1;
   let playerRecords = 0;
   let effectRecords = 0;
@@ -134,13 +137,16 @@ export async function decodeReplayBinary(buffer: ArrayBuffer): Promise<ReplayPay
       const health = reader.u8(); const armor = reader.u8(); const alive = reader.u8();
       const weapon = string(reader.u16()); const mask = reader.u16();
       if (alive > 1 || (mask !== 0xffff && (mask & ~1023) !== 0)) invalid();
-      players.push({ ...identity, position, yaw, pitch, health, armor, alive: alive === 1, weapon,
-        input: mask === 0xffff ? null : {
+      let input = mask === 0xffff ? null : inputs.get(mask);
+      if (input === undefined) {
+        input = Object.freeze({
           forward: Boolean(mask & 1), left: Boolean(mask & 2), backward: Boolean(mask & 4), right: Boolean(mask & 8),
           jump: Boolean(mask & 16), crouch: Boolean(mask & 32), walk: Boolean(mask & 64), reload: Boolean(mask & 128),
           fire: Boolean(mask & 256), secondary_fire: Boolean(mask & 512),
-        },
-      });
+        });
+        inputs.set(mask, input);
+      }
+      players.push({ ...identity, position, yaw, pitch, health, armor, alive: alive === 1, weapon, input });
     }
     const effectCount = reader.u16(); effectRecords += effectCount;
     if (effectCount > 512 || effectRecords > maximumEffectRecords) invalid();

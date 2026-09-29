@@ -27,6 +27,18 @@ function stringTableOffset(payload: Uint8Array): number {
 }
 
 describe('ARPL v2 replay', () => {
+  it('shares immutable input combinations without sharing mutable player poses', async () => {
+    const replay = await decodeReplayBinary(fixture());
+    const first = replay.frames[0]!.players[0]!;
+    const next = replay.frames[1]!.players[0]!;
+    expect(first.input).toBe(next.input);
+    expect(Object.isFrozen(first.input)).toBe(true);
+    expect(() => { first.input!.forward = false; }).toThrow(TypeError);
+    expect(next.input!.forward).toBe(true);
+    expect(first.position).not.toBe(next.position);
+    expect(next.position).toEqual([-999.9375, 65, 31.9375]);
+  });
+
   it('decodes Rust-produced identities, pose deltas, input, utility lifetimes and bomb state', async () => {
     const replay = await decodeReplayBinary(fixture());
     expect(replay.frames.map((frame) => frame.tick)).toEqual([8, 16, 24]);
@@ -60,6 +72,12 @@ describe('ARPL v2 replay', () => {
     const replay = await decodeReplayBinary(bytes.buffer);
     expect(replay.frames.length).toBeGreaterThan(10_000);
     expect(replay.frames.reduce((total, frame) => total + frame.players.length, 0)).toBeGreaterThan(100_000);
+    const inputs = replay.frames.flatMap((frame) => frame.players.map((player) => player.input)).filter((input) => input !== null);
+    const combinations = new Set(inputs);
+    expect(combinations.size).toBeLessThanOrEqual(1024);
+    expect(combinations.size).toBe(new Set(inputs.map((input) => JSON.stringify(input))).size);
+    expect([...combinations].every(Object.isFrozen)).toBe(true);
+    console.info(`Real replay input records: ${inputs.length}; shared combinations: ${combinations.size}`);
     expect(replay.frames.some((frame) => frame.players.some((player) => Math.abs(player.pitch) > 1))).toBe(true);
     expect(replay.frames.some((frame) => frame.projectiles.some((projectile) => projectile.phase === 'flying'))).toBe(true);
     expect(replay.frames.some((frame) => frame.projectiles.some((projectile) => projectile.phase === 'effect' && projectile.kind === 'smoke' && projectile.radius !== null))).toBe(true);

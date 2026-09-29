@@ -427,7 +427,7 @@ export function TimelineProgramMonitor({
         <div className="flex min-h-0 flex-1 flex-col bg-media">
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-on-media">
             <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
-            <p className="mt-2 text-sm text-neutral-400">
+            <p className="mt-2 text-sm text-on-media-muted">
               {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected, selectedDeliveryState)}
             </p>
           </div>

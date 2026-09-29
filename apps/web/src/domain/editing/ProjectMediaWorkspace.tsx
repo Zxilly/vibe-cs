@@ -549,7 +549,7 @@ export function ProjectMediaWorkspace({
                   type="button"
                   className={cn(
                     'h-6 min-w-6 rounded-sm border px-1 font-mono text-xs font-semibold',
-                    selectedSourcePatch.video ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-400',
+                    selectedSourcePatch.video ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-600',
                   )}
                   aria-label={t`包含源视频`}
                   aria-pressed={selectedSourcePatch.video}
@@ -561,7 +561,7 @@ export function ProjectMediaWorkspace({
                   type="button"
                   className={cn(
                     'h-6 min-w-6 rounded-sm border px-1 font-mono text-xs font-semibold',
-                    selectedSourcePatch.audio ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-400',
+                    selectedSourcePatch.audio ? 'border-accent-500 bg-accent-100 text-accent-700' : 'border-divider text-neutral-600',
                   )}
                   aria-label={t`包含源音频`}
                   aria-pressed={selectedSourcePatch.audio}
@@ -920,8 +920,8 @@ function MediaItemSection({
                 {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
                   <span className="text-fail-text"><Trans>不可用</Trans></span>
                 ) : null}
-                {item.sourceAsset?.proxy_status.status === 'ready' ? <span className="text-ok"><Trans>代理就绪</Trans></span> : null}
-                {item.sourceAsset?.proxy_status.status === 'generating' ? <span className="text-warn"><Trans>代理生成中</Trans></span> : null}
+                {item.sourceAsset?.proxy_status.status === 'ready' ? <span className="text-ok-text"><Trans>代理就绪</Trans></span> : null}
+                {item.sourceAsset?.proxy_status.status === 'generating' ? <span className="text-warn-text"><Trans>代理生成中</Trans></span> : null}
                 {item.sourceAsset?.proxy_status.status === 'failed' ? <span className="text-fail-text"><Trans>代理失败</Trans></span> : null}
               </span>
             </button>
@@ -1215,7 +1215,7 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
             <span>
               <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
               <span className="block"><Trans>源文件不可用</Trans></span>
-              <span className="mt-1 block text-xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
+              <span className="mt-1 block text-xs text-fail-text"><Trans>重新定位后可继续预览和编辑。</Trans></span>
             </span>
           </div>
         ) : item.state === 'planned' ? (

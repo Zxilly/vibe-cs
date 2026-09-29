@@ -366,7 +366,7 @@ function ConversationEntry({
           {entry.decision === 'approved' ? <Trans>已接受 Agent 修改</Trans> : <Trans>已要求 Agent 继续修改</Trans>}
         </p>
         <p className="mt-1 text-xs leading-4 text-neutral-600">{entry.content}</p>
-        <span className="mt-1 block font-mono text-xs text-neutral-400">{changeGroupId}</span>
+        <span className="mt-1 block font-mono text-xs text-neutral-600">{changeGroupId}</span>
       </ConversationShell>
     );
   }

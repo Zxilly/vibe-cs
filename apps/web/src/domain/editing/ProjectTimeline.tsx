@@ -5610,7 +5610,7 @@ function TimelineReviewLane({
             const pinClass = cn(
               'h-5 min-w-5 rounded-sm px-1 font-mono text-xs font-medium outline-none hover:bg-accent-100 focus-visible:ring-1 focus-visible:ring-accent-500',
               change.kind === 'removed' ? 'text-fail-text'
-                : change.kind === 'added' ? 'text-ok' : 'text-accent-700',
+                : change.kind === 'added' ? 'text-ok-text' : 'text-accent-700',
             );
             return (
               <div key={change.clipId} className="absolute top-2" style={{ left: group.left }} data-review-pin>
@@ -5743,7 +5743,7 @@ function TimelineClipChangeOverlay({
           {compact ? null : (
             <>
               <span className="absolute -left-px top-0 whitespace-nowrap px-1 text-xs text-fail-text"><Trans>原出点</Trans></span>
-              <span className="absolute bottom-4 right-1 font-mono text-xs font-medium text-ok">{formatSignedSeconds(change.durationDelta)}</span>
+              <span className="absolute bottom-4 right-1 font-mono text-xs font-medium text-ok-text">{formatSignedSeconds(change.durationDelta)}</span>
             </>
           )}
         </span>
@@ -5782,11 +5782,11 @@ function TimelineChangePopover({
           <span className="font-mono">{formatSeconds(change.previous.placement.duration)}</span>
           <span aria-hidden="true">→</span>
           <span className="font-mono">{formatSeconds(current.placement.duration)}</span>
-          {hasTimelineDelta(change.durationDelta) ? <span className="rounded-sm bg-ok-surface px-1 text-ok"><Trans>波纹 {formatSignedSeconds(change.durationDelta)}</Trans></span> : null}
+          {hasTimelineDelta(change.durationDelta) ? <span className="rounded-sm bg-ok-surface px-1 text-ok-text"><Trans>波纹 {formatSignedSeconds(change.durationDelta)}</Trans></span> : null}
         </p>
       )}
       <div className="mt-1 flex items-center gap-2 border-t border-divider pt-1">
-        <span className="text-xs text-ok"><Trans>已应用到时间线</Trans></span>
+        <span className="text-xs text-ok-text"><Trans>已应用到时间线</Trans></span>
         <button type="button" className="ml-auto h-6 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300" disabled={!canRevertReview} onClick={onRevertReview}><Trans>撤销这组修改</Trans></button>
       </div>
     </aside>

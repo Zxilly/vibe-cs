@@ -13,7 +13,7 @@ import { RouteLink } from '../../shared/navigation/RouteLink';
 import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
 /** Keep the identity and actions visible; secondary facts remain in details. */
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(12rem,1fr)_7rem_17rem] min-[1200px]:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(12rem,1.35fr)_7rem_14rem_17rem]';
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem_17rem] @min-[1050px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1.35fr)_7rem_14rem_17rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -69,14 +69,14 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
           <h2 className="min-w-0 text-base font-medium"><button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button></h2>
-          {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok' : 'text-neutral-600')}>
+          {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok-text' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
           {/* The file name is what tells rows apart on disk; the directory gives way in its middle, keeping the drive and the folder that holds the file. */}
           <button type="button" className="flex min-w-0 flex-col items-start gap-0.5 text-left" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
             <span data-output-file-name className="max-w-full truncate text-sm text-text">{pathParts.fileName}</span>
             {pathParts.directory === '' ? null : <span data-output-directory className="flex w-full min-w-0 font-mono text-xs text-neutral-600">
-              <span className="min-w-[4ch] truncate">{directoryHead}</span><span className="flex-none">{directoryTail}</span>
+              <span className="min-w-[4ch] truncate">{directoryHead}</span><span className="min-w-0 shrink truncate">{directoryTail}</span>
             </span>}
           </button>
           {sourceTaskId === null ? null : <RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm" className="self-start"><Trans>来源任务</Trans></RouteLink>}
@@ -85,10 +85,10 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           <span>{size ?? '—'}</span><span>{usable ? stamp : <Trans>文件缺失</Trans>}</span>
           <span>{output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}</span>
         </div>
-        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 min-[1200px]:flex">
+        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 @min-[1050px]/outputs:flex">
           {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
         </div>
-        <div data-output-actions className="flex items-center justify-end gap-1 border-l border-divider px-2 py-2">
+        <div data-output-actions className="col-span-3 flex flex-wrap items-center justify-end gap-1 border-t border-divider px-2 py-2 @min-[760px]/outputs:col-span-1 @min-[760px]/outputs:border-l @min-[760px]/outputs:border-t-0">
           {usable ? <>
             <Button variant="ghost" size="sm" onClick={play}><Play className="size-4" aria-hidden="true" /><Trans>播放</Trans></Button>
             <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><FolderOpen className="size-4" aria-hidden="true" /><Trans>打开所在文件夹</Trans></Button>

@@ -1584,7 +1584,7 @@ export function ProjectWorkspacePage() {
           ) : deliveryGate.error !== null ? (
             <span className="text-xs text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
           ) : currentDeliveryGate?.ready === true ? (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
+            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok-text"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
           ) : timelineEmpty ? (
             <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>时间线还没有片段</Trans></span>
           ) : (
@@ -1998,7 +1998,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
         <Trans>战术示意</Trans>
       </header> : null}
       {selected === null || intent === null ? (
-        <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
+        <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-600">
           {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : <Trans>这段素材没有可用的地图上下文</Trans>}
         </div>
       ) : (

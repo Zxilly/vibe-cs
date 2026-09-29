@@ -229,7 +229,7 @@ export function OutputsView({ now }: OutputsViewProps) {
             />
           )
         ) : (
-          <div className="overflow-x-auto border-t border-divider">
+          <div className="@container/outputs border-t border-divider">
             <div
               className={cn('grid h-10 border-x border-b border-divider bg-neutral-50 text-xs font-medium text-neutral-700', OUTPUT_ROW_COLUMNS)}
               aria-hidden="true"
@@ -237,8 +237,8 @@ export function OutputsView({ now }: OutputsViewProps) {
               <span className="flex items-center px-4"><Trans>预览</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
               <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
-              <span className="hidden items-center border-l border-divider px-4 min-[1200px]:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
-              <span className="flex items-center justify-end border-l border-divider px-4"><Trans>操作</Trans></span>
+              <span className="hidden items-center border-l border-divider px-4 @min-[1050px]/outputs:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
+              <span className="hidden items-center justify-end border-l border-divider px-4 @min-[760px]/outputs:flex"><Trans>操作</Trans></span>
             </div>
             {items.map((output, index) => (
               <OutputCard

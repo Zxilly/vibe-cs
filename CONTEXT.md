@@ -140,6 +140,7 @@ _Avoid_: recorded flag, replacement project
 
 **Materialization**:
 The derived relationship between a **Timeline Clip** and usable media, such as unrecorded, recording, recorded, stale, or failed.
+The application owns Take attachment from publication through completion and restart. It attaches published outputs while capture is still running, retries Edit Lease and revision contention after capture ends, and uses existing receipts to preserve manual undo and prevent repeated attachment. Reading recording or Activity state never mutates Project Head.
 _Avoid_: persisted recorded boolean
 
 **Delivery Gate**:

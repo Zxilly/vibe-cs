@@ -162,6 +162,15 @@ Head and Change Group already form the one edit and undo authority.
   full nested Sequence preview even when a newer attempt failed. The render Adapter consumes that
   snapshot and source selection without reopening Project Head; delivery status uses the same
   resolver. An unavailable enabled source blocks both readiness and execution.
+- `application/recording_materialization` owns Take attachment while a recording runs and after it
+  ends. A terminal recording releases the capture session even when an Edit Lease or revision
+  conflict delays attachment. One owner retries transient conflicts, and startup resumes published
+  work after runtime job recovery. Existing fingerprints and receipts protect newer Capture Intent,
+  replacement Takes and human undo. Recording and Activity reads have no repair side effects.
+- `domain/editing/usePreviewVideoSeek` owns native video readiness and latest-target seek
+  coalescing for Program media, rendered previews and Multicam angles. Each Adapter retains its
+  transport authority and presented-frame policy; metadata and seek completion retry the newest
+  requested frame through one Interface.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
   process lifecycle.
 - `web` keeps DTOs at the desktop command seam and uses feature-local state for analysis, queue,

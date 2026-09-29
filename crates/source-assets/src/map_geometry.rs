@@ -144,6 +144,10 @@ fn extract(root: &Kv3Value) -> Result<MapGeometry> {
         .iter()
         .map(is_occluder)
         .collect::<Result<Vec<_>>>()?;
+    extract_selected(root, &include)
+}
+
+fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
     let mut builder = Builder::default();
     for part in array(field(root, "m_parts")?)? {
         let shape = field(part, "m_rnShape")?;
@@ -389,10 +393,82 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
 }
 
 #[cfg(test)]
+#[path = "../examples/support/ground_alignment.rs"]
+mod alignment;
+
+#[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+
+    #[test]
+    #[ignore = "requires VIBE_CS2_INSTALL and VIBE_ALIGNMENT_SAMPLES from a real Demo"]
+    fn real_landing_coordinates_align_with_player_support() {
+        let install = std::path::PathBuf::from(std::env::var_os("VIBE_CS2_INSTALL").unwrap());
+        let evidence: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(std::env::var_os("VIBE_ALIGNMENT_SAMPLES").unwrap()).unwrap(),
+        )
+        .unwrap();
+        let map = evidence["map_name"].as_str().unwrap();
+        let archive =
+            crate::VpkArchive::open(install.join(format!("game/csgo/maps/{map}.vpk"))).unwrap();
+        let root = decode_physics_kv3(
+            &archive
+                .read(&format!("maps/{map}/world_physics.vmdl_c"))
+                .unwrap(),
+        )
+        .unwrap();
+        let opaque = extract(&root).unwrap();
+        // Only this diagnostic includes invisible player support. Rendering and
+        // camera LOS continue to use extract(), which excludes playerclip.
+        let support_mask = array(field(&root, "m_collisionAttributes").unwrap())
+            .unwrap()
+            .iter()
+            .map(|attribute| {
+                is_occluder(attribute).unwrap()
+                    || array(field(attribute, "m_InteractAsStrings").unwrap())
+                        .unwrap()
+                        .iter()
+                        .any(|tag| matches!(tag, Kv3Value::String(value) if value == "playerclip"))
+            })
+            .collect::<Vec<_>>();
+        let support = extract_selected(&root, &support_mask).unwrap();
+        let samples = evidence["samples"].as_array().unwrap();
+        assert!(samples.len() >= 32);
+        let mut recovered = 0;
+        let mut maximum = 0.0_f64;
+        for sample in samples {
+            assert_eq!(sample["flags_before"].as_u64().unwrap() & 1, 0);
+            assert_eq!(sample["flags"].as_u64().unwrap() & 1, 1);
+            let point = std::array::from_fn(|axis| sample["position"][axis].as_f64().unwrap());
+            let surface = alignment::ground_below(&support, point, 16.0).unwrap();
+            let error = (surface - point[2]).abs();
+            maximum = maximum.max(error);
+            assert!(
+                error < 2.0,
+                "tick {} has support error {error}",
+                sample["tick"]
+            );
+            let opaque_error = alignment::ground_below(&opaque, point, 16.0)
+                .map_or(f64::INFINITY, |height| (height - point[2]).abs());
+            if opaque_error >= 2.0 {
+                recovered += 1;
+                println!(
+                    "tick={} opaque_error={opaque_error:.6} support_z={surface:.6} support_error={error:.6}",
+                    sample["tick"]
+                );
+            }
+        }
+        assert!(
+            recovered > 0,
+            "fixture must exercise invisible player support"
+        );
+        println!(
+            "map={map} samples={} recovered={recovered} maximum_support_error={maximum:.6}",
+            samples.len()
+        );
+    }
 
     fn object(fields: impl IntoIterator<Item = (&'static str, Kv3Value)>) -> Kv3Value {
         Kv3Value::Object(

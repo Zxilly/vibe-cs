@@ -169,6 +169,7 @@ pub async fn build_app_state_with_demo_worker(
     );
     recording.recover_orphaned_jobs().await;
     let state = vibe_cs_application::AppState::new(storage.clone(), data_dir);
+    state.recover_recording_materializations().await?;
     // §10.1 gap 2 / §10.5: retention is enforced by the runtime on a clock, not
     // by the renderer at startup. See `session_retention`.
     session_retention::start(storage.clone(), state.event_hub());

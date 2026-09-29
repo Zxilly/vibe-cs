@@ -416,6 +416,7 @@ fn export_failure_code(error: &MediaError) -> JobFailureCode {
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
+    use tower::ServiceExt as _;
     use vibe_cs_application::ProjectDelivery;
 
     use super::*;
@@ -457,7 +458,7 @@ mod tests {
                 .map_err(|error| storage_error(&error))?;
             let (record, plan) = self.0.prepare(kind, input, &options).await?;
             assert_eq!(record.job.project_revision, confirmed_revision);
-            assert_eq!(plan.duration_seconds, 5.0);
+            assert!((plan.duration_seconds - 5.0).abs() < f64::EPSILON);
             Ok(record.job)
         }
 
@@ -538,7 +539,6 @@ mod tests {
                 )
                 .with_exports(Arc::new(EditAtExportHandoff(Arc::clone(&runtime))));
                 let router = vibe_cs_application::build_dispatcher(state);
-                use tower::ServiceExt as _;
                 let response = router
                     .oneshot(
                         axum::http::Request::builder()
@@ -568,7 +568,7 @@ mod tests {
                 );
                 let changed = storage.get_project(id).await.unwrap().unwrap();
                 assert_eq!(changed.revision, 2);
-                assert_eq!(changed.document.duration_seconds, 0.0);
+                assert!(changed.document.duration_seconds.abs() < f64::EPSILON);
             }
         }
     }

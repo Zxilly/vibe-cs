@@ -243,7 +243,7 @@ pub struct AppState {
     pub(crate) started_at: DateTime<Utc>,
     pub(crate) active_recording: Arc<Mutex<Option<Uuid>>>,
     runtime_session: Arc<Mutex<RuntimeSessionState>>,
-    pub(crate) recording_monitors: Arc<Mutex<HashSet<Uuid>>>,
+    pub(crate) recording_materializations: Arc<Mutex<HashSet<Uuid>>>,
     pub(crate) recording_plans: Arc<Mutex<HashMap<Uuid, RecordingPlanLease>>>,
     /// Probed media facts for the outputs list, keyed by path and size. See
     /// `routes::outputs::attach_media_info` for why it exists and what
@@ -300,7 +300,7 @@ impl AppState {
             started_at: Utc::now(),
             active_recording: Arc::new(Mutex::new(None)),
             runtime_session: Arc::new(Mutex::new(RuntimeSessionState::Idle)),
-            recording_monitors: Arc::new(Mutex::new(HashSet::new())),
+            recording_materializations: Arc::new(Mutex::new(HashSet::new())),
             recording_plans: Arc::new(Mutex::new(HashMap::new())),
             output_media_cache: Arc::new(Mutex::new(HashMap::new())),
             output_mutations: Arc::new(Mutex::new(())),
@@ -384,6 +384,14 @@ impl AppState {
 
     pub fn data_dir(&self) -> &PathBuf {
         &self.data_dir
+    }
+
+    /// Starts the Take attachment owners after runtime recording recovery.
+    ///
+    /// # Errors
+    /// Returns a storage error if durable recording jobs cannot be inspected.
+    pub async fn recover_recording_materializations(&self) -> vibe_cs_storage::Result<()> {
+        crate::recording_materialization::recover(self).await
     }
 
     pub fn event_hub(&self) -> EventHub {

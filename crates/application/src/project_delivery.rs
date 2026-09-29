@@ -58,6 +58,10 @@ pub struct ProjectDelivery {
 }
 
 impl ProjectDelivery {
+    /// Resolves current media evidence for this exact, already-read Project Head.
+    ///
+    /// # Errors
+    /// Returns storage errors or invalid capture-fingerprint errors.
     pub async fn resolve(storage: &Storage, project: Project) -> ApiResult<Self> {
         let mut blockers = project.delivery_blockers()?;
         let mut sources: HashMap<Uuid, ProjectRenderSource> = HashMap::new();
@@ -72,40 +76,38 @@ impl ProjectDelivery {
                 continue;
             }
             let dependency = if let Some(text) = &clip.text {
-                text.font_asset_id.map(|id| (id, false))
+                text.font_asset_id
             } else {
                 match clip.material {
                     TimelineClipMaterial::Take { asset_id, .. }
-                    | TimelineClipMaterial::Asset { asset_id, .. } => Some((asset_id, false)),
-                    TimelineClipMaterial::Sequence { project_id, .. } => Some((project_id, true)),
+                    | TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
+                    TimelineClipMaterial::Sequence { project_id, .. } => Some(project_id),
                     TimelineClipMaterial::Planned => None,
                 }
             };
-            let Some((source_id, sequence)) = dependency else {
+            let Some(source_id) = dependency else {
                 continue;
             };
-            let source = if sequence {
-                let TimelineClipMaterial::Sequence {
+            let source = match clip.material {
+                TimelineClipMaterial::Sequence {
                     project_id,
                     project_revision,
                     media_duration_seconds,
-                } = clip.material
-                else {
-                    unreachable!()
-                };
-                resolve_sequence_media(
-                    storage,
-                    clip.id,
-                    project_id,
-                    project_revision,
-                    media_duration_seconds,
-                )
-                .await?
-                .1
-            } else if let Some(source) = sources.get(&source_id) {
-                Some(source.clone())
-            } else {
-                resolve_asset(storage, source_id).await?
+                } if clip.text.is_none() => {
+                    resolve_sequence_media(
+                        storage,
+                        clip.id,
+                        project_id,
+                        project_revision,
+                        media_duration_seconds,
+                    )
+                    .await?
+                    .1
+                }
+                _ => match sources.get(&source_id) {
+                    Some(source) => Some(source.clone()),
+                    None => resolve_asset(storage, source_id).await?,
+                },
             };
             if let Some(source) = source {
                 sources.insert(source_id, source);
@@ -120,6 +122,10 @@ impl ProjectDelivery {
         })
     }
 
+    /// Consumes complete delivery evidence as an immutable render input.
+    ///
+    /// # Errors
+    /// Returns a precondition failure if any enabled clip lacks usable media.
     pub fn into_render(self, code: &'static str) -> ApiResult<PreparedProjectRender> {
         if !self.blockers.is_empty() {
             return Err(ApiError::new(

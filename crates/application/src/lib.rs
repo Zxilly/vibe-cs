@@ -7,6 +7,7 @@ mod extract;
 mod player;
 mod ports;
 mod project_delivery;
+mod recording_materialization;
 mod replay_binary;
 mod routes;
 mod state;

@@ -266,12 +266,6 @@ async fn get_activity(
         .get_activity(kind, parsed_id)
         .await?
         .ok_or_else(|| ApiError::not_found("activity"))?;
-    if matches!(
-        &source,
-        ActivitySource::Recording { job, .. } if job.status.is_terminal()
-    ) {
-        super::recording::reconcile_project_recording(&state, parsed_id).await?;
-    }
     let config = state.storage.get_config().await?.unwrap_or_default();
     Ok(Json(activity_item(
         source,
@@ -680,7 +674,7 @@ mod tests {
         assert_eq!(exact.subject.as_deref(), Some("Export owner · r1"));
 
         let missing = get_activity(
-            State(state),
+            State(state.clone()),
             Path(("recording".to_owned(), job_id.to_string())),
         )
         .await
@@ -692,7 +686,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn terminal_recording_activity_reconciles_project_before_returning() {
+    async fn startup_materializes_terminal_recording_while_activity_remains_read_only() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
@@ -814,11 +808,22 @@ mod tests {
         let state = AppState::new(storage.clone(), directory.path().to_path_buf());
 
         let _ = get_activity(
-            State(state),
+            State(state.clone()),
             Path(("recording".to_owned(), job_id.to_string())),
         )
         .await
         .expect("terminal recording activity");
+        assert_eq!(
+            storage
+                .get_project(project_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            1,
+            "Activity reads do not mutate the Project Head"
+        );
+        state.recover_recording_materializations().await.unwrap();
 
         let project = storage
             .get_project(project_id)

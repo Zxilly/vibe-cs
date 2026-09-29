@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use ts_rs::TS;
 
 use axum::{
@@ -10,24 +8,21 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use tokio::time::{Duration, MissedTickBehavior};
+use tokio::time::Duration;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, MediaAsset,
-    MediaMetadataStatus, MediaProxyStatus, ProjectChangeAuthor, ProjectEditOperation, ProjectPatch,
-    ProjectPatchScope, RecordingJob, RecordingRequest, TimelineClipMaterial,
+    DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, RecordingJob,
+    RecordingRequest,
 };
 use vibe_cs_recording::{DirectorPolicy, build_director_plan};
 
 use crate::{
     ApiError, ApiJson, ApiResult, AppState,
+    recording_materialization::observe_recording,
     state::{RecordingPlanLease, RecordingPlanLeaseState},
 };
 
-const ACTIVE_JOB_POLL_INTERVAL: Duration = Duration::from_millis(400);
-const ACTIVE_JOB_MISSING_POLL_LIMIT: u32 = 15;
 const RECORDING_PLAN_TTL: chrono::Duration = chrono::Duration::minutes(5);
 const RECORDING_PLAN_TTL_DURATION: Duration = Duration::from_secs(5 * 60);
 const MAXIMUM_RECORDING_PLAN_LEASES: usize = 32;
@@ -499,12 +494,7 @@ async fn start_recording_job(
         }
     };
     let status = execution_status(job.status);
-    if job.status.is_terminal() {
-        reconcile_project_recording(state, job.id).await?;
-        clear_active_job(state, job.id).await;
-    } else {
-        spawn_active_job_monitor(state.clone(), job.id);
-    }
+    observe_recording(state.clone(), job.id).await;
     reservation.disarm();
     state
         .events
@@ -684,9 +674,6 @@ async fn get_job(
         .get_recording_job(parse_id(&id)?)
         .await?
         .ok_or_else(|| ApiError::not_found("recording job"))?;
-    if job.status.is_terminal() {
-        reconcile_project_recording(&state, job.id).await?;
-    }
     Ok(Json(job))
 }
 
@@ -724,16 +711,12 @@ async fn cancel_job(
     };
     if job.status.is_terminal() {
         clear_active_job(&state, id).await;
-    } else {
-        spawn_active_job_monitor(state.clone(), id);
     }
     if let Some(reservation) = &mut reservation {
         reservation.disarm();
     }
     state.storage.put_recording_job(job.clone()).await?;
-    if job.status.is_terminal() {
-        reconcile_project_recording(&state, job.id).await?;
-    }
+    observe_recording(state.clone(), id).await;
     state.events.publish("recording_job", "changed", Some(id));
     Ok(Json(job))
 }
@@ -764,201 +747,11 @@ async fn abort_active(State(state): State<AppState>) -> ApiResult<StatusCode> {
     let job = state.recording.cancel(job).await?;
     if job.status.is_terminal() {
         clear_active_job(&state, id).await;
-    } else {
-        spawn_active_job_monitor(state.clone(), id);
     }
     state.storage.put_recording_job(job.clone()).await?;
-    if job.status.is_terminal() {
-        reconcile_project_recording(&state, job.id).await?;
-    }
+    observe_recording(state.clone(), id).await;
     state.events.publish("recording_job", "cancelled", Some(id));
     Ok(StatusCode::NO_CONTENT)
-}
-
-fn spawn_active_job_monitor(state: AppState, id: Uuid) {
-    tokio::spawn(async move {
-        monitor_active_job(
-            state,
-            id,
-            ACTIVE_JOB_POLL_INTERVAL,
-            ACTIVE_JOB_MISSING_POLL_LIMIT,
-        )
-        .await;
-    });
-}
-
-async fn monitor_active_job(
-    state: AppState,
-    id: Uuid,
-    poll_interval: Duration,
-    missing_poll_limit: u32,
-) {
-    {
-        let mut monitors = state.recording_monitors.lock().await;
-        if !monitors.insert(id) {
-            return;
-        }
-    }
-    let mut interval = tokio::time::interval(poll_interval);
-    interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let mut missing_polls = 0_u32;
-    loop {
-        interval.tick().await;
-        if *state.active_recording.lock().await != Some(id) {
-            break;
-        }
-        match state.storage.get_recording_job(id).await {
-            Ok(Some(job)) if job.status.is_terminal() => {
-                if let Err(error) = reconcile_project_recording(&state, job.id).await {
-                    tracing::error!(%error, job_id = %job.id, "unable to attach recorded media to Project");
-                }
-                clear_active_job(&state, id).await;
-                state.events.publish("recording_job", "finished", Some(id));
-                break;
-            }
-            Ok(Some(_)) => missing_polls = 0,
-            Ok(None) => {
-                missing_polls = missing_polls.saturating_add(1);
-                if missing_polls >= missing_poll_limit.max(1) {
-                    tracing::warn!(%id, "active recording job disappeared from storage");
-                    clear_active_job(&state, id).await;
-                    break;
-                }
-            }
-            Err(error) => {
-                tracing::warn!(%error, %id, "unable to refresh active recording job");
-            }
-        }
-    }
-    state.recording_monitors.lock().await.remove(&id);
-}
-
-pub(super) async fn reconcile_project_recording(state: &AppState, job_id: Uuid) -> ApiResult<()> {
-    let Some(project_id) = state.storage.get_project_recording_run(job_id).await? else {
-        return Ok(());
-    };
-    let job = state
-        .storage
-        .get_recording_job(job_id)
-        .await?
-        .ok_or_else(|| ApiError::not_found("recording job"))?;
-    let project = state
-        .storage
-        .get_project(project_id)
-        .await?
-        .ok_or_else(|| ApiError::not_found("project"))?;
-    // Read receipts after the Head: any concurrent attachment after this read
-    // is rejected by apply_project_patch's revision check and retried next poll.
-    let reconciled_clips = state
-        .storage
-        .reconciled_recording_clip_ids(project_id, job_id)
-        .await?;
-    let mut replacements = HashMap::new();
-    for output in &job.outputs {
-        let Some(clip_id) = output
-            .metadata
-            .get("request_id")
-            .and_then(Value::as_str)
-            .and_then(|value| Uuid::parse_str(value).ok())
-        else {
-            continue;
-        };
-        if reconciled_clips.contains(&clip_id) {
-            continue;
-        }
-        let Some(clip) = project
-            .document
-            .tracks
-            .iter()
-            .flat_map(|track| &track.clips)
-            .find(|clip| clip.id == clip_id)
-        else {
-            continue;
-        };
-        if matches!(clip.material, TimelineClipMaterial::Take { take_id, .. } if take_id == output.id)
-        {
-            continue;
-        }
-        let Some(request) = job.items.iter().find(|item| item.id == Some(clip_id)) else {
-            continue;
-        };
-        let Some(intent) = &clip.capture_intent else {
-            continue;
-        };
-        // The recorder executed the job's immutable request, not the current
-        // Capture Intent. An intervening capture edit cannot bless old footage.
-        if request.spec_fingerprint()? != intent.fingerprint()? {
-            continue;
-        }
-        let metadata = tokio::fs::metadata(&output.path).await.map_err(|error| {
-            ApiError::invalid(format!(
-                "recorded media {} is unavailable: {error}",
-                output.path
-            ))
-        })?;
-        let asset_id = output.id;
-        state
-            .storage
-            .put_asset(MediaAsset {
-                id: asset_id,
-                project_id: Some(project.id),
-                path: output.path.clone(),
-                name: output.title.clone(),
-                kind: "video".to_owned(),
-                duration_seconds: Some(output.duration_seconds),
-                width: None,
-                height: None,
-                file_size: metadata.len(),
-                has_audio: true,
-                proxy_path: None,
-                proxy_status: MediaProxyStatus::NotRequested,
-                waveform: None,
-                metadata_status: MediaMetadataStatus::Ready,
-                markers: Vec::new(),
-                created_at: output.created_at,
-            })
-            .await?;
-        let recorded = clip.with_recorded_take(output.id, asset_id, output.duration_seconds)?;
-        replacements.insert(clip_id, recorded);
-    }
-    if replacements.is_empty() {
-        return Ok(());
-    }
-    let replacement_count = replacements.len();
-    let operations = project
-        .document
-        .tracks
-        .iter()
-        .flat_map(|track| &track.clips)
-        .filter_map(|clip| {
-            replacements.get(&clip.id).cloned().map(|replacement| {
-                ProjectEditOperation::ReplaceClip {
-                    clip_id: clip.id,
-                    clip: Box::new(replacement),
-                }
-            })
-        })
-        .collect();
-    state
-        .storage
-        .apply_project_patch(
-            ProjectPatch {
-                project_id,
-                base_revision: project.revision,
-                scope: ProjectPatchScope::Project,
-                author: ProjectChangeAuthor::System {
-                    operation_id: job_id,
-                },
-                reverts_change_group_id: None,
-                summary: format!("Attach {replacement_count} recorded Take(s)"),
-                operations,
-            },
-            Uuid::new_v4(),
-            Utc::now(),
-        )
-        .await?;
-    state.events.publish("project", "edited", Some(project_id));
-    Ok(())
 }
 
 async fn reserve_active_job(state: &AppState, id: Uuid) -> ApiResult<ActiveJobReservation> {
@@ -994,7 +787,11 @@ impl ActiveJobReservation {
 impl Drop for ActiveJobReservation {
     fn drop(&mut self) {
         if self.armed {
-            spawn_active_job_monitor(self.state.clone(), self.id);
+            let state = self.state.clone();
+            let id = self.id;
+            tokio::spawn(async move {
+                observe_recording(state, id).await;
+            });
         }
     }
 }
@@ -1022,394 +819,5 @@ const fn execution_status(status: JobStatus) -> &'static str {
         JobStatus::Completed => "completed",
         JobStatus::Failed => "failed",
         JobStatus::Cancelled => "cancelled",
-    }
-}
-
-#[cfg(test)]
-mod recorded_take_operation_tests {
-    use super::*;
-    use serde_json::json;
-    use vibe_cs_domain::{Project, RecordedClip, TimelineClip, TimelineClipMaterializationState};
-
-    async fn recording_fixture(storage: &vibe_cs_storage::Storage) -> Project {
-        let story_id = Uuid::new_v4();
-        let project = serde_json::from_value(json!({
-            "id":Uuid::new_v4(),"name":"Recording reconciliation","revision":1,
-            "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":6.0,
-                "story_track_id":story_id,"tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,
-                    "muted":false,"solo":false,"volume":1.0,"pan":0.0,"keyframes":[],"locked":false,"hidden":false,
-                    "clips":[{"id":Uuid::new_v4(),"name":"NiKo","capture_intent":{
-                        "demo_id":Uuid::new_v4(),"highlight_id":null,"player_id":"76561198041683378",
-                        "start_tick":171_405,"end_tick":171_789,"pre_roll_seconds":0.0,
-                        "post_roll_seconds":0.0,"victim_pov":false,"camera_style":"pov","presentation":null},
-                    "material":{"kind":"planned"},
-                    "placement":{"start":0.0,"duration":6.0,"source_in":0.0,"source_out":6.0,
-                        "speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
-                    "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
-                    "effects":[],"transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
-                    "text":null,"metadata":{},"group_id":null,"link_group_id":null,"keyframes":[],"speed_segments":[]}]}],
-                "markers":[],"settings":{"source_demo_ids":[],"ripple_sequence_markers":false,"use_media_proxies":false}},
-            "created_at":Utc::now(),"updated_at":Utc::now()
-        })).expect("Project");
-        storage.create_project(project).await.unwrap()
-    }
-
-    async fn completed_recording(
-        state: &AppState,
-        directory: &std::path::Path,
-        project: &Project,
-    ) -> RecordingJob {
-        let clip = &project.document.tracks[0].clips[0];
-        let id = Uuid::new_v4();
-        let path = directory.join(format!("{id}.mp4"));
-        std::fs::write(&path, b"published recorder output").unwrap();
-        let job = RecordingJob {
-            id,
-            retry_of: None,
-            status: JobStatus::Completed,
-            items: vec![
-                clip.capture_intent
-                    .clone()
-                    .unwrap()
-                    .into_recording_request(clip.id, &clip.name),
-            ],
-            current_index: 1,
-            progress: 1.0,
-            message: "Complete".to_owned(),
-            outputs: vec![RecordedClip {
-                id: Uuid::new_v4(),
-                path: path.to_string_lossy().into_owned(),
-                title: clip.name.clone(),
-                duration_seconds: 6.0,
-                demo_id: Some(clip.capture_intent.as_ref().unwrap().demo_id),
-                player_name: None,
-                category: "pov".to_owned(),
-                tags: Vec::new(),
-                metadata: json!({"request_id":clip.id}),
-                created_at: Utc::now(),
-            }],
-            error_code: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-        state.storage.put_recording_job(job.clone()).await.unwrap();
-        state
-            .storage
-            .bind_project_recording_run(id, project.id)
-            .await
-            .unwrap();
-        job
-    }
-
-    async fn hide_capture_hud(state: &AppState, project: Project) -> Project {
-        let mut clip = project.document.tracks[0].clips[0].clone();
-        clip.capture_intent.as_mut().unwrap().presentation =
-            Some(vibe_cs_domain::RecordingPresentation {
-                show_hud: false,
-                ..Default::default()
-            });
-        state
-            .storage
-            .apply_project_patch(
-                ProjectPatch {
-                    project_id: project.id,
-                    base_revision: project.revision,
-                    scope: ProjectPatchScope::Project,
-                    author: ProjectChangeAuthor::Human,
-                    reverts_change_group_id: None,
-                    summary: "Hide capture HUD".to_owned(),
-                    operations: vec![ProjectEditOperation::ReplaceClip {
-                        clip_id: clip.id,
-                        clip: Box::new(clip),
-                    }],
-                },
-                Uuid::new_v4(),
-                Utc::now(),
-            )
-            .await
-            .unwrap()
-            .0
-    }
-
-    #[tokio::test]
-    async fn old_recording_completion_cannot_replace_a_new_take() {
-        // Cover both an edited Capture Intent and explicit same-intent re-recording,
-        // including an old completion that was not reconciled before the new one.
-        for edit_intent in [true, false] {
-            for attach_old_first in [true, false] {
-                let directory = tempfile::tempdir().unwrap();
-                let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
-                let state = AppState::new(storage.clone(), directory.path().to_owned());
-                let mut project = recording_fixture(&storage).await;
-                let old = completed_recording(&state, directory.path(), &project).await;
-                if attach_old_first {
-                    reconcile_project_recording(&state, old.id).await.unwrap();
-                    project = storage.get_project(project.id).await.unwrap().unwrap();
-                }
-                if edit_intent {
-                    project = hide_capture_hud(&state, project).await;
-                }
-                let new = completed_recording(&state, directory.path(), &project).await;
-                reconcile_project_recording(&state, new.id).await.unwrap();
-                let recorded = storage.get_project(project.id).await.unwrap().unwrap();
-                assert!(matches!(recorded.document.tracks[0].clips[0].material,
-                    TimelineClipMaterial::Take {take_id, ..} if take_id == new.outputs[0].id));
-
-                reconcile_project_recording(&state, old.id).await.unwrap();
-                let replayed = storage.get_project(project.id).await.unwrap().unwrap();
-                assert_eq!(
-                    replayed, recorded,
-                    "old completion overwrote new Take: edit={edit_intent}, attached={attach_old_first}"
-                );
-
-                let group = storage
-                    .list_project_change_groups(project.id, 1)
-                    .await
-                    .unwrap()
-                    .remove(0);
-                let (undone, _) = storage
-                    .revert_project_change_group(
-                        project.id,
-                        group.id,
-                        recorded.revision,
-                        ProjectChangeAuthor::Human,
-                        Uuid::new_v4(),
-                        Utc::now(),
-                    )
-                    .await
-                    .unwrap();
-                reconcile_project_recording(&state, new.id).await.unwrap();
-                reconcile_project_recording(&state, old.id).await.unwrap();
-                assert_eq!(
-                    storage.get_project(project.id).await.unwrap().unwrap(),
-                    undone,
-                    "reading a completed recording must not undo the user's revert"
-                );
-            }
-        }
-    }
-
-    #[tokio::test]
-    async fn completion_after_capture_edit_does_not_claim_the_new_intent() {
-        let directory = tempfile::tempdir().unwrap();
-        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
-        let state = AppState::new(storage.clone(), directory.path().to_owned());
-        let project = recording_fixture(&storage).await;
-        let old = completed_recording(&state, directory.path(), &project).await;
-        let edited = hide_capture_hud(&state, project).await;
-
-        reconcile_project_recording(&state, old.id).await.unwrap();
-        assert_eq!(
-            storage.get_project(edited.id).await.unwrap().unwrap(),
-            edited
-        );
-    }
-
-    #[tokio::test]
-    async fn running_and_failed_recordings_attach_each_successful_clip_once() {
-        let directory = tempfile::tempdir().unwrap();
-        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
-        let state = AppState::new(storage.clone(), directory.path().to_owned());
-        let mut project = recording_fixture(&storage).await;
-        let mut second = project.document.tracks[0].clips[0].clone();
-        second.placement.start = 6.0;
-        project = storage
-            .apply_project_patch(
-                ProjectPatch {
-                    project_id: project.id,
-                    base_revision: project.revision,
-                    scope: ProjectPatchScope::Project,
-                    author: ProjectChangeAuthor::Human,
-                    reverts_change_group_id: None,
-                    summary: "Add second shot".to_owned(),
-                    operations: vec![ProjectEditOperation::InsertClip {
-                        track_id: project.document.story_track_id,
-                        index: 1,
-                        clip: Box::new(second),
-                    }],
-                },
-                Uuid::new_v4(),
-                Utc::now(),
-            )
-            .await
-            .unwrap()
-            .0;
-        let second = &project.document.tracks[0].clips[1];
-        let mut job = completed_recording(&state, directory.path(), &project).await;
-        job.items.push(
-            second
-                .capture_intent
-                .clone()
-                .unwrap()
-                .into_recording_request(second.id, &second.name),
-        );
-        job.status = JobStatus::Running;
-        job.progress = 0.5;
-        storage.put_recording_job(job.clone()).await.unwrap();
-        reconcile_project_recording(&state, job.id).await.unwrap();
-        let partial = storage.get_project(project.id).await.unwrap().unwrap();
-        assert_eq!(partial.revision, project.revision + 1);
-        assert!(matches!(
-            partial.document.tracks[0].clips[0].material,
-            TimelineClipMaterial::Take { .. }
-        ));
-        assert!(matches!(
-            partial.document.tracks[0].clips[1].material,
-            TimelineClipMaterial::Planned
-        ));
-
-        // The first output is still in the snapshot when a later output arrives,
-        // and a subsequent recorder failure must not discard either success.
-        let mut output = job.outputs[0].clone();
-        output.id = Uuid::new_v4();
-        output.metadata = json!({"request_id":second.id});
-        job.outputs.push(output);
-        job.status = JobStatus::Failed;
-        job.message = "Recorder failed after publishing its outputs".to_owned();
-        storage.put_recording_job(job.clone()).await.unwrap();
-        reconcile_project_recording(&state, job.id).await.unwrap();
-        let failed = storage.get_project(project.id).await.unwrap().unwrap();
-        assert_eq!(failed.revision, partial.revision + 1);
-        assert_eq!(
-            failed.document.tracks[0].clips[0],
-            partial.document.tracks[0].clips[0]
-        );
-        assert!(matches!(failed.document.tracks[0].clips[1].material,
-            TimelineClipMaterial::Take {take_id, ..} if take_id == job.outputs[1].id));
-        reconcile_project_recording(&state, job.id).await.unwrap();
-        assert_eq!(
-            storage.get_project(project.id).await.unwrap().unwrap(),
-            failed
-        );
-    }
-
-    #[tokio::test]
-    async fn short_take_reconciliation_keeps_the_twenty_second_edit_and_blocks_delivery() {
-        let directory = tempfile::tempdir().expect("recording fixture");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let state = AppState::new(storage.clone(), directory.path().to_owned());
-        let story_id = Uuid::new_v4();
-        let demo_id = Uuid::new_v4();
-        let clips: Vec<TimelineClip> = [(0.0, 6.0, 171_405_u64, 171_789_u64), (6.0, 14.0, 173_326, 174_222)]
-            .into_iter().map(|(start, duration, start_tick, end_tick)| {
-                serde_json::from_value(json!({
-                    "id":Uuid::new_v4(),"name":"NiKo","capture_intent":{
-                        "demo_id":demo_id,"highlight_id":null,"player_id":"76561198041683378",
-                        "start_tick":start_tick,"end_tick":end_tick,"pre_roll_seconds":0.0,
-                        "post_roll_seconds":0.0,"victim_pov":false,"camera_style":"pov","presentation":null},
-                    "material":{"kind":"planned"},
-                    "placement":{"start":start,"duration":duration,"source_in":0.0,"source_out":duration,
-                        "speed":1.0,"reverse":false,"frame_hold_source_time":null,"volume":1.0,"pan":0.0,"enabled":true},
-                    "transform":{"x":0.0,"y":0.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"opacity":1.0},
-                    "effects":[],"transitions":{"video_in":null,"video_out":null,"audio_in":null,"audio_out":null},
-                    "text":null,"metadata":{},"group_id":null,"link_group_id":null,"keyframes":[],"speed_segments":[]
-                })).expect("Timeline Clip")
-            }).collect();
-        let original_placements = clips
-            .iter()
-            .map(|clip| clip.placement.clone())
-            .collect::<Vec<_>>();
-        let requests = clips
-            .iter()
-            .map(|clip| {
-                clip.capture_intent
-                    .clone()
-                    .unwrap()
-                    .into_recording_request(clip.id, &clip.name)
-            })
-            .collect::<Vec<_>>();
-        let project: Project = serde_json::from_value(json!({
-            "id":Uuid::new_v4(),"name":"Twenty second intent","revision":1,
-            "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":20.0,
-                "story_track_id":story_id,"tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,
-                    "muted":false,"solo":false,"volume":1.0,"pan":0.0,"keyframes":[],"locked":false,"hidden":false,"clips":clips}],
-                "markers":[],"settings":{"source_demo_ids":[demo_id],"ripple_sequence_markers":false,"use_media_proxies":false}},
-            "created_at":Utc::now(),"updated_at":Utc::now()
-        })).expect("Project");
-        let project_id = project.id;
-        storage
-            .create_project(project)
-            .await
-            .expect("store project");
-        let job_id = Uuid::new_v4();
-        let mut outputs = Vec::new();
-        for (index, duration) in [5.955_946, 9.740_746_3].into_iter().enumerate() {
-            let path = directory.path().join(format!("published-{index}.mp4"));
-            // Reconciliation consumes already verified recorder results; no encoder or
-            // game is involved in this fixture.
-            std::fs::write(&path, b"published recorder output").expect("published output");
-            outputs.push(RecordedClip {
-                id: Uuid::new_v4(),
-                path: path.to_string_lossy().into_owned(),
-                title: "NiKo".to_owned(),
-                duration_seconds: duration,
-                demo_id: Some(demo_id),
-                player_name: Some("NiKo".to_owned()),
-                category: "pov".to_owned(),
-                tags: Vec::new(),
-                metadata: json!({"request_id":requests[index].id}),
-                created_at: Utc::now(),
-            });
-        }
-        storage
-            .put_recording_job(RecordingJob {
-                id: job_id,
-                retry_of: None,
-                status: JobStatus::Completed,
-                items: requests,
-                current_index: 2,
-                progress: 1.0,
-                message: "Capture complete".to_owned(),
-                outputs: outputs.clone(),
-                error_code: None,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-            })
-            .await
-            .expect("recording job");
-        storage
-            .bind_project_recording_run(job_id, project_id)
-            .await
-            .expect("bind project");
-
-        reconcile_project_recording(&state, job_id)
-            .await
-            .expect("attach media evidence");
-        let updated = storage.get_project(project_id).await.unwrap().unwrap();
-        assert!((updated.document.duration_seconds - 20.0).abs() < f64::EPSILON);
-        assert_eq!(
-            updated.document.tracks[0]
-                .clips
-                .iter()
-                .map(|clip| clip.placement.clone())
-                .collect::<Vec<_>>(),
-            original_placements
-        );
-        assert_eq!(updated.unresolved_delivery_clips().unwrap().len(), 2);
-        for (clip, output) in updated.document.tracks[0].clips.iter().zip(&outputs) {
-            assert_eq!(
-                clip.materialization_state().unwrap(),
-                TimelineClipMaterializationState::Stale
-            );
-            assert!(
-                matches!(clip.material, TimelineClipMaterial::Take{take_id,media_duration_seconds,..}
-                if take_id == output.id && (media_duration_seconds - output.duration_seconds).abs() < f64::EPSILON)
-            );
-            assert!(std::path::Path::new(&output.path).is_file());
-        }
-        reconcile_project_recording(&state, job_id)
-            .await
-            .expect("repeat reconciliation");
-        assert_eq!(
-            storage
-                .get_project(project_id)
-                .await
-                .unwrap()
-                .unwrap()
-                .revision,
-            updated.revision
-        );
     }
 }

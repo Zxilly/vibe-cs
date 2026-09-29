@@ -39,12 +39,35 @@ describe('sequence marker ripple planning', () => {
       true,
       60,
     );
-    expect(plan).toMatchObject({ pivot: 5, delta: -2 });
     expect(plan?.markers.map((item) => [item.id, item.time, item.duration])).toEqual([
       ['before', 2, 0],
       ['span', 4, 1],
       ['after', 6, 0],
     ]);
+  });
+
+  it('applies every offset when one Human Edit removes nonadjacent Story clips', () => {
+    const plan = planRippleSequenceMarkers(
+      [marker('middle', 8), marker('tail', 18), marker('span', 8, 10)],
+      [clip('a', 0, 5), clip('b', 5, 5), clip('c', 10, 5), clip('d', 15, 5)],
+      [clip('b', 0, 5), clip('d', 5, 5)],
+      true,
+      60,
+    );
+    expect(plan?.markers.map((item) => [item.id, item.time, item.duration])).toEqual([
+      ['middle', 3, 0], ['tail', 8, 0], ['span', 3, 5],
+    ]);
+  });
+
+  it('stops a local Story offset when later content returns to its original time', () => {
+    const plan = planRippleSequenceMarkers(
+      [marker('middle', 8), marker('tail', 12)],
+      [clip('a', 0, 5), clip('b', 5, 5), clip('c', 10, 5)],
+      [clip('a', 0, 6), clip('b', 6, 4), clip('c', 10, 5)],
+      true,
+      60,
+    );
+    expect(plan?.markers.map((item) => item.time)).toEqual([9, 12]);
   });
 
   it('leaves markers fixed when the setting is disabled', () => {
@@ -65,7 +88,6 @@ describe('sequence marker ripple planning', () => {
       true,
       60,
     );
-    expect(plan).toMatchObject({ pivot: 10, delta: -2 });
     expect(plan?.markers.map((item) => item.time)).toEqual([8, 10]);
   });
 });

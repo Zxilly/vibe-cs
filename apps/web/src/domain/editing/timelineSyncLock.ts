@@ -19,7 +19,7 @@ function sameOrder(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((id, index) => id === right[index]);
 }
 
-function storyOffsetAt(anchors: readonly StoryTimeAnchor[], time: number, tolerance: number): number {
+export function storyRippleOffsetAt(anchors: readonly StoryTimeAnchor[], time: number, tolerance: number): number {
   for (let index = anchors.length - 1; index >= 0; index -= 1) {
     const anchor = anchors[index]!;
     if (time >= anchor.time - tolerance) return anchor.offset;
@@ -74,7 +74,9 @@ export function storyRippleTimeAnchors(
     if (previous !== undefined && Math.abs(previous.offset - normalized.offset) < frame / 2) continue;
     compact.push(normalized);
   }
-  return compact.filter((anchor) => Math.abs(anchor.offset) >= frame / 2);
+  // Keep a zero offset after an actual shift: it ends that local edit rather
+  // than extending the earlier offset across otherwise unchanged content.
+  return compact.filter((anchor, index) => index > 0 || Math.abs(anchor.offset) >= frame / 2);
 }
 
 /**
@@ -112,7 +114,7 @@ export function planSyncLockedStoryRipple({
     let changed = false;
     const clips = track.clips.map((clip) => {
       const clipStart = clip.placement.start;
-      const offset = storyOffsetAt(anchors, clipStart, frame / 2);
+      const offset = storyRippleOffsetAt(anchors, clipStart, frame / 2);
       if (Math.abs(offset) < frame / 2) return clip;
       changed = true;
       return {

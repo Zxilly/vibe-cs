@@ -2501,6 +2501,39 @@ describe('unified project workspace', () => {
     expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
+  it('deletes nonadjacent Story clips and moves sequence markers in the same Human Edit', async () => {
+    const applyProjectPatch = vi.fn();
+    const fourthId = '00000000-0000-4000-8000-000000000199';
+    const storyClips = [clip(CLIP_A, 'A'), clip(CLIP_B, 'B'), clip(CLIP_C, 'C'), clip(fourthId, 'D')]
+      .map((item, index) => ({ ...item, placement: { ...item.placement, start: index * 5 } }));
+    renderWorkspace({ project: {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 20,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID ? { ...track, clips: storyClips } : track),
+        markers: [{ id: 'downstream', time: 18, duration: 0, label: 'Downstream', color: '#2F6FED', kind: 'comment', comment: '' }],
+        settings: { ...PROJECT.document.settings, ripple_sequence_markers: true },
+      },
+    }, applyProjectPatch });
+    const clipC = await screen.findByRole('button', { name: /C 5\.0s · 未录制/u });
+    fireEvent.pointerDown(clipC, { pointerId: 331, button: 0, ctrlKey: true, clientX: 800 });
+    runTimelineCommand('删除所选片段并闭合间隙');
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const patch = applyProjectPatch.mock.calls[0]?.[0] as ProjectPatch;
+    expect(patch.scope).toEqual({ kind: 'project' });
+    expect(patch.operations).toContainEqual({
+      op: 'replace_track_clips', track_id: STORY_ID,
+      clips: [
+        expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) }),
+        expect.objectContaining({ id: fourthId, placement: expect.objectContaining({ start: 5 }) }),
+      ],
+    });
+    expect(patch.operations).toContainEqual({
+      op: 'replace_markers', markers: [expect.objectContaining({ id: 'downstream', time: 8 })],
+    });
+  });
+
   it('copies the selection and pastes it at the playhead through one Story ripple edit', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });

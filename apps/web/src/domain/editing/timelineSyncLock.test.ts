@@ -73,6 +73,16 @@ describe('Timeline Sync Lock', () => {
     }]);
   });
 
+  it('ends a local offset instead of moving free clips after unchanged Story content', () => {
+    const story = track('story', [clip('a', 0, 5), clip('b', 5, 5), clip('c', 10, 5)]);
+    const synced = track('synced', [clip('middle', 8, 1), clip('later', 12, 1)]);
+    expect(planSyncLockedStoryRipple({
+      tracks: [story, synced], storyTrackId: story.id,
+      nextStoryClips: [clip('a', 0, 6), clip('b', 6, 4), clip('c', 10, 5)],
+      syncLockedTrackIds: new Set([synced.id]), directlyEditedTrackIds: new Set([story.id]), fps: 60,
+    })).toEqual([{ trackId: synced.id, clips: [clip('middle', 9, 1), clip('later', 12, 1)] }]);
+  });
+
   it('does not reinterpret a Story reorder as a Timeline ripple', () => {
     const before = [clip('a', 0, 5), clip('b', 5, 5)];
     const after = [clip('b', 0, 5), clip('a', 5, 5)];

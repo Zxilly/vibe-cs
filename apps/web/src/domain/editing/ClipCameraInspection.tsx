@@ -86,6 +86,7 @@ function IssueList({ issues }: { readonly issues: readonly CameraIssueInterval[]
 
 function issueLabel(issue: CameraIssueInterval): string {
   switch (issue.kind) {
+    case 'inside_solid': return t`机位位于地图实体内部`;
     case 'near_wall': return t`机位距离墙面不足 16 单位`;
     case 'surface_crossing': return t`机位路径穿过地图表面`;
     case 'target_occluded': return t`${Math.round(issue.affectedFraction * 100)}% 的头胸视线被遮挡`;

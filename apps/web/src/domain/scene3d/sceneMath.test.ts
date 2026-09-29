@@ -13,7 +13,8 @@ describe('Source camera to Three coordinates', () => {
     const result = cameraPathSegments(samples, [clear, { ...clear, headOccluded: null, chestOccluded: null, targetInView: null }, { ...clear, headOccluded: true }]);
     expect([...result.positions]).toEqual([10, 30, -20, 40, 60, -50, 40, 60, -50, 70, 90, -80]);
     expect(result.problems).toEqual([false, true]);
-    expect(cameraPathSegments(samples, []).problems).toEqual([false, false]);
+      expect(cameraPathSegments(samples, []).problems).toEqual([false, false]);
+      expect(cameraPathSegments(samples, [clear, { ...clear, insideSolid: true }, clear]).problems).toEqual([true, true]);
     expect(cameraPathSegments([pose], []).positions).toHaveLength(0);
   });
   it('keeps the recording composition in wide and tall monitor panels', () => {

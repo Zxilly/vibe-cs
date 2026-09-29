@@ -8,6 +8,10 @@ export type CameraPoseDiagnostic = {
   tick: number;
   wallDistance: number;
   nearWall: boolean;
+  /**
+   * Contained by an original convex physics solid, never inferred from an open mesh.
+   */
+  insideSolid: boolean;
   crossedSurface: boolean;
   headOccluded: boolean | null;
   chestOccluded: boolean | null;

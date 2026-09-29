@@ -11,7 +11,7 @@ export function cameraViewport(width: number, height: number, aspectRatio: numbe
 }
 
 export function cameraPoseHasIssue(pose: CameraPoseDiagnostic | undefined): boolean {
-  return pose !== undefined && (pose.nearWall || pose.crossedSurface || pose.headOccluded === true
+  return pose !== undefined && (pose.insideSolid || pose.nearWall || pose.crossedSurface || pose.headOccluded === true
     || pose.chestOccluded === true || pose.targetInView === false);
 }
 

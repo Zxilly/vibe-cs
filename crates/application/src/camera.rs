@@ -13,6 +13,8 @@ pub struct CameraPoseDiagnostic {
     pub tick: f64,
     pub wall_distance: f64,
     pub near_wall: bool,
+    /// Contained by an original convex physics solid, never inferred from an open mesh.
+    pub inside_solid: bool,
     pub crossed_surface: bool,
     pub head_occluded: Option<bool>,
     pub chest_occluded: Option<bool>,
@@ -38,6 +40,7 @@ pub struct CameraPlan {
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum CameraIssueKind {
+    InsideSolid,
     NearWall,
     SurfaceCrossing,
     TargetOccluded,
@@ -110,10 +113,11 @@ pub struct CameraPreview {
 /// Compact Agent/tool projection; rendering consumes the original per-pose data.
 pub fn camera_issue_intervals(samples: &[CameraPoseDiagnostic]) -> Vec<CameraIssueInterval> {
     use CameraIssueKind::{
-        NearWall, SurfaceCrossing, TargetOccluded, TargetOutOfView, TargetUnobserved,
+        InsideSolid, NearWall, SurfaceCrossing, TargetOccluded, TargetOutOfView, TargetUnobserved,
     };
     let mut result = Vec::new();
     for kind in [
+        InsideSolid,
         NearWall,
         SurfaceCrossing,
         TargetOccluded,
@@ -121,6 +125,7 @@ pub fn camera_issue_intervals(samples: &[CameraPoseDiagnostic]) -> Vec<CameraIss
         TargetUnobserved,
     ] {
         let value = |sample: &CameraPoseDiagnostic| match kind {
+            InsideSolid => f64::from(u8::from(sample.inside_solid)),
             NearWall => f64::from(u8::from(sample.near_wall)),
             SurfaceCrossing => f64::from(u8::from(sample.crossed_surface)),
             TargetOccluded => {
@@ -187,6 +192,7 @@ mod tests {
                 tick: f64::from(index * 64),
                 wall_distance: 100.0,
                 near_wall: false,
+                inside_solid: false,
                 crossed_surface: false,
                 head_occluded: Some(false),
                 chest_occluded: Some(false),
@@ -199,6 +205,7 @@ mod tests {
         poses[2].head_occluded = None;
         poses[2].chest_occluded = None;
         poses[2].target_in_view = None;
+        poses[3].inside_solid = true;
         let intervals = camera_issue_intervals(&poses);
         assert_eq!(
             intervals,
@@ -212,6 +219,12 @@ mod tests {
                 CameraIssueInterval {
                     kind: CameraIssueKind::TargetUnobserved,
                     start_seconds: 2.0,
+                    end_seconds: 3.0,
+                    affected_fraction: 1.0
+                },
+                CameraIssueInterval {
+                    kind: CameraIssueKind::InsideSolid,
+                    start_seconds: 3.0,
                     end_seconds: 3.0,
                     affected_fraction: 1.0
                 },

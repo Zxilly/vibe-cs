@@ -66,7 +66,7 @@ pub(crate) fn plan_camera_scene(
         (HlaeCameraStyle::Static, 0.3),
         (HlaeCameraStyle::Dolly, 0.3),
     ] {
-        if diagnostic_score(&result.diagnostics) == (0, 0, 0, 0) {
+        if diagnostic_score(&result.diagnostics) == (0, 0, 0, 0, 0) {
             break;
         }
         consider_candidate(
@@ -95,7 +95,7 @@ pub(crate) fn plan_camera_scene(
         [32.0, -32.0, 16.0],
         [32.0, 32.0, 16.0],
     ] {
-        if diagnostic_score(&result.diagnostics) == (0, 0, 0, 0) {
+        if diagnostic_score(&result.diagnostics) == (0, 0, 0, 0, 0) {
             break;
         }
         consider_candidate(
@@ -190,10 +190,11 @@ fn tracking_shot(scene: &CameraScene, offset: [f64; 3]) -> CameraShot {
     }
 }
 
-fn diagnostic_score(samples: &[CameraPoseDiagnostic]) -> (usize, usize, usize, usize) {
-    // Crossing a surface takes precedence over clearance, then visibility.
+fn diagnostic_score(samples: &[CameraPoseDiagnostic]) -> (usize, usize, usize, usize, usize) {
+    // Being inside a solid takes precedence over crossings, clearance, visibility.
     // These are counts on the same fixed-rate time samples, not probabilities.
     (
+        samples.iter().filter(|item| item.inside_solid).count(),
         samples.iter().filter(|item| item.crossed_surface).count(),
         samples.iter().filter(|item| item.near_wall).count(),
         samples
@@ -495,6 +496,56 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation)]
+    fn correction_escapes_an_initial_solid_interior_without_a_prior_crossing() {
+        let scene = simple_scene();
+        let initial = plan_camera_scene(&scene, Err("probe".to_owned())).unwrap();
+        let origin = initial.samples[0].position;
+        let vertices = (0..8)
+            .map(|corner| {
+                [
+                    origin.x as f32 + if corner & 1 == 0 { -32.0 } else { 32.0 },
+                    origin.y as f32 + if corner & 2 == 0 { -32.0 } else { 32.0 },
+                    origin.z as f32 + if corner & 4 == 0 { -32.0 } else { 32.0 },
+                ]
+            })
+            .collect();
+        let map = crate::CameraGeometry::new(vibe_cs_source_assets::MapGeometry {
+            vertices,
+            triangles: vec![
+                [0, 2, 3],
+                [0, 3, 1],
+                [4, 5, 7],
+                [4, 7, 6],
+                [0, 4, 6],
+                [0, 6, 2],
+                [1, 3, 7],
+                [1, 7, 5],
+                [0, 1, 5],
+                [0, 5, 4],
+                [2, 6, 7],
+                [2, 7, 3],
+            ],
+            convex_solids: vec![(0..8).collect()],
+            ..vibe_cs_source_assets::MapGeometry::default()
+        })
+        .unwrap();
+        let corrected = plan_camera_scene(&scene, Ok(&map)).unwrap();
+        assert!(corrected.original_diagnostics[0].inside_solid);
+        assert!(!corrected.original_diagnostics[0].near_wall);
+        assert!(!corrected.original_diagnostics[0].crossed_surface);
+        assert!(corrected.adjusted);
+        assert!(corrected.diagnostics.iter().all(|pose| !pose.inside_solid));
+        assert!(
+            corrected
+                .inspection()
+                .original_issues
+                .iter()
+                .any(|issue| issue.kind == vibe_cs_application::CameraIssueKind::InsideSolid)
+        );
+    }
+
+    #[test]
     fn correction_is_deterministic_and_preview_samples_belong_to_the_selected_recording_shot() {
         let geometry = crate::CameraGeometry::new(vibe_cs_source_assets::MapGeometry {
             vertices: vec![
@@ -614,7 +665,7 @@ mod tests {
             assert!(corrected < original);
             assert_eq!(
                 corrected,
-                (0, 0, 0, 0),
+                (0, 0, 0, 0, 0),
                 "real corrected shot must pass all sampled geometric checks"
             );
             results.push(planned);

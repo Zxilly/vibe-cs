@@ -11,6 +11,15 @@ vi.mock('../scene3d/CameraPreviewViewport', () => ({ CameraPreviewViewport: () =
 
 afterEach(cleanup);
 
+it('explains a solid interior separately from wall clearance', async () => {
+  const value = response(1);
+  value.inspection!.issues = [{ kind: 'inside_solid', startSeconds: 1, endSeconds: 2, affectedFraction: 1 }];
+  renderInteractive(tree({ getProjectCameraPreview: vi.fn().mockResolvedValue(value) }));
+  expect(await screen.findByText('机位位于地图实体内部')).toBeTruthy();
+  expect(screen.getByText('1.00–2.00 秒')).toBeTruthy();
+  expect(screen.queryByText('当前采样未发现镜头问题。')).toBeNull();
+});
+
 function response(revision: number): ProjectCameraPreviewResponse {
   return { projectId: 'project', clipId: 'clip', revision,
     ...structuredClone(fixture) };

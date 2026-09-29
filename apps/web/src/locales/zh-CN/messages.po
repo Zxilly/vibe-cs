@@ -388,7 +388,7 @@ msgid "{0}，剩余 {1} 点生命，手持 {2}"
 msgstr "{0}，剩余 {1} 点生命，手持 {2}"
 
 #. placeholder {0}: Math.round(issue.affectedFraction * 100)
-#: src/domain/editing/ClipCameraInspection.tsx:91
+#: src/domain/editing/ClipCameraInspection.tsx:92
 msgid "{0}% 的头胸视线被遮挡"
 msgstr "{0}% 的头胸视线被遮挡"
 
@@ -2756,7 +2756,7 @@ msgstr "区间 {0} 速度百分比"
 msgid "区间速度"
 msgstr "区间速度"
 
-#: src/domain/editing/ClipCameraInspection.tsx:104
+#: src/domain/editing/ClipCameraInspection.tsx:105
 #: src/domain/editing/ClipInspector.tsx:329
 #: src/pages/shared/settings/AiAgentSection.tsx:108
 msgid "升降"
@@ -3314,7 +3314,7 @@ msgstr "回放图层与选手"
 msgid "回放数据无效或超出限制，请重新生成。"
 msgstr "回放数据无效或超出限制，请重新生成。"
 
-#: src/domain/editing/ClipCameraInspection.tsx:100
+#: src/domain/editing/ClipCameraInspection.tsx:101
 #: src/pages/shared/settings/AiAgentSection.tsx:107
 msgid "固定"
 msgstr "固定"
@@ -5206,7 +5206,7 @@ msgstr "排队中"
 msgid "排队等待解析"
 msgstr "排队等待解析"
 
-#: src/domain/editing/ClipCameraInspection.tsx:105
+#: src/domain/editing/ClipCameraInspection.tsx:106
 #: src/domain/editing/ClipInspector.tsx:330
 msgid "掠过"
 msgstr "掠过"
@@ -5219,7 +5219,7 @@ msgstr "接受修改"
 msgid "接口格式"
 msgstr "接口格式"
 
-#: src/domain/editing/ClipCameraInspection.tsx:102
+#: src/domain/editing/ClipCameraInspection.tsx:103
 #: src/domain/editing/ClipInspector.tsx:327
 #: src/pages/shared/settings/AiAgentSection.tsx:106
 msgid "推轨"
@@ -6132,16 +6132,20 @@ msgstr "本页已过期 {0}"
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
 
+#: src/domain/editing/ClipCameraInspection.tsx:89
+msgid "机位位于地图实体内部"
+msgstr "机位位于地图实体内部"
+
 #: src/domain/scene3d/Scene3DView.tsx:112
 #: src/domain/scene3d/Scene3DView.tsx:120
 msgid "机位视角"
 msgstr "机位视角"
 
-#: src/domain/editing/ClipCameraInspection.tsx:89
+#: src/domain/editing/ClipCameraInspection.tsx:90
 msgid "机位距离墙面不足 16 单位"
 msgstr "机位距离墙面不足 16 单位"
 
-#: src/domain/editing/ClipCameraInspection.tsx:90
+#: src/domain/editing/ClipCameraInspection.tsx:91
 msgid "机位路径穿过地图表面"
 msgstr "机位路径穿过地图表面"
 
@@ -7756,7 +7760,7 @@ msgstr "玩家"
 msgid "玩家视图"
 msgstr "玩家视图"
 
-#: src/domain/editing/ClipCameraInspection.tsx:103
+#: src/domain/editing/ClipCameraInspection.tsx:104
 #: src/domain/editing/ClipInspector.tsx:328
 #: src/pages/shared/settings/AiAgentSection.tsx:105
 msgid "环绕"
@@ -7925,7 +7929,7 @@ msgstr "目录是只读的，重试不会改动任何数据。"
 msgid "目标："
 msgstr "目标："
 
-#: src/domain/editing/ClipCameraInspection.tsx:92
+#: src/domain/editing/ClipCameraInspection.tsx:93
 msgid "目标不在画面内"
 msgstr "目标不在画面内"
 
@@ -8257,7 +8261,7 @@ msgstr "第 {slot} 页"
 msgid "第 {version} 版"
 msgstr "第 {version} 版"
 
-#: src/domain/editing/ClipCameraInspection.tsx:99
+#: src/domain/editing/ClipCameraInspection.tsx:100
 #: src/domain/editing/ClipInspector.tsx:324
 #: src/pages/shared/settings/AiAgentSection.tsx:103
 msgid "第一人称"
@@ -8496,7 +8500,7 @@ msgstr "缺失"
 msgid "缺失片段已排好录制任务。确认后才会启动 CS2 和采集组件。"
 msgstr "缺失片段已排好录制任务。确认后才会启动 CS2 和采集组件。"
 
-#: src/domain/editing/ClipCameraInspection.tsx:93
+#: src/domain/editing/ClipCameraInspection.tsx:94
 msgid "缺少目标位置，无法检查"
 msgstr "缺少目标位置，无法检查"
 
@@ -9122,7 +9126,7 @@ msgstr "趋势指标"
 msgid "距离 {metres}m"
 msgstr "距离 {metres}m"
 
-#: src/domain/editing/ClipCameraInspection.tsx:101
+#: src/domain/editing/ClipCameraInspection.tsx:102
 #: src/domain/editing/ClipInspector.tsx:326
 #: src/pages/shared/settings/AiAgentSection.tsx:104
 msgid "跟随"

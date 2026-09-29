@@ -394,6 +394,12 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 另一次 10 秒 WebGL clear 探针记录 1,596 次绘制提交，间隔 p95 为 6.6 ms，JS 堆约 71.0 MiB；仍只说明提交频率，不能作为实际呈现 60 fps 的证明。首次 30 秒同步 CDP 探针超时，未产生有效帧率结果；内存采样独立完成。原始证据为 `m4-native-release-build.log`、`m4-native-release-draw-performance.json`、`m4-native-release-memory.json`、`m4-release-before-3d-memory.json`，均在本机忽略目录中。
 - 远端 Rust 检查发现共享落地探针的函数签名未按仓库格式换行；已修正并执行与 CI 相同的 `scripts/check-rust-format.ps1` 通过，提交 `86d7a24`。新一轮 CI `36515060206` 已启动，尚不能宣称全绿。M0 过滤语义、M3 实体内部/游戏实拍和 M4 性能继续保留未完成状态。
 
+### 2026-09-29：内存基线与按键对象去重
+
+- 在相同 Release QA 进程关闭 3D 后，页面 canvas 数降为 0，四个主要进程私有内存仍约 487.5 MiB；完整重新加载工作台后 JS 堆约 9.2 MiB，但进程保留的内存仍较高。全新启动、从未打开回放的工作台中，JS 堆约 6.5 MiB，宿主和全部子进程私有内存合计约 **307.9 MiB**，其中 GPU 子进程约 155.8 MiB。该基线说明总量还包含 WebView2 和宿主成本，不据此变更或豁免 300 MB 门槛。证据：`m4-release-2d-after-dispose.json`、`m4-release-home-after-navigation.json`、`m4-release-cold-home-memory.json`。
+- 回放二进制解码原先为每个选手记录分配一个十字段按键对象；现按已验证的 10 位掩码，在单次解码中复用冻结对象，最多 1,024 个，位置对象仍独立。真实 Demo **182,660 条**非空按键记录只需 **128 个**共享对象。没有删减帧、按键字段或精度，也没有修改 ARPL 格式或增加替代解码路径。
+- 回归先复现相同按键重复分配，修复后验证引用共享、冻结对象不可被跨帧修改、位置不共享。真实解码及回放模型 39 项测试通过，Web lint、严格词典编译及生产构建通过。证据为 `m4-input-sharing-real.log`、`m4-input-sharing-tests.log`、`m4-input-sharing-build.log`。对象数减少不能直接换算成应用内存收益；新内嵌 Release 已开始构建，尚待同环境复测，M4 性能项仍未完成。
+
 ## 参考来源
 
 外部资料（检索于 2026-09-28）：

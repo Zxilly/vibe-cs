@@ -387,6 +387,13 @@ M5 的 Program Monitor 稳定预演池、最新跳转与上一帧保留仍待接
 - 本机 `csgo/scripts/collision_properties.txt` 明确说明 window 不阻挡 LOS、solid_no_block_los 不阻挡 LOS，player/npc clip 与 grenadeclip 只服务对应碰撞对象；grating/railing 使用 `passbullets`。后者描述子弹穿透规则，不能单凭标签名称认定视觉透明。当前未据此修改生产遮挡筛选；仍需工具材质或游戏视线实证，M0 过滤项继续未勾选。
 - 原始资源仅保存在本机忽略目录 `csgo-scripts_collision_properties.txt`、`core-scripts_collision_properties.txt` 与 `core-scripts_collision_detail_layers.vdata_c`，不提交游戏资源。
 
+### 2026-09-29：完整 Release 原生性能复测
+
+- 使用独立 QA 标识完成 `cargo build -p vibe-cs-desktop --release --locked --features tauri/custom-protocol`，优化构建耗时 5 分 13 秒。实际启动新生成的二进制，通过 `http://tauri.localhost/` 加载内嵌生产前端、本机 Mirage VPK 与同一真实 Demo 的 19,571 帧，未依赖 Vite 服务。截图 `m4-native-release-replay.png` 确认原生回放、地图和中文界面正常加载。
+- 播放期间每秒记录一次，共 30 次：renderer 私有内存 **223.3–278.4 MiB**，平均 **257.4 MiB**；宿主约 89.1 MiB、GPU 190.4–202.2 MiB、浏览器主进程 41.1–42.8 MiB。上述四个进程同步合计 **547.5–610.8 MiB**，平均 **583.0 MiB**，尚未计入其余 utility/crashpad 子进程。因此即使完整 Release 的 renderer 单进程低于 300 MiB，应用内存门槛仍未通过。
+- 另一次 10 秒 WebGL clear 探针记录 1,596 次绘制提交，间隔 p95 为 6.6 ms，JS 堆约 71.0 MiB；仍只说明提交频率，不能作为实际呈现 60 fps 的证明。首次 30 秒同步 CDP 探针超时，未产生有效帧率结果；内存采样独立完成。原始证据为 `m4-native-release-build.log`、`m4-native-release-draw-performance.json`、`m4-native-release-memory.json`、`m4-release-before-3d-memory.json`，均在本机忽略目录中。
+- 远端 Rust 检查发现共享落地探针的函数签名未按仓库格式换行；已修正并执行与 CI 相同的 `scripts/check-rust-format.ps1` 通过，提交 `86d7a24`。新一轮 CI `36515060206` 已启动，尚不能宣称全绿。M0 过滤语义、M3 实体内部/游戏实拍和 M4 性能继续保留未完成状态。
+
 ## 参考来源
 
 外部资料（检索于 2026-09-28）：

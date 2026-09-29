@@ -8,12 +8,12 @@ colors:
   accent-800: "#214b98"
   accent-100: "#eef4ff"
   bg: "#ffffff"
-  surface: "#f1f3f6"
-  surface-chrome: "#f6f7f9"
+  surface: "#e9edf3"
+  surface-chrome: "#f2f5f9"
   text: "#1d1f20"
-  neutral-600: "#606c7e"
+  neutral-600: "#48566a"
   neutral-700: "#465265"
-  divider: "#dfe3e9"
+  divider: "#bdc7d5"
   action-hover: "#1d1f2012"
   action-pressed: "#1d1f2024"
   on-accent: "#ffffff"
@@ -201,7 +201,8 @@ Dock 负责个人面板几何，支持拖动、标签分组、拆分、调整大
 
 - **Buttons：** primary、secondary、ghost、danger 是同一个 Button 的四个变体。普通按钮水平内边距采用 panel-inset；hero 使用更宽的一档。悬停和按下只改变颜色，不改变盒子尺寸。禁用控件保留原因提示，危险动作与普通操作区分。
 - **Inputs：** 默认透明底、细边框，必要时用 ground="bg" 与父面板分离；悬停增强边框，焦点采用 accent。错误通过 invalid 与失败边框表达，禁用使用现有透明度。附加按钮或单位通过 InputGroup 组合。
-- **Segmented（Seg）：** 选中项使用 accent-100 浅蓝面、accent-700 文字和 1 px 内描边，保留内嵌 2 px 键盘焦点环；不使用实心 accent，避免与视图的 primary 按钮竞争。
+- 控件边界与关闭状态轨道使用 neutral-400；辅助文字使用 neutral-500/600，状态说明使用 ok-text / warn-text / fail-text。文字在对应表面上至少达到 4.5:1，控件边界至少达到 3:1。
+- **Segmented（Seg）：** 默认按内容宽度排列，只有显式 fill 才占满容器；窄面板内换行展示所有选项。 选中项使用 accent-100 浅蓝面、accent-700 文字和 1 px 内描边，保留内嵌 2 px 键盘焦点环；不使用实心 accent，避免与视图的 primary 按钮竞争。
 - **Badges：** 用于计数和上下文；accent、neutral、outline、count 沿用现有变体。可操作标签使用真实 button / link，不把静态 span 当作按钮。
 - **状态表达：** 同一列表中的对象状态统一使用 StatusDot 加文字：完成用 ok，进行中用 accent，未开始用 neutral，等待确认用 warn，失败用 fail。不要在同一列混用徽标、圆点和描边方块。失败任务只由内部 fail Alert 承担强调，外框保持 divider，进度条改用 fail 色调停在中断位置。
 - **行操作：** 表格行内动作统一使用 ghost 按钮外观；导航仍是真实链接，但不与按钮混用下划线或纯文本样式。动作文字使用动词，描述按下后真正发生的事。

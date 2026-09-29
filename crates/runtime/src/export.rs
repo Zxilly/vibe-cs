@@ -539,6 +539,24 @@ mod tests {
                 )
                 .with_exports(Arc::new(EditAtExportHandoff(Arc::clone(&runtime))));
                 let router = vibe_cs_application::build_dispatcher(state);
+                let gate_response = router
+                    .clone()
+                    .oneshot(
+                        axum::http::Request::builder()
+                            .uri(format!("/api/projects/{id}/delivery-gate"))
+                            .body(axum::body::Body::empty())
+                            .unwrap(),
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(gate_response.status(), axum::http::StatusCode::OK);
+                let gate: Value = serde_json::from_slice(
+                    &axum::body::to_bytes(gate_response.into_body(), 1024 * 1024)
+                        .await
+                        .unwrap(),
+                )
+                .unwrap();
+                assert_eq!(gate["ready"], true, "the enabled title is renderable");
                 let response = router
                     .oneshot(
                         axum::http::Request::builder()

@@ -106,8 +106,8 @@ function deliveryGateFor(project: Project): ProjectDeliveryGate {
     }
   }
   // Mirrors `get_delivery_gate`: an empty sequence has nothing to block and nothing to deliver.
-  const hasMedia = project.document.tracks.some((track) => track.clips.some((clip) => clip.placement.enabled && clip.text === null));
-  return { project_id: project.id, revision: project.revision, ready: hasMedia && blockers.length === 0, blockers };
+  const hasEnabledContent = project.document.tracks.some((track) => track.clips.some((clip) => clip.placement.enabled));
+  return { project_id: project.id, revision: project.revision, ready: hasEnabledContent && blockers.length === 0, blockers };
 }
 
 function mediaDragEvent(

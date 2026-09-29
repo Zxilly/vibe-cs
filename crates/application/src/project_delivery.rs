@@ -122,19 +122,28 @@ impl ProjectDelivery {
         })
     }
 
+    pub fn is_ready(&self) -> bool {
+        // The Editing Document derives duration from enabled clips, including text.
+        self.project.document.duration_seconds > 0.0 && self.blockers.is_empty()
+    }
+
     /// Consumes complete delivery evidence as an immutable render input.
     ///
     /// # Errors
-    /// Returns a precondition failure if any enabled clip lacks usable media.
+    /// Returns a precondition failure for empty content or unavailable clip media.
     pub fn into_render(self, code: &'static str) -> ApiResult<PreparedProjectRender> {
-        if !self.blockers.is_empty() {
+        if !self.is_ready() {
             return Err(ApiError::new(
                 axum::http::StatusCode::PRECONDITION_FAILED,
                 code,
-                format!(
-                    "{} enabled clips do not have compatible media",
-                    self.blockers.len()
-                ),
+                if self.blockers.is_empty() {
+                    "The Project has no enabled content to deliver".to_owned()
+                } else {
+                    format!(
+                        "{} enabled clips do not have compatible media",
+                        self.blockers.len()
+                    )
+                },
             ));
         }
         Ok(PreparedProjectRender {

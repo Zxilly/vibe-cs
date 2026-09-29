@@ -207,25 +207,17 @@ async fn get_delivery_gate(
         .get_project(id)
         .await?
         .ok_or_else(|| ApiError::not_found("project"))?;
-    let blockers = ProjectDelivery::resolve(&state.storage, project.clone())
-        .await?
+    let delivery = ProjectDelivery::resolve(&state.storage, project.clone()).await?;
+    let ready = delivery.is_ready();
+    let blockers = delivery
         .blockers
         .into_iter()
         .map(|(clip_id, state)| ProjectDeliveryBlocker { clip_id, state })
         .collect::<Vec<_>>();
-    // An empty sequence has nothing to block and nothing to deliver either:
-    // the export route rejects a zero-length range, so the gate must not
-    // report it as ready.
-    let has_media = project
-        .document
-        .tracks
-        .iter()
-        .flat_map(|track| &track.clips)
-        .any(|clip| clip.placement.enabled && clip.text.is_none());
     Ok(Json(ProjectDeliveryGate {
         project_id: project.id,
         revision: project.revision,
-        ready: has_media && blockers.is_empty(),
+        ready,
         blockers,
     }))
 }
@@ -1102,6 +1094,68 @@ mod tests {
         .await;
         assert_eq!(gate["ready"], false);
         assert_eq!(gate["blockers"], json!([]));
+    }
+
+    #[tokio::test]
+    async fn text_only_delivery_and_render_preparation_share_enabled_content_readiness() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage.clone());
+        let (project_id, clip_id) = project_with_asset_clip(&router, Uuid::new_v4()).await;
+        let project_id = Uuid::parse_str(&project_id).unwrap();
+        let mut project = storage.get_project(project_id).await.unwrap().unwrap();
+        let mut title = clip_json(clip_id, "Title", 0.0);
+        title["material"] = json!({"kind":"planned"});
+        title["text"] = json!({
+            "content":"Only a title", "font_family":"Arial", "font_asset_id":null,
+            "font_size":36.0, "color":"#ffffff", "background":null, "align":"center"
+        });
+        let title: vibe_cs_domain::TimelineClip = serde_json::from_value(title).unwrap();
+        let mut disabled = title.clone();
+        disabled.placement.enabled = false;
+
+        for (clips, ready) in [
+            (vec![title], true),
+            (vec![disabled], false),
+            (vec![], false),
+        ] {
+            (project, _) = storage
+                .apply_project_patch(
+                    ProjectPatch {
+                        project_id,
+                        base_revision: project.revision,
+                        scope: ProjectPatchScope::Project,
+                        author: ProjectChangeAuthor::Human,
+                        reverts_change_group_id: None,
+                        summary: "Set title content".to_owned(),
+                        operations: vec![ProjectEditOperation::ReplaceTrackClips {
+                            track_id: project.document.story_track_id,
+                            clips,
+                        }],
+                    },
+                    Uuid::new_v4(),
+                    Utc::now(),
+                )
+                .await
+                .unwrap();
+            let (status, gate) = call(
+                &router,
+                Method::GET,
+                &format!("/api/projects/{project_id}/delivery-gate"),
+                None,
+            )
+            .await;
+            assert_eq!(status, 200);
+            assert_eq!(gate["ready"], ready);
+            assert_eq!(gate["blockers"], json!([]));
+            assert_eq!(
+                ProjectDelivery::resolve(&storage, project.clone())
+                    .await
+                    .unwrap()
+                    .into_render("project_delivery_gate_failed")
+                    .is_ok(),
+                ready
+            );
+        }
     }
 
     /// A stored audio row that still says `Ready`; whether the file behind it

@@ -34,7 +34,6 @@ import type {
   AgentSessionQuery,
   AgentSessionStorageStats,
   AgentStatus,
-  AgentTurnUpdate,
   AgentWorkspaceSettings,
   AnalysisRun,
   AnalysisRunDetail,
@@ -512,11 +511,6 @@ export const commands = {
     request<AgentSessionEntry>(`/agent/sessions/${encodeURIComponent(sessionId)}/entries`, {
       method: 'POST', body: draft,
     }),
-  updateAgentTurn: (sessionId: string, entryId: string, update: AgentTurnUpdate) =>
-    request<AgentSessionEntry>(
-      `/agent/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(entryId)}`,
-      { method: 'PUT', body: update },
-    ),
   listProjects: (signal?: AbortSignal) => request<Project[]>('/projects', { signal }),
   getProject: (projectId: string, signal?: AbortSignal) =>
     request<Project>(`/projects/${encodeURIComponent(projectId)}`, { signal }),

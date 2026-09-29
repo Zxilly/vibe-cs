@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, AgentSessionEntryDraft, AgentTurnUpdate, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../../../shared/desktop/dto';
+import type { AgentSession, AgentSessionEntryDraft, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../../../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../../../data/nativeShell';
 import { renderPage } from '../../../test/renderPage';
 import { stubMatchMedia } from '../../../design/layout/collapse.testing';
@@ -541,7 +541,6 @@ function renderWorkspace({
   switchMulticamAngle,
   streamAgentChat,
   appendAgentSessionEntry,
-  updateAgentTurn,
   cancelAgentChat,
   route,
   shell,
@@ -580,7 +579,6 @@ function renderWorkspace({
   readonly switchMulticamAngle?: ReturnType<typeof vi.fn> | undefined;
   readonly streamAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly appendAgentSessionEntry?: ReturnType<typeof vi.fn> | undefined;
-  readonly updateAgentTurn?: ReturnType<typeof vi.fn> | undefined;
   readonly cancelAgentChat?: ReturnType<typeof vi.fn> | undefined;
   readonly route?: string | undefined;
   readonly shell?: NativeShell | undefined;
@@ -614,7 +612,6 @@ function renderWorkspace({
       ...(switchMulticamAngle === undefined ? {} : { switchMulticamAngle }),
       ...(streamAgentChat === undefined ? {} : { streamAgentChat }),
       ...(appendAgentSessionEntry === undefined ? {} : { appendAgentSessionEntry }),
-      ...(updateAgentTurn === undefined ? {} : { updateAgentTurn }),
       ...(cancelAgentChat === undefined ? {} : { cancelAgentChat }),
       getProjectEditLease: () => Promise.resolve(lease),
       agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
@@ -7353,27 +7350,14 @@ describe('unified project workspace', () => {
     let sequence = 0;
     const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
       sequence += 1;
-      if (draft.kind === 'tool_decision') {
-        return {
-          kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:02:00Z',
-          tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
-        };
-      }
-      if (draft.kind === 'user') {
-        return { kind: 'user' as const, id: `user-${sequence}`, at: '2026-08-28T10:02:00Z', content: draft.content };
-      }
+      if (draft.kind !== 'tool_decision') throw new Error('only human decisions may be appended');
       return {
-        kind: 'assistant' as const, id: `assistant-${sequence}`, at: '2026-08-28T10:02:00Z',
-        content: draft.content, tool_calls: draft.tool_calls, status: draft.status,
-        request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+        kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:02:00Z',
+        tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
       };
     });
-    const streamAgentChat = vi.fn(async () => ({ sessionId: 'unexpected-follow-up' }));
-    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
-      kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:02:00Z',
-      request_id: 'unexpected-follow-up', retry_of: null, ...update,
-    }));
-    renderWorkspace({ session, appendAgentSessionEntry, streamAgentChat, updateAgentTurn });
+    const streamAgentChat = vi.fn();
+    renderWorkspace({ session, appendAgentSessionEntry, streamAgentChat });
 
     fireEvent.click(await screen.findByRole('button', { name: '拒绝' }));
     await waitFor(() => expect(appendAgentSessionEntry).toHaveBeenCalledWith(
@@ -7528,32 +7512,25 @@ describe('unified project workspace', () => {
     let sequence = 0;
     const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
       sequence += 1;
-      if (draft.kind === 'tool_decision') {
-        return {
-          kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:03:00Z',
-          tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
-        };
-      }
-      if (draft.kind === 'user') {
-        return { kind: 'user' as const, id: `user-${sequence}`, at: '2026-08-28T10:03:00Z', content: draft.content };
-      }
+      if (draft.kind !== 'tool_decision') throw new Error('only human decisions may be appended');
       return {
-        kind: 'assistant' as const, id: `assistant-${sequence}`, at: '2026-08-28T10:03:00Z',
-        content: draft.content, tool_calls: draft.tool_calls, status: draft.status,
-        request_id: draft.request_id, retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
+        kind: 'tool_decision' as const, id: `decision-${sequence}`, at: '2026-08-28T10:03:00Z',
+        tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
       };
     });
-    const streamAgentChat = vi.fn(async () => ({ sessionId: 'return-feedback-turn' }));
-    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
-      kind: 'assistant' as const, id: entryId, at: '2026-08-28T10:03:01Z',
-      request_id: 'return-feedback-turn', retry_of: null, ...update,
+    const streamAgentChat = vi.fn(async ({ requestId }: { readonly requestId: string }) => ({
+      sessionId: session.id,
+      turn: {
+        kind: 'assistant' as const, id: 'returned-feedback-turn', at: '2026-08-28T10:03:01Z',
+        request_id: requestId, retry_of: null, content: '已按意见修改。',
+        status: 'completed' as const, tool_calls: [], error: null, metadata: null,
+      },
     }));
     renderWorkspace({
       session,
       groups: [group],
       appendAgentSessionEntry,
       streamAgentChat,
-      updateAgentTurn,
     });
 
     fireEvent.click(await screen.findByRole('button', { name: '退回修改' }));
@@ -7627,44 +7604,23 @@ describe('unified project workspace', () => {
     };
     let finishStream!: () => void;
     const pendingStream = new Promise<void>((resolve) => { finishStream = resolve; });
-    const streamAgentChat = vi.fn(async () => {
+    const streamAgentChat = vi.fn(async ({ requestId }: { readonly requestId: string }) => {
       await pendingStream;
-      return { sessionId: 'thread-streaming-lock' };
-    });
-    const appendAgentSessionEntry = vi.fn(async (_sessionId: string, draft: AgentSessionEntryDraft) => {
-      if (draft.kind === 'user') return { kind: 'user' as const, id: 'stream-user', at: PROJECT.updated_at, content: draft.content };
-      if (draft.kind !== 'assistant') throw new Error('expected an assistant streaming turn');
       return {
-        kind: 'assistant' as const,
-        id: 'stream-assistant',
-        at: PROJECT.updated_at,
-        content: draft.content,
-        tool_calls: draft.tool_calls,
-        status: draft.status,
-        request_id: draft.request_id,
-        retry_of: draft.retry_of,
-        error: draft.error,
-        metadata: draft.metadata,
+        sessionId: session.id,
+        turn: {
+          kind: 'assistant' as const, id: 'stream-assistant', at: PROJECT.updated_at,
+          request_id: requestId, retry_of: null, content: '已完成。',
+          status: 'completed' as const, tool_calls: [], error: null, metadata: null,
+        },
       };
     });
-    const updateAgentTurn = vi.fn(async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => ({
-      kind: 'assistant' as const,
-      id: entryId,
-      at: PROJECT.updated_at,
-      content: update.content,
-      tool_calls: update.tool_calls,
-      status: update.status,
-      request_id: 'stream-request',
-      retry_of: null,
-      error: update.error,
-      metadata: update.metadata,
-    }));
+    const appendAgentSessionEntry = vi.fn();
     renderWorkspace({
       session,
       lease: null,
       streamAgentChat,
       appendAgentSessionEntry,
-      updateAgentTurn,
       cancelAgentChat: vi.fn(async () => true),
     });
 
@@ -7700,7 +7656,8 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(screen.getByRole('menu', { name: '标记操作' }), { key: 'Escape' });
 
     finishStream();
-    await waitFor(() => expect(updateAgentTurn).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Agent 正在编辑 · 你暂时只能查看')).toBeNull());
+    expect(appendAgentSessionEntry).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByRole('button', { name: '添加到时间轴' })).toBeTruthy());
     openAddCommands();
     expect(screen.getByRole('menuitem', { name: '在播放头添加文字' }).getAttribute('aria-disabled')).not.toBe('true');

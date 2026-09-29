@@ -554,7 +554,6 @@ export type { DesktopAgentCommandError as AgentCommandError } from './generated/
 
 export type { AgentTurnStatus } from './generated/AgentTurnStatus';
 export type { AgentTurnMetadata } from './generated/AgentTurnMetadata';
-export type { AgentTurnUpdate } from './generated/AgentTurnUpdate';
 export type { AgentToolDecisionKind } from './generated/AgentToolDecisionKind';
 
 export type { AgentSessionEntry } from './generated/AgentSessionEntry';

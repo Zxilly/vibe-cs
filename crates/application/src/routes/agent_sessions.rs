@@ -4,14 +4,14 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use serde::Deserialize;
 use uuid::Uuid;
 use vibe_cs_domain::{
     AGENT_SESSION_MAX_TITLE_CHARS, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionPurge, AgentSessionQuery,
-    AgentSessionStorageStats, AgentTurnUpdate, AgentWorkspaceSettings,
+    AgentSessionStorageStats, AgentWorkspaceSettings,
 };
 
 use crate::{ApiError, ApiJson, ApiQuery, ApiResult, AppState};
@@ -29,10 +29,6 @@ pub(crate) fn router() -> Router<AppState> {
                 .delete(delete_session),
         )
         .route("/api/agent/sessions/{id}/entries", post(append_entry))
-        .route(
-            "/api/agent/sessions/{id}/turns/{entry_id}",
-            put(update_turn),
-        )
         .route(
             "/api/agent/workspace/settings",
             get(get_workspace_settings).put(set_workspace_settings),
@@ -124,19 +120,6 @@ async fn append_entry(
         .await?
         .ok_or_else(|| ApiError::not_found("agent session"))?;
     Ok((StatusCode::CREATED, Json(entry)))
-}
-
-async fn update_turn(
-    State(state): State<AppState>,
-    Path((id, entry_id)): Path<(Uuid, Uuid)>,
-    ApiJson(update): ApiJson<AgentTurnUpdate>,
-) -> ApiResult<Json<AgentSessionEntry>> {
-    state
-        .storage
-        .update_agent_turn(id, entry_id, update)
-        .await?
-        .map(Json)
-        .ok_or_else(|| ApiError::not_found("agent session"))
 }
 
 async fn get_workspace_settings(

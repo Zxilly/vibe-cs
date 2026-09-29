@@ -1,56 +1,7 @@
 /**
- * data layer — Agent sessions (spec §2 `data/sessions.ts`, §4.5, §4.6).
- *
- * ## There is no adapter here
- *
- * §4.6 listed ten contract gaps and proposed a short-term frontend adapter with
- * `localStorage` standing in for titles and refs. **That is not what this file
- * is.** The ten routes landed on the backend before this phase started
- * (`crates/application/src/routes/agent_sessions.rs`), so every hook below is a
- * direct call and nothing about a session, a reference or a revision is kept in
- * browser storage. A field the backend does not have is reported as a gap in
- * `pages/agent/agentContract.ts`'s header and omitted from the UI; it is never
- * reconstructed on the client.
- *
- * ## §4.5.1's three lifecycles, and what that means for invalidation
- *
- *   Session    一条对话线程。删除只删对话，它改过的方案、任务、视频全部留下。
- *   Object     方案 / 录制任务 / 剪辑工程 / 输出。存在于会话之外。
- *   Reference  一次操作的双向记录。
- *
- * The invalidation rules follow from those three sentences, and the one that is
- * easiest to get wrong is stated as a prohibition:
- *
- *   **Deleting a session must not invalidate `qk.plans.*`.** The plans it
- *   touched are untouched by the deletion — the server keeps the origin trail,
- *   which captured `session_title` at edit time precisely so it survives (see
- *   `AgentPlanOrigin` in dto.ts). Invalidating plans here would refetch them for
- *   no reason and, worse, would encode 「会话拥有方案」 in the cache, which is
- *   the relationship §4.5.1 says does not exist. `sessions.interaction.test.tsx`
- *   asserts the *absence* of that invalidation.
- *
- * The reverse direction does invalidate both, and for a real reason: touching an
- * object writes a row that both `qk.sessions.detail(id)` (the session's refs)
- * and `qk.sessions.ofObject(kind, id)` (the object's 「改动来源」) read.
- *
- * ## 流式期间 data/ 怎么表达
- *
- * The Agent's reply arrives over the `agent_chat` Tauri `Channel` — the one
- * streaming command in the bridge (§4.7) — not by polling. So:
- *
- *   **The stream is never a query.** A `useQuery` whose data mutates dozens of
- *   times a second would re-render every subscriber of that key, would fight
- *   `staleTime`, and would leave a half-finished answer in the cache when the
- *   window closes. `useAgentChatStream` keeps the in-flight text in React state
- *   in the component that shows it, and the cache learns nothing until the
- *   stream completes.
- *
- *   **The session is the record; the stream is not.** This hook writes the user
- *   entry and a stable assistant turn before opening the channel, then commits
- *   the complete local result once as completed/cancelled/failed.
- *
- *   **Every terminal state invalidates.** Cancellation and failure are durable
- *   states with retry identity, not missing assistant messages.
+ * Durable AgentSession queries and the renderer Adapter for the host-owned Agent turn.
+ * The host persists requests, terminal replies and tool evidence before returning them.
+ * This Module holds only the live projection and sends instruction/cancel intents.
  */
 
 import { t } from '@lingui/core/macro';
@@ -326,16 +277,11 @@ export interface AgentToolActivity {
 }
 
 export interface AgentChatStreamOptions {
-  /** The session the two entries are appended to. `null` disables `send`. */
+  /** The durable session to continue. `null` disables `send`. */
   readonly sessionId: string | null;
 }
 
-/**
- * One in-flight `agent_chat` request, plus the two session writes around it.
- *
- * Held by the page shell, not by a bubble list — see `agentContract.ts`. The
- * text lives in state here and reaches the cache only at `complete`.
- */
+/** One live projection of a Desktop-owned Agent turn. */
 export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatStream {
   const client = useDesktopClient();
   const queryClient = useQueryClient();
@@ -344,261 +290,99 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const [error, setError] = useState<string | null>(null);
   const [activity, setActivity] = useState<readonly AgentToolActivity[]>([]);
   const requestIdRef = useRef<string | null>(null);
-  const turnRef = useRef<{
-    readonly sessionId: string;
-    readonly entryId: string;
-    readonly status: 'pending' | 'streaming';
-    readonly projectId: string;
-  } | null>(null);
-  const inflightRef = useRef<{ text: string; toolCalls: AgentToolCall[] }>({ text: '', toolCalls: [] });
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    // Set on entry as well as cleared on exit: an effect that only cleared it
-    // would leave the hook permanently mute after React re-ran the effect
-    // (strict mode does exactly that on mount).
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // Leaving the page must not leave a request running in the backend.
-      if (requestIdRef.current !== null) {
-        void client.cancelAgentChat(requestIdRef.current).catch((cause: unknown) => {
+      const requestId = requestIdRef.current;
+      requestIdRef.current = null;
+      if (requestId !== null) {
+        void client.cancelAgentChat(requestId).catch((cause: unknown) => {
           console.error('Unable to stop the Agent while leaving the workspace', cause);
         });
       }
-      requestIdRef.current = null;
-      const turn = turnRef.current;
-      turnRef.current = null;
-      if (turn !== null) {
-        const inflight = inflightRef.current;
-        void (async () => {
-          await client.updateAgentTurn(turn.sessionId, turn.entryId, {
-            expected_status: turn.status,
-            status: 'cancelled',
-            content: inflight.text,
-            tool_calls: inflight.toolCalls,
-            error: null,
-            metadata: null,
-          });
-          await Promise.all([
-            invalidateSessions(queryClient),
-            invalidateAgentProject(queryClient, turn.projectId),
-          ]);
-        })().catch((cause: unknown) => {
-          console.error('Unable to save the stopped Agent turn while leaving the workspace', cause);
-        });
-      }
     };
-  }, [client, queryClient]);
+  }, [client]);
 
   const cancel = useCallback(() => {
     const requestId = requestIdRef.current;
     if (requestId === null) return;
-    requestIdRef.current = null;
-    setStreaming(false);
-    setDraft('');
-    setActivity([]);
-    const reportCancellationError = (cause: unknown) => {
-      if (mountedRef.current && requestIdRef.current === null) {
+    // Keep the live projection until the host confirms its durable terminal turn.
+    void client.cancelAgentChat(requestId).catch((cause: unknown) => {
+      if (mountedRef.current && requestIdRef.current === requestId) {
         const detail = messageOf(cause);
         setError(t`停止 Agent 时发生错误：${detail}`);
       }
-    };
-    void client.cancelAgentChat(requestId).catch(reportCancellationError);
-    const turn = turnRef.current;
-    turnRef.current = null;
-    if (turn !== null) {
-      const inflight = inflightRef.current;
-      void (async () => {
-        await client.updateAgentTurn(turn.sessionId, turn.entryId, {
-          expected_status: turn.status,
-          status: 'cancelled',
-          content: inflight.text,
-          tool_calls: inflight.toolCalls,
-          error: null,
-          metadata: null,
-        });
-        await Promise.all([
-          invalidateSessions(queryClient),
-          invalidateAgentProject(queryClient, turn.projectId),
-        ]);
-      })().catch(reportCancellationError);
-    }
-    inflightRef.current = { text: '', toolCalls: [] };
-  }, [client, queryClient]);
+    });
+  }, [client]);
 
   const sessionId = options.sessionId;
-
-  const send = useCallback(
-    async (input: AgentChatSend) => {
-      const targetSessionId = input.sessionId ?? sessionId;
-      if (targetSessionId === null || requestIdRef.current !== null) return;
-
-      const requestId = createRequestId();
-      requestIdRef.current = requestId;
-      setStreaming(true);
-      setDraft('');
-      setError(null);
-      setActivity([]);
-      inflightRef.current = { text: '', toolCalls: [] };
-
-      try {
-        // The user entry is written first, so a failed stream still leaves the
-        // question in the transcript rather than losing what the user typed.
-        await client.appendAgentSessionEntry(targetSessionId, {
-          kind: 'user',
-          content: input.message,
-        });
+  const send = useCallback(async (input: AgentChatSend) => {
+    const targetSessionId = input.sessionId ?? sessionId;
+    if (targetSessionId === null || requestIdRef.current !== null) return;
+    const requestId = createRequestId();
+    requestIdRef.current = requestId;
+    setStreaming(true);
+    setDraft('');
+    setError(null);
+    setActivity([]);
+    let text = '';
+    try {
+      const result = await client.streamAgentChat(buildChatInput(requestId, targetSessionId, input), (event: AgentEvent) => {
         if (requestIdRef.current !== requestId) return;
-        const activeTurn = await client.appendAgentSessionEntry(targetSessionId, {
-          kind: 'assistant',
-          content: '',
-          tool_calls: [],
-          status: 'streaming',
-          request_id: requestId,
-          retry_of: input.retryOf ?? null,
-          error: null,
-          metadata: null,
-        });
-        if (activeTurn.kind !== 'assistant') {
-          throw new Error('agent turn creation did not return an assistant entry');
-        }
-        if (requestIdRef.current !== requestId) {
-          await client.updateAgentTurn(targetSessionId, activeTurn.id, {
-            expected_status: 'streaming', status: 'cancelled', content: '',
-            tool_calls: [], error: null, metadata: null,
-          });
-          await invalidateSessions(queryClient);
-          return;
-        }
-        turnRef.current = {
-          sessionId: targetSessionId,
-          entryId: activeTurn.id,
-          status: 'streaming',
-          projectId: input.projectId,
-        };
-        await invalidateSessions(queryClient);
-        if (requestIdRef.current !== requestId) return;
-
-        let text = '';
-        const toolCalls: AgentChatEventPayload['toolCalls'] = [];
-        const completionMetadata = {
-          current: null as Extract<AgentEvent, { type: 'complete' }>['metadata'] | null,
-        };
-        let failure: string | null = null;
-
-        const onEvent = (event: AgentEvent) => {
-          if (requestIdRef.current !== requestId) return;
-          switch (event.type) {
-            case 'textDelta':
-              text += event.delta;
-              inflightRef.current = { ...inflightRef.current, text };
-              if (mountedRef.current) setDraft(text);
-              break;
-            case 'toolCallStarted': {
-              const running = runningToolActivity(event.toolCall);
-              if (mountedRef.current) {
-                setActivity((current) => upsertToolActivity(current, running));
-              }
-              break;
+        switch (event.type) {
+          case 'started':
+            void invalidateSessions(queryClient);
+            break;
+          case 'textDelta':
+            text += event.delta;
+            if (mountedRef.current) setDraft(text);
+            break;
+          case 'toolCallStarted':
+            if (mountedRef.current) setActivity((current) => upsertToolActivity(current, runningToolActivity(event.toolCall)));
+            break;
+          case 'toolCallFinished':
+            if (mountedRef.current) setActivity((current) => upsertToolActivity(current, event.toolCall));
+            if (event.toolCall.status === 'completed' && projectMutatingTool(event.toolCall.name)) {
+              void invalidateAgentProject(queryClient, input.projectId);
             }
-            case 'toolCallFinished':
-              toolCalls.push(event.toolCall);
-              inflightRef.current = { ...inflightRef.current, toolCalls: [...toolCalls] };
-              if (mountedRef.current) {
-                setActivity((current) => upsertToolActivity(current, event.toolCall));
-              }
-              if (event.toolCall.status === 'completed' && projectMutatingTool(event.toolCall.name)) {
-                void invalidateAgentProject(queryClient, input.projectId);
-              }
-              break;
-            case 'error':
-              failure = event.message;
-              break;
-            case 'complete':
-              completionMetadata.current = event.metadata;
-              break;
-            default:
-              break;
-          }
-        };
-
-        try {
-          await client.streamAgentChat(
-            buildChatInput(requestId, targetSessionId, input),
-            onEvent,
-          );
-        } catch (cause) {
-          failure = messageOf(cause);
+            break;
+          case 'complete':
+            cacheAgentTurn(queryClient, targetSessionId, event.turn);
+            break;
         }
-        // `cancel` clears the ref, so this is how a cancelled request is told
-        // apart from one that finished. `cancel` has already persisted the exact
-        // partial text and terminal tool calls under a cancelled turn status;
-        // this branch only prevents the stream task from overwriting that state.
-        if (requestIdRef.current !== requestId) return;
-
-        const turn = turnRef.current;
-        turnRef.current = null;
-        if (turn === null) return;
-        const terminalTurn = await client.updateAgentTurn(turn.sessionId, turn.entryId, {
-          expected_status: turn.status,
-          status: failure === null ? 'completed' : 'failed',
-          content: text,
-          tool_calls: toolCalls,
-          error: failure,
-          metadata: failure !== null || completionMetadata.current === null ? null : {
-            provider: completionMetadata.current.provider,
-            model: completionMetadata.current.model,
-            input_tokens: completionMetadata.current.inputTokens,
-            output_tokens: completionMetadata.current.outputTokens,
-            total_tokens: completionMetadata.current.totalTokens,
-            cached_input_tokens: completionMetadata.current.cachedInputTokens,
-            reasoning_tokens: completionMetadata.current.reasoningTokens,
-            estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
-          },
-        });
-        cacheAgentTurn(queryClient, turn.sessionId, terminalTurn);
-        if (requestIdRef.current !== requestId) return;
+      });
+      // The returned turn is already durable, including cancellation and provider failures.
+      cacheAgentTurn(queryClient, result.sessionId, result.turn);
+      if (requestIdRef.current === requestId && mountedRef.current) {
+        setError(result.turn.kind === 'assistant' ? result.turn.error : null);
+        setDraft('');
+      }
+    } catch (cause) {
+      if (requestIdRef.current === requestId && mountedRef.current) {
+        const detail = messageOf(cause);
+        setError(t`对话保存失败，请重试。${detail}`);
+      }
+      throw cause;
+    } finally {
+      if (requestIdRef.current === requestId) {
+        requestIdRef.current = null;
         if (mountedRef.current) {
-          setError(failure);
           setStreaming(false);
-          setDraft('');
           setActivity([]);
         }
-        inflightRef.current = { text: '', toolCalls: [] };
-        requestIdRef.current = null;
-        await Promise.all([
-          invalidateSessions(queryClient),
-          invalidateAgentProject(queryClient, turn.projectId),
-        ]);
-      } catch (cause) {
-        if (requestIdRef.current !== requestId) return;
-        if (mountedRef.current) {
-          const detail = messageOf(cause);
-          setError(t`对话保存失败，请重试。${detail}`);
-        }
-        throw cause;
-      } finally {
-        if (requestIdRef.current === requestId) {
-          requestIdRef.current = null;
-          turnRef.current = null;
-          inflightRef.current = { text: '', toolCalls: [] };
-          if (mountedRef.current) {
-            setStreaming(false);
-            setActivity([]);
-          }
-        }
       }
-    },
-    [client, queryClient, sessionId],
-  );
+      await Promise.all([
+        invalidateSessions(queryClient),
+        invalidateAgentProject(queryClient, input.projectId),
+      ]);
+    }
+  }, [client, queryClient, sessionId]);
 
   return { streaming, draft, error, activity, send, cancel };
 }
-
-type AgentChatEventPayload = {
-  toolCalls: AgentToolCall[];
-};
 
 function runningToolActivity(call: AgentToolCallStarted): AgentToolActivity {
   return { ...call, output: null, status: 'running' };
@@ -652,6 +436,7 @@ function buildChatInput(
     requestId,
     sessionId,
     projectId: input.projectId,
+    retryOf: input.retryOf ?? null,
     workspaceContext: {
       projectId: context.projectId ?? input.projectId,
       lens: context.lens ?? 'quick',

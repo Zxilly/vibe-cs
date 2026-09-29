@@ -17,11 +17,12 @@ use vibe_cs_agent::{
     AgentToolHost, Cancellation,
 };
 use vibe_cs_domain::{
-    AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
-    HlaeCameraStyle, LlmParameterStyle, ProjectChangeAuthor, ProjectEditLease,
-    ProjectEditOperation, ProjectPatch, ProjectPatchScope, RecordingPresentation,
-    RecordingVoicePolicy, RoundReplayArtifact, TimelineClip, TimelineClipMaterial,
-    TimelineClipTransitions, TimelinePlacement, Transform,
+    AGENT_SESSION_MAX_CONTENT_CHARS, AGENT_SESSION_MAX_TOOL_CALLS, AgentSessionEntry,
+    AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AgentTurnMetadata, AgentTurnStatus,
+    AgentTurnUpdate, AnalysisRunStatus, CaptureIntent, HlaeCameraStyle, LlmParameterStyle,
+    ProjectChangeAuthor, ProjectEditLease, ProjectEditOperation, ProjectPatch, ProjectPatchScope,
+    RecordingPresentation, RecordingVoicePolicy, RoundReplayArtifact, TimelineClip,
+    TimelineClipMaterial, TimelineClipTransitions, TimelinePlacement, Transform,
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
@@ -1035,27 +1036,15 @@ pub(crate) struct AgentToolCallStarted {
     input: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[ts(export, rename = "DesktopAgentTurnMetadata")]
-pub(crate) struct AgentTurnMetadata {
-    provider: String,
-    model: String,
-    input_tokens: Option<u64>,
-    output_tokens: Option<u64>,
-    total_tokens: Option<u64>,
-    cached_input_tokens: Option<u64>,
-    reasoning_tokens: Option<u64>,
-    estimated_cost_usd: Option<f64>,
-}
-
-#[derive(Debug, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, rename = "DesktopAgentChatInput")]
 pub(crate) struct AgentChatInput {
     request_id: Uuid,
     session_id: Uuid,
     project_id: Uuid,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    retry_of: Option<Uuid>,
     workspace_context: AgentWorkspaceContext,
     message: String,
 }
@@ -1108,8 +1097,7 @@ pub(crate) enum AgentEvent {
     TextDelta { delta: String },
     ToolCallStarted { tool_call: AgentToolCallStarted },
     ToolCallFinished { tool_call: DomainAgentToolCall },
-    Complete { metadata: AgentTurnMetadata },
-    Error { message: String },
+    Complete { turn: AgentSessionEntry },
 }
 
 fn domain_tool_call(value: vibe_cs_agent::CapturedToolCall) -> DomainAgentToolCall {
@@ -1133,6 +1121,7 @@ fn domain_tool_call(value: vibe_cs_agent::CapturedToolCall) -> DomainAgentToolCa
 #[ts(export, rename = "DesktopAgentChatResult")]
 pub(crate) struct AgentChatResult {
     session_id: Uuid,
+    turn: AgentSessionEntry,
 }
 
 #[derive(Debug, Serialize, ts_rs::TS)]
@@ -1200,21 +1189,21 @@ async fn resolved_agent_config(
             AgentCommandError::internal(format!("unable to read agent configuration: {error}"))
         })?
         .unwrap_or_default();
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(test)))]
     let mut config = config;
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(test)))]
     let development_key = std::env::var("VIBE_CS_AGENT_API_KEY")
         .ok()
         .filter(|value| !value.trim().is_empty());
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(test)))]
     if development_key.is_some() {
         "kimi-for-coding".clone_into(&mut config.llm.provider);
         "k3".clone_into(&mut config.llm.model);
         "https://api.kimi.com/coding/v1".clone_into(&mut config.llm.base_url);
     }
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, not(test)))]
     let api_key = development_key.unwrap_or_else(|| config.llm.api_key.clone());
-    #[cfg(not(debug_assertions))]
+    #[cfg(any(not(debug_assertions), test))]
     let api_key = config.llm.api_key.clone();
     Ok((config, api_key))
 }
@@ -1240,7 +1229,6 @@ async fn chat(
         ));
     }
     validate_workspace_context(&input)?;
-    let session_id = input.session_id;
     let cancellation = Arc::new(Cancellation::new());
     {
         let mut cancellations = state.cancellations.lock().await;
@@ -1251,16 +1239,253 @@ async fn chat(
         }
         cancellations.insert(input.request_id, Arc::clone(&cancellation));
     }
-    let result =
-        run_scheduled_agent_chat(state, &input, &on_event, session_id, &cancellation).await;
-    let mut cancellations = state.cancellations.lock().await;
-    if cancellations
-        .get(&input.request_id)
-        .is_some_and(|current| Arc::ptr_eq(current, &cancellation))
-    {
-        cancellations.remove(&input.request_id);
+    let _waiter = CancelAgentOnDrop(Arc::clone(&cancellation));
+    let owned_state = state.clone();
+    // The supervisor outlives a dropped IPC waiter. It always owns terminal persistence.
+    tokio::spawn(async move {
+        let stream = Arc::new(AgentTurnStream::new(on_event, Arc::clone(&cancellation)));
+        let result = run_owned_agent_chat(&owned_state, input.clone(), Arc::clone(&stream)).await;
+        stream.stop_heartbeat();
+        owned_state
+            .cancellations
+            .lock()
+            .await
+            .remove(&input.request_id);
+        result
+    })
+    .await
+    .map_err(|error| AgentCommandError::internal(format!("Agent supervisor failed: {error}")))?
+}
+
+struct CancelAgentOnDrop(Arc<Cancellation>);
+
+impl Drop for CancelAgentOnDrop {
+    fn drop(&mut self) {
+        self.0.cancel();
     }
-    result
+}
+
+#[derive(Default)]
+struct AgentTurnProgress {
+    content: String,
+    pending_text: String,
+    tool_calls: Vec<DomainAgentToolCall>,
+    omitted_tools: usize,
+    text_truncated: bool,
+}
+
+struct AgentTurnStream {
+    channel: Channel<AgentEvent>,
+    cancellation: Arc<Cancellation>,
+    progress: std::sync::Mutex<AgentTurnProgress>,
+    heartbeat: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+impl AgentTurnStream {
+    fn new(channel: Channel<AgentEvent>, cancellation: Arc<Cancellation>) -> Self {
+        Self {
+            channel,
+            cancellation,
+            progress: std::sync::Mutex::new(AgentTurnProgress::default()),
+            heartbeat: std::sync::Mutex::new(None),
+        }
+    }
+
+    fn send(&self, event: AgentEvent) {
+        let event = {
+            let mut progress = self.progress.lock().expect("Agent projection lock");
+            match event {
+                AgentEvent::TextDelta { delta } => {
+                    let remaining = AGENT_SESSION_MAX_CONTENT_CHARS
+                        .saturating_sub(progress.content.chars().count());
+                    progress.text_truncated |= delta.chars().count() > remaining;
+                    progress.content.extend(delta.chars().take(remaining));
+                    progress.pending_text.push_str(&delta);
+                    if progress.pending_text.len() < TEXT_DELTA_BATCH_BYTES {
+                        return;
+                    }
+                    AgentEvent::TextDelta {
+                        delta: std::mem::take(&mut progress.pending_text),
+                    }
+                }
+                AgentEvent::ToolCallFinished { ref tool_call } => {
+                    if progress.tool_calls.len() == AGENT_SESSION_MAX_TOOL_CALLS {
+                        progress.tool_calls.remove(0);
+                        progress.omitted_tools += 1;
+                    }
+                    progress.tool_calls.push(tool_call.clone());
+                    event
+                }
+                _ => event,
+            }
+        };
+        if self.channel.send(event).is_err() {
+            self.cancellation.cancel();
+        }
+    }
+
+    fn flush(&self) {
+        let delta = std::mem::take(
+            &mut self
+                .progress
+                .lock()
+                .expect("Agent projection lock")
+                .pending_text,
+        );
+        if !delta.is_empty() && self.channel.send(AgentEvent::TextDelta { delta }).is_err() {
+            self.cancellation.cancel();
+        }
+    }
+
+    fn stop_heartbeat(&self) {
+        if let Some(task) = self.heartbeat.lock().expect("Agent heartbeat lock").take() {
+            task.abort();
+        }
+    }
+}
+
+impl Drop for AgentTurnStream {
+    fn drop(&mut self) {
+        self.stop_heartbeat();
+    }
+}
+
+async fn run_owned_agent_chat(
+    state: &AgentBridge,
+    input: AgentChatInput,
+    stream: Arc<AgentTurnStream>,
+) -> Result<AgentChatResult, AgentCommandError> {
+    let turn = state
+        .storage
+        .begin_agent_turn(
+            input.session_id,
+            input.request_id,
+            input.message.clone(),
+            input.retry_of,
+        )
+        .await
+        .map_err(|error| {
+            AgentCommandError::internal(format!("unable to start durable Agent turn: {error}"))
+        })?;
+    stream.send(AgentEvent::Started {
+        session_id: input.session_id,
+    });
+    let runner_state = state.clone();
+    let runner_input = input.clone();
+    let runner_stream = Arc::clone(&stream);
+    let session_lock = state.session_lock(input.session_id).await;
+    let session_guard = tokio::select! {
+        guard = session_lock.lock() => Some(guard),
+        () = stream.cancellation.cancelled() => None,
+    };
+    let result = if session_guard.is_some() {
+        tokio::spawn(async move {
+            run_scheduled_agent_chat(
+                &runner_state,
+                &runner_input,
+                &runner_stream,
+                runner_input.session_id,
+                &runner_stream.cancellation,
+            )
+            .await
+        })
+        .await
+        .unwrap_or_else(|error| {
+            Err(AgentCommandError::internal(format!(
+                "Agent runner failed: {error}"
+            )))
+        })
+    } else {
+        Err(AgentCommandError::unavailable(
+            "agent request was cancelled",
+        ))
+    };
+    stream.flush();
+    let cancelled = stream.cancellation.is_cancelled();
+    let update = {
+        let progress = stream.progress.lock().expect("Agent projection lock");
+        let mut content = progress.content.clone();
+        let mut notices = Vec::new();
+        if progress.omitted_tools > 0 {
+            notices.push(format!(
+                "{} earlier tool results omitted",
+                progress.omitted_tools
+            ));
+        }
+        if progress.text_truncated {
+            notices.push("reply text abbreviated".to_owned());
+        }
+        if !notices.is_empty() {
+            let notice = format!("\n[Bounded turn record: {}.]", notices.join("; "));
+            content = content
+                .chars()
+                .take(AGENT_SESSION_MAX_CONTENT_CHARS - notice.chars().count())
+                .collect();
+            content.push_str(&notice);
+        }
+        AgentTurnUpdate {
+            expected_status: AgentTurnStatus::Streaming,
+            status: if cancelled {
+                AgentTurnStatus::Cancelled
+            } else if result.is_ok() {
+                AgentTurnStatus::Completed
+            } else {
+                AgentTurnStatus::Failed
+            },
+            content,
+            tool_calls: progress.tool_calls.clone(),
+            error: if cancelled {
+                None
+            } else {
+                result.as_ref().err().map(|error| error.message.clone())
+            },
+            metadata: result.ok().map(Box::new),
+        }
+    };
+    let mut retry_delay = Duration::from_millis(25);
+    let terminal = loop {
+        match state
+            .storage
+            .finish_agent_turn(
+                input.session_id,
+                input.request_id,
+                turn.id(),
+                update.clone(),
+            )
+            .await
+        {
+            Ok(Some(turn)) => break turn,
+            Ok(None) => {
+                return Err(AgentCommandError::internal(
+                    "Agent session disappeared before its turn finished",
+                ));
+            }
+            Err(error) if error.is_transient() => {
+                tokio::time::sleep(retry_delay).await;
+                retry_delay = (retry_delay * 2).min(Duration::from_secs(1));
+            }
+            Err(error) => {
+                if let Err(cleanup) = state
+                    .storage
+                    .release_agent_turn_lease(input.session_id, input.request_id)
+                    .await
+                {
+                    tracing::error!(%cleanup, "unable to release failed Agent turn lease");
+                }
+                return Err(AgentCommandError::internal(format!(
+                    "unable to save terminal Agent turn: {error}"
+                )));
+            }
+        }
+    };
+    stream.stop_heartbeat();
+    stream.send(AgentEvent::Complete {
+        turn: terminal.clone(),
+    });
+    Ok(AgentChatResult {
+        session_id: input.session_id,
+        turn: terminal,
+    })
 }
 
 fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommandError> {
@@ -1289,18 +1514,13 @@ fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommand
 async fn run_scheduled_agent_chat(
     state: &AgentBridge,
     input: &AgentChatInput,
-    on_event: &Channel<AgentEvent>,
+    on_event: &AgentTurnStream,
     session_id: Uuid,
     cancellation: &Cancellation,
-) -> Result<AgentChatResult, AgentCommandError> {
+) -> Result<AgentTurnMetadata, AgentCommandError> {
     let _chat_permit = tokio::select! {
         permit = state.chat_gate.acquire() => permit
             .map_err(|_| AgentCommandError::unavailable("agent scheduler is closed"))?,
-        () = cancellation.cancelled() => return Err(AgentCommandError::unavailable("agent request was cancelled")),
-    };
-    let session_lock = state.session_lock(session_id).await;
-    let _session_guard = tokio::select! {
-        guard = session_lock.lock() => guard,
         () = cancellation.cancelled() => return Err(AgentCommandError::unavailable("agent request was cancelled")),
     };
     run_agent_chat(state, input, on_event, session_id, cancellation).await
@@ -1322,12 +1542,11 @@ pub(crate) async fn agent_cancel(
 async fn run_agent_chat(
     state: &AgentBridge,
     input: &AgentChatInput,
-    on_event: &Channel<AgentEvent>,
+    on_event: &AgentTurnStream,
     session_id: Uuid,
     cancellation: &Cancellation,
-) -> Result<AgentChatResult, AgentCommandError> {
+) -> Result<AgentTurnMetadata, AgentCommandError> {
     let message = input.message.trim();
-    let _ = on_event.send(AgentEvent::Started { session_id });
     let session = state
         .storage
         .get_agent_session(session_id)
@@ -1454,6 +1673,7 @@ async fn run_agent_chat(
     let heartbeat_storage = state.storage.clone();
     let heartbeat_project_id = project.id;
     let heartbeat_lease_id = lease.id;
+    let heartbeat_cancellation = Arc::clone(&on_event.cancellation);
     let lease_heartbeat = tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         interval.tick().await;
@@ -1464,10 +1684,14 @@ async fn run_agent_chat(
                 .await
             {
                 Ok(true) => {}
-                Ok(false) | Err(_) => break,
+                Ok(false) | Err(_) => {
+                    heartbeat_cancellation.cancel();
+                    break;
+                }
             }
         }
     });
+    *on_event.heartbeat.lock().expect("Agent heartbeat lock") = Some(lease_heartbeat);
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
         message: message.to_owned(),
@@ -1487,23 +1711,17 @@ async fn run_agent_chat(
         context,
         tool_host,
     };
-    let mut pending_text = String::new();
     let response = vibe_cs_agent::run_agent(request, cancellation, |event| match event {
         EmbeddedAgentStreamEvent::TextDelta(delta) => {
-            pending_text.push_str(&delta);
-            if pending_text.len() >= TEXT_DELTA_BATCH_BYTES {
-                let _ = on_event.send(AgentEvent::TextDelta {
-                    delta: std::mem::take(&mut pending_text),
-                });
-            }
+            on_event.send(AgentEvent::TextDelta { delta })
         }
         EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
-            let _ = on_event.send(AgentEvent::ToolCallStarted {
+            on_event.send(AgentEvent::ToolCallStarted {
                 tool_call: AgentToolCallStarted { id, name, input },
             });
         }
         EmbeddedAgentStreamEvent::ToolCallFinished(tool_call) => {
-            let _ = on_event.send(AgentEvent::ToolCallFinished {
+            on_event.send(AgentEvent::ToolCallFinished {
                 tool_call: domain_tool_call(tool_call),
             });
         }
@@ -1517,54 +1735,19 @@ async fn run_agent_chat(
             format!("Agent 在 {timeout_seconds} 秒内没有产生新进展。"),
         ),
     });
-    let response = match response {
-        Ok(response) => response,
-        Err(error) => {
-            if !pending_text.is_empty() {
-                let _ = on_event.send(AgentEvent::TextDelta {
-                    delta: std::mem::take(&mut pending_text),
-                });
-            }
-            let _ = state
-                .storage
-                .release_project_edit_lease(project.id, lease.id)
-                .await;
-            lease_heartbeat.abort();
-            let _ = on_event.send(AgentEvent::Error {
-                message: error.message.clone(),
-            });
-            return Err(error);
-        }
-    };
-    if !pending_text.is_empty() {
-        let _ = on_event.send(AgentEvent::TextDelta {
-            delta: std::mem::take(&mut pending_text),
-        });
-    }
-    let usage = response.usage;
-    lease_heartbeat.abort();
-    state
-        .storage
-        .release_project_edit_lease(project.id, lease.id)
-        .await
-        .map_err(|error| {
-            AgentCommandError::internal(format!("unable to release Project edit lease: {error}"))
-        })?;
-    let _ = on_event.send(AgentEvent::Complete {
-        metadata: AgentTurnMetadata {
-            provider,
-            model,
-            input_tokens: usage.map(|item| item.input_tokens),
-            output_tokens: usage.map(|item| item.output_tokens),
-            total_tokens: usage.map(|item| item.total_tokens),
-            cached_input_tokens: usage.map(|item| item.cached_input_tokens),
-            reasoning_tokens: usage.map(|item| item.reasoning_tokens),
-            // No provider pricing table is configured. Unknown is honest; zero
-            // would claim the call was free.
-            estimated_cost_usd: None,
-        },
-    });
-    Ok(AgentChatResult { session_id })
+    let usage = response?.usage;
+    Ok(AgentTurnMetadata {
+        provider,
+        model,
+        input_tokens: usage.map(|item| item.input_tokens),
+        output_tokens: usage.map(|item| item.output_tokens),
+        total_tokens: usage.map(|item| item.total_tokens),
+        cached_input_tokens: usage.map(|item| item.cached_input_tokens),
+        reasoning_tokens: usage.map(|item| item.reasoning_tokens),
+        // No provider pricing table is configured. Unknown is honest; zero
+        // would claim the call was free.
+        estimated_cost_usd: None,
+    })
 }
 
 fn project_demo_ids(project: &vibe_cs_domain::Project) -> Vec<Uuid> {
@@ -1646,6 +1829,320 @@ fn series_evidence_analysis(series: &[(Uuid, Value, Value)]) -> Value {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn host_preparation_failure_persists_turn_without_renderer_writes() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let session = storage
+            .create_agent_session("Host lifecycle".to_owned())
+            .await
+            .unwrap();
+        let state = AgentBridge::new(
+            storage.clone(),
+            DesktopBridge::new(Arc::new(tokio::sync::OnceCell::new())),
+        );
+        let project_id = Uuid::new_v4();
+        let input = serde_json::from_value(json!({
+            "requestId":Uuid::new_v4(),"sessionId":session.id,"projectId":project_id,
+            "message":"Keep my instruction", "retryOf":null, "workspaceContext":{
+                "projectId":project_id,"lens":"quick","selectedClipId":null,"selectedClipIds":[],
+                "targetTrackId":null,"targetTrackIds":[],"playheadSeconds":null,"rangeInSeconds":null,"rangeOutSeconds":null
+            }
+        })).unwrap();
+        let _ = chat(&state, input, Channel::new(|_| Ok(()))).await;
+        let persisted = storage
+            .get_agent_session(session.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            persisted.entries.len(),
+            2,
+            "the host must own the durable request and terminal reply"
+        );
+        assert!(matches!(
+            &persisted.entries[1],
+            vibe_cs_domain::AgentSessionEntry::Assistant {
+                status: Some(vibe_cs_domain::AgentTurnStatus::Failed),
+                error: Some(_),
+                ..
+            }
+        ));
+    }
+
+    async fn lifecycle_fixture(
+        outcome: &'static str,
+    ) -> (AgentBridge, AgentChatInput, tokio::task::JoinHandle<()>) {
+        use axum::{Router, response::IntoResponse, routing::post};
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let counter = Arc::new(AtomicUsize::new(0));
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let address = listener.local_addr().unwrap();
+        let router = Router::new().route(
+            "/v1/chat/completions",
+            post(move || {
+                let counter = Arc::clone(&counter);
+                async move {
+                    let index = counter.fetch_add(1, Ordering::SeqCst);
+                    if index > 0 && outcome == "stall" {
+                        std::future::pending::<()>().await;
+                    }
+                    if index > 0 && outcome == "fail" {
+                        return (axum::http::StatusCode::BAD_GATEWAY, "test provider failed").into_response();
+                    }
+                    let (delta, finish) = if index == 0 {
+                        (json!({"role":"assistant","tool_calls":[{"index":0,"id":"read-current","type":"function","function":{"name":"read_workspace","arguments":"{}"}}]}), "tool_calls")
+                    } else {
+                        (json!({"role":"assistant","content":"The workspace is current."}), "stop")
+                    };
+                    let chunk = |delta: Value, finish: Option<&str>| json!({"id":"host-test","object":"chat.completion.chunk","created":0,"model":"host-test","choices":[{"index":0,"delta":delta,"finish_reason":finish}]});
+                    let body = format!("data: {}\n\ndata: {}\n\ndata: [DONE]\n\n", chunk(delta, None), chunk(json!({}), Some(finish)));
+                    ([("content-type", "text/event-stream")], body).into_response()
+                }
+            }),
+        );
+        let provider = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let mut config = vibe_cs_domain::AppConfig::default();
+        config.llm.api_key = "host-test-key".to_owned();
+        config.llm.base_url = format!("http://{address}/v1");
+        config.llm.model = "host-test".to_owned();
+        config.llm.provider = "host-test".to_owned();
+        config.llm.parameter_style = LlmParameterStyle::OpenAi;
+        storage.put_config(config).await.unwrap();
+        let project_id = Uuid::new_v4();
+        let story_id = Uuid::new_v4();
+        let project: vibe_cs_domain::Project = serde_json::from_value(json!({
+            "id":project_id,"name":"Host turn","revision":1,"created_at":Utc::now(),"updated_at":Utc::now(),
+            "document":{"width":1920,"height":1080,"fps":60,"duration_seconds":0,"story_track_id":story_id,
+                "tracks":[{"id":story_id,"name":"Story","kind":"video","order":0,"muted":false,"solo":false,"volume":1,"pan":0,"keyframes":[],"locked":false,"hidden":false,"clips":[]}],
+                "markers":[],"settings":{"source_demo_ids":[],"ripple_sequence_markers":false,"use_media_proxies":false}}
+        })).unwrap();
+        storage.create_project(project).await.unwrap();
+        let session = storage
+            .create_agent_session("Host lifecycle".to_owned())
+            .await
+            .unwrap();
+        let input = serde_json::from_value(json!({
+            "requestId":Uuid::new_v4(),"sessionId":session.id,"projectId":project_id,"retryOf":null,
+            "message":"Read the workspace and finish", "workspaceContext":{
+                "projectId":project_id,"lens":"quick","selectedClipId":null,"selectedClipIds":[],
+                "targetTrackId":null,"targetTrackIds":[],"playheadSeconds":null,"rangeInSeconds":null,"rangeOutSeconds":null
+            }
+        })).unwrap();
+        (
+            AgentBridge::new(
+                storage,
+                DesktopBridge::new(Arc::new(tokio::sync::OnceCell::new())),
+            ),
+            input,
+            provider,
+        )
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn host_model_tool_turn_is_durable_before_complete_and_releases_lease() {
+        let (state, input, provider) = lifecycle_fixture("complete").await;
+        let project_id = input.project_id;
+        let completed = Arc::new(std::sync::Mutex::new(None));
+        let observed = Arc::clone(&completed);
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            chat(
+                &state,
+                input,
+                Channel::new(move |body| {
+                    let event: Value = body.deserialize().unwrap();
+                    if event["type"] == "complete" {
+                        *observed.lock().unwrap() = Some(event["turn"].clone());
+                    }
+                    Ok(())
+                }),
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        provider.abort();
+        let persisted = state
+            .storage
+            .get_agent_session(result.session_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(persisted.entries.last(), Some(&result.turn));
+        assert_eq!(
+            completed.lock().unwrap().as_ref(),
+            Some(&serde_json::to_value(&result.turn).unwrap())
+        );
+        assert!(
+            matches!(&result.turn,AgentSessionEntry::Assistant {status:Some(AgentTurnStatus::Completed),tool_calls,content,..} if tool_calls.len()==1 && content=="The workspace is current.")
+        );
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(state.cancellations.lock().await.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dropped_ipc_waiter_cancels_host_and_persists_completed_tool_evidence() {
+        let (state, input, provider) = lifecycle_fixture("stall").await;
+        let project_id = input.project_id;
+        let session_id = input.session_id;
+        let tool_finished = Arc::new(tokio::sync::Notify::new());
+        let observed = Arc::clone(&tool_finished);
+        let runner = state.clone();
+        let waiter = tokio::spawn(async move {
+            chat(
+                &runner,
+                input,
+                Channel::new(move |body| {
+                    let event: Value = body.deserialize().unwrap();
+                    if event["type"] == "toolCallFinished" {
+                        observed.notify_one();
+                    }
+                    Ok(())
+                }),
+            )
+            .await
+        });
+        tokio::time::timeout(Duration::from_secs(5), tool_finished.notified())
+            .await
+            .unwrap();
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_some()
+        );
+        waiter.abort();
+        tokio::time::timeout(Duration::from_secs(5),async {
+            loop {
+                let session = state.storage.get_agent_session(session_id).await.unwrap().unwrap();
+                if matches!(session.entries.last(),Some(AgentSessionEntry::Assistant {status:Some(AgentTurnStatus::Cancelled),tool_calls,..}) if tool_calls.len()==1) { break; }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }).await.unwrap();
+        provider.abort();
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn disconnected_channel_cancels_the_host_turn_without_losing_its_tools() {
+        let (state, input, provider) = lifecycle_fixture("stall").await;
+        let project_id = input.project_id;
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            chat(
+                &state,
+                input,
+                Channel::new(move |body| {
+                    let event: Value = body.deserialize().unwrap();
+                    if event["type"] == "toolCallFinished" {
+                        return Err(std::io::Error::other("test disconnected renderer").into());
+                    }
+                    Ok(())
+                }),
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        provider.abort();
+        assert!(
+            matches!(&result.turn,AgentSessionEntry::Assistant {status:Some(AgentTurnStatus::Cancelled),tool_calls,..} if tool_calls.len()==1)
+        );
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn provider_failure_keeps_completed_tools_and_terminalizes_the_same_host_turn() {
+        let (state, input, provider) = lifecycle_fixture("fail").await;
+        let project_id = input.project_id;
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            chat(&state, input, Channel::new(|_| Ok(()))),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        provider.abort();
+        assert!(
+            matches!(&result.turn,AgentSessionEntry::Assistant {status:Some(AgentTurnStatus::Failed),error:Some(_),tool_calls,..} if tool_calls.len()==1)
+        );
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn runner_panic_is_terminalized_by_the_host_supervisor() {
+        let (state, input, provider) = lifecycle_fixture("complete").await;
+        let project_id = input.project_id;
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            chat(
+                &state,
+                input,
+                Channel::new(|body| {
+                    let event: Value = body.deserialize().unwrap();
+                    assert_ne!(event["type"], "toolCallStarted", "test runner interruption");
+                    Ok(())
+                }),
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        provider.abort();
+        assert!(matches!(
+            &result.turn,
+            AgentSessionEntry::Assistant {
+                status: Some(AgentTurnStatus::Failed),
+                error: Some(_),
+                ..
+            }
+        ));
+        assert!(
+            state
+                .storage
+                .get_project_edit_lease(project_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(state.cancellations.lock().await.is_empty());
+    }
+
     #[test]
     fn story_source_offset_is_explicit_and_does_not_change_timeline_duration() {
         let input: StoryClipInput = serde_json::from_value(json!({
@@ -1753,7 +2250,7 @@ mod tests {
         });
         let input = serde_json::json!({
             "requestId":uuid::Uuid::new_v4(), "sessionId":uuid::Uuid::new_v4(),
-            "projectId":project_id, "message":"Shorten this range", "workspaceContext":workspace
+            "projectId":project_id, "message":"Shorten this range", "retryOf":null, "workspaceContext":workspace
         });
         let parsed: super::AgentChatInput =
             serde_json::from_value(input.clone()).expect("view context");

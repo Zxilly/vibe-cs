@@ -42,6 +42,11 @@ impl Cancellation {
         self.notify.notify_waiters();
     }
 
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+
     pub async fn cancelled(&self) {
         if self.cancelled.load(Ordering::Acquire) {
             return;
@@ -303,6 +308,7 @@ where
         .max_turns(usize::MAX);
     let mut stream = tokio::select! {
             () = cancellation.cancelled() => {
+                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
                 return Err(AgentError::Cancelled);
             },
             result = tokio::time::timeout(inactivity_timeout, stream) => result.map_err(|_| {
@@ -312,9 +318,11 @@ where
     loop {
         let item = tokio::select! {
             () = cancellation.cancelled() => {
+                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
                 return Err(AgentError::Cancelled);
             },
             () = tokio::time::sleep(inactivity_timeout) => {
+                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
                 return Err(AgentError::Stalled {
                     timeout_seconds: inactivity_timeout.as_secs(),
                 });
@@ -336,6 +344,9 @@ where
         let item = match item {
             Ok(item) => item,
             Err(error) => {
+                while let Ok(event) = tool_events.try_recv() {
+                    emit_tool_lifecycle(event, &mut emit);
+                }
                 return Err(AgentError::Provider(safe_error(
                     &error.to_string(),
                     &provider_secret,
@@ -356,6 +367,9 @@ where
             }
             _ => {}
         }
+    }
+    while let Ok(event) = tool_events.try_recv() {
+        emit_tool_lifecycle(event, &mut emit);
     }
     let tool_calls = state.snapshot().await;
     let content = content.trim().to_owned();
@@ -541,12 +555,17 @@ mod tests {
         net::{TcpListener, TcpStream},
     };
 
-    #[derive(Debug)]
-    struct TestToolHost;
+    #[derive(Debug, Default)]
+    struct TestToolHost {
+        cancel_after_read: Option<Cancellation>,
+    }
 
     #[async_trait::async_trait]
     impl AgentToolHost for TestToolHost {
         async fn read_workspace(&self, _input: &Value) -> Result<Value, String> {
+            if let Some(cancellation) = &self.cancel_after_read {
+                cancellation.cancel();
+            }
             Ok(json!({"workspace":{},"project":{"revision":1}}))
         }
 
@@ -658,7 +677,7 @@ mod tests {
                     provider_parameters: json!({}),
                 },
                 context: AgentContext::default(),
-                tool_host: Arc::new(TestToolHost),
+                tool_host: Arc::new(TestToolHost::default()),
             };
         assert!(
             validate_request(&request(
@@ -746,7 +765,7 @@ mod tests {
                     provider_parameters: json!({}),
                 },
                 context: AgentContext::default(),
-                tool_host: Arc::new(TestToolHost),
+                tool_host: Arc::new(TestToolHost::default()),
             },
             &Cancellation::new(),
             |_| {},
@@ -801,7 +820,7 @@ mod tests {
                     provider_parameters: json!({}),
                 },
                 context: AgentContext::default(),
-                tool_host: Arc::new(TestToolHost),
+                tool_host: Arc::new(TestToolHost::default()),
             },
             &Cancellation::new(),
             |_| {},
@@ -880,7 +899,7 @@ mod tests {
                         workspace: json!({"demoIds":["demo-1"]}),
                         ..AgentContext::default()
                     },
-                    tool_host: Arc::new(TestToolHost),
+                    tool_host: Arc::new(TestToolHost::default()),
                 },
                 &Cancellation::new(),
                 |event| events.push(event),
@@ -972,7 +991,7 @@ mod tests {
                     workspace: json!({"projectId":"project-1"}),
                     ..AgentContext::default()
                 },
-                tool_host: Arc::new(TestToolHost),
+                tool_host: Arc::new(TestToolHost::default()),
             },
             client.completion_model("rig-e2e-model"),
             &Cancellation::new(),
@@ -992,6 +1011,57 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(finished.len(), 1);
         assert_eq!(finished[0].name, "read_workspace");
+        assert_eq!(finished[0].status, CapturedToolCallStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn cancellation_drains_a_tool_result_already_completed_by_the_host() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let provider = tokio::spawn(async move {
+            let (mut connection, _) = listener.accept().await.unwrap();
+            let _ = read_http_json(&mut connection).await;
+            write_sse(&mut connection, &[
+                stream_chunk(&json!({"role":"assistant","tool_calls":[{"index":0,"id":"cancel-after-read","type":"function","function":{"name":"read_workspace","arguments":"{}"}}]}),None),
+                stream_chunk(&json!({}),Some("tool_calls")),
+            ]).await;
+        });
+        let cancellation = Cancellation::new();
+        let mut events = Vec::new();
+        let result = run_agent(
+            AgentRequest {
+                request_id: "cancel-after-read".to_owned(),
+                message: "Read the current workspace".to_owned(),
+                history: Vec::new(),
+                config: AgentConfig {
+                    provider: "test".to_owned(),
+                    model: "rig-e2e-model".to_owned(),
+                    base_url: format!("http://{address}/v1"),
+                    api_key: "rig-e2e-secret".to_owned(),
+                    provider_protocol: AgentProviderProtocol::OpenAi,
+                    custom_instructions: String::new(),
+                    provider_parameters: json!({}),
+                },
+                context: AgentContext::default(),
+                tool_host: Arc::new(TestToolHost {
+                    cancel_after_read: Some(cancellation.clone()),
+                }),
+            },
+            &cancellation,
+            |event| events.push(event),
+        )
+        .await;
+        provider.await.unwrap();
+        assert!(result.is_err());
+        assert!(cancellation.is_cancelled());
+        let finished = events
+            .iter()
+            .filter_map(|event| match event {
+                AgentStreamEvent::ToolCallFinished(call) => Some(call),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(finished.len(), 1);
         assert_eq!(finished[0].status, CapturedToolCallStatus::Completed);
     }
 

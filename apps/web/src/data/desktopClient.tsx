@@ -142,7 +142,6 @@ export type DesktopClient = Pick<
   | 'renameAgentSession'
   | 'deleteAgentSession'
   | 'appendAgentSessionEntry'
-  | 'updateAgentTurn'
   | 'getAgentWorkspaceSettings'
   | 'updateAgentWorkspaceSettings'
   | 'getAgentSessionStorage'

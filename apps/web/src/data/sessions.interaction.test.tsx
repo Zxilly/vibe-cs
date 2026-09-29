@@ -1,17 +1,9 @@
 import { act, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  AgentChatInput,
-  AgentEvent,
-  AgentSession,
-  AgentSessionEntry,
-  AgentSessionEntryDraft,
-  AgentToolCall,
-  AgentTurnUpdate,
-  Project,
-} from '../shared/desktop/dto';
+import type { AgentChatInput, AgentEvent, AgentSession, AgentSessionEntry, AgentSessionEntryDraft, AgentToolCall, Project } from '../shared/desktop/dto';
 import type { DesktopClientStub } from './desktopClient';
+import { qk } from './keys';
 import { useProject } from './projects';
 import { useAgentChatStream, useAgentSession, useAppendAgentSessionEntry } from './sessions';
 import { renderDataHook } from './test/renderDataHook';
@@ -19,35 +11,30 @@ import { renderDataHook } from './test/renderDataHook';
 const SESSION_ID = '00000000-0000-4000-8000-000000000001';
 const PROJECT_ID = '00000000-0000-4000-8000-000000000002';
 const AT = '2026-08-29T00:00:00Z';
+const SESSION: AgentSession = { id: SESSION_ID, title: 'Host-owned Agent', created_at: AT, updated_at: AT, entries: [] };
 const PROJECT: Project = {
-  id: PROJECT_ID,
-  name: 'Agent Project',
-  revision: 1,
+  id: PROJECT_ID, name: 'Agent Project', revision: 1,
   document: {
-    width: 1920,
-    height: 1080,
-    fps: 60,
-    duration_seconds: 0,
-    story_track_id: '00000000-0000-4000-8000-000000000003',
-    tracks: [],
-    markers: [],
+    width: 1920, height: 1080, fps: 60, duration_seconds: 0,
+    story_track_id: '00000000-0000-4000-8000-000000000003', tracks: [], markers: [],
     settings: { source_demo_ids: [], ripple_sequence_markers: false, use_media_proxies: false },
-  },
-  created_at: AT,
-  updated_at: AT,
+  }, created_at: AT, updated_at: AT,
 };
-
+const TOOL: AgentToolCall = { id: 'request:tool:1', name: 'read_workspace', input: {}, output: { revision: 1 }, status: 'completed' };
+function terminal(status: 'completed' | 'failed' | 'cancelled' = 'completed', tools: AgentToolCall[] = []): AgentSessionEntry {
+  return { kind: 'assistant', id: 'turn', at: AT, request_id: 'request', retry_of: null,
+    content: 'Host reply', tool_calls: tools, status, error: status === 'failed' ? 'Provider unavailable' : null, metadata: null };
+}
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
-    resolve = next;
-  });
+  const promise = new Promise<T>((next) => { resolve = next; });
   return { promise, resolve };
 }
 
 describe('useAgentChatStream', () => {
-  it('preserves the human selection, target tracks and timeline range without adding document data', async () => {
+  it('sends workspace selection and retry identity without authoring a durable turn', async () => {
     let captured: AgentChatInput | undefined;
+    const append = vi.fn();
     const workspaceContext = {
       projectId: PROJECT_ID, lens: 'multitrack' as const,
       selectedClipId: 'clip-b', selectedClipIds: ['clip-a', 'clip-b'],
@@ -55,26 +42,30 @@ describe('useAgentChatStream', () => {
       playheadSeconds: 12.5, rangeInSeconds: 10, rangeOutSeconds: 20,
     };
     const client: DesktopClientStub = {
-      appendAgentSessionEntry: async (_id, entry) => ({ ...entry, id: crypto.randomUUID(), at: AT }),
-      updateAgentTurn: async (_id, entryId, update) => ({ ...update, kind: 'assistant', id: entryId, at: AT, request_id: 'request', retry_of: null }),
-      streamAgentChat: async (input) => { captured = input; return { sessionId: SESSION_ID }; },
+      appendAgentSessionEntry: append,
+      streamAgentChat: async (input) => { captured = input; return { sessionId: SESSION_ID, turn: terminal() }; },
     };
     const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
-    await act(async () => result.current.send({ message: '压缩选区', projectId: PROJECT_ID, workspaceContext }));
+    await act(async () => result.current.send({ message: '压缩选区', projectId: PROJECT_ID, workspaceContext, retryOf: 'failed-turn' }));
     expect(captured?.workspaceContext).toEqual(workspaceContext);
+    expect(captured?.retryOf).toBe('failed-turn');
+    expect(captured).not.toHaveProperty('history');
+    expect(append).not.toHaveBeenCalled();
   });
 
-  it.each(['create', 'finish'] as const)('releases the composer and exposes %s persistence failures', async (stage) => {
-    const client: DesktopClientStub = {
-      appendAgentSessionEntry: async (_id, entry) => {
-        if (stage === 'create') throw new Error('无法保存对话');
-        return { ...entry, id: 'entry', at: AT };
-      },
-      updateAgentTurn: async () => { throw new Error('无法保存对话'); },
-      streamAgentChat: async () => ({ sessionId: SESSION_ID }),
-      cancelAgentChat: async () => true,
-    };
-    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
+  it('renders a durable provider failure returned by the host', async () => {
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client: {
+      streamAgentChat: async () => ({ sessionId: SESSION_ID, turn: terminal('failed') }),
+    } });
+    await act(async () => result.current.send({ message: '修改开场', projectId: PROJECT_ID }));
+    expect(result.current.streaming).toBe(false);
+    expect(result.current.error).toBe('Provider unavailable');
+  });
+
+  it('releases the composer when the host cannot persist its terminal state', async () => {
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client: {
+      streamAgentChat: async () => { throw new Error('无法保存对话'); },
+    } });
     await act(async () => {
       await expect(result.current.send({ message: '修改开场', projectId: PROJECT_ID })).rejects.toThrow('无法保存对话');
     });
@@ -82,372 +73,95 @@ describe('useAgentChatStream', () => {
     expect(result.current.error).toContain('无法保存对话');
   });
 
-  it('ignores a stopped stream while a new request is running', async () => {
-    const streams: Array<{ emit: (event: AgentEvent) => void; finish: () => void }> = [];
-    const client: DesktopClientStub = {
-      appendAgentSessionEntry: async (_id, entry) => ({ ...entry, id: crypto.randomUUID(), at: AT }),
-      updateAgentTurn: async (_id, entryId, update) => ({ ...update, kind: 'assistant', id: entryId, at: AT, request_id: 'request', retry_of: null }),
-      cancelAgentChat: async () => true,
+  it('keeps live tool evidence until cancellation returns a durable turn', async () => {
+    const completion = deferred<void>();
+    const cancelled = terminal('cancelled', [TOOL]);
+    let session = SESSION;
+    const cancelAgentChat = vi.fn(async () => true);
+    const streamAgentChat = vi.fn(async (_input: AgentChatInput, emit: (event: AgentEvent) => void) => {
+      emit({ type: 'textDelta', delta: 'Partial reply' });
+      emit({ type: 'toolCallFinished', toolCall: TOOL });
+      await completion.promise;
+      session = { ...SESSION, entries: [cancelled] };
+      return { sessionId: SESSION_ID, turn: cancelled };
+    });
+    const { result, queryClient } = renderDataHook(() => ({
+      session: useAgentSession(SESSION_ID), chat: useAgentChatStream({ sessionId: SESSION_ID }),
+    }), { client: { getAgentSession: async () => session, streamAgentChat, cancelAgentChat } });
+    await waitFor(() => expect(result.current.session.data).toEqual(SESSION));
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.chat.send({ message: '开始', projectId: PROJECT_ID }); });
+    await waitFor(() => expect(result.current.chat.activity).toContainEqual(TOOL));
+    act(() => result.current.chat.cancel());
+    expect(cancelAgentChat).toHaveBeenCalledTimes(1);
+    expect(result.current.chat.streaming).toBe(true);
+    expect(result.current.chat.activity).toContainEqual(TOOL);
+    await act(async () => result.current.chat.send({ message: 'too early', projectId: PROJECT_ID }));
+    expect(streamAgentChat).toHaveBeenCalledTimes(1);
+    await act(async () => { completion.resolve(); await sending; });
+    expect(queryClient.getQueryData<AgentSession>(qk.sessions.detail(SESSION_ID))?.entries).toContainEqual(cancelled);
+    expect(result.current.chat.streaming).toBe(false);
+    expect(result.current.chat.activity).toEqual([]);
+  });
+
+  it('asks the host to stop on unmount while the host retains finalization ownership', async () => {
+    const completion = deferred<void>();
+    const cancelAgentChat = vi.fn(async () => true);
+    const appendAgentSessionEntry = vi.fn();
+    const { result, unmount } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client: {
+      cancelAgentChat, appendAgentSessionEntry,
+      streamAgentChat: async () => { await completion.promise; return { sessionId: SESSION_ID, turn: terminal('cancelled') }; },
+    } });
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.send({ message: '开始', projectId: PROJECT_ID }); });
+    unmount();
+    expect(cancelAgentChat).toHaveBeenCalledTimes(1);
+    expect(appendAgentSessionEntry).not.toHaveBeenCalled();
+    await act(async () => { completion.resolve(); await sending; });
+  });
+
+  it('refreshes the Project Head when a live edit finishes before the host terminal reply', async () => {
+    const completion = deferred<void>();
+    let project = PROJECT;
+    const edit = { ...TOOL, name: 'apply_project_patch' };
+    const { result } = renderDataHook(() => ({
+      project: useProject(PROJECT_ID), chat: useAgentChatStream({ sessionId: SESSION_ID }),
+    }), { client: {
+      getProject: async () => project,
       streamAgentChat: async (_input, emit) => {
-        const completion = deferred<void>();
-        streams.push({ emit, finish: () => completion.resolve() });
+        project = { ...PROJECT, revision: 2 };
+        emit({ type: 'toolCallFinished', toolCall: edit });
         await completion.promise;
-        return { sessionId: SESSION_ID };
+        return { sessionId: SESSION_ID, turn: terminal('completed', [edit]) };
       },
-    };
-    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: SESSION_ID }), { client });
-    let first!: Promise<void>;
-    act(() => { first = result.current.send({ message: '旧请求', projectId: PROJECT_ID }); });
-    await waitFor(() => expect(streams).toHaveLength(1));
-    await act(async () => result.current.cancel());
-    let second!: Promise<void>;
-    act(() => { second = result.current.send({ message: '新请求', projectId: PROJECT_ID }); });
-    await waitFor(() => expect(streams).toHaveLength(2));
-    act(() => {
-      streams[1]!.emit({ type: 'textDelta', delta: '新回复' });
-      streams[0]!.emit({ type: 'textDelta', delta: '旧回复' });
-    });
-    expect(result.current.draft).toBe('新回复');
-    await act(async () => { streams[0]!.finish(); await first; });
-    expect(result.current.streaming).toBe(true);
-    expect(result.current.draft).toBe('新回复');
-    await act(async () => { streams[1]!.finish(); await second; });
-    expect(result.current.streaming).toBe(false);
-  });
-
-  it('sends only the durable session identity after a stale confirmation handler persists a decision', async () => {
-    const pendingToolCall: AgentToolCall = {
-      id: 'request-export:tool:1',
-      name: 'request_project_export',
-      input: { projectId: PROJECT_ID, baseRevision: 1 },
-      output: { status: 'requires_human_confirmation' },
-      status: 'awaiting_confirmation',
-    };
-    let session: AgentSession = {
-      id: SESSION_ID,
-      title: 'Export confirmation',
-      created_at: AT,
-      updated_at: AT,
-      entries: [{
-        kind: 'assistant', id: 'turn-export', at: AT, content: '等待确认',
-        tool_calls: [pendingToolCall], status: 'completed', request_id: 'request-export',
-        retry_of: null, error: null, metadata: null,
-      }],
-    };
-    const captured: { current: AgentChatInput | null } = { current: null };
-    let entrySequence = 0;
-    const client: DesktopClientStub = {
-      getAgentSession: async () => session,
-      appendAgentSessionEntry: async (_sessionId, draft) => {
-        entrySequence += 1;
-        const entry: AgentSessionEntry = draft.kind === 'user'
-          ? { kind: 'user', id: `user-${entrySequence}`, at: AT, content: draft.content }
-          : draft.kind === 'tool_decision'
-            ? {
-                kind: 'tool_decision', id: `decision-${entrySequence}`, at: AT,
-                tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
-              }
-            : {
-                kind: 'assistant', id: `assistant-${entrySequence}`, at: AT, content: draft.content,
-                tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
-                retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
-              };
-        session = { ...session, entries: [...session.entries, entry] };
-        return entry;
-      },
-      updateAgentTurn: async (_sessionId, entryId, update) => {
-        const entry: AgentSessionEntry = {
-          kind: 'assistant', id: entryId, at: AT, request_id: 'follow-up', retry_of: null, ...update,
-        };
-        session = {
-          ...session,
-          entries: session.entries.map((candidate) => candidate.id === entryId ? entry : candidate),
-        };
-        return entry;
-      },
-      streamAgentChat: async (input) => {
-        captured.current = input;
-        return { sessionId: SESSION_ID };
-      },
-    };
-    const { result } = renderDataHook(
-      () => {
-        const sessionQuery = useAgentSession(SESSION_ID);
-        return {
-          session: sessionQuery,
-          append: useAppendAgentSessionEntry(),
-          chat: useAgentChatStream({ sessionId: SESSION_ID }),
-        };
-      },
-      { client },
-    );
-    await waitFor(() => expect(result.current.session.isSuccess).toBe(true));
-
-    const sendFromConfirmationRender = result.current.chat.send;
-    await act(async () => {
-      await result.current.append.mutateAsync({
-        sessionId: SESSION_ID,
-        draft: {
-          kind: 'tool_decision', tool_call_id: pendingToolCall.id,
-          decision: 'rejected', content: '拒绝这次外部执行请求。',
-        },
-      });
-      await result.current.append.mutateAsync({
-        sessionId: SESSION_ID,
-        draft: {
-          kind: 'tool_decision',
-          tool_call_id: 'delivery:00000000-0000-4000-8000-000000000099',
-          decision: 'approved',
-          content: '已接受这组 Agent 变更。',
-        },
-      });
-      await sendFromConfirmationRender({ message: '保留时间线并继续。', projectId: PROJECT_ID });
-    });
-
-    expect(captured.current).toMatchObject({
-      sessionId: SESSION_ID,
-      projectId: PROJECT_ID,
-      message: '保留时间线并继续。',
-    });
-    expect(session.entries.filter((entry) => entry.kind === 'tool_decision')).toHaveLength(2);
-  });
-
-  it('refreshes the Project Head as soon as an Agent edit tool finishes', async () => {
-    const finishStream = deferred<void>();
-    let projectReads = 0;
-    const client: DesktopClientStub = {
-      getProject: async () => {
-        projectReads += 1;
-        return projectReads === 1 ? PROJECT : { ...PROJECT, revision: 2 };
-      },
-      appendAgentSessionEntry: async (_sessionId, draft) => {
-        if (draft.kind === 'user') {
-          return { kind: 'user', id: 'user-edit', at: AT, content: draft.content };
-        }
-        if (draft.kind === 'tool_decision') {
-          return {
-            kind: 'tool_decision', id: 'decision-edit', at: AT,
-            tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
-          };
-        }
-        return {
-          kind: 'assistant', id: 'turn-edit', at: AT, content: draft.content,
-          tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
-          retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
-        };
-      },
-      updateAgentTurn: async (_sessionId, entryId, update) => ({
-        kind: 'assistant', id: entryId, at: AT, request_id: 'request-edit', retry_of: null, ...update,
-      }),
-      cancelAgentChat: async () => true,
-      streamAgentChat: async (_input, onEvent) => {
-        onEvent({
-          type: 'toolCallFinished',
-          toolCall: {
-            id: 'request-edit:tool:1',
-            name: 'apply_project_patch',
-            input: { projectId: PROJECT_ID, baseRevision: 1 },
-            output: { status: 'applied', revision: 2 },
-            status: 'completed',
-          },
-        });
-        await finishStream.promise;
-        return { sessionId: SESSION_ID };
-      },
-    };
-    const { result } = renderDataHook(
-      () => ({
-        project: useProject(PROJECT_ID),
-        chat: useAgentChatStream({ sessionId: SESSION_ID }),
-      }),
-      { client },
-    );
+    } });
     await waitFor(() => expect(result.current.project.data?.revision).toBe(1));
-
-    let send!: Promise<void>;
-    act(() => {
-      send = result.current.chat.send({ message: '修改标记', projectId: PROJECT_ID });
-    });
-
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.chat.send({ message: '修改', projectId: PROJECT_ID }); });
     await waitFor(() => expect(result.current.project.data?.revision).toBe(2));
     expect(result.current.chat.streaming).toBe(true);
-    expect(projectReads).toBe(2);
-
-    finishStream.resolve();
-    await act(async () => send);
+    await act(async () => { completion.resolve(); await sending; });
   });
 
-  it('keeps tool progress local until the Agent turn finishes', async () => {
-    const finishStream = deferred<void>();
-    const updates: AgentTurnUpdate[] = [];
-    const toolCall: AgentToolCall = {
-      id: 'request-checkpoint:tool:1',
-      name: 'read_workspace',
-      input: { detail: 'summary' },
-      output: { revision: 1 },
-      status: 'completed',
-    };
-    const client: DesktopClientStub = {
-      appendAgentSessionEntry: async (_sessionId, draft) => {
-        if (draft.kind === 'user') {
-          return { kind: 'user', id: 'user-checkpoint', at: AT, content: draft.content };
-        }
-        if (draft.kind === 'tool_decision') {
-          return {
-            kind: 'tool_decision', id: 'decision-checkpoint', at: AT,
-            tool_call_id: draft.tool_call_id, decision: draft.decision, content: draft.content,
-          };
-        }
-        return {
-          kind: 'assistant', id: 'turn-checkpoint', at: AT, content: draft.content,
-          tool_calls: draft.tool_calls, status: draft.status, request_id: draft.request_id,
-          retry_of: draft.retry_of, error: draft.error, metadata: draft.metadata,
-        };
-      },
-      updateAgentTurn: async (_sessionId, entryId, update) => {
-        updates.push(update);
-        return {
-          kind: 'assistant', id: entryId, at: AT, request_id: 'request-checkpoint',
-          retry_of: null, ...update,
-        };
-      },
-      cancelAgentChat: async () => true,
-      streamAgentChat: async (_input, onEvent) => {
-        onEvent({ type: 'toolCallFinished', toolCall });
-        await finishStream.promise;
-        return { sessionId: SESSION_ID };
-      },
-    };
-    const { result } = renderDataHook(
-      () => useAgentChatStream({ sessionId: SESSION_ID }),
-      { client },
-    );
-
-    let send!: Promise<void>;
-    act(() => {
-      send = result.current.send({ message: '读取作品', projectId: PROJECT_ID });
-    });
-
-    await waitFor(() => expect(result.current.activity).toContainEqual(toolCall));
-    expect(result.current.streaming).toBe(true);
-    expect(updates).toEqual([]);
-
-    finishStream.resolve();
-    await act(async () => send);
-    expect(updates.at(-1)).toMatchObject({ status: 'completed', tool_calls: [toolCall] });
-  });
-
-  it('hands a terminal tool call to the durable conversation before clearing its live projection', async () => {
-    let session: AgentSession = {
-      id: SESSION_ID,
-      title: 'Agent lifecycle',
-      created_at: AT,
-      updated_at: AT,
-      entries: [],
-    };
-    let reads = 0;
-    const persist = deferred<void>();
-    const refetchStarted = deferred<void>();
-    const refetch = deferred<AgentSession>();
-    const toolCall: AgentToolCall = {
-      id: 'request-1:tool:1',
-      name: 'read_workspace',
-      input: {},
-      output: { revision: 1 },
-      status: 'completed',
-    };
-
-    const appendAgentSessionEntry = async (_sessionId: string, draft: AgentSessionEntryDraft) => {
-      const entry: AgentSessionEntry = draft.kind === 'user'
-        ? { kind: 'user', id: 'user-1', at: AT, content: draft.content }
-        : draft.kind === 'tool_decision'
-          ? {
-              kind: 'tool_decision',
-              id: 'decision-1',
-              at: AT,
-              tool_call_id: draft.tool_call_id,
-              decision: draft.decision,
-              content: draft.content,
-            }
-          : {
-              kind: 'assistant',
-              id: 'turn-1',
-              at: AT,
-              content: draft.content,
-              tool_calls: draft.tool_calls,
-              status: draft.status,
-              request_id: draft.request_id,
-              retry_of: draft.retry_of,
-              error: draft.error,
-              metadata: draft.metadata,
-            };
+  it('keeps human decisions durable and sends only session identity for continuation', async () => {
+    let session = SESSION;
+    const append = vi.fn(async (_id: string, draft: AgentSessionEntryDraft) => {
+      const entry: AgentSessionEntry = { ...draft, id: 'decision', at: AT };
       session = { ...session, entries: [...session.entries, entry] };
       return entry;
-    };
-    const updateAgentTurn = async (_sessionId: string, entryId: string, update: AgentTurnUpdate) => {
-      await persist.promise;
-      const entry: AgentSessionEntry = {
-        kind: 'assistant',
-        id: entryId,
-        at: AT,
-        request_id: 'request-1',
-        retry_of: null,
-        ...update,
-      };
-      session = {
-        ...session,
-        entries: session.entries.map((candidate) => candidate.id === entryId ? entry : candidate),
-      };
-      return entry;
-    };
-    const client: DesktopClientStub = {
-      getAgentSession: () => {
-        reads += 1;
-        if (reads <= 2) return Promise.resolve(session);
-        refetchStarted.resolve();
-        return refetch.promise;
-      },
-      appendAgentSessionEntry,
-      updateAgentTurn,
-      cancelAgentChat: async () => true,
-      streamAgentChat: async (_input, onEvent) => {
-        onEvent({
-          type: 'toolCallStarted',
-          toolCall: { id: toolCall.id, name: toolCall.name, input: toolCall.input },
-        });
-        onEvent({ type: 'toolCallFinished', toolCall });
-        return { sessionId: SESSION_ID };
-      },
-    };
-
-    const { result } = renderDataHook(
-      () => ({
-        session: useAgentSession(SESSION_ID),
-        chat: useAgentChatStream({ sessionId: SESSION_ID }),
-      }),
-      { client },
-    );
-    await waitFor(() => expect(result.current.session.isSuccess).toBe(true));
-
-    let send!: Promise<void>;
-    act(() => {
-      send = result.current.chat.send({ message: '读取作品', projectId: PROJECT_ID });
     });
-    await waitFor(() => expect(result.current.chat.activity).toEqual([toolCall]));
+    const stream = vi.fn(async (_input: AgentChatInput) => {
+      expect(session.entries).toHaveLength(1);
+      return { sessionId: SESSION_ID, turn: terminal() };
+    });
+    const { result } = renderDataHook(() => ({
+      append: useAppendAgentSessionEntry(), chat: useAgentChatStream({ sessionId: SESSION_ID }),
+    }), { client: { appendAgentSessionEntry: append, streamAgentChat: stream } });
     await act(async () => {
-      persist.resolve();
-      await refetchStarted.promise;
+      await result.current.append.mutateAsync({ sessionId: SESSION_ID, draft: { kind: 'tool_decision', tool_call_id: TOOL.id, decision: 'approved', content: '批准' } });
+      await result.current.chat.send({ message: '继续', projectId: PROJECT_ID });
     });
-
-    expect(result.current.chat.activity).toEqual([]);
-    expect(result.current.chat.streaming).toBe(false);
-
-    refetch.resolve(session);
-    await act(async () => send);
-    expect(result.current.session.data?.entries.at(-1)).toMatchObject({
-      kind: 'assistant',
-      tool_calls: [toolCall],
-      status: 'completed',
-    });
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(stream.mock.calls[0]?.[0]).not.toHaveProperty('history');
   });
 });

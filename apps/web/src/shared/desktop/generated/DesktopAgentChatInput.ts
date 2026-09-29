@@ -5,6 +5,7 @@ export type DesktopAgentChatInput = {
   requestId: string;
   sessionId: string;
   projectId: string;
+  retryOf: string | null;
   workspaceContext: DesktopAgentWorkspaceContext;
   message: string;
 };

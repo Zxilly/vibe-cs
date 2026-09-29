@@ -7,9 +7,9 @@ use uuid::Uuid;
 use crate::{DomainError, HlaeCameraStyle};
 
 pub const AGENT_SESSION_MAX_TITLE_CHARS: usize = 200;
-const AGENT_SESSION_MAX_CONTENT_CHARS: usize = 32_000;
+pub const AGENT_SESSION_MAX_CONTENT_CHARS: usize = 32_000;
 const AGENT_SESSION_MAX_QUERY_CHARS: usize = 200;
-const AGENT_SESSION_MAX_TOOL_CALLS: usize = 256;
+pub const AGENT_SESSION_MAX_TOOL_CALLS: usize = 256;
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
@@ -145,99 +145,43 @@ impl AgentSessionEntry {
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export)]
 pub enum AgentSessionEntryDraft {
-    User {
-        content: String,
-    },
     ToolDecision {
         tool_call_id: String,
         decision: AgentToolDecisionKind,
         content: String,
     },
-    Assistant {
-        content: String,
-        tool_calls: Vec<AgentToolCall>,
-        #[serde(deserialize_with = "deserialize_required_nullable")]
-        status: Option<AgentTurnStatus>,
-        #[serde(deserialize_with = "deserialize_required_nullable")]
-        request_id: Option<Uuid>,
-        #[serde(deserialize_with = "deserialize_required_nullable")]
-        retry_of: Option<Uuid>,
-        #[serde(deserialize_with = "deserialize_required_nullable")]
-        error: Option<String>,
-        #[serde(deserialize_with = "deserialize_required_nullable")]
-        metadata: Option<Box<AgentTurnMetadata>>,
-    },
 }
 
 impl AgentSessionEntryDraft {
-    /// Normalizes one untrusted session entry before persistence.
+    /// Normalizes a human decision before persistence.
     ///
     /// # Errors
-    ///
-    /// Returns [`DomainError::InvalidInput`] when content or tool calls exceed the current bounds.
+    /// Returns [`DomainError::InvalidInput`] for an invalid identity or decision content.
     pub fn normalize(mut self) -> Result<Self, DomainError> {
-        match &mut self {
-            Self::User { content } => {
-                *content = content.trim().to_owned();
-                if content.chars().count() > AGENT_SESSION_MAX_CONTENT_CHARS {
-                    return Err(invalid("agent entry content is too long"));
-                }
-            }
-            Self::ToolDecision {
-                tool_call_id,
-                content,
-                ..
-            } => {
-                *tool_call_id = tool_call_id.trim().to_owned();
-                *content = content.trim().to_owned();
-                if tool_call_id.is_empty() || tool_call_id.len() > 256 {
-                    return Err(invalid("agent tool decision call identity is invalid"));
-                }
-                if content.is_empty() || content.chars().count() > 2_000 {
-                    return Err(invalid("agent tool decision content is invalid"));
-                }
-            }
-            Self::Assistant {
-                content,
-                tool_calls,
-                error,
-                ..
-            } => {
-                *content = content.trim().to_owned();
-                if content.chars().count() > AGENT_SESSION_MAX_CONTENT_CHARS {
-                    return Err(invalid("agent entry content is too long"));
-                }
-                if tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS {
-                    return Err(invalid("agent entry has too many tool calls"));
-                }
-                for call in tool_calls {
-                    if call.id.trim().is_empty() || call.id.len() > 256 {
-                        return Err(invalid("agent tool call identity is invalid"));
-                    }
-                    if call.name.trim().is_empty() || call.name.len() > 128 {
-                        return Err(invalid("agent tool call name is invalid"));
-                    }
-                }
-                if let Some(error) = error {
-                    *error = error.trim().chars().take(2_000).collect();
-                }
-            }
+        let Self::ToolDecision {
+            tool_call_id,
+            content,
+            ..
+        } = &mut self;
+        *tool_call_id = tool_call_id.trim().to_owned();
+        *content = content.trim().to_owned();
+        if tool_call_id.is_empty() || tool_call_id.len() > 256 {
+            return Err(invalid("agent tool decision call identity is invalid"));
+        }
+        if content.is_empty() || content.chars().count() > 2_000 {
+            return Err(invalid("agent tool decision content is invalid"));
         }
         Ok(self)
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AgentTurnUpdate {
     pub expected_status: AgentTurnStatus,
     pub status: AgentTurnStatus,
     pub content: String,
     pub tool_calls: Vec<AgentToolCall>,
-    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub error: Option<String>,
-    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub metadata: Option<Box<AgentTurnMetadata>>,
 }
 
@@ -247,35 +191,26 @@ impl AgentTurnUpdate {
     /// # Errors
     ///
     /// Returns [`DomainError::InvalidInput`] when content or tool calls exceed the current bounds.
-    pub fn normalize(self) -> Result<Self, DomainError> {
-        let draft = AgentSessionEntryDraft::Assistant {
-            content: self.content,
-            tool_calls: self.tool_calls,
-            status: Some(self.status),
-            request_id: None,
-            retry_of: None,
-            error: self.error,
-            metadata: self.metadata,
+    pub fn normalize(mut self) -> Result<Self, DomainError> {
+        self.content = self.content.trim().to_owned();
+        if self.content.chars().count() > AGENT_SESSION_MAX_CONTENT_CHARS {
+            return Err(invalid("agent entry content is too long"));
         }
-        .normalize()?;
-        let AgentSessionEntryDraft::Assistant {
-            content,
-            tool_calls,
-            error,
-            metadata,
-            ..
-        } = draft
-        else {
-            unreachable!()
-        };
-        Ok(Self {
-            expected_status: self.expected_status,
-            status: self.status,
-            content,
-            tool_calls,
-            error,
-            metadata,
-        })
+        if self.tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS {
+            return Err(invalid("agent entry has too many tool calls"));
+        }
+        for call in &self.tool_calls {
+            if call.id.trim().is_empty() || call.id.len() > 256 {
+                return Err(invalid("agent tool call identity is invalid"));
+            }
+            if call.name.trim().is_empty() || call.name.len() > 128 {
+                return Err(invalid("agent tool call name is invalid"));
+            }
+        }
+        if let Some(error) = &mut self.error {
+            *error = error.trim().chars().take(2_000).collect();
+        }
+        Ok(self)
     }
 }
 
@@ -488,7 +423,7 @@ mod tests {
 
     #[test]
     fn persisted_tool_call_requires_stable_identity() {
-        let draft = AgentSessionEntryDraft::Assistant {
+        let draft = AgentTurnUpdate {
             content: String::new(),
             tool_calls: vec![AgentToolCall {
                 id: String::new(),
@@ -497,9 +432,8 @@ mod tests {
                 output: Value::Null,
                 status: AgentToolCallStatus::Completed,
             }],
-            status: Some(AgentTurnStatus::Completed),
-            request_id: None,
-            retry_of: None,
+            expected_status: AgentTurnStatus::Streaming,
+            status: AgentTurnStatus::Completed,
             error: None,
             metadata: None,
         };

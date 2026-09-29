@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { PREVIEW_PROJECT } from '../../dev/projectFixtures';
 import cameraFixture from '../../dev/fixtures/camera-preview';
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
-import type { Project } from '../../shared/desktop/dto';
+import type { ExportJobRecord, Project } from '../../shared/desktop/dto';
 import type { CameraPreviewViewport } from '../scene3d/CameraPreviewViewport';
 import { renderInteractive } from '../../test/render';
 import { TimelineProgramMonitor } from './TimelineProgramMonitor';
@@ -38,11 +38,23 @@ function project(): Project {
   return result;
 }
 
-function tree(value: Project, time: number) {
-  return <DesktopClientProvider client={{ getProjectCameraPreview: sceneSeam.preview } as unknown as DesktopClient}><TimelineProgramMonitor project={value} timelineTimeSeconds={time} selectedClipId={null}
+function tree(value: Project, time: number, renderPreviews: readonly ExportJobRecord[] = []) {
+  return <DesktopClientProvider client={{ getProjectCameraPreview: sceneSeam.preview } as unknown as DesktopClient}><TimelineProgramMonitor project={value} timelineTimeSeconds={time} renderPreviews={renderPreviews} selectedClipId={null}
     timeDisplayMode="timecode" readOnly={false} playing={false} playbackRate={1} rollingPreview={null}
     slidePreview={null} playbackRange={null} onTogglePlayback={() => {}} onShuttle={() => {}}
     onStepFrame={() => {}} onTimelineTimeChange={() => {}} onPlaybackEnd={() => {}} onReplaceClip={() => {}} /></DesktopClientProvider>;
+}
+
+function renderPreview(value: Project): ExportJobRecord {
+  return {
+    kind: 'project_preview',
+    job: {
+      id: 'preview-range', project_id: value.id, project_revision: value.revision,
+      range_start_seconds: 0, range_end_seconds: 6, status: 'completed', progress: 1,
+      output_path: 'C:/preview.mp4', error: null, error_code: null,
+      created_at: '2026-09-30T00:00:00Z', updated_at: '2026-09-30T00:00:00Z',
+    },
+  };
 }
 
 function planned(): Project {
@@ -72,12 +84,14 @@ it('freezes the last presented video frame while the next clip is seeking', () =
   expect(first.style.opacity).toBe('1');
   expect(first.dataset.previewActive).toBe('true');
   view.rerender(tree(value, 7));
+  fireEvent.seeked(first);
+  fireEvent.canPlay(first);
   expect(first.dataset.previewActive).toBe('true');
   expect(first.currentTime).toBe(3);
   expect(first.style.opacity).toBe('1');
 });
 
-it.each(['program', 'multicam'] as const)('%s retries only the newest Timeline seek after an in-flight seek finishes', (kind) => {
+it.each(['program', 'multicam', 'render'] as const)('%s retries only the newest Timeline seek after an in-flight seek finishes', (kind) => {
   const value = project();
   const story = value.document.tracks[0]!;
   story.clips = story.clips.slice(0, 1);
@@ -89,18 +103,43 @@ it.each(['program', 'multicam'] as const)('%s retries only the newest Timeline s
     placement: { ...first.placement, enabled: false },
     metadata: { multicam: { group_id: 'group', angle: 2, angle_name: 'Second', switch_audio: true } },
   }] });
-  const view = renderInteractive(tree(value, 1));
+  const previews = kind === 'render' ? [renderPreview(value)] : [];
+  const view = renderInteractive(tree(value, 1, previews));
   const video = kind === 'program'
     ? document.querySelector<HTMLVideoElement>('video[data-preview-pool-role="program"]')!
-    : screen.getByRole('button', { name: '切换到摄像机 2 Second' }).querySelector('video')!;
+    : kind === 'multicam'
+      ? screen.getByRole('button', { name: '切换到摄像机 2 Second' }).querySelector('video')!
+      : screen.getByLabelText<HTMLVideoElement>('已渲染时间轴预览');
   expect(video.currentTime).toBe(1);
   Object.defineProperty(video, 'seeking', { configurable: true, value: true });
-  view.rerender(tree(value, 2));
-  view.rerender(tree(value, 3));
+  view.rerender(tree(value, 2, previews));
+  view.rerender(tree(value, 3, previews));
   expect(video.currentTime).toBe(1);
   Object.defineProperty(video, 'seeking', { configurable: true, value: false });
   fireEvent.seeked(video);
   expect(video.currentTime).toBe(3);
+});
+
+it('waits for a newly mounted render preview when returning to a previously ready range', () => {
+  const value = project();
+  const record = renderPreview(value);
+  const view = renderInteractive(tree(value, 1, [record]));
+  const first = screen.getByLabelText<HTMLVideoElement>('已渲染时间轴预览');
+  Object.defineProperty(first, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_CURRENT_DATA });
+  fireEvent.loadedData(first);
+  expect(first.style.opacity).toBe('1');
+  view.rerender(tree(value, 7, [record]));
+  expect(first.isConnected).toBe(false);
+  view.rerender(tree(value, 2, [record]));
+  const replacement = screen.getByLabelText<HTMLVideoElement>('已渲染时间轴预览');
+  expect(replacement).not.toBe(first);
+  expect(replacement.currentTime).toBe(2);
+  expect(replacement.style.opacity).toBe('0');
+  fireEvent.loadedData(first);
+  expect(replacement.style.opacity).toBe('0');
+  Object.defineProperty(replacement, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_CURRENT_DATA });
+  fireEvent.loadedData(replacement);
+  expect(replacement.style.opacity).toBe('1');
 });
 
 it('keeps clip-keyed scene instances and presents only the newest transport target', async () => {

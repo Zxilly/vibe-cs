@@ -152,6 +152,11 @@ export function TimelineProgramMonitor({
     ? null
     : shell.mediaSrc(projectRenderPreviewStreamPath(activeRenderPreview.job.id));
   const [presentedRenderPreviewId, setPresentedRenderPreviewId] = useState<string | null>(null);
+  const activeRenderPreviewId = activeRenderPreview?.job.id ?? null;
+  useLayoutEffect(() => {
+    // A decoded frame belongs to the mounted video, even when the same job is revisited.
+    setPresentedRenderPreviewId(null);
+  }, [activeRenderPreviewId]);
   const renderPreviewPresented = activeRenderPreview !== null
     && activeRenderPreviewSrc !== null
     && presentedRenderPreviewId === activeRenderPreview.job.id;

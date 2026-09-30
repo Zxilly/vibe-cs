@@ -271,7 +271,8 @@ where
     F: FnMut(AgentStreamEvent),
 {
     let prompt = current_turn_prompt(&request.message, &request.context);
-    let (state, mut tool_events) = tools::ToolState::new(request.tool_host, &request.request_id);
+    let (state, mut tool_events) =
+        tools::ToolState::new(request.tool_host, &request.request_id, cancellation.clone());
     let dynamic_tools = tools::create_tools(&state);
     let provider_secret = request.config.api_key.clone();
     let preamble = system_prompt(&request.config.custom_instructions);
@@ -299,78 +300,67 @@ where
         .collect::<Vec<_>>();
     let mut content = String::new();
     let mut usage = None;
-    let stream = agent
-        .stream_prompt(prompt)
-        .history(history)
-        // A tool count is not a liveness policy. The Agent may take as many
-        // useful turns as the task needs; only a period with no text,
-        // provider item, or tool lifecycle event trips the watchdog.
-        .max_turns(usize::MAX);
-    let mut stream = tokio::select! {
-            () = cancellation.cancelled() => {
-                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
-                return Err(AgentError::Cancelled);
-            },
+    // This scope owns the provider stream. Every exit drops it before settling
+    // mutations, so cancellation stops generation/scheduling but never abandons
+    // the result of an already-started project transaction.
+    let result = async {
+        let stream = agent
+            .stream_prompt(prompt)
+            .history(history)
+            // A tool count is not a liveness policy. Only inactivity trips the watchdog.
+            .max_turns(usize::MAX);
+        let mut stream = tokio::select! {
+            biased;
+            () = cancellation.cancelled() => return Err(AgentError::Cancelled),
             result = tokio::time::timeout(inactivity_timeout, stream) => result.map_err(|_| {
                 AgentError::Stalled { timeout_seconds: inactivity_timeout.as_secs() }
             })?,
-    };
-    loop {
-        let item = tokio::select! {
-            () = cancellation.cancelled() => {
-                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
-                return Err(AgentError::Cancelled);
-            },
-            () = tokio::time::sleep(inactivity_timeout) => {
-                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
-                return Err(AgentError::Stalled {
-                    timeout_seconds: inactivity_timeout.as_secs(),
-                });
-            },
-            tool_event = tool_events.recv() => {
-                if let Some(tool_event) = tool_event {
-                    emit_tool_lifecycle(tool_event, &mut emit);
-                }
-                continue;
-            },
-            item = stream.next() => item,
         };
-        let Some(item) = item else {
-            while let Ok(tool_event) = tool_events.try_recv() {
-                emit_tool_lifecycle(tool_event, &mut emit);
-            }
-            break;
-        };
-        let item = match item {
-            Ok(item) => item,
-            Err(error) => {
-                while let Ok(event) = tool_events.try_recv() {
-                    emit_tool_lifecycle(event, &mut emit);
-                }
-                return Err(AgentError::Provider(safe_error(
-                    &error.to_string(),
-                    &provider_secret,
-                )));
-            }
-        };
-        match item {
-            MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(Text {
-                text,
-                ..
-            })) => {
-                emit(AgentStreamEvent::TextDelta(text));
-            }
-            MultiTurnStreamItem::FinalResponse(response) => {
-                usage = AgentUsage::from_reported(response.usage());
-                response.output().trim().clone_into(&mut content);
+        loop {
+            let item = tokio::select! {
+                biased;
+                () = cancellation.cancelled() => return Err(AgentError::Cancelled),
+                () = tokio::time::sleep(inactivity_timeout) => {
+                    return Err(AgentError::Stalled {
+                        timeout_seconds: inactivity_timeout.as_secs(),
+                    });
+                },
+                tool_event = tool_events.recv() => {
+                    if let Some(tool_event) = tool_event {
+                        emit_tool_lifecycle(tool_event, &mut emit);
+                    }
+                    continue;
+                },
+                item = stream.next() => item,
+            };
+            let Some(item) = item else {
                 break;
+            };
+            let item = item.map_err(|error| {
+                AgentError::Provider(safe_error(&error.to_string(), &provider_secret))
+            })?;
+            match item {
+                MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                    Text { text, .. },
+                )) => {
+                    emit(AgentStreamEvent::TextDelta(text));
+                }
+                MultiTurnStreamItem::FinalResponse(response) => {
+                    usage = AgentUsage::from_reported(response.usage());
+                    response.output().trim().clone_into(&mut content);
+                    break;
+                }
+                _ => {}
             }
-            _ => {}
         }
+        Ok(())
     }
+    .await;
+    state.settle_mutations().await;
     while let Ok(event) = tool_events.try_recv() {
         emit_tool_lifecycle(event, &mut emit);
     }
+    result?;
     let tool_calls = state.snapshot().await;
     let content = content.trim().to_owned();
     if content.is_empty() {
@@ -558,6 +548,7 @@ mod tests {
     #[derive(Debug, Default)]
     struct TestToolHost {
         cancel_after_read: Option<Cancellation>,
+        mutation: Option<Arc<BlockingMutation>>,
     }
 
     #[async_trait::async_trait]
@@ -582,11 +573,19 @@ mod tests {
         }
 
         async fn apply_project_patch(&self, _input: Value) -> Result<Value, String> {
-            Err("not used by this test host".to_owned())
+            self.mutation
+                .as_ref()
+                .expect("mutation fixture")
+                .write()
+                .await
         }
 
         async fn replace_story_timeline(&self, _input: Value) -> Result<Value, String> {
-            Err("not used by this test host".to_owned())
+            self.mutation
+                .as_ref()
+                .expect("mutation fixture")
+                .write()
+                .await
         }
     }
 
@@ -1045,6 +1044,7 @@ mod tests {
                 context: AgentContext::default(),
                 tool_host: Arc::new(TestToolHost {
                     cancel_after_read: Some(cancellation.clone()),
+                    ..TestToolHost::default()
                 }),
             },
             &cancellation,
@@ -1063,6 +1063,157 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(finished.len(), 1);
         assert_eq!(finished[0].status, CapturedToolCallStatus::Completed);
+    }
+
+    #[derive(Debug)]
+    struct BlockingMutation {
+        connection: Arc<std::sync::Mutex<rusqlite::Connection>>,
+        entered: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+        release: std::sync::Mutex<Option<std::sync::mpsc::Receiver<()>>>,
+        fail: bool,
+    }
+
+    impl BlockingMutation {
+        async fn write(&self) -> Result<Value, String> {
+            let connection = Arc::clone(&self.connection);
+            let entered = self.entered.lock().unwrap().take().unwrap();
+            let release = self.release.lock().unwrap().take().unwrap();
+            let fail = self.fail;
+            // Model Storage::run at its uncancellable seam, with a real SQLite
+            // transaction paused after the write and before its commit.
+            tokio::task::spawn_blocking(move || {
+                let mut connection = connection.lock().unwrap();
+                let transaction = connection.transaction().unwrap();
+                transaction
+                    .execute("UPDATE project SET revision = revision + 1", [])
+                    .unwrap();
+                entered.send(()).unwrap();
+                release.recv().unwrap();
+                if fail {
+                    return Err("transaction rolled back".to_owned());
+                }
+                transaction.commit().unwrap();
+                Ok(json!({"revision":2}))
+            })
+            .await
+            .unwrap()
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_settles_blocking_project_writes_before_returning() {
+        for (tool, fail) in [
+            ("apply_project_patch", false),
+            ("replace_story_timeline", false),
+            ("apply_project_patch", true),
+        ] {
+            assert_cancelled_write_evidence(tool, fail).await;
+        }
+    }
+
+    async fn assert_cancelled_write_evidence(tool: &'static str, fail: bool) {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("project.sqlite");
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE project (revision INTEGER); INSERT INTO project VALUES (1);",
+            )
+            .unwrap();
+        let (entered, transaction_entered) = tokio::sync::oneshot::channel();
+        let (release_transaction, release) = std::sync::mpsc::channel();
+        let host = TestToolHost {
+            mutation: Some(Arc::new(BlockingMutation {
+                connection: Arc::new(std::sync::Mutex::new(connection)),
+                entered: std::sync::Mutex::new(Some(entered)),
+                release: std::sync::Mutex::new(Some(release)),
+                fail,
+            })),
+            ..TestToolHost::default()
+        };
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let provider = tokio::spawn(async move {
+            let (mut connection, _) = listener.accept().await.unwrap();
+            let _ = read_http_json(&mut connection).await;
+            write_sse(&mut connection, &[
+                stream_chunk(&json!({"role":"assistant","tool_calls":[{"index":0,"id":"blocked-write","type":"function","function":{"name":tool,"arguments":"{}"}}]}),None),
+                stream_chunk(&json!({}),Some("tool_calls")),
+            ]).await;
+            // Keep the listener alive to detect an unwanted provider continuation.
+            listener
+        });
+        let cancellation = Cancellation::new();
+        let mut events = Vec::new();
+        {
+            let run = run_agent(
+                AgentRequest {
+                    request_id: "cancel-during-commit".to_owned(),
+                    message: "Edit the project".to_owned(),
+                    history: Vec::new(),
+                    config: AgentConfig {
+                        provider: "test".to_owned(),
+                        model: "rig-e2e-model".to_owned(),
+                        base_url: format!("http://{address}/v1"),
+                        api_key: "rig-e2e-secret".to_owned(),
+                        provider_protocol: AgentProviderProtocol::OpenAi,
+                        custom_instructions: String::new(),
+                        provider_parameters: json!({}),
+                    },
+                    context: AgentContext::default(),
+                    tool_host: Arc::new(host),
+                },
+                &cancellation,
+                |event| events.push(event),
+            );
+            tokio::pin!(run);
+            tokio::select! {
+                result = &mut run => panic!("runtime ended before transaction barrier: {result:?}"),
+                result = transaction_entered => result.unwrap(),
+            }
+            cancellation.cancel();
+            // Poll the cancellation branch before allowing the transaction to
+            // finish. No sleep, queue-drain timing, or scheduler luck is involved.
+            let before_commit = futures_util::poll!(&mut run);
+            // Always release the blocking worker, including on regression failure.
+            release_transaction.send(()).unwrap();
+            assert!(
+                before_commit.is_pending(),
+                "runtime abandoned the in-flight transaction: {before_commit:?}"
+            );
+            assert!(matches!(run.await, Err(AgentError::Cancelled)));
+        }
+        let listener = provider.await.unwrap();
+        let mut continuation = Box::pin(listener.accept());
+        assert!(futures_util::poll!(&mut continuation).is_pending());
+        let persisted_revision: i64 = rusqlite::Connection::open(path)
+            .unwrap()
+            .query_row("SELECT revision FROM project", [], |row| row.get(0))
+            .unwrap();
+        let finished = events
+            .iter()
+            .filter_map(|event| match event {
+                AgentStreamEvent::ToolCallFinished(call) => Some(call),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(finished.len(), 1);
+        assert_eq!(finished[0].name, tool);
+        assert_eq!(finished[0].id, "cancel-during-commit:tool:1");
+        if fail {
+            assert_eq!(persisted_revision, 1);
+            assert_eq!(finished[0].status, CapturedToolCallStatus::Failed);
+            assert!(
+                finished[0].output["error"]
+                    .as_str()
+                    .unwrap()
+                    .contains("transaction rolled back")
+            );
+        } else {
+            assert_eq!(persisted_revision, 2);
+            assert_eq!(finished[0].status, CapturedToolCallStatus::Completed);
+            assert_eq!(finished[0].output["revision"], persisted_revision);
+        }
     }
 
     fn stream_chunk(delta: &Value, finish_reason: Option<&str>) -> Value {

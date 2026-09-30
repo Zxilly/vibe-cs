@@ -1,15 +1,17 @@
 use std::sync::{
-    Arc,
+    Arc, Mutex as StdMutex,
     atomic::{AtomicU64, Ordering},
 };
 
+use futures_util::FutureExt as _;
 use rig_agent::tool::DynamicTool;
 use rig_core::tool::{ToolExecutionError, ToolOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::task::JoinHandle;
 
-use crate::AgentToolHost;
+use crate::{AgentToolHost, Cancellation};
 
 const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 64 * 1024;
 
@@ -46,10 +48,18 @@ struct Captures {
     tool_calls: Vec<CapturedToolCall>,
 }
 
+#[derive(Debug, Default)]
+struct Mutations {
+    closed: bool,
+    tasks: Vec<JoinHandle<()>>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ToolState {
     tool_host: Arc<dyn AgentToolHost>,
     captures: Arc<Mutex<Captures>>,
+    mutations: Arc<StdMutex<Mutations>>,
+    cancellation: Cancellation,
     request_id: Arc<str>,
     sequence: Arc<AtomicU64>,
     lifecycle: mpsc::UnboundedSender<ToolLifecycleEvent>,
@@ -59,12 +69,15 @@ impl ToolState {
     pub(crate) fn new(
         tool_host: Arc<dyn AgentToolHost>,
         request_id: &str,
+        cancellation: Cancellation,
     ) -> (Self, mpsc::UnboundedReceiver<ToolLifecycleEvent>) {
         let (lifecycle, receiver) = mpsc::unbounded_channel();
         (
             Self {
                 tool_host,
                 captures: Arc::new(Mutex::new(Captures::default())),
+                mutations: Arc::new(StdMutex::new(Mutations::default())),
+                cancellation,
                 request_id: Arc::from(request_id),
                 sequence: Arc::new(AtomicU64::new(0)),
                 lifecycle,
@@ -77,7 +90,52 @@ impl ToolState {
         self.captures.lock().await.tool_calls.clone()
     }
 
+    /// Stop admitting writes and retain ownership until every started write has
+    /// captured its outcome. Dropping a provider stream cannot cancel `SQLite`'s
+    /// already-running `spawn_blocking` transaction.
+    pub(crate) async fn settle_mutations(&self) {
+        let tasks = {
+            let mut mutations = self.mutations.lock().expect("tool mutation lock");
+            mutations.closed = true;
+            std::mem::take(&mut mutations.tasks)
+        };
+        for task in tasks {
+            let _ = task.await;
+        }
+    }
+
     async fn execute(
+        &self,
+        kind: ToolKind,
+        name: &str,
+        input: Value,
+    ) -> Result<Value, ToolExecutionError> {
+        if !matches!(
+            kind,
+            ToolKind::ApplyProjectPatch | ToolKind::ReplaceStoryTimeline
+        ) {
+            return self.execute_captured(kind, name, input).await;
+        }
+        let (sender, receiver) = oneshot::channel();
+        {
+            // Admission and ownership registration are one synchronous step.
+            let mut mutations = self.mutations.lock().expect("tool mutation lock");
+            if mutations.closed || self.cancellation.is_cancelled() {
+                return Err(ToolExecutionError::other("agent turn has stopped"));
+            }
+            let state = self.clone();
+            let name = name.to_owned();
+            mutations.tasks.push(tokio::spawn(async move {
+                let result = state.execute_captured(kind, &name, input).await;
+                let _ = sender.send(result);
+            }));
+        }
+        receiver
+            .await
+            .map_err(|error| ToolExecutionError::other(error.to_string()))?
+    }
+
+    async fn execute_captured(
         &self,
         kind: ToolKind,
         name: &str,
@@ -90,7 +148,7 @@ impl ToolState {
             name: name.to_owned(),
             input: input.clone(),
         });
-        let result = async {
+        let operation = async {
             let output = match kind {
                 ToolKind::ReadWorkspace => self
                     .tool_host
@@ -128,8 +186,18 @@ impl ToolState {
                 ToolKind::RequestExport => confirmation_request("export", &input)?,
             };
             Ok::<_, ToolExecutionError>(output)
-        }
-        .await;
+        };
+        let result = if matches!(
+            kind,
+            ToolKind::ApplyProjectPatch | ToolKind::ReplaceStoryTimeline
+        ) {
+            std::panic::AssertUnwindSafe(operation)
+                .catch_unwind()
+                .await
+                .unwrap_or_else(|_| Err(ToolExecutionError::other("tool host panicked")))
+        } else {
+            operation.await
+        };
         let (output, status) = match result {
             Ok(output) => {
                 let status = if output.get("status").and_then(Value::as_str)
@@ -805,6 +873,33 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn settled_turn_rejects_new_project_writes() {
+        let (state, mut events) =
+            ToolState::new(Arc::new(DeliveryHost), "settled", Cancellation::new());
+        state.settle_mutations().await;
+        for kind in [ToolKind::ApplyProjectPatch, ToolKind::ReplaceStoryTimeline] {
+            let error = state.execute(kind, "write", json!({})).await.unwrap_err();
+            assert!(error.to_string().contains("agent turn has stopped"));
+        }
+        assert!(state.snapshot().await.is_empty());
+        assert!(events.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn cancelled_turn_rejects_writes_before_stream_shutdown() {
+        let cancellation = Cancellation::new();
+        let (state, mut events) =
+            ToolState::new(Arc::new(DeliveryHost), "cancelled", cancellation.clone());
+        cancellation.cancel();
+        for kind in [ToolKind::ApplyProjectPatch, ToolKind::ReplaceStoryTimeline] {
+            let error = state.execute(kind, "write", json!({})).await.unwrap_err();
+            assert!(error.to_string().contains("agent turn has stopped"));
+        }
+        assert!(state.snapshot().await.is_empty());
+        assert!(events.try_recv().is_err());
+    }
+
     #[test]
     fn current_catalog_has_one_project_edit_path() {
         let names = tool_catalog()
@@ -948,7 +1043,8 @@ mod tests {
     #[tokio::test]
     async fn project_delivery_is_captured_from_the_single_host_runtime() {
         let project_id = "00000000-0000-4000-8000-000000000001";
-        let (state, mut lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-delivery");
+        let (state, mut lifecycle) =
+            ToolState::new(Arc::new(DeliveryHost), "turn-delivery", Cancellation::new());
         let output = state
             .execute(
                 ToolKind::ReadProjectDelivery,
@@ -977,7 +1073,11 @@ mod tests {
 
     #[tokio::test]
     async fn workspace_reads_the_live_host_after_a_same_turn_edit() {
-        let (state, _lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-workspace");
+        let (state, _lifecycle) = ToolState::new(
+            Arc::new(DeliveryHost),
+            "turn-workspace",
+            Cancellation::new(),
+        );
         let output = state
             .execute(
                 ToolKind::ReadWorkspace,
@@ -1077,7 +1177,8 @@ mod tests {
 
     #[tokio::test]
     async fn confirmation_tool_has_one_stable_started_and_finished_identity() {
-        let (state, mut lifecycle) = ToolState::new(Arc::new(DeliveryHost), "turn-hitl");
+        let (state, mut lifecycle) =
+            ToolState::new(Arc::new(DeliveryHost), "turn-hitl", Cancellation::new());
         state
             .execute(
                 ToolKind::RequestExport,

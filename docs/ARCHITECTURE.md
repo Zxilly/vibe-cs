@@ -141,7 +141,10 @@ Head and Change Group already form the one edit and undo authority.
   user entry and assistant placeholder atomically, retains bounded completed tool evidence, then
   persists terminal state and releases its exact Edit Lease in one storage transaction before the
   renderer receives completion. Cancellation, Channel loss and dropped IPC waiters leave that
-  persistence owner alive; startup resolves interrupted turns. The renderer only sends intents and
+  persistence owner alive. The Agent loop owns already-admitted Project mutations independently of
+  the provider stream: cancellation stops generation, then waits for those mutations to settle and
+  emits their completed or failed evidence before terminal persistence and lease release. Read-only
+  tools remain cancellable. Startup resolves interrupted turns. The renderer only sends intents and
   projects host results. Its assistant-entry and terminal-update write routes have been removed;
   human HITL decisions retain their existing append Interface.
 - Project context is progressively disclosed. The Current Turn Checkpoint and

@@ -130,7 +130,9 @@ impl ToolState {
                 let _ = sender.send(result);
             }));
         }
-        receiver.await.map_err(ToolExecutionError::other)?
+        receiver
+            .await
+            .map_err(|error| ToolExecutionError::other(error.to_string()))?
     }
 
     async fn execute_captured(
@@ -1071,8 +1073,11 @@ mod tests {
 
     #[tokio::test]
     async fn workspace_reads_the_live_host_after_a_same_turn_edit() {
-        let (state, _lifecycle) =
-            ToolState::new(Arc::new(DeliveryHost), "turn-workspace", Cancellation::new());
+        let (state, _lifecycle) = ToolState::new(
+            Arc::new(DeliveryHost),
+            "turn-workspace",
+            Cancellation::new(),
+        );
         let output = state
             .execute(
                 ToolKind::ReadWorkspace,

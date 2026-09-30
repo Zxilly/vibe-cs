@@ -340,10 +340,9 @@ where
                 AgentError::Provider(safe_error(&error.to_string(), &provider_secret))
             })?;
             match item {
-                MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(Text {
-                    text,
-                    ..
-                })) => {
+                MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                    Text { text, .. },
+                )) => {
                     emit(AgentStreamEvent::TextDelta(text));
                 }
                 MultiTurnStreamItem::FinalResponse(response) => {
@@ -1117,7 +1116,9 @@ mod tests {
         let path = directory.path().join("project.sqlite");
         let connection = rusqlite::Connection::open(&path).unwrap();
         connection
-            .execute_batch("CREATE TABLE project (revision INTEGER); INSERT INTO project VALUES (1);")
+            .execute_batch(
+                "CREATE TABLE project (revision INTEGER); INSERT INTO project VALUES (1);",
+            )
             .unwrap();
         let (entered, transaction_entered) = tokio::sync::oneshot::channel();
         let (release_transaction, release) = std::sync::mpsc::channel();

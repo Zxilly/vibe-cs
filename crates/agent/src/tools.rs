@@ -91,7 +91,7 @@ impl ToolState {
     }
 
     /// Stop admitting writes and retain ownership until every started write has
-    /// captured its outcome. Dropping a provider stream cannot cancel SQLite's
+    /// captured its outcome. Dropping a provider stream cannot cancel `SQLite`'s
     /// already-running `spawn_blocking` transaction.
     pub(crate) async fn settle_mutations(&self) {
         let tasks = {

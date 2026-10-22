@@ -30,12 +30,12 @@ describe('the page frame', () => {
     expect(html).toContain('比赛历史');
   });
 
-  it('carries the artboard s count strip and its platform note', () => {
+  it('distinguishes the total from the current page counts', () => {
     expect(html).toContain('全部 0');
     // Page-scoped counts say so: the service pages the list (§10.3).
     expect(html).toContain('本页未下载 0');
     expect(html).toContain('本页已入库 0');
-    expect(html).toContain('同步 Steam 竞技比赛');
+    expect(html).toContain('本页已过期 0');
   });
 
   it('offers 同步最近比赛 and the Steam settings link', () => {

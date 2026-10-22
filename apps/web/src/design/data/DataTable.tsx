@@ -143,6 +143,8 @@ export interface DataTableProps<Row> {
   readonly onSelectedChange?: ((next: Set<string>) => void) | undefined;
   /** "上限 12 场". Blocked checkboxes are disabled, never hidden (spec §8). */
   readonly selectionLimit?: number | undefined;
+  /** Exclude unavailable rows from selection and explain their disabled checkbox. */
+  readonly selectionDisabledReason?: ((row: Row) => string | undefined) | undefined;
 
   /** The row the Inspector is showing: accent-100 ground, inset left edge. */
   readonly activeRowId?: string | null | undefined;
@@ -175,6 +177,7 @@ export function DataTable<Row>({
   selected,
   onSelectedChange,
   selectionLimit,
+  selectionDisabledReason,
   activeRowId = null,
   onRowActivate,
   empty,
@@ -188,7 +191,8 @@ export function DataTable<Row>({
   const shown = visibleColumns(columns, hiddenColumns);
   const selection = selected ?? EMPTY_SELECTION;
   const rowIds = rows.map(rowId);
-  const headerState = headerSelectionState(rowIds, selection);
+  const selectableIds = rows.filter((row) => selectionDisabledReason?.(row) === undefined).map(rowId);
+  const headerState = headerSelectionState(selectableIds, selection);
   const showSelectAll = selectable && onSelectedChange !== undefined && selectionLimit === undefined;
   const interactiveRows = onRowActivate !== undefined;
   // Roving tabindex: the body is one tab stop, arrows walk it from there.
@@ -244,6 +248,7 @@ export function DataTable<Row>({
   );
 
   const toggleRow = (id: string) => {
+    if (!selectableIds.includes(id)) return;
     const next = toggleSelection(selection, id, { limit: selectionLimit });
     if (next !== selection) onSelectedChange?.(next as Set<string>);
   };
@@ -277,7 +282,9 @@ export function DataTable<Row>({
                       indeterminate={headerState === 'some'}
                       data-select-all={headerState}
                       aria-label={t`全选本页`}
-                      onChange={() => onSelectedChange?.(toggleAllSelection(rowIds, selection))}
+                      disabled={selectableIds.length === 0}
+                      disabledReason={t`本页没有可选项目`}
+                      onChange={() => onSelectedChange?.(toggleAllSelection(selectableIds, selection))}
                     />
                   ) : null}
                 </TableHeaderCell>
@@ -321,7 +328,8 @@ export function DataTable<Row>({
             {rows.map((row) => {
               const id = rowId(row);
               const isActive = id === activeRowId;
-              const blocked = isSelectionBlocked(selection, id, { limit: selectionLimit });
+              const unavailableReason = selectionDisabledReason?.(row);
+              const blocked = unavailableReason !== undefined || isSelectionBlocked(selection, id, { limit: selectionLimit });
               return (
                 <tr
                   key={id}
@@ -354,7 +362,7 @@ export function DataTable<Row>({
                         size="sm"
                         checked={selection.has(id)}
                         disabled={blocked || onSelectedChange === undefined}
-                        disabledReason={blockedReason}
+                        disabledReason={unavailableReason ?? blockedReason}
                         aria-label={rowLabel?.(row) ?? id}
                         onChange={() => toggleRow(id)}
                       />

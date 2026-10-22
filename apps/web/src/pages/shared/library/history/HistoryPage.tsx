@@ -17,13 +17,7 @@
  * first built, which is why it shipped with a hard-coded empty list; the seam
  * exists now and the page reads the service like every other §7 page.
  *
- * Two things the page still says rather than draws:
- *
- *   · 「下载后自动分析」 is disabled — `commands.downloadMatchDemo` takes a match
- *     id and nothing else, so the checkbox has no wire field to set. Reported
- *     as a contract gap; disabled with the reason attached beats a toggle that
- *     silently does nothing (§8).
- *   · the state counts are labelled 本页. The service pages the list, so a
+ * The state counts are labelled 本页. The service pages the list, so a
  *     count over the rows on screen is a count of the page — printing it as a
  *     corpus total is precisely the silent-truncation bug §10.3 rules out. The
  *     corpus total is the server's own, printed beside it and in the footer.
@@ -51,7 +45,7 @@ import { Button, Badge } from '../../../../design/primitives';
 import type { MatchHistoryItem } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../navigation/RouteLink';
 import { MatchHistoryTable } from './MatchHistoryTable';
-import { DEMO_RETENTION_DAYS, matchHistoryCounts } from './matchHistoryRows';
+import { DEMO_RETENTION_DAYS, isDownloadable, matchHistoryCounts, matchHistoryState } from './matchHistoryRows';
 import { formatSyncedAt, latestSyncedAt } from './matchHistorySync';
 
 /** 42px rows, and the artboard's panel shows about a dozen at a time. */
@@ -94,7 +88,8 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
 
   /* The download actions are blocked by the same thing every other write on
      every other page is blocked by, and they say so with the same sentence. */
-  const selectedRows = rows.filter((row) => selected.has(row.id));
+  const selectedRows = rows.filter((row) => selected.has(row.id) && isDownloadable(matchHistoryState(row, stateOptions)));
+  const selectedIds = new Set(selectedRows.map((row) => row.id));
 
   /**
    * Queues one download per match. `clearSelection` is true only for the batch
@@ -176,37 +171,24 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               <Trans>下载中 {activeCount}</Trans>
             </Badge>
           )}
-          <div className="flex-1" aria-hidden="true" />
-          <span className="text-xs text-neutral-600">
-            <Trans>同步 Steam 竞技比赛</Trans>
-          </span>
         </div>
       }
       footer={
-        selected.size === 0 ? null : (
+        selectedRows.length === 0 ? null : (
           <SelectionBar
-            summary={<Trans>已选 {selected.size} 场</Trans>}
+            summary={<Trans>已选 {selectedRows.length} 场</Trans>}
             primary={
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => startDownloads(selectedRows, true)}
               >
-                <Trans>下载选中的 {selected.size} 场</Trans>
+                <Trans>下载选中的 {selectedRows.length} 场</Trans>
               </Button>
             }
           >
             <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
               <Trans>取消选择</Trans>
-            </Button>
-            {/* The service takes a match id and nothing else — see the header. */}
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled
-              disabledReason={t`暂不支持下载后自动分析，下载完成可在资料库里开始分析`}
-            >
-              <Trans>下载后自动分析</Trans>
             </Button>
           </SelectionBar>
         )
@@ -255,7 +237,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
         <MatchHistoryTable
           rows={rows}
           stateOptions={stateOptions}
-          selected={selected}
+          selected={selectedIds}
           onSelectedChange={setSelected}
           onDownload={(item) => startDownloads([item])}
           onCancel={(item) => {

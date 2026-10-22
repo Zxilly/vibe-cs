@@ -111,7 +111,6 @@ export function LibraryPage() {
       toolbar={
         <Toolbar
           title={<Trans>Steam 下载</Trans>}
-          meta={<Trans>从 Steam 同步最近比赛并下载回放</Trans>}
           actions={[{
             id: 'library',
             label: <Trans>返回 Demo 资料库</Trans>,

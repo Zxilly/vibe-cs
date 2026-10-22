@@ -112,6 +112,46 @@ describe('the read', () => {
 });
 
 describe('下载', () => {
+  it('selects only downloadable matches and clears them with the same select-all control', async () => {
+    const items = [...rows(),
+      matchHistoryItem({ id: 'imported', map_name: 'de_mirage', demo_status: 'downloaded', demo_id: 'demo-1' }),
+      matchHistoryItem({ id: 'expired', map_name: 'de_anubis', demo_status: 'available', demo_id: null, played_at: '2020-01-01T00:00:00Z' }),
+    ];
+    const stub = client({ listMatchHistory: vi.fn(() => Promise.resolve(page(items))) });
+    render(stub);
+    await screen.findByText('de_ancient');
+    for (const map of ['de_nuke', 'de_mirage', 'de_anubis']) {
+      const checkbox = screen.getByRole('checkbox', { name: new RegExp(map, 'u') });
+      expect(checkbox).toHaveProperty('disabled', true);
+      fireEvent.click(checkbox);
+    }
+    expect(screen.queryByText(/已选 \d+ 场/u)).toBeNull();
+    const selectAll = screen.getByRole('checkbox', { name: '全选本页' });
+    fireEvent.click(selectAll);
+    expect(selectAll.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('已选 1 场')).toBeTruthy();
+    fireEvent.click(selectAll);
+    expect(selectAll.getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByText('已选 1 场')).toBeNull();
+    fireEvent.click(selectAll);
+    fireEvent.click(screen.getByRole('button', { name: '下载选中的 1 场' }));
+    await waitFor(() => expect(stub.downloadMatchDemo).toHaveBeenCalledExactlyOnceWith('CSGO-available'));
+  });
+
+  it('drops a selected match from the batch when refreshed data makes it unavailable', async () => {
+    let items = [rows()[0]!];
+    const stub = client({ listMatchHistory: vi.fn(() => Promise.resolve(page(items))) });
+    render(stub);
+    await screen.findByText('de_ancient');
+    fireEvent.click(screen.getByRole('checkbox', { name: /de_ancient/u }));
+    expect(screen.getByText('已选 1 场')).toBeTruthy();
+    items = [{ ...items[0]!, demo_status: 'downloaded', demo_id: 'demo-new' }];
+    fireEvent.click(screen.getByRole('button', { name: '同步最近比赛' }));
+    await waitFor(() => expect(screen.queryByText('已选 1 场')).toBeNull());
+    expect(screen.getByRole('checkbox', { name: '全选本页' })).toHaveProperty('disabled', true);
+    expect(stub.downloadMatchDemo).not.toHaveBeenCalled();
+  });
+
   it('clears the page-local download selection when navigating to another page', async () => {
     const stub = client({ listMatchHistory: vi.fn((pageNumber: number) => Promise.resolve({
       items: pageNumber === 1 ? [rows()[0]] : [matchHistoryItem({

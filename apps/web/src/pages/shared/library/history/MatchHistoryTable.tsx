@@ -27,7 +27,6 @@ import { Badge, Button } from '../../../../design/primitives';
 import type { MatchHistoryItem } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../navigation/RouteLink';
 import {
-  isDownloadable,
   matchHistoryState,
   type MatchHistoryState,
   type MatchHistoryStateOptions,
@@ -197,19 +196,16 @@ export function MatchHistoryTable({
       rowId={(item) => item.id}
       rowLabel={(item) => `${item.map_name ?? t`未知地图`} ${item.played_at ?? ''}`}
       selectable
-      selected={selected}
-      onSelectedChange={(next) => {
-        /* A row that cannot be downloaded cannot be selected: the artboard's
-           expired row has no checkbox at all, and letting one into 「下载选中的
-           N 场」 would produce a batch that silently drops members. */
-        const allowed = new Set(
-          [...next].filter((id) => {
-            const item = rows.find((row) => row.id === id);
-            return item !== undefined && isDownloadable(stateOf(item));
-          }),
-        );
-        onSelectedChange(allowed);
+      selectionDisabledReason={(item) => {
+        switch (stateOf(item)) {
+          case 'downloaded': return t`已入库，无需重复下载`;
+          case 'downloading': return t`正在下载`;
+          case 'expired': return t`回放已过期，无法下载`;
+          default: return undefined;
+        }
       }}
+      selected={selected}
+      onSelectedChange={onSelectedChange}
       loading={loading}
       {...(skeleton === undefined ? {} : { skeleton })}
       {...(empty === undefined ? {} : { empty })}

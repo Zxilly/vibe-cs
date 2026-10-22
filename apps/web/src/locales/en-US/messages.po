@@ -53,7 +53,7 @@ msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个�
 msgstr "{0, plural, =0 {Nothing is discovered automatically right now.} other {New Demos in these # folders join the library automatically.}}"
 
 #. placeholder {0}: rows.length
-#: src/pages/editing/projects/ProjectsPage.tsx:44
+#: src/pages/editing/projects/ProjectsPage.tsx:51
 msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
@@ -98,7 +98,7 @@ msgid "{0, plural, other {# 条记录找不到文件}}"
 msgstr "{0, plural, one {# record cannot find its file} other {# records cannot find their files}}"
 
 #. placeholder {0}: clips.length
-#: src/pages/editing/projects/ProjectsPage.tsx:129
+#: src/pages/editing/projects/ProjectsPage.tsx:147
 msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, one {# clip} other {# clips}}"
 
@@ -316,9 +316,9 @@ msgid "{0} 次购买没能归属到阵营"
 msgstr "{0} purchases could not be attributed to a side"
 
 #. placeholder {0}: gate.blockers.length
-#: src/pages/editing/projects/ProjectsPage.tsx:105
-msgid "{0} 段素材未就绪 → 在剪辑里检查"
-msgstr "{0} clips not ready → check them in the editor"
+#: src/pages/editing/projects/ProjectsPage.tsx:121
+msgid "{0} 段素材需检查"
+msgstr "{0} clips need attention"
 
 #. placeholder {0}: mapName === '' ? '—' : mapName
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:134
@@ -467,13 +467,9 @@ msgstr "{minWeight} hits"
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "Position heatmap for {playerName} on {mapName}"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:130
-msgid "{ready} 段就绪"
-msgstr "{ready} ready"
-
-#: src/pages/editing/projects/ProjectsPage.tsx:104
-msgid "{recordable} 段待录制 → 录制缺失片段"
-msgstr "{recordable} clips to record → record missing clips"
+#: src/pages/editing/projects/ProjectsPage.tsx:120
+msgid "{recordable} 段待录制"
+msgstr "{recordable} clips to record"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:192
 msgid "{removed, plural, other {已删除 # 条对话，剪辑单、后台任务和成片都还在}}"
@@ -1037,11 +1033,6 @@ msgstr "Previous page"
 msgid "上次代理生成失败，可以重新生成"
 msgstr "The last proxy generation failed. You can generate it again"
 
-#. placeholder {0}: formatTaskClock(project.updated_at, { now: new Date() })
-#: src/pages/editing/workspace/ActiveProjectsPanel.tsx:49
-msgid "上次保存 {0}"
-msgstr "Saved {0}"
-
 #. placeholder {0}: status.imported
 #. placeholder {1}: status.updated
 #. placeholder {2}: status.missing
@@ -1162,7 +1153,7 @@ msgstr "This won't delete finished recordings, finished files, or library entrie
 msgid "不会删除磁盘上的现有文件，只移除失效记录。"
 msgstr "This won't delete existing files on disk; it only removes stale records."
 
-#: src/app/shell/WorkspaceModeIntro.tsx:68
+#: src/app/shell/WorkspaceModeIntro.tsx:63
 msgid "不再显示"
 msgstr "Don't show again"
 
@@ -1203,10 +1194,6 @@ msgstr "Professional"
 #: src/pages/analysis/match/views/TeamsView.tsx:388
 msgid "两支队伍分别以哪种方式赢下回合"
 msgstr "How each team won its rounds"
-
-#: src/app/shell/WorkspaceModeIntro.tsx:64
-msgid "两种模式使用同一份 Demo 资料库，之后可以随时从左上角切换。"
-msgstr "Both modes share one demo library. Switch any time from the top-left corner."
 
 #: src/pages/analysis/match/views/EquipmentChart.tsx:25
 msgid "两队逐回合装备价值"
@@ -1314,10 +1301,6 @@ msgstr "Some camera issues remain. Adjust the camera style or capture range, the
 #: src/pages/shared/settings/FilesSection.tsx:328
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
-
-#: src/pages/editing/workspace/HomePage.tsx:52
-msgid "从 Demo 中找到精彩片段，加入作品后录制并导出成片。"
-msgstr "Find highlights in a Demo, add them to a project, then record and export your video."
 
 #: src/pages/shared/library/LibraryPage.tsx:383
 msgid "从 Demo 创建剪辑"
@@ -1464,7 +1447,7 @@ msgid "作业编号"
 msgstr "Job ID"
 
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1532
-#: src/pages/editing/projects/ProjectsPage.tsx:43
+#: src/pages/editing/projects/ProjectsPage.tsx:50
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "Projects"
@@ -1492,7 +1475,7 @@ msgstr "Project tasks"
 msgid "作品任务 {0}"
 msgstr "Project tasks {0}"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:54
+#: src/pages/editing/projects/ProjectsPage.tsx:70
 msgid "作品列表暂时读不到。"
 msgstr "The project list is temporarily unavailable."
 
@@ -1513,6 +1496,10 @@ msgstr "Project workspace"
 #: src/domain/editing/ProjectWorkspaceDock.tsx:73
 msgid "作品工作区面板"
 msgstr "Project Workspace Panel"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:59
+msgid "作品排序"
+msgstr "Sort projects"
 
 #: src/domain/project/quickAdd.tsx:83
 msgid "作品没有被修改，请重试。"
@@ -1868,7 +1855,7 @@ msgstr "All {total}"
 msgid "全部 {total} 个未录制片段"
 msgstr "All {total} unrecorded clips"
 
-#: src/pages/editing/workspace/HomePage.tsx:45
+#: src/pages/editing/workspace/HomePage.tsx:44
 msgid "全部作品"
 msgstr "All projects"
 
@@ -1884,10 +1871,6 @@ msgstr "All changes"
 #: src/pages/shared/settings/AiAgentSection.tsx:1004
 msgid "全部存在本机，不上传。"
 msgstr "All of it stays on this machine; nothing is uploaded."
-
-#: src/pages/editing/projects/ProjectsPage.tsx:130
-msgid "全部就绪"
-msgstr "all ready"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:419
 msgid "全部状态"
@@ -2122,7 +2105,8 @@ msgid "最近改动"
 msgstr "Last changed"
 
 #: src/domain/task/TaskDetailBody.tsx:111
-#: src/pages/editing/projects/ProjectsPage.tsx:145
+#: src/pages/editing/projects/ProjectsPage.tsx:60
+#: src/pages/editing/projects/ProjectsPage.tsx:156
 msgid "最近更新"
 msgstr "Last update"
 
@@ -2916,6 +2900,10 @@ msgstr "Only the record of \"{fileName}\" is removed; the file on disk is not de
 msgid "只移除项目中的素材记录；磁盘上的源文件不会删除。"
 msgstr "Only removes the media record from the project; the source file on disk is not deleted."
 
+#: src/pages/editing/projects/ProjectsPage.tsx:115
+msgid "可以导出"
+msgstr "Ready to export"
+
 #: src/pages/analysis/match/views/OverviewView.tsx:160
 msgid "可以画进 2D 回放的事件"
 msgstr "Events that can be drawn in the 2D replay"
@@ -2984,6 +2972,7 @@ msgstr "Sync Lock: moves together during Story insert, ripple delete, extract, a
 #: src/domain/editing/ClipInspector.tsx:139
 #: src/domain/editing/ClipInspector.tsx:141
 #: src/domain/editing/MarkerEditorFields.tsx:15
+#: src/pages/editing/projects/ProjectsPage.tsx:61
 #: src/pages/shared/library/SaveViewDialog.tsx:54
 msgid "名称"
 msgstr "Name"
@@ -3213,6 +3202,10 @@ msgstr "How rounds ended"
 msgid "回合胜负"
 msgstr "Rounds won"
 
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:111
+msgid "回放与录制不可用"
+msgstr "Playback and recording unavailable"
+
 #: src/pages/shared/settings/GameSection.tsx:134
 msgid "回放与录制都从这个目录启动游戏。"
 msgstr "Replay and recording both launch the game from this directory."
@@ -3220,10 +3213,6 @@ msgstr "Replay and recording both launch the game from this directory."
 #: src/pages/shared/onboarding/GuidePage.tsx:195
 msgid "回放与录制都用它。"
 msgstr "Playback and recording both use it."
-
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:111
-msgid "回放与录制都起不来"
-msgstr "neither playback nor recording can start"
 
 #: src/pages/shared/onboarding/GuidePage.tsx:194
 msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
@@ -3692,7 +3681,6 @@ msgstr "Align"
 msgid "导入"
 msgstr "Import"
 
-#: src/pages/editing/workspace/HomePage.tsx:54
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
 #: src/pages/shared/library/LibraryPage.tsx:286
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
@@ -3757,6 +3745,10 @@ msgstr "Export OpenTimelineIO…"
 msgid "导出 SRT 字幕"
 msgstr "Export SRT subtitles"
 
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:115
+msgid "导出不可用"
+msgstr "Export unavailable"
+
 #: src/pages/shared/library/LibraryFilters.tsx:237
 msgid "导出元数据"
 msgstr "Export metadata"
@@ -3789,10 +3781,6 @@ msgstr "Export"
 #: src/pages/shared/onboarding/GuidePage.tsx:203
 msgid "导出成片与波形分析用它。"
 msgstr "Exporting a finished cut and analysing waveforms use it."
-
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:115
-msgid "导出成片会失败"
-msgstr "exporting a finished cut will fail"
 
 #: src/pages/shared/onboarding/GuidePage.tsx:202
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
@@ -3921,7 +3909,7 @@ msgstr "Workspace panels"
 
 #: src/app/command/commandRegistry.ts:172
 #: src/app/shell/navigation.tsx:51
-#: src/pages/editing/workspace/HomePage.tsx:28
+#: src/pages/editing/workspace/HomePage.tsx:29
 msgid "工作台"
 msgstr "Dashboard"
 
@@ -4426,6 +4414,10 @@ msgstr "Recording"
 msgid "录制、导出、下载和分析开始后会出现在这里。"
 msgstr "Recordings, exports, downloads and analyses appear here once they start."
 
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:113
+msgid "录制不可用，分析与编辑不受影响"
+msgstr "Recording unavailable; analysis and editing are available"
+
 #: src/pages/shared/settings/AdvancedSection.tsx:342
 msgid "录制中"
 msgstr "Recording"
@@ -4488,10 +4480,6 @@ msgstr "Recorded clip {0}"
 msgid "录制环境未就绪"
 msgstr "Recording environment not ready"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:79
-msgid "录制环境还没准备好，需要它的任务现在起不来。"
-msgstr "The recording environment is not ready, so the jobs that need it cannot start."
-
 #: src/pages/shared/onboarding/GuidePage.tsx:199
 msgid "录制用它接管画面。"
 msgstr "Recording uses it to take over the picture."
@@ -4529,10 +4517,6 @@ msgstr "Recording range"
 msgid "录制语音"
 msgstr "Recording voice"
 
-#: src/pages/editing/workspace/EnvironmentNotice.tsx:113
-msgid "录制起不来，分析与编辑不受影响"
-msgstr "recording cannot start; analysis and editing are unaffected"
-
 #: src/pages/shared/onboarding/GuidePage.tsx:198
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "Recording needs it. Importing, analysis and editing are unaffected."
@@ -4552,6 +4536,10 @@ msgstr "Footage to cut"
 #: src/pages/analysis/match/views/ReviewView.tsx:834
 msgid "待处理"
 msgstr "Pending"
+
+#: src/pages/editing/projects/ProjectsPage.tsx:116
+msgid "待添加片段"
+msgstr "No clips yet"
 
 #: src/pages/shared/library/LibraryFilters.tsx:52
 #: src/pages/shared/library/libraryFormat.ts:136
@@ -4759,6 +4747,10 @@ msgstr "Open the profile of {0}"
 #: src/pages/shared/library/LibraryCards.tsx:147
 msgid "打开 {0} 的详情"
 msgstr "Open the details of {0}"
+
+#: src/pages/editing/workspace/HomePage.tsx:52
+msgid "打开 Demo 资料库"
+msgstr "Open Demo library"
 
 #: src/pages/shared/library/history/HistoryPage.tsx:222
 msgid "打开 Steam 设置"
@@ -5083,10 +5075,6 @@ msgstr "Filter finished files by type"
 msgid "按高光类型统计，胜负未记录"
 msgstr "Counted by highlight kind; the outcome is not recorded"
 
-#: src/app/shell/WorkspaceModeIntro.tsx:31
-msgid "挑选精彩片段，编排时间轴，录制并导出成片。"
-msgstr "Choose highlights, arrange your timeline, then record and export a video."
-
 #: src/pages/analysis/players/PlayerProfilePage.tsx:227
 msgid "换一张图"
 msgstr "Switch map"
@@ -5164,11 +5152,11 @@ msgstr "Insert Edit"
 msgid "搜索"
 msgstr "Search"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:47
+#: src/pages/editing/projects/ProjectsPage.tsx:57
 msgid "搜索作品"
 msgstr "Search projects"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:47
+#: src/pages/editing/projects/ProjectsPage.tsx:57
 msgid "搜索作品…"
 msgstr "Search projects…"
 
@@ -5427,13 +5415,13 @@ msgid "文字颜色"
 msgstr "Text color"
 
 #: src/domain/project/createDemoProject.ts:58
-#: src/pages/editing/projects/ProjectsPage.tsx:26
+#: src/pages/editing/projects/ProjectsPage.tsx:32
 msgid "新作品"
 msgstr "New project"
 
-#: src/pages/editing/delivery/OutputsView.tsx:216
-#: src/pages/editing/projects/ProjectsPage.tsx:32
-#: src/pages/editing/workspace/HomePage.tsx:31
+#: src/pages/editing/delivery/OutputsView.tsx:215
+#: src/pages/editing/projects/ProjectsPage.tsx:39
+#: src/pages/editing/workspace/HomePage.tsx:32
 msgid "新建作品"
 msgstr "New project"
 
@@ -5441,7 +5429,7 @@ msgstr "New project"
 msgid "新建作品 · Agent 模式"
 msgstr "New project · Agent mode"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:83
+#: src/pages/editing/projects/ProjectsPage.tsx:99
 msgid "新建作品后，添加素材开始剪辑。"
 msgstr "Create a project, then add media to start editing."
 
@@ -5561,7 +5549,7 @@ msgid "旧版本"
 msgstr "Older revision"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:484
-#: src/pages/editing/projects/ProjectsPage.tsx:141
+#: src/pages/editing/projects/ProjectsPage.tsx:149
 #: src/pages/shared/library/libraryColumns.tsx:121
 #: src/pages/shared/library/libraryColumns.tsx:122
 msgid "时长"
@@ -5615,10 +5603,6 @@ msgstr "The timeline still has clips that aren't ready. Record, re-record, or re
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1553
 msgid "时间线还没有片段"
 msgstr "The timeline has no clips yet"
-
-#: src/pages/editing/projects/ProjectsPage.tsx:100
-msgid "时间线还没有片段 → 去选材"
-msgstr "The timeline is empty → collect clips"
 
 #: src/domain/match/matchEnums.ts:106
 msgid "时间耗尽"
@@ -6139,10 +6123,6 @@ msgstr "View finished file"
 msgid "查看此处 {0} 项修改"
 msgstr "View {0} changes here"
 
-#: src/app/shell/WorkspaceModeIntro.tsx:38
-msgid "查看比赛数据、回合事件与战术回放。"
-msgstr "Explore match statistics, round events and tactical replays."
-
 #. placeholder {0}: selectedClip.name
 #: src/domain/editing/ProjectTimeline.tsx:2992
 msgid "查看片段详情 {0}"
@@ -6363,7 +6343,7 @@ msgstr "Preparing the edit…"
 msgid "正在准备镜头预演…"
 msgstr "Preparing camera preview…"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:32
+#: src/pages/editing/projects/ProjectsPage.tsx:39
 msgid "正在创建…"
 msgstr "Creating…"
 
@@ -6383,12 +6363,12 @@ msgstr "Refreshing nested sequence…"
 msgid "正在加入作品"
 msgstr "Adding to project"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:53
+#: src/pages/editing/projects/ProjectsPage.tsx:69
 msgid "正在加载…"
 msgstr "Loading…"
 
 #: src/pages/editing/delivery/OutputsView.tsx:126
-#: src/pages/editing/projects/ProjectsPage.tsx:65
+#: src/pages/editing/projects/ProjectsPage.tsx:81
 msgid "正在加载作品…"
 msgstr "Loading projects…"
 
@@ -6521,7 +6501,7 @@ msgstr "Checking whether the current project is ready to deliver."
 msgid "正在检查录制范围…"
 msgstr "Checking recording ranges…"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:130
+#: src/pages/editing/projects/ProjectsPage.tsx:151
 msgid "正在检查素材…"
 msgstr "Checking media…"
 
@@ -6818,6 +6798,10 @@ msgstr "Match workspace views"
 msgid "比赛数"
 msgstr "Matches"
 
+#: src/app/shell/WorkspaceModeIntro.tsx:38
+msgid "比赛数据与战术回放"
+msgstr "Match data and tactical replay"
+
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:169
 msgid "比赛日期"
 msgstr "Match date"
@@ -6896,7 +6880,7 @@ msgstr "No kill or objective events; {0} v {1} throughout"
 msgid "没有创建任何作品。"
 msgstr "No project was created."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:59
+#: src/pages/editing/projects/ProjectsPage.tsx:75
 msgid "没有创建作品。"
 msgstr "The project was not created."
 
@@ -6908,7 +6892,7 @@ msgstr "Nothing was deleted; the record and the file are still there."
 msgid "没有加入「{name}」"
 msgstr "Could not add to “{name}”"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:74
+#: src/pages/editing/projects/ProjectsPage.tsx:90
 msgid "没有匹配的作品"
 msgstr "No matching projects"
 
@@ -6964,7 +6948,7 @@ msgstr "No matchup data available."
 msgid "没有可用的选手位置数据。"
 msgstr "No player position data is available."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:75
+#: src/pages/editing/projects/ProjectsPage.tsx:91
 msgid "没有名字包含「{search}」的作品。"
 msgstr "No project name contains \"{search}\"."
 
@@ -7298,8 +7282,8 @@ msgid "清空对话"
 msgstr "Clear conversations"
 
 #: src/pages/analysis/players/PlayersPage.tsx:387
-#: src/pages/editing/projects/ProjectsPage.tsx:78
-#: src/pages/shared/library/LibraryFilters.tsx:188
+#: src/pages/editing/projects/ProjectsPage.tsx:94
+#: src/pages/shared/library/LibraryFilters.tsx:195
 msgid "清空搜索"
 msgstr "Clear the search"
 
@@ -8115,9 +8099,7 @@ msgid "第 {0} 回合高光的 2D 回放"
 msgstr "2D replay of the round {0} highlight"
 
 #. placeholder {0}: current.revision
-#. placeholder {0}: project.revision
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1535
-#: src/pages/editing/projects/ProjectsPage.tsx:124
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1537
 msgid "第 {0} 版"
 msgstr "Version {0}"
 
@@ -8220,20 +8202,16 @@ msgstr "There is no media yet. Import a Demo to start your first project from it
 msgid "素材就绪"
 msgstr "Media ready"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:99
-msgid "素材就绪 → 可以导出"
-msgstr "Media ready → ready to export"
-
 #: src/domain/editing/TimelineProgramMonitor.tsx:693
 msgid "素材未就绪 · 当前显示可用帧"
 msgstr "Media not ready · showing available frames"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:130
+#: src/pages/editing/projects/ProjectsPage.tsx:151
 msgid "素材状态待更新"
 msgstr "Media status needs updating"
 
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1549
-#: src/pages/editing/projects/ProjectsPage.tsx:130
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1541
+#: src/pages/editing/projects/ProjectsPage.tsx:151
 msgid "素材状态暂时不可用"
 msgstr "Media status is unavailable"
 
@@ -8312,11 +8290,11 @@ msgstr "Instruction for Agent"
 msgid "给所有片段加上默认转场"
 msgstr "Add the default transition to every clip"
 
-#: src/pages/editing/workspace/HomePage.tsx:44
+#: src/pages/editing/workspace/HomePage.tsx:43
 msgid "继续"
 msgstr "Continue"
 
-#: src/pages/editing/projects/ProjectsPage.tsx:150
+#: src/pages/editing/projects/ProjectsPage.tsx:160
 msgid "继续剪辑"
 msgstr "Continue editing"
 
@@ -9129,13 +9107,13 @@ msgstr "{0} more purchase events carry no side and cannot be attributed to eithe
 msgid "还没有位置数据，请先分析该选手在这张地图上的比赛。"
 msgstr "No position data yet. Analyze this player’s matches on this map."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:83
+#: src/pages/editing/projects/ProjectsPage.tsx:99
 msgid "还没有作品"
 msgstr "No projects yet"
 
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:31
-msgid "还没有作品。新建作品开始剪辑，或先到 Demo 资料库选材。"
-msgstr "No projects yet. Create a project to start editing, or pick material in the Demo library first."
+msgid "还没有作品，点击「新建作品」开始剪辑。"
+msgstr "No projects yet. Create a project to start editing."
 
 #: src/domain/media/Transport.tsx:104
 msgid "还没有可播放的素材"
@@ -9222,7 +9200,7 @@ msgstr "No watched folders yet. Add one and new Demos arrive on their own."
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically."
 
-#: src/pages/editing/projects/ProjectsPage.tsx:129
+#: src/pages/editing/projects/ProjectsPage.tsx:147
 msgid "还没有素材"
 msgstr "No clips yet"
 
@@ -9751,7 +9729,7 @@ msgstr "Select a round to view events and notes."
 msgid "选择导入素材可插入或覆盖。"
 msgstr "Select imported media to insert or overwrite."
 
-#: src/app/shell/WorkspaceModeIntro.tsx:62
+#: src/app/shell/WorkspaceModeIntro.tsx:61
 msgid "选择工作模式"
 msgstr "Choose a work mode"
 
@@ -9839,6 +9817,10 @@ msgstr "Selection order"
 msgid "选择高光查看详情。"
 msgstr "Select a highlight to view details."
 
+#: src/app/shell/WorkspaceModeIntro.tsx:31
+msgid "选材、剪辑与导出"
+msgstr "Select, edit, and export"
+
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:47
 msgid "选材中"
 msgstr "Selecting clips"
@@ -9903,6 +9885,10 @@ msgstr "Utility damage attribution unavailable"
 #: src/pages/analysis/match/views/ReviewView.tsx:429
 msgid "道具投掷统计不可用"
 msgstr "Utility throw statistics unavailable"
+
+#: src/pages/editing/workspace/EnvironmentNotice.tsx:79
+msgid "部分功能需要配置"
+msgstr "Some features need setup"
 
 #: src/pages/analysis/match/views/OverviewView.tsx:169
 msgid "都由这次分析的回合与事件推出"
@@ -9984,8 +9970,8 @@ msgstr "Re-analyse"
 #: src/domain/task/TaskActivityList.tsx:48
 #: src/domain/task/TaskDetail.tsx:271
 #: src/pages/editing/delivery/OutputsView.tsx:192
-#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1780
-#: src/pages/editing/projects/ProjectsPage.tsx:53
+#: src/pages/editing/editor/ProjectWorkspacePage.tsx:1786
+#: src/pages/editing/projects/ProjectsPage.tsx:69
 #: src/pages/shared/tasks/TaskDetailPage.tsx:61
 msgid "重新加载"
 msgstr "Reload"
@@ -10088,7 +10074,7 @@ msgstr "Reset filters"
 #: src/pages/analysis/match/views/viewChrome.tsx:230
 #: src/pages/analysis/match/views/viewChrome.tsx:367
 #: src/pages/analysis/match/views/viewChrome.tsx:378
-#: src/pages/analysis/players/PlayerComparePanel.tsx:194
+#: src/pages/analysis/players/PlayerComparePanel.tsx:210
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:147
 #: src/pages/analysis/players/PlayerProfilePage.tsx:182
 #: src/pages/analysis/players/PlayerProfilePage.tsx:199
@@ -10097,7 +10083,7 @@ msgstr "Reset filters"
 #: src/pages/analysis/players/PlayerTrend.tsx:135
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:68
 #: src/pages/editing/delivery/DeliveryPage.tsx:68
-#: src/pages/editing/projects/ProjectsPage.tsx:58
+#: src/pages/editing/projects/ProjectsPage.tsx:74
 #: src/pages/editing/workspace/ActiveProjectsPanel.tsx:23
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:149
 #: src/pages/shared/library/DeleteDemosDialog.tsx:89
@@ -10106,7 +10092,7 @@ msgstr "Reset filters"
 #: src/pages/shared/library/LibraryCards.tsx:84
 #: src/pages/shared/library/LibraryInspector.tsx:137
 #: src/pages/shared/library/LibraryInspector.tsx:198
-#: src/pages/shared/library/LibraryPage.tsx:528
+#: src/pages/shared/library/LibraryPage.tsx:529
 #: src/pages/shared/library/LibraryTable.tsx:101
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:89
 #: src/pages/shared/onboarding/GuidePage.tsx:117

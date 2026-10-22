@@ -1,5 +1,5 @@
 import { Plural, Trans } from '@lingui/react/macro';
-import { FileVideo2 } from 'lucide-react';
+import { ArrowUpRight, FileVideo2 } from 'lucide-react';
 
 import { Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
@@ -28,9 +28,9 @@ export function ActiveProjectsPanel() {
       {projects.isPending ? (
         <div className="flex flex-col gap-2.5"><Skeleton /><Skeleton width="76%" /></div>
       ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
-        <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品。新建作品开始剪辑，或先到 Demo 资料库选材。</Trans></p>
+        <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>
       ) : (
-        <ul className="flex flex-col border border-divider">
+        <ul className="flex flex-col overflow-hidden rounded-md border border-divider">
           {rows.map((project) => {
             const clipCount = project.document.tracks.reduce(
               (total, track) => total + track.clips.length,
@@ -39,16 +39,17 @@ export function ActiveProjectsPanel() {
             /* The row is the link's hit area: `after:` stretches the one real
                anchor over the `li`, so the accessible name stays the title. */
             return (
-              <li key={project.id} className="relative flex min-h-row-task items-center gap-3 border-b border-divider px-3 py-2 text-sm last:border-b-0 hover:bg-action-hover">
-                <FileVideo2 className="size-5 flex-none text-accent-700" strokeWidth={1.5} aria-hidden="true" />
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="truncate after:absolute after:inset-0">{project.name}</RouteLink>
+              <li key={project.id} className="group relative flex min-h-row-task items-center gap-3 border-b border-divider px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-action-hover focus-within:bg-accent-100">
+                <FileVideo2 className="size-5 flex-none text-neutral-600" strokeWidth={1.5} aria-hidden="true" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="truncate font-medium text-text no-underline after:absolute after:inset-0">{project.name}</RouteLink>
                   <span className="text-xs text-neutral-600">
                     {clipCount === 0 ? <Trans>选材中</Trans> : <Trans>剪辑中</Trans>}{' · '}
                     <Plural value={clipCount} other="# 段素材" />{' · '}
-                    <Trans>上次保存 {formatTaskClock(project.updated_at, { now: new Date() })}</Trans>
+                    <time dateTime={project.updated_at}>{formatTaskClock(project.updated_at, { now: new Date() })}</time>
                   </span>
                 </div>
+                <ArrowUpRight className="size-4 flex-none text-neutral-600 group-hover:text-accent-700" aria-hidden="true" />
               </li>
             );
           })}

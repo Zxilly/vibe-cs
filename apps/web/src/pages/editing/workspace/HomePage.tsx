@@ -1,6 +1,7 @@
 /** Editing workbench: project activity, recovery actions and recent work. */
 
 import { Trans } from '@lingui/react/macro';
+import { ArrowRight, FolderOpen } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,27 +35,27 @@ export function HomePage({ intro }: HomePageProps = {}) {
         />
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6" data-home-layout="three-sections">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6" data-home-layout="three-sections">
         {intro}
-        <EnvironmentNotice />
-        <HomeFailureNotice />
 
-        <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="continue">
+        <section className="flex flex-col gap-3" data-home-block="continue">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
-            <RouteLink to="/projects" size="sm"><Trans>全部作品</Trans></RouteLink>
+            <Button asChild variant="ghost" size="sm"><RouteLink to="/projects" className="no-underline"><Trans>全部作品</Trans><ArrowRight size={14} aria-hidden="true" /></RouteLink></Button>
           </div>
           <ActiveProjectsPanel />
         </section>
 
         <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="new">
-          <h2 className="text-lg font-medium"><Trans>开始选材</Trans></h2>
-          <p className="max-w-prose text-sm leading-relaxed text-neutral-600"><Trans>从 Demo 中找到精彩片段，加入作品后录制并导出成片。</Trans></p>
-          <div className="flex flex-wrap items-center gap-3">
-            <RouteLink to="/library" size="sm"><Trans>导入 Demo</Trans></RouteLink>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium"><Trans>开始选材</Trans></h2>
+            <Button asChild variant="secondary" size="sm"><RouteLink to="/library" className="no-underline"><FolderOpen size={16} aria-hidden="true" /><Trans>打开 Demo 资料库</Trans></RouteLink></Button>
           </div>
           <FirstRunStrip />
         </section>
+
+        <EnvironmentNotice />
+        <HomeFailureNotice />
       </div>
     </Page>
   );

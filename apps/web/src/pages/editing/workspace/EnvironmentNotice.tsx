@@ -76,7 +76,7 @@ export function EnvironmentNotice() {
           </ul>
         }
       >
-        <Trans>录制环境还没准备好，需要它的任务现在起不来。</Trans>
+        <Trans>部分功能需要配置</Trans>
       </Alert>
     </div>
   );
@@ -108,10 +108,10 @@ function blockingSentence(check: DependencyCheck): string {
 function consequenceOf(kind: DependencyKind): string {
   switch (kind) {
     case 'game':
-      return t`回放与录制都起不来`;
+      return t`回放与录制不可用`;
     case 'hlae':
-      return t`录制起不来，分析与编辑不受影响`;
+      return t`录制不可用，分析与编辑不受影响`;
     case 'encoder':
-      return t`导出成片会失败`;
+      return t`导出不可用`;
   }
 }

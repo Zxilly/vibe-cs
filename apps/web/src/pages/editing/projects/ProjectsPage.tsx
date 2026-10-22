@@ -1,4 +1,5 @@
 import { t } from '@lingui/core/macro';
+import { FileVideo2, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useHref, useNavigate } from 'react-router-dom';
@@ -7,7 +8,7 @@ import { useCreateProject, useProjects, useProjectDeliveryGate } from '../../../
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
-import { Badge, Button, Input } from '../../../design/primitives';
+import { Button, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect } from '../../../design/primitives';
 import { formatTimecode } from '../../../design/timeline';
 import type { Project, ProjectDeliveryGate } from '../../../shared/desktop/dto';
 import { ProjectOutputLink } from '../../../domain/project/ProjectOutputLink';
@@ -19,7 +20,12 @@ export function ProjectsPage() {
   const projects = useProjects();
   const create = useCreateProject();
   const [query, setQuery] = useState('');
-  const rows = useMemo(() => [...(projects.data ?? [])].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).filter((project) => project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())), [projects.data, query]);
+  const [sort, setSort] = useState<'updated' | 'name'>('updated');
+  const rows = useMemo(() => [...(projects.data ?? [])]
+    .filter((project) => project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+    .sort((a, b) => sort === 'name'
+      ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      : b.updated_at.localeCompare(a.updated_at)), [projects.data, query, sort]);
 
   const createProject = () => {
     create.mutate(
@@ -29,6 +35,7 @@ export function ProjectsPage() {
   };
   const newProject = (
     <Button variant="primary" size="md" disabled={create.isPending} aria-busy={create.isPending} onClick={createProject}>
+      <Plus size={16} aria-hidden="true" />
       {create.isPending ? <Trans>正在创建…</Trans> : <Trans>新建作品</Trans>}
     </Button>
   );
@@ -42,9 +49,18 @@ export function ProjectsPage() {
         <Toolbar
           title={<Trans>作品</Trans>}
           meta={projects.data === undefined ? undefined : <Plural value={rows.length} other="# 个作品" />}
-          primary={newProject}
+          primary={projects.data?.length === 0 ? undefined : newProject}
         >
-          <Input size="sm" type="search" aria-label={t`搜索作品`} placeholder={t`搜索作品…`} value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+            <InputGroup className="max-w-72">
+              <InputGroupAddon><Search size={14} aria-hidden="true" /></InputGroupAddon>
+              <InputGroupInput type="search" aria-label={t`搜索作品`} placeholder={t`搜索作品…`} value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
+            </InputGroup>
+            <NativeSelect aria-label={t`作品排序`} size="sm" className="w-32 flex-none" value={sort} onChange={(event) => setSort(event.currentTarget.value as 'updated' | 'name')}>
+              <option value="updated"><Trans>最近更新</Trans></option>
+              <option value="name"><Trans>名称</Trans></option>
+            </NativeSelect>
+          </div>
         </Toolbar>
       }
     >
@@ -90,19 +106,19 @@ export function ProjectsPage() {
 }
 
 /**
- * The card's one-line next step, read from the same delivery gate the editor
+ * The card's single material status, read from the same delivery gate the editor
  * header reads: a blocker the recorder can fill is 待录制, any other blocker
  * has to be fixed in the editor, and a gate that is not ready with no blockers
  * is a Timeline without clips.
  */
 function nextStep(project: Project, gate: ProjectDeliveryGate): { readonly status: StatusDotStatus; readonly text: string } {
-  if (gate.ready) return { status: 'ok', text: t`素材就绪 → 可以导出` };
-  if (gate.blockers.length === 0) return { status: 'idle', text: t`时间线还没有片段 → 去选材` };
+  if (gate.ready) return { status: 'ok', text: t`可以导出` };
+  if (gate.blockers.length === 0) return { status: 'idle', text: t`待添加片段` };
   const captured = new Set(project.document.tracks.flatMap((track) => track.clips).filter((clip) => clip.capture_intent !== null).map((clip) => clip.id));
   const recordable = gate.blockers.filter((blocker) => (blocker.state === 'unrecorded' || blocker.state === 'stale') && captured.has(blocker.clip_id)).length;
   return recordable > 0
-    ? { status: 'warn', text: t`${recordable} 段待录制 → 录制缺失片段` }
-    : { status: 'warn', text: t`${gate.blockers.length} 段素材未就绪 → 在剪辑里检查` };
+    ? { status: 'warn', text: t`${recordable} 段待录制` }
+    : { status: 'warn', text: t`${gate.blockers.length} 段素材需检查` };
 }
 
 function ProjectCard({ project }: { readonly project: Project }) {
@@ -110,7 +126,6 @@ function ProjectCard({ project }: { readonly project: Project }) {
   const editorHref = useHref(`/projects/${encodeURIComponent(project.id)}`);
   const clips = project.document.tracks.flatMap((track) => track.clips).filter((clip) => clip.placement.enabled && clip.text === null);
   const currentGate = gate.data?.revision === project.revision ? gate.data : null;
-  const ready = currentGate === null ? null : clips.length - currentGate.blockers.length;
   const step = currentGate === null || gate.error !== null ? null : nextStep(project, currentGate);
   /*
    * The whole card is the title link's hit area — `after:` stretches the one
@@ -118,37 +133,33 @@ function ProjectCard({ project }: { readonly project: Project }) {
    * ring all stay the anchor's, and nothing is nested inside it. 继续剪辑 and
    * the 成片 link are lifted above that layer so they still take their own click.
    */
-  return <article className="relative flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-5 transition-colors hover:bg-action-hover" data-project-card={project.id}>
+  return <article className="relative flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-4 transition-colors hover:border-neutral-500 focus-within:border-accent" data-project-card={project.id}>
     <div className="flex min-w-0 items-start gap-3">
-      <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="min-w-0 flex-1 break-words text-base font-medium after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
-      <Badge variant="neutral"><Trans>第 {project.revision} 版</Trans></Badge>
+      <FileVideo2 size={20} strokeWidth={1.5} className="mt-0.5 flex-none text-neutral-600" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="block truncate text-base font-medium text-text no-underline after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
+        <p className="mt-1 text-xs tabular-nums text-neutral-600">{project.document.width} × {project.document.height} · {project.document.fps} fps</p>
+      </div>
     </div>
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-600">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
         <span>
           {clips.length === 0 ? <Trans>还没有素材</Trans> : <Plural value={clips.length} other="# 段素材" />}
-          {clips.length === 0 ? null : <> · {gate.error !== null ? <Trans>素材状态暂时不可用</Trans> : ready === null ? gate.isFetching ? <Trans>正在检查素材…</Trans> : <Trans>素材状态待更新</Trans> : currentGate?.ready ? <Trans>全部就绪</Trans> : <Trans>{ready} 段就绪</Trans>}</>}
         </span>
-        <ProjectOutputLink projectId={project.id} inline className="relative z-10" />
+        <span className="font-mono tabular-nums" aria-label={t`时长`}>{formatTimecode(project.document.duration_seconds)}</span>
       </div>
-      {step === null ? null : <p data-project-next-step={step.status} className="flex min-w-0 items-center gap-2 text-sm text-text">
+      {step === null ? <p className="text-xs text-neutral-600">{gate.error !== null ? <Trans>素材状态暂时不可用</Trans> : gate.isFetching ? <Trans>正在检查素材…</Trans> : <Trans>素材状态待更新</Trans>}</p> : <p data-project-next-step={step.status} className="flex min-w-0 items-center gap-2 text-sm text-text">
         <StatusDot status={step.status} /><span className="min-w-0 truncate">{step.text}</span>
       </p>}
     </div>
-    <div className="mt-auto flex items-end justify-between gap-4 border-t border-divider pt-4">
-      <dl className="grid min-w-0 flex-1 grid-cols-2 gap-4">
-        <div className="min-w-0">
-          <dt className="text-xs text-neutral-600"><Trans>时长</Trans></dt>
-          <dd className="mt-1 font-mono text-sm tabular-nums">{formatTimecode(project.document.duration_seconds)}</dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-xs text-neutral-600"><Trans>最近更新</Trans></dt>
-          <dd className="mt-1 text-sm tabular-nums"><time dateTime={project.updated_at}>{formatTaskClock(project.updated_at, { now: new Date() })}</time></dd>
-        </div>
-      </dl>
-      <Button asChild size="sm" variant="secondary" className="relative z-10 flex-none">
-        <a href={editorHref} data-project-continue><Trans>继续剪辑</Trans></a>
-      </Button>
+    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-divider pt-3">
+      <time dateTime={project.updated_at} title={t`最近更新`} className="text-xs tabular-nums text-neutral-600">{formatTaskClock(project.updated_at, { now: new Date() })}</time>
+      <div className="flex items-center gap-2">
+        <ProjectOutputLink projectId={project.id} inline className="relative z-10" />
+        <Button asChild size="sm" variant="ghost" className="relative z-10 flex-none">
+          <a href={editorHref} data-project-continue><Trans>继续剪辑</Trans></a>
+        </Button>
+      </div>
     </div>
   </article>;
 }

@@ -180,7 +180,7 @@ describe('工作台首页', () => {
       expect(document.querySelector('[data-home-block="environment"]')).not.toBeNull();
     });
     // Explain the consequence without dumping service diagnostics.
-    expect(document.body.textContent).toContain('录制起不来');
+    expect(document.body.textContent).toContain('录制不可用');
     expect(document.body.textContent).not.toContain('未探测到可执行文件');
     expect(document.body.textContent).toContain('录制组件');
     // A warning is worth reading in diagnostics and is not worth a banner.
@@ -206,6 +206,7 @@ describe('工作台首页', () => {
     expect(await screen.findByText('从导入 Demo 开始')).toBeTruthy();
     const firstRun = document.querySelector('[data-home-block="first-run"]') as HTMLElement;
     expect(within(firstRun).getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
     expect(firstRun.className).toContain('border-accent');
   });
 

@@ -27,8 +27,8 @@ describe('WorkspaceModeIntro', () => {
     mount();
 
     expect(screen.getByRole('region', { name: '选择工作模式' })).toBeTruthy();
-    expect(screen.getByText('挑选精彩片段，编排时间轴，录制并导出成片。')).toBeTruthy();
-    expect(screen.getByText('查看比赛数据、回合事件与战术回放。')).toBeTruthy();
+    expect(screen.getByText('选材、剪辑与导出')).toBeTruthy();
+    expect(screen.getByText('比赛数据与战术回放')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
   });

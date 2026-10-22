@@ -7,7 +7,7 @@
  */
 
 import { Trans } from '@lingui/react/macro';
-import { ChartNoAxesCombined, Clapperboard, type LucideIcon } from 'lucide-react';
+import { ArrowRight, ChartNoAxesCombined, Clapperboard, type LucideIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,14 +28,14 @@ const MODE_CARDS: readonly ModeCard[] = [
     mode: 'edit',
     icon: Clapperboard,
     title: <Trans>剪辑</Trans>,
-    body: <Trans>挑选精彩片段，编排时间轴，录制并导出成片。</Trans>,
+    body: <Trans>选材、剪辑与导出</Trans>,
     action: <Trans>开始剪辑</Trans>,
   },
   {
     mode: 'analysis',
     icon: ChartNoAxesCombined,
     title: <Trans>分析</Trans>,
-    body: <Trans>查看比赛数据、回合事件与战术回放。</Trans>,
+    body: <Trans>比赛数据与战术回放</Trans>,
     action: <Trans>进入分析</Trans>,
   },
 ];
@@ -58,12 +58,7 @@ export function WorkspaceModeIntro() {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3" data-home-block="modes">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          <h2 id={headingId} className="text-lg font-medium"><Trans>选择工作模式</Trans></h2>
-          <p className="text-sm text-neutral-600">
-            <Trans>两种模式使用同一份 Demo 资料库，之后可以随时从左上角切换。</Trans>
-          </p>
-        </div>
+        <h2 id={headingId} className="text-base font-medium"><Trans>选择工作模式</Trans></h2>
         <Button variant="ghost" size="sm" onClick={completeOnboarding}>
           <Trans>不再显示</Trans>
         </Button>
@@ -75,13 +70,15 @@ export function WorkspaceModeIntro() {
             <li
               key={card.mode}
               data-mode-card={card.mode}
-              className="flex flex-col items-start gap-2 rounded-lg border border-divider bg-bg p-4"
+              className="relative flex min-w-0 items-center gap-3 rounded-md border border-divider bg-bg p-3 transition-colors hover:bg-action-hover focus-within:border-accent"
             >
-              <Icon size={20} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
-              <h3 className="text-base font-medium">{card.title}</h3>
-              <p className="text-sm leading-relaxed text-neutral-700">{card.body}</p>
-              <Button variant="secondary" size="sm" className="mt-1" onClick={() => choose(card.mode)}>
-                {card.action}
+              <Icon size={20} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-medium">{card.title}</h3>
+                <p className="mt-0.5 text-xs text-neutral-600">{card.body}</p>
+              </div>
+              <Button variant="ghost" size="sm" className="flex-none after:absolute after:inset-0 after:rounded-md" onClick={() => choose(card.mode)}>
+                {card.action}<ArrowRight size={14} aria-hidden="true" />
               </Button>
             </li>
           );

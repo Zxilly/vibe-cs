@@ -74,7 +74,7 @@ describe('/projects', () => {
 
     const link = await screen.findByRole('link', { name: 'Mirage 残局' });
     expect(link.getAttribute('href')).toBe(`/projects/${PROJECT.id}`);
-    expect(screen.getByText('第 2 版')).toBeTruthy();
+    expect(screen.getByText('1920 × 1080 · 60 fps')).toBeTruthy();
     expect(screen.getByText('还没有素材')).toBeTruthy();
     expect(screen.getByText('00:32')).toBeTruthy();
     expect(screen.getByText('最近更新')).toBeTruthy();
@@ -98,10 +98,10 @@ describe('/projects', () => {
   });
 
   it.each([
-    ['a Timeline without clips', [], { ready: false, blockers: [] }, 'idle', '时间线还没有片段 → 去选材'],
-    ['clips the recorder can fill', [PLANNED, { ...PLANNED, id: 'clip-2' }, CLIP], { ready: false, blockers: [{ clip_id: PLANNED.id, state: 'unrecorded' }, { clip_id: 'clip-2', state: 'stale' }] }, 'warn', '2 段待录制 → 录制缺失片段'],
-    ['clips recording cannot fill', [CLIP], { ready: false, blockers: [{ clip_id: CLIP.id, state: 'unbound' }] }, 'warn', '1 段素材未就绪 → 在剪辑里检查'],
-    ['every clip ready', [CLIP], { ready: true, blockers: [] }, 'ok', '素材就绪 → 可以导出'],
+    ['a Timeline without clips', [], { ready: false, blockers: [] }, 'idle', '待添加片段'],
+    ['clips the recorder can fill', [PLANNED, { ...PLANNED, id: 'clip-2' }, CLIP], { ready: false, blockers: [{ clip_id: PLANNED.id, state: 'unrecorded' }, { clip_id: 'clip-2', state: 'stale' }] }, 'warn', '2 段待录制'],
+    ['clips recording cannot fill', [CLIP], { ready: false, blockers: [{ clip_id: CLIP.id, state: 'unbound' }] }, 'warn', '1 段素材需检查'],
+    ['every clip ready', [CLIP], { ready: true, blockers: [] }, 'ok', '可以导出'],
   ] as const)('names the next step for %s', async (_case, clips, gate, status, text) => {
     const project = { ...PROJECT, document: { ...PROJECT.document, tracks: PROJECT.document.tracks.map((track) => ({ ...track, clips: [...clips] })) } };
     const { container } = renderPage({
@@ -150,11 +150,11 @@ describe('/projects', () => {
       route: '/projects',
     });
 
-    await screen.findByText(/全部就绪/);
+    await screen.findByText('可以导出');
     const currentCard = screen.getByRole('link', { name: 'Mirage 残局' }).closest('article')!;
     const staleCard = screen.getByRole('link', { name: 'Mirage 新剪辑' }).closest('article')!;
-    expect(within(currentCard).getByText(/全部就绪/)).toBeTruthy();
-    expect(within(staleCard).queryByText(/全部就绪/)).toBeNull();
+    expect(within(currentCard).getByText('可以导出')).toBeTruthy();
+    expect(within(staleCard).queryByText('可以导出')).toBeNull();
     expect(within(staleCard).getByText(/素材状态待更新/)).toBeTruthy();
     expect(within(staleCard).queryByText(/正在检查素材/)).toBeNull();
     expect(staleCard.querySelector('[data-project-next-step]')).toBeNull();
@@ -174,6 +174,31 @@ describe('/projects', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '清空搜索' }));
     expect(await screen.findByRole('link', { name: 'Mirage 残局' })).toBeTruthy();
+  });
+
+  it('sorts by name or recent changes while retaining the search', async () => {
+    const recent = { ...PROJECT, id: 'recent', name: 'Mirage 10', updated_at: '2026-08-20T01:00:00Z' };
+    const older = { ...PROJECT, id: 'older', name: 'Mirage 2' };
+    renderPage({
+      element: <ProjectsPage />,
+      client: { listProjects: () => Promise.resolve([older, recent, { ...PROJECT, id: 'dust', name: 'Dust II' }]) },
+      route: '/projects',
+    });
+    await screen.findByRole('link', { name: 'Mirage 10' });
+    fireEvent.change(screen.getByRole('searchbox', { name: '搜索作品' }), { target: { value: 'Mirage' } });
+    const visibleIds = () => [...document.querySelectorAll('[data-project-card]')].map((card) => card.getAttribute('data-project-card'));
+    expect(visibleIds()).toEqual(['recent', 'older']);
+    fireEvent.change(screen.getByRole('combobox', { name: '作品排序' }), { target: { value: 'name' } });
+    expect(visibleIds()).toEqual(['older', 'recent']);
+    expect((screen.getByRole('searchbox', { name: '搜索作品' }) as HTMLInputElement).value).toBe('Mirage');
+    fireEvent.change(screen.getByRole('combobox', { name: '作品排序' }), { target: { value: 'updated' } });
+    expect(visibleIds()).toEqual(['recent', 'older']);
+  });
+
+  it('offers a single create action in an empty project library', async () => {
+    renderPage({ element: <ProjectsPage />, client: { listProjects: () => Promise.resolve([]) }, route: '/projects' });
+    await screen.findByRole('heading', { name: '还没有作品' });
+    expect(screen.getAllByRole('button', { name: '新建作品' })).toHaveLength(1);
   });
 
   it('creates one canonical project without a Plan/Montage/Editor source kind', async () => {

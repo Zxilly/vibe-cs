@@ -270,7 +270,6 @@ impl RuntimeHlaeBridgeConnection {
 
 #[cfg(all(test, windows))]
 mod tests {
-    use futures_util::{SinkExt as _, StreamExt as _};
     use tokio_tungstenite::{connect_async, tungstenite::Message};
     use vibe_cs_hlae::{CaptureTickContract, HlaeBridgeControlMessage, SessionToken};
 

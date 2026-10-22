@@ -2583,7 +2583,6 @@ mod tests {
 
     use chrono::Utc;
     use serde_json::Value;
-    use sha2::Digest as _;
     use uuid::Uuid;
     use vibe_cs_domain::{
         DemoRecord, DemoStatus, JobStatus, RecordingRequest, ReplayFrame, ReplayPlayer,

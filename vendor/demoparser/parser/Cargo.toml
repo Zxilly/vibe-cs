@@ -8,24 +8,18 @@ default = []
 upstream-fixture-tests = []
 
 [dependencies]
-bitter = "0.7.0"
-prost = "0.13.3"
-snap = "1.1.0"
-ahash = "0.8.3"
-regex = "1.7.3"
-phf = "0.11.1"
-phf_macros = "0.11.1"
-derive_more = "0.99.17"
-itertools = "0.13.0"
-lazy_static = "1.4.0"
-bit_reverse = "0.1.8"
-memmap2 = "0.9.4"
-serde = { version = "1.0.164", features = ["derive"] }
-libc = "0.2.147"
-rayon = "1.7.0"
-proc-macro2 = "1.0.69"
-rand = "0.8.5"
-bytes = "1.5.0"
+bitter = "0.9.1"
+prost = "0.14.4"
+snap = "1.1.2"
+ahash = "0.8.12"
+regex = "1.13.1"
+phf = "0.14.0"
+phf_macros = "0.14.0"
+itertools = "0.15.0"
+lazy_static = "1.5.1"
+memmap2 = "0.9.12"
+serde = { version = "1.0.229", features = ["derive"] }
+rayon = "1.12.0"
 
 [dependencies.csgoproto]
 path = "../csgoproto"

@@ -466,11 +466,15 @@ fn decode_pixels(bytes: &[u8], texture: &TextureMetadata) -> Result<Vec<u8>> {
             .collect()),
         4 => Ok(bytes.to_vec()),
         22 => Ok(bytes
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .flat_map(|pixel| [pixel[0], pixel[0], pixel[0], pixel[1]])
             .collect()),
         28 => Ok(bytes
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .flat_map(|pixel| [pixel[2], pixel[1], pixel[0], pixel[3]])
             .collect()),
         1 | 2 | 20 => {
@@ -704,8 +708,10 @@ mod tests {
         assert_eq!(&pixels[..4], &[255, 0, 0, 255]);
         assert!(
             pixels
-                .chunks_exact(4)
-                .all(|pixel| pixel == [255, 0, 0, 255])
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|pixel| *pixel == [255, 0, 0, 255])
         );
     }
 

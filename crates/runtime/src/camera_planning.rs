@@ -314,9 +314,9 @@ pub(crate) fn camera_keyframe_for_scene(
         target[2],
     ]);
     let interaction = [
-        (target[0] + focus[0]) * 0.5,
-        (target[1] + focus[1]) * 0.5,
-        (target[2] + focus[2]) * 0.5,
+        f64::midpoint(target[0], focus[0]),
+        f64::midpoint(target[1], focus[1]),
+        f64::midpoint(target[2], focus[2]),
     ];
     let offset = [focus[0] - target[0], focus[1] - target[1]];
     let distance = offset[0].hypot(offset[1]).clamp(96.0, 512.0);
@@ -600,7 +600,10 @@ mod tests {
             without_map.geometry_unavailable.as_deref(),
             Some("CS2 not installed")
         );
-        assert!(without_map.diagnostics.is_empty());
+        assert_eq!(
+            without_map.diagnostics,
+            [] as [vibe_cs_application::CameraPoseDiagnostic; 0]
+        );
         assert_eq!(
             without_map.shot,
             build_shot(&scene, scene.style, 1.0, false).unwrap()

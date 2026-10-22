@@ -6,9 +6,10 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $dependencyRoot = Join-Path $repositoryRoot '.deps'
 $destination = Join-Path $dependencyRoot 'ffmpeg'
-$sdkVersion = 'ffmpeg-n8.1-latest-win64-lgpl-shared-8.1'
+$sdkVersion = 'ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1'
 $archive = Join-Path $dependencyRoot "$sdkVersion.zip"
-$releaseBaseUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest'
+# BtbN retains monthly builds for two years; daily build tags expire after 14 days.
+$releaseBaseUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08'
 $downloadUrl = "$releaseBaseUrl/$sdkVersion.zip"
 $checksumUrl = "$releaseBaseUrl/checksums.sha256"
 $checksumFile = Join-Path $dependencyRoot 'ffmpeg-checksums.sha256'

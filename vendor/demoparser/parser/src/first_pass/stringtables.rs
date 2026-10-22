@@ -25,7 +25,7 @@ impl StringTableBudget {
     }
 
     pub(crate) fn claim(&self, bytes: usize) -> Result<(), DemoParserError> {
-        let result = self.claimed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
+        let result = self.claimed.try_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
             claimed.checked_add(bytes).filter(|total| *total <= self.limit)
         });
         match result {

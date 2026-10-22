@@ -8,14 +8,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
-use rig_agent::{AgentBuilder, prelude::MultiTurnStreamItem, streaming::StreamingPrompt};
+use rig_agent::{AgentBuilder, prelude::MultiTurnStreamItem};
 use rig_core::{
-    client::CompletionClient,
-    completion::{CompletionModel, Message, Usage},
-    message::Text,
+    DynModel,
+    completion::{Message, Usage},
+    operation::Completion,
     providers::{anthropic, openai},
-    streaming::StreamedAssistantContent,
+    streaming::{Item, StreamEvent},
 };
+use rig_reqwest::ReqwestClient;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Notify;
@@ -150,13 +151,16 @@ pub struct AgentUsage {
 
 impl AgentUsage {
     fn from_reported(usage: Usage) -> Option<Self> {
-        (usage.total_tokens > 0).then_some(Self {
-            input_tokens: usage.input_tokens,
-            output_tokens: usage.output_tokens,
-            total_tokens: usage.total_tokens,
-            cached_input_tokens: usage.cached_input_tokens,
-            reasoning_tokens: usage.reasoning_tokens,
-        })
+        usage
+            .total_tokens
+            .filter(|tokens| *tokens > 0)
+            .map(|total_tokens| Self {
+                input_tokens: usage.input_tokens.unwrap_or(0),
+                output_tokens: usage.output_tokens.unwrap_or(0),
+                total_tokens,
+                cached_input_tokens: usage.cached_input_tokens.unwrap_or(0),
+                reasoning_tokens: usage.reasoning_tokens.unwrap_or(0),
+            })
     }
 }
 
@@ -192,39 +196,20 @@ where
     let http_client = provider_http_client()?;
     match request.config.provider_protocol {
         AgentProviderProtocol::OpenAi => {
-            let client = openai::Client::builder()
-                .api_key(provider_secret)
-                .base_url(base_url)
-                .http_client(http_client)
-                .build()
-                .map_err(|error| {
-                    AgentError::Invalid(format!("invalid provider configuration: {error}"))
-                })?
-                .completions_api();
-            run_agent_with_model(
-                request,
-                client.completion_model(model_name),
-                cancellation,
-                emit,
-            )
-            .await
+            let client = openai::OpenAIConfig::new(provider_secret)
+                .with_base_url(base_url)
+                .connect(ReqwestClient::from(http_client));
+            run_agent_with_model(request, client.chat(model_name), cancellation, emit).await
         }
         AgentProviderProtocol::Anthropic => {
-            let client = anthropic::Client::builder()
-                .api_key(provider_secret)
-                .base_url(base_url)
-                .http_client(http_client)
-                .build()
-                .map_err(|error| {
-                    AgentError::Invalid(format!("invalid provider configuration: {error}"))
-                })?;
-            run_agent_with_model(
-                request,
-                anthropic::completion::CompletionModel::with_model(client, &model_name),
-                cancellation,
-                emit,
-            )
-            .await
+            let client = anthropic::AnthropicConfig::new(provider_secret)
+                .with_base_url(base_url)
+                .connect(ReqwestClient::from(http_client));
+            let mut model = client.completion(model_name);
+            if model.wire.default_max_tokens.is_none() {
+                model.wire = model.wire.with_default_max_tokens(2_048);
+            }
+            run_agent_with_model(request, model, cancellation, emit).await
         }
     }
 }
@@ -246,7 +231,7 @@ async fn run_agent_with_model<M, F>(
     emit: F,
 ) -> Result<AgentResponse, AgentError>
 where
-    M: CompletionModel + 'static,
+    M: Into<DynModel<Completion>>,
     F: FnMut(AgentStreamEvent),
 {
     run_agent_with_model_and_inactivity_timeout(
@@ -267,7 +252,7 @@ async fn run_agent_with_model_and_inactivity_timeout<M, F>(
     mut emit: F,
 ) -> Result<AgentResponse, AgentError>
 where
-    M: CompletionModel + 'static,
+    M: Into<DynModel<Completion>>,
     F: FnMut(AgentStreamEvent),
 {
     let prompt = current_turn_prompt(&request.message, &request.context);
@@ -299,22 +284,14 @@ where
         .collect::<Vec<_>>();
     let mut content = String::new();
     let mut usage = None;
-    let stream = agent
-        .stream_prompt(prompt)
+    let mut stream = agent
+        .prompt(prompt)
         .history(history)
         // A tool count is not a liveness policy. The Agent may take as many
         // useful turns as the task needs; only a period with no text,
         // provider item, or tool lifecycle event trips the watchdog.
-        .max_turns(usize::MAX);
-    let mut stream = tokio::select! {
-            () = cancellation.cancelled() => {
-                while let Ok(event) = tool_events.try_recv() { emit_tool_lifecycle(event, &mut emit); }
-                return Err(AgentError::Cancelled);
-            },
-            result = tokio::time::timeout(inactivity_timeout, stream) => result.map_err(|_| {
-                AgentError::Stalled { timeout_seconds: inactivity_timeout.as_secs() }
-            })?,
-    };
+        .max_turns(usize::MAX)
+        .stream();
     loop {
         let item = tokio::select! {
             () = cancellation.cancelled() => {
@@ -354,7 +331,7 @@ where
             }
         };
         match item {
-            MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(Text {
+            MultiTurnStreamItem::StreamAssistantItem(Item::Event(StreamEvent::Text {
                 text,
                 ..
             })) => {
@@ -871,6 +848,15 @@ mod tests {
                             None,
                         ),
                         stream_chunk(&json!({}), Some("stop")),
+                        json!({
+                            "id":"chatcmpl-rig-e2e", "object":"chat.completion.chunk", "created":0,
+                            "model":"rig-e2e-model", "choices":[],
+                            "usage":{
+                                "prompt_tokens":120, "completion_tokens":9, "total_tokens":129,
+                                "prompt_tokens_details":{"cached_tokens":35},
+                                "completion_tokens_details":{"reasoning_tokens":2}
+                            }
+                        }),
                     ]
                 };
                 write_sse(&mut stream, &chunks).await;
@@ -934,6 +920,25 @@ mod tests {
         assert_eq!(finished.len(), TOOL_TURNS);
         assert_eq!(started, finished);
         assert_eq!(response.content, "已完成全部结构化检查。");
+        let streamed_text = events
+            .iter()
+            .filter_map(|event| match event {
+                AgentStreamEvent::TextDelta(text) => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<String>();
+        assert_eq!(streamed_text, response.content);
+        let usage = response.usage.expect("provider-reported token usage");
+        assert_eq!(
+            (
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.total_tokens,
+                usage.cached_input_tokens,
+                usage.reasoning_tokens
+            ),
+            (120, 9, 129, 35, 2),
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -966,12 +971,11 @@ mod tests {
             let _ = read_http_json(&mut stalled).await;
             std::future::pending::<()>().await;
         });
-        let client = openai::Client::builder()
-            .api_key("rig-e2e-secret")
-            .base_url(format!("http://{address}/v1"))
-            .build()
-            .expect("provider client")
-            .completions_api();
+        let client = openai::OpenAIConfig::new("rig-e2e-secret")
+            .with_base_url(format!("http://{address}/v1"))
+            .connect(ReqwestClient::from(
+                provider_http_client().expect("provider client"),
+            ));
         let mut events = Vec::new();
         let result = run_agent_with_model_and_inactivity_timeout(
             AgentRequest {
@@ -993,7 +997,7 @@ mod tests {
                 },
                 tool_host: Arc::new(TestToolHost::default()),
             },
-            client.completion_model("rig-e2e-model"),
+            client.chat("rig-e2e-model"),
             &Cancellation::new(),
             std::time::Duration::from_millis(100),
             |event| events.push(event),

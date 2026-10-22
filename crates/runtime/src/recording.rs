@@ -2623,12 +2623,9 @@ mod tests {
 
         assert_eq!(backend.preflights.load(Ordering::SeqCst), 1);
         assert_eq!(backend.records.load(Ordering::SeqCst), 0);
-        assert!(
-            storage
-                .list_recording_jobs()
-                .await
-                .expect("recording jobs")
-                .is_empty()
+        assert_eq!(
+            storage.list_recording_jobs().await.expect("recording jobs"),
+            [] as [vibe_cs_domain::RecordingJob; 0]
         );
         let observed = backend
             .observed
@@ -2943,7 +2940,7 @@ mod tests {
         };
 
         assert!(observed.progress < 1.0);
-        assert!(observed.outputs.is_empty());
+        assert_eq!(observed.outputs, [] as [vibe_cs_domain::RecordedClip; 0]);
         let cancelling = port.cancel(observed).await.expect("cancel recording");
         assert_eq!(
             wait_for_terminal(&storage, cancelling.id).await.status,
@@ -3072,7 +3069,7 @@ mod tests {
         assert_eq!(cancelling.status, JobStatus::Cancelling);
         let cancelled = wait_for_terminal(&storage, cancelling.id).await;
         assert_eq!(cancelled.status, JobStatus::Cancelled);
-        assert!(cancelled.outputs.is_empty());
+        assert_eq!(cancelled.outputs, [] as [vibe_cs_domain::RecordedClip; 0]);
     }
 
     #[tokio::test]
@@ -3171,7 +3168,7 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
 
         let mut next = job;
         next.id = Uuid::new_v4();
@@ -3215,7 +3212,7 @@ mod tests {
         assert!(failed.message.contains("startup was interrupted"));
         assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
     }
 
     #[tokio::test]
@@ -3259,7 +3256,7 @@ mod tests {
             Some(parent)
         );
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
     }
 
     #[tokio::test]
@@ -3324,7 +3321,7 @@ mod tests {
         assert!(failed.message.contains("startup was interrupted"));
         assert_eq!(backend.begins.load(Ordering::SeqCst), 0);
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
         drop(root);
     }
 
@@ -3363,7 +3360,7 @@ mod tests {
         assert!(failed.message.contains("startup was interrupted"));
         assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 2);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
     }
 
     #[tokio::test]
@@ -3412,7 +3409,7 @@ mod tests {
         );
         assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
     }
 
     #[tokio::test]
@@ -3471,7 +3468,7 @@ mod tests {
         );
         assert!(cancelled.retryable_suffix().is_ok());
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
-        assert!(port.active.lock().await.is_empty());
+        assert_eq!(port.active.lock().await.len(), 0);
     }
 
     #[tokio::test]

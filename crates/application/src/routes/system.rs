@@ -1270,7 +1270,7 @@ mod tests {
         cleared.llm.base_url = "https://new-provider.example/v1".to_owned();
         cleared.llm.api_key.clear();
         merge_llm_api_key(&current, &mut cleared, true).expect("clear secret");
-        assert!(cleared.llm.api_key.is_empty());
+        assert_eq!(cleared.llm.api_key, "");
     }
 
     #[test]
@@ -1284,7 +1284,7 @@ mod tests {
         updated.llm.api_key.clear();
 
         assert!(merge_llm_api_key(&current, &mut updated, false).is_err());
-        assert!(updated.llm.api_key.is_empty());
+        assert_eq!(updated.llm.api_key, "");
     }
 
     #[test]

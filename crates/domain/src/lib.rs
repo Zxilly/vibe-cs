@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn page_empty_keeps_requested_window() {
         let page = Page::<DemoRecord>::empty(3, 48);
-        assert!(page.items.is_empty());
+        assert_eq!(page.items.len(), 0);
         assert_eq!(page.total, 0);
         assert_eq!(page.page, 3);
         assert_eq!(page.page_size, 48);

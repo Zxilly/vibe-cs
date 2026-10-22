@@ -239,7 +239,7 @@ mod tests {
             .expect("player shot");
         assert_eq!(player.source_item_ids.len(), 2);
         assert_eq!(plan.victim_reaction_count, 1);
-        assert!(plan.warnings.is_empty());
+        assert_eq!(plan.warnings, [] as [std::string::String; 0]);
     }
 
     #[test]

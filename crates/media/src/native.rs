@@ -220,7 +220,7 @@ mod tests {
     fn reports_the_linked_native_backend() {
         let info = native_ffmpeg_info().unwrap();
         assert_eq!(info.backend, "ffmpeg-next");
-        assert!(!info.avcodec_version.is_empty());
+        assert_ne!(info.avcodec_version.len(), 0);
         assert!(info.encoders.iter().any(|name| name == "h264_mf"));
     }
 

@@ -1089,7 +1089,7 @@ mod tests {
         let frames =
             utility_frames(&[event(EventKind::Grenade, 20, Some([4.0, 5.0, 6.0]))]).unwrap();
 
-        assert!(frames[0].players.is_empty());
+        assert_eq!(frames[0].players, [] as [vibe_cs_domain::ReplayPlayer; 0]);
         assert!(
             frames[0].projectiles[0]
                 .position
@@ -1112,8 +1112,14 @@ mod tests {
 
         assert_eq!(frames[0].projectiles[0].kind, "smoke");
         assert_eq!(frames[1].projectiles[0].kind, "smoke");
-        assert!(frames[2].projectiles.is_empty());
-        assert!(frames[3].projectiles.is_empty());
+        assert_eq!(
+            frames[2].projectiles,
+            [] as [vibe_cs_domain::ReplayProjectile; 0]
+        );
+        assert_eq!(
+            frames[3].projectiles,
+            [] as [vibe_cs_domain::ReplayProjectile; 0]
+        );
     }
 
     #[test]
@@ -1165,7 +1171,10 @@ mod tests {
 
         assert_eq!(frames[0].projectiles[0].kind, "flash");
         assert_eq!(frames[1].projectiles[0].kind, "flash");
-        assert!(frames[2].projectiles.is_empty());
+        assert_eq!(
+            frames[2].projectiles,
+            [] as [vibe_cs_domain::ReplayProjectile; 0]
+        );
     }
 
     #[test]
@@ -1195,7 +1204,10 @@ mod tests {
                 .all(|(actual, expected)| (actual - expected).abs() < f64::EPSILON)
         );
         assert!(frames.last().unwrap().bomb.is_none());
-        assert!(frames.last().unwrap().players.is_empty());
+        assert_eq!(
+            frames.last().unwrap().players,
+            [] as [vibe_cs_domain::ReplayPlayer; 0]
+        );
     }
 
     #[test]

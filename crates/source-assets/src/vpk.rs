@@ -634,11 +634,9 @@ mod tests {
         let tree = single_entry_tree("cfg", "panorama", "window_keybinds", u32::MAX, 0, u16::MAX);
         fs::write(&path, wrap_tree(&tree, &[])).unwrap();
         let archive = VpkArchive::open(&path).unwrap();
-        assert!(
-            archive
-                .read("panorama/window_keybinds.cfg")
-                .unwrap()
-                .is_empty()
+        assert_eq!(
+            archive.read("panorama/window_keybinds.cfg").unwrap().len(),
+            0
         );
         // The same offset must still be rejected when bytes would be read.
         let tree = single_entry_tree("cfg", "panorama", "window_keybinds", u32::MAX, 1, u16::MAX);

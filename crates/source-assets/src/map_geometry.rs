@@ -219,7 +219,7 @@ fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
                 };
                 let positions = blob(data, vertex_name, 12)?;
                 let mut vertices = Vec::new();
-                for bytes in positions.chunks_exact(12) {
+                for bytes in positions.as_chunks::<12>().0 {
                     let point = std::array::from_fn(|axis| {
                         f32::from_le_bytes(bytes[axis * 4..axis * 4 + 4].try_into().unwrap())
                     });
@@ -232,7 +232,7 @@ fn extract_selected(root: &Kv3Value, include: &[bool]) -> Result<MapGeometry> {
                         return Err(invalid("mesh surface count does not match triangles"));
                     }
                     let mut triangles = Vec::new();
-                    for (triangle, bytes) in bytes.chunks_exact(12).enumerate() {
+                    for (triangle, bytes) in bytes.as_chunks::<12>().0.iter().enumerate() {
                         let keep = if materials.is_empty() {
                             default_surface
                         } else {
@@ -686,7 +686,7 @@ mod tests {
         );
         let filtered = extract(&surface_filter_fixture(&[0, 1, 0, 0], 0)).unwrap();
         assert_eq!(filtered.triangles.len(), 3);
-        assert!(filtered.closed_meshes.is_empty());
+        assert_eq!(filtered.closed_meshes.len(), 0);
         assert!(extract(&surface_filter_fixture(&[], 1)).is_err());
         assert!(extract(&surface_filter_fixture(&[0, 2, 0, 0], 0)).is_err());
         assert!(extract(&surface_filter_fixture(&[0, 0], 0)).is_err());

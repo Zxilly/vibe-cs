@@ -43,7 +43,7 @@ impl EngineConfig {
             launch_policy: LaunchPolicy::default(),
             launch_timeout: Duration::from_secs(45),
             synchronization_timeout: Duration::from_secs(20),
-            maximum_segment_duration: Duration::from_secs(10 * 60),
+            maximum_segment_duration: Duration::from_mins(10),
             maximum_demo_bytes: 8 * 1024 * 1024 * 1024,
             maximum_clip_bytes: 64 * 1024 * 1024 * 1024,
         }

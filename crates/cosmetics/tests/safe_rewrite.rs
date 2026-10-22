@@ -189,7 +189,7 @@ fn successful_rewrite_is_synchronized_and_atomically_published() {
     assert_eq!(report.output_path, fs::canonicalize(&output).unwrap());
     assert_eq!(report.demo_messages, 4);
     assert_eq!(report.rewrite.total_hits(), 1);
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn zero_hits_is_a_failure_and_leaves_no_final_or_staging_file() {
 
     assert!(matches!(error, RewriteError::NoMatchingFields));
     assert!(!output.exists());
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn backend_failure_after_writing_never_publishes_partial_output() {
 
     assert!(matches!(error, RewriteError::Backend(_)));
     assert!(!output.exists());
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -334,7 +334,7 @@ fn bounded_output_refuses_oversized_backend_writes() {
         }
     ));
     assert!(!output.exists());
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -371,7 +371,7 @@ fn malformed_magic_and_envelope_are_rejected_before_staging() {
         envelope_error,
         RewriteError::MalformedEnvelope { .. }
     ));
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]
@@ -406,7 +406,7 @@ fn production_writer_returns_no_match_instead_of_claiming_success() {
 
     assert!(matches!(error, RewriteError::NoMatchingFields));
     assert!(!output.exists());
-    assert!(staging_files(&temp).is_empty());
+    assert_eq!(staging_files(&temp), [] as [std::string::String; 0]);
 }
 
 #[test]

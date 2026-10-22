@@ -838,7 +838,7 @@ mod tests {
             .map(PathBuf::from)
             .expect("set VIBE_CS2_INSTALL");
         let store = Cs2AssetStore::open(installation).expect("open real CS2 assets");
-        assert!(!store.package().expect("main package").is_empty());
+        assert_ne!(store.package().expect("main package").len(), 0);
         let location = store
             .locate_radar_overview("de_dust2")
             .expect("locate de_dust2 radar");
@@ -852,7 +852,7 @@ mod tests {
         let extracted = store
             .extract_radar_overview("de_dust2")
             .expect("verify and extract de_dust2 radar");
-        assert!(!extracted.resources.is_empty());
+        assert_ne!(extracted.resources.len(), 0);
         let transform = extracted
             .radar_transform()
             .expect("parse de_dust2 overview transform");
@@ -879,7 +879,9 @@ mod tests {
         assert_eq!((frame.width, frame.height), (1_024, 1_024));
         assert!(
             pixels[..frame.buffer_size()]
-                .chunks_exact(4)
+                .as_chunks::<4>()
+                .0
+                .iter()
                 .any(|pixel| pixel[..3] != [0, 0, 0])
         );
         assert_eq!(display.mime_type, "application/octet-stream");

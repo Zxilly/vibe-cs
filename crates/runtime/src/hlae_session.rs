@@ -39,7 +39,7 @@ use crate::{
 const RUNTIME_HLAE_SESSION_MANIFEST_FILE: &str = "vibe_cs_session_manifest.json";
 const MINIMUM_TARGET_BITRATE_BPS: u32 = 100_000;
 const MAXIMUM_TARGET_BITRATE_BPS: u32 = 100_000_000;
-const MAXIMUM_PROTOCOL_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+const MAXIMUM_PROTOCOL_TIMEOUT: Duration = Duration::from_hours(1);
 const MAXIMUM_BRIDGE_TIMEOUT: Duration = Duration::from_secs(60);
 const MAXIMUM_CANCELLATION_GRACE: Duration = Duration::from_secs(60);
 const HLAE_ENCODED_OUTPUT_FILE: &str = "encoded-output.mp4";
@@ -69,7 +69,7 @@ impl Default for RuntimeHlaeSessionTimeouts {
             game_discovery: Duration::from_secs(60),
             bridge_accept: Duration::from_secs(60),
             bridge_receive: Duration::from_secs(15),
-            protocol: Duration::from_secs(10 * 60),
+            protocol: Duration::from_mins(10),
             cancellation_grace: Duration::from_secs(5),
         }
     }

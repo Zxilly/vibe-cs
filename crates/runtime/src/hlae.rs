@@ -170,7 +170,7 @@ pub async fn wait_for_stable_hlae_take(
 fn validate_hlae_take_stability_policy(
     policy: HlaeTakeStabilityPolicy,
 ) -> Result<(), HlaeTakeStabilityError> {
-    const MAXIMUM_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+    const MAXIMUM_TIMEOUT: Duration = Duration::from_mins(5);
     const MAXIMUM_UNCHANGED_POLLS: usize = 1_024;
     if policy.poll_interval.is_zero() {
         return Err(HlaeTakeStabilityError::InvalidPolicy(

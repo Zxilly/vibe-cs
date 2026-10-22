@@ -318,7 +318,7 @@ mod tests {
             batch[0].match_source,
             Some(vibe_cs_domain::DemoMatchSource::Valve)
         );
-        assert!(batch[0].tags.is_empty());
+        assert_eq!(batch[0].tags, [] as [vibe_cs_domain::ReviewTag; 0]);
 
         let json_export = dispatcher
             .clone()

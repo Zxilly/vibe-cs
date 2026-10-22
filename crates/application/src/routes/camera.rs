@@ -234,7 +234,7 @@ mod tests {
         );
         let path = format!("/api/projects/{id}/clips/{clip_id}/camera-preview");
         assert_eq!(call(&app, &path, 2).await.0, 409);
-        assert!(port.calls.lock().unwrap().is_empty());
+        assert_eq!(port.calls.lock().unwrap().len(), 0);
         assert_eq!(
             call(
                 &app,

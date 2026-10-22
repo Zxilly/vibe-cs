@@ -58,7 +58,7 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
         compiled.command_system().path,
         artifact_directory.join("vibe_cs_commands.xml")
     );
-    assert!(compiled.camera_paths().is_empty());
+    assert_eq!(compiled.camera_paths(), []);
     assert!(compiled.resource_estimate().maximum_frame_count >= 303);
     assert!(
         compiled

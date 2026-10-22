@@ -164,7 +164,10 @@ fn extract_archive(archive_bytes: &[u8], staging: &Path) -> Result<(), HlaeError
         let mut entry = archive
             .by_index(index)
             .map_err(|error| archive_error("read managed HLAE archive entry", &error))?;
-        let relative = safe_archive_path(entry.name())?;
+        let name = entry
+            .name()
+            .map_err(|error| archive_error("read managed HLAE entry name", &error))?;
+        let relative = safe_archive_path(&name)?;
         let windows_key = windows_path_key(&relative);
         if !paths.insert(windows_key) {
             return Err(HlaeError::InvalidInstallation(
@@ -269,7 +272,10 @@ fn verify_extracted_files(archive_bytes: &[u8], directory: &Path) -> Result<(), 
         let mut entry = archive
             .by_index(index)
             .map_err(|error| archive_error("read cached managed HLAE entry", &error))?;
-        let relative = safe_archive_path(entry.name())?;
+        let name = entry
+            .name()
+            .map_err(|error| archive_error("read cached managed HLAE entry name", &error))?;
+        let relative = safe_archive_path(&name)?;
         if entry.is_dir() {
             continue;
         }
@@ -436,8 +442,6 @@ const fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write as _;
-
     use zip::{ZipWriter, write::SimpleFileOptions};
 
     use super::*;

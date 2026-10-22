@@ -516,7 +516,7 @@ mod media_range_tests {
             .unwrap();
         assert_eq!(head.status(), StatusCode::OK);
         assert_eq!(head.headers()[header::CONTENT_LENGTH], length.to_string());
-        assert!(to_bytes(head.into_body(), 0).await.unwrap().is_empty());
+        assert_eq!(to_bytes(head.into_body(), 0).await.unwrap().len(), 0);
         let full = stream_media_file(path, HeaderMap::new(), false, "fixture")
             .await
             .unwrap();
@@ -644,7 +644,10 @@ mod media_availability_tests {
         )
         .await;
         assert!(result.is_err());
-        assert!(storage.list_assets(None).await.expect("assets").is_empty());
+        assert_eq!(
+            storage.list_assets(None).await.expect("assets"),
+            [] as [vibe_cs_domain::MediaAsset; 0]
+        );
     }
 
     #[test]

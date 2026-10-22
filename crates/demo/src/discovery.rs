@@ -224,10 +224,11 @@ fn inspect_archive(
     let mut entry_names = HashSet::new();
     for index in 0..archive.len() {
         let entry = archive.by_index(index)?;
-        let safe = validate_archive_entry_path(entry.name())?;
+        let name = entry.name()?;
+        let safe = validate_archive_entry_path(&name)?;
         let identity = safe.to_string_lossy().replace('\\', "/").to_lowercase();
         if !entry_names.insert(identity) {
-            return Err(DemoError::DuplicateArchivePath(entry.name().to_owned()));
+            return Err(DemoError::DuplicateArchivePath(name.into_owned()));
         }
         if entry.unix_mode().is_some_and(|mode| {
             let file_type = mode & 0o170_000;
@@ -237,7 +238,7 @@ fn inspect_archive(
                     (true, 0o040_000) | (false, 0o100_000)
                 )
         }) {
-            return Err(DemoError::UnsafeArchiveFileType(entry.name().to_owned()));
+            return Err(DemoError::UnsafeArchiveFileType(name.into_owned()));
         }
         expanded = expanded
             .checked_add(entry.size())
@@ -252,7 +253,7 @@ fn inspect_archive(
                         .compressed_size()
                         .saturating_mul(limits.maximum_compression_ratio))
         {
-            return Err(DemoError::ArchiveCompressionRatio(entry.name().to_owned()));
+            return Err(DemoError::ArchiveCompressionRatio(name.into_owned()));
         }
         if !entry.is_dir() && is_demo(&safe) {
             if demos.len() == limits.maximum_demo_files {

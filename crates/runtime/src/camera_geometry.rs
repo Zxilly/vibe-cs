@@ -308,7 +308,13 @@ mod tests {
             ..MapGeometry::default()
         })
         .unwrap();
-        assert!(geometry.solids.is_empty());
+        assert_eq!(
+            geometry.solids,
+            [] as [(
+                parry3d::bounding_volume::Aabb,
+                parry3d::shape::ConvexPolyhedron
+            ); 0]
+        );
         assert!(!geometry.inside_solid(Vector::new(16.0, 16.0, 1.0)));
         assert!(!geometry.inside_solid(Vector::new(16.0, 16.0, -1.0)));
     }

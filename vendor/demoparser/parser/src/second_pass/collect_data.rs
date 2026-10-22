@@ -1,6 +1,7 @@
 use super::entities::PlayerMetaData;
 use super::variants::Sticker;
 use super::variants::Variant;
+use crate::entity_handle::entity_handle_index;
 use crate::first_pass::prop_controller::*;
 use crate::first_pass::read_bits::DemoParserError;
 use crate::maps::BUTTONMAP;
@@ -8,7 +9,6 @@ use crate::maps::PLAYER_COLOR;
 use crate::second_pass::entities::EntityType;
 use crate::second_pass::parser_settings::SecondPassParser;
 use crate::second_pass::variants::PropColumn;
-use crate::second_pass::variants::VarVec;
 use csgoproto::maps::AGENTSMAP;
 use csgoproto::maps::PAINTKITS;
 use csgoproto::maps::STICKER_ID_TO_NAME;
@@ -57,10 +57,16 @@ pub enum CoordinateAxis {
 
 impl<'a> SecondPassParser<'a> {
     pub fn collect_entities(&mut self) -> Result<(), DemoParserError> {
-        if !self.prop_controller.event_with_velocity {
-            if !self.wanted_ticks.contains(&self.tick) && self.wanted_ticks.len() != 0 || self.wanted_events.len() != 0 {
-                return Ok(());
+        // Tick filtering used to be switched off whenever velocity was requested
+        // together with events, because `collect_velocity` read the two previous
+        // rows back out of `output` and they had to be adjacent ticks. The two
+        // rows are now kept per player, so the filter always applies and the
+        // history is updated on skipped ticks too.
+        if !self.wanted_ticks.contains(&self.tick) && self.wanted_ticks.len() != 0 || self.wanted_events.len() != 0 {
+            if self.prop_controller.event_with_velocity && !self.parse_projectiles {
+                self.update_velocity_history();
             }
+            return Ok(());
         }
         if self.parse_projectiles {
             return self.collect_projectiles();
@@ -89,12 +95,11 @@ impl<'a> SecondPassParser<'a> {
                 continue;
             }
             self.collected_row_budget.claim()?;
-            let mut velocity_indicies: Option<Vec<usize>> = None;
             let mut button_mask: Option<Option<u64>> = None;
             if self.order_by_steamid {
                 for prop_info in &self.prop_controller.prop_infos {
                     // find_prop borrows &self; resolve the value before the &mut df_per_player borrow.
-                    let val = self.find_prop_with_collect_cache(prop_info, entity_id, player, &mut velocity_indicies, &mut button_mask);
+                    let val = self.find_prop_with_collect_cache(prop_info, entity_id, player, &mut button_mask);
                     self.df_per_player
                         .entry(player_steamid)
                         .or_default()
@@ -104,10 +109,17 @@ impl<'a> SecondPassParser<'a> {
                 }
             } else {
                 for prop_info in &self.prop_controller.prop_infos {
-                    let val = self.find_prop_with_collect_cache(prop_info, entity_id, player, &mut velocity_indicies, &mut button_mask);
+                    let val = self.find_prop_with_collect_cache(prop_info, entity_id, player, &mut button_mask);
                     self.output.entry(prop_info.id).or_insert_with(PropColumn::new).push(val);
                 }
             }
+        }
+        // After collection, not before: at the time `find_prop` computes velocity
+        // the steamid column does not yet contain the current row (len(X) =
+        // len(steamid) + 1), so velocity has always been the delta between the two
+        // PREVIOUS rows. Preserve that.
+        if self.prop_controller.needs_velocity {
+            self.update_velocity_history();
         }
         Ok(())
     }
@@ -118,14 +130,13 @@ impl<'a> SecondPassParser<'a> {
         prop_info: &PropInfo,
         entity_id: &i32,
         player: &PlayerMetaData,
-        velocity_indicies: &mut Option<Vec<usize>>,
         button_mask: &mut Option<Option<u64>>,
     ) -> Option<Variant> {
         match prop_info.id {
-            VELOCITY_ID => self.collect_velocity_cached(player, velocity_indicies).ok(),
-            VELOCITY_X_ID => self.collect_velocity_axis_cached(player, CoordinateAxis::X, velocity_indicies).ok(),
-            VELOCITY_Y_ID => self.collect_velocity_axis_cached(player, CoordinateAxis::Y, velocity_indicies).ok(),
-            VELOCITY_Z_ID => self.collect_velocity_axis_cached(player, CoordinateAxis::Z, velocity_indicies).ok(),
+            VELOCITY_ID => self.collect_velocity(player).ok(),
+            VELOCITY_X_ID => self.collect_velocity_axis(player, CoordinateAxis::X).ok(),
+            VELOCITY_Y_ID => self.collect_velocity_axis(player, CoordinateAxis::Y).ok(),
+            VELOCITY_Z_ID => self.collect_velocity_axis(player, CoordinateAxis::Z).ok(),
             _ if prop_info.prop_type == PropType::Button => self.get_button_prop_cached(prop_info, entity_id, button_mask).ok(),
             _ => self.find_prop(prop_info, entity_id, player).ok(),
         }
@@ -230,7 +241,7 @@ impl<'a> SecondPassParser<'a> {
             None => return Err(PropCollectionError::GrenadeOwnerIdNotSet),
         };
         match self.get_prop_from_ent(&owner_id, entity_id) {
-            Ok(Variant::U32(prop)) => Ok(prop & 0x7FF),
+            Ok(Variant::U32(prop)) => Ok(entity_handle_index(prop) as u32),
             Ok(_) => return Err(PropCollectionError::GrenadeOwnerIdPropIncorrectVariant),
             Err(e) => return Err(e),
         }
@@ -546,7 +557,7 @@ impl<'a> SecondPassParser<'a> {
             return match self.get_prop_from_ent(&p, &eid) {
                 Ok(Variant::U32(weap_handle)) => {
                     // Could be more specific
-                    let weapon_entity_id = (weap_handle & 0x7FF) as i32;
+                    let weapon_entity_id = entity_handle_index(weap_handle);
                     self.find_stickers(&weapon_entity_id)
                 }
                 Ok(_) => Err(PropCollectionError::WeaponHandleIncorrectVariant),
@@ -608,113 +619,86 @@ impl<'a> SecondPassParser<'a> {
             Err(_) => return Err(PropCollectionError::AgentPropNotFound),
         }
     }
+    /// Velocity from the two most recent sampled rows of the player.
+    ///
+    /// Previously these rows were found by scanning the whole accumulated `output`
+    /// backwards (`find_wanted_indicies` over the steamid column), which is why
+    /// `event_with_velocity` had to disable tick filtering: the whole table was
+    /// materialised so that the two rows would be adjacent ticks. They are now
+    /// kept directly, one small record per player.
     pub fn collect_velocity(&self, player: &PlayerMetaData) -> Result<Variant, PropCollectionError> {
         if let Some(s) = player.steamid {
-            let steamids = self.output.get(&STEAMID_ID);
-            let indicies = self.find_wanted_indicies(steamids, s);
-
-            let x = self.velocity_from_indicies(&indicies, CoordinateAxis::X)?;
-            let y = self.velocity_from_indicies(&indicies, CoordinateAxis::Y)?;
-
+            let x = self.velocity_from_history(s, CoordinateAxis::X)?;
+            let y = self.velocity_from_history(s, CoordinateAxis::Y)?;
             if let (Variant::F32(x), Variant::F32(y)) = (x, y) {
                 return Ok(Variant::F32((f32::powi(x, 2) + f32::powi(y, 2)).sqrt()));
             }
         }
         return Err(PropCollectionError::PlayerNotFound);
     }
-    fn collect_velocity_cached(&self, player: &PlayerMetaData, indicies_cache: &mut Option<Vec<usize>>) -> Result<Variant, PropCollectionError> {
-        let indicies = self.cached_velocity_indicies(player, indicies_cache)?;
-        let x = self.velocity_from_indicies(indicies, CoordinateAxis::X)?;
-        let y = self.velocity_from_indicies(indicies, CoordinateAxis::Y)?;
 
-        if let (Variant::F32(x), Variant::F32(y)) = (x, y) {
-            return Ok(Variant::F32((f32::powi(x, 2) + f32::powi(y, 2)).sqrt()));
+    /// Same formula as the old `velocity_from_indicies`: difference between the
+    /// two most recent sampled positions, scaled by the tick rate.
+    fn velocity_from_history(&self, steamid: u64, axis: CoordinateAxis) -> Result<Variant, PropCollectionError> {
+        let h = self.velocity_history.get(&steamid).ok_or(PropCollectionError::VelocityNotFound)?;
+        let (last, prev) = match (h.last, h.prev) {
+            (Some(l), Some(p)) => (l, p),
+            _ => return Err(PropCollectionError::VelocityNotFound),
+        };
+        let i = match axis {
+            CoordinateAxis::X => 0,
+            CoordinateAxis::Y => 1,
+            CoordinateAxis::Z => 2,
+        };
+        Ok(Variant::F32((last[i] * 64.0) - (prev[i] * 64.0)))
+    }
+
+    /// Updates the history. Called exactly once per tick, at the end of the tick,
+    /// and on filtered-out ticks as well -- otherwise consecutive entries would no
+    /// longer be consecutive ticks and velocity would change.
+    pub fn update_velocity_history(&mut self) {
+        // Same player selection as the main collection loop: first the prop-state
+        // filter (which cancels the whole tick), then wanted_players.
+        for wanted_prop_state_info in &self.prop_controller.wanted_prop_state_infos {
+            for (entity_id, player) in &self.players {
+                match self.find_prop(&wanted_prop_state_info.base, entity_id, player) {
+                    Ok(prop) => {
+                        if prop != wanted_prop_state_info.wanted_prop_state {
+                            return;
+                        }
+                    }
+                    Err(_e) => return,
+                }
+            }
         }
-        Err(PropCollectionError::VelocityNotFound)
+        let mut updates: Vec<(u64, Option<[f32; 3]>)> = Vec::with_capacity(self.players.len());
+        for (entity_id, player) in &self.players {
+            let steamid = player.steamid.unwrap_or(0);
+            if !self.wanted_players.is_empty() && !self.wanted_players.contains(&steamid) {
+                continue;
+            }
+            let x = self.collect_cell_coordinate_player(CoordinateAxis::X, entity_id);
+            let y = self.collect_cell_coordinate_player(CoordinateAxis::Y, entity_id);
+            let z = self.collect_cell_coordinate_player(CoordinateAxis::Z, entity_id);
+            let xyz = match (x, y, z) {
+                (Ok(Variant::F32(x)), Ok(Variant::F32(y)), Ok(Variant::F32(z))) => Some([x, y, z]),
+                _ => None,
+            };
+            updates.push((steamid, xyz));
+        }
+        let mut sampled_players = ahash::AHashSet::with_capacity(updates.len());
+        for (steamid, xyz) in updates {
+            sampled_players.insert(steamid);
+            self.velocity_history.entry(steamid).or_default().push(xyz);
+        }
+        self.velocity_history.retain(|steamid, _| sampled_players.contains(steamid));
     }
     pub fn collect_velocity_axis(&self, player: &PlayerMetaData, axis: CoordinateAxis) -> Result<Variant, PropCollectionError> {
         if let Some(s) = player.steamid {
-            let steamids = self.output.get(&STEAMID_ID);
-            let indicies = self.find_wanted_indicies(steamids, s);
-            return Ok(self.velocity_from_indicies(&indicies, axis)?);
+            return self.velocity_from_history(s, axis);
         }
         return Err(PropCollectionError::PlayerNotFound);
     }
-    fn collect_velocity_axis_cached(
-        &self,
-        player: &PlayerMetaData,
-        axis: CoordinateAxis,
-        indicies_cache: &mut Option<Vec<usize>>,
-    ) -> Result<Variant, PropCollectionError> {
-        let indicies = self.cached_velocity_indicies(player, indicies_cache)?;
-        self.velocity_from_indicies(indicies, axis)
-    }
-    fn cached_velocity_indicies<'b>(&self, player: &PlayerMetaData, indicies_cache: &'b mut Option<Vec<usize>>) -> Result<&'b [usize], PropCollectionError> {
-        if indicies_cache.is_none() {
-            let steamid = player.steamid.ok_or(PropCollectionError::PlayerNotFound)?;
-            *indicies_cache = Some(self.find_wanted_indicies(self.output.get(&STEAMID_ID), steamid));
-        }
-        Ok(indicies_cache.as_deref().unwrap_or(&[]))
-    }
-    fn find_most_recent_coordinate_idx(&self, optv: Option<&PropColumn>, wanted_steamid: u64) -> Option<usize> {
-        if let Some(v) = optv {
-            if let Some(VarVec::U64(steamid_vec)) = &v.data {
-                for idx in (0..steamid_vec.len()).rev() {
-                    if steamid_vec[idx] == Some(wanted_steamid) {
-                        return Some(idx);
-                    }
-                }
-            }
-        }
-        None
-    }
-    fn find_last_coordinate_idx(&self, optv: Option<&PropColumn>, wanted_steamid: u64, cur_idx: Option<usize>) -> Option<usize> {
-        let cur_idx = cur_idx?;
-        if let VarVec::U64(steamid_vec) = optv?.data.as_ref()? {
-            // iterate backwards until steamid is our wanted player and > 1sec ago
-            for idx in (0..steamid_vec.len()).rev() {
-                let sid = steamid_vec[idx];
-                if sid == Some(wanted_steamid) && idx != cur_idx {
-                    return Some(idx);
-                }
-            }
-        }
-        None
-    }
-    fn find_wanted_indicies(&self, optv: Option<&PropColumn>, wanted_steamid: u64) -> Vec<usize> {
-        let idx1 = self.find_most_recent_coordinate_idx(optv, wanted_steamid);
-        let idx2 = self.find_last_coordinate_idx(optv, wanted_steamid, idx1);
-        if let (Some(idx1), Some(idx2)) = (idx1, idx2) {
-            return vec![idx1, idx2];
-        }
-        vec![]
-    }
-
-    fn velocity_from_indicies(&self, indicies: &[usize], axis: CoordinateAxis) -> Result<Variant, PropCollectionError> {
-        let col = match axis {
-            CoordinateAxis::X => self.output.get(&PLAYER_X_ID),
-            CoordinateAxis::Y => self.output.get(&PLAYER_Y_ID),
-            CoordinateAxis::Z => self.output.get(&PLAYER_Z_ID),
-        };
-        if let Some(c) = col {
-            if let Some((Some(v1), Some(v2))) = self.index_coordinates_from_propcol(c, indicies) {
-                return Ok(Variant::F32((v1 * 64.0) - (v2 * 64.0)));
-            }
-        }
-        return Err(PropCollectionError::VelocityNotFound);
-    }
-    fn index_coordinates_from_propcol(&self, propcol: &PropColumn, indicies: &[usize]) -> Option<(Option<f32>, Option<f32>)> {
-        if indicies.len() != 2 {
-            return None;
-        }
-        if let Some(VarVec::F32(steamid_vec)) = &propcol.data {
-            let first = steamid_vec[indicies[0]];
-            let second = steamid_vec[indicies[1]];
-            return Some((first, second));
-        }
-        None
-    }
-
     pub fn find_is_alive(&self, entity_id: &i32) -> Result<Variant, PropCollectionError> {
         match self.prop_controller.special_ids.life_state {
             Some(id) => match self.get_prop_from_ent(&id, entity_id) {
@@ -763,7 +747,7 @@ impl<'a> SecondPassParser<'a> {
             match self.get_prop_from_ent(&(prop_id as u32), entity_id) {
                 Err(_e) => {}
                 Ok(Variant::U32(x)) => {
-                    let eid = (x & ((1 << 14) - 1)) as i32;
+                    let eid = entity_handle_index(x);
                     // Sometimes multiple references to same eid?
                     if unique_eids.contains(&eid) {
                         continue;
@@ -801,7 +785,7 @@ impl<'a> SecondPassParser<'a> {
             match self.get_prop_from_ent(&(prop_id as u32), entity_id) {
                 Err(_e) => {}
                 Ok(Variant::U32(x)) => {
-                    let eid = (x & ((1 << 14) - 1)) as i32;
+                    let eid = entity_handle_index(x);
                     // Sometimes multiple references to same eid?
                     if unique_eids.contains(&eid) {
                         continue;
@@ -838,7 +822,7 @@ impl<'a> SecondPassParser<'a> {
             match self.get_prop_from_ent(&(prop_id as u32), entity_id) {
                 Err(_e) => {}
                 Ok(Variant::U32(x)) => {
-                    let eid = (x & ((1 << 14) - 1)) as i32;
+                    let eid = entity_handle_index(x);
                     // Sometimes multiple references to same eid?
                     if unique_eids.contains(&eid) {
                         continue;
@@ -950,7 +934,7 @@ impl<'a> SecondPassParser<'a> {
         if let Some(c4ent) = self.c4_entity_id {
             if let Some(id) = self.prop_controller.special_ids.h_owner_entity {
                 if let Ok(Variant::U32(u)) = self.get_prop_from_ent(&id, &c4ent) {
-                    return Some((u & 0x7FF) as i32);
+                    return Some(entity_handle_index(u));
                 }
             }
         }
@@ -1004,7 +988,7 @@ impl<'a> SecondPassParser<'a> {
         };
         return match self.get_prop_from_ent(&p, player_entid) {
             Ok(Variant::U32(weap_handle)) => {
-                let weapon_entity_id = (weap_handle & 0x7FF) as i32;
+                let weapon_entity_id = entity_handle_index(weap_handle);
                 self.find_weapon_skin_id(&weapon_entity_id)
             }
             Ok(_) => Err(PropCollectionError::WeaponHandleIncorrectVariant),
@@ -1032,7 +1016,7 @@ impl<'a> SecondPassParser<'a> {
         };
         return match self.get_prop_from_ent(&p, player_entid) {
             Ok(Variant::U32(weap_handle)) => {
-                let weapon_entity_id = (weap_handle & 0x7FF) as i32;
+                let weapon_entity_id = entity_handle_index(weap_handle);
                 self.find_weapon_skin(&weapon_entity_id)
             }
             Ok(_) => Err(PropCollectionError::WeaponHandleIncorrectVariant),
@@ -1095,7 +1079,7 @@ impl<'a> SecondPassParser<'a> {
         match self.get_prop_from_ent(&p, player_entid) {
             Ok(Variant::U32(weap_handle)) => {
                 // Could be more specific
-                let weapon_entity_id = (weap_handle & 0x7FF) as i32;
+                let weapon_entity_id = entity_handle_index(weap_handle);
                 match self.get_prop_from_ent(&prop, &weapon_entity_id) {
                     Ok(p) => Ok(p),
                     Err(e) => match e {
@@ -1182,7 +1166,7 @@ impl<'a> SecondPassParser<'a> {
             };
             let player_entid = match self.prop_controller.special_ids.player_pawn {
                 Some(id) => match self.get_prop_from_ent(&id, entity_id) {
-                    Ok(Variant::U32(handle)) => Some((handle & 0x7FF) as i32),
+                    Ok(Variant::U32(handle)) => Some(entity_handle_index(handle)),
                     Ok(_) => return Err(DemoParserError::IncorrectMetaDataProp),
                     Err(_) => None,
                 },

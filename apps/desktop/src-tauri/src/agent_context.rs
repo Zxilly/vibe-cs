@@ -1161,7 +1161,7 @@ mod tests {
                 "recordableEndTick":1920,"nextRoundStartTick":null,"demoEndTick":1920
             })
         );
-        assert!(selected["rounds"].as_array().unwrap().is_empty());
+        assert_eq!(selected["rounds"].as_array().unwrap().len(), 0);
         assert!(selected["evidence_query"]["truncated"].as_bool().unwrap());
     }
 
@@ -1501,7 +1501,7 @@ mod tests {
             .apply_patch(patch, Uuid::new_v4(), Utc::now())
             .expect("valid transition patch");
         assert_eq!(project.document.tracks[0].clips[0], clip);
-        assert!(project.unresolved_delivery_clips().unwrap().is_empty());
+        assert_eq!(project.unresolved_delivery_clips().unwrap().len(), 0);
     }
 
     #[test]
@@ -1554,11 +1554,12 @@ mod tests {
             let inserted = project.document.tracks.last().unwrap();
             assert_eq!(serde_json::to_value(inserted.kind).unwrap(), topic);
             assert!(inserted.clips[0].text.is_some());
-            assert!(
+            assert_eq!(
                 project
                     .unresolved_delivery_clips()
                     .expect("delivery gate")
-                    .is_empty()
+                    .len(),
+                0
             );
         }
     }

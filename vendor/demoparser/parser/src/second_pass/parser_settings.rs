@@ -50,7 +50,7 @@ impl EventBudget {
     pub(crate) fn claim(&self) -> Result<(), DemoParserError> {
         let result = self
             .claimed
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| (claimed < self.limit).then_some(claimed + 1));
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| (claimed < self.limit).then_some(claimed + 1));
         match result {
             Ok(_) => Ok(()),
             Err(claimed) => {
@@ -106,7 +106,7 @@ impl CollectedRowBudget {
     pub(crate) fn claim(&self) -> Result<(), DemoParserError> {
         let result = self
             .claimed
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| (claimed < self.limit).then_some(claimed + 1));
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| (claimed < self.limit).then_some(claimed + 1));
         match result {
             Ok(_) => Ok(()),
             Err(claimed) => Err(DemoParserError::ResourceLimitExceeded {
@@ -127,7 +127,7 @@ impl InventoryDataBudget {
     }
 
     pub(crate) fn claim(&self, bytes: usize) -> Result<(), DemoParserError> {
-        let result = self.claimed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
+        let result = self.claimed.try_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
             claimed.checked_add(bytes).filter(|total| *total <= self.limit)
         });
         match result {
@@ -150,7 +150,7 @@ impl VoiceDataBudget {
     }
 
     pub(crate) fn claim(&self, bytes: usize) -> Result<(), DemoParserError> {
-        let result = self.claimed.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
+        let result = self.claimed.try_update(Ordering::Relaxed, Ordering::Relaxed, |claimed| {
             claimed.checked_add(bytes).filter(|total| *total <= self.limit)
         });
         match result {
@@ -164,7 +164,32 @@ impl VoiceDataBudget {
     }
 }
 
+/// Two most recent sampled positions of a player, used to derive velocity.
+///
+/// Upstream read these two rows back out of the accumulated `output` columns.
+/// To make sure they were adjacent ticks, `event_with_velocity` disabled tick
+/// filtering entirely in `collect_entities`, so asking for velocity on any event
+/// materialised the whole tick table. Measured on a 492 MB demo: one
+/// `parseEvents` call went from 645 MB to 1634 MB peak RSS purely because three
+/// velocity props were requested, and the cost did not depend on how many events
+/// were asked for. Keeping just the two rows removes that.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VelocitySample {
+    pub prev: Option<[f32; 3]>,
+    pub last: Option<[f32; 3]>,
+}
+
+impl VelocitySample {
+    #[inline]
+    pub fn push(&mut self, xyz: Option<[f32; 3]>) {
+        self.prev = self.last;
+        self.last = xyz;
+    }
+}
+
 pub struct SecondPassParser<'a> {
+    /// Per-player position history used by `collect_velocity`.
+    pub velocity_history: AHashMap<u64, VelocitySample>,
     pub start_end_offset: Option<StartEndOffset>,
     pub qf_mapper: &'a QfMapper,
     pub prop_controller: &'a PropController,
@@ -217,6 +242,7 @@ pub struct SecondPassParser<'a> {
     pub last_tick: i32,
     pub parse_usercmd: bool,
     pub usercmd_baselines: AHashMap<i32, CsgoUserCmdPb>,
+    pub(crate) usercmd_baseline_bytes: usize,
     pub list_props: bool,
     pub max_decompressed_frame_bytes: usize,
     pub parse_voice: bool,
@@ -366,9 +392,11 @@ impl<'a> SecondPassParser<'a> {
             inventory_data_budget,
             collected_row_budget,
             string_table_budget: Arc::clone(&first_pass_output.string_table_budget),
+            velocity_history: AHashMap::default(),
             uniq_prop_names: AHashSet::default(),
             parse_usercmd: contains_usercmd_prop(&first_pass_output.settings.wanted_player_props),
             usercmd_baselines: AHashMap::default(),
+            usercmd_baseline_bytes: 0,
             last_tick: 0,
             start_end_offset: start_end_offset,
             order_by_steamid: first_pass_output.order_by_steamid,

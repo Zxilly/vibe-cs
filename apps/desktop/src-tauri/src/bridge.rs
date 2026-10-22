@@ -338,7 +338,9 @@ fn decode_hex(value: &str) -> Result<String, DesktopCommandError> {
     }
     let bytes = value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let pair = std::str::from_utf8(pair)
                 .map_err(|_| DesktopCommandError::invalid("invalid upload file name"))?;
@@ -600,7 +602,7 @@ mod tests {
             )
             .await;
         assert_eq!(head.status(), StatusCode::OK);
-        assert!(head.body().is_empty());
+        assert_eq!(head.body().len(), 0);
         assert_eq!(head.headers()[header::CONTENT_LENGTH], length.to_string());
         let tail = bridge
             .dispatch_media(

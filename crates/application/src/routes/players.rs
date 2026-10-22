@@ -677,11 +677,12 @@ mod tests {
             to_bytes(get.into_body(), 1024).await.expect("GET body"),
             &b"fixture-avatar"[..]
         );
-        assert!(
+        assert_eq!(
             to_bytes(head.into_body(), 1024)
                 .await
                 .expect("HEAD body")
-                .is_empty()
+                .len(),
+            0
         );
     }
 }

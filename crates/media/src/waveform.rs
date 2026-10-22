@@ -272,15 +272,16 @@ fn parse_wav(bytes: &[u8], buckets: usize) -> MediaResult<Vec<f32>> {
     let data = data.ok_or_else(|| MediaError::UnsupportedWave("missing data chunk".to_owned()))?;
     let samples = match (encoding, bits) {
         (1, 16) => data
-            .chunks_exact(2)
-            .map(|bytes| {
-                f32::from(i16::from_le_bytes(bytes.try_into().expect("two bytes")))
-                    / f32::from(i16::MAX)
-            })
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|bytes| f32::from(i16::from_le_bytes(*bytes)) / f32::from(i16::MAX))
             .collect::<Vec<_>>(),
         (3, 32) => data
-            .chunks_exact(4)
-            .map(|bytes| f32::from_le_bytes(bytes.try_into().expect("four bytes")))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| f32::from_le_bytes(*bytes))
             .filter(|sample| sample.is_finite())
             .collect::<Vec<_>>(),
         _ => {

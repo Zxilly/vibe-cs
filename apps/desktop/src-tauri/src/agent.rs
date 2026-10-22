@@ -1988,7 +1988,7 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
-        assert!(state.cancellations.lock().await.is_empty());
+        assert_eq!(state.cancellations.lock().await.len(), 0);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2139,7 +2139,7 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
-        assert!(state.cancellations.lock().await.is_empty());
+        assert_eq!(state.cancellations.lock().await.len(), 0);
     }
 
     #[test]
@@ -2519,7 +2519,7 @@ mod tests {
             let intents: Vec<StoryCameraIntent> =
                 serde_json::from_value(camera["recommendedCameraIntents"].clone())
                     .expect("recommended style must disclose legal intents");
-            assert!(!intents.is_empty());
+            assert_ne!(intents.len(), 0);
             for intent in intents {
                 let mut input = story_input();
                 input.camera_style = style;

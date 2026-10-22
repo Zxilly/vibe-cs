@@ -4,7 +4,10 @@ use std::sync::{
 };
 
 use rig_agent::tool::DynamicTool;
-use rig_core::tool::{ToolExecutionError, ToolOutput};
+use rig_core::{
+    message::ToolName,
+    tool::{ToolExecutionError, ToolOutput},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, mpsc};
@@ -193,10 +196,10 @@ pub(crate) fn create_tools(state: &ToolState) -> Vec<DynamicTool> {
         .map(|tool| {
             let state = state.clone();
             DynamicTool::new(
-                tool.name,
+                ToolName::new(tool.name).expect("catalog tool names are nonempty"),
                 tool.description,
                 tool.parameters,
-                move |_context, input| {
+                move |input| {
                     let state = state.clone();
                     Box::pin(async move {
                         state

@@ -22,7 +22,7 @@ const MAXIMUM_WATCH_ROOTS: usize = 64;
 const MAXIMUM_DISCOVERED_DEMOS: usize = 10_000;
 const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(500);
 const PERIODIC_RECONCILIATION: Duration = Duration::from_secs(30);
-const FULL_RECONCILIATION: Duration = Duration::from_secs(30 * 60);
+const FULL_RECONCILIATION: Duration = Duration::from_mins(30);
 
 #[derive(Debug)]
 enum WatchCommand {

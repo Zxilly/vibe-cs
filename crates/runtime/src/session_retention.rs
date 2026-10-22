@@ -38,11 +38,11 @@ use vibe_cs_application::EventHub;
 use vibe_cs_storage::Storage;
 
 /// How long after startup the first sweep runs. See the module comment.
-const FIRST_SWEEP_DELAY: Duration = Duration::from_secs(5 * 60);
+const FIRST_SWEEP_DELAY: Duration = Duration::from_mins(5);
 
 /// How often afterwards. Retention is expressed in days and counts of fifty;
 /// an hour is far finer than either, and the sweep is one indexed DELETE.
-const SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
+const SWEEP_INTERVAL: Duration = Duration::from_hours(1);
 
 /// Starts the sweeper on the current runtime. The task lives as long as the
 /// process — there is no stop handle because there is no caller that would use

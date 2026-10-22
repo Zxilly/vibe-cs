@@ -23,7 +23,11 @@ async fn exports_chinese_text_with_an_imported_truetype_font() {
         .prefix("vibe-cs-chinese-font-")
         .tempdir()
         .unwrap();
-    let root = directory.path();
+    let root = directory.path().to_path_buf();
+    if std::env::var_os("VIBE_CS_KEEP_ENCODING_EVIDENCE").is_some() {
+        println!("encoding evidence directory: {}", root.display());
+        let _ = directory.keep();
+    }
     let font_path = root.join("imported-chinese-font.ttf");
     std::fs::write(
         &font_path,
@@ -84,7 +88,9 @@ async fn exports_chinese_text_with_an_imported_truetype_font() {
     .unwrap();
     let pixels = read_rgb(&bytes);
     let text_pixels = pixels
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .filter(|pixel| pixel.iter().all(|value| *value > 150))
         .count();
     assert!(text_pixels > 250, "title must be visibly rendered");
@@ -101,9 +107,6 @@ async fn exports_chinese_text_with_an_imported_truetype_font() {
     )
     .unwrap();
     println!("Chinese custom font acceptance: {}", root.display());
-    if std::env::var_os("VIBE_CS_KEEP_ENCODING_EVIDENCE").is_some() {
-        let _ = directory.keep();
-    }
 }
 
 #[tokio::test]
@@ -112,7 +115,11 @@ async fn exports_two_source_ranges_with_overlay_mixed_audio_and_fades() {
         .prefix("vibe-cs-encoding-acceptance-")
         .tempdir()
         .expect("evidence directory");
-    let root = directory.path();
+    let root = directory.path().to_path_buf();
+    if std::env::var_os("VIBE_CS_KEEP_ENCODING_EVIDENCE").is_some() {
+        println!("encoding evidence directory: {}", root.display());
+        let _ = directory.keep();
+    }
     let source = root.join("calibration.y4m");
     let bed = root.join("bed-440hz.wav");
     let accent = root.join("accent-880hz.wav");
@@ -312,9 +319,6 @@ async fn exports_two_source_ranges_with_overlay_mixed_audio_and_fades() {
     )
     .unwrap();
     println!("encoding acceptance: {} ({elapsed:.3}s)", root.display());
-    if std::env::var_os("VIBE_CS_KEEP_ENCODING_EVIDENCE").is_some() {
-        let _ = directory.keep();
-    }
 }
 
 fn clip(asset_id: Uuid, start: f64, duration: f64, source_in: f64, volume: f64) -> Value {

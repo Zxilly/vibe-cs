@@ -119,7 +119,7 @@ mod tests {
             &analysis,
         )
         .unwrap();
-        assert!(request.highlights.is_empty());
+        assert_eq!(request.highlights.len(), 0);
         assert_eq!(request.rounds, vec![[300, 450], [100, 299]]);
         assert_eq!(
             analysis

@@ -13,6 +13,11 @@ use csgoproto::CMsgQAngle;
 use csgoproto::CsgoUserCmdPb;
 use prost::Message;
 
+// Sparse delta markers can declare a list without carrying its elements.
+// Bound their in-memory expansion independently of the encoded packet size.
+const MAX_REPEATED_ENTRIES: usize = 1_024;
+pub(super) const MAX_USERCMD_BYTES: usize = 64 * 1024;
+
 #[derive(Clone, PartialEq, Message)]
 struct DeltaBaseUserCmdPb {
     #[prost(int32, optional, tag = "1")]
@@ -80,6 +85,9 @@ fn read_varint(bytes: &mut &[u8]) -> Option<u64> {
     for shift in (0..70).step_by(7) {
         let (&byte, rest) = bytes.split_first()?;
         *bytes = rest;
+        if shift == 63 && byte > 1 {
+            return None;
+        }
         value |= u64::from(byte & 0x7f) << shift;
         if byte & 0x80 == 0 {
             return Some(value);
@@ -102,6 +110,9 @@ enum MessageSchema {
     BaseUserCmd,
     Buttons,
     QAngle,
+    Vector,
+    Interpolation,
+    InterpolationCl,
     InputHistory,
     SubtickMove,
 }
@@ -128,6 +139,16 @@ impl MessageSchema {
                 1..=3 => Some(5),
                 _ => None,
             },
+            Self::Vector => match field {
+                1..=4 => Some(5),
+                _ => None,
+            },
+            Self::Interpolation => match field {
+                1 | 2 => Some(0),
+                3 => Some(5),
+                _ => None,
+            },
+            Self::InterpolationCl => (field == 3).then_some(5),
             Self::InputHistory => match field {
                 2 | 12..=15 | 66..=69 => Some(2),
                 4 | 6 | 64 | 65 => Some(0),
@@ -148,6 +169,9 @@ impl MessageSchema {
             (Self::BaseUserCmd, 3) => Some(Self::Buttons),
             (Self::BaseUserCmd, 4) => Some(Self::QAngle),
             (Self::InputHistory, 2 | 69) => Some(Self::QAngle),
+            (Self::InputHistory, 12) => Some(Self::InterpolationCl),
+            (Self::InputHistory, 13..=15) => Some(Self::Interpolation),
+            (Self::InputHistory, 66..=68) => Some(Self::Vector),
             _ => None,
         }
     }
@@ -178,7 +202,26 @@ impl MessageSchema {
             ],
             Self::Buttons => &[(1, 0), (2, 0), (3, 0)],
             Self::QAngle => &[(1, 5), (2, 5), (3, 5)],
-            Self::InputHistory => &[(2, 2), (4, 0), (5, 5), (6, 0), (7, 5), (64, 0), (65, 0)],
+            Self::Vector => &[(1, 5), (2, 5), (3, 5), (4, 5)],
+            Self::Interpolation => &[(1, 0), (2, 0), (3, 5)],
+            Self::InterpolationCl => &[(3, 5)],
+            Self::InputHistory => &[
+                (2, 2),
+                (4, 0),
+                (5, 5),
+                (6, 0),
+                (7, 5),
+                (12, 2),
+                (13, 2),
+                (14, 2),
+                (15, 2),
+                (64, 0),
+                (65, 0),
+                (66, 2),
+                (67, 2),
+                (68, 2),
+                (69, 2),
+            ],
             Self::SubtickMove => &[(1, 0), (2, 0), (3, 5), (4, 5), (5, 5), (8, 5), (9, 5)],
         }
     }
@@ -187,7 +230,7 @@ impl MessageSchema {
         match wire_type {
             0 => {
                 let value = match (self, field) {
-                    (Self::CsgoUserCmd, 6 | 7) | (Self::InputHistory, 65) => u64::MAX,
+                    (Self::CsgoUserCmd, 6 | 7) | (Self::InputHistory, 65) | (Self::Interpolation, 1 | 2) => u64::MAX,
                     (Self::BaseUserCmd, 14) => 0x00ff_ffff,
                     _ => 0,
                 };
@@ -195,9 +238,12 @@ impl MessageSchema {
             }
             1 => out.extend_from_slice(&[0; 8]),
             2 => {
-                let nested = match self.child(field) {
-                    Some(child) => child.explicit_defaults()?,
-                    None => Vec::new(),
+                let nested = match (self, field) {
+                    (Self::CsgoUserCmd, 2) | (Self::BaseUserCmd, 18) => vec![0x07],
+                    _ => match self.child(field) {
+                        Some(child) => child.explicit_defaults()?,
+                        None => Vec::new(),
+                    },
                 };
                 write_varint(nested.len() as u64, out);
                 out.extend_from_slice(&nested);
@@ -269,16 +315,35 @@ fn sanitize_message(mut bytes: &[u8], schema: MessageSchema) -> Option<Vec<u8>> 
     Some(out)
 }
 
-fn decode_repeated<M>(payloads: &[prost::bytes::Bytes], schema: MessageSchema) -> Option<Vec<M>>
+/// Reconstructs the codegen-delta list from its per-player-slot baseline.
+/// The leading wire-type 7 key declares the target length; following field
+/// numbers are zero-based element indices and may be sparse.
+fn decode_repeated<M>(payloads: &[prost::bytes::Bytes], schema: MessageSchema, previous: &[M]) -> Option<Vec<M>>
 where
-    M: Message + Default,
+    M: Message + Default + Clone,
 {
-    let mut messages = Vec::new();
+    if previous.len() > MAX_REPEATED_ENTRIES {
+        return None;
+    }
+    let mut messages = previous.to_vec();
+    let mut declared_count = None;
     for payload in payloads {
         let mut bytes = payload.as_ref();
-        if bytes.first() == Some(&0x0f) {
-            messages.clear();
-            bytes = &bytes[1..];
+        if !bytes.is_empty() {
+            let mut after_marker = bytes;
+            let marker = read_varint(&mut after_marker)?;
+            if marker & 0x07 == 7 {
+                if declared_count.is_some() {
+                    return None;
+                }
+                let count = usize::try_from(marker >> 3).ok()?;
+                if count > MAX_REPEATED_ENTRIES {
+                    return None;
+                }
+                messages.resize(count, M::default());
+                declared_count = Some(count);
+                bytes = after_marker;
+            }
         }
         while !bytes.is_empty() {
             let key = read_varint(&mut bytes)?;
@@ -286,13 +351,10 @@ where
                 return None;
             }
             let index = usize::try_from(key >> 3).ok()?;
-            if index != messages.len() {
-                return None;
-            }
             let length = usize::try_from(read_varint(&mut bytes)?).ok()?;
             let (message, rest) = bytes.split_at_checked(length)?;
             let message = sanitize_message(message, schema)?;
-            messages.push(M::decode(message.as_slice()).ok()?);
+            messages.get_mut(index)?.merge(message.as_slice()).ok()?;
             bytes = rest;
         }
     }
@@ -320,12 +382,15 @@ fn merge_qangle(target: &mut Option<CMsgQAngle>, delta: CMsgQAngle) {
 }
 
 pub(super) fn apply_delta(baseline: &CsgoUserCmdPb, delta_data: &[u8]) -> Option<CsgoUserCmdPb> {
+    if delta_data.len() > MAX_USERCMD_BYTES || !command_is_bounded(baseline) {
+        return None;
+    }
     let sanitized = sanitize_message(delta_data, MessageSchema::CsgoUserCmd)?;
     let delta = DeltaCsgoUserCmdPb::decode(sanitized.as_slice()).ok()?;
     let mut next = baseline.clone();
 
     if !delta.input_history_delta.is_empty() {
-        next.input_history = decode_repeated(&delta.input_history_delta, MessageSchema::InputHistory)?;
+        next.input_history = decode_repeated(&delta.input_history_delta, MessageSchema::InputHistory, &next.input_history)?;
     }
     replace_if_some(&mut next.attack1_start_history_index, delta.attack1_start_history_index);
     replace_if_some(&mut next.attack2_start_history_index, delta.attack2_start_history_index);
@@ -361,16 +426,74 @@ pub(super) fn apply_delta(baseline: &CsgoUserCmdPb, delta_data: &[u8]) -> Option
             base.execution_notes = Some(CBaseUserCmdExecutionNotes::decode(notes).ok()?);
         }
         if !delta_base.subtick_moves_delta.is_empty() {
-            base.subtick_moves = decode_repeated(&delta_base.subtick_moves_delta, MessageSchema::SubtickMove)?;
+            base.subtick_moves = decode_repeated(&delta_base.subtick_moves_delta, MessageSchema::SubtickMove, &base.subtick_moves)?;
         }
     }
 
-    Some(next)
+    command_is_bounded(&next).then_some(next)
+}
+
+pub(super) fn command_is_bounded(command: &CsgoUserCmdPb) -> bool {
+    command.input_history.len() <= MAX_REPEATED_ENTRIES
+        && command.base.as_ref().is_none_or(|base| base.subtick_moves.len() <= MAX_REPEATED_ENTRIES)
+        && command.encoded_len() <= MAX_USERCMD_BYTES
+}
+
+pub(super) fn command_retained_bytes(command: &CsgoUserCmdPb) -> usize {
+    // The generated optional messages are inline, so size_of includes their
+    // nested fields even when absent. Only these repeated/string/bytes fields
+    // own additional allocations.
+    let mut bytes = std::mem::size_of::<CsgoUserCmdPb>() + command.input_history.capacity() * std::mem::size_of::<csgoproto::CsgoInputHistoryEntryPb>();
+    if let Some(base) = &command.base {
+        bytes += base.subtick_moves.capacity() * std::mem::size_of::<csgoproto::CSubtickMoveStep>();
+        bytes += base.move_crc.as_ref().map_or(0, |value| value.len());
+        bytes += base
+            .execution_notes
+            .as_ref()
+            .and_then(|notes| notes.ignored_reason.as_ref())
+            .map_or(0, String::capacity);
+    }
+    bytes
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sparse_counts_are_bounded_before_allocation() {
+        for count in [MAX_REPEATED_ENTRIES as u64 + 1, u64::MAX >> 3] {
+            let mut payload = vec![];
+            write_varint((count << 3) | 7, &mut payload);
+            assert!(decode_repeated::<csgoproto::CSubtickMoveStep>(&[payload.into()], MessageSchema::SubtickMove, &[]).is_none());
+        }
+        let mut payload = vec![];
+        write_varint(((MAX_REPEATED_ENTRIES as u64) << 3) | 7, &mut payload);
+        let messages = decode_repeated::<csgoproto::CSubtickMoveStep>(&[payload.into()], MessageSchema::SubtickMove, &[]).unwrap();
+        assert_eq!(messages.len(), MAX_REPEATED_ENTRIES);
+    }
+
+    #[test]
+    fn overflowing_varints_do_not_alias_valid_fields() {
+        let mut overflow = &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02][..];
+        assert!(read_varint(&mut overflow).is_none());
+        let mut maximum = vec![];
+        write_varint(u64::MAX, &mut maximum);
+        assert_eq!(read_varint(&mut maximum.as_slice()), Some(u64::MAX));
+    }
+
+    #[test]
+    fn oversized_baselines_are_rejected_before_delta_cloning() {
+        let mut command = CsgoUserCmdPb::default();
+        command.input_history.resize(MAX_REPEATED_ENTRIES + 1, Default::default());
+        assert!(apply_delta(&command, &[]).is_none());
+        command.input_history.clear();
+        command.base = Some(csgoproto::CBaseUserCmdPb {
+            move_crc: Some(vec![0; MAX_USERCMD_BYTES].into()),
+            ..Default::default()
+        });
+        assert!(apply_delta(&command, &[]).is_none());
+    }
 
     #[test]
     fn merges_july_usercmd_fields_and_repeated_subticks() {
@@ -402,11 +525,130 @@ mod tests {
     }
 
     #[test]
-    fn rejects_nonsequential_repeated_entries_without_mutating_baseline() {
-        let baseline = CsgoUserCmdPb::default();
-        let delta = [0x12, 0x02, 0x0a, 0x00];
-        assert!(apply_delta(&baseline, &delta).is_none());
-        assert_eq!(baseline, CsgoUserCmdPb::default());
+    fn repeated_marker_declares_multiple_elements() {
+        let payload = prost::bytes::Bytes::from_static(&[
+            0x17, 0x02, 0x09, 0x08, 0x01, 0x10, 0x01, 0x1d, 0x00, 0x00, 0xb0, 0x3e, 0x0a, 0x0a, 0x08, 0x80, 0x10, 0x10, 0x01, 0x1d, 0x00, 0x00, 0xb0, 0x3e,
+        ]);
+
+        let decoded = decode_repeated::<csgoproto::CSubtickMoveStep>(&[payload], MessageSchema::SubtickMove, &[]).unwrap();
+
+        assert_eq!(decoded.len(), 2);
+        assert_eq!(decoded[0].button, Some(1));
+        assert_eq!(decoded[1].button, Some(2048));
+    }
+
+    #[test]
+    fn repeated_delta_allows_sparse_indices_and_merges_element_baselines() {
+        let previous = vec![
+            csgoproto::CSubtickMoveStep::default(),
+            csgoproto::CSubtickMoveStep {
+                button: Some(2),
+                pressed: Some(true),
+                when: Some(0.25),
+                ..Default::default()
+            },
+        ];
+        let payload = prost::bytes::Bytes::from_static(&[0x17, 0x0a, 0x02, 0x08, 0x04]);
+
+        let decoded = decode_repeated(&[payload], MessageSchema::SubtickMove, &previous).unwrap();
+
+        assert_eq!(decoded.len(), 2);
+        assert_eq!(decoded[0], csgoproto::CSubtickMoveStep::default());
+        assert_eq!(decoded[1].button, Some(4));
+        assert_eq!(decoded[1].pressed, Some(true));
+        assert_eq!(decoded[1].when, Some(0.25));
+    }
+
+    #[test]
+    fn zero_length_marker_clears_repeated_baseline_without_changing_omitted_fields() {
+        let baseline = CsgoUserCmdPb {
+            input_history: vec![csgoproto::CsgoInputHistoryEntryPb {
+                player_tick_count: Some(100),
+                ..Default::default()
+            }],
+            left_hand_desired: Some(true),
+            ..Default::default()
+        };
+        let command = apply_delta(&baseline, &[0x12, 0x01, 0x07]).unwrap();
+        assert!(command.input_history.is_empty());
+        assert_eq!(command.left_hand_desired, Some(true));
+        assert_eq!(baseline.input_history.len(), 1);
+    }
+
+    #[test]
+    fn wire_seven_list_and_parent_resets_clear_sparse_baselines() {
+        let baseline = CsgoUserCmdPb {
+            input_history: vec![Default::default()],
+            base: Some(csgoproto::CBaseUserCmdPb {
+                forwardmove: Some(0.75),
+                subtick_moves: vec![csgoproto::CSubtickMoveStep {
+                    button: Some(1),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            left_hand_desired: Some(true),
+            ..Default::default()
+        };
+        for (delta, history_len, subtick_len) in [(&[0x17][..], 0, 1), (&[0x0a, 0x02, 0x97, 0x01][..], 1, 0), (&[0x0f][..], 1, 0)] {
+            let command = apply_delta(&baseline, delta).unwrap();
+            assert_eq!(command.input_history.len(), history_len, "{delta:?}");
+            assert_eq!(command.base.as_ref().unwrap().subtick_moves.len(), subtick_len, "{delta:?}");
+            assert_eq!(command.left_hand_desired, Some(true));
+        }
+        let reset = apply_delta(&baseline, &[0x0f]).unwrap();
+        assert_eq!(reset.base.unwrap().forwardmove, Some(0.0));
+    }
+
+    #[test]
+    fn wire_seven_nested_history_resets_restore_declared_defaults() {
+        let interpolation = csgoproto::CsgoInterpolationInfoPb {
+            src_tick: Some(10),
+            dst_tick: Some(11),
+            frac: Some(0.25),
+        };
+        let vector = csgoproto::CMsgVector {
+            x: Some(1.0),
+            y: Some(2.0),
+            z: Some(3.0),
+            w: Some(4.0),
+        };
+        let baseline = CsgoUserCmdPb {
+            input_history: vec![csgoproto::CsgoInputHistoryEntryPb {
+                player_tick_count: Some(100),
+                cl_interp: Some(csgoproto::CsgoInterpolationInfoPbCl { frac: Some(0.25) }),
+                sv_interp0: Some(interpolation),
+                sv_interp1: Some(interpolation),
+                player_interp: Some(interpolation),
+                shoot_position: Some(vector),
+                target_head_pos_check: Some(vector),
+                target_abs_pos_check: Some(vector),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let mut fields = vec![];
+        for field in [12, 13, 14, 15, 66, 67, 68] {
+            write_varint((field << 3) | 7, &mut fields);
+        }
+        let mut payload = vec![0x02];
+        write_varint(fields.len() as u64, &mut payload);
+        payload.extend_from_slice(&fields);
+        let mut delta = vec![0x12];
+        write_varint(payload.len() as u64, &mut delta);
+        delta.extend_from_slice(&payload);
+        let command = apply_delta(&baseline, &delta).unwrap();
+        let entry = &command.input_history[0];
+        assert_eq!(entry.player_tick_count, Some(100));
+        assert_eq!(entry.cl_interp.unwrap().frac, Some(0.0));
+        for value in [entry.sv_interp0, entry.sv_interp1, entry.player_interp] {
+            let value = value.unwrap();
+            assert_eq!((value.src_tick(), value.dst_tick(), value.frac()), (-1, -1, 0.0));
+        }
+        for value in [entry.shoot_position, entry.target_head_pos_check, entry.target_abs_pos_check] {
+            let value = value.unwrap();
+            assert_eq!((value.x(), value.y(), value.z(), value.w()), (0.0, 0.0, 0.0, 0.0));
+        }
     }
 
     #[test]

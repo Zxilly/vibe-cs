@@ -237,7 +237,7 @@ fn read_varint(
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Seek as _, time::Duration};
+    use std::time::Duration;
 
     use super::*;
 

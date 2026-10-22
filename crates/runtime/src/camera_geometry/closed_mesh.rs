@@ -207,7 +207,7 @@ mod tests {
                 candidates.len(),
                 started.elapsed().as_secs_f64() * 1000.0
             );
-            assert!(!interiors.is_empty());
+            assert_ne!(interiors.len(), 0);
             let mut verified = 0;
             for mesh in &interiors {
                 let mut shells = mesh.shells.iter().collect::<Vec<_>>();

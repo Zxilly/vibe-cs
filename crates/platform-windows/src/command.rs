@@ -447,6 +447,6 @@ mod tests {
                 actual: 9
             })
         ));
-        assert!(control.backend.sent.lock().unwrap().is_empty());
+        assert_eq!(control.backend.sent.lock().unwrap().len(), 0);
     }
 }

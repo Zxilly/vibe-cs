@@ -1504,7 +1504,7 @@ mod tests {
             })
             .await
             .expect("read coverage");
-        assert!(page.items.is_empty());
+        assert_eq!(page.items.len(), 0);
         assert_eq!(page.total, 0);
         assert_eq!(page.coverage.projected_demos, 1);
         assert_eq!(page.coverage.total_analyses, 1);
@@ -1563,7 +1563,7 @@ mod tests {
         assert_eq!(page.coverage.total_analyses, 1);
         assert!(!page.coverage.projection_complete);
         assert_eq!(page.total, 0);
-        assert!(page.items.is_empty());
+        assert_eq!(page.items.len(), 0);
         assert!(profile.is_none());
         assert_eq!(matches.total, 0);
         assert_eq!(matches.coverage, page.coverage);
@@ -1621,7 +1621,7 @@ mod tests {
         assert_eq!(page.coverage.total_analyses, 1);
         assert!(!page.coverage.projection_complete);
         assert_eq!(page.total, 0);
-        assert!(page.items.is_empty());
+        assert_eq!(page.items.len(), 0);
         assert!(profile.is_none());
         assert_eq!(matches.total, 0);
         assert_eq!(matches.coverage, page.coverage);
@@ -1711,17 +1711,17 @@ mod tests {
         assert_eq!(directory.coverage.total_analyses, 2);
         assert!(!directory.coverage.projection_complete);
         assert_eq!(directory.items[0].name, "Valid FalleN");
-        assert!(directory.items[0].aliases.is_empty());
+        assert_eq!(directory.items[0].aliases.len(), 0);
         assert_eq!(directory.items[0].stats.matches, 1);
         assert_eq!(profile.player.name, "Valid FalleN");
-        assert!(profile.player.aliases.is_empty());
+        assert_eq!(profile.player.aliases.len(), 0);
         assert_eq!(profile.player.stats.matches, 1);
         assert_eq!(matches.total, 1);
         assert_eq!(matches.items[0].demo_id, valid_id);
         assert_eq!(comparison.players[0].as_ref().unwrap().name, "Valid FalleN");
         assert_eq!(comparison.players[1].as_ref().unwrap().stats.matches, 1);
         assert_eq!(stale_alias.total, 0);
-        assert!(stale_alias.items.is_empty());
+        assert_eq!(stale_alias.items.len(), 0);
     }
 
     #[tokio::test]
@@ -1795,7 +1795,7 @@ mod tests {
         let player = page.items.first().expect("FalleN directory row");
         assert_eq!(player.steam_id, PLAYER_ID);
         assert_eq!(player.name, "FalleN");
-        assert!(player.aliases.is_empty());
+        assert_eq!(player.aliases.len(), 0);
         assert_eq!(player.last_team.as_deref(), Some("FURIA"));
         assert_eq!(player.last_match_date, None);
         assert_eq!(
@@ -2360,7 +2360,7 @@ mod tests {
                 .expect("profile read")
                 .expect("projected player");
             assert_eq!(profile.player.name, steam_id);
-            assert!(profile.player.aliases.is_empty());
+            assert_eq!(profile.player.aliases.len(), 0);
             assert_eq!(profile.player.last_team, None);
             let matches = storage
                 .list_player_matches(PlayerMatchQuery {

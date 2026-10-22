@@ -37,7 +37,9 @@ impl PendingInput {
             input = input.set_format_opt("loop", value);
         }
         if let Some(framerate) = self.framerate {
-            input = input.set_framerate(framerate, 1);
+            // `-framerate` configures the image demuxer; `set_framerate`
+            // corresponds to `-r` and would retime its default 25 fps frames.
+            input = input.set_format_opt("framerate", framerate.to_string());
         }
         if let Some(count) = self.stream_loop {
             input = input.set_stream_loop(count);

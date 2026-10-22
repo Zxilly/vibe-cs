@@ -1142,7 +1142,7 @@ mod tests {
             .expect_err("restore metadata must be required");
 
         assert!(matches!(error, RecordingError::InvalidInput(_)));
-        assert!(engine.game.commands.lock().unwrap().is_empty());
+        assert_eq!(engine.game.commands.lock().unwrap().len(), 0);
         assert_eq!(engine.capture.starts, 0);
     }
 

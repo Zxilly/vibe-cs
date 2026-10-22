@@ -276,7 +276,7 @@ mod tests {
             runner.run(&spec, &cancellation).await,
             Err(PlatformError::Cancelled { process_id: None })
         ));
-        assert!(runner.calls.lock().unwrap().is_empty());
+        assert_eq!(runner.calls.lock().unwrap().len(), 0);
     }
 
     #[tokio::test]

@@ -61,7 +61,7 @@ const MAXIMUM_PLAYBACK_TICK: u64 = 2_147_483_647;
 const MAXIMUM_PLAYBACK_CACHE_ENTRIES: usize = 4;
 const MAXIMUM_PLAYBACK_CACHE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_PLAYBACK_CACHE_SCAN_ENTRIES: usize = 64;
-const PLAYBACK_PARTIAL_STALE_AGE: Duration = Duration::from_secs(60 * 60);
+const PLAYBACK_PARTIAL_STALE_AGE: Duration = Duration::from_hours(1);
 
 #[async_trait]
 trait RuntimeSteamBackend: Send + Sync + std::fmt::Debug {
@@ -1247,7 +1247,7 @@ impl RuntimeIntegrationPort {
             #[cfg(test)]
             if self
                 .steam_terminal_failure_budget
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |remaining| {
+                .try_update(Ordering::SeqCst, Ordering::SeqCst, |remaining| {
                     remaining.checked_sub(1)
                 })
                 .is_ok()
@@ -3319,8 +3319,6 @@ fn io_error(operation: &str, error: &std::io::Error) -> DomainError {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write as _;
-
     use bzip2::{Compression, write::BzEncoder};
 
     use super::*;
@@ -4804,12 +4802,12 @@ mod tests {
             storage.get_demo(demo.id).await.expect("demo lookup"),
             Some(demo)
         );
-        assert!(
+        assert_eq!(
             storage
                 .list_match_download_jobs()
                 .await
-                .expect("download jobs")
-                .is_empty()
+                .expect("download jobs"),
+            [] as [vibe_cs_domain::MatchDownloadJob; 0]
         );
     }
 
@@ -4953,12 +4951,12 @@ mod tests {
             .expect_err("missing Steam credentials must reject download");
 
         assert!(matches!(error, DomainError::DependencyUnavailable(_)));
-        assert!(
+        assert_eq!(
             storage
                 .list_match_download_jobs()
                 .await
-                .expect("download jobs")
-                .is_empty()
+                .expect("download jobs"),
+            [] as [vibe_cs_domain::MatchDownloadJob; 0]
         );
         assert_eq!(
             storage
@@ -5004,12 +5002,12 @@ mod tests {
             .expect_err("missing Web API key must reject download");
 
         assert!(matches!(error, DomainError::DependencyUnavailable(_)));
-        assert!(
+        assert_eq!(
             storage
                 .list_match_download_jobs()
                 .await
-                .expect("download jobs")
-                .is_empty()
+                .expect("download jobs"),
+            [] as [vibe_cs_domain::MatchDownloadJob; 0]
         );
         assert_eq!(
             storage
@@ -5056,12 +5054,12 @@ mod tests {
             .expect_err("previous account match must not be downloadable");
 
         assert!(matches!(error, DomainError::NotFound(_)));
-        assert!(
+        assert_eq!(
             storage
                 .list_match_download_jobs()
                 .await
-                .expect("download jobs")
-                .is_empty()
+                .expect("download jobs"),
+            [] as [vibe_cs_domain::MatchDownloadJob; 0]
         );
         assert_eq!(
             storage

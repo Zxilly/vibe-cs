@@ -336,7 +336,7 @@ mod tests {
             serde_json::json!(999);
         for row in analysis.derived_insights().round_economy {
             assert_eq!(row.freeze_end_tick, None);
-            assert!(row.team_equipment.is_empty());
+            assert_eq!(row.team_equipment.len(), 0);
         }
     }
 

@@ -1255,7 +1255,7 @@ mod tests {
         assert_eq!(first.clips.len(), 2);
         assert!((first.clips[0].planned_duration_seconds - 2.0).abs() < f64::EPSILON);
         assert!((first.clips[1].planned_duration_seconds - 1.0).abs() < f64::EPSILON);
-        assert!(first.unplaced_clip_ids.is_empty());
+        assert_eq!(first.unplaced_clip_ids.len(), 0);
     }
 
     #[test]
@@ -1393,8 +1393,8 @@ mod tests {
         assert!(analysis.beats.len() >= 20);
         assert!(analysis.onsets.len() >= 20);
         assert_eq!(analysis.energy.len(), 64);
-        assert!(!analysis.sections.is_empty());
-        assert!(!analysis.spectral_map.points.is_empty());
+        assert_ne!(analysis.sections.len(), 0);
+        assert_ne!(analysis.spectral_map.points.len(), 0);
         assert!(analysis.spectral_map.points.len() <= SPECTRAL_MAP_POINTS);
         assert!(analysis.rhythm_diagnostics.onset_rate_per_second > 1.0);
         assert_eq!(analysis.analysis_sample_rate, 11_025);

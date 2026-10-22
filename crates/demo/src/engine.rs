@@ -1561,7 +1561,7 @@ mod tests {
                 },
             );
         }
-        assert!(resolved_spectator_slots(&shared).is_empty());
+        assert_eq!(resolved_spectator_slots(&shared).len(), 0);
     }
 
     #[test]

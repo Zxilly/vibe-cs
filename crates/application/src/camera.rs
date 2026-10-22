@@ -128,11 +128,10 @@ pub fn camera_issue_intervals(samples: &[CameraPoseDiagnostic]) -> Vec<CameraIss
             InsideSolid => f64::from(u8::from(sample.inside_solid)),
             NearWall => f64::from(u8::from(sample.near_wall)),
             SurfaceCrossing => f64::from(u8::from(sample.crossed_surface)),
-            TargetOccluded => {
-                (f64::from(u8::from(sample.head_occluded == Some(true)))
-                    + f64::from(u8::from(sample.chest_occluded == Some(true))))
-                    * 0.5
-            }
+            TargetOccluded => f64::midpoint(
+                f64::from(u8::from(sample.head_occluded == Some(true))),
+                f64::from(u8::from(sample.chest_occluded == Some(true))),
+            ),
             TargetOutOfView => f64::from(u8::from(sample.target_in_view == Some(false))),
             TargetUnobserved => f64::from(u8::from(sample.target_in_view.is_none())),
         };

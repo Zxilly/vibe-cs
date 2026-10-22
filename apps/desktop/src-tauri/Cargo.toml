@@ -7,7 +7,7 @@ license.workspace = true
 description = "Desktop shell for Vibe CS"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 async-trait.workspace = true
@@ -17,11 +17,11 @@ vibe-cs-domain = { path = "../../../crates/domain" }
 vibe-cs-runtime = { path = "../../../crates/runtime" }
 vibe-cs-storage = { path = "../../../crates/storage" }
 axum.workspace = true
-tauri = { version = "2", features = [] }
-tauri-plugin-dialog = "2"
-tauri-plugin-fs = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-single-instance = "2"
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-dialog = "2.8.3"
+tauri-plugin-fs = "2.7.1"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-single-instance = "2.5.4"
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

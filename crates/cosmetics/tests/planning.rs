@@ -179,7 +179,10 @@ fn leaf_name_and_unknown_fields_cannot_inject_replacements() {
     let plan = plan_entity_rewrite(&snapshot, &request, &RewriteLimits::default()).unwrap();
 
     assert!(plan.matched());
-    assert!(plan.replacements.is_empty());
+    assert_eq!(
+        plan.replacements,
+        [] as [vibe_cs_cosmetics::PlannedFieldRewrite; 0]
+    );
 }
 
 #[test]
@@ -204,7 +207,10 @@ fn existing_field_with_wrong_wire_type_is_reported_not_retyped() {
 
     let plan = plan_entity_rewrite(&snapshot, &request, &RewriteLimits::default()).unwrap();
 
-    assert!(plan.replacements.is_empty());
+    assert_eq!(
+        plan.replacements,
+        [] as [vibe_cs_cosmetics::PlannedFieldRewrite; 0]
+    );
     assert!(plan.incompatible_fields.contains(&CosmeticField::PaintKit));
 }
 

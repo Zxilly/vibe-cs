@@ -31,7 +31,7 @@ use vibe_cs_domain::{
 use crate::replay_cache::ReplayCache;
 use crate::round_replay_cache::RoundReplayCache;
 
-const ANALYSIS_TIMEOUT: Duration = Duration::from_secs(12 * 60);
+const ANALYSIS_TIMEOUT: Duration = Duration::from_mins(12);
 const MAXIMUM_WORKER_RESPONSE_BYTES: u64 = 512 * 1024 * 1024;
 const MAXIMUM_DEMO_WORKER_BYTES: u64 = 128 * 1024 * 1024;
 const WORKER_TASK_CLEANUP_ATTEMPTS: usize = 6;
@@ -1514,7 +1514,7 @@ mod tests {
 
     #[test]
     fn production_analysis_budget_covers_large_real_demos() {
-        assert!(ANALYSIS_TIMEOUT >= Duration::from_secs(10 * 60));
+        assert!(ANALYSIS_TIMEOUT >= Duration::from_mins(10));
     }
 
     #[test]
@@ -2225,7 +2225,7 @@ mod tests {
         assert!((generated.fidelity.tick_rate - analysis.tick_rate).abs() < f64::EPSILON);
         assert_eq!(cached.frames, generated.frames);
         assert_eq!(std::fs::read_dir(&task_dir).unwrap().count(), 0);
-        assert!(!round_frames.is_empty());
+        assert_ne!(round_frames, [] as [&vibe_cs_domain::ReplayFrame; 0]);
         assert!(players.contains("FalleN"));
         assert!(players.contains("m0NESY"));
         assert!(positioned_events > 0);

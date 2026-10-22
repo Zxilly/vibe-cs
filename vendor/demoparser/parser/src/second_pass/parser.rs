@@ -1,3 +1,4 @@
+use crate::entity_handle::entity_handle_index;
 use crate::first_pass::parser::Frame;
 use crate::first_pass::parser::HEADER_ENDS_AT_BYTE;
 use crate::first_pass::parser_settings::FirstPassParser;
@@ -31,11 +32,19 @@ use snap::raw::decompress_len;
 use snap::raw::Decoder as SnapDecoder;
 use std::sync::Arc;
 
-use super::usercmd_delta::apply_delta;
+use super::usercmd_delta::{apply_delta, command_is_bounded, command_retained_bytes, MAX_USERCMD_BYTES};
 use super::variants::{InputHistory, UserCmdSubtickMove};
 
 const OUTER_BUF_DEFAULT_LEN: usize = 400_000;
 const INNER_BUF_DEFAULT_LEN: usize = 8192 * 15;
+const MAX_USERCMD_PLAYER_SLOTS: i32 = 256;
+// Each active segment owns its baselines. The parser's hard 16-thread maximum
+// therefore bounds all concurrently retained baselines to 32 MiB.
+const MAX_USERCMD_BASELINE_BYTES: usize = 2 * 1024 * 1024;
+
+fn button_state_masks(state1: u64, state2: u64, state3: u64) -> (u64, u64, u64) {
+    (state1, state3 | (state1 & state2), state3 | (!state1 & state2))
+}
 
 #[derive(Debug)]
 pub struct SecondPassOutput {
@@ -279,15 +288,18 @@ impl<'a> SecondPassParser<'a> {
         };
         for cmd in msg.commands {
             let player_slot = cmd.player_slot();
-            if player_slot < 0 {
+            if !(0..MAX_USERCMD_PLAYER_SLOTS).contains(&player_slot) {
                 continue;
             }
             let data = cmd.data.as_ref().filter(|data| !data.is_empty());
             let delta_data = cmd.delta_data.as_ref().filter(|data| !data.is_empty());
             let mut next = if let Some(data) = data {
+                if data.len() > MAX_USERCMD_BYTES {
+                    continue;
+                }
                 match CsgoUserCmdPb::decode(data.as_ref()) {
-                    Ok(command) => Some(command),
-                    Err(_) => continue,
+                    Ok(command) if command_is_bounded(&command) => Some(command),
+                    _ => continue,
                 }
             } else if delta_data.is_some() {
                 self.usercmd_baselines.get(&player_slot).cloned()
@@ -301,8 +313,18 @@ impl<'a> SecondPassParser<'a> {
             let Some(next) = next else {
                 continue;
             };
-            self.usercmd_baselines.insert(player_slot, next.clone());
+            let previous_bytes = self.usercmd_baselines.get(&player_slot).map_or(0, command_retained_bytes);
+            let next_bytes = self.usercmd_baseline_bytes - previous_bytes + command_retained_bytes(&next);
+            if next_bytes > MAX_USERCMD_BASELINE_BYTES {
+                return Err(DemoParserError::ResourceLimitExceeded {
+                    resource: "user command baseline bytes per segment",
+                    limit: MAX_USERCMD_BASELINE_BYTES,
+                    actual: next_bytes,
+                });
+            }
             self.apply_user_cmd(&next);
+            self.usercmd_baselines.insert(player_slot, next);
+            self.usercmd_baseline_bytes = next_bytes;
         }
         Ok(())
     }
@@ -311,7 +333,7 @@ impl<'a> SecondPassParser<'a> {
         let Some(base) = user_cmd.base.as_ref() else {
             return;
         };
-        let entity_id = base.pawn_entity_handle() & 0x7ff;
+        let entity_id = entity_handle_index(base.pawn_entity_handle());
         let Some(Some(ent)) = self.entities.get_mut(entity_id as usize) else {
             return;
         };
@@ -360,9 +382,16 @@ impl<'a> SecondPassParser<'a> {
             ent.props.insert(USERCMD_VIEWANGLE_Z, Variant::F32(viewangles.z()));
         }
         if let Some(buttons_pb) = base.buttons_pb.as_ref() {
-            ent.props.insert(USERCMD_BUTTONSTATE_1, Variant::U64(buttons_pb.buttonstate1()));
-            ent.props.insert(USERCMD_BUTTONSTATE_2, Variant::U64(buttons_pb.buttonstate2()));
-            ent.props.insert(USERCMD_BUTTONSTATE_3, Variant::U64(buttons_pb.buttonstate3()));
+            let state1 = buttons_pb.buttonstate1();
+            let state2 = buttons_pb.buttonstate2();
+            let state3 = buttons_pb.buttonstate3();
+            let (held, pressed, released) = button_state_masks(state1, state2, state3);
+            ent.props.insert(USERCMD_BUTTONSTATE_1, Variant::U64(state1));
+            ent.props.insert(USERCMD_BUTTONSTATE_2, Variant::U64(state2));
+            ent.props.insert(USERCMD_BUTTONSTATE_3, Variant::U64(state3));
+            ent.props.insert(USERCMD_BUTTONS_HELD, Variant::U64(held));
+            ent.props.insert(USERCMD_BUTTONS_PRESSED, Variant::U64(pressed));
+            ent.props.insert(USERCMD_BUTTONS_RELEASED, Variant::U64(released));
         }
         ent.props
             .insert(USERCMD_CONSUMED_SERVER_ANGLE_CHANGES, Variant::U32(base.consumed_server_angle_changes()));
@@ -450,5 +479,179 @@ impl<'a> SecondPassParser<'a> {
     pub fn parse_user_command_cmd(&mut self, _data: &[u8]) -> Result<(), DemoParserError> {
         // Only in pov demos. Maybe implement sometime. Includes buttons etc.
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::first_pass::parser_settings::{FirstPassParser, ParserInputs};
+
+    fn test_settings() -> ParserInputs<'static> {
+        static HUFFMAN: Vec<(u8, u8)> = vec![];
+        ParserInputs {
+            real_name_to_og_name: Default::default(),
+            wanted_players: vec![],
+            wanted_player_props: vec!["usercmd_leftmove".to_string()],
+            wanted_other_props: vec![],
+            wanted_prop_states: Default::default(),
+            wanted_ticks: vec![],
+            wanted_events: vec![],
+            parse_ents: true,
+            parse_projectiles: false,
+            parse_grenades: false,
+            only_header: false,
+            only_convars: false,
+            huffman_lookup_table: &HUFFMAN,
+            order_by_steamid: false,
+            list_props: false,
+            fallback_bytes: None,
+        }
+    }
+
+    #[test]
+    fn velocity_history_retires_replaced_and_disconnected_player_identities() {
+        let settings = test_settings();
+        let mut first_pass = FirstPassParser::new(&settings);
+        first_pass.cls_by_id = Some(Arc::new(vec![]));
+        let mut parser = SecondPassParser::new(first_pass.create_first_pass_output().unwrap(), 0, false, None).unwrap();
+        for steamid in 1..=512 {
+            parser.players.insert(
+                1,
+                crate::second_pass::entities::PlayerMetaData {
+                    player_entity_id: Some(1),
+                    steamid: Some(steamid),
+                    controller_entid: None,
+                    name: None,
+                    team_num: None,
+                },
+            );
+            parser.update_velocity_history();
+            assert_eq!(parser.velocity_history.len(), 1);
+            assert!(parser.velocity_history.contains_key(&steamid));
+        }
+        parser.players.clear();
+        parser.update_velocity_history();
+        assert!(parser.velocity_history.is_empty());
+    }
+
+    #[test]
+    fn invalid_usercmd_slots_and_deltas_do_not_expand_or_replace_baselines() {
+        let settings = test_settings();
+        let mut first_pass = FirstPassParser::new(&settings);
+        first_pass.cls_by_id = Some(Arc::new(vec![]));
+        let mut parser = SecondPassParser::new(first_pass.create_first_pass_output().unwrap(), 0, false, None).unwrap();
+        let baseline = CsgoUserCmdPb {
+            left_hand_desired: Some(true),
+            ..Default::default()
+        };
+        let command_data = baseline.encode_to_vec();
+        let commands = [-1, 0, MAX_USERCMD_PLAYER_SLOTS - 1, MAX_USERCMD_PLAYER_SLOTS, i32::MAX]
+            .into_iter()
+            .map(|slot| csgoproto::CMsgServerUserCmd {
+                player_slot: Some(slot),
+                data: Some(command_data.clone().into()),
+                ..Default::default()
+            })
+            .collect();
+        parser.parse_user_cmd(&CsvcMsgUserCommands { commands }.encode_to_vec()).unwrap();
+        assert_eq!(parser.usercmd_baselines.len(), 2);
+        assert_eq!(parser.usercmd_baselines[&0], baseline);
+
+        assert_eq!(parser.usercmd_baselines[&(MAX_USERCMD_PLAYER_SLOTS - 1)], baseline);
+
+        // Input-history marker declares 1,025 entries in just two bytes.
+        let invalid_delta = csgoproto::CMsgServerUserCmd {
+            player_slot: Some(0),
+            delta_data: Some(vec![0x12, 0x02, 0x8f, 0x40].into()),
+            ..Default::default()
+        };
+        let oversized_command = csgoproto::CMsgServerUserCmd {
+            player_slot: Some(1),
+            data: Some(vec![0; MAX_USERCMD_BYTES + 1].into()),
+            ..Default::default()
+        };
+        parser
+            .parse_user_cmd(
+                &CsvcMsgUserCommands {
+                    commands: vec![invalid_delta, oversized_command],
+                }
+                .encode_to_vec(),
+            )
+            .unwrap();
+        assert_eq!(parser.usercmd_baselines.len(), 2);
+        assert_eq!(parser.usercmd_baselines[&0], baseline);
+
+        let large_command = CsgoUserCmdPb {
+            input_history: vec![Default::default(); 1_024],
+            ..Default::default()
+        }
+        .encode_to_vec();
+        let mut exhausted_slot = None;
+        for slot in 0..MAX_USERCMD_PLAYER_SLOTS {
+            let message = CsvcMsgUserCommands {
+                commands: vec![csgoproto::CMsgServerUserCmd {
+                    player_slot: Some(slot),
+                    data: Some(large_command.clone().into()),
+                    ..Default::default()
+                }],
+            }
+            .encode_to_vec();
+            match parser.parse_user_cmd(&message) {
+                Ok(()) => {}
+                Err(DemoParserError::ResourceLimitExceeded {
+                    resource: "user command baseline bytes per segment",
+                    ..
+                }) => {
+                    exhausted_slot = Some(slot);
+                    break;
+                }
+                Err(error) => panic!("unexpected usercmd error: {error:?}"),
+            }
+        }
+        let exhausted_slot = exhausted_slot.expect("aggregate baseline retention must be bounded");
+        assert!(!parser.usercmd_baselines.contains_key(&exhausted_slot));
+        // Replacing a large baseline releases capacity; it is not a cumulative
+        // input budget that eventually rejects a long but ordinary recording.
+        let message = CsvcMsgUserCommands {
+            commands: vec![
+                csgoproto::CMsgServerUserCmd {
+                    player_slot: Some(0),
+                    data: Some(command_data.into()),
+                    ..Default::default()
+                },
+                csgoproto::CMsgServerUserCmd {
+                    player_slot: Some(exhausted_slot),
+                    data: Some(large_command.into()),
+                    ..Default::default()
+                },
+            ],
+        }
+        .encode_to_vec();
+        parser.parse_user_cmd(&message).unwrap();
+        assert!(parser.usercmd_baselines.contains_key(&exhausted_slot));
+    }
+
+    #[test]
+    fn reconstructs_all_button_state_sequences() {
+        let expected = [
+            (false, false, false),
+            (true, false, false),
+            (false, false, true),
+            (true, true, false),
+            (false, true, true),
+            (true, true, true),
+            (false, true, true),
+            (true, true, true),
+        ];
+        let bit = 1 << 5;
+
+        for (code, expected) in expected.into_iter().enumerate() {
+            let state1 = u64::from(code & 1 != 0) * bit;
+            let state2 = u64::from(code & 2 != 0) * bit;
+            let state3 = u64::from(code & 4 != 0) * bit;
+            let (held, pressed, released) = button_state_masks(state1, state2, state3);
+            assert_eq!((held != 0, pressed != 0, released != 0), expected, "button state {code}");
+        }
     }
 }

@@ -4,12 +4,21 @@ This directory is a source-pinned vendor snapshot. It is not generated from the
 current upstream branch during a Vibe CS build.
 
 - Repository: <https://github.com/LaihoE/demoparser>
-- Audited commit: `266a831f08b0264dd722b017a5c05d765206a7ed`
-- Upstream release at that commit: `demoparser2` 0.42.0
+- Audited commit: `45ca85aeac8fb0de9d385124d2c7fe0e7b8ff0c8` (2026-10-05)
+- Audit date: 2026-10-22
+- Latest published Python package: `demoparser2` 0.42.0 (2026-08-08). This source
+  snapshot includes ten subsequent upstream commits; it is not a newer published
+  package release.
 - Vendored Rust package versions: `parser` 0.1.1 and `csgoproto` 0.1.5
 - License: MIT; see `LICENSE`. The upstream license text at the pinned commit
   retains placeholder copyright fields, so release/legal review is still
   required before redistribution.
+
+The upstream update corrects 14-bit network entity handles, sparse UserCmd delta
+baselines and button states, event-key decoding, and velocity sampling with tick
+filters. It also refreshes the committed protocol and cosmetic lookup tables.
+The previous `266a831f08b0264dd722b017a5c05d765206a7ed` source manifest was fully
+verified before the re-import; existing local resource guards were reapplied.
 
 ## Included and excluded content
 
@@ -105,6 +114,27 @@ The following narrow changes are permitted in this snapshot:
 16. `FrameParser::packet_ticks` exposes a bounded header-only index of actual
     packet ticks using the existing frame reader. Dense replay aligns nominal
     sample ticks to this index rather than inventing missing HLTV frames.
+17. UserCmd reconstruction bounds sparse list declarations to 1,024 entries,
+    encoded commands and deltas to 64 KiB, and player slots to `0..256`.
+    Overflowing 64-bit varints are rejected. Each segment retains at most 2 MiB
+    of baseline storage, accounting for generated inline nested fields, vector
+    capacities, and string/byte data. Replacement releases the old contribution;
+    exceeding the bound returns a typed resource-limit error. The existing
+    sixteen-thread hard limit therefore caps concurrent baseline retention at
+    32 MiB. Malformed deltas leave their previous baseline unchanged. Tests cover
+    sparse inheritance, explicit empty lists, slot/count/varint boundaries, and
+    aggregate retention with replacement. Wire-type-seven resets explicitly
+    clear repeated baselines and restore nested interpolation/vector defaults;
+    merging an empty protobuf message would otherwise retain the old values.
+18. Direct dependency requirements were updated to the stable crates.io versions
+    available on the audit date. Unused `bit_reverse`, `bytes`, `derive_more`,
+    `libc`, `proc-macro2`, and `rand` parser dependencies were removed. Atomic
+    budget operations use the Rust 1.99 `try_update` name. The obsolete velocity
+    column scans and cache wrappers were removed after upstream introduced its
+    per-player position history.
+19. Velocity history retains only the identities sampled in the current player
+    set. Replaced and disconnected identities are retired, so filtered event
+    passes cannot accumulate a new cache entry for every historical SteamID.
 
 These parser hardening and resource-control changes are intentionally local and
 covered by focused tests plus the ignored real-demo benchmark report. Future

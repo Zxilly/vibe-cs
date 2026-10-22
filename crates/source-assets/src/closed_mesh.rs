@@ -79,14 +79,14 @@ mod tests {
 
     #[test]
     fn rejects_boundaries_unbalanced_edges_and_inconsistent_winding() {
-        assert!(closed_triangle_components(&TETRA[..3]).is_empty());
+        assert_eq!(closed_triangle_components(&TETRA[..3]).len(), 0);
         let mut triangles = TETRA.to_vec();
         triangles.push(TETRA[0]);
-        assert!(closed_triangle_components(&triangles).is_empty());
+        assert_eq!(closed_triangle_components(&triangles).len(), 0);
         let mut triangles = TETRA;
         triangles[0].swap(0, 1);
-        assert!(closed_triangle_components(&triangles).is_empty());
-        assert!(closed_triangle_components(&[[0, 0, 0]; 4]).is_empty());
+        assert_eq!(closed_triangle_components(&triangles).len(), 0);
+        assert_eq!(closed_triangle_components(&[[0, 0, 0]; 4]).len(), 0);
     }
 
     #[test]

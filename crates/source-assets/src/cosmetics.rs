@@ -218,7 +218,9 @@ fn decode_catalog_text(bytes: &[u8]) -> Result<String> {
             return Err(catalog_error(0, "UTF-16LE input has an odd byte count"));
         }
         let words = content
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
             .collect::<Vec<_>>();
         return String::from_utf16(&words)

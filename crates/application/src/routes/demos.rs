@@ -2633,7 +2633,7 @@ mod tests {
             .expect("upload directory")
             .collect::<Result<Vec<_>, _>>()
             .expect("entries");
-        assert!(entries.is_empty());
+        assert_eq!(entries.len(), 0);
     }
 
     #[tokio::test]
@@ -2673,7 +2673,7 @@ mod tests {
             .expect("managed directory")
             .collect::<Result<Vec<_>, _>>()
             .expect("entries");
-        assert!(entries.is_empty());
+        assert_eq!(entries.len(), 0);
     }
 
     #[tokio::test]

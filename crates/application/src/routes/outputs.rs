@@ -1724,7 +1724,7 @@ mod tests {
         let (items, _) = list_all_outputs(&fixture.state, &roots, Some(OutputKind::Export), None)
             .await
             .expect("list outputs");
-        assert!(items.is_empty());
+        assert_eq!(items.len(), 0);
         assert_eq!(
             resolve_output_path(&fixture.state, "export", &id.to_string())
                 .await

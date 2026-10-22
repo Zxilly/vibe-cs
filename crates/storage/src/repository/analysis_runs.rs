@@ -1078,13 +1078,7 @@ mod tests {
                 .await
                 .expect_err("inconsistent lifecycle must not create a run");
             assert!(error.to_string().contains("cannot start"));
-            assert!(
-                storage
-                    .list_analysis_runs(demo_id)
-                    .await
-                    .unwrap()
-                    .is_empty()
-            );
+            assert_eq!(storage.list_analysis_runs(demo_id).await.unwrap().len(), 0);
         }
     }
 

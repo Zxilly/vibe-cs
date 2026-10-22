@@ -24,7 +24,7 @@ use crate::{
 };
 
 const RECORDING_PLAN_TTL: chrono::Duration = chrono::Duration::minutes(5);
-const RECORDING_PLAN_TTL_DURATION: Duration = Duration::from_secs(5 * 60);
+const RECORDING_PLAN_TTL_DURATION: Duration = Duration::from_mins(5);
 const MAXIMUM_RECORDING_PLAN_LEASES: usize = 32;
 
 pub(crate) fn router() -> Router<AppState> {

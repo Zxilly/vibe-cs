@@ -687,7 +687,7 @@ mod tests {
             .expect("replacement round");
         assert_eq!(round.source_sha256, "b".repeat(64));
         assert_eq!(round.comment, "");
-        assert!(round.tags.is_empty());
+        assert_eq!(round.tags.len(), 0);
 
         let player = storage
             .get_player_review_metadata(PLAYER_ID.to_owned())

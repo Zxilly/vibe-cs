@@ -584,14 +584,15 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert!(
+        assert_eq!(
             storage
                 .get_agent_session(session.id)
                 .await
                 .unwrap()
                 .unwrap()
                 .entries
-                .is_empty()
+                .len(),
+            0
         );
         storage
             .run(|connection| {

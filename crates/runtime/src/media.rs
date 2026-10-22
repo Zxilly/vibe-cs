@@ -16,10 +16,10 @@ use vibe_cs_media::{
 const PROBE_TIMEOUT: Duration = Duration::from_secs(20);
 const WAVEFORM_TIMEOUT: Duration = Duration::from_secs(90);
 const THUMBNAIL_TIMEOUT: Duration = Duration::from_secs(30);
-const AUDIO_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3 * 60);
+const AUDIO_ANALYSIS_TIMEOUT: Duration = Duration::from_mins(3);
 const MAXIMUM_WAVEFORM_BYTES: u64 = 32 * 1024 * 1024;
-const PROXY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
-const AUDIO_EXTRACTION_TIMEOUT: Duration = Duration::from_secs(60 * 60);
+const PROXY_TIMEOUT: Duration = Duration::from_mins(20);
+const AUDIO_EXTRACTION_TIMEOUT: Duration = Duration::from_hours(1);
 
 struct PendingFilterOutputs {
     temporary: PathBuf,

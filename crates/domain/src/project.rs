@@ -1601,11 +1601,12 @@ mod tests {
             background: None,
             align: "center".to_owned(),
         });
-        assert!(
+        assert_eq!(
             current
                 .unresolved_delivery_clips()
                 .expect("text delivery gate")
-                .is_empty()
+                .len(),
+            0
         );
     }
 

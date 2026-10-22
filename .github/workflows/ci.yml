@@ -17,18 +17,16 @@ jobs:
     env:
       TAURI_CONFIG: '{"bundle":{"externalBin":[]}}'
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.97.1
+      - uses: actions/checkout@v7.0.1
+      - uses: dtolnay/rust-toolchain@1.99.1
         with:
           components: clippy,rustfmt
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
-          version: 10.33.4
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
+          node-version: 26.12.1
           cache: pnpm
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - run: pnpm install --frozen-lockfile
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File vendor/demoparser/verify-manifest.ps1
@@ -62,13 +60,11 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
-          version: 10.33.4
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
+          node-version: 26.12.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -78,14 +74,12 @@ jobs:
   desktop-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@1.97.1
-      - uses: pnpm/action-setup@v6
+      - uses: actions/checkout@v7.0.1
+      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
-          version: 10.33.4
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
+          node-version: 26.12.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1

@@ -19,7 +19,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,13 +28,25 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+      - name: Install cargo-audit
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-x86_64-unknown-linux-gnu-v0.22.2.tgz \
+            --output "$RUNNER_TEMP/cargo-audit.tgz"
+          echo "ab28a1bdb54db4d5d8ad5981cf1f959410370b3d28250dbd35f6a44248620e39  $RUNNER_TEMP/cargo-audit.tgz" | sha256sum --check --status
+          mkdir -p "$RUNNER_TEMP/cargo-audit"
+          tar -xzf "$RUNNER_TEMP/cargo-audit.tgz" --strip-components=1 -C "$RUNNER_TEMP/cargo-audit"
       - name: Audit Rust dependencies
-        uses: rustsec/audit-check@858dc40f52ca2b8570b7a997c1c4e35c6fc9a432
+        run: '"$RUNNER_TEMP/cargo-audit/cargo-audit" audit --file Cargo.lock'
+
+  audit-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 10.33.4
+          node-version: 26.12.1
+      - uses: pnpm/action-setup@v6.1.0
       - name: Audit production web dependencies
         run: pnpm audit --prod

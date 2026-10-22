@@ -789,8 +789,8 @@ msgid "Demo 文件和资料库记录没有改动。重新分析会用当前版�
 msgstr "The Demo file and its library record were not touched. Re-analysing regenerates the result with the current version and replaces the old one; if the read only failed for a moment, retry. If it keeps failing, export a diagnostics bundle from <0>Settings & Diagnostics</0>."
 
 #: src/app/command/commandRegistry.ts:175
-#: src/app/shell/navigation.tsx:57
-#: src/app/shell/navigation.tsx:80
+#: src/app/shell/navigation.tsx:55
+#: src/app/shell/navigation.tsx:78
 #: src/pages/shared/library/LibraryPage.tsx:419
 msgid "Demo 资料库"
 msgstr "Demo library"
@@ -1206,7 +1206,7 @@ msgstr "Why this one is worth cutting"
 msgid "为改善画面，录制将改用{0}机位。"
 msgstr "Recording will use a {0} camera to improve the shot."
 
-#: src/app/shell/SideNav.tsx:179
+#: src/app/shell/SideNav.tsx:178
 msgid "主导航"
 msgstr "Main navigation"
 
@@ -1258,7 +1258,7 @@ msgstr "Binary data exceeds the 128 MiB limit."
 msgid "二进制数据超过大小限制。"
 msgstr "Binary data exceeds the size limit."
 
-#: src/app/shell/navigation.tsx:69
+#: src/app/shell/navigation.tsx:67
 msgid "交付"
 msgstr "Delivery"
 
@@ -2214,8 +2214,7 @@ msgstr "Knife kill"
 msgid "分割"
 msgstr "Split"
 
-#: src/app/shell/navigation.tsx:84
-#: src/app/shell/navigation.tsx:121
+#: src/app/shell/navigation.tsx:82
 #: src/app/shell/WorkspaceModeIntro.tsx:37
 #: src/domain/task/taskVocabulary.tsx:27
 msgid "分析"
@@ -2496,7 +2495,7 @@ msgstr "Delete Preview Files"
 msgid "到剪辑点结束"
 msgstr "Extend to Edit Point"
 
-#: src/app/shell/navigation.tsx:62
+#: src/app/shell/navigation.tsx:60
 msgid "制作"
 msgstr "Create"
 
@@ -2528,7 +2527,6 @@ msgstr "Leading Padding (seconds)"
 msgid "剪切所选片段"
 msgstr "Cut Selected Clips"
 
-#: src/app/shell/navigation.tsx:122
 #: src/app/shell/WorkspaceModeIntro.tsx:30
 #: src/domain/editing/ProjectTimeline.tsx:2366
 #: src/domain/editing/ProjectWorkspaceManager.tsx:151
@@ -3821,8 +3819,8 @@ msgstr "Ready"
 msgid "居中"
 msgstr "Center"
 
-#: src/app/shell/SideNav.tsx:238
-#: src/app/shell/SideNav.tsx:241
+#: src/app/shell/SideNav.tsx:234
+#: src/app/shell/SideNav.tsx:237
 msgid "展开侧栏"
 msgstr "Expand sidebar"
 
@@ -3870,7 +3868,7 @@ msgid "工作区面板"
 msgstr "Workspace panels"
 
 #: src/app/command/commandRegistry.ts:172
-#: src/app/shell/navigation.tsx:51
+#: src/app/shell/navigation.tsx:49
 #: src/pages/editing/workspace/HomePage.tsx:29
 msgid "工作台"
 msgstr "Dashboard"
@@ -5234,8 +5232,8 @@ msgstr "Action confirmation"
 msgid "擦除"
 msgstr "Ripple Delete"
 
-#: src/app/shell/SideNav.tsx:238
-#: src/app/shell/SideNav.tsx:241
+#: src/app/shell/SideNav.tsx:234
+#: src/app/shell/SideNav.tsx:237
 msgid "收起侧栏"
 msgstr "Collapse sidebar"
 
@@ -7962,7 +7960,7 @@ msgctxt "evidence-event"
 msgid "穿墙击杀"
 msgstr "Wallbang"
 
-#: src/app/shell/SideNav.tsx:240
+#: src/app/shell/SideNav.tsx:236
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
 
@@ -8511,7 +8509,7 @@ msgid "设出点"
 msgstr "Set Out"
 
 #: src/app/command/commandRegistry.ts:216
-#: src/app/shell/navigation.tsx:132
+#: src/app/shell/navigation.tsx:103
 #: src/pages/shared/settings/SettingsPage.tsx:136
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
@@ -8538,7 +8536,7 @@ msgid "证据"
 msgstr "Evidence"
 
 #: src/app/command/commandRegistry.ts:188
-#: src/app/shell/navigation.tsx:87
+#: src/app/shell/navigation.tsx:85
 #: src/pages/analysis/evidence/EvidencePage.tsx:241
 msgid "证据检索"
 msgstr "Evidence search"
@@ -8869,7 +8867,7 @@ msgstr "Buy type"
 msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
-#: src/app/shell/navigation.tsx:55
+#: src/app/shell/navigation.tsx:53
 msgid "资料库"
 msgstr "Library"
 
@@ -9610,7 +9608,7 @@ msgid "选手档案"
 msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:185
-#: src/app/shell/navigation.tsx:86
+#: src/app/shell/navigation.tsx:84
 #: src/pages/analysis/players/PlayersPage.tsx:279
 #: src/pages/analysis/players/PlayersPage.tsx:345
 msgid "选手目录"

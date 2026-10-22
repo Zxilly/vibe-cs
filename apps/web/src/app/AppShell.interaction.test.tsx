@@ -52,6 +52,7 @@ function shellRouter(initial = '/library', client?: DesktopClientStub) {
           { path: 'players', element: <span data-page="players">玩家内容</span> },
           { path: 'evidence', element: <span data-page="evidence">证据内容</span> },
           { path: 'tasks', element: <span data-page="tasks">任务内容</span> },
+          { path: 'settings', element: <span data-page="settings">设置内容</span> },
           { path: 'projects/:projectId', element: <span data-page="project">作品内容</span> },
           { path: 'delivery', element: <span data-page="delivery">成品内容</span> },
         ],
@@ -274,14 +275,14 @@ describe('AppShell — work modes', () => {
     expect(container.querySelector('[data-page="home"]')).not.toBeNull();
   });
 
-  it('switches from editing to analysis and back, reordering the one rail', async () => {
+  it('switches the mode destinations only from the explicit title-bar menu', async () => {
     media = stubMatchMedia(false);
     const router = shellRouter('/');
     const { container, getByRole } = renderInteractive(<RouterProvider router={router} />);
     const rail = () => [...container.querySelectorAll('[data-shell-nav] [data-nav-item]')]
       .map((element) => element.getAttribute('data-nav-item'));
 
-    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'players', 'evidence', 'settings']);
+    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'settings']);
 
     fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
       button: 0,
@@ -290,7 +291,7 @@ describe('AppShell — work modes', () => {
     fireEvent.click(getByRole('menuitemradio', { name: /^分析模式/u }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
-    expect(rail()).toEqual(['library', 'players', 'evidence', 'home', 'projects', 'outputs', 'settings']);
+    expect(rail()).toEqual(['library', 'players', 'evidence', 'settings']);
 
     fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
       button: 0,
@@ -300,7 +301,7 @@ describe('AppShell — work modes', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
     expect(useShellStore.getState().mode).toBe('edit');
-    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'players', 'evidence', 'settings']);
+    expect(rail()).toEqual(['home', 'library', 'projects', 'outputs', 'settings']);
   });
 
   it('opens analysis deep links in analysis mode without a wrong-nav frame', () => {
@@ -311,7 +312,24 @@ describe('AppShell — work modes', () => {
 
     const first = container.querySelector('[data-shell-nav] [data-nav-group]');
     expect(first?.querySelector('[data-nav-item="library"]')).not.toBeNull();
-    expect(container.querySelector('[data-nav-group="mode-edit"] [data-nav-item="projects"]')).not.toBeNull();
+    expect(container.querySelector('[data-nav-item="projects"]')).toBeNull();
+  });
+
+  it.each([false, true])('keeps analysis links in place across shared pages (collapsed=%s)', async (collapsed) => {
+    media = stubMatchMedia(collapsed);
+    const router = shellRouter('/players');
+    const { container } = renderInteractive(<RouterProvider router={router} />);
+    const links = () => [...container.querySelectorAll('[data-shell-nav] [data-nav-item]')];
+    const originalLinks = links();
+
+    for (const destination of ['evidence', 'library', 'settings', 'players']) {
+      fireEvent.click(container.querySelector(`[data-nav-item="${destination}"]`) as HTMLElement);
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/${destination}`));
+      expect(useShellStore.getState().mode).toBe('analysis');
+      expect(links()).toHaveLength(originalLinks.length);
+      links().forEach((link, index) => expect(link).toBe(originalLinks[index]));
+      expect(container.querySelector('[data-nav-item="projects"]')).toBeNull();
+    }
   });
 });
 

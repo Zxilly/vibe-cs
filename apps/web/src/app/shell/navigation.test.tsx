@@ -34,10 +34,9 @@ describe('the nav table mirrors Frame.dc.html', () => {
       'library',
       'production',
       'delivery',
-      'mode-analysis',
     ]);
     // Only the first group is drawn without a heading.
-    expect(groups.map((group) => group.label === null)).toEqual([true, false, false, false, false]);
+    expect(groups.map((group) => group.label === null)).toEqual([true, false, false, false]);
   });
 
   it('lists the twelve destinations of spec §7 that the rail carries', () => {
@@ -68,25 +67,13 @@ describe('the nav table mirrors Frame.dc.html', () => {
     }
   });
 
-  it('keeps every destination in both modes and leads with the current mode', () => {
+  it('separates mode destinations so ordinary navigation cannot reorder the rail', () => {
     expect(shellNavGroups('edit').flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'home', 'library', 'projects', 'outputs', 'players', 'evidence',
+      'home', 'library', 'projects', 'outputs',
     ]);
     expect(shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'library', 'players', 'evidence', 'home', 'projects', 'outputs',
+      'library', 'players', 'evidence',
     ]);
-  });
-
-  it('gathers the other mode under its own heading, last', () => {
-    const otherGroup = (mode: 'edit' | 'analysis') => {
-      const groups = shellNavGroups(mode);
-      const last = groups[groups.length - 1]!;
-      expect(groups.filter((group) => group.otherMode === true)).toEqual([last]);
-      return last.label === null ? null : i18n._(last.label);
-    };
-
-    expect(otherGroup('edit')).toBe('分析');
-    expect(otherGroup('analysis')).toBe('剪辑');
   });
 });
 

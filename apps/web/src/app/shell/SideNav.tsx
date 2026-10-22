@@ -4,9 +4,8 @@
  * Expanded (`--w-nav`, 216px) is Frame.dc.html: the current mode's groups, a
  * 40px row per entry, an 11px caps group heading, the current entry on
  * `--color-accent-100` with a 2px accent edge, and 设置与诊断 pinned to the
- * bottom above a rule. The other mode's entries follow in one group below a
- * rule of their own (a short rule between icons when collapsed), so every
- * destination stays where the user last saw it, only lower.
+ * bottom above a rule. Only the current mode's destinations appear here;
+ * the title bar owns switching between editing and analysis.
  *
  * Collapsed (`--w-nav-collapsed`, 56px) is the 1100×700 artboard: 34px icon
  * cells, 5px apart, the current one filled with the accent, a 6px accent
@@ -47,7 +46,7 @@ import {
 import { useShellStore } from './shellStore';
 
 export interface SideNavProps {
-  /** The work lens whose destinations lead the rail; the other lens's follow below. */
+  /** The workspace mode whose destinations appear in the rail. */
   mode?: WorkspaceMode | undefined;
   /** Pins the state. Omitted, it follows the preference and the §8 breakpoint. */
   collapsed?: boolean | undefined;
@@ -187,12 +186,9 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
     >
       {isCollapsed ? (
         <ul className="flex flex-col items-center gap-1.5">
-          {groups.flatMap((group) => [
-            ...(group.otherMode === true
-              ? [<li key={group.id} role="presentation" aria-hidden="true" className="my-1 h-px w-6 bg-divider" />]
-              : []),
-            ...group.items.map((item) => renderItem(item, group.label === null ? null : i18n._(group.label))),
-          ])}
+          {groups.flatMap((group) =>
+            group.items.map((item) => renderItem(item, group.label === null ? null : i18n._(group.label))),
+          )}
         </ul>
       ) : (
         groups.map((group) => {
@@ -201,7 +197,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             <div
               key={group.id}
               data-nav-group={group.id}
-              className={cn('px-3', group.otherMode === true && 'mt-3 border-t border-divider pt-1')}
+              className="px-3"
             >
               {group.label === null ? null : (
                 <h2 id={headingId} className={GROUP_HEADING_CLASS}>

@@ -5756,7 +5756,7 @@ msgstr "暂无地图缓存"
 msgid "暂无装备价值数据"
 msgstr "暂无装备价值数据"
 
-#: src/design/primitives/Button.tsx:164
+#: src/design/primitives/Button.tsx:165
 msgid "暂时不能执行：{disabledReason}"
 msgstr "暂时不能执行：{disabledReason}"
 

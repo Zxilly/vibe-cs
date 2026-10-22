@@ -1,4 +1,5 @@
 import { fireEvent } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
@@ -52,5 +53,35 @@ describe('Button interaction', () => {
   it('keeps an icon-only button nameable', () => {
     const { getByRole } = renderInteractive(<Button icon aria-label="展开检查器" />);
     expect(getByRole('button', { name: '展开检查器' })).toBeDefined();
+  });
+
+  it('removes stale unavailable guidance when an action becomes available without replacing it', () => {
+    const onClick = vi.fn();
+    function Availability() {
+      const [disabled, setDisabled] = useState(true);
+      return <>
+        <button type="button" onClick={() => setDisabled((value) => !value)}>切换状态</button>
+        <Button disabled={disabled} disabledReason="正在检查" onClick={onClick}>重新检查</Button>
+      </>;
+    }
+    const { getByRole, queryByText, queryByRole } = renderInteractive(<Availability />);
+    const button = getByRole('button', { name: '重新检查' });
+    const wrapper = button.parentElement as HTMLElement;
+    expect(button.hasAttribute('aria-describedby')).toBe(true);
+    fireEvent.click(getByRole('button', { name: '切换状态' }));
+    expect(getByRole('button', { name: '重新检查' })).toBe(button);
+    expect(button).toHaveProperty('disabled', false);
+    expect(button.hasAttribute('aria-describedby')).toBe(false);
+    expect(wrapper.hasAttribute('tabindex')).toBe(false);
+    expect(queryByText('暂时不能执行：正在检查')).toBeNull();
+    fireEvent.focus(wrapper);
+    expect(queryByRole('tooltip')).toBeNull();
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledOnce();
+    fireEvent.click(getByRole('button', { name: '切换状态' }));
+    expect(getByRole('button', { name: '重新检查' })).toBe(button);
+    expect(button).toHaveProperty('disabled', true);
+    expect(document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent)
+      .toBe('暂时不能执行：正在检查');
   });
 });

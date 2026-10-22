@@ -110,6 +110,7 @@ export function Button({
   const generatedId = useId();
   const reasonId = `${generatedId}-reason`;
   const hasReason = disabledReason !== undefined && disabledReason !== '';
+  const showReason = disabled && hasReason;
 
   const Root = asChild ? SlotPrimitive.Root : 'button';
 
@@ -121,7 +122,7 @@ export function Button({
          something else entirely. Only a real button gets it. */
       {...(asChild ? {} : { type })}
       disabled={disabled}
-      {...(hasReason ? { 'aria-describedby': reasonId } : {})}
+      {...(showReason ? { 'aria-describedby': reasonId } : {})}
       className={cn(buttonVariants({ variant, size, icon, block, grow }), className)}
     >
       {/* `Slottable` marks which child becomes the borrowed element. */}
@@ -147,7 +148,7 @@ export function Button({
           becomes available; only the tab stop is conditional, because an
           enabled button is its own. */}
       <Tooltip
-        content={disabledReason}
+        content={showReason ? disabledReason : undefined}
         wrap
         wrapFocusable={disabled}
         /* Below the control: a reason reads as a footnote to the button, and a
@@ -160,9 +161,9 @@ export function Button({
       >
         {button}
       </Tooltip>
-      <span id={reasonId} className="sr-only">
+      {showReason ? <span id={reasonId} className="sr-only">
         {t`暂时不能执行：${disabledReason}`}
-      </span>
+      </span> : null}
     </>
   );
 }

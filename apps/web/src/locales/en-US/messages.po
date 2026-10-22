@@ -5757,7 +5757,7 @@ msgstr "No cached maps"
 msgid "暂无装备价值数据"
 msgstr "No equipment value data"
 
-#: src/design/primitives/Button.tsx:164
+#: src/design/primitives/Button.tsx:165
 msgid "暂时不能执行：{disabledReason}"
 msgstr "Not available: {disabledReason}"
 

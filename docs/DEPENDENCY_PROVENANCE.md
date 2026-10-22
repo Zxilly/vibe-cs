@@ -61,12 +61,12 @@ separately maintained `advancedfx-prop` repository. Vibe CS therefore prepares H
 explicit user action by downloading the unmodified portable archive from the official AdvancedFX
 GitHub release.
 
-The reviewed runtime is HLAE `v2.191.1`:
+The reviewed runtime is HLAE `v2.192.8`:
 
-- release page: <https://github.com/advancedfx/advancedfx/releases/tag/v2.191.1>
-- archive: `hlae_2_191_1.zip`
-- size: `8,957,941` bytes
-- SHA-256: `307ba9170b151a7df9b7e5604b335c2d8b8df5bf5cb8d6700ae3fd01069da514`
+- release page: <https://github.com/advancedfx/advancedfx/releases/tag/v2.192.8>
+- archive: `hlae_2_192_8.zip`
+- size: `9,000,995` bytes
+- SHA-256: `f28a2d7cbd4accb236e114975044bedbe3d3b6d44d4eecfc099bf2dd7e9f69b1`
 - reviewed detached-signature fingerprint:
   `7707 F418 7976 6E34 1A24 99D3 60C1 5927 55AE 313F`
 

@@ -12,12 +12,12 @@ use zip::ZipArchive;
 
 use crate::{HlaeError, HlaeInstallation, installation_from_executable};
 
-pub const HLAE_MANAGED_RELEASE_VERSION: &str = "v2.191.1";
+pub const HLAE_MANAGED_RELEASE_VERSION: &str = "v2.192.8";
 pub const HLAE_MANAGED_ARCHIVE_URL: &str =
-    "https://github.com/advancedfx/advancedfx/releases/download/v2.191.1/hlae_2_191_1.zip";
-pub const HLAE_MANAGED_ARCHIVE_SIZE: u64 = 8_957_941;
+    "https://github.com/advancedfx/advancedfx/releases/download/v2.192.8/hlae_2_192_8.zip";
+pub const HLAE_MANAGED_ARCHIVE_SIZE: u64 = 9_000_995;
 pub const HLAE_MANAGED_ARCHIVE_SHA256: &str =
-    "307ba9170b151a7df9b7e5604b335c2d8b8df5bf5cb8d6700ae3fd01069da514";
+    "f28a2d7cbd4accb236e114975044bedbe3d3b6d44d4eecfc099bf2dd7e9f69b1";
 /// Full fingerprint of the release signing key independently reviewed for this release.
 pub const HLAE_MANAGED_SIGNING_FINGERPRINT: &str = "7707F41879766E341A2499D360C1592755AE313F";
 

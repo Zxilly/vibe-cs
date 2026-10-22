@@ -339,7 +339,7 @@ The desktop host uses Tauri's per-user application-data resolver. The resulting 
   avatar-cache/
   runtimes/
     hlae/
-      v2.191.1/
+      v2.192.8/
   recovery/
   cleanup/editor-projects/
   .output-trash/

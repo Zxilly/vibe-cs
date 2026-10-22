@@ -191,6 +191,7 @@ export function ProjectWorkspacePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const create = useCreateProject();
+  const newProjectRequested = useRef(false);
   const canonicalId = projectId === 'new' ? null : projectId;
   const projects = useProjects();
   const project = useProject(canonicalId);
@@ -409,13 +410,29 @@ export function ProjectWorkspacePage() {
     }).catch(() => reportedExecutionIds.current.delete(next.id));
   }, [agentChat, agentSessionId, agentWorkspaceContext, exportTask.data, project.data?.id, recordingTask.data, startedRecordingId, startedExportId]);
 
-  useEffect(() => {
-    if (projectId !== 'new' || create.isPending || create.data !== undefined) return;
+  const createNewProject = useCallback(() => {
     create.mutate(
-      { name: '新作品', width: 1920, height: 1080, fps: 60, source_demo_ids: [] },
+      { name: t`新作品`, width: 1920, height: 1080, fps: 60, source_demo_ids: [] },
       { onSuccess: (created) => void navigate(`/projects/${encodeURIComponent(created.id)}`, { replace: true }) },
     );
-  }, [create, navigate, projectId]);
+  }, [create.mutate, navigate]);
+
+  useEffect(() => {
+    if (projectId !== 'new') {
+      newProjectRequested.current = false;
+      if (!create.isIdle) create.reset();
+      return;
+    }
+    // A failed request stays on its recovery screen until the user retries.
+    if (newProjectRequested.current) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      newProjectRequested.current = true;
+      createNewProject();
+    });
+    return () => { cancelled = true; };
+  }, [create.isIdle, create.reset, createNewProject, projectId]);
 
   useLayoutEffect(() => {
     const loaded = project.data;
@@ -587,6 +604,25 @@ export function ProjectWorkspacePage() {
     setTimelineSlidePreview(null);
   }, [project.data?.revision, trimPlaybackRange]);
 
+  if (projectId === 'new' && create.isError) {
+    return (
+      <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
+        <div className="p-6">
+          <Empty
+            variant="error"
+            title={<Trans>没有创建作品</Trans>}
+            description={dataErrorMessage(create.error)}
+            actions={(
+              <>
+                <Button variant="primary" onClick={createNewProject}><Trans>重试</Trans></Button>
+                <RouteLink to="/projects"><Trans>返回作品列表</Trans></RouteLink>
+              </>
+            )}
+          />
+        </div>
+      </Page>
+    );
+  }
   if (projectId === 'new' || project.isPending) {
     return (
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>

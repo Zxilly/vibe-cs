@@ -132,7 +132,7 @@ export function ClipInspector({
     Math.abs(segment.start - localTime) <= 0.5 / fps || Math.abs(segment.end - localTime) <= 0.5 / fps
   ));
   return (
-    <div key={clip.id} className="min-h-0" aria-label={t`片段属性`}>
+    <div key={clip.id} className="@container/clip-inspector min-h-0" aria-label={t`片段属性`}>
       {readOnly ? <p role="status" className="mb-3 text-xs text-neutral-600"><Trans>当前片段只读，请先结束 Agent 编辑或解锁轨道。</Trans></p> : null}
       {hasUnsupportedEnabledEffect ? <p role="status" className="mb-3 text-xs text-fail-text"><Trans>请先停用不支持的效果，再修改片段。</Trans></p> : null}
       <label className="flex flex-col gap-1 text-xs">
@@ -144,7 +144,7 @@ export function ClipInspector({
           onCommit={(text) => text.trim() === '' ? t`名称不能为空` : commit({ ...clip, name: text.trim() })}
         />
       </label>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 @min-[240px]/clip-inspector:grid-cols-2">
         {([
           ['source_in', t`源入点`],
           ['source_out', t`源出点`],

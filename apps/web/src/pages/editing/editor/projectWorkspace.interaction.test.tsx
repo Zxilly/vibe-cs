@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentSession, AgentSessionEntryDraft, ExportJobRecord, MediaAsset, Project, ProjectChangeGroup, ProjectDeliveryGate, ProjectEditLease, ProjectPatch, ProjectPatchResult, TimelineClip, TimelineTrack } from '../../../shared/desktop/dto';
@@ -507,6 +508,8 @@ async function openSourcePreview() {
 }
 
 function renderWorkspace({
+  createProject,
+  strictMode = false,
   applyProjectPatch = vi.fn(),
   revertProjectChangeGroup = vi.fn(),
   session = null,
@@ -545,6 +548,8 @@ function renderWorkspace({
   route,
   shell,
 }: {
+  readonly createProject?: ReturnType<typeof vi.fn>;
+  readonly strictMode?: boolean;
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
   readonly revertProjectChangeGroup?: ReturnType<typeof vi.fn>;
   readonly session?: AgentSession | null;
@@ -584,8 +589,9 @@ function renderWorkspace({
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
-    element: <ProjectWorkspacePage />,
+    element: strictMode ? <StrictMode><ProjectWorkspacePage /></StrictMode> : <ProjectWorkspacePage />,
     client: {
+      ...(createProject === undefined ? {} : { createProject }),
       listProjects: listProjects ?? (() => Promise.resolve([project])),
       getProject: getProject ?? (() => Promise.resolve(project)),
       getProjectDeliveryGate: getProjectDeliveryGate ?? (() => Promise.resolve(deliveryGate)),
@@ -626,6 +632,24 @@ function renderWorkspace({
 }
 
 describe('timeline review recovery regressions', () => {
+  it('stops automatic creation after a failure and creates one Project when retried', async () => {
+    const createProject = vi.fn()
+      .mockRejectedValueOnce(new Error('磁盘空间不足'))
+      .mockResolvedValueOnce(PROJECT);
+    renderWorkspace({ route: '/projects/new', createProject, strictMode: true });
+
+    expect(await screen.findByRole('heading', { name: '没有创建作品' })).toBeTruthy();
+    expect(screen.getByText('磁盘空间不足')).toBeTruthy();
+    expect(screen.getByRole('link', { name: '返回作品列表' }).getAttribute('href')).toBe('/projects');
+    expect(createProject).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    await screen.findByRole('heading', { name: PROJECT.name });
+    expect(createProject).toHaveBeenCalledTimes(2);
+    expect(createProject).toHaveBeenLastCalledWith({ name: '新作品', width: 1920, height: 1080, fps: 60, source_demo_ids: [] });
+    expect(screen.queryByRole('heading', { name: '没有创建作品' })).toBeNull();
+  });
+
   it('restores a read-only Agent conversation from a plain Project link and honors explicit session links', async () => {
     const session = (id: string, content: string): AgentSession => ({
       id, title: content, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,

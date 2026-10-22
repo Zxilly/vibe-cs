@@ -167,8 +167,9 @@ export const AgentPanel = memo(function AgentPanel({
     }
   }, [returningChangeGroupId, reviewGroup?.id]);
   useEffect(() => {
+    if (conversationEmpty) return;
     conversationEnd.current?.scrollIntoView({ block: 'end' });
-  }, [session?.id, entries.length, chat.draft, chat.activity?.length]);
+  }, [conversationEmpty, session?.id, entries.length, chat.draft, chat.activity?.length]);
   return (
     <aside className="flex min-h-0 min-w-0 flex-col border-l border-divider bg-bg" aria-label={t`Agent 面板`}>
       {showHeader ? <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-3">

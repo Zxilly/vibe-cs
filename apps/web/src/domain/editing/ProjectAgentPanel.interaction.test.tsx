@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { fireEvent, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderInteractive, renderMarkup } from '../../test/render';
 import { AgentPanel, type AgentPanelProps } from './ProjectAgentPanel';
 
@@ -97,6 +97,19 @@ describe('Agent edit review', () => {
 });
 
 describe('Agent composer', () => {
+  it('keeps the empty conversation at the top and follows the first conversation content', () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView');
+    try {
+      const view = renderInteractive(<TestPanel {...props({ session: null, changeGroups: [] })} />);
+      expect(view.getByRole('heading', { name: '还没有对话' })).toBeTruthy();
+      expect(scroll).not.toHaveBeenCalled();
+      view.rerender(<TestPanel {...props()} />);
+      expect(scroll).toHaveBeenCalledWith({ block: 'end' });
+    } finally {
+      scroll.mockRestore();
+    }
+  });
+
   it('offers example instructions when there is no conversation yet', () => {
     const view = renderInteractive(<TestPanel {...props({ session: null, changeGroups: [] })} />);
     expect(view.getByRole('heading', { name: '还没有对话' })).toBeTruthy();

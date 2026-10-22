@@ -1488,7 +1488,7 @@ msgstr "The project may have changed since. Undo it from the project's revision 
 msgid "作品工作区"
 msgstr "Project workspace"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:73
+#: src/domain/editing/ProjectWorkspaceDock.tsx:74
 msgid "作品工作区面板"
 msgstr "Project Workspace Panel"
 
@@ -2055,8 +2055,8 @@ msgstr "Select one more player to compare."
 msgid "最大化窗口"
 msgstr "Maximize window"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:107
-#: src/domain/editing/ProjectWorkspaceDock.tsx:116
+#: src/domain/editing/ProjectWorkspaceDock.tsx:108
+#: src/domain/editing/ProjectWorkspaceDock.tsx:117
 msgid "最大化面板"
 msgstr "Maximize panel"
 
@@ -2293,12 +2293,12 @@ msgstr "Once the matches of this player are analyzed, the matches and hits per m
 msgid "分段"
 msgstr "Section"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:125
 #: src/domain/editing/ProjectWorkspaceDock.tsx:126
+#: src/domain/editing/ProjectWorkspaceDock.tsx:127
 msgid "分组名称"
 msgstr "Group name"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:127
+#: src/domain/editing/ProjectWorkspaceDock.tsx:128
 msgid "分组颜色"
 msgstr "Group color"
 
@@ -2603,7 +2603,7 @@ msgstr "Add current highlight"
 msgid "加入比较"
 msgstr "Add to comparison"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:119
+#: src/domain/editing/ProjectWorkspaceDock.tsx:120
 msgid "加入面板分组"
 msgstr "Add to panel group"
 
@@ -2815,7 +2815,7 @@ msgstr "Clear selection"
 msgid "取消链接所选片段"
 msgstr "Unlink selected clips"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:121
+#: src/domain/editing/ProjectWorkspaceDock.tsx:122
 msgid "取消面板分组"
 msgstr "Ungroup panels"
 
@@ -3824,7 +3824,7 @@ msgstr "Center"
 msgid "展开侧栏"
 msgstr "Expand sidebar"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:128
+#: src/domain/editing/ProjectWorkspaceDock.tsx:129
 msgid "展开或折叠面板分组"
 msgstr "Expand or collapse the panel group"
 
@@ -3832,7 +3832,7 @@ msgstr "Expand or collapse the panel group"
 msgid "展开轨道 {label}"
 msgstr "Expand track {label}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:122
+#: src/domain/editing/ProjectWorkspaceDock.tsx:123
 msgid "展开面板分组"
 msgstr "Expand panel group"
 
@@ -4571,8 +4571,8 @@ msgstr "Restore constant speed"
 msgid "恢复提供方默认值"
 msgstr "Restore provider defaults"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:108
-#: src/domain/editing/ProjectWorkspaceDock.tsx:117
+#: src/domain/editing/ProjectWorkspaceDock.tsx:109
+#: src/domain/editing/ProjectWorkspaceDock.tsx:118
 msgid "恢复面板"
 msgstr "Restore panel"
 
@@ -4901,7 +4901,7 @@ msgstr "Grenade"
 msgid "折叠轨道 {label}"
 msgstr "Collapse track {label}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:123
+#: src/domain/editing/ProjectWorkspaceDock.tsx:124
 msgid "折叠面板分组"
 msgstr "Collapse panel group"
 
@@ -5394,7 +5394,7 @@ msgstr "Create a project, then add media to start editing."
 msgid "新建并加入"
 msgstr "Create and add"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:118
+#: src/domain/editing/ProjectWorkspaceDock.tsx:119
 msgid "新建面板分组"
 msgstr "New panel group"
 
@@ -5767,7 +5767,7 @@ msgstr "More views"
 msgid "更多素材操作"
 msgstr "More media actions"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:111
+#: src/domain/editing/ProjectWorkspaceDock.tsx:112
 msgid "更多面板"
 msgstr "More panels"
 
@@ -7876,7 +7876,7 @@ msgstr "Kind: {0}"
 msgid "秒"
 msgstr "s"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:120
+#: src/domain/editing/ProjectWorkspaceDock.tsx:121
 msgid "移出面板分组"
 msgstr "Remove from panel group"
 
@@ -7884,7 +7884,7 @@ msgstr "Remove from panel group"
 msgid "移动中间片段并同时裁切相邻片段，不改变它的时长"
 msgstr "Move the middle clip and trim adjacent clips at the same time, without changing its duration"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:110
+#: src/domain/editing/ProjectWorkspaceDock.tsx:111
 msgid "移动多个面板"
 msgstr "Move multiple panels"
 
@@ -7902,7 +7902,7 @@ msgstr "Movement paths"
 msgid "移动路线：这一段没有位置样本"
 msgstr "Movement paths: no position samples in this stretch"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:109
+#: src/domain/editing/ProjectWorkspaceDock.tsx:110
 msgid "移动面板组"
 msgstr "Move panel group"
 
@@ -8821,7 +8821,7 @@ msgstr "Adjust track height {0}"
 msgid "调整速度会改变片段时长，后续片段将随之移动。"
 msgstr "Changing speed adjusts the clip duration and shifts following clips."
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:129
+#: src/domain/editing/ProjectWorkspaceDock.tsx:130
 msgid "调整面板尺寸"
 msgstr "Resize panel"
 
@@ -9875,7 +9875,7 @@ msgstr "Rename layout…"
 msgid "重命名轨道 {0}"
 msgstr "Rename track {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:124
+#: src/domain/editing/ProjectWorkspaceDock.tsx:125
 msgid "重命名面板分组"
 msgstr "Rename panel group"
 
@@ -9987,7 +9987,7 @@ msgstr "Reset filters"
 
 #: src/app/boundary/RouteBoundary.tsx:129
 #: src/domain/editing/PooledCameraPreview.tsx:79
-#: src/domain/editing/ProjectWorkspaceDock.tsx:131
+#: src/domain/editing/ProjectWorkspaceDock.tsx:132
 #: src/domain/match/MatchContextBar.tsx:351
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
@@ -10171,11 +10171,11 @@ msgstr "Lower track volume"
 msgid "隐藏 {0}"
 msgstr "Hide {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:115
+#: src/domain/editing/ProjectWorkspaceDock.tsx:116
 msgid "隐藏其他面板"
 msgstr "Hide other panels"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:114
+#: src/domain/editing/ProjectWorkspaceDock.tsx:115
 msgid "隐藏右侧面板"
 msgstr "Hide panels to the right"
 
@@ -10183,11 +10183,11 @@ msgstr "Hide panels to the right"
 msgid "隐藏屋顶"
 msgstr "Hide roofs"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:113
+#: src/domain/editing/ProjectWorkspaceDock.tsx:114
 msgid "隐藏此组所有面板"
 msgstr "Hide all panels in this group"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:112
+#: src/domain/editing/ProjectWorkspaceDock.tsx:113
 msgid "隐藏面板"
 msgstr "Hide panel"
 
@@ -10247,11 +10247,11 @@ msgstr "Static map checks exclude smoke. These are advisory and do not block rec
 msgid "静音 {0}"
 msgstr "Mute {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:98
+#: src/domain/editing/ProjectWorkspaceDock.tsx:99
 msgid "面板操作"
 msgstr "Panel actions"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:130
+#: src/domain/editing/ProjectWorkspaceDock.tsx:131
 msgid "面板渲染失败"
 msgstr "Panel failed to render"
 

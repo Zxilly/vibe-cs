@@ -1487,7 +1487,7 @@ msgstr "作品可能已被修改，请在作品的修订历史里撤销。"
 msgid "作品工作区"
 msgstr "作品工作区"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:73
+#: src/domain/editing/ProjectWorkspaceDock.tsx:74
 msgid "作品工作区面板"
 msgstr "作品工作区面板"
 
@@ -2054,8 +2054,8 @@ msgstr "再选择一名选手进行比较。"
 msgid "最大化窗口"
 msgstr "最大化窗口"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:107
-#: src/domain/editing/ProjectWorkspaceDock.tsx:116
+#: src/domain/editing/ProjectWorkspaceDock.tsx:108
+#: src/domain/editing/ProjectWorkspaceDock.tsx:117
 msgid "最大化面板"
 msgstr "最大化面板"
 
@@ -2292,12 +2292,12 @@ msgstr "分析这名选手的比赛之后，每张地图的场次与命中会在
 msgid "分段"
 msgstr "分段"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:125
 #: src/domain/editing/ProjectWorkspaceDock.tsx:126
+#: src/domain/editing/ProjectWorkspaceDock.tsx:127
 msgid "分组名称"
 msgstr "分组名称"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:127
+#: src/domain/editing/ProjectWorkspaceDock.tsx:128
 msgid "分组颜色"
 msgstr "分组颜色"
 
@@ -2602,7 +2602,7 @@ msgstr "加入当前高光"
 msgid "加入比较"
 msgstr "加入比较"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:119
+#: src/domain/editing/ProjectWorkspaceDock.tsx:120
 msgid "加入面板分组"
 msgstr "加入面板分组"
 
@@ -2814,7 +2814,7 @@ msgstr "取消选择"
 msgid "取消链接所选片段"
 msgstr "取消链接所选片段"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:121
+#: src/domain/editing/ProjectWorkspaceDock.tsx:122
 msgid "取消面板分组"
 msgstr "取消面板分组"
 
@@ -3823,7 +3823,7 @@ msgstr "居中"
 msgid "展开侧栏"
 msgstr "展开侧栏"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:128
+#: src/domain/editing/ProjectWorkspaceDock.tsx:129
 msgid "展开或折叠面板分组"
 msgstr "展开或折叠面板分组"
 
@@ -3831,7 +3831,7 @@ msgstr "展开或折叠面板分组"
 msgid "展开轨道 {label}"
 msgstr "展开轨道 {label}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:122
+#: src/domain/editing/ProjectWorkspaceDock.tsx:123
 msgid "展开面板分组"
 msgstr "展开面板分组"
 
@@ -4570,8 +4570,8 @@ msgstr "恢复恒定速度"
 msgid "恢复提供方默认值"
 msgstr "恢复提供方默认值"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:108
-#: src/domain/editing/ProjectWorkspaceDock.tsx:117
+#: src/domain/editing/ProjectWorkspaceDock.tsx:109
+#: src/domain/editing/ProjectWorkspaceDock.tsx:118
 msgid "恢复面板"
 msgstr "恢复面板"
 
@@ -4900,7 +4900,7 @@ msgstr "投掷道具"
 msgid "折叠轨道 {label}"
 msgstr "折叠轨道 {label}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:123
+#: src/domain/editing/ProjectWorkspaceDock.tsx:124
 msgid "折叠面板分组"
 msgstr "折叠面板分组"
 
@@ -5393,7 +5393,7 @@ msgstr "新建作品后，添加素材开始剪辑。"
 msgid "新建并加入"
 msgstr "新建并加入"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:118
+#: src/domain/editing/ProjectWorkspaceDock.tsx:119
 msgid "新建面板分组"
 msgstr "新建面板分组"
 
@@ -5766,7 +5766,7 @@ msgstr "更多视图"
 msgid "更多素材操作"
 msgstr "更多素材操作"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:111
+#: src/domain/editing/ProjectWorkspaceDock.tsx:112
 msgid "更多面板"
 msgstr "更多面板"
 
@@ -7875,7 +7875,7 @@ msgstr "种类：{0}"
 msgid "秒"
 msgstr "秒"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:120
+#: src/domain/editing/ProjectWorkspaceDock.tsx:121
 msgid "移出面板分组"
 msgstr "移出面板分组"
 
@@ -7883,7 +7883,7 @@ msgstr "移出面板分组"
 msgid "移动中间片段并同时裁切相邻片段，不改变它的时长"
 msgstr "移动中间片段并同时裁切相邻片段，不改变它的时长"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:110
+#: src/domain/editing/ProjectWorkspaceDock.tsx:111
 msgid "移动多个面板"
 msgstr "移动多个面板"
 
@@ -7901,7 +7901,7 @@ msgstr "移动路线"
 msgid "移动路线：这一段没有位置样本"
 msgstr "移动路线：这一段没有位置样本"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:109
+#: src/domain/editing/ProjectWorkspaceDock.tsx:110
 msgid "移动面板组"
 msgstr "移动面板组"
 
@@ -8820,7 +8820,7 @@ msgstr "调整轨道高度 {0}"
 msgid "调整速度会改变片段时长，后续片段将随之移动。"
 msgstr "调整速度会改变片段时长，后续片段将随之移动。"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:129
+#: src/domain/editing/ProjectWorkspaceDock.tsx:130
 msgid "调整面板尺寸"
 msgstr "调整面板尺寸"
 
@@ -9874,7 +9874,7 @@ msgstr "重命名布局…"
 msgid "重命名轨道 {0}"
 msgstr "重命名轨道 {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:124
+#: src/domain/editing/ProjectWorkspaceDock.tsx:125
 msgid "重命名面板分组"
 msgstr "重命名面板分组"
 
@@ -9986,7 +9986,7 @@ msgstr "重置筛选"
 
 #: src/app/boundary/RouteBoundary.tsx:129
 #: src/domain/editing/PooledCameraPreview.tsx:79
-#: src/domain/editing/ProjectWorkspaceDock.tsx:131
+#: src/domain/editing/ProjectWorkspaceDock.tsx:132
 #: src/domain/match/MatchContextBar.tsx:351
 #: src/domain/match/RoundTimeline.tsx:182
 #: src/domain/project/AddToProjectDialog.tsx:122
@@ -10170,11 +10170,11 @@ msgstr "降低轨道音量"
 msgid "隐藏 {0}"
 msgstr "隐藏 {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:115
+#: src/domain/editing/ProjectWorkspaceDock.tsx:116
 msgid "隐藏其他面板"
 msgstr "隐藏其他面板"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:114
+#: src/domain/editing/ProjectWorkspaceDock.tsx:115
 msgid "隐藏右侧面板"
 msgstr "隐藏右侧面板"
 
@@ -10182,11 +10182,11 @@ msgstr "隐藏右侧面板"
 msgid "隐藏屋顶"
 msgstr "隐藏屋顶"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:113
+#: src/domain/editing/ProjectWorkspaceDock.tsx:114
 msgid "隐藏此组所有面板"
 msgstr "隐藏此组所有面板"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:112
+#: src/domain/editing/ProjectWorkspaceDock.tsx:113
 msgid "隐藏面板"
 msgstr "隐藏面板"
 
@@ -10246,11 +10246,11 @@ msgstr "静态地图检查不包含烟雾，仅作提示，不阻止录制。"
 msgid "静音 {0}"
 msgstr "静音 {0}"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:98
+#: src/domain/editing/ProjectWorkspaceDock.tsx:99
 msgid "面板操作"
 msgstr "面板操作"
 
-#: src/domain/editing/ProjectWorkspaceDock.tsx:130
+#: src/domain/editing/ProjectWorkspaceDock.tsx:131
 msgid "面板渲染失败"
 msgstr "面板渲染失败"
 

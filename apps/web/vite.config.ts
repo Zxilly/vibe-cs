@@ -1,25 +1,10 @@
-import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin';
-import babel from '@rolldown/plugin-babel';
+import { lingui } from '@lingui/vite-plugin';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type PluginOption } from 'vite';
+import { defineConfig } from 'vite';
 
-// Plugin order is load-bearing and must not be reordered:
-//   1. `react()` sets up the JSX transform and fast refresh.
-//   2. `lingui()` resolves the `.po` catalogs at build time.
-//   3. the Babel pass expands the Lingui macros (`<Trans>`, `t`, `plural`, …)
-//      into runtime calls. It has to run over source that still contains the
-//      macro imports, so it stays behind `lingui()` and ahead of Tailwind.
-//   4. `tailwindcss()` last.
-//
-// NOTE: the design doc writes this as
-// `react({ babel: { plugins: ['@lingui/babel-plugin-lingui-macro'] } })`.
-// That option no longer exists: @vitejs/plugin-react 6 (the Vite 8 / Rolldown
-// line) dropped its Babel pipeline entirely and only configures oxc, so the
-// `babel` key is silently ignored and the macros reach the bundler
-// untransformed. `@rolldown/plugin-babel` + `linguiTransformerBabelPreset()` is
-// the supported replacement and is what @lingui/vite-plugin 6 documents.
-// The macro plugin package is still required — the preset loads it.
+// Lingui owns catalog loading and its native pre-transform expands macros
+// before React's JSX transform. Vitest uses the same macro transform.
 // ── The three settings `create-tauri-app` puts in every template ──────────
 //
 // This dev server is not browsed to by hand — `tauri.conf.json` names it as
@@ -43,8 +28,7 @@ import { defineConfig, type PluginOption } from 'vite';
 export default defineConfig({
   plugins: [
     react(),
-    lingui(),
-    babel({ presets: [linguiTransformerBabelPreset()] }) as PluginOption,
+    lingui({ macroTransform: true }),
     tailwindcss(),
   ],
   clearScreen: false,

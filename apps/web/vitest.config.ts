@@ -1,5 +1,4 @@
-import { linguiTransformerBabelPreset } from '@lingui/vite-plugin';
-import babel from '@rolldown/plugin-babel';
+import { lingui } from '@lingui/vite-plugin';
 import react from '@vitejs/plugin-react';
 import { configDefaults, defineConfig } from 'vitest/config';
 import type { PluginOption } from 'vite';
@@ -7,10 +6,10 @@ import type { PluginOption } from 'vite';
 // Vitest loads this file *instead of* vite.config.ts, so the macro transform
 // has to be registered here as well — otherwise `<Trans>` / `t` macros would
 // reach the test runner untransformed and fail at import time.
-// Mirrors vite.config.ts: react() first, Babel macro pass after.
+// Mirrors vite.config.ts: Lingui owns the native macro pre-transform.
 const macroPlugins = (): PluginOption[] => [
   react(),
-  babel({ presets: [linguiTransformerBabelPreset()] }) as PluginOption,
+  lingui({ macroTransform: true }),
 ];
 
 const INTERACTION_GLOB = 'src/**/*.interaction.test.tsx';

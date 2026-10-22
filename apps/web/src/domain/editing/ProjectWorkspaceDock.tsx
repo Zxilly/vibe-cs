@@ -4,6 +4,7 @@ import {
   Actions,
   ContextMenuBuilder,
   I18nLabel,
+  I18nLabelDefaults,
   Layout as FlexLayout,
   type ITabRenderValues,
   type TabNode,
@@ -75,7 +76,7 @@ export function ProjectWorkspaceDock({ panels, labels, ref, onPanelVisibilityCha
       <FlexLayout
         model={model}
         factory={factory}
-        i18nMapper={projectWorkspaceLabel}
+        i18nTranslator={projectWorkspaceLabel}
         onRenderTab={renderTab}
         onAction={(action: Action) => projectWorkspaceDockAction(model, action)}
         onContextMenu={(node, event) => {
@@ -102,7 +103,7 @@ export function ProjectWorkspaceDock({ panels, labels, ref, onPanelVisibilityCha
   );
 }
 
-function projectWorkspaceLabel(label: I18nLabel): string | undefined {
+function projectWorkspaceLabel(label: string): string {
   switch (label) {
     case I18nLabel.Maximize: return t`最大化面板`;
     case I18nLabel.Restore: return t`恢复面板`;
@@ -129,6 +130,6 @@ function projectWorkspaceLabel(label: I18nLabel): string | undefined {
     case I18nLabel.Splitter: return t`调整面板尺寸`;
     case I18nLabel.Error_rendering_component: return t`面板渲染失败`;
     case I18nLabel.Error_rendering_component_retry: return t`重试`;
-    default: return undefined;
+    default: return I18nLabelDefaults[label] ?? label;
   }
 }

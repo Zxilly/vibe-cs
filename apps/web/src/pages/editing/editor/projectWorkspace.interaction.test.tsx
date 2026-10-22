@@ -1088,7 +1088,7 @@ describe('unified project workspace', () => {
     await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
     await waitFor(() => expect((screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement).disabled).toBe(false));
     expect(getProjectDeliveryGate.mock.calls.length).toBeGreaterThan(gateReadsBeforeHead);
-    expect(screen.queryByText('检查交付状态')).toBeNull();
+    expect(screen.queryByText('检查素材')).toBeNull();
     expect(listMediaAssets.mock.calls.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(screen.getByRole('button', { name: '导出成片' }));
     fireEvent.click(screen.getByRole('button', { name: '开始导出' }));

@@ -1526,82 +1526,89 @@ export function ProjectWorkspacePage() {
       className="review-workbench"
       scroll={false}
       toolbar={(
-        <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-bg px-3 py-2">
+        <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-x-3 gap-y-2 border-b border-divider bg-bg px-3 py-2">
           <Button size="sm" variant="ghost" type="button" data-window-no-drag className="gap-2" onClick={() => void navigate('/projects')}>
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
             <Trans>作品</Trans>
           </Button>
-          <h1 title={current.name} className="min-w-0 flex-1 truncate text-md font-medium leading-6">{current.name}</h1>
-          <span className="whitespace-nowrap text-xs text-neutral-600"><Trans>第 {current.revision} 版</Trans></span>
-          {pendingAgentReviewGroup === null ? null : (
-            <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}>
-              <Trans>审阅 Agent 修改</Trans>
+          <div className="min-w-48 flex-1">
+            <h1 title={current.name} className="truncate text-md font-medium leading-6">{current.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
+              <span className="whitespace-nowrap"><Trans>第 {current.revision} 版</Trans></span>
+              {deliveryGatePending ? (
+                <span className="flex items-center gap-1 whitespace-nowrap"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查素材</Trans></span>
+              ) : deliveryGate.error !== null ? (
+                <span className="text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
+              ) : currentDeliveryGate?.ready === true ? (
+                <span className="flex items-center gap-1 whitespace-nowrap text-ok-text"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
+              ) : timelineEmpty ? (
+                <span className="flex items-center gap-1 whitespace-nowrap"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>时间线还没有片段</Trans></span>
+              ) : (
+                <span className="flex items-center gap-1 whitespace-nowrap text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
+              )}
+              {readOnly ? <span className="text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
+            </div>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {pendingAgentReviewGroup === null ? null : (
+              <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}>
+                <Trans>审阅 Agent 修改</Trans>
+              </Button>
+            )}
+            {activeExecutions.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => setTaskDetailsOpen(true)}>
+                <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+                <Trans>作品任务 {activeExecutions.length}</Trans>
+              </Button>
+            ) : null}
+            <ProjectWorkspaceLayoutMenu labels={panelLabels} />
+            <Button size="sm" variant="ghost" onClick={() => workspaceDock.current?.showPanel('agent')}>
+              <Sparkles className="size-4" aria-hidden="true" />
+              <Trans>Agent</Trans>
             </Button>
-          )}
-          {activeExecutions.length > 0 ? (
-            <Button size="sm" variant="ghost" onClick={() => setTaskDetailsOpen(true)}>
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-              <Trans>作品任务 {activeExecutions.length}</Trans>
+            <span data-window-no-drag>
+              <OverflowMenu
+                label={t`更多作品操作`}
+                triggerLabel={<MoreHorizontal className="size-4" aria-hidden="true" />}
+                iconOnly
+                align="end"
+                triggerClassName="h-[var(--h-ctl-sm)] rounded-sm hover:bg-action-hover"
+                items={[
+                  { id: 'tasks', label: t`作品任务`, onSelect: () => setTaskDetailsOpen(true) },
+                  { id: 'outputs', label: t`查看成品`, onSelect: () => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`) },
+                  { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                  { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                  { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                  { id: 'export-edl', label: t`导出 CMX3600 EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('edl').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
+                ]}
+              />
+            </span>
+            <Button size="sm" variant={recordableClipIds.length > 0 ? 'primary' : 'secondary'}
+              type="button"
+              data-window-no-drag
+              className="gap-2"
+              disabled={recordDisabledReason !== undefined}
+              disabledReason={recordDisabledReason}
+              onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
+            >
+              <Video className="size-4" aria-hidden="true" />
+              <Trans>录制缺失片段</Trans>
             </Button>
-          ) : deliveryGatePending ? (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查交付状态</Trans></span>
-          ) : deliveryGate.error !== null ? (
-            <span className="text-xs text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
-          ) : currentDeliveryGate?.ready === true ? (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok-text"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
-          ) : timelineEmpty ? (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-neutral-500"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>时间线还没有片段</Trans></span>
-          ) : (
-            <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
-          )}
-          {readOnly ? <span className="text-xs text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
-          <ProjectWorkspaceLayoutMenu labels={panelLabels} />
-          <Button size="sm" variant="ghost" onClick={() => workspaceDock.current?.showPanel('agent')}>
-            <Sparkles className="size-4" aria-hidden="true" />
-            <Trans>Agent</Trans>
-          </Button>
-          <span data-window-no-drag>
-            <OverflowMenu
-              label={t`更多作品操作`}
-              triggerLabel={<MoreHorizontal className="size-4" aria-hidden="true" />}
-              iconOnly
-              align="end"
-              triggerClassName="h-[var(--h-ctl-sm)] rounded-sm hover:bg-action-hover"
-              items={[
-                { id: 'tasks', label: t`作品任务`, onSelect: () => setTaskDetailsOpen(true) },
-                { id: 'outputs', label: t`查看成品`, onSelect: () => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`) },
-                { id: 'import', label: t`导入 OTIO / XML / EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void importInterchange().catch((error: unknown) => toast.error(t`时间轴互换文件导入失败`, { description: dataErrorMessage(error) ?? undefined })) },
-                { id: 'export-otio', label: t`导出 OpenTimelineIO…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('otio').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
-                { id: 'export-xml', label: t`导出 Final Cut Pro XML…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('xml').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
-                { id: 'export-edl', label: t`导出 CMX3600 EDL…`, disabled: readOnly || !nativeShell.available, onSelect: () => void exportInterchange('edl').catch((error: unknown) => toast.error(t`时间轴互换文件导出失败`, { description: dataErrorMessage(error) ?? undefined })) },
-              ]}
-            />
-          </span>
-          <Button size="sm" variant={recordableClipIds.length > 0 ? 'primary' : 'secondary'}
-            type="button"
-            data-window-no-drag
-            className="gap-2"
-            disabled={recordDisabledReason !== undefined}
-            disabledReason={recordDisabledReason}
-            onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
-          >
-            <Video className="size-4" aria-hidden="true" />
-            <Trans>录制缺失片段</Trans>
-          </Button>
-          <Button size="sm" variant={currentDeliveryGate?.ready === true ? 'primary' : 'secondary'}
-            type="button"
-            data-window-no-drag
-            className="gap-2"
-            disabled={exportDisabledReason !== undefined}
-            disabledReason={exportDisabledReason}
-            onClick={() => setExternalConfirm({
-              kind: 'export',
-              draft: { encoder: 'auto', quality: 80, sourceRange: hasExportRange ? 'in_out' : 'sequence' },
-            })}
-          >
-            <Download className="size-4" aria-hidden="true" />
-            <Trans>导出成片</Trans>
-          </Button>
+            <Button size="sm" variant={currentDeliveryGate?.ready === true ? 'primary' : 'secondary'}
+              type="button"
+              data-window-no-drag
+              className="gap-2"
+              disabled={exportDisabledReason !== undefined}
+              disabledReason={exportDisabledReason}
+              onClick={() => setExternalConfirm({
+                kind: 'export',
+                draft: { encoder: 'auto', quality: 80, sourceRange: hasExportRange ? 'in_out' : 'sequence' },
+              })}
+            >
+              <Download className="size-4" aria-hidden="true" />
+              <Trans>导出成片</Trans>
+            </Button>
+          </div>
         </header>
       )}
     >
@@ -1762,8 +1769,7 @@ export function ProjectWorkspacePage() {
               </NativeSelect>
             </label>
             {!hasExportRange ? <p id="export-range-help" className="text-xs leading-relaxed text-neutral-600"><Trans>要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。</Trans></p> : null}
-            <p id="export-quality-help" className="text-xs leading-relaxed text-neutral-600"><Trans>质量越高，画质越好，文件通常越大；不代表固定码率或文件大小。</Trans></p>
-            <p className="text-xs text-neutral-600"><Trans>在「作品任务」查看进度，完成后到「成品文件」查看结果。</Trans></p>
+            <p id="export-quality-help" className="text-xs leading-relaxed text-neutral-600"><Trans>质量越高，画质越好，文件通常越大。</Trans></p>
           </div>
         )}
       </Dialog>

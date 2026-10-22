@@ -27,11 +27,7 @@
  * selection and disabled with that sentence when it does not, rather than
  * inventing a tick to hang the note on.
  *
- * ── What is disabled, and why ──────────────────────────────────────────────
- *
- *   导出 HTML   no command. The bridge has no review-export route at all —
- *               not under `reviewDemo`, which returns prose, and not under
- *               outputs. Disabled with the reason; reported.
+ * ── Review tone ───────────────────────────────────────────────────────────
  *   语气        the artboard draws 「语气：专业」 as a `Tag`, not a control, so
  *               the request is sent with `tone: 'analytical'` and the tag says
  *               so. `LlmReviewTone` has three members and no artboard picks
@@ -134,14 +130,6 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
           ]}
         />
         <div className="flex-1" aria-hidden="true" />
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled
-          disabledReason={t`暂不支持导出复盘网页`}
-        >
-          <Trans>导出 HTML</Trans>
-        </Button>
         <Button
           variant="primary"
           size="sm"

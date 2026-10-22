@@ -49,12 +49,12 @@ describe('the page frame', () => {
     expect(html).not.toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
   });
 
-  it('shows the condition strip and the Inspector column', () => {
+  it('shows the condition strip without reserving an empty Inspector while loading', () => {
     expect(html).toContain('data-evidence-conditions');
     expect(html).toContain('data-evidence-search-bar');
     expect(html).toContain('data-evidence-condition-bar');
     expect(html.match(/h-\[var\(--h-bar\)\]/gu)).toHaveLength(2);
-    expect(html).toContain('data-inspector="docked"');
+    expect(html).not.toContain('data-inspector=');
   });
 
   it('starts on the results, loading, with no invented progress', () => {
@@ -94,13 +94,9 @@ describe('the §7 query', () => {
 });
 
 describe('actions whose write path does not exist', () => {
-  it('are disabled with their own reason attached, never hidden', () => {
+  it('does not present controls without an implementation', () => {
     const html = at('/evidence');
-    expect(html).toContain('保存为视图');
-    expect(html).toContain('现在还不能保存视图');
-    expect(html).toContain('导出结果');
-    expect(html).toContain('现在还不能导出结果');
-    // The old shared sentence made 导出结果 talk about notes.
-    expect(html).not.toContain('现在还不能保存注释');
+    expect(html).not.toContain('保存为视图');
+    expect(html).not.toContain('导出结果');
   });
 });

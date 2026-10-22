@@ -10,7 +10,7 @@
  *     · 别名 3 个 · 最近出场 08-14」, then 加入比较 and 做一条集锦), then a split:
  *     the left column holds a metric segmented control, a 170px trend box and a
  *     framed 按地图 table; the 320px right column holds a 击杀热图, a 最近比赛
- *     list and a dashed 「段位历史不可用」 note.
+ *     list.
  *   · 「06 玩家目录」's Inspector settles the vocabulary the panel above uses —
  *     the comparison bars, the heat map caption, 「查看最近比赛」 / 「做一条 Kael
  *     集锦」.
@@ -163,10 +163,10 @@ export function PlayerProfilePage() {
               : [
                   {
                     id: 'workspace',
-                    label: <Trans>去比赛工作区做集锦</Trans>,
+                    label: <Trans>查看最近比赛</Trans>,
                     control: (
                       <RouteLink to={`/match/${encodeURIComponent(latestMatch.demo_id)}`}>
-                        <Trans>去比赛工作区做集锦</Trans>
+                        <Trans>查看最近比赛</Trans>
                       </RouteLink>
                     ),
                   },
@@ -230,7 +230,8 @@ export function PlayerProfilePage() {
                 item.map_name === null ? null : (
                   <Button
                     key={item.map_name}
-                    variant={item.map_name === mapName ? 'primary' : 'secondary'}
+                    variant="secondary"
+                    className="aria-pressed:border-accent aria-pressed:bg-accent-100 aria-pressed:text-accent-700 aria-pressed:hover:bg-accent-100"
                     size="sm"
                     aria-pressed={item.map_name === mapName}
                     onClick={() => setParam('map', item.map_name ?? '')}
@@ -284,11 +285,6 @@ export function PlayerProfilePage() {
             )}
           </section>
 
-          {/* Verbatim from the artboard: a dashed note for a statistic the demo
-              files do not contain, rather than an empty chart. */}
-          <p className="border border-dashed border-neutral-400 p-3 text-xs leading-normal text-neutral-700">
-            <Trans>段位历史不可用：这批 Demo 里没有段位信息。</Trans>
-          </p>
         </aside>
       </div>
     </Page>

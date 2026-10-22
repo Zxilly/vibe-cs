@@ -331,15 +331,12 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
       <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2" data-utility-overview>
         <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`道具`}>
           <h3 className="px-5 py-3 text-sm font-medium"><Trans>道具</Trans></h3>
-          <dl className="divide-y divide-divider">
+          {utility.available ? <dl className="divide-y divide-divider">
             {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
               <dt className="text-neutral-700">{i18n._(UTILITY_ITEM_LABEL[kind])}</dt>
-              <dd className="font-mono">{utility.available ? <Trans>{counts.get(kind) ?? 0} 次</Trans> : NO_VALUE}</dd>
+              <dd className="font-mono"><Trans>{counts.get(kind) ?? 0} 次</Trans></dd>
             </div>)}
-          </dl>
-          {utility.available ? null : (
-            /* Five dashes are not a statement. The service's own reason is,
-               and it is the same sentence 对位 and 队伍 print for theirs. */
+          </dl> : (
             <p data-utility-unavailable="" className="border-t border-divider px-5 py-3 text-xs text-neutral-600">
               <Trans>没有解出投掷物事件{formatReason(utility.reason)}</Trans>
             </p>

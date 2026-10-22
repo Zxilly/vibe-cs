@@ -123,7 +123,7 @@ export function EvidenceEmpty({
           <>
             <Trans>当前条件：</Trans>
             {conditionSummary}
-            <Trans>。放宽时间范围通常最有效。</Trans>
+            <Trans>。可移除部分条件后重试。</Trans>
           </>
         )
       }

@@ -144,11 +144,10 @@ describe('AI 点评', () => {
     expect(html).toContain('自动洞察不受影响');
   });
 
-  it('keeps 导出 HTML 可见但禁用，并说明原因', () => {
+  it('does not present an unimplemented HTML export action', () => {
     scene();
     const html = markupView(<ReviewView.Body {...viewProps()} />);
-    expect(html).toContain('导出 HTML');
-    expect(html).toContain('暂不支持导出复盘网页');
+    expect(html).not.toContain('导出 HTML');
   });
 });
 

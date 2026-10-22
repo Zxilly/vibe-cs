@@ -36,10 +36,8 @@
  * (`design/layout`) is the same observation the Inspector makes, so the two
  * cannot disagree, and no media query is written here.
  *
- * A failed read renders as a `Notice` with a recovery action. The two actions
- * whose write path does not exist yet — 保存为视图, 导出结果 — and 批量注释,
- * which has no multi-selection to act on, are disabled with their own reason
- * spelled out.
+ * A failed read renders with a recovery action. The Inspector occupies space
+ * only when there is a result or annotation to describe.
  */
 
 import { t } from '@lingui/core/macro';
@@ -94,18 +92,6 @@ export function EvidencePage() {
   const collect = (clip: ProjectCollectedClip) => {
     if (!quickAdd.add([clip])) setPendingClip(clip);
   };
-
-  /*
-   * The bridge has no saved-view and no export route, and the results list has
-   * no multi-selection for a batch to act on. Each action is disabled with the
-   * reason that is true of *it* — hiding them would make the page look finished
-   * when it is not, and one shared sentence made 「导出结果」 talk about notes.
-   * Declared inside the component so the macros are evaluated against the
-   * active locale rather than at import time.
-   */
-  const saveViewReason = t`现在还不能保存视图`;
-  const exportReason = t`现在还不能导出结果`;
-  const batchAnnotateReason = t`现在还不能批量注释`;
 
   const state = readEvidenceSearch(params);
   /* No `useMemo`: TanStack hashes a query key by value, so a fresh object per
@@ -213,7 +199,7 @@ export function EvidencePage() {
   const notesReadError = dataErrorMessage(rowNotes.error);
 
   const detail =
-    state.view === 'evidence' ? (
+    state.view === 'evidence' ? activeRow === null ? null : (
       <EvidenceDetail
         row={activeRow}
         onOpenWorkspace={(row) => openWorkspace(row, 'overview')}
@@ -238,7 +224,7 @@ export function EvidencePage() {
         noteError={dataErrorMessage(createNote.error)}
         onDismissNoteError={() => createNote.reset()}
       />
-    ) : (
+    ) : activeAnnotation === null ? null : (
       <EvidenceAnnotationDetail
         annotation={activeAnnotation}
         onOpenWorkspace={openAnnotation}
@@ -260,33 +246,6 @@ export function EvidencePage() {
               </Trans>
             )
           }
-          /* §10.3 gap 2's arithmetic for a short-title page: at the fold the
-             content column is 996px; 「证据检索」 ≈ 90 + a truncating meta + 更多
-             62 + gaps ≈ 60 leaves well over the ~170px the two secondary
-             buttons need, so both stay on the bar rather than folding. */
-          inlineActionsWhenCollapsed={2}
-          actions={[
-            {
-              id: 'save-view',
-              label: <Trans>保存为视图</Trans>,
-              control: (
-                <Button variant="secondary" size="sm" disabled disabledReason={saveViewReason}>
-                  <Trans>保存为视图</Trans>
-                </Button>
-              ),
-              disabled: true,
-            },
-            {
-              id: 'export',
-              label: <Trans>导出结果</Trans>,
-              control: (
-                <Button variant="secondary" size="sm" disabled disabledReason={exportReason}>
-                  <Trans>导出结果</Trans>
-                </Button>
-              ),
-              disabled: true,
-            },
-          ]}
         >
           <Seg
             name="evidence-view"
@@ -334,9 +293,6 @@ export function EvidencePage() {
           >
             <Button variant="secondary" size="sm" onClick={clearSelection}>
               <Trans>清空选择</Trans>
-            </Button>
-            <Button variant="secondary" size="sm" disabled disabledReason={batchAnnotateReason}>
-              <Trans>批量注释</Trans>
             </Button>
           </SelectionBar>
         )

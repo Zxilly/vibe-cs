@@ -90,7 +90,10 @@ describe('utility and round economy', () => {
     open('', BARE_ANALYSIS);
     expect(await screen.findByText('暂无装备价值数据')).toBeTruthy();
     expect(screen.queryByRole('img', { name: '两队逐回合装备价值' })).toBeNull();
-    expect(screen.getByRole('region', { name: '道具' }).textContent).not.toContain('0 次');
+    const utility = screen.getByRole('region', { name: '道具' });
+    expect(utility.textContent).not.toContain('0 次');
+    expect(utility.querySelector('dl')).toBeNull();
+    expect(utility.textContent).toContain('没有解出投掷物事件');
     expect(screen.queryByText(/点道具表的一行/)).toBeNull();
   });
 });

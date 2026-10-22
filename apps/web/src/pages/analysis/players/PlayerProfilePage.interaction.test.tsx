@@ -66,7 +66,7 @@ describe('the header meta line', () => {
 describe('the page action', () => {
   it('is a link into the latest match workspace, not a primary button that can never be pressed', async () => {
     mount(stubClient('2026-08-14T20:11:00Z'));
-    const link = await screen.findByRole('link', { name: '去比赛工作区做集锦' });
+    const link = await screen.findByRole('link', { name: '查看最近比赛' });
     // `playerMatches` is newest first, so index 0 is the latest.
     expect(link.getAttribute('href')).toBe('/match/demo-0');
     expect(screen.queryByText('做一条集锦')).toBeNull();
@@ -77,7 +77,7 @@ describe('the page action', () => {
     mount(stubClient(null, 0));
     await screen.findByText('还没有比赛');
     await waitFor(() => {
-      expect(screen.queryByRole('link', { name: '去比赛工作区做集锦' })).toBeNull();
+      expect(screen.queryByRole('link', { name: '查看最近比赛' })).toBeNull();
     });
   });
 });

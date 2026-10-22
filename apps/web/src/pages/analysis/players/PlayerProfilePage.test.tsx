@@ -58,8 +58,8 @@ describe('the page frame', () => {
     expect(html).toContain('data-player-recent');
   });
 
-  it('keeps the artboard s honest note about a statistic the demos lack', () => {
-    expect(html).toContain('段位历史不可用');
+  it('does not reserve a panel for an unsupported statistic', () => {
+    expect(html).not.toContain('段位历史不可用');
   });
 
   it('takes the scroll boundary over — each column scrolls on its own', () => {

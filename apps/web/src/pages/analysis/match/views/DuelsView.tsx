@@ -567,11 +567,6 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
                 className="m-3.5"
                 headingLevel={4}
                 title={<Trans>没有可用的对位数据</Trans>}
-                description={
-                  <Trans>
-                    没有可用的对位数据。
-                  </Trans>
-                }
                 actions={
                   <Button variant="secondary" onClick={() => setMode('opening')}>
                     <Trans>改看首杀对决</Trans>

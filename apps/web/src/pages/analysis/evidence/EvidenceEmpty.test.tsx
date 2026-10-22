@@ -96,6 +96,7 @@ describe('a complete index and no match', () => {
     expect(html).toContain('de_mirage');
     expect(html).toContain('仅爆头');
     expect(html).toContain('清空条件');
+    expect(html).not.toContain('放宽时间范围');
   });
 
   it('states the corpus size when there was nothing to relax', () => {

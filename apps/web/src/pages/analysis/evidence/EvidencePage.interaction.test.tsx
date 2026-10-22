@@ -246,6 +246,23 @@ describe('what the page sends', () => {
 });
 
 describe('selecting a row', () => {
+  it('releases the Inspector for empty results and restores it after clearing conditions', async () => {
+    const { client } = stubClient();
+    const { container } = mount('/evidence?q=unknown', {
+      ...client,
+      searchEvidence: (query) => Promise.resolve(evidenceResponse(
+        query?.q === 'unknown' ? { items: [], total: 0 } : {},
+      )),
+    });
+    await screen.findByText('没有命中的证据');
+    expect(container.querySelector('[data-inspector]')).toBeNull();
+    expect(screen.queryByText('还没有选中证据')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '清空条件' }));
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+    expect(container.querySelector('[data-inspector]')).not.toBeNull();
+    expect(address()).not.toContain('q=');
+  });
+
   it('focuses the first visible result without writing an explicit selection', async () => {
     const { container } = mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');
@@ -274,7 +291,7 @@ describe('selecting a row', () => {
 
     fireEvent.click(container.querySelectorAll('[data-evidence-select]')[0] as HTMLElement);
     expect(await screen.findByText('已选 1 条证据')).toBeTruthy();
-    expect(screen.getByText('批量注释')).toBeTruthy();
+    expect(screen.queryByText('批量注释')).toBeNull();
   });
 
   it('releases the selection from the bar, on Esc, and by pressing the row again', async () => {
@@ -432,8 +449,9 @@ describe('writing a note on a hit', () => {
 
 describe('the annotations view', () => {
   it('says what to do rather than showing an empty list', async () => {
-    mount('/evidence?view=annotations');
+    const { container } = mount('/evidence?view=annotations');
     expect(await screen.findByText('还没有注释')).toBeTruthy();
+    expect(container.querySelector('[data-inspector]')).toBeNull();
   });
 
   it('describes the current note in the Inspector, and follows a selection', async () => {

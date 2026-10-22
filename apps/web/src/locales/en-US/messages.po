@@ -6048,10 +6048,6 @@ msgstr "View all {0}"
 msgid "查看全部成品文件"
 msgstr "Show all finished files"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:47
-msgid "查看分析、录制与导出的进度，继续处理失败任务"
-msgstr "Track analysis, recording and export progress, and recover failed tasks"
-
 #: src/pages/analysis/players/PlayerProfilePage.tsx:166
 #: src/pages/analysis/players/PlayerProfilePage.tsx:169
 msgid "查看最近比赛"
@@ -9169,7 +9165,7 @@ msgstr "No players yet"
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "Steam match history has not been configured yet."
 
-#: src/domain/task/TaskDetail.tsx:288
+#: src/domain/task/TaskDetail.tsx:287
 msgid "还没有阶段日志"
 msgstr "No stage log yet"
 

@@ -44,7 +44,7 @@ export function TaskCenterPage() {
   }, [page, validPage]);
 
   return (
-    <Page scroll={false} toolbar={<Toolbar title={<Trans>任务中心</Trans>} meta={<Trans>查看分析、录制与导出的进度，继续处理失败任务</Trans>} />} bar={
+    <Page scroll={false} toolbar={<Toolbar title={<Trans>任务中心</Trans>} />} bar={
       <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-b border-divider bg-surface-chrome px-4 py-2">
         <Seg<TaskFilter>
           name="task-state"

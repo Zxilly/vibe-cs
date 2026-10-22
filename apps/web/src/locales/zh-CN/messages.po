@@ -6047,10 +6047,6 @@ msgstr "查看全部 {0} 条"
 msgid "查看全部成品文件"
 msgstr "查看全部成品文件"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:47
-msgid "查看分析、录制与导出的进度，继续处理失败任务"
-msgstr "查看分析、录制与导出的进度，继续处理失败任务"
-
 #: src/pages/analysis/players/PlayerProfilePage.tsx:166
 #: src/pages/analysis/players/PlayerProfilePage.tsx:169
 msgid "查看最近比赛"
@@ -9168,7 +9164,7 @@ msgstr "还没有选手"
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "还没有配置 Steam 比赛历史。"
 
-#: src/domain/task/TaskDetail.tsx:288
+#: src/domain/task/TaskDetail.tsx:287
 msgid "还没有阶段日志"
 msgstr "还没有阶段日志"
 

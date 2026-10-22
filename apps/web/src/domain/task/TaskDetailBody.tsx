@@ -64,7 +64,7 @@ export function TaskDetailBody({ item, now, compact = false }: TaskDetailBodyPro
       className="m-6 min-h-0 flex-1"
       task={bound.summary}
       {...(item.kind === 'export' ? { title: <Trans>成片导出</Trans> } : {})}
-      showId={compact}
+      showId={false}
       stages={stages}
       /* On the task page 查看阶段 points at where you already are, which is
          noise; the compact panel and the drawer are not that page, so there

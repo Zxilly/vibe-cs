@@ -1,12 +1,9 @@
 /*
  * pages/players — the 「比较」 panel of 「06 玩家目录」.
  *
- * Two cards, then one bar pair per metric with both numbers written out
- * (「1.42 · 1.28」), then the artboard's honest failure: 「段位分布 · 数据不可用」
- * drawn as a dashed empty rail rather than as a zero bar. That last row is
- * copied deliberately — it is the reference telling us what to do with a
- * statistic the data does not carry, and the same treatment is what the missing
- * 首杀 / 残局胜率 columns get in the table beside it.
+ * Two player identities, then one bar pair per available metric with both
+ * numbers written out. Each bar has its own lane and shares the larger value
+ * as its scale, so the comparison never reads as parts of one total.
  *
  * The page resolves the selected IDs through the existing player-profile query.
  * This panel remains a presentation of those reads, including partial failures,
@@ -103,7 +100,7 @@ function PlayerCard({
   return (
     <div
       data-compare-card={player.steam_id}
-      className={`flex min-w-0 flex-1 flex-col gap-1 border p-3 ${emphasis ? 'border-accent-400' : 'border-divider'}`}
+      className={`flex min-w-0 flex-1 flex-col gap-1 border-b-2 pb-3 ${emphasis ? 'border-accent' : 'border-neutral-400'}`}
     >
       <div className="truncate font-heading text-lg">{player.name}</div>
       <div className="truncate text-xs text-neutral-600">
@@ -144,6 +141,8 @@ export interface PlayerComparePanelProps {
   /** The active table row. It gives the persistent panel useful context
    * without silently adding that player to the compare selection. */
   readonly focusedPlayer?: PlayerDirectoryItem | undefined;
+  /** The directory owns the URL selection; this is the focused row's shortcut. */
+  readonly onComparePlayer?: ((steamId: string) => void) | undefined;
   /** How many may be compared, for the 「还差一名」 copy. */
   readonly limit: number;
   /**
@@ -158,10 +157,27 @@ export function PlayerComparePanel({
   players,
   pendingPlayers = [],
   focusedPlayer,
+  onComparePlayer,
   limit,
   onClear,
 }: PlayerComparePanelProps) {
   const [left, right] = players;
+  const candidate = focusedPlayer !== undefined && !players.some((player) => player.steam_id === focusedPlayer.steam_id)
+    ? focusedPlayer
+    : undefined;
+
+  const compareAction = (size: 'sm' | 'lg') => candidate === undefined || onComparePlayer === undefined ? undefined : (
+    <Button
+      size={size}
+      variant="primary"
+      block={size === 'lg'}
+      aria-label={left === undefined ? undefined : t`与 ${candidate.name} 比较`}
+      title={candidate.name}
+      onClick={() => onComparePlayer(candidate.steam_id)}
+    >
+      <Trans>加入比较</Trans>
+    </Button>
+  );
 
   if (pendingPlayers.length > 0) {
     const selectedCount = players.length + pendingPlayers.length;
@@ -217,23 +233,23 @@ export function PlayerComparePanel({
         <Inspector
           title={<Trans>比较</Trans>}
           label={t`比较`}
-          summary={<Trans>当前查看 {focusedPlayer.name} · 尚未加入比较</Trans>}
+          summary={<Trans>当前查看 {focusedPlayer.name}</Trans>}
+          summaryActions={compareAction('sm')}
           footer={
-            <RouteLink to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
-              <Trans>打开 {focusedPlayer.name} 的档案</Trans>
-            </RouteLink>
+            <>
+              {compareAction('lg')}
+              <RouteLink to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
+                <Trans>打开 {focusedPlayer.name} 的档案</Trans>
+              </RouteLink>
+            </>
           }
         >
-          <section className="border border-divider" data-focused-player={focusedPlayer.steam_id}>
-            <header className="border-l-2 border-accent px-3 py-2">
-              <h3 className="font-heading text-xl">{focusedPlayer.name}</h3>
-              <p className="text-xs text-neutral-600">
-                {focusedPlayer.last_team ?? NO_VALUE}
-                {' · '}
-                <Trans>尚未加入比较</Trans>
-              </p>
+          <section data-focused-player={focusedPlayer.steam_id}>
+            <header className="pb-3">
+              <h3 className="break-words font-heading text-xl">{focusedPlayer.name}</h3>
+              {focusedPlayer.last_team === null ? null : <p className="text-xs text-neutral-600">{focusedPlayer.last_team}</p>}
             </header>
-            <dl className="border-t border-divider px-3 py-2 text-sm">
+            <dl className="border-t border-divider py-3 text-sm">
               {metrics.map((metric) => (
                 <div key={metric.id} className="flex min-h-7 items-center justify-between gap-3">
                   <dt className="text-neutral-600">{metric.label}</dt>
@@ -242,11 +258,6 @@ export function PlayerComparePanel({
               ))}
             </dl>
           </section>
-          <p className="border border-dashed border-divider p-3 text-xs leading-normal text-neutral-700">
-            <Trans>
-              勾选 {focusedPlayer.name}，再勾选另一名选手，即可并排比较。最多 {limit} 名。
-            </Trans>
-          </p>
         </Inspector>
       );
     }
@@ -255,7 +266,7 @@ export function PlayerComparePanel({
         <Empty
           title={<Trans>还没有选中选手</Trans>}
           description={
-            <Trans>勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。</Trans>
+            <Trans>勾选最多 {limit} 名选手，比较 K/D、ADR 和爆头率。</Trans>
           }
           actions={null}
         />
@@ -264,18 +275,22 @@ export function PlayerComparePanel({
   }
 
   if (right === undefined) {
+    const addToCompare = compareAction('lg');
     return (
       <Inspector
         title={<Trans>比较</Trans>}
         label={t`比较`}
         summary={<Trans>已选 {left.name}，还差一名</Trans>}
-        footer={onClear === undefined ? undefined : <ClearFooter onClear={onClear} />}
+        summaryActions={compareAction('sm')}
+        footer={addToCompare === undefined && onClear === undefined ? undefined : (
+          <>{addToCompare}{onClear === undefined ? null : <ClearFooter onClear={onClear} />}</>
+        )}
       >
         <div className="flex gap-3">
           <PlayerCard player={left} emphasis />
         </div>
         <p className="text-xs leading-normal text-neutral-700">
-          <Trans>再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。</Trans>
+          <Trans>再选择一名选手进行比较。</Trans>
         </p>
       </Inspector>
     );
@@ -308,39 +323,21 @@ export function PlayerComparePanel({
                 {row.print(row.left)} · {row.print(row.right)}
               </span>
             </div>
-            <div className="flex h-3 gap-1">
+            <div className="flex flex-col gap-1">
               <div
-                className="bg-accent"
+                className="h-1.5 bg-accent"
                 style={{ width: `${String(barPercent(row.left, row.right))}%` }}
                 aria-hidden="true"
               />
               <div
-                className="bg-neutral-400"
+                className="h-1.5 bg-neutral-400"
                 style={{ width: `${String(barPercent(row.right, row.left))}%` }}
                 aria-hidden="true"
               />
             </div>
           </div>
         ))}
-
-        {/* Verbatim from the artboard: a statistic the demos do not carry gets a
-            dashed empty rail and the words 「数据不可用」, never a zero bar. */}
-        <div data-compare-metric="rank">
-          <div className="mb-1 flex justify-between text-xs text-neutral-600">
-            <span>
-              <Trans>段位分布</Trans>
-            </span>
-            <span>
-              <Trans>数据不可用</Trans>
-            </span>
-          </div>
-          <div className="h-3 border border-dashed border-neutral-400" aria-hidden="true" />
-        </div>
       </div>
-
-      <p className="text-xs leading-normal text-neutral-600">
-        <Trans>首杀、残局胜率和常用地图还没有分析结果，暂不显示。</Trans>
-      </p>
     </Inspector>
   );
 }

@@ -1,10 +1,8 @@
 /*
  * `markup` project — 「比较」.
  *
- * The two things worth pinning are both about honesty: a statistic the demos do
- * not carry is drawn as the artboard's dashed 「数据不可用」 rail rather than as a
- * zero bar, and every bar's value is also written out in figures so the picture
- * is never the only channel.
+ * Available metrics retain explicit figures and a shared comparison scale.
+ * Unsupported statistics do not occupy a permanent empty row.
  */
 
 import { MemoryRouter } from 'react-router-dom';
@@ -51,10 +49,12 @@ describe('with a focused row but nothing selected', () => {
         focusedPlayer={kael}
         limit={2}
         onClear={() => undefined}
+        onComparePlayer={() => undefined}
       />,
     );
     expect(html).toContain('data-focused-player="STEAM_KAEL"');
-    expect(html).toContain('尚未加入比较');
+    expect(html).toContain('加入比较');
+    expect(html).not.toContain('data-compare-card=');
     expect(html).toContain('1.42');
   });
 });
@@ -62,13 +62,25 @@ describe('with a focused row but nothing selected', () => {
 describe('with one selected', () => {
   const html = render(<PlayerComparePanel players={[kael]} limit={2} onClear={() => undefined} />);
 
-  it('states the cap in words, as the selection bar does', () => {
-    expect(html).toContain('再勾一名选手才能比较');
-    expect(html).toContain('最多 2 名');
+  it('gives one concise next step', () => {
+    expect(html).toContain('再选择一名选手进行比较');
   });
 
   it('still offers the one thing that works with one player', () => {
     expect(html).toContain('href="/players/STEAM_KAEL"');
+  });
+
+  it('keeps the action short while exposing a long candidate name accessibly', () => {
+    const name = 'A-player-name-that-would-overflow-the-inspector-footer';
+    const html = render(<PlayerComparePanel
+      players={[kael]}
+      focusedPlayer={directoryItem({ steam_id: 'STEAM_CANDIDATE', name })}
+      limit={2}
+      onComparePlayer={() => undefined}
+    />);
+    expect(html).toContain(`aria-label="与 ${name} 比较"`);
+    expect(html).toContain(`title="${name}"`);
+    expect(html).toContain('>加入比较</button>');
   });
 });
 
@@ -96,14 +108,9 @@ describe('with two selected', () => {
     expect(html).toContain('width:90%');
   });
 
-  it('draws 段位分布 as the artboard s dashed unavailable rail', () => {
-    expect(html).toContain('data-compare-metric="rank"');
-    expect(html).toContain('数据不可用');
-    expect(html).toContain('border-dashed');
-  });
-
-  it('says which artboard columns the service does not send', () => {
-    expect(html).toContain('首杀、残局胜率和常用地图还没有分析结果');
+  it('only presents statistics that can be compared', () => {
+    expect(html).not.toContain('data-compare-metric="rank"');
+    expect(html).not.toContain('数据不可用');
   });
 });
 

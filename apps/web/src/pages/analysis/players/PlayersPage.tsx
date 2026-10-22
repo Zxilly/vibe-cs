@@ -22,8 +22,8 @@
  * 「06」 has 首杀, 残局胜率 and 常用地图. `PlayerAggregateStats` carries matches,
  * kills, deaths, assists, headshots, damage, ADR and K/D — and none of those
  * three. They are omitted rather than rendered as zeros or as dashes in a
- * column header nobody can ever fill, and the comparison panel says so in
- * words. Reported as a contract gap.
+ * column header nobody can ever fill. The comparison panel uses the same
+ * available statistics rather than adding permanent unavailable rows.
  *
  * 爆头率 is not a wire field either, but it *is* derivable — headshots ÷ kills
  * — so it is computed (`playerStats.headshotRate`) and shows the dash only when
@@ -265,6 +265,7 @@ export function PlayersPage() {
       players={comparePlayers}
       pendingPlayers={pendingPlayers}
       focusedPlayer={activePlayer}
+      onComparePlayer={(steamId) => commit({ ...state, compare: reconcileCompare(state.compare, new Set([...state.compare, steamId])) })}
       limit={PLAYER_COMPARE_LIMIT}
       onClear={collapsed ? clearCompare : undefined}
     />
@@ -307,7 +308,6 @@ export function PlayersPage() {
               }}
             />
           </div>
-          <p className="text-xs text-neutral-600"><Trans>勾选两名选手进行比较。</Trans></p>
         </Toolbar>
       }
       footer={

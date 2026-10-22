@@ -161,6 +161,21 @@ describe('the §10.3 selection contract at 312 players', () => {
 });
 
 describe('the selection is in the address bar (§4.4)', () => {
+  it('adds focused players from the inspector through the same comparison selection', async () => {
+    mount();
+    await rowCheckboxes();
+    fireEvent.click(screen.getByRole('button', { name: '加入比较' }));
+    await waitFor(() => expect(address()).toContain('compare=STEAM_0'));
+
+    fireEvent.click(within(screen.getByRole('table')).getByText('Kael-1'));
+    fireEvent.click(await screen.findByRole('button', { name: '与 Kael-1 比较' }));
+
+    await waitFor(() => expect(address()).toContain('compare=STEAM_0%2CSTEAM_1'));
+    const boxes = await rowCheckboxes();
+    expect(boxes.filter(isTicked)).toHaveLength(PLAYER_COMPARE_LIMIT);
+    expect(boxes.filter((box) => box.disabled)).toHaveLength(PLAYER_PAGE_SIZE - PLAYER_COMPARE_LIMIT);
+  });
+
   it('writes the ticked players, in the order they were ticked', async () => {
     mount();
     const boxes = await rowCheckboxes();

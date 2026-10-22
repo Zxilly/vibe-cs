@@ -247,7 +247,7 @@ msgid "{0} 回合"
 msgstr "{0} rounds"
 
 #. placeholder {0}: player.stats.matches
-#: src/pages/analysis/players/PlayerComparePanel.tsx:112
+#: src/pages/analysis/players/PlayerComparePanel.tsx:109
 msgid "{0} 场"
 msgstr "{0} matches"
 
@@ -554,7 +554,7 @@ msgid "{total} 个成品文件 · {available} 可用"
 msgstr "{total} finished files · {available} available"
 
 #. placeholder {0}: directory.data.coverage.projected_demos
-#: src/pages/analysis/players/PlayersPage.tsx:281
+#: src/pages/analysis/players/PlayersPage.tsx:282
 msgid "{total} 名选手 · 来自 {0} 场已分析比赛"
 msgstr "{total} players · from {0} analyzed matches"
 
@@ -659,8 +659,8 @@ msgstr "A"
 #: src/pages/analysis/match/views/PlayersView.tsx:321
 #: src/pages/analysis/match/views/TeamsView.tsx:143
 #: src/pages/analysis/match/views/TeamsView.tsx:576
-#: src/pages/analysis/players/PlayerComparePanel.tsx:65
-#: src/pages/analysis/players/PlayerComparePanel.tsx:211
+#: src/pages/analysis/players/PlayerComparePanel.tsx:62
+#: src/pages/analysis/players/PlayerComparePanel.tsx:227
 #: src/pages/analysis/players/PlayerMapTable.tsx:56
 #: src/pages/analysis/players/PlayerMapTable.tsx:57
 #: src/pages/analysis/players/PlayersPage.tsx:132
@@ -849,8 +849,8 @@ msgstr "K Pause timeline"
 #: src/pages/analysis/match/views/PlayersView.tsx:179
 #: src/pages/analysis/match/views/TeamsView.tsx:138
 #: src/pages/analysis/match/views/TeamsView.tsx:575
-#: src/pages/analysis/players/PlayerComparePanel.tsx:58
-#: src/pages/analysis/players/PlayerComparePanel.tsx:210
+#: src/pages/analysis/players/PlayerComparePanel.tsx:55
+#: src/pages/analysis/players/PlayerComparePanel.tsx:226
 #: src/pages/analysis/players/PlayerMapTable.tsx:49
 #: src/pages/analysis/players/PlayerMapTable.tsx:50
 #: src/pages/analysis/players/PlayersPage.tsx:124
@@ -1186,6 +1186,11 @@ msgstr "No later than {0}"
 #: src/domain/task/TaskDuration.tsx:45
 msgid "不足 1 秒"
 msgstr "Under 1s"
+
+#. placeholder {0}: candidate.name
+#: src/pages/analysis/players/PlayerComparePanel.tsx:174
+msgid "与 {0} 比较"
+msgstr "Compare with {0}"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:348
 msgid "专业"
@@ -2053,9 +2058,9 @@ msgstr "Everything else keeps working. Go back to the dashboard, or export this 
 msgid "其余类型仍然有 {0} 条。"
 msgstr "The other kinds still hold {0}."
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:278
-msgid "再勾一名选手才能比较。最多 {limit} 名，选得太多会挤窄每一列。"
-msgstr "Select one more player to compare. You can compare up to {limit}; more selections make each column narrower."
+#: src/pages/analysis/players/PlayerComparePanel.tsx:293
+msgid "再选择一名选手进行比较。"
+msgstr "Select one more player to compare."
 
 #: src/app/shell/WindowTitleBar.tsx:347
 #: src/app/shell/WindowTitleBar.tsx:348
@@ -2178,7 +2183,7 @@ msgstr "Out must be after In"
 #: src/pages/analysis/match/views/PlayersView.tsx:154
 #: src/pages/analysis/match/views/PlayersView.tsx:155
 #: src/pages/analysis/match/views/RoundsView.tsx:86
-#: src/pages/analysis/players/PlayerComparePanel.tsx:213
+#: src/pages/analysis/players/PlayerComparePanel.tsx:229
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
 #: src/pages/analysis/players/PlayersPage.tsx:148
 #: src/pages/analysis/players/PlayersPage.tsx:149
@@ -2612,6 +2617,10 @@ msgstr "Added clips start unrecorded; export becomes available once they are rec
 msgid "加入当前高光"
 msgstr "Add current highlight"
 
+#: src/pages/analysis/players/PlayerComparePanel.tsx:178
+msgid "加入比较"
+msgstr "Add to comparison"
+
 #: src/domain/editing/ProjectWorkspaceDock.tsx:119
 msgid "加入面板分组"
 msgstr "Add to panel group"
@@ -2639,18 +2648,9 @@ msgstr "Assists"
 msgid "勾选"
 msgstr "tick"
 
-#. placeholder {0}: focusedPlayer.name
-#: src/pages/analysis/players/PlayerComparePanel.tsx:246
-msgid "勾选 {0}，再勾选另一名选手，即可并排比较。最多 {limit} 名。"
-msgstr "Check {0}, then check one more player to compare them side by side. Up to {limit} players."
-
-#: src/pages/analysis/players/PlayersPage.tsx:310
-msgid "勾选两名选手进行比较。"
-msgstr "Check two players to compare them."
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:258
-msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
-msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are placed side by side here."
+#: src/pages/analysis/players/PlayerComparePanel.tsx:269
+msgid "勾选最多 {limit} 名选手，比较 K/D、ADR 和爆头率。"
+msgstr "Select up to {limit} players to compare K/D, ADR, and headshot rate."
 
 #. placeholder {0}: batch.length
 #: src/pages/analysis/match/views/HighlightsView.tsx:412
@@ -3844,10 +3844,6 @@ msgstr "Combine selected clips into a nested clip. Double-click it to edit."
 msgid "将用上一次自动备份覆盖当前配置文件，然后重新读取。"
 msgstr "This will overwrite the current config file with the last automatic backup, then reload it."
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:233
-msgid "尚未加入比较"
-msgstr "Not added to comparison"
-
 #: src/pages/shared/onboarding/GuidePage.tsx:137
 #: src/pages/shared/settings/AdvancedSection.tsx:143
 #: src/pages/shared/settings/AdvancedSection.tsx:193
@@ -4173,15 +4169,15 @@ msgid "已选 {0} 条高光"
 msgstr "{0} highlights selected"
 
 #. placeholder {0}: left.name
-#: src/pages/analysis/players/PlayerComparePanel.tsx:271
+#: src/pages/analysis/players/PlayerComparePanel.tsx:283
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:175
+#: src/pages/analysis/players/PlayerComparePanel.tsx:191
 msgid "已选 {selectedCount} 名 · 正在读取档案"
 msgstr "{selectedCount} selected · Loading profiles"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:174
+#: src/pages/analysis/players/PlayerComparePanel.tsx:190
 msgid "已选 {selectedCount} 名 · 部分档案未能读取"
 msgstr "{selectedCount} selected · Some profiles could not be loaded"
 
@@ -4360,9 +4356,9 @@ msgid "当前条件下没有位置数据。"
 msgstr "No position data matches these filters."
 
 #. placeholder {0}: focusedPlayer.name
-#: src/pages/analysis/players/PlayerComparePanel.tsx:220
-msgid "当前查看 {0} · 尚未加入比较"
-msgstr "Viewing {0} · not added to comparison"
+#: src/pages/analysis/players/PlayerComparePanel.tsx:236
+msgid "当前查看 {0}"
+msgstr "Viewing {0}"
 
 #: src/domain/editing/ProjectTimeline.tsx:2256
 msgid "当前没有可撤销的剪辑"
@@ -4738,8 +4734,8 @@ msgstr "Open"
 
 #. placeholder {0}: focusedPlayer.name
 #. placeholder {0}: player.name
-#: src/pages/analysis/players/PlayerComparePanel.tsx:117
-#: src/pages/analysis/players/PlayerComparePanel.tsx:223
+#: src/pages/analysis/players/PlayerComparePanel.tsx:114
+#: src/pages/analysis/players/PlayerComparePanel.tsx:242
 msgid "打开 {0} 的档案"
 msgstr "Open the profile of {0}"
 
@@ -4802,7 +4798,7 @@ msgstr "Open recovery center"
 msgid "打开所在文件夹"
 msgstr "Open containing folder"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:119
+#: src/pages/analysis/players/PlayerComparePanel.tsx:116
 msgid "打开档案"
 msgstr "Open profile"
 
@@ -5174,8 +5170,8 @@ msgstr "Search matches, players or file names"
 msgid "搜索选手、武器或事件"
 msgstr "Search players, weapons or events"
 
-#: src/pages/analysis/players/PlayersPage.tsx:295
 #: src/pages/analysis/players/PlayersPage.tsx:296
+#: src/pages/analysis/players/PlayersPage.tsx:297
 msgid "搜索选手或别名"
 msgstr "Search players or aliases"
 
@@ -5322,10 +5318,6 @@ msgstr "Glitch"
 #: src/domain/editing/ProjectTimeline.tsx:2955
 msgid "效果"
 msgstr "Effects"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:334
-msgid "数据不可用"
-msgstr "No data"
 
 #: src/pages/shared/settings/AdvancedSection.tsx:114
 #: src/pages/shared/settings/FilesSection.tsx:109
@@ -6541,7 +6533,7 @@ msgid "正在读取"
 msgstr "Reading"
 
 #. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:189
+#: src/pages/analysis/players/PlayerComparePanel.tsx:205
 msgid "正在读取 {0} 的档案"
 msgstr "Loading the profile for {0}"
 
@@ -6652,7 +6644,7 @@ msgstr "Weapon: {0}"
 
 #: src/pages/analysis/match/views/PlayersView.tsx:162
 #: src/pages/analysis/match/views/PlayersView.tsx:163
-#: src/pages/analysis/players/PlayerComparePanel.tsx:214
+#: src/pages/analysis/players/PlayerComparePanel.tsx:230
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
 #: src/pages/analysis/players/PlayersPage.tsx:156
 #: src/pages/analysis/players/PlayersPage.tsx:157
@@ -6680,10 +6672,6 @@ msgstr "Clutch"
 #: src/pages/analysis/match/views/OverviewView.tsx:145
 msgid "残局候选"
 msgstr "Clutch candidates"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:331
-msgid "段位分布"
-msgstr "Rank distribution"
 
 #: src/pages/analysis/players/PlayerProfilePage.tsx:290
 msgid "段位历史不可用：这批 Demo 里没有段位信息。"
@@ -6745,7 +6733,7 @@ msgstr "Rate stretch {0}%"
 msgid "比率伸缩工具 (R)"
 msgstr "Rate Stretch Tool (R)"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:209
+#: src/pages/analysis/players/PlayerComparePanel.tsx:225
 #: src/pages/analysis/players/PlayersPage.tsx:116
 #: src/pages/analysis/players/PlayersPage.tsx:117
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:117
@@ -6794,7 +6782,7 @@ msgstr "Match workspace"
 msgid "比赛工作区视图"
 msgstr "Match workspace views"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:79
+#: src/pages/analysis/players/PlayerComparePanel.tsx:76
 msgid "比赛数"
 msgstr "Matches"
 
@@ -6822,22 +6810,22 @@ msgstr "Match detail"
 msgid "比赛趋势没能读出来：{0}"
 msgstr "Could not load match trends: {0}"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:171
-#: src/pages/analysis/players/PlayerComparePanel.tsx:172
-#: src/pages/analysis/players/PlayerComparePanel.tsx:218
-#: src/pages/analysis/players/PlayerComparePanel.tsx:219
-#: src/pages/analysis/players/PlayerComparePanel.tsx:254
-#: src/pages/analysis/players/PlayerComparePanel.tsx:254
-#: src/pages/analysis/players/PlayerComparePanel.tsx:269
-#: src/pages/analysis/players/PlayerComparePanel.tsx:270
-#: src/pages/analysis/players/PlayerComparePanel.tsx:288
-#: src/pages/analysis/players/PlayerComparePanel.tsx:289
+#: src/pages/analysis/players/PlayerComparePanel.tsx:187
+#: src/pages/analysis/players/PlayerComparePanel.tsx:188
+#: src/pages/analysis/players/PlayerComparePanel.tsx:234
+#: src/pages/analysis/players/PlayerComparePanel.tsx:235
+#: src/pages/analysis/players/PlayerComparePanel.tsx:265
+#: src/pages/analysis/players/PlayerComparePanel.tsx:265
+#: src/pages/analysis/players/PlayerComparePanel.tsx:281
+#: src/pages/analysis/players/PlayerComparePanel.tsx:282
+#: src/pages/analysis/players/PlayerComparePanel.tsx:303
+#: src/pages/analysis/players/PlayerComparePanel.tsx:304
 msgid "比较"
 msgstr "Compare"
 
 #. placeholder {0}: left.name
 #. placeholder {1}: right.name
-#: src/pages/analysis/players/PlayerComparePanel.tsx:291
+#: src/pages/analysis/players/PlayerComparePanel.tsx:306
 msgid "比较 {0} 与 {1}"
 msgstr "Compare {0} with {1}"
 
@@ -7299,8 +7287,8 @@ msgstr "The clear did not succeed"
 #: src/pages/analysis/evidence/EvidencePage.tsx:336
 #: src/pages/analysis/match/views/HighlightsView.tsx:385
 #: src/pages/analysis/match/views/HighlightsView.tsx:419
-#: src/pages/analysis/players/PlayerComparePanel.tsx:129
-#: src/pages/analysis/players/PlayerComparePanel.tsx:176
+#: src/pages/analysis/players/PlayerComparePanel.tsx:126
+#: src/pages/analysis/players/PlayerComparePanel.tsx:192
 #: src/pages/analysis/players/PlayersPage.tsx:325
 msgid "清空选择"
 msgstr "Clear the selection"
@@ -7551,8 +7539,8 @@ msgstr "Headshot kills"
 #: src/pages/analysis/match/views/PlayersView.tsx:322
 #: src/pages/analysis/match/views/TeamsView.tsx:146
 #: src/pages/analysis/match/views/TeamsView.tsx:577
-#: src/pages/analysis/players/PlayerComparePanel.tsx:72
-#: src/pages/analysis/players/PlayerComparePanel.tsx:212
+#: src/pages/analysis/players/PlayerComparePanel.tsx:69
+#: src/pages/analysis/players/PlayerComparePanel.tsx:228
 #: src/pages/analysis/players/PlayerMapTable.tsx:63
 #: src/pages/analysis/players/PlayerMapTable.tsx:64
 #: src/pages/analysis/players/PlayersPage.tsx:140
@@ -9221,7 +9209,7 @@ msgstr "No note selected yet"
 msgid "还没有选中证据"
 msgstr "No evidence selected yet"
 
-#: src/pages/analysis/players/PlayerComparePanel.tsx:256
+#: src/pages/analysis/players/PlayerComparePanel.tsx:267
 msgid "还没有选中选手"
 msgstr "No player selected yet"
 
@@ -9648,7 +9636,7 @@ msgid "选手 {0}"
 msgstr "Player {0}"
 
 #. placeholder {0}: player.id
-#: src/pages/analysis/players/PlayerComparePanel.tsx:197
+#: src/pages/analysis/players/PlayerComparePanel.tsx:213
 msgid "选手 {0} 的档案未能读取"
 msgstr "Could not load the profile for player {0}"
 
@@ -9679,7 +9667,7 @@ msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:185
 #: src/app/shell/navigation.tsx:86
-#: src/pages/analysis/players/PlayersPage.tsx:278
+#: src/pages/analysis/players/PlayersPage.tsx:279
 #: src/pages/analysis/players/PlayersPage.tsx:345
 msgid "选手目录"
 msgstr "Players"
@@ -10493,10 +10481,6 @@ msgstr "Opening killer"
 #: src/pages/analysis/match/views/PlayersView.tsx:327
 msgid "首杀 / 首死"
 msgstr "Opening kills / deaths"
-
-#: src/pages/analysis/players/PlayerComparePanel.tsx:342
-msgid "首杀、残局胜率和常用地图还没有分析结果，暂不显示。"
-msgstr "Opening kills, clutch win rate and favorite maps have no analysis results yet, so they are not shown."
 
 #: src/pages/analysis/match/views/PlayersView.tsx:210
 msgid "首杀与首死"

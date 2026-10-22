@@ -189,7 +189,7 @@ export function AiAgentSection() {
             },
           }}
         >
-          <Plural value={removed} other="已删除 # 条对话，剪辑单、后台任务和成片都还在" />
+          <Plural value={removed} other="已删除 # 条对话，作品、后台任务和成片都还在" />
         </Alert>
       )}
 
@@ -229,7 +229,6 @@ export function AiAgentSection() {
       <SettingsBlock
         id="conversations"
         title={<Trans>对话</Trans>}
-        description={<Trans>Agent 对话保留多久，以及它们占了多少空间。</Trans>}
       >
         {settingsError !== null ? (
           <Alert
@@ -282,7 +281,6 @@ export function AiAgentSection() {
       <SettingsBlock
         id="behavior"
         title={<Trans>操作确认</Trans>}
-        description={<Trans>Agent 做视频时默认遵守的规则。</Trans>}
       >
         <SettingsSwitch
           label={<Trans>录制前始终由你确认</Trans>}
@@ -373,7 +371,7 @@ export function AiAgentSection() {
         onConfirm={() => void runRetention()}
       >
         <Trans>
-          超出保留范围的对话会被删除。剪辑单、录制任务和成片不受影响。
+          超出保留范围的对话会被删除。作品、录制任务和成片不受影响。
         </Trans>
       </Dialog>
 
@@ -389,7 +387,7 @@ export function AiAgentSection() {
         onConfirm={() => void runClear()}
       >
         <Trans>
-          清空会删除全部对话记录。剪辑单、录制任务和成片继续保留。
+          清空会删除全部对话记录。作品、录制任务和成片继续保留。
         </Trans>
       </Dialog>
     </div>
@@ -464,7 +462,6 @@ function ModelBlock({
     <SettingsBlock
       id="model"
       title={<Trans>模型</Trans>}
-      description={<Trans>Agent 使用的模型和连接方式。</Trans>}
       actions={draft === null ? undefined : (
         <>
           <Button variant="primary" size="sm" onClick={onSave} {...actionProps}>

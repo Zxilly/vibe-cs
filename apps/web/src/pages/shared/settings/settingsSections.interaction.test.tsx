@@ -250,6 +250,23 @@ describe('文件与资料库', () => {
 });
 
 describe('游戏与录制', () => {
+  it.each([
+    ['前留白', 'pre_roll_seconds', 2],
+    ['后留白', 'post_roll_seconds', 1.5],
+  ] as const)('names %s distinctly and writes its own duration from the keyboard', async (label, field, seconds) => {
+    const { written } = render(<GameSection />);
+    const slider = await screen.findByRole('slider', { name: label });
+
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    fireEvent.keyUp(slider, { key: 'ArrowRight' });
+
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(written[0]).toEqual({
+      ...CONFIG,
+      recording: { ...CONFIG.recording, [field]: seconds },
+    });
+  });
+
   it('writes a voice policy as one value, not two flags', async () => {
     const { written } = render(<GameSection />);
     await loaded('语音');

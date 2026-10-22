@@ -197,14 +197,14 @@ export function GameSection() {
         ) : (
           <>
             <RollRow
-              label={<Trans>前留白</Trans>}
+              label={t`前留白`}
               value={current.recording.pre_roll_seconds}
               disabled={blocked}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
               onCommit={(seconds) => writeRecording({ pre_roll_seconds: seconds })}
             />
             <RollRow
-              label={<Trans>后留白</Trans>}
+              label={t`后留白`}
               value={current.recording.post_roll_seconds}
               disabled={blocked}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
@@ -366,7 +366,7 @@ function dotStatus(state: DependencyState): StatusDotStatus {
 }
 
 interface RollRowProps {
-  readonly label: React.ReactNode;
+  readonly label: string;
   readonly value: number;
   readonly disabled: boolean;
   readonly disabledReason?: string | undefined;
@@ -404,7 +404,7 @@ function RollRow({ label, value, disabled, disabledReason, onCommit }: RollRowPr
           max={ROLL_MAX}
           step={ROLL_STEP}
           disabled={disabled}
-          aria-label={typeof label === 'string' ? label : t`留白`}
+          aria-label={label}
           valueText={t`${shown.toFixed(1)} 秒`}
           onChange={(next) => setDraft(next)}
           onCommit={(next) => commit(next)}

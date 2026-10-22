@@ -3,8 +3,8 @@
  *
  * 「补齐 · 规范与状态」 draws a name field prefilled 「待剪素材」, the line
  * 「保存当前的搜索、筛选、排序和列配置」, and 取消 / 保存. The saved view then
- * appears in the filter strip as the accent tag 「保存的视图 · 待剪素材」 that
- * 「02 Demo 资料库」 draws.
+ * appears in the filter strip's saved-view menu, with its name visible while
+ * its filters and columns match the current library.
  *
  * App-session view state is owned by librarySession; changing routes does not
  * discard a saved filter and column snapshot.

@@ -258,7 +258,7 @@ describe('保存为视图', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: '保存' }));
     first.unmount();
     renderLibrary({ seed: ONLINE });
-    expect(screen.getByRole('button', { name: '保存的视图 · Return later' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '保存的视图' }).textContent).toBe('Return later');
   });
 
   it('keeps a saved view through Steam navigation and restores its column configuration', async () => {
@@ -276,16 +276,22 @@ describe('保存为视图', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: '保存' }));
     fireEvent.click(screen.getByRole('button', { name: 'Steam 下载' }));
     fireEvent.click(await screen.findByRole('button', { name: '返回 Demo 资料库' }));
-    expect(await screen.findByRole('button', { name: '保存的视图 · No map column' })).toBeTruthy();
+    expect((await screen.findByRole('button', { name: '保存的视图' })).textContent).toBe('No map column');
     fireEvent.click(screen.getByRole('button', { name: '列配置' }));
     fireEvent.click(within(dialog()).getByRole('button', { name: '恢复默认' }));
     fireEvent.click(within(dialog()).getByRole('button', { name: '应用' }));
     expect(screen.getByRole('columnheader', { name: '地图' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '保存的视图 · No map column' }));
+    const views = screen.getByRole('button', { name: '保存的视图' });
+    expect(views.textContent).toBe('保存的视图');
+    fireEvent.keyDown(views, { key: 'Enter' });
+    const savedView = await screen.findByRole('menuitem', { name: 'No map column' });
+    fireEvent.keyDown(savedView, { key: 'Enter' });
     expect(screen.queryByRole('columnheader', { name: '地图' })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(views));
+    expect(views.textContent).toBe('No map column');
   });
 
-  it('saves the current address and shows it as the artboard’s accent tag', async () => {
+  it('saves the current address and keeps its name on the view menu', async () => {
     renderLibrary({ at: '/library?q=kael', seed: ONLINE });
 
     fireEvent.click(screen.getByRole('button', { name: '保存为视图' }));
@@ -293,7 +299,7 @@ describe('保存为视图', () => {
     fireEvent.click(within(dialog()).getByRole('button', { name: '保存' }));
 
     await waitFor(() => {
-      expect(screen.getByText('保存的视图 · 待剪素材')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '保存的视图' }).textContent).toBe('待剪素材');
     });
   });
 

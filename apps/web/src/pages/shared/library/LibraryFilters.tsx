@@ -2,7 +2,7 @@
  * Search, active filters and saved views under the library toolbar.
  *
  * The artboard draws, left to right: a search box, four dropdown chips (地图 /
- * 状态 / 平台 / 标签), the saved-view tags, then 列配置 and
+ * 状态 / 平台 / 标签), the saved-view menu, then 列配置 and
  * 导出元数据 flush right. `design/layout/Page`'s `bar` slot is the strip;
  * `--h-bar` is its minimum height.
  *
@@ -41,7 +41,7 @@ import { Search, X } from 'lucide-react';
 import { useRef } from 'react';
 
 import { OverflowMenu, type OverflowMenuItem } from '../../../design/layout';
-import { Badge, Button, cn, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
+import { Button, cn, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../../shared/desktop/dto';
 import type { ActionAvailability } from './libraryColumns';
 import { clearLibraryFilters, hasActiveFilter, type LibraryAddress } from './libraryQuery';
@@ -87,6 +87,7 @@ export interface LibraryFiltersProps {
   readonly mapNames: readonly string[];
   readonly tags: readonly ReviewTag[];
   readonly savedViews: readonly SavedLibraryView[];
+  readonly hiddenColumns: ReadonlySet<string>;
   readonly onApplySavedView: (view: SavedLibraryView) => void;
   readonly onSaveView: () => void;
   readonly onConfigureColumns: () => void;
@@ -101,6 +102,7 @@ export function LibraryFilters({
   mapNames,
   tags,
   savedViews,
+  hiddenColumns,
   onApplySavedView,
   onSaveView,
   onConfigureColumns,
@@ -109,6 +111,11 @@ export function LibraryFilters({
 }: LibraryFiltersProps) {
   const { i18n } = useLingui();
   const searchInput = useRef<HTMLInputElement>(null);
+  const currentView = [...savedViews].reverse().find((view) => (
+    (Object.keys(address) as (keyof LibraryAddress)[]).every((field) => field === 'page' || address[field] === view.address[field])
+    && view.hiddenColumns.length === hiddenColumns.size
+    && view.hiddenColumns.every((column) => hiddenColumns.has(column))
+  ));
 
   // The selected map stays listed while the catalogue is still loading, so a
   // pasted `?map=` address can be cleared before the list arrives.
@@ -211,22 +218,18 @@ export function LibraryFilters({
         </Button>
       ) : null}
 
-      {savedViews.map((view) => (
-        <Badge
-          key={view.name}
-          asChild
-          variant="accent"
-          className="flex-none"
-          onClick={() => {
-            onApplySavedView(view);
-          }}
-        >
-          <button type="button">
-            <Trans>保存的视图 · {view.name}</Trans>
-          </button>
-        </Badge>
-      ))}
       <div className="ml-auto flex flex-wrap items-center gap-1">
+        <OverflowMenu
+          label={t`保存的视图`}
+          triggerLabel={<span className="max-w-[var(--w-subnav)] truncate">{currentView?.name ?? <Trans>保存的视图</Trans>}</span>}
+          triggerClassName={cn('h-[var(--h-ctl-sm)]', currentView !== undefined && 'text-accent-800')}
+          items={savedViews.map((view) => ({
+            id: view.name,
+            label: view.name,
+            current: view === currentView,
+            onSelect: () => onApplySavedView(view),
+          }))}
+        />
         <Button size="sm" variant="ghost" onClick={onSaveView}>
           <Trans>保存为视图</Trans>
         </Button>
@@ -301,8 +304,7 @@ function FilterMenu({
       triggerLabel={
         <span className="truncate">
           {name}
-          {'：'}
-          {current}
+          {active ? <>：{current}</> : null}
         </span>
       }
       triggerClassName={cn(

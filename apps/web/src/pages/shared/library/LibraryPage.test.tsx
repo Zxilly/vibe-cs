@@ -73,8 +73,8 @@ describe('the frame', () => {
     expect(html).toContain('状态');
     // The platform chip is 平台, not the table column's 来源: one is
     // `match_source`, the other is how the file arrived.
-    expect(html).toContain('平台：全部');
-    expect(html).not.toContain('来源：全部');
+    expect(html).toContain('aria-label="平台"');
+    expect(html).not.toContain('：全部');
     expect(html).toContain('标签');
     expect(html).toContain('列配置');
     expect(html).toContain('导出元数据');

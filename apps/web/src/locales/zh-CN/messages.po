@@ -1564,7 +1564,7 @@ msgstr "保存 Steam 设置"
 
 #: src/pages/analysis/evidence/EvidencePage.tsx:271
 #: src/pages/analysis/evidence/EvidencePage.tsx:274
-#: src/pages/shared/library/LibraryFilters.tsx:231
+#: src/pages/shared/library/LibraryFilters.tsx:234
 #: src/pages/shared/library/SaveViewDialog.tsx:42
 msgid "保存为视图"
 msgstr "保存为视图"
@@ -1601,10 +1601,10 @@ msgstr "保存模型设置"
 msgid "保存片段标记"
 msgstr "保存片段标记"
 
-#. placeholder {0}: view.name
-#: src/pages/shared/library/LibraryFilters.tsx:225
-msgid "保存的视图 · {0}"
-msgstr "保存的视图 · {0}"
+#: src/pages/shared/library/LibraryFilters.tsx:223
+#: src/pages/shared/library/LibraryFilters.tsx:224
+msgid "保存的视图"
+msgstr "保存的视图"
 
 #: src/pages/shared/library/SaveViewDialog.tsx:73
 msgid "保存的视图只保留到关闭应用为止"
@@ -1844,9 +1844,9 @@ msgstr "全选本页"
 #: src/pages/analysis/match/views/ReplayView.tsx:399
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
 #: src/pages/editing/delivery/OutputsView.tsx:62
-#: src/pages/shared/library/LibraryFilters.tsx:149
-#: src/pages/shared/library/LibraryFilters.tsx:262
-#: src/pages/shared/library/LibraryFilters.tsx:280
+#: src/pages/shared/library/LibraryFilters.tsx:156
+#: src/pages/shared/library/LibraryFilters.tsx:265
+#: src/pages/shared/library/LibraryFilters.tsx:283
 #: src/pages/shared/tasks/TaskCenterPage.tsx:55
 msgid "全部"
 msgstr "全部"
@@ -2394,7 +2394,7 @@ msgid "列表视图"
 msgstr "列表视图"
 
 #: src/pages/shared/library/ColumnConfigDialog.tsx:66
-#: src/pages/shared/library/LibraryFilters.tsx:234
+#: src/pages/shared/library/LibraryFilters.tsx:237
 msgid "列配置"
 msgstr "列配置"
 
@@ -3368,7 +3368,7 @@ msgstr "在节目画布中移动 {0}"
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:126
 #: src/pages/shared/library/libraryColumns.tsx:92
 #: src/pages/shared/library/libraryColumns.tsx:93
-#: src/pages/shared/library/LibraryFilters.tsx:200
+#: src/pages/shared/library/LibraryFilters.tsx:207
 msgid "地图"
 msgstr "地图"
 
@@ -3450,7 +3450,7 @@ msgstr "声像"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/shared/library/LibraryPage.tsx:512
+#: src/pages/shared/library/LibraryPage.tsx:513
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "备注没有保存。重试会保存到原来的比赛。"
 
@@ -3748,7 +3748,7 @@ msgstr "导出 SRT 字幕"
 msgid "导出不可用"
 msgstr "导出不可用"
 
-#: src/pages/shared/library/LibraryFilters.tsx:237
+#: src/pages/shared/library/LibraryFilters.tsx:240
 msgid "导出元数据"
 msgstr "导出元数据"
 
@@ -4205,7 +4205,7 @@ msgstr "布局未保存"
 msgid "带坐标证据"
 msgstr "带坐标证据"
 
-#: src/pages/shared/library/LibraryFilters.tsx:202
+#: src/pages/shared/library/LibraryFilters.tsx:209
 msgid "平台"
 msgstr "平台"
 
@@ -5160,8 +5160,8 @@ msgstr "搜索作品…"
 msgid "搜索比赛、选手、作品、页面和动作"
 msgstr "搜索比赛、选手、作品、页面和动作"
 
-#: src/pages/shared/library/LibraryFilters.tsx:175
-#: src/pages/shared/library/LibraryFilters.tsx:176
+#: src/pages/shared/library/LibraryFilters.tsx:182
+#: src/pages/shared/library/LibraryFilters.tsx:183
 msgid "搜索比赛、选手或文件名"
 msgstr "搜索比赛、选手或文件名"
 
@@ -5368,7 +5368,7 @@ msgstr "文件已不在原位，记录仍然保留。"
 msgid "文件已删除。"
 msgstr "文件已删除。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:85
+#: src/pages/editing/delivery/OutputCard.tsx:79
 #: src/pages/editing/delivery/OutputsView.tsx:65
 #: src/pages/shared/library/LibraryFilters.tsx:57
 #: src/pages/shared/library/libraryFormat.ts:141
@@ -6056,7 +6056,7 @@ msgstr "查看"
 msgid "查看 {title} 的完整路径"
 msgstr "查看 {title} 的完整路径"
 
-#: src/pages/shared/library/LibraryPage.tsx:559
+#: src/pages/shared/library/LibraryPage.tsx:560
 msgid "查看作品"
 msgstr "查看作品"
 
@@ -6144,12 +6144,12 @@ msgstr "查看阶段日志"
 msgid "查看高光"
 msgstr "查看高光"
 
-#: src/pages/shared/library/LibraryFilters.tsx:203
+#: src/pages/shared/library/LibraryFilters.tsx:210
 #: src/pages/shared/library/LibraryInspector.tsx:253
 msgid "标签"
 msgstr "标签"
 
-#: src/pages/shared/library/LibraryPage.tsx:520
+#: src/pages/shared/library/LibraryPage.tsx:521
 msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
 msgstr "标签没有添加。重试会使用原来选择的比赛和标签。"
 
@@ -7606,7 +7606,7 @@ msgstr "版本、数据目录和当前录制占用。"
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:146
 #: src/pages/shared/library/libraryColumns.tsx:154
 #: src/pages/shared/library/libraryColumns.tsx:155
-#: src/pages/shared/library/LibraryFilters.tsx:201
+#: src/pages/shared/library/LibraryFilters.tsx:208
 msgid "状态"
 msgstr "状态"
 
@@ -8438,7 +8438,7 @@ msgstr "节目画布"
 msgid "花费"
 msgstr "花费"
 
-#: src/pages/shared/library/LibraryPage.tsx:560
+#: src/pages/shared/library/LibraryPage.tsx:561
 msgid "若作品已创建，可从作品列表打开并继续添加素材。"
 msgstr "若作品已创建，可从作品列表打开并继续添加素材。"
 
@@ -8677,7 +8677,7 @@ msgstr "请先停用不支持的效果"
 msgid "请先停用不支持的效果，再修改片段。"
 msgstr "请先停用不支持的效果，再修改片段。"
 
-#: src/pages/shared/library/LibraryPage.tsx:654
+#: src/pages/shared/library/LibraryPage.tsx:655
 msgid "请先读取应用配置"
 msgstr "请先读取应用配置"
 
@@ -10038,7 +10038,7 @@ msgstr "重新读取回放"
 msgid "重新选择"
 msgstr "重新选择"
 
-#: src/pages/shared/library/LibraryFilters.tsx:210
+#: src/pages/shared/library/LibraryFilters.tsx:217
 msgid "重置筛选"
 msgstr "重置筛选"
 
@@ -10103,11 +10103,11 @@ msgstr "重置筛选"
 msgid "重试"
 msgstr "重试"
 
-#: src/pages/shared/library/LibraryPage.tsx:509
+#: src/pages/shared/library/LibraryPage.tsx:510
 msgid "重试保存备注"
 msgstr "重试保存备注"
 
-#: src/pages/shared/library/LibraryPage.tsx:544
+#: src/pages/shared/library/LibraryPage.tsx:545
 msgid "重试回放"
 msgstr "重试回放"
 
@@ -10115,7 +10115,7 @@ msgstr "重试回放"
 msgid "重试操作"
 msgstr "重试操作"
 
-#: src/pages/shared/library/LibraryPage.tsx:517
+#: src/pages/shared/library/LibraryPage.tsx:518
 msgid "重试添加标签"
 msgstr "重试添加标签"
 

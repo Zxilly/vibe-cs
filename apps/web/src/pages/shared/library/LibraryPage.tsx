@@ -483,6 +483,7 @@ function DemoLibraryPage() {
           mapNames={mapNames.data ?? []}
           tags={tags.data ?? []}
           savedViews={savedViews}
+          hiddenColumns={hiddenColumns}
           onApplySavedView={(view) => {
             applyView(view);
             setLibraryAddress(view.address);

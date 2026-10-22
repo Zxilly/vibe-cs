@@ -17,9 +17,11 @@ the [official Three.js cleanup guide](https://threejs.org/manual/en/cleanup.html
 
 Vibe CS vendors the Rust parser packages from
 [`LaihoE/demoparser`](https://github.com/LaihoE/demoparser) at the immutable Git
-commit `266a831f08b0264dd722b017a5c05d765206a7ed`. The imported packages are
-`parser` 0.1.1 and `csgoproto` 0.1.5; the corresponding upstream Python release
-is `demoparser2` 0.42.0.
+commit `45ca85aeac8fb0de9d385124d2c7fe0e7b8ff0c8`. The imported packages are
+`parser` 0.1.1 and `csgoproto` 0.1.5. This source revision follows the latest
+published Python release, `demoparser2` 0.42.0, and includes the subsequent CS2
+entity-handle, protocol, UTF-8 event and sparse UserCmd fixes. It is not a new
+published Python package version.
 
 The source is stored in `vendor/demoparser`. The import contains the required
 Rust sources, generated protocol/map modules, build metadata, documentation, and
@@ -51,6 +53,25 @@ by the selected backend without retrying the other implementation. Any future
 upstream update must pin and audit a new full commit, repeat the mechanical import,
 review licensing and generated inputs, reapply only still-required local patches,
 and regenerate both hash manifests.
+
+## Native FFmpeg SDK
+
+The desktop build links the LGPL shared FFmpeg 8.1.3 SDK from
+[BtbN's September 2026 monthly build](https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08):
+
+- archive: `ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-shared-8.1.zip`
+- reported version: `n8.1.3-9-g29e619e767-20260930`
+- SHA-256: `3e47bda1607740550141e37c0e49d1e5182b34699f15adfd137ee266d346811a`
+
+`scripts/bootstrap-ffmpeg-sdk.ps1` verifies the archive against the release's
+checksum manifest, installs its headers and import/shared libraries under
+`.deps/ffmpeg`, and removes the bundled command-line executables. BtbN retains
+month-end builds for two years; ordinary daily build tags expire after 14 days.
+The script uses the retained monthly URL instead of the floating `latest` asset.
+
+`ez-ffmpeg` 0.19.3 requires `ffmpeg-next` and `ffmpeg-sys-next` 8.1. The direct
+`ffmpeg-next` dependency stays at 8.1.0 because Cargo rejects simultaneously
+linking the 8.1 and 9.0 `ffmpeg-sys-next` packages to the same native FFmpeg library.
 
 ## Application-managed HLAE runtime
 

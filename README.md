@@ -27,8 +27,8 @@ crates/
 
 ## Development
 
-Development requirements: Rust 1.88+, Node.js 22+, pnpm 10+, and PowerShell on Windows. The desktop build
-bootstraps a checksum-pinned FFmpeg 8.1.2 LGPL shared SDK and links it through `ffmpeg-next` and
+Development is tested with Rust 1.99.1, Node.js 26.12.1, pnpm 12.15.0, and PowerShell on Windows. The desktop build
+bootstraps a checksum-verified FFmpeg 8.1.3 LGPL shared SDK and links it through `ffmpeg-next` and
 `ez-ffmpeg`; probing, waveform decoding, filters, encoding and muxing all run inside the Rust process
 without an FFmpeg executable. Movie capture does not use or require OBS: it uses an
 application-managed, integrity-pinned portable HLAE release for deterministic Source 2 frame and

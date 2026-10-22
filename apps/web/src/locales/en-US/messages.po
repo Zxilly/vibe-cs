@@ -536,7 +536,7 @@ msgstr "{teamBName} alive"
 msgid "{teamBName} 胜"
 msgstr "{teamBName} wins"
 
-#: src/pages/editing/delivery/OutputCard.tsx:96
+#: src/pages/editing/delivery/OutputCard.tsx:89
 msgid "{title} 的更多操作"
 msgstr "More actions for {title}"
 
@@ -584,7 +584,7 @@ msgstr "\"{fileName}\" will be deleted from disk and cannot be recovered. Its re
 msgid "「{fileName}」已不在原位，只移除这条记录。"
 msgstr "\"{fileName}\" is no longer where it was; only this record is removed."
 
-#: src/pages/editing/delivery/OutputsView.tsx:222
+#: src/pages/editing/delivery/OutputsView.tsx:221
 msgid "「{scopeLabel}」还没有成品文件"
 msgstr "No finished files for \"{scopeLabel}\" yet"
 
@@ -2464,13 +2464,9 @@ msgid "删除效果 {0}"
 msgstr "Delete effect {0}"
 
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
-#: src/pages/editing/delivery/OutputCard.tsx:52
+#: src/pages/editing/delivery/OutputCard.tsx:51
 msgid "删除文件"
 msgstr "Delete file"
-
-#: src/pages/editing/delivery/OutputsView.tsx:266
-msgid "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
-msgstr "Delete file removes a managed file from disk and cannot be undone. Remove record never deletes an external file."
 
 #: src/domain/editing/ProjectTimeline.tsx:3160
 msgid "删除标记"
@@ -2766,7 +2762,7 @@ msgstr "See every note in the evidence search"
 msgid "去资料库分析一场"
 msgstr "Analyze a match in the library"
 
-#: src/pages/editing/delivery/OutputCard.tsx:116
+#: src/pages/editing/delivery/OutputCard.tsx:109
 msgid "参数不可读取"
 msgstr "Parameters unavailable"
 
@@ -2846,7 +2842,7 @@ msgstr "Ungroup panels"
 msgid "受害者被闪"
 msgstr "Victim flashed"
 
-#: src/pages/editing/delivery/OutputCard.tsx:86
+#: src/pages/editing/delivery/OutputCard.tsx:110
 msgid "受管文件"
 msgstr "Managed file"
 
@@ -3455,7 +3451,7 @@ msgstr "The note was not saved. Retrying will save it to the original match."
 msgid "复位视角"
 msgstr "Reset view"
 
-#: src/pages/editing/delivery/OutputCard.tsx:129
+#: src/pages/editing/delivery/OutputCard.tsx:124
 msgid "复制完整路径"
 msgstr "Copy full path"
 
@@ -3480,7 +3476,7 @@ msgstr "Review notes"
 msgid "外观与语言"
 msgstr "Appearance and language"
 
-#: src/pages/editing/delivery/OutputCard.tsx:86
+#: src/pages/editing/delivery/OutputCard.tsx:110
 msgid "外部文件"
 msgstr "External file"
 
@@ -3555,7 +3551,7 @@ msgstr "Bytes"
 msgid "安装和检查录制所需组件。"
 msgstr "Install and check recording components."
 
-#: src/pages/editing/delivery/OutputCard.tsx:113
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "完成时间"
 msgstr "Completed at"
 
@@ -3567,7 +3563,7 @@ msgstr "Full parameter JSON"
 msgid "完整序列"
 msgstr "Full sequence"
 
-#: src/pages/editing/delivery/OutputCard.tsx:117
+#: src/pages/editing/delivery/OutputCard.tsx:111
 msgid "完整路径"
 msgstr "Full path"
 
@@ -3749,7 +3745,7 @@ msgstr "Export unavailable"
 msgid "导出元数据"
 msgstr "Export metadata"
 
-#: src/pages/editing/delivery/OutputsView.tsx:223
+#: src/pages/editing/delivery/OutputsView.tsx:222
 msgid "导出后，成片会出现在这里。"
 msgstr "Your video appears here after export."
 
@@ -3960,7 +3956,7 @@ msgstr "{enabledEffectCount} effects enabled"
 msgid "已处理"
 msgstr "Handled"
 
-#: src/pages/editing/delivery/OutputCard.tsx:125
+#: src/pages/editing/delivery/OutputCard.tsx:120
 msgid "已复制完整路径"
 msgstr "Full path copied"
 
@@ -4318,7 +4314,7 @@ msgstr "Current {round}"
 msgid "当前 R{round}"
 msgstr "Current R{round}"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
+#: src/pages/editing/delivery/OutputCard.tsx:72
 msgid "当前作品版本"
 msgstr "Current project revision"
 
@@ -4367,11 +4363,6 @@ msgstr "This clip is read-only. End the Agent editing session or unlock the trac
 #: src/pages/shared/settings/RecoveryPage.tsx:340
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
-
-#. placeholder {0}: labels[filter]
-#: src/pages/editing/delivery/OutputsView.tsx:208
-msgid "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
-msgstr "Filtered by {0}. Show all types to see other output files."
 
 #. placeholder {0}: context.round
 #: src/pages/analysis/match/views/ReplayView.tsx:377
@@ -4617,11 +4608,11 @@ msgstr "Reset to default"
 msgid "成功"
 msgstr "Success"
 
-#: src/pages/editing/delivery/OutputsView.tsx:238
+#: src/pages/editing/delivery/OutputsView.tsx:237
 msgid "成品"
 msgstr "Finished"
 
-#: src/pages/editing/delivery/OutputCard.tsx:111
+#: src/pages/editing/delivery/OutputCard.tsx:104
 msgid "成品播放 {title}"
 msgstr "Play output {title}"
 
@@ -4789,8 +4780,9 @@ msgstr "Open workspace"
 msgid "打开恢复中心"
 msgstr "Open recovery center"
 
-#: src/pages/editing/delivery/OutputCard.tsx:94
-#: src/pages/editing/delivery/OutputCard.tsx:121
+#: src/pages/editing/delivery/OutputCard.tsx:87
+#: src/pages/editing/delivery/OutputCard.tsx:87
+#: src/pages/editing/delivery/OutputCard.tsx:116
 msgid "打开所在文件夹"
 msgstr "Open containing folder"
 
@@ -5194,7 +5186,7 @@ msgid "撤销这组修改"
 msgstr "Undo This Group of Changes"
 
 #: src/domain/media/Transport.tsx:188
-#: src/pages/editing/delivery/OutputCard.tsx:93
+#: src/pages/editing/delivery/OutputCard.tsx:86
 msgid "播放"
 msgstr "Play"
 
@@ -5247,7 +5239,7 @@ msgstr "Playback rate"
 msgid "播放预览（空格）"
 msgstr "Play preview (Space)"
 
-#: src/pages/editing/delivery/OutputsView.tsx:241
+#: src/pages/editing/delivery/OutputsView.tsx:240
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:151
 msgid "操作"
 msgstr "Actions"
@@ -5332,7 +5324,7 @@ msgstr "Full match"
 msgid "文件"
 msgstr "File"
 
-#: src/pages/editing/delivery/OutputCard.tsx:67
+#: src/pages/editing/delivery/OutputCard.tsx:66
 msgid "文件不在原位"
 msgstr "File moved"
 
@@ -5344,26 +5336,30 @@ msgstr "Files and library"
 msgid "文件信息"
 msgstr "File details"
 
-#: src/pages/editing/delivery/OutputCard.tsx:116
+#: src/pages/editing/delivery/OutputCard.tsx:109
 msgid "文件参数"
 msgstr "File parameters"
 
-#: src/pages/editing/delivery/OutputCard.tsx:114
+#: src/pages/editing/delivery/OutputCard.tsx:107
 msgid "文件名"
 msgstr "File name"
 
-#: src/pages/editing/delivery/OutputCard.tsx:115
-#: src/pages/editing/delivery/OutputsView.tsx:239
+#: src/pages/editing/delivery/OutputCard.tsx:108
+#: src/pages/editing/delivery/OutputsView.tsx:238
 msgid "文件大小"
 msgstr "File size"
 
-#: src/pages/editing/delivery/OutputCard.tsx:119
+#: src/pages/editing/delivery/OutputCard.tsx:114
 msgid "文件已不在原位，记录仍然保留。"
 msgstr "The file is no longer at its original location. Its record is preserved."
 
 #: src/pages/editing/delivery/OutputsView.tsx:86
 msgid "文件已删除。"
 msgstr "File deleted."
+
+#: src/pages/editing/delivery/OutputCard.tsx:110
+msgid "文件类型"
+msgstr "File type"
 
 #: src/pages/editing/delivery/OutputCard.tsx:79
 #: src/pages/editing/delivery/OutputsView.tsx:65
@@ -5491,7 +5487,7 @@ msgstr "Could not receive dropped files. Use Select files instead."
 msgid "无法显示 {mapName} 的地图，请检查 CS2 安装位置。"
 msgstr "Cannot display {mapName}. Check the CS2 installation location."
 
-#: src/pages/editing/delivery/OutputCard.tsx:127
+#: src/pages/editing/delivery/OutputCard.tsx:122
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "Clipboard access failed. Select and copy the full path above manually."
 
@@ -5532,7 +5528,7 @@ msgstr "Logs and diagnostics"
 msgid "日期"
 msgstr "Date"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
+#: src/pages/editing/delivery/OutputCard.tsx:72
 msgid "旧版本"
 msgstr "Older revision"
 
@@ -5543,7 +5539,7 @@ msgstr "Older revision"
 msgid "时长"
 msgstr "Duration"
 
-#: src/pages/editing/delivery/OutputsView.tsx:240
+#: src/pages/editing/delivery/OutputsView.tsx:239
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "Duration · resolution · frame rate · codec"
 
@@ -5708,7 +5704,7 @@ msgstr "Show and hide panels…"
 msgid "显示全部"
 msgstr "Show all"
 
-#: src/pages/editing/delivery/OutputsView.tsx:209
+#: src/pages/editing/delivery/OutputsView.tsx:208
 msgid "显示全部类型"
 msgstr "Show all types"
 
@@ -5835,7 +5831,7 @@ msgstr "Change clip speed (Fit to Fill)"
 msgid "更新"
 msgstr "Updates"
 
-#: src/pages/editing/delivery/OutputCard.tsx:113
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "更新时间"
 msgstr "Updated at"
 
@@ -6037,7 +6033,7 @@ msgstr "Conditions"
 msgid "来源"
 msgstr "Source"
 
-#: src/pages/editing/delivery/OutputCard.tsx:82
+#: src/pages/editing/delivery/OutputCard.tsx:112
 msgid "来源任务"
 msgstr "Source task"
 
@@ -6049,9 +6045,13 @@ msgstr "Source object"
 msgid "查看"
 msgstr "View"
 
-#: src/pages/editing/delivery/OutputCard.tsx:76
+#: src/pages/editing/delivery/OutputCard.tsx:74
 msgid "查看 {title} 的完整路径"
 msgstr "View the full path for {title}"
+
+#: src/pages/editing/delivery/OutputCard.tsx:112
+msgid "查看任务"
+msgstr "View task"
 
 #: src/pages/shared/library/LibraryPage.tsx:560
 msgid "查看作品"
@@ -6073,7 +6073,7 @@ msgstr "Show all"
 msgid "查看全部 {0} 条"
 msgstr "View all {0}"
 
-#: src/pages/editing/delivery/OutputsView.tsx:226
+#: src/pages/editing/delivery/OutputsView.tsx:225
 msgid "查看全部成品文件"
 msgstr "Show all finished files"
 
@@ -6121,7 +6121,7 @@ msgid "查看诊断信息"
 msgstr "View diagnostics"
 
 #: src/domain/task/TaskCard.tsx:221
-#: src/pages/editing/delivery/OutputCard.tsx:102
+#: src/pages/editing/delivery/OutputCard.tsx:95
 msgid "查看详情"
 msgstr "View details"
 
@@ -6871,7 +6871,7 @@ msgstr "No project was created."
 msgid "没有创建作品。"
 msgstr "The project was not created."
 
-#: src/pages/editing/delivery/OutputsView.tsx:277
+#: src/pages/editing/delivery/OutputsView.tsx:272
 msgid "没有删除，记录和文件都还在。"
 msgstr "Nothing was deleted; the record and the file are still there."
 
@@ -7973,7 +7973,7 @@ msgid "移除素材"
 msgstr "Remove media"
 
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
-#: src/pages/editing/delivery/OutputCard.tsx:52
+#: src/pages/editing/delivery/OutputCard.tsx:51
 msgid "移除记录"
 msgstr "Remove record"
 
@@ -8111,8 +8111,8 @@ msgstr "Version {revision} export"
 msgid "第 {slot} 页"
 msgstr "Page {slot}"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
-#: src/pages/editing/delivery/OutputCard.tsx:109
+#: src/pages/editing/delivery/OutputCard.tsx:72
+#: src/pages/editing/delivery/OutputCard.tsx:102
 msgid "第 {version} 版"
 msgstr "Version {version}"
 
@@ -8538,7 +8538,7 @@ msgstr "Touch"
 msgid "让 Agent 做一条视频"
 msgstr "Ask the Agent for a video"
 
-#: src/pages/editing/delivery/OutputCard.tsx:89
+#: src/pages/editing/delivery/OutputCard.tsx:82
 msgid "记录仍在，文件已被移动或删除"
 msgstr "The record is still here; the file was moved or deleted"
 
@@ -10429,11 +10429,11 @@ msgid "预演片段"
 msgstr "Preview clip"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:283
-#: src/pages/editing/delivery/OutputsView.tsx:237
+#: src/pages/editing/delivery/OutputsView.tsx:236
 msgid "预览"
 msgstr "Preview"
 
-#: src/pages/editing/delivery/OutputCard.tsx:62
+#: src/pages/editing/delivery/OutputCard.tsx:61
 msgid "预览 {title}"
 msgstr "Preview {title}"
 

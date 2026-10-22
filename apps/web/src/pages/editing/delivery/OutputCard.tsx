@@ -13,7 +13,7 @@ import { RouteLink } from '../../shared/navigation/RouteLink';
 import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
 /** Keep the identity and actions visible; secondary facts remain in details. */
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem_17rem] @min-[1050px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1.35fr)_7rem_14rem_17rem]';
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem_11rem] @min-[1050px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1.35fr)_7rem_14rem_20rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -45,7 +45,6 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
   const currentVersion = project !== undefined && version === project.revision;
   const shownPath = displayOutputPath(output.path);
   const pathParts = splitDisplayOutputPath(output.path);
-  const [directoryHead, directoryTail] = splitDirectoryTail(pathParts.directory);
   const removesFile = outputDeletionRemovesFile(output);
   const openDetails = () => { setPreviewOpen(false); setCopyNotice(null); setDetailsOpen(true); };
   const play = () => { setPreviewOpen(true); setCopyNotice(null); setDetailsOpen(true); };
@@ -55,7 +54,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
     <>
       <Blueprint as="article" data-output={output.id} data-output-kind={output.output_kind}
         data-output-availability={output.availability} data-output-emphasized={emphasized ? 'true' : undefined}
-        className={cn('grid min-h-30 border-x border-b', OUTPUT_ROW_COLUMNS,
+        className={cn('grid min-h-24 border-x border-b', OUTPUT_ROW_COLUMNS,
           usable ? 'border-divider' : 'border-fail-border', emphasized && usable ? 'bg-accent-100' : 'bg-bg', className)}>
         <div className="flex items-center justify-center px-4 py-2">
           <button type="button" className="relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-sm border border-divider bg-media text-on-media"
@@ -72,18 +71,12 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
           {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok-text' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
-          {/* The file name is what tells rows apart on disk; the directory gives way in its middle, keeping the drive and the folder that holds the file. */}
-          <button type="button" className="flex min-w-0 flex-col items-start gap-0.5 text-left" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
-            <span data-output-file-name className="max-w-full truncate text-sm text-text">{pathParts.fileName}</span>
-            {pathParts.directory === '' ? null : <span data-output-directory className="flex w-full min-w-0 font-mono text-xs text-neutral-600">
-              <span className="min-w-[4ch] truncate">{directoryHead}</span><span className="min-w-0 shrink truncate">{directoryTail}</span>
-            </span>}
+          <button type="button" className="min-w-0 max-w-full truncate text-left text-xs text-neutral-600 hover:text-text hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
+            <span data-output-file-name>{pathParts.fileName}</span>
           </button>
-          {sourceTaskId === null ? null : <RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm" className="self-start"><Trans>来源任务</Trans></RouteLink>}
         </div>
         <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2 text-xs text-neutral-600">
-          <span>{size ?? '—'}</span><span>{usable ? stamp : <Trans>文件缺失</Trans>}</span>
-          <span>{output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}</span>
+          <span className="tabular-nums text-text">{size ?? '—'}</span><span className="tabular-nums">{usable ? stamp : <Trans>文件缺失</Trans>}</span>
         </div>
         <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 @min-[1050px]/outputs:flex">
           {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
@@ -91,7 +84,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
         <div data-output-actions className="col-span-3 flex flex-wrap items-center justify-end gap-1 border-t border-divider px-2 py-2 @min-[760px]/outputs:col-span-1 @min-[760px]/outputs:border-l @min-[760px]/outputs:border-t-0">
           {usable ? <>
             <Button variant="ghost" size="sm" onClick={play}><Play className="size-4" aria-hidden="true" /><Trans>播放</Trans></Button>
-            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}><FolderOpen className="size-4" aria-hidden="true" /><Trans>打开所在文件夹</Trans></Button>
+            <Button variant="ghost" size="sm" title={t`打开所在文件夹`} className="@min-[760px]/outputs:@max-[1050px]/outputs:px-2" onClick={() => onReveal(output)}><FolderOpen className="size-4" aria-hidden="true" /><span className="@min-[760px]/outputs:@max-[1050px]/outputs:sr-only"><Trans>打开所在文件夹</Trans></span></Button>
             <OverflowMenu
               label={t`${title} 的更多操作`}
               triggerLabel={<Ellipsis className="size-4" aria-hidden="true" />}
@@ -109,12 +102,14 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
       <Drawer open={detailsOpen} title={title} description={version === null ? undefined : t`第 ${version} 版`} width="wide" onClose={() => setDetailsOpen(false)}>
         <div className="space-y-4">
           {previewOpen && streamUrl !== null ? <video className="aspect-video w-full bg-media object-contain" src={streamUrl} controls autoPlay aria-label={t`成品播放 ${title}`} /> : null}
-          <dl className="space-y-2 text-sm">
+          <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
             <dt className="text-neutral-600">{output.status === 'completed' ? <Trans>完成时间</Trans> : <Trans>更新时间</Trans>}</dt><dd>{stamp}</dd>
             <dt className="text-neutral-600"><Trans>文件名</Trans></dt><dd className="break-all font-mono text-xs">{output.file_name}</dd>
             <dt className="text-neutral-600"><Trans>文件大小</Trans></dt><dd>{size ?? '—'}</dd>
             <dt className="text-neutral-600"><Trans>文件参数</Trans></dt><dd>{facts.join(' · ') || t`参数不可读取`}</dd>
+            <dt className="text-neutral-600"><Trans>文件类型</Trans></dt><dd>{output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}</dd>
             <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{shownPath}</dd>
+            {sourceTaskId === null ? null : <><dt className="text-neutral-600"><Trans>来源任务</Trans></dt><dd><RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>查看任务</Trans></RouteLink></dd></>}
           </dl>
           {usable ? null : <p className="text-sm text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
           <div className="flex flex-wrap gap-2">
@@ -135,15 +130,8 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
   );
 }
 
-/** The directory's last folder stays whole; everything before it is what gets elided. */
-function splitDirectoryTail(directory: string): readonly [string, string] {
-  const trimmed = directory.slice(0, -1);
-  const cut = Math.max(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'));
-  return cut === -1 ? ['', directory] : [directory.slice(0, cut + 1), directory.slice(cut + 1)];
-}
-
 export function OutputCardSkeleton() {
-  return <div role="status" aria-busy="true" className="flex min-h-30 gap-4 border border-divider p-4">
+  return <div role="status" aria-busy="true" className="flex min-h-24 gap-4 border border-divider p-4">
     <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse bg-neutral-200" />
     <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-100" /></div>
   </div>;

@@ -324,20 +324,24 @@ describe('成品 › 成品文件', () => {
     expect(container.querySelector('[data-output-emphasized="true"]')?.getAttribute('data-output')).toBe('out-1');
   });
 
-  it('shows the file name above a directory that gives way in its middle, and hides the canonical prefix', async () => {
+  it('keeps the file name in the row and opens the full path and storage details on demand', async () => {
     const { client } = stubs();
     renderPage({
       element: <DeliveryPage />,
-      client: { ...client, listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{ ...OUTPUT, path: '\\\\?\\D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4' }] }) },
+      client: { ...client, listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{ ...OUTPUT, output_kind: 'export', path: '\\\\?\\D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4' }] }) },
       route: '/delivery',
     });
 
     const path = await screen.findByRole('button', { name: '查看 Kael 1v3 的完整路径' });
     expect(path.getAttribute('title')).toBe('D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4');
     expect(path.querySelector('[data-output-file-name]')?.textContent).toBe('Kael_Mirage_1v3.mp4');
-    const directory = path.querySelector('[data-output-directory]')!;
-    expect(directory.firstElementChild?.textContent).toBe('D:\\vibe\\');
-    expect(directory.lastElementChild?.textContent).toBe('outputs\\');
+    expect(screen.queryByText('受管文件')).toBeNull();
+    expect(screen.queryByText('D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4')).toBeNull();
+    fireEvent.click(path);
+    const details = await screen.findByRole('dialog', { name: 'Kael 1v3' });
+    expect(within(details).getByText('受管文件')).toBeTruthy();
+    expect(within(details).getByText('D:\\vibe\\outputs\\Kael_Mirage_1v3.mp4')).toBeTruthy();
+    expect(within(details).getByRole('link', { name: '查看任务' }).getAttribute('href')).toBe('/tasks/export%3Aout-1');
   });
 
   it('asks before deleting a managed file, then reports what the service did', async () => {

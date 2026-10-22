@@ -535,7 +535,7 @@ msgstr "{teamBName} 存活"
 msgid "{teamBName} 胜"
 msgstr "{teamBName} 胜"
 
-#: src/pages/editing/delivery/OutputCard.tsx:96
+#: src/pages/editing/delivery/OutputCard.tsx:89
 msgid "{title} 的更多操作"
 msgstr "{title} 的更多操作"
 
@@ -583,7 +583,7 @@ msgstr "「{fileName}」会从磁盘删除，不能恢复。指向它的记录�
 msgid "「{fileName}」已不在原位，只移除这条记录。"
 msgstr "「{fileName}」已不在原位，只移除这条记录。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:222
+#: src/pages/editing/delivery/OutputsView.tsx:221
 msgid "「{scopeLabel}」还没有成品文件"
 msgstr "「{scopeLabel}」还没有成品文件"
 
@@ -2463,13 +2463,9 @@ msgid "删除效果 {0}"
 msgstr "删除效果 {0}"
 
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
-#: src/pages/editing/delivery/OutputCard.tsx:52
+#: src/pages/editing/delivery/OutputCard.tsx:51
 msgid "删除文件"
 msgstr "删除文件"
-
-#: src/pages/editing/delivery/OutputsView.tsx:266
-msgid "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
-msgstr "删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。"
 
 #: src/domain/editing/ProjectTimeline.tsx:3160
 msgid "删除标记"
@@ -2765,7 +2761,7 @@ msgstr "去证据检索看全部注释"
 msgid "去资料库分析一场"
 msgstr "去资料库分析一场"
 
-#: src/pages/editing/delivery/OutputCard.tsx:116
+#: src/pages/editing/delivery/OutputCard.tsx:109
 msgid "参数不可读取"
 msgstr "参数不可读取"
 
@@ -2845,7 +2841,7 @@ msgstr "取消面板分组"
 msgid "受害者被闪"
 msgstr "受害者被闪"
 
-#: src/pages/editing/delivery/OutputCard.tsx:86
+#: src/pages/editing/delivery/OutputCard.tsx:110
 msgid "受管文件"
 msgstr "受管文件"
 
@@ -3454,7 +3450,7 @@ msgstr "备注没有保存。重试会保存到原来的比赛。"
 msgid "复位视角"
 msgstr "复位视角"
 
-#: src/pages/editing/delivery/OutputCard.tsx:129
+#: src/pages/editing/delivery/OutputCard.tsx:124
 msgid "复制完整路径"
 msgstr "复制完整路径"
 
@@ -3479,7 +3475,7 @@ msgstr "复盘笔记"
 msgid "外观与语言"
 msgstr "外观与语言"
 
-#: src/pages/editing/delivery/OutputCard.tsx:86
+#: src/pages/editing/delivery/OutputCard.tsx:110
 msgid "外部文件"
 msgstr "外部文件"
 
@@ -3554,7 +3550,7 @@ msgstr "字节"
 msgid "安装和检查录制所需组件。"
 msgstr "安装和检查录制所需组件。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:113
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "完成时间"
 msgstr "完成时间"
 
@@ -3566,7 +3562,7 @@ msgstr "完整参数 JSON"
 msgid "完整序列"
 msgstr "完整序列"
 
-#: src/pages/editing/delivery/OutputCard.tsx:117
+#: src/pages/editing/delivery/OutputCard.tsx:111
 msgid "完整路径"
 msgstr "完整路径"
 
@@ -3748,7 +3744,7 @@ msgstr "导出不可用"
 msgid "导出元数据"
 msgstr "导出元数据"
 
-#: src/pages/editing/delivery/OutputsView.tsx:223
+#: src/pages/editing/delivery/OutputsView.tsx:222
 msgid "导出后，成片会出现在这里。"
 msgstr "导出后，成片会出现在这里。"
 
@@ -3959,7 +3955,7 @@ msgstr "已启用 {enabledEffectCount} 个效果"
 msgid "已处理"
 msgstr "已处理"
 
-#: src/pages/editing/delivery/OutputCard.tsx:125
+#: src/pages/editing/delivery/OutputCard.tsx:120
 msgid "已复制完整路径"
 msgstr "已复制完整路径"
 
@@ -4317,7 +4313,7 @@ msgstr "当前 {round}"
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
+#: src/pages/editing/delivery/OutputCard.tsx:72
 msgid "当前作品版本"
 msgstr "当前作品版本"
 
@@ -4366,11 +4362,6 @@ msgstr "当前片段只读，请先结束 Agent 编辑或解锁轨道。"
 #: src/pages/shared/settings/RecoveryPage.tsx:340
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
-
-#. placeholder {0}: labels[filter]
-#: src/pages/editing/delivery/OutputsView.tsx:208
-msgid "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
-msgstr "当前筛选为「{0}」。切换到全部可查看其他成品文件。"
 
 #. placeholder {0}: context.round
 #: src/pages/analysis/match/views/ReplayView.tsx:377
@@ -4616,11 +4607,11 @@ msgstr "恢复默认"
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/editing/delivery/OutputsView.tsx:238
+#: src/pages/editing/delivery/OutputsView.tsx:237
 msgid "成品"
 msgstr "成品"
 
-#: src/pages/editing/delivery/OutputCard.tsx:111
+#: src/pages/editing/delivery/OutputCard.tsx:104
 msgid "成品播放 {title}"
 msgstr "成品播放 {title}"
 
@@ -4788,8 +4779,9 @@ msgstr "打开工作区"
 msgid "打开恢复中心"
 msgstr "打开恢复中心"
 
-#: src/pages/editing/delivery/OutputCard.tsx:94
-#: src/pages/editing/delivery/OutputCard.tsx:121
+#: src/pages/editing/delivery/OutputCard.tsx:87
+#: src/pages/editing/delivery/OutputCard.tsx:87
+#: src/pages/editing/delivery/OutputCard.tsx:116
 msgid "打开所在文件夹"
 msgstr "打开所在文件夹"
 
@@ -5193,7 +5185,7 @@ msgid "撤销这组修改"
 msgstr "撤销这组修改"
 
 #: src/domain/media/Transport.tsx:188
-#: src/pages/editing/delivery/OutputCard.tsx:93
+#: src/pages/editing/delivery/OutputCard.tsx:86
 msgid "播放"
 msgstr "播放"
 
@@ -5246,7 +5238,7 @@ msgstr "播放速率"
 msgid "播放预览（空格）"
 msgstr "播放预览（空格）"
 
-#: src/pages/editing/delivery/OutputsView.tsx:241
+#: src/pages/editing/delivery/OutputsView.tsx:240
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:151
 msgid "操作"
 msgstr "操作"
@@ -5331,7 +5323,7 @@ msgstr "整场比赛"
 msgid "文件"
 msgstr "文件"
 
-#: src/pages/editing/delivery/OutputCard.tsx:67
+#: src/pages/editing/delivery/OutputCard.tsx:66
 msgid "文件不在原位"
 msgstr "文件不在原位"
 
@@ -5343,26 +5335,30 @@ msgstr "文件与资料库"
 msgid "文件信息"
 msgstr "文件信息"
 
-#: src/pages/editing/delivery/OutputCard.tsx:116
+#: src/pages/editing/delivery/OutputCard.tsx:109
 msgid "文件参数"
 msgstr "文件参数"
 
-#: src/pages/editing/delivery/OutputCard.tsx:114
+#: src/pages/editing/delivery/OutputCard.tsx:107
 msgid "文件名"
 msgstr "文件名"
 
-#: src/pages/editing/delivery/OutputCard.tsx:115
-#: src/pages/editing/delivery/OutputsView.tsx:239
+#: src/pages/editing/delivery/OutputCard.tsx:108
+#: src/pages/editing/delivery/OutputsView.tsx:238
 msgid "文件大小"
 msgstr "文件大小"
 
-#: src/pages/editing/delivery/OutputCard.tsx:119
+#: src/pages/editing/delivery/OutputCard.tsx:114
 msgid "文件已不在原位，记录仍然保留。"
 msgstr "文件已不在原位，记录仍然保留。"
 
 #: src/pages/editing/delivery/OutputsView.tsx:86
 msgid "文件已删除。"
 msgstr "文件已删除。"
+
+#: src/pages/editing/delivery/OutputCard.tsx:110
+msgid "文件类型"
+msgstr "文件类型"
 
 #: src/pages/editing/delivery/OutputCard.tsx:79
 #: src/pages/editing/delivery/OutputsView.tsx:65
@@ -5490,7 +5486,7 @@ msgstr "无法接收拖入的文件，请使用“选择文件”。"
 msgid "无法显示 {mapName} 的地图，请检查 CS2 安装位置。"
 msgstr "无法显示 {mapName} 的地图，请检查 CS2 安装位置。"
 
-#: src/pages/editing/delivery/OutputCard.tsx:127
+#: src/pages/editing/delivery/OutputCard.tsx:122
 msgid "无法访问剪贴板，请选择上方完整路径手动复制。"
 msgstr "无法访问剪贴板，请选择上方完整路径手动复制。"
 
@@ -5531,7 +5527,7 @@ msgstr "日志与诊断包"
 msgid "日期"
 msgstr "日期"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
+#: src/pages/editing/delivery/OutputCard.tsx:72
 msgid "旧版本"
 msgstr "旧版本"
 
@@ -5542,7 +5538,7 @@ msgstr "旧版本"
 msgid "时长"
 msgstr "时长"
 
-#: src/pages/editing/delivery/OutputsView.tsx:240
+#: src/pages/editing/delivery/OutputsView.tsx:239
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "时长 · 分辨率 · 帧率 · 编码"
 
@@ -5707,7 +5703,7 @@ msgstr "显示与隐藏面板…"
 msgid "显示全部"
 msgstr "显示全部"
 
-#: src/pages/editing/delivery/OutputsView.tsx:209
+#: src/pages/editing/delivery/OutputsView.tsx:208
 msgid "显示全部类型"
 msgstr "显示全部类型"
 
@@ -5834,7 +5830,7 @@ msgstr "更改片段速度（Fit to Fill）"
 msgid "更新"
 msgstr "更新"
 
-#: src/pages/editing/delivery/OutputCard.tsx:113
+#: src/pages/editing/delivery/OutputCard.tsx:106
 msgid "更新时间"
 msgstr "更新时间"
 
@@ -6036,7 +6032,7 @@ msgstr "条件"
 msgid "来源"
 msgstr "来源"
 
-#: src/pages/editing/delivery/OutputCard.tsx:82
+#: src/pages/editing/delivery/OutputCard.tsx:112
 msgid "来源任务"
 msgstr "来源任务"
 
@@ -6048,9 +6044,13 @@ msgstr "来源对象"
 msgid "查看"
 msgstr "查看"
 
-#: src/pages/editing/delivery/OutputCard.tsx:76
+#: src/pages/editing/delivery/OutputCard.tsx:74
 msgid "查看 {title} 的完整路径"
 msgstr "查看 {title} 的完整路径"
+
+#: src/pages/editing/delivery/OutputCard.tsx:112
+msgid "查看任务"
+msgstr "查看任务"
 
 #: src/pages/shared/library/LibraryPage.tsx:560
 msgid "查看作品"
@@ -6072,7 +6072,7 @@ msgstr "查看全部"
 msgid "查看全部 {0} 条"
 msgstr "查看全部 {0} 条"
 
-#: src/pages/editing/delivery/OutputsView.tsx:226
+#: src/pages/editing/delivery/OutputsView.tsx:225
 msgid "查看全部成品文件"
 msgstr "查看全部成品文件"
 
@@ -6120,7 +6120,7 @@ msgid "查看诊断信息"
 msgstr "查看诊断信息"
 
 #: src/domain/task/TaskCard.tsx:221
-#: src/pages/editing/delivery/OutputCard.tsx:102
+#: src/pages/editing/delivery/OutputCard.tsx:95
 msgid "查看详情"
 msgstr "查看详情"
 
@@ -6870,7 +6870,7 @@ msgstr "没有创建任何作品。"
 msgid "没有创建作品。"
 msgstr "没有创建作品。"
 
-#: src/pages/editing/delivery/OutputsView.tsx:277
+#: src/pages/editing/delivery/OutputsView.tsx:272
 msgid "没有删除，记录和文件都还在。"
 msgstr "没有删除，记录和文件都还在。"
 
@@ -7972,7 +7972,7 @@ msgid "移除素材"
 msgstr "移除素材"
 
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:49
-#: src/pages/editing/delivery/OutputCard.tsx:52
+#: src/pages/editing/delivery/OutputCard.tsx:51
 msgid "移除记录"
 msgstr "移除记录"
 
@@ -8110,8 +8110,8 @@ msgstr "第 {revision} 版成片"
 msgid "第 {slot} 页"
 msgstr "第 {slot} 页"
 
-#: src/pages/editing/delivery/OutputCard.tsx:73
-#: src/pages/editing/delivery/OutputCard.tsx:109
+#: src/pages/editing/delivery/OutputCard.tsx:72
+#: src/pages/editing/delivery/OutputCard.tsx:102
 msgid "第 {version} 版"
 msgstr "第 {version} 版"
 
@@ -8537,7 +8537,7 @@ msgstr "触动 · Touch"
 msgid "让 Agent 做一条视频"
 msgstr "让 Agent 做一条视频"
 
-#: src/pages/editing/delivery/OutputCard.tsx:89
+#: src/pages/editing/delivery/OutputCard.tsx:82
 msgid "记录仍在，文件已被移动或删除"
 msgstr "记录仍在，文件已被移动或删除"
 
@@ -10428,11 +10428,11 @@ msgid "预演片段"
 msgstr "预演片段"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:283
-#: src/pages/editing/delivery/OutputsView.tsx:237
+#: src/pages/editing/delivery/OutputsView.tsx:236
 msgid "预览"
 msgstr "预览"
 
-#: src/pages/editing/delivery/OutputCard.tsx:62
+#: src/pages/editing/delivery/OutputCard.tsx:61
 msgid "预览 {title}"
 msgstr "预览 {title}"
 

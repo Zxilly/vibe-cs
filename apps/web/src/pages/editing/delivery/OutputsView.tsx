@@ -205,7 +205,6 @@ export function OutputsView({ now }: OutputsViewProps) {
           filter !== 'all' ? (
             <Empty
               title={filter === 'missing' ? <Trans>没有缺失的文件</Trans> : <Trans>没有符合筛选条件的成品文件</Trans>}
-              description={<Trans>当前筛选为「{labels[filter]}」。切换到全部可查看其他成品文件。</Trans>}
               actions={<Button onClick={() => { setFilter('all'); setPage(1); }}><Trans>显示全部类型</Trans></Button>}
             />
           ) : scopeLabel === null ? (
@@ -261,10 +260,6 @@ export function OutputsView({ now }: OutputsViewProps) {
         total={outputs.data?.total ?? 0}
         onPageChange={setPage}
       />
-
-      <p className="flex-none border-t border-divider px-6 py-3 text-xs text-neutral-700">
-        <Trans>删除文件会从磁盘删除受管文件，不能恢复。移除记录不会删除外部文件。</Trans>
-      </p>
 
       <DeleteOutputDialog
         output={pendingDelete}

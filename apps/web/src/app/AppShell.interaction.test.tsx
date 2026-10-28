@@ -342,6 +342,7 @@ describe('AppShell — work modes', () => {
       button: 0,
       ctrlKey: false,
     });
+    expect(getByRole('main')).toBeTruthy();
     fireEvent.click(getByRole('menuitemradio', { name: /^分析模式/u }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'));

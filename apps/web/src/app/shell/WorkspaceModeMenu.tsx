@@ -34,7 +34,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
   const currentModeLabel = mode === 'edit' ? t`剪辑模式` : t`分析模式`;
 
   return (
-    <DropdownMenuPrimitive.Root>
+    <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
         type="button"
         aria-label={t`切换工作模式，当前：${currentModeLabel}`}
@@ -106,7 +106,7 @@ function ModeItem({
       <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
       <span className="flex min-w-0 flex-col">
         <span className="font-heading text-sm">{title}</span>
-        <span className="text-xs text-neutral-600">{description}</span>
+        <span className="text-base text-neutral-600">{description}</span>
       </span>
       <DropdownMenuPrimitive.ItemIndicator>
         <Check size={14} strokeWidth={1.5} aria-hidden="true" />

@@ -227,6 +227,23 @@ describe('DataTable selection cap', () => {
 });
 
 describe('DataTable select-all', () => {
+  it('names the selection column when a selection limit prevents select-all', () => {
+    const { getByRole, queryByRole } = renderInteractive(
+      <DataTable<Match>
+        caption="Demo 资料库"
+        columns={COLUMNS}
+        rows={ROWS}
+        rowId={(row) => row.id}
+        selectable
+        selectionLimit={2}
+        onSelectedChange={() => {}}
+      />,
+    );
+
+    expect(getByRole('columnheader', { name: '选择' })).not.toBeNull();
+    expect(queryByRole('checkbox', { name: '全选本页' })).toBeNull();
+  });
+
   function Harness() {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     return (

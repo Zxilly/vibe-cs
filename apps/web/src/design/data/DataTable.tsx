@@ -286,7 +286,7 @@ export function DataTable<Row>({
                       disabledReason={t`本页没有可选项目`}
                       onChange={() => onSelectedChange?.(toggleAllSelection(selectableIds, selection))}
                     />
-                  ) : null}
+                  ) : <span className="sr-only">{t`选择`}</span>}
                 </TableHeaderCell>
               ) : null}
               {shown.map((column, index) => {

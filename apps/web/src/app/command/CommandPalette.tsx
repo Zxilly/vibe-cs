@@ -266,12 +266,12 @@ export function CommandPalette({
         </div>
 
         {searchState === 'loading' ? (
-          <p role="status" className="px-4 py-3 text-sm text-neutral-600">
+          <p role="status" className="px-4 py-3 text-base text-neutral-600">
             <Trans>正在搜索比赛、选手和作品…</Trans>
           </p>
         ) : searchState === 'error' ? (
           <div role="alert" className="flex items-center justify-between gap-3 px-4 py-3">
-            <p className="text-sm text-fail-text"><Trans>搜索结果未能完整加载</Trans></p>
+            <p className="text-base text-fail-text"><Trans>搜索结果未能完整加载</Trans></p>
             {onRetrySearch === undefined ? null : (
               <Button variant="secondary" size="sm" onClick={() => {
                 onRetrySearch();
@@ -290,7 +290,7 @@ export function CommandPalette({
             </p>
             {/* States the matching contract instead of apologising: the search
                 is prefix / substring only, so "为什么搜不到" has an answer. */}
-            <p className="text-xs leading-normal text-neutral-600">
+            <p className="text-base leading-normal text-neutral-600">
               <Trans>请尝试更短的关键词或页面名称。</Trans>
             </p>
           </div>

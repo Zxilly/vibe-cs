@@ -42,7 +42,7 @@ export interface TextareaProps extends Omit<ComponentPropsWithoutRef<'textarea'>
 }
 
 const BASE_CLASS =
-  'w-full min-w-0 border px-3 py-2 text-sm leading-normal caret-accent ' +
+  'w-full min-w-0 border px-3 py-2 text-base leading-normal caret-accent ' +
   'placeholder:text-neutral-600 ' +
   'hover:not-disabled:not-focus:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +
   'focus:border-accent disabled:cursor-not-allowed disabled:opacity-45';

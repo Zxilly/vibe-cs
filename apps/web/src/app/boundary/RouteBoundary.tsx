@@ -118,7 +118,7 @@ export function RouteErrorState({
         <h1 id="route-failed-title" className="font-heading text-xl text-fail-text">
           <Trans>这个页面没能打开</Trans>
         </h1>
-        <p className="max-w-[46ch] text-sm leading-normal text-neutral-800">
+        <p className="max-w-[46ch] text-base leading-normal text-neutral-800">
           {onExportDiagnostics === undefined
             ? <Trans>其他页面仍可使用。返回工作台继续操作。</Trans>
             : <Trans>其他页面仍可使用。返回工作台，或导出这次错误的诊断信息。</Trans>}
@@ -169,7 +169,7 @@ export function NotFound({
         <h1 id="route-not-found-title" className="font-heading text-xl">
           <Trans>找不到这个页面</Trans>
         </h1>
-        <p className="text-sm text-neutral-700">
+        <p className="text-base text-neutral-700">
           <Trans>这个地址不存在。其余功能不受影响。</Trans>
         </p>
         <Button variant="primary" size="sm" onClick={onGoHome ?? goHome}>

@@ -16,6 +16,22 @@ function openMenu(trigger: HTMLElement): void {
 }
 
 describe('OverflowMenu with a list taller than the window', () => {
+  it('keeps the workspace accessible while a menu is open', () => {
+    const { getByRole } = renderInteractive(
+      <main aria-label="工作区">
+        <OverflowMenu items={LONG} label="剪辑操作" />
+        <button type="button">页面动作</button>
+      </main>,
+    );
+
+    openMenu(getByRole('button', { name: '剪辑操作' }));
+
+    expect(getByRole('menu', { name: '剪辑操作' })).toBeTruthy();
+    expect(getByRole('main', { name: '工作区' })).toBeTruthy();
+    expect(getByRole('button', { name: '页面动作' })).toBeTruthy();
+    expect(document.body.style.pointerEvents).not.toBe('none');
+  });
+
   it('caps the list at the space Radix measures and scrolls it inside', () => {
     const { getByRole } = renderInteractive(<OverflowMenu items={LONG} label="剪辑操作" />);
 

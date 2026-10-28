@@ -130,9 +130,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
     <div
       role={style.role}
       data-tone={variant}
-      // px-3 / py-2.5 resolve to 10.2 / 8.5px against `--spacing: 3.4px`, the
-      // artboard's `padding:9px 11px`.
-      className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-sm', style.box, style.body, className)}
+      className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-base', style.box, style.body, className)}
     >
       <span className={`flex-none pt-1 ${style.icon}`}>
         <Icon size={15} strokeWidth={1.5} aria-hidden />
@@ -144,7 +142,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
       <div className="min-w-0 flex-1 self-center break-words">
         <div>{children}</div>
         {detail === undefined ? null : (
-          <div className="mt-1 text-xs leading-normal text-neutral-700">{detail}</div>
+          <div className="mt-1 max-w-[75ch] leading-normal">{detail}</div>
         )}
       </div>
 

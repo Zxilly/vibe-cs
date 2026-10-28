@@ -74,8 +74,8 @@ export function WorkspaceModeIntro() {
             >
               <Icon size={20} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-medium">{card.title}</h3>
-                <p className="mt-0.5 text-xs text-neutral-600">{card.body}</p>
+                <h3 className="text-base font-medium">{card.title}</h3>
+                <p className="mt-0.5 text-base text-neutral-600">{card.body}</p>
               </div>
               <Button variant="ghost" size="sm" className="flex-none after:absolute after:inset-0 after:rounded-md" onClick={() => choose(card.mode)}>
                 {card.action}<ArrowRight size={14} aria-hidden="true" />

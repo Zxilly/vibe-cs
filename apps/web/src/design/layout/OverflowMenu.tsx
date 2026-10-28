@@ -101,7 +101,7 @@ export function OverflowMenu({
   if (items.length === 0) return null;
 
   return (
-    <DropdownMenuPrimitive.Root>
+    <DropdownMenuPrimitive.Root modal={false}>
       <DropdownMenuPrimitive.Trigger
         aria-label={label}
         data-overflow-trigger

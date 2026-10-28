@@ -146,7 +146,7 @@ const VARIANT: Record<ToastVariant, { readonly Icon: typeof Info; readonly box: 
 };
 
 const ROOT_CLASS =
-  'flex items-start gap-2.5 border px-3 py-2.5 text-sm shadow-[var(--shadow-md)] ' +
+  'flex items-start gap-2.5 border px-3 py-2.5 text-base shadow-[var(--shadow-md)] ' +
   'data-[state=closed]:opacity-0 data-[swipe=end]:opacity-0 transition-opacity';
 
 /**
@@ -179,7 +179,7 @@ export function Toaster() {
             <div className="min-w-0 flex-1">
               <ToastPrimitive.Title className="text-text">{entry.message}</ToastPrimitive.Title>
               {entry.description === undefined ? null : (
-                <ToastPrimitive.Description className="mt-1 text-xs leading-normal text-neutral-700">
+                <ToastPrimitive.Description className="mt-1 leading-normal text-neutral-700">
                   {entry.description}
                 </ToastPrimitive.Description>
               )}

@@ -109,7 +109,7 @@ export function StageTimeline({ label, stages, timeZone, className }: StageTimel
           key={stage.id}
           data-stage-note={stage.id}
           className={cn(
-            'text-xs leading-normal',
+            'text-base leading-normal',
             stage.state === 'failed' ? 'text-fail-text' : 'text-neutral-700',
           )}
         >

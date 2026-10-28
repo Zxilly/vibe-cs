@@ -45,9 +45,9 @@ export function SettingsBlock({
   const heading = (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="text-base font-medium">{title}</h2>
+        <h2 className="text-lg font-medium">{title}</h2>
         {description === undefined ? null : (
-          <p className="max-w-prose text-sm leading-relaxed text-neutral-600">{description}</p>
+          <p className="max-w-prose text-base leading-relaxed text-neutral-600">{description}</p>
         )}
       </div>
       {actions === undefined ? null : (
@@ -113,9 +113,9 @@ export function SettingsRow({ label, hint, children, disabledReason }: SettingsR
     <div data-settings-row="" className="flex flex-wrap items-start gap-x-8 gap-y-3">
       <div className="min-w-0 basis-64 flex-[2]">
         <p className="text-base">{label}</p>
-        {hint == null ? null : <p className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">{hint}</p>}
+        {hint == null ? null : <p className="mt-1 max-w-prose text-base leading-relaxed text-neutral-600">{hint}</p>}
         {disabledReason === undefined ? null : (
-          <p className="mt-1 text-xs leading-normal text-warn-text" data-disabled-reason="">
+          <p className="mt-1 text-base leading-normal text-warn-text" data-disabled-reason="">
             {disabledReason}
           </p>
         )}
@@ -167,7 +167,7 @@ export function SettingsSwitch({
           <label htmlFor={switchId} className="block text-base">
             {label}
           </label>
-          <p id={hintId} className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">
+          <p id={hintId} className="mt-1 max-w-prose text-base leading-relaxed text-neutral-600">
             {hint}
           </p>
         </div>
@@ -183,7 +183,7 @@ export function SettingsSwitch({
         />
       </div>
       {disabledReason === undefined ? null : (
-        <p className="text-xs leading-normal text-warn-text" data-disabled-reason="">
+        <p className="text-base leading-normal text-warn-text" data-disabled-reason="">
           {disabledReason}
         </p>
       )}

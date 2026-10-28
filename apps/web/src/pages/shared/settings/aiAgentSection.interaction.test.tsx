@@ -53,6 +53,22 @@ const LLM: LlmConfig = {
 };
 
 describe('model connection feedback', () => {
+  it('describes the parameters actually in use and returns to defaults when overrides are cleared', async () => {
+    render({ getConfig: async () => ({ llm: LLM, llm_has_api_key: true }) });
+    await screen.findByText('使用提供方默认值');
+    fireEvent.click(screen.getByText('请求参数'));
+
+    fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '0.7' } });
+
+    expect(screen.getByText('1 项自定义')).not.toBeNull();
+    expect(screen.queryByText('使用提供方默认值')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '恢复提供方默认值' }));
+
+    expect(screen.getByText('使用提供方默认值')).not.toBeNull();
+    expect(screen.queryByText('1 项自定义')).toBeNull();
+  });
+
   it('clears the previous successful test when the model changes', async () => {
     const testLlm = vi.fn().mockResolvedValue({
       ok: true, provider: 'openai', model: 'test-model',

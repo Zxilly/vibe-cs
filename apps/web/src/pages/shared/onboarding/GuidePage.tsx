@@ -48,7 +48,7 @@ export function GuidePage() {
           panel with a page of empty border under its last card. */}
       <div className="grid min-h-0 grid-cols-1 items-start gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
         <section className="flex min-w-0 flex-col gap-4">
-          <h2 className="text-base font-medium">
+          <h2 className="text-lg font-medium">
             <Trans>创建第一份作品</Trans>
           </h2>
           <ol className="flex flex-col border border-divider bg-bg">
@@ -89,7 +89,7 @@ export function GuidePage() {
                       ) : null}
                       {current ? <Badge variant="accent" size="sm"><Trans>下一步</Trans></Badge> : null}
                     </div>
-                    <p className={cn('max-w-prose text-sm leading-relaxed', current ? 'text-accent-800' : 'text-neutral-600')}>{step.description()}</p>
+                    <p className={cn('max-w-prose text-base leading-relaxed', current ? 'text-accent-800' : 'text-neutral-600')}>{step.description()}</p>
                   </div>
                 </li>
               );
@@ -99,7 +99,7 @@ export function GuidePage() {
 
         <section className="flex min-w-0 flex-col gap-4 border border-divider p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-base font-medium">
+            <h2 className="text-lg font-medium">
               <Trans>环境检查</Trans>
             </h2>
             <Button
@@ -137,7 +137,7 @@ export function GuidePage() {
                       {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
                     </span>
                   </div>
-                  <p className="ms-5 text-sm leading-relaxed text-neutral-600">
+                  <p className="ms-5 text-base leading-relaxed text-neutral-600">
                     {/* What it enables, and — when it is broken — what still
                         works without it. A first-time user with no HLAE needs
                         to know they can still import and analyse today. */}
@@ -153,7 +153,7 @@ export function GuidePage() {
             </ul>
           )}
 
-          <p className="text-xs leading-normal text-neutral-600">
+          <p className="text-base leading-normal text-neutral-600">
             <Trans>
               更多检查结果见
               <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。

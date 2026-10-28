@@ -51,10 +51,10 @@ export function FirstRunStrip() {
       data-home-block="first-run"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="text-base font-medium">
+        <h2 className="text-lg font-medium">
           <Trans>从导入 Demo 开始</Trans>
         </h2>
-        <p className="text-sm leading-relaxed text-accent-800">
+        <p className="text-base leading-relaxed text-accent-800">
           <Trans>素材为空。导入一场 Demo 后，就可以用它新建第一份作品。</Trans>
         </p>
       </div>

@@ -273,7 +273,7 @@ export function GameSection() {
               ))}
             </ul>
             {encoderChecks(checks.data?.checks ?? []).length === 0 ? (
-              <p className="text-xs text-neutral-600">
+              <p className="text-base text-neutral-600">
                 {/* Honest about *why* it is empty: the service answered, and
                     nothing it answered with was an encoder check. */}
                 <Trans>这次检查里没有编码器项。完整的检查列表在「高级与诊断」。</Trans>

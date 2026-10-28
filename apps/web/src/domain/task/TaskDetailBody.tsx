@@ -61,7 +61,7 @@ export function TaskDetailBody({ item, now, compact = false }: TaskDetailBodyPro
 
   return (
     <TaskDetail
-      className="m-6 min-h-0 flex-1"
+      className={compact ? 'min-h-0 flex-1' : 'm-6 min-h-0 flex-1'}
       task={bound.summary}
       {...(item.kind === 'export' ? { title: <Trans>成片导出</Trans> } : {})}
       showId={false}

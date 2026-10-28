@@ -19,10 +19,10 @@ export function MapGeometrySettings() {
       </Button>}
     >
       {cache.isPending ? <Skeleton /> : null}
-      {cache.data !== undefined && <p role="status" className="text-sm text-neutral-600">
+      {cache.data !== undefined && <p role="status" className="text-base text-neutral-600">
         {cache.data.files === 0 ? <Trans>暂无地图缓存</Trans> : <Trans>已缓存 {cache.data.files} 份地图 · 占用 {formatBytes(cache.data.bytes)}</Trans>}
       </p>}
-      <p className="text-sm text-neutral-600"><Trans>清理不影响游戏文件，下次使用时会自动生成。</Trans></p>
+      <p className="text-base text-neutral-600"><Trans>清理不影响游戏文件，下次使用时会自动生成。</Trans></p>
       {cache.isError && <Alert variant="warning" action={{ label: <Trans>重试</Trans>, onAction: () => void cache.refetch() }}>
         <Trans>暂时无法读取缓存占用。</Trans> {dataErrorMessage(cache.error)}
       </Alert>}

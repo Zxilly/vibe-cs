@@ -86,7 +86,7 @@ export function ImportDemoDialog({ open, onClose, onImport, importing, error }: 
             <span className="min-w-0 break-all">{staged.map((path) => path.split(/[\\/]/u).at(-1)).join(' · ')}</span>
           )}
         </div>
-        <p className="text-xs leading-normal text-neutral-600">
+        <p className="text-base leading-normal text-neutral-600">
           <Trans>相同内容的文件不会重复导入。</Trans>
         </p>
         {staged.length > 0 ? (

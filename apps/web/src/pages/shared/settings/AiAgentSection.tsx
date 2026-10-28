@@ -486,7 +486,7 @@ function ModelBlock({
         </div>
       ) : draft === null ? null : (
         <div className="flex flex-col gap-3">
-          <p className="border-b border-divider pb-2 font-heading text-sm">
+          <p className="border-b border-divider pb-2 font-heading text-base">
             <Trans>连接信息</Trans>
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -573,7 +573,7 @@ function ModelBlock({
               <Trans>连接正常：{testResult}，支持 Agent 工具调用。</Trans>
             </Alert>
           )}
-          {disabledReason === undefined ? null : <p className="text-xs text-warn-text">{disabledReason}</p>}
+          {disabledReason === undefined ? null : <p className="text-base text-warn-text">{disabledReason}</p>}
         </div>
       )}
     </SettingsBlock>
@@ -662,9 +662,8 @@ function ProviderParametersEditor({
     <details className="group border border-divider" data-provider-parameters="">
       <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none items-center gap-x-3 gap-y-1 flex-wrap bg-surface-chrome px-4 py-2.5">
         <span className="font-heading text-sm"><Trans>请求参数</Trans></span>
-        <span className="text-xs text-neutral-600"><Trans>使用提供方默认值</Trans></span>
         <span className="text-xs text-neutral-600" data-custom-parameter-count={customCount}>
-          <Trans>{customCount} 项自定义</Trans>
+          {customCount === 0 ? <Trans>使用提供方默认值</Trans> : <Trans>{customCount} 项自定义</Trans>}
         </span>
         <ChevronRight
           size={15}
@@ -677,7 +676,7 @@ function ProviderParametersEditor({
       <div className="flex flex-col gap-4 border-t border-divider p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex min-w-0 flex-col gap-2">
-            <p className="text-sm"><Trans>接口格式</Trans></p>
+            <p className="text-base"><Trans>接口格式</Trans></p>
             <Seg
               name="llm-parameter-style"
               size="sm"
@@ -719,7 +718,7 @@ function ProviderParametersEditor({
             onChange={(value) => update('top_p', value)}
           />
         </div>
-        <p className="text-xs leading-normal text-neutral-600">
+        <p className="text-base leading-normal text-neutral-600">
           <Trans>Temperature 和 Top P 通常只需设置一个。</Trans>
         </p>
 
@@ -744,7 +743,7 @@ function ProviderParametersEditor({
               onChange={(event) => onRawChange(event.target.value)} />
           )}
         </Field>
-        <p className="text-xs leading-normal text-neutral-600">
+        <p className="text-base leading-normal text-neutral-600">
           <Trans>模型、消息、工具和认证参数由应用管理，无需填写。</Trans>
         </p>
       </div>
@@ -917,7 +916,7 @@ function VideoLengthRow({ value, disabled, disabledReason, onCommit }: VideoLeng
           </InputGroupText>
         </InputGroup>
         {invalid ? (
-          <p id={invalidId} className="text-xs leading-normal text-fail-text">
+          <p id={invalidId} className="text-base leading-normal text-fail-text">
             <Trans>
               只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒。
             </Trans>
@@ -978,7 +977,7 @@ function StorageRow({
       )}
 
       {exportResult === null ? null : (
-        <p data-export-result="" className="text-xs leading-normal text-neutral-700">
+        <p data-export-result="" className="text-base leading-normal text-neutral-700">
           <Plural value={exportResult.count} other="已导出 # 条对话" />
           {' · '}
           <time dateTime={exportResult.at}>{exportResult.at}</time>
@@ -1000,7 +999,7 @@ function StorageRow({
                   <Plural value={sessionCount} other="# 条对话" />
                 )}
               </p>
-              <p className="mt-1 text-xs text-neutral-600">
+              <p className="mt-1 text-base text-neutral-600">
                 <Trans>全部存在本机，不上传。</Trans>
               </p>
             </>

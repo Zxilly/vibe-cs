@@ -112,7 +112,7 @@ export function TaskDetail({
       data-task-kind={task.kind}
       data-task-status={task.status}
       aria-label={t`任务详情`}
-      className={cn('flex min-h-0 flex-col border border-divider bg-bg', className)}
+      className={cn('flex min-h-0 flex-col bg-bg', !compact && 'border border-divider', className)}
     >
       {/* 52px header. `--h-topbar` is 56 and `--h-panel-head` is 40; this row
           holds a 19px title and a 32px button, so it takes the panel-head token
@@ -285,7 +285,7 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
       </div>
 
       {log.entries.length === 0 ? (
-        <p className="px-3 py-4 text-sm text-neutral-600"><Trans>还没有阶段日志</Trans></p>
+        <p className="px-3 py-4 text-base text-neutral-600"><Trans>还没有阶段日志</Trans></p>
       ) : (
         /*
          * The log scrolls inside its own panel. A recording run logs one line
@@ -294,7 +294,7 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
          * without this the detail page grew a second scrollbar and the 阶段 bar
          * above it scrolled off the top.
          */
-        <ol className="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto py-2 pl-0 text-sm">
+        <ol className="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto py-2 pl-0 text-base leading-relaxed">
           {log.entries.map((entry) => (
             <li
               key={entry.id}

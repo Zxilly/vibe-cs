@@ -404,13 +404,13 @@ function RecoveryCard({ title, state, effect, untouched, detail, action, result 
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-divider p-4 sm:border-r sm:border-b-0 xl:p-5">
         {detail}
-        <p className="text-sm leading-normal text-neutral-700">{effect}</p>
-        <p className="text-sm leading-normal text-neutral-700">{untouched}</p>
+        <p className="max-w-prose text-base leading-normal text-neutral-700">{effect}</p>
+        <p className="max-w-prose text-base leading-normal text-neutral-700">{untouched}</p>
       </div>
       <div className="flex min-w-0 flex-col items-stretch justify-center gap-3 p-4 xl:p-5">
         {action}
         {result === null || result === undefined ? null : (
-          <span role="status" className="text-sm leading-relaxed text-neutral-700" data-recovery-result="">
+          <span role="status" className="text-base leading-relaxed text-neutral-700" data-recovery-result="">
             {result}
           </span>
         )}

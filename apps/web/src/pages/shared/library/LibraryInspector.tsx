@@ -134,7 +134,7 @@ export function LibraryInspector({
             <Trans>正在读取</Trans>
           </p>
         ) : (
-          <p className="text-sm leading-normal text-neutral-700">
+          <p className="text-base leading-normal text-neutral-700">
             <Trans>在左侧选一场比赛，这里会显示它的文件、状态与下一步。</Trans>
           </p>
         )}

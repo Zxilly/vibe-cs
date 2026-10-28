@@ -170,7 +170,7 @@ export function FilesSection() {
               )}
             </SettingsRow>
             {storage.data?.scan_complete === false ? (
-              <p className="text-xs leading-normal text-neutral-600">
+              <p className="text-base leading-normal text-neutral-600">
                 {/* The service says when it stopped counting. Printing the
                     partial total as if it were complete would understate the
                     usage on exactly the libraries where it matters. */}
@@ -191,7 +191,7 @@ export function FilesSection() {
         ) : (
           <>
             {watchPaths.length === 0 ? (
-              <p className="text-xs leading-normal text-neutral-600">
+              <p className="text-base leading-normal text-neutral-600">
                 <Trans>尚未设置监听目录。</Trans>
               </p>
             ) : (
@@ -252,7 +252,7 @@ export function FilesSection() {
                 <Trans>添加目录</Trans>
               </Button>
             </div>
-            <p className="text-xs leading-normal text-neutral-600">
+            <p className="text-base leading-normal text-neutral-600">
               <Plural
                 value={watchPaths.length}
                 _0="目前不会自动发现任何 Demo。"

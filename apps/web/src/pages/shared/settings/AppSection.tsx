@@ -156,12 +156,12 @@ export function AppSection() {
                 onKeyDown={(event) => { if (event.key === 'Enter') saveManifest(); }}
               />
               {manifestInvalid ? (
-                <p id="update-manifest-error" role="alert" className="text-sm leading-normal text-fail-text">
+                <p id="update-manifest-error" role="alert" className="text-base leading-normal text-fail-text">
                   <Trans>只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。</Trans>
                 </p>
               ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p id="update-manifest-hint" className="text-sm text-neutral-600">
+                <p id="update-manifest-hint" className="text-base text-neutral-600">
                   <Trans>离开输入框或按 Enter 保存。</Trans>
                 </p>
                 <Button size="sm" variant="secondary" disabled={blocked || manifestInvalid || !manifestDirty}
@@ -170,7 +170,7 @@ export function AppSection() {
                 </Button>
               </div>
               {update.isSuccess && manifestDraft === null ? (
-                <p role="status" className="text-sm text-ok-text"><Trans>设置已保存。</Trans></p>
+                <p role="status" className="text-base text-ok-text"><Trans>设置已保存。</Trans></p>
               ) : null}
             </div>
           </SettingsRow>

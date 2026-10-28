@@ -147,7 +147,7 @@ export function AdvancedSection() {
               ))}
             </ul>
             {(checks.data?.checks ?? []).length === 0 ? (
-              <p className="text-xs leading-normal text-neutral-600">
+              <p className="text-base leading-normal text-neutral-600">
                 <Trans>这次检查没有返回任何项。</Trans>
               </p>
             ) : null}
@@ -221,7 +221,7 @@ export function AdvancedSection() {
                 >
                   {prepareHlae.isPending ? <Trans>正在准备</Trans> : <Trans>准备采集组件</Trans>}
                 </Button>
-                <p className="text-xs leading-normal text-neutral-600">
+                <p className="text-base leading-normal text-neutral-600">
                   <Trans>下载并安装录制所需组件。</Trans>
                 </p>
               </div>
@@ -272,7 +272,7 @@ export function AdvancedSection() {
           /* A sentence, not a `Notice`: every notice carries a recovery action
              by design, and a report that was written has nothing to recover
              from. The path is the whole message. */
-          <p className="px-3 pb-3 text-sm text-neutral-700" data-diagnostics-result="">
+          <p className="break-words pb-3 text-base leading-normal text-neutral-700 [overflow-wrap:anywhere]" data-diagnostics-result="">
             {/* The flag, not the assumption: this page promises 「不含密钥」 only
                 because the service said so on the wire. */}
             {exportDiagnostics.data.contains_secrets ? (

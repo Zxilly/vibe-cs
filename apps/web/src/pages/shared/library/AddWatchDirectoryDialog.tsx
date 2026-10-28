@@ -132,7 +132,7 @@ export function AddWatchDirectoryDialog({
           <Checkbox checked disabled>
             <Trans>包含子目录</Trans>
           </Checkbox>
-          <p className="text-xs leading-normal text-neutral-600">
+          <p className="text-base leading-normal text-neutral-600">
             <Trans>服务当前按目录递归监听，子目录会一同纳入</Trans>
           </p>
         </div>

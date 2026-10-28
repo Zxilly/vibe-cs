@@ -8,7 +8,7 @@
  */
 
 import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { renderPage } from '../../../test/renderPage';
 import { GuidePage } from './GuidePage';
@@ -67,7 +67,7 @@ describe('the guide pipeline and the first-run entry', () => {
 
   it('are the pipeline, not a tour of the navigation', () => {
     expect(FIRST_RUN_STEPS.map((step) => step.id)).toEqual(['import', 'analyse', 'create']);
-    expect(FIRST_RUN_STEPS.map((step) => step.to)).toEqual(['/library', '/library', '/projects/new?step=shotlist']);
+    expect(FIRST_RUN_STEPS.map((step) => step.to)).toEqual(['/library', '/library', '/projects/new']);
   });
 });
 
@@ -107,6 +107,16 @@ describe('the first-run strip', () => {
 });
 
 describe('使用引导', () => {
+  it('does not mark a failed progress read as unfinished work', async () => {
+    const listProjects = vi.fn(() => Promise.reject(new Error('作品读取失败')));
+    render(<GuidePage />, { listProjects });
+    await screen.findByText('环境检查');
+    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    expect(document.querySelector('[data-guide-current]')).toBeNull();
+    expect(document.querySelector('[data-guide-done]')).toBeNull();
+    expect(screen.getByRole('link', { name: '新建作品' })).toBeTruthy();
+  });
+
   it('reports an empty dependency check instead of implying the machine is ready', async () => {
     render(<GuidePage />, { quickCheck: () => Promise.resolve({ checks: [], checked_at: CHECKS.checked_at }) });
     expect(await screen.findByText(/没有收到环境检查结果/u)).toBeTruthy();
@@ -115,7 +125,7 @@ describe('使用引导', () => {
 
   it('presents the pipeline beside readiness and, on an empty machine, points at the first step', async () => {
     render(<GuidePage />);
-    await screen.findByText('这台机器现在能做什么');
+    await screen.findByText('环境检查');
 
     await waitFor(() => {
       expect(document.querySelector('[data-guide-current="true"]')?.getAttribute('data-guide-step')).toBe('import');
@@ -126,7 +136,7 @@ describe('使用引导', () => {
 
   it('marks the steps the data says are taken and points at the next one', async () => {
     // The accent face is the shell's 「you are here」; on a library with an
-    // analysed match it belongs on 「让 Agent 做一条视频」, not on 「导入 Demo」.
+    // analysed match it belongs on 「新建作品」, not on 「导入 Demo」.
     render(<GuidePage />, {
       listDemos: (query: { status?: string }) => Promise.resolve(query.status === 'ready' ? READY_DEMO : ONE_DEMO),
     });
@@ -154,10 +164,10 @@ describe('使用引导', () => {
 
   it('keeps each step one target with the step name as its accessible name', async () => {
     render(<GuidePage />);
-    await screen.findByText('这台机器现在能做什么');
+    await screen.findByText('环境检查');
 
-    const link = screen.getByRole('link', { name: '让 Agent 做一条视频' });
-    expect(link.getAttribute('href')).toBe('/projects/new?step=shotlist');
+    const link = screen.getByRole('link', { name: '新建作品' });
+    expect(link.getAttribute('href')).toBe('/projects/new');
     // The anchor is stretched over its card, so the number and the sentence
     // beside the title are not a dead zone inside something drawn as a button.
     expect(link.className).toContain('after:absolute');
@@ -186,7 +196,7 @@ describe('使用引导', () => {
 
   it('points at the diagnostics section for the raw states', async () => {
     render(<GuidePage />);
-    await screen.findByText('这台机器现在能做什么');
+    await screen.findByText('环境检查');
     expect(document.querySelector('a[href="/settings?section=advanced&item=dependencies"]')).not.toBeNull();
   });
 

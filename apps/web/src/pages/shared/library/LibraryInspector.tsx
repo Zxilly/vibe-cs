@@ -60,6 +60,7 @@ import {
   formatRounds,
   formatScore,
   isDemoAnalysable,
+  isDemoFileMissing,
 } from './libraryFormat';
 
 export interface LibraryInspectorProps {
@@ -70,6 +71,8 @@ export interface LibraryInspectorProps {
   readonly onRetry: () => void;
   /** The record's lifecycle is `analyzing` — picks 「查看分析进度」. */
   readonly analysing: boolean;
+  readonly startingAnalysis: boolean;
+  readonly startingPlayback: boolean;
 
   /** What the primary action is called while the workspace can be opened. */
   readonly workspaceLabel: ReactNode;
@@ -95,6 +98,8 @@ export function LibraryInspector({
   error,
   onRetry,
   analysing,
+  startingAnalysis,
+  startingPlayback,
   workspaceLabel,
   onOpenWorkspace,
   onAnalyse,
@@ -143,6 +148,7 @@ export function LibraryInspector({
   }
 
   const canOpenWorkspace = isDemoAnalysable(demo);
+  const missingFile = isDemoFileMissing(demo);
   const matchup = formatMatchup(demo);
   const score = formatScore(demo);
   const duration = formatDuration(demo.duration_seconds);
@@ -163,7 +169,11 @@ export function LibraryInspector({
       );
     }
     return (
-      <Button size={size} variant="primary" block={size === 'lg'} onClick={onAnalyse}>
+      <Button
+        size={size} variant="primary" block={size === 'lg'} onClick={onAnalyse}
+        disabled={missingFile || startingAnalysis}
+        disabledReason={missingFile ? t`Demo 文件缺失，无法分析` : startingAnalysis ? t`正在提交分析任务` : undefined}
+      >
         <Trans>开始分析</Trans>
       </Button>
     );
@@ -184,7 +194,10 @@ export function LibraryInspector({
         <>
           {primaryAction('lg')}
           <div className="flex gap-2">
-            <Button size="sm" grow onClick={onPlay}>
+            <Button size="sm" grow onClick={onPlay}
+              disabled={missingFile || startingPlayback}
+              disabledReason={missingFile ? t`Demo 文件缺失，无法回放` : startingPlayback ? t`正在启动回放` : undefined}
+            >
               <Trans>游戏内回放</Trans>
             </Button>
             <Button size="sm" grow {...revealButtonProps} onClick={onReveal}>

@@ -4,9 +4,7 @@
  * 「补齐 · 暗色与其余页面」 draws it: a three-column grid, each card carrying the
  * match name and the score on one baseline, 「Mirage · 08-14 · 24 回合」 under it,
  * the status tags, and a summary line. The selected card takes the accent
- * border and the accent-100 ground the table's active row takes. The artboard's
- * own caption is kept as the view's hint: 「适合几十场以内的个人资料库；大库仍
- * 建议用表格」.
+ * border and the accent-100 ground the table's active row takes.
  *
  * Three of the drawn card's lines cannot be filled from `DemoSummary` and are
  * therefore absent rather than faked: 「Kael 27-14 · 7 条高光」 needs per-player
@@ -73,10 +71,6 @@ export function LibraryCards({
   return (
     <div data-library-cards className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        <p className="mb-3 text-xs text-neutral-600">
-          <Trans>适合几十场以内的个人资料库；大库仍建议用表格</Trans>
-        </p>
-
         {error === null ? null : (
           <Alert
             className="mb-3"

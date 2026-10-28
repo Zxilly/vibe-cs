@@ -376,6 +376,8 @@ function DemoLibraryPage() {
         void activeDetail.refetch();
       }}
       analysing={activeDemo?.lifecycle_status === 'analyzing'}
+      startingAnalysis={startAnalysis.isPending}
+      startingPlayback={launchPlayback.isPending}
       // A project sent the user here to collect clips (`?project=`), or they
       // came on their own: the same match workspace, named for the job.
       workspaceLabel={

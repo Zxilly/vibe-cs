@@ -96,6 +96,26 @@ describe('library batch action scope', () => {
 });
 
 describe('library action recovery', () => {
+  it('disables analysis and playback when the selected Demo file is missing', async () => {
+    const missing = makeDemo(0, { lifecycle_status: 'missing' });
+    const playDemo = vi.fn();
+    const startAnalysisRun = vi.fn();
+    renderLibrary({ seed: { ...ONLINE, demos: demoPage([missing]), detail: missing }, client: {
+      playDemo, startAnalysisRun,
+    } });
+
+    const analyse = await screen.findByRole('button', { name: '开始分析' });
+    const play = screen.getByRole('button', { name: '游戏内回放' });
+    expect(analyse).toHaveProperty('disabled', true);
+    expect(play).toHaveProperty('disabled', true);
+    expect(document.body.textContent).toContain('Demo 文件缺失，无法分析');
+    expect(document.body.textContent).toContain('Demo 文件缺失，无法回放');
+    fireEvent.click(analyse);
+    fireEvent.click(play);
+    expect(startAnalysisRun).not.toHaveBeenCalled();
+    expect(playDemo).not.toHaveBeenCalled();
+  });
+
   it('reports a failed remark and retries the original Demo after selection changes', async () => {
     const first = makeDemo(0);
     const second = makeDemo(1);

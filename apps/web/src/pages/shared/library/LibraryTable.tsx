@@ -99,7 +99,6 @@ export function LibraryTable({
           className="m-4"
           variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
-          detail={<Trans>已导入的比赛仍在本地，重试通常就能恢复列表。</Trans>}
         >
           {error}
         </Alert>

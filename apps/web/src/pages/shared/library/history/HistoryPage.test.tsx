@@ -30,12 +30,11 @@ describe('the page frame', () => {
     expect(html).toContain('比赛历史');
   });
 
-  it('distinguishes the total from the current page counts', () => {
-    expect(html).toContain('全部 0');
-    // Page-scoped counts say so: the service pages the list (§10.3).
-    expect(html).toContain('本页未下载 0');
-    expect(html).toContain('本页已入库 0');
-    expect(html).toContain('本页已过期 0');
+  it('leaves counts unknown until the history arrives', () => {
+    expect(html).not.toContain('全部 0');
+    expect(html).not.toContain('本页未下载 0');
+    expect(html).not.toContain('本页已入库 0');
+    expect(html).not.toContain('本页已过期 0');
   });
 
   it('offers 同步最近比赛 and the Steam settings link', () => {
@@ -54,8 +53,8 @@ describe('the first paint', () => {
     expect(html).toContain('disabled=""');
   });
 
-  it('prints the corpus total in the footer, so nothing is silently truncated', () => {
-    expect(html).toContain('共 0 场对局');
+  it('does not present a zero-total pager before loading finishes', () => {
+    expect(html).not.toContain('共 0 场对局');
   });
 
   it('says nothing about a last sync it has not read', () => {

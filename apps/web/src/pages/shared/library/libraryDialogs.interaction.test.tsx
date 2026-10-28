@@ -62,7 +62,7 @@ describe('导入 Demo', () => {
     fireEvent.click(screen.getByRole('button', { name: /导入 Demo/u }));
 
     expect(within(dialog()).getByText('把 .dem 或 .zip 拖到这里')).toBeTruthy();
-    expect(within(dialog()).getByText('校验文件头与大小；同一份内容不会重复入库')).toBeTruthy();
+    expect(within(dialog()).getByText('相同内容的文件不会重复导入。')).toBeTruthy();
     // Nothing staged yet, so the primary is still the artboard's 「选择文件」.
     expect(within(dialog()).getByRole('button', { name: '选择文件' })).toBeTruthy();
   });

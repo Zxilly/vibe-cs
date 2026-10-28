@@ -22,8 +22,8 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { DataTable, type DataTableColumn } from '../../../../design/data';
-import { StatusDot } from '../../../../design/feedback';
-import { Badge, Button } from '../../../../design/primitives';
+import { StatusDot, type StatusDotStatus } from '../../../../design/feedback';
+import { Button } from '../../../../design/primitives';
 import type { MatchHistoryItem } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../navigation/RouteLink';
 import {
@@ -48,32 +48,18 @@ function stateLabel(state: MatchHistoryState): ReactNode {
 }
 
 function StateCell({ item, state }: { readonly item: MatchHistoryItem; readonly state: MatchHistoryState }) {
-  if (state === 'downloading') {
-    /* No percentage: `MatchHistoryItem` carries none, and the download job that
-       does is a separate record. 「有真实分母时才用进度条，否则只给阶段名」. */
-    return (
-      <span className="inline-flex items-center gap-2 text-xs">
-        <StatusDot status="running" size="sm" />
-        {stateLabel(state)}
-      </span>
-    );
-  }
-  if (state === 'expired') {
-    return (
-      <span className="text-xs text-neutral-600">
-        <Trans>已过期 · Valve 不再保留</Trans>
-      </span>
-    );
-  }
-  if (state === 'failed') {
-    return (
-      <span className="inline-flex items-center gap-2 text-xs text-fail-text" title={item.last_error ?? undefined}>
-        <StatusDot status="fail" size="sm" />
-        {stateLabel(state)}
-      </span>
-    );
-  }
-  return <Badge variant={state === 'downloaded' ? 'accent' : 'neutral'}>{stateLabel(state)}</Badge>;
+  const status: Record<MatchHistoryState, StatusDotStatus> = {
+    downloaded: 'ok', downloading: 'running', available: 'idle', failed: 'fail', expired: 'idle',
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-2 text-xs ${state === 'failed' ? 'text-fail-text' : 'text-neutral-700'}`}
+      title={state === 'failed' ? item.last_error ?? undefined : undefined}
+    >
+      <StatusDot status={status[state]} size="sm" />
+      {state === 'expired' ? <Trans>已过期 · Valve 不再保留</Trans> : stateLabel(state)}
+    </span>
+  );
 }
 
 export interface MatchHistoryTableProps {
@@ -87,6 +73,7 @@ export interface MatchHistoryTableProps {
   readonly onCancel: (item: MatchHistoryItem) => void;
   /** Why the download actions cannot run; disables them and says so. */
   readonly actionDisabledReason?: string | undefined;
+  readonly cancelDisabledReason?: ((item: MatchHistoryItem) => string | undefined) | undefined;
   readonly loading?: boolean | undefined;
   /** What `loading` shows. Omitted, `DataTable` falls back to its own. */
   readonly skeleton?: ReactNode | undefined;
@@ -102,6 +89,7 @@ export function MatchHistoryTable({
   onDownload,
   onCancel,
   actionDisabledReason,
+  cancelDisabledReason,
   loading = false,
   skeleton,
   empty,
@@ -154,18 +142,21 @@ export function MatchHistoryTable({
         const state = stateOf(item);
         if (state === 'downloaded') {
           return item.demo_id === null ? null : (
-            <RouteLink to={`/match/${encodeURIComponent(item.demo_id)}`}>
-              <Trans>打开工作区</Trans>
-            </RouteLink>
+            <Button asChild size="sm" variant="ghost">
+              <RouteLink to={`/match/${encodeURIComponent(item.demo_id)}`} className="no-underline">
+                <Trans>打开工作区</Trans>
+              </RouteLink>
+            </Button>
           );
         }
         if (state === 'downloading') {
+          const disabledReason = actionDisabledReason ?? cancelDisabledReason?.(item);
           return (
             <Button
               variant="ghost"
               size="sm"
-              disabled={actionDisabledReason !== undefined}
-              {...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason })}
+              disabled={disabledReason !== undefined}
+              disabledReason={disabledReason}
               onClick={() => onCancel(item)}
             >
               <Trans>取消</Trans>

@@ -39,7 +39,7 @@ export function GuidePage() {
       toolbar={
         <Toolbar
           title={<Trans>使用引导</Trans>}
-          meta={<Trans>三步做出第一条视频，以及这台机器现在能做什么</Trans>}
+          meta={<Trans>导入比赛、创建作品，检查录制与导出环境</Trans>}
         />
       }
     >
@@ -49,7 +49,7 @@ export function GuidePage() {
       <div className="grid min-h-0 grid-cols-1 items-start gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
         <section className="flex min-w-0 flex-col gap-4">
           <h2 className="text-base font-medium">
-            <Trans>从 Demo 到第一条视频</Trans>
+            <Trans>创建第一份作品</Trans>
           </h2>
           <ol className="flex flex-col border border-divider bg-bg">
             {FIRST_RUN_STEPS.map((step, index) => {
@@ -100,7 +100,7 @@ export function GuidePage() {
         <section className="flex min-w-0 flex-col gap-4 border border-divider p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="text-base font-medium">
-              <Trans>这台机器现在能做什么</Trans>
+              <Trans>环境检查</Trans>
             </h2>
             <Button
               variant="secondary"
@@ -118,7 +118,7 @@ export function GuidePage() {
               <Trans>读不到环境自检：{error}</Trans>
             </Alert>
           ) : checks.isPending ? (
-            <div className="flex flex-col gap-2.5">
+            <div role="status" aria-label={t`正在检查环境`} className="flex flex-col gap-2.5">
               <Skeleton />
               <Skeleton width="82%" />
             </div>

@@ -35,18 +35,18 @@ export const FIRST_RUN_STEPS: readonly FirstRunStep[] = [
     id: 'import',
     to: '/library',
     title: () => t`导入 Demo`,
-    description: () => t`把 .dem 文件加进资料库，或者设一个监听目录让它们自己进来。`,
+    description: () => t`导入 .dem 文件，或添加监听目录，自动导入新文件。`,
   },
   {
     id: 'analyse',
     to: '/library',
     title: () => t`分析一场比赛`,
-    description: () => t`解析出回合、击杀与移动轨迹，之后的所有选材都基于它。`,
+    description: () => t`分析回合、击杀与移动轨迹，用于回放和选材。`,
   },
   {
     id: 'create',
-    to: '/projects/new?step=shotlist',
-    title: () => t`让 Agent 做一条视频`,
-    description: () => t`描述你的想法，Agent 会编排片段；开始录制前会等你确认。`,
+    to: '/projects/new',
+    title: () => t`新建作品`,
+    description: () => t`描述你的想法，让 Agent 编排片段。录制前需要你确认。`,
   },
 ];

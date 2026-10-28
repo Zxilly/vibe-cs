@@ -108,6 +108,8 @@ describe('the read', () => {
     expect(notice.textContent).toContain('还没有配置 Steam 比赛历史');
     expect(notice.textContent).not.toContain('external dependency');
     expect(within(notice).getByRole('button', { name: '打开 Steam 设置' })).toBeTruthy();
+    expect(screen.queryByText('还没有可显示的对局')).toBeNull();
+    expect(screen.queryByText('全部 0')).toBeNull();
   });
 });
 
@@ -214,6 +216,25 @@ describe('下载', () => {
     await waitFor(() => {
       expect(stub.cancelMatchDownload).toHaveBeenCalledWith('dl-7');
     });
+  });
+
+  it('keeps cancellation unavailable until its download job is known', async () => {
+    let resolveJobs!: (jobs: MatchDownloadJob[]) => void;
+    const pendingJobs = new Promise<MatchDownloadJob[]>((resolve) => { resolveJobs = resolve; });
+    const stub = client({ listActiveMatchDownloadJobs: vi.fn(() => pendingJobs) });
+    render(stub);
+
+    await screen.findByText('de_nuke');
+    const cancel = screen.getByRole('button', { name: '取消' });
+    expect(cancel).toHaveProperty('disabled', true);
+    expect(document.body.textContent).toContain('正在读取下载任务');
+    fireEvent.click(cancel);
+    expect(stub.cancelMatchDownload).not.toHaveBeenCalled();
+
+    resolveJobs([DOWNLOADING_JOB]);
+    await waitFor(() => expect(screen.getByRole('button', { name: '取消' })).toHaveProperty('disabled', false));
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    await waitFor(() => expect(stub.cancelMatchDownload).toHaveBeenCalledExactlyOnceWith('dl-7'));
   });
 });
 

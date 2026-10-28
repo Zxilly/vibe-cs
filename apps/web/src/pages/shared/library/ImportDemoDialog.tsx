@@ -87,7 +87,7 @@ export function ImportDemoDialog({ open, onClose, onImport, importing, error }: 
           )}
         </div>
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>校验文件头与大小；同一份内容不会重复入库</Trans>
+          <Trans>相同内容的文件不会重复导入。</Trans>
         </p>
         {staged.length > 0 ? (
           <div><Button size="sm" variant="ghost" disabled={importing} onClick={() => { void choose(); }}><Trans>重新选择</Trans></Button></div>

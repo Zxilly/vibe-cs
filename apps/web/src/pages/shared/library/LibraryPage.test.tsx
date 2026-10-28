@@ -205,10 +205,6 @@ describe('the card view', () => {
     expect(html).not.toContain('data-library-table');
   });
 
-  it('keeps the artboard’s own caveat about large libraries', () => {
-    expect(html).toContain('适合几十场以内的个人资料库；大库仍建议用表格');
-  });
-
   it('shows what the wire has and does not fake a highlight count', () => {
     expect(html).toContain('13 : 11');
     expect(html).toContain('24 回合');

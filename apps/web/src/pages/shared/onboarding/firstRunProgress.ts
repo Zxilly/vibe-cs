@@ -11,8 +11,8 @@
  *
  * Three one-row reads rather than one page of fifty: each question is a
  * boolean, and the list page's own query would be a page of data to answer it.
- * A read that fails counts as "not done" — the guide then points at the step
- * again, which is the harmless direction to be wrong in.
+ * Failed reads leave progress unknown; they must not mark existing work as
+ * unfinished or direct a returning user to import it again.
  */
 
 import { useDemoList } from '../../../data/demos';
@@ -25,13 +25,13 @@ export interface FirstRunProgress {
   readonly current: FirstRunStep['id'] | null;
 }
 
-/** `null` while any of the three reads is still in flight. */
+/** `null` until all three reads have succeeded. */
 export function useFirstRunProgress(): FirstRunProgress | null {
   const demos = useDemoList({ page: 1, page_size: 1 });
   const analysed = useDemoList({ status: 'ready', page: 1, page_size: 1 });
   const projects = useProjects();
 
-  if (demos.isPending || analysed.isPending || projects.isPending) return null;
+  if (!demos.isSuccess || !analysed.isSuccess || !projects.isSuccess) return null;
 
   const done = new Set<FirstRunStep['id']>();
   if ((demos.data?.items.length ?? 0) > 0) done.add('import');

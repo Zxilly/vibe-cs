@@ -140,7 +140,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
           ]}
           primary={
             <Button
-              variant="primary"
+              variant={selectedRows.length === 0 ? 'primary' : 'secondary'}
               onClick={() => sync.mutate()}
               {...(sync.isPending ? { disabled: true } : {})}
             >
@@ -154,18 +154,22 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
           {/* Tallies, so every one is `neutral`: an accent chip in the bar
               slot reads as the selected item of a filter row. Only 「下载中」
               below is a live state and keeps the accent. */}
-          <Badge variant="neutral">
-            <Trans>全部 {total}</Trans>
-          </Badge>
-          <Badge variant="neutral">
-            <Trans>本页未下载 {counts.available}</Trans>
-          </Badge>
-          <Badge variant="neutral">
-            <Trans>本页已入库 {counts.downloaded}</Trans>
-          </Badge>
-          <Badge variant="neutral">
-            <Trans>本页已过期 {counts.expired}</Trans>
-          </Badge>
+          {history.data === undefined ? null : (
+            <>
+              <Badge variant="neutral">
+                <Trans>全部 {total}</Trans>
+              </Badge>
+              <Badge variant="neutral">
+                <Trans>本页未下载 {counts.available}</Trans>
+              </Badge>
+              <Badge variant="neutral">
+                <Trans>本页已入库 {counts.downloaded}</Trans>
+              </Badge>
+              <Badge variant="neutral">
+                <Trans>本页已过期 {counts.expired}</Trans>
+              </Badge>
+            </>
+          )}
           {activeCount === 0 ? null : (
             <Badge variant="accent">
               <Trans>下载中 {activeCount}</Trans>
@@ -228,7 +232,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
                  router mode changes. */
               onAction: () => void navigate('/settings?section=files&item=steam'),
             }}
-            detail={<Trans>同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。</Trans>}
+            detail={<Trans>请重试；若仍失败，请检查 Steam 连接设置。</Trans>}
           >
             <Trans>这次操作没有成功：{writeError}</Trans>
           </Alert>
@@ -244,9 +248,16 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
             const jobId = jobIdFor(item);
             if (jobId !== undefined) cancel.mutate(jobId);
           }}
+          cancelDisabledReason={(item) => {
+            if (cancel.isPending && cancel.variables === jobIdFor(item)) return t`正在取消下载`;
+            if (downloads.isPending) return t`正在读取下载任务`;
+            if (downloads.isError) return t`下载任务读取失败，请到任务中心重试`;
+            if (jobIdFor(item) === undefined) return t`下载状态已变化，请同步比赛后重试`;
+            return undefined;
+          }}
           loading={history.isPending}
           skeleton={<TableSkeleton rows={8} stage={t`正在读取比赛历史`} className="m-4" />}
-          empty={
+          empty={readFailure !== null ? null : (
             <Empty
               className="m-4"
               title={<Trans>还没有可显示的对局</Trans>}
@@ -262,8 +273,8 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
                 </RouteLink>
               }
             />
-          }
-          footer={
+          )}
+          footer={history.data === undefined ? null : (
             <Pagination
               page={page}
               pageSize={HISTORY_PAGE_SIZE}
@@ -271,7 +282,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               onPageChange={(next) => { setSelected(new Set()); setPage(next); }}
               summary={<Trans>共 {total} 场对局</Trans>}
             />
-          }
+          )}
         />
       </div>
     </HistoryFrame>

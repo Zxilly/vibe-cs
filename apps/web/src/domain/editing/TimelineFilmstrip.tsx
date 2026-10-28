@@ -50,18 +50,24 @@ export const TimelineFilmstrip = memo(function TimelineFilmstrip({
       className="pointer-events-none absolute inset-x-0 bottom-[18px] top-0 overflow-hidden bg-accent-100"
       data-timeline-filmstrip
     >
-      {tiles.map((tile) => (
-        <img
-          key={`${tile.index}:${tile.sourceTime}`}
-          className="absolute inset-y-0 h-full border-r border-accent-300 object-cover"
-          style={{ left: tile.leftPx, width: tile.widthPx }}
-          src={mediaSrc(mediaAssetThumbnailPath(assetId, tile.sourceTime, 192, 108)) ?? undefined}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-        />
-      ))}
+      {tiles.map((tile) => {
+        const source = mediaSrc(mediaAssetThumbnailPath(assetId, tile.sourceTime, 192, 108));
+        if (source === null) return null;
+        return (
+          <img
+            key={`${tile.index}:${tile.sourceTime}`}
+            className="absolute inset-y-0 h-full border-r border-accent-300 object-cover"
+            style={{ left: tile.leftPx, width: tile.widthPx }}
+            src={source}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            onLoad={(event) => { event.currentTarget.style.visibility = 'visible'; }}
+            onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }}
+          />
+        );
+      })}
     </span>
   );
 });

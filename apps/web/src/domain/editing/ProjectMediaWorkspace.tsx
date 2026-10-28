@@ -463,6 +463,7 @@ export function ProjectMediaWorkspace({
           </div>
         ) : (
           <Empty
+            headingLevel={2}
             className="m-3 min-h-40 min-w-0 p-3"
             title={normalizedQuery === '' && stateFilter === 'all' ? <Trans>项目还没有素材</Trans> : <Trans>没有匹配的素材</Trans>}
             description={normalizedQuery === '' && stateFilter === 'all'
@@ -674,7 +675,7 @@ export function ProjectMediaWorkspace({
         }}
         onClose={() => setAutomateOpen(false)}
       >
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3 text-base">
           <fieldset className="space-y-1.5">
             <legend className="font-semibold"><Trans>素材</Trans></legend>
             {automateAssets.map((asset) => {
@@ -745,7 +746,7 @@ export function ProjectMediaWorkspace({
         }}
         onClose={() => setMulticamOpen(false)}
       >
-        <div className="space-y-3 text-xs">
+        <div className="space-y-3 text-base">
           <fieldset className="space-y-1.5">
             <legend className="font-semibold"><Trans>摄像机角度（2–9）</Trans></legend>
             {automateAssets.map((asset) => {
@@ -824,7 +825,7 @@ function MediaItemSection({
   const shell = useNativeShell();
   if (items.length === 0) return null;
   return (
-    <section aria-label={label}>
+    <section role="group" aria-label={label}>
       <header className="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-divider bg-surface-chrome px-3 text-xs font-medium text-neutral-600">
         <span>{label}</span>
         <span className="tabular-nums">{items.length}</span>
@@ -884,15 +885,20 @@ function MediaItemSection({
                   {thumbnail === null ? (
                     <Icon className="size-6" aria-hidden="true" />
                   ) : (
-                    <img
-                      className="size-full object-cover"
-                      src={thumbnail}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      draggable={false}
-                      aria-hidden="true"
-                    />
+                    <>
+                      <Icon className="absolute size-6" aria-hidden="true" />
+                      <img
+                        className="relative size-full object-cover"
+                        src={thumbnail}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        draggable={false}
+                        aria-hidden="true"
+                        onLoad={(event) => { event.currentTarget.style.visibility = 'visible'; }}
+                        onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }}
+                      />
+                    </>
                   )}
                   <span className="absolute bottom-1 right-1 bg-media/80 px-1 font-mono text-xs text-on-media">
                     {formatDuration(item.durationSeconds)}
@@ -1127,6 +1133,7 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
     <>
     <div
       className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] bg-media"
+      role="group"
       aria-label={t`源素材预览`}
       onKeyDown={(event) => {
         if (event.key.toLowerCase() === 'i') {
@@ -1144,6 +1151,7 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
       <div className="relative min-h-0 overflow-hidden">
         {mountedAssets.map(({ id: assetId, kind }) => {
           const source = shell.mediaSrc(mediaAssetStreamPath(assetId));
+          if (source === null) return null;
           const className = cn(
             'pointer-events-none absolute inset-0 size-full bg-media object-contain transition-opacity',
             displayedAssetId === assetId ? 'opacity-100' : 'opacity-0',
@@ -1153,15 +1161,17 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
               <img
                 key={assetId}
                 className={className}
-                src={source ?? undefined}
+                src={source}
                 alt=""
                 draggable={false}
                 aria-hidden="true"
                 data-source-preview-asset-id={assetId}
                 data-source-preview-visible={displayedAssetId === assetId ? 'true' : 'false'}
-                onLoad={() => {
+                onLoad={(event) => {
+                  event.currentTarget.style.visibility = 'visible';
                   if (previewAssetId === assetId) setDisplayedAssetId(assetId);
                 }}
+                onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }}
               />
             );
           }
@@ -1174,7 +1184,7 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
                 else mediaRefs.current.set(assetId, element);
               }}
               className={kind === 'audio' ? 'hidden' : className}
-              src={source ?? undefined}
+              src={source}
               preload="auto"
               playsInline
               tabIndex={-1}
@@ -1207,15 +1217,15 @@ function SourceMonitor({ active, item, fps, sourceTime, sourceRange, readOnly, b
           );
         })}
         {item === null ? (
-          <div className="absolute inset-0 grid place-items-center bg-media px-4 text-center text-xs text-on-media-muted">
+          <div className="absolute inset-0 grid place-items-center bg-media px-4 text-center text-base text-on-media-muted">
             <Trans>选择素材以预览源画面</Trans>
           </div>
         ) : item.sourceAsset?.metadata_status.status === 'unavailable' ? (
-          <div className="absolute inset-0 grid place-items-center bg-fail-surface px-4 text-center text-xs text-fail-text">
+          <div className="absolute inset-0 grid place-items-center bg-fail-surface px-4 text-center text-base text-fail-text">
             <span>
               <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
               <span className="block"><Trans>源文件不可用</Trans></span>
-              <span className="mt-1 block text-xs text-fail-text"><Trans>重新定位后可继续预览和编辑。</Trans></span>
+              <span className="mt-1 block text-base text-fail-text"><Trans>重新定位后可继续预览和编辑。</Trans></span>
             </span>
           </div>
         ) : item.state === 'planned' ? (

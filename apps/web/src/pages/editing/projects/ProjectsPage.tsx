@@ -87,6 +87,7 @@ export function ProjectsPage() {
           /* A miss is the search's, not the library's: the way out is clearing
              it, and the toolbar already holds the one primary 新建作品. */
           <Empty
+            headingLevel={2}
             title={<Trans>没有匹配的作品</Trans>}
             description={<Trans>没有名字包含「{search}」的作品。</Trans>}
             actions={
@@ -96,7 +97,7 @@ export function ProjectsPage() {
             }
           />
         ) : (
-          <Empty title={<Trans>还没有作品</Trans>} description={<Trans>新建作品后，添加素材开始剪辑。</Trans>} actions={newProject} />
+          <Empty headingLevel={2} title={<Trans>还没有作品</Trans>} description={<Trans>新建作品后，添加素材开始剪辑。</Trans>} actions={newProject} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{rows.map((project) => <ProjectCard key={project.id} project={project} />)}</div>
         )}
@@ -149,7 +150,7 @@ function ProjectCard({ project }: { readonly project: Project }) {
         <span>
           {clips.length === 0 ? <Trans>还没有素材</Trans> : <Plural value={clips.length} other="# 段素材" />}
         </span>
-        <span className="font-mono tabular-nums" aria-label={t`时长`}>{formatTimecode(project.document.duration_seconds)}</span>
+        <span className="font-mono tabular-nums"><span className="sr-only"><Trans>时长</Trans>{' '}</span>{formatTimecode(project.document.duration_seconds)}</span>
       </div>
       {step === null ? <p className="text-xs text-neutral-600">{gate.error !== null ? <Trans>素材状态暂时不可用</Trans> : gate.isFetching ? <Trans>正在检查素材…</Trans> : <Trans>素材状态待更新</Trans>}</p> : <p data-project-next-step={step.status} className="flex min-w-0 items-center gap-2 text-sm text-text">
         <StatusDot status={step.status} /><span className="min-w-0 truncate">{step.text}</span>

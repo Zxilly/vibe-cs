@@ -1012,7 +1012,7 @@ describe('unified project workspace', () => {
     const panel = screen.getByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('button', { name: 'Demo 选材' })).toBeTruthy();
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
-    expect(within(panel).getByRole('region', {name: '未录制'}).querySelector('header')?.textContent).toBe('未录制2');
+    expect(within(panel).getByRole('group', {name: '未录制'}).querySelector('header')?.textContent).toBe('未录制2');
     expect(within(panel).queryByRole('region', {name: '已录制'})).toBeNull();
   });
 
@@ -1510,7 +1510,7 @@ describe('unified project workspace', () => {
     const keyboardRender = renderWorkspace({ applyProjectPatch: keyboardPatch });
 
     const fadeIn = await screen.findByRole('slider', { name: '音频入场转场 A' });
-    const storyAudio = screen.getByRole('row', { name: 'Story 音频' });
+    const storyAudio = screen.getByRole('group', { name: 'Story 音频' });
     expect(storyAudio.querySelector('[role="img"]')?.classList.contains('pointer-events-none')).toBe(true);
     expect(fadeIn.parentElement?.classList.contains('z-10')).toBe(false);
     expect(fadeIn.getAttribute('aria-valuetext')).toBe('未应用');
@@ -1709,7 +1709,7 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('menuitem', { name: '波纹裁切片段起点到播放头' }).getAttribute('aria-disabled')).toBe('true');
     expect(screen.getByRole('menuitem', { name: '波纹裁切播放头到片段终点' }).getAttribute('aria-disabled')).toBe('true');
     fireEvent.keyDown(screen.getByRole('menu', { name: '剪辑操作' }), { key: 'Escape' });
-    expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((within(screen.getByRole('group', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(false);
 
     const timeline = screen.getByRole('region', { name: '时间轴' });
     fireEvent.keyDown(timeline, { key: 's' });
@@ -3688,7 +3688,7 @@ describe('unified project workspace', () => {
     });
     const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
     fireEvent.change(zoom, { target: { value: '2' } });
-    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    const grid = screen.getByRole('group', { name: '时间轴轨道网格' });
 
     fireEvent.click(screen.getByRole('button', { name: '手形工具 (H)' }));
     viewport.scrollLeft = 100;
@@ -3839,7 +3839,7 @@ describe('unified project workspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
-    expect((screen.getByRole('row', { name: 'Story' }).firstElementChild as HTMLElement).className).toContain('sticky');
+    expect((screen.getByRole('group', { name: 'Story' }).firstElementChild as HTMLElement).className).toContain('sticky');
     const pause = screen.queryByRole('button', { name: 'K 暂停时间轴' });
     if (pause !== null) fireEvent.click(pause);
     clientWidth.mockRestore();
@@ -4032,7 +4032,7 @@ describe('unified project workspace', () => {
     });
 
     const viewport = await screen.findByRole('region', { name: '时间轴内容' });
-    const storyRow = screen.getByRole('row', { name: 'Story' });
+    const storyRow = screen.getByRole('group', { name: 'Story' });
     const zoom = screen.getByRole('slider', { name: '时间轴缩放' }) as HTMLInputElement;
     const firstSelection = within(storyRow).getByRole('button', { name: 'Moment 15 6.0s · 未录制' });
     expect(Number.parseFloat(firstSelection.style.width)).toBeCloseTo(20);
@@ -4152,8 +4152,8 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
-    expect(await screen.findByRole('row', { name: 'Story' })).toBeTruthy();
-    expect(screen.getByRole('row', { name: 'Music' })).toBeTruthy();
+    expect(await screen.findByRole('group', { name: 'Story' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Music' })).toBeTruthy();
     expect(screen.queryByRole('radio', { name: '快速剪辑' })).toBeNull();
     expect(screen.queryByRole('radio', { name: '多轨精剪' })).toBeNull();
     expect(screen.getByRole('button', { name: '录制缺失片段' })).toBeTruthy();
@@ -4164,7 +4164,7 @@ describe('unified project workspace', () => {
     expect(screen.queryByRole('button', { name: '时间轴设置' })).toBeNull();
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull();
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull();
-    const trackGrid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    const trackGrid = screen.getByRole('group', { name: '时间轴轨道网格' });
     expect(trackGrid.style.gridTemplateRows).toBe('84px 64px 64px 32px 32px');
     expect(screen.getByRole('region', { name: '时间轴内容' }).className).toContain('overflow-y-auto');
     expect(applyProjectPatch).not.toHaveBeenCalled();
@@ -4173,7 +4173,7 @@ describe('unified project workspace', () => {
   it('collapses and pointer-resizes independent timeline rows', async () => {
     renderWorkspace();
 
-    const grid = await screen.findByRole('rowgroup', { name: '时间轴轨道网格' });
+    const grid = await screen.findByRole('group', { name: '时间轴轨道网格' });
     fireEvent.click(screen.getByRole('button', { name: '折叠轨道 Music' }));
     await waitFor(() => expect(grid.style.gridTemplateRows).toBe('84px 64px 32px 32px 32px'));
     fireEvent.click(screen.getByRole('button', { name: '展开轨道 Music' }));
@@ -4427,7 +4427,7 @@ describe('unified project workspace', () => {
     Object.defineProperty(viewport, 'clientWidth', { configurable: true, value: 1_000 });
     fireEvent.click(moving);
     fireEvent.pointerDown(moving, { pointerId: 202, button: 0, clientX: 500, clientY: 300 });
-    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    const targetRow = screen.getByRole('group', { name: 'Target V3' });
     elementFromPoint.mockReturnValue(targetRow);
     fireEvent.pointerMove(moving, { pointerId: 202, clientX: 500, clientY: 500, shiftKey: true });
     expect(targetRow.className).toContain('ring-accent');
@@ -4468,7 +4468,7 @@ describe('unified project workspace', () => {
     const moving = await screen.findByRole('button', { name: /Move me 2\.0s · 未录制/u });
     fireEvent.click(moving);
     fireEvent.pointerDown(moving, { pointerId: 203, button: 0, clientX: 500, clientY: 300 });
-    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    const targetRow = screen.getByRole('group', { name: 'Target V3' });
     elementFromPoint.mockReturnValue(targetRow);
     fireEvent.pointerMove(moving, { pointerId: 203, clientX: 500, clientY: 500, shiftKey: true });
     expect(targetRow.className).not.toContain('after:border-accent');
@@ -4492,7 +4492,7 @@ describe('unified project workspace', () => {
 
     const moving = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
     fireEvent.pointerDown(moving, { pointerId: 204, button: 0, clientX: 500, clientY: 200 });
-    const targetRow = screen.getByRole('row', { name: 'Target V3' });
+    const targetRow = screen.getByRole('group', { name: 'Target V3' });
     elementFromPoint.mockReturnValue(targetRow);
     fireEvent.pointerMove(moving, { pointerId: 204, clientX: 500, clientY: 500, shiftKey: true });
     expect(targetRow.className).toContain('ring-accent');
@@ -4546,7 +4546,7 @@ describe('unified project workspace', () => {
     const moving = await screen.findByRole('button', { name: /Move me 2\.0s · 未录制/u });
     fireEvent.click(moving);
     fireEvent.pointerDown(moving, { pointerId: 205, button: 0, clientX: 500, clientY: 400 });
-    const storyRow = screen.getByRole('row', { name: 'Story' });
+    const storyRow = screen.getByRole('group', { name: 'Story' });
     elementFromPoint.mockReturnValue(storyRow);
     fireEvent.pointerMove(moving, { pointerId: 205, clientX: 500, clientY: 200, shiftKey: true });
     fireEvent.pointerUp(moving, { pointerId: 205, clientX: 500, clientY: 200, shiftKey: true });
@@ -5492,7 +5492,7 @@ describe('unified project workspace', () => {
     renderWorkspace();
 
     const viewport = await screen.findByRole('region', { name: '时间轴内容' });
-    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    const grid = screen.getByRole('group', { name: '时间轴轨道网格' });
     const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
     const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
     viewport.style.setProperty('--w-track-head', '0px');
@@ -5523,7 +5523,7 @@ describe('unified project workspace', () => {
     renderWorkspace();
 
     const viewport = await screen.findByRole('region', { name: '时间轴内容' });
-    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    const grid = screen.getByRole('group', { name: '时间轴轨道网格' });
     viewport.style.setProperty('--w-track-head', '200px');
     Object.defineProperties(viewport, {
       clientHeight: { configurable: true, value: 300 },
@@ -5577,9 +5577,9 @@ describe('unified project workspace', () => {
     expect(within(panel).getByRole('option', { name: '选择素材 A' }).getAttribute('aria-description')).toBe('未录制');
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).getAttribute('aria-description')).toBe('已录制');
     expect(within(panel).getByRole('option', { name: '选择素材 New angle' }).getAttribute('aria-description')).toBe('导入');
-    expect(within(panel).getByRole('region', { name: '未录制' })).toBeTruthy();
-    expect(within(panel).getByRole('region', { name: '已录制' })).toBeTruthy();
-    expect(within(panel).getByRole('region', { name: '导入素材' })).toBeTruthy();
+    expect(within(panel).getByRole('group', { name: '未录制' })).toBeTruthy();
+    expect(within(panel).getByRole('group', { name: '已录制' })).toBeTruthy();
+    expect(within(panel).getByRole('group', { name: '导入素材' })).toBeTruthy();
 
     fireEvent.change(within(panel).getByRole('combobox', { name: '筛选素材状态' }), { target: { value: 'planned' } });
     expect(within(panel).getByRole('option', { name: '选择素材 A' })).toBeTruthy();
@@ -5877,7 +5877,7 @@ describe('unified project workspace', () => {
         } : track),
       },
     };
-    renderWorkspace({ project });
+    renderWorkspace({ project, shell: { ...unavailableNativeShell, mediaSrc: (path) => path } });
     const clipA = await screen.findByRole('button', { name: /A 5\.0s · 已录制/u });
     expect(screen.getAllByRole('img', { name: 'Through Edit 00:05.000' })).toHaveLength(2);
     expect(screen.getAllByRole('img', { name: '重复帧 B' })).toHaveLength(1);
@@ -6176,7 +6176,7 @@ describe('unified project workspace', () => {
       x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
     });
     const source = screen.getByRole('option', { name: '选择素材 Drag angle' });
-    const story = screen.getByRole('row', { name: 'Story' });
+    const story = screen.getByRole('group', { name: 'Story' });
     const dataTransfer = mediaDragTransfer();
 
     fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
@@ -6228,8 +6228,8 @@ describe('unified project workspace', () => {
       x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
     });
     const source = screen.getByRole('option', { name: '选择素材 Drag bed' });
-    const derived = screen.getByRole('row', { name: 'Story 音频' });
-    const music = screen.getByRole('row', { name: 'Music' });
+    const derived = screen.getByRole('group', { name: 'Story 音频' });
+    const music = screen.getByRole('group', { name: 'Music' });
     const dataTransfer = mediaDragTransfer();
 
     fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
@@ -6543,7 +6543,7 @@ describe('unified project workspace', () => {
       x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
     });
     const source = screen.getByRole('option', { name: '选择素材 AV source' });
-    const bRoll = screen.getByRole('row', { name: 'B-Roll' });
+    const bRoll = screen.getByRole('group', { name: 'B-Roll' });
     const dataTransfer = mediaDragTransfer();
     fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
     fireEvent(bRoll, mediaDragEvent('dragover', dataTransfer, { clientX: 200, ctrlKey: true }));
@@ -7027,7 +7027,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
-    const music = await screen.findByRole('row', { name: 'Music' });
+    const music = await screen.findByRole('group', { name: 'Music' });
     fireEvent.click(within(music).getByRole('button', { name: '切换 Solo Music' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -7073,8 +7073,8 @@ describe('unified project workspace', () => {
       },
     });
 
-    expect(await screen.findByRole('row', { name: 'Story' })).toBeTruthy();
-    expect(screen.getByRole('row', { name: 'Hidden titles' })).toBeTruthy();
+    expect(await screen.findByRole('group', { name: 'Story' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Hidden titles' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: '切换视频轨道显示' })).toHaveLength(2);
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video[data-preview-active="true"]')).toHaveLength(0);
   });
@@ -7738,7 +7738,7 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByText('Agent 正在编辑 · 你暂时只能查看')).toBeTruthy();
     expect((screen.getByPlaceholderText('告诉 Agent 要调整什么…') as HTMLInputElement).disabled).toBe(true);
-    expect((within(screen.getByRole('row', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(screen.getByRole('group', { name: 'Story' })).getByRole('button', { name: '切换轨道锁定' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.doubleClick(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }));
     expect((await screen.findByRole('textbox', { name: '名称' }) as HTMLInputElement).disabled).toBe(true);
   });

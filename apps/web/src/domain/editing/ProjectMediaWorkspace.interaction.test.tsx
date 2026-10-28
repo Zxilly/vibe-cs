@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { useCallback, useState } from 'react';
 import { expect, it, vi } from 'vitest';
 import { renderInteractive } from '../../test/render';
+import { NativeShellProvider, unavailableNativeShell, type NativeShell } from '../../data/nativeShell';
 import { ProjectMediaWorkspace, type ProjectMediaWorkspaceProps } from './ProjectMediaWorkspace';
 import { timelineClipFromMediaAsset } from './timelineEditing';
 import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
@@ -12,6 +13,32 @@ const ASSET: MediaAsset = {
   has_audio: true, proxy_path: null, proxy_status: {status: 'not_requested'}, waveform: null,
   metadata_status: {status: 'ready'}, markers: [], created_at: '2026-09-05T00:00:00Z',
 };
+
+const TEST_SHELL = { ...unavailableNativeShell, mediaSrc: (path: string) => path };
+
+it('keeps a rejected media URL out of image markup while preserving the source identity', () => {
+  const image = { ...ASSET, kind: 'image', name: 'Opening title', has_audio: false };
+  renderInteractive(<WorkspaceHarness {...panelProps({ assets: [image] })} shell={unavailableNativeShell} />);
+  fireEvent.click(screen.getByRole('option', { name: '选择素材 Opening title' }));
+  openSourcePreview();
+  const source = screen.getByRole('region', { name: '源预览' });
+  expect(source.querySelector('img')).toBeNull();
+  expect(source.textContent).toContain('Opening title');
+});
+
+it('retains the material icon when a thumbnail fails and restores it after a successful load', () => {
+  const view = renderInteractive(<WorkspaceHarness {...panelProps({ assets: [ASSET] })} />);
+  fireEvent.click(screen.getByRole('radio', { name: '图标视图' }));
+  const option = screen.getByRole('option', { name: '选择素材 Reusable source' });
+  const image = option.querySelector('img')!;
+  expect(image).not.toBeNull();
+  fireEvent.error(image);
+  expect(image.style.visibility).toBe('hidden');
+  expect(option.querySelector('svg')).not.toBeNull();
+  expect(view.getByRole('option', { name: '选择素材 Reusable source' })).toBe(option);
+  fireEvent.load(image);
+  expect(image.style.visibility).toBe('visible');
+});
 
 it('keeps a used source reusable for a second In/Out edit without duplicating its library item', () => {
   const asset = ASSET;
@@ -220,20 +247,20 @@ function openSourcePreview() {
   fireEvent.click(screen.getByRole('button', {name: '检查源片段'}));
 }
 
-type HarnessProps = Omit<ProjectMediaWorkspaceProps, 'children' | 'sourceActive'> & {readonly projectVisible?: boolean};
+type HarnessProps = Omit<ProjectMediaWorkspaceProps, 'children' | 'sourceActive'> & {readonly projectVisible?: boolean; readonly shell?: NativeShell};
 
-function WorkspaceHarness({projectVisible = true, onShowSource, ...props}: HarnessProps) {
+function WorkspaceHarness({projectVisible = true, shell = TEST_SHELL, onShowSource, ...props}: HarnessProps) {
   const [sourceActive, setSourceActive] = useState(false);
   const showSource = useCallback(() => {
     onShowSource();
     setSourceActive(true);
   }, [onShowSource]);
-  return <ProjectMediaWorkspace {...props} sourceActive={sourceActive} onShowSource={showSource}>
+  return <NativeShellProvider shell={shell}><ProjectMediaWorkspace {...props} sourceActive={sourceActive} onShowSource={showSource}>
     {({project, source}) => <>
       <button onClick={() => setSourceActive(false)}>显示成片监视器</button>
       <button onClick={showSource}>显示源监视器</button>
       {projectVisible ? project : null}
       <div hidden={!sourceActive}>{source}</div>
     </>}
-  </ProjectMediaWorkspace>;
+  </ProjectMediaWorkspace></NativeShellProvider>;
 }

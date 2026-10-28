@@ -18,7 +18,7 @@ export function ClipCameraInspection({ projectId, clipId, revision, sourceTimeSe
   const query = useProjectCameraPreview(projectId, clipId, revision);
   const inspection = query.data?.inspection;
   return (
-    <section className="mt-3 border-t border-divider pt-3 text-xs leading-5" aria-label={t`镜头检查`} aria-busy={query.isFetching}>
+    <section className="mt-3 border-t border-divider pt-3 text-base" aria-label={t`镜头检查`} aria-busy={query.isFetching}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-semibold"><Trans>镜头检查</Trans></h3>
         <Button size="sm" variant="ghost" disabled={query.isFetching} onClick={() => void query.refetch()}>

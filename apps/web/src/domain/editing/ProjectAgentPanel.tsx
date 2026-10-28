@@ -185,13 +185,14 @@ export const AgentPanel = memo(function AgentPanel({
                   <CircleAlert className="size-4" aria-hidden="true" />
                   <Trans>还没配置 Agent 模型</Trans>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>连接模型后即可开始。</Trans></p>
+                <p className="mt-1 text-base text-neutral-600"><Trans>连接模型后即可开始。</Trans></p>
                 <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
               </ConversationShell>
             ) : null}
             {agentReady && !readOnly && conversationEmpty ? (
               <li className="min-w-0">
                 <Empty
+                  headingLevel={showHeader ? 3 : 2}
                   icon={<Sparkles className="size-8 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />}
                   title={<Trans>还没有对话</Trans>}
                   description={<Trans>用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。</Trans>}
@@ -247,12 +248,12 @@ export const AgentPanel = memo(function AgentPanel({
                   <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                   <Trans>Agent 正在编辑 · 你暂时只能查看</Trans>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-neutral-600"><Trans>你仍可查看预览和时间轴。Agent 完成后即可继续编辑。</Trans></p>
+                <p className="mt-1 text-base text-neutral-600"><Trans>你仍可查看预览和时间轴。Agent 完成后即可继续编辑。</Trans></p>
               </ConversationShell>
             ) : null}
             {hasEditReview ? (
               <ConversationShell actor="Agent" tone="delivery">
-                <p className="text-xs font-medium"><Trans>这组修改已应用到时间线，请检查效果。</Trans></p>
+                <p className="text-base font-medium"><Trans>这组修改已应用到时间线，请检查效果。</Trans></p>
                 <div className="mt-2 grid gap-1.5">
                   <Button className="w-full" size="sm" variant="primary" disabled={confirming} onClick={() => {
                     setReturningChangeGroupId(null);
@@ -355,7 +356,7 @@ function ConversationEntry({
   if (entry.kind === 'user') {
     return (
       <ConversationShell actor={t`你`} at={entry.at} tone="human">
-        <p className="whitespace-pre-wrap text-xs leading-5">{entry.content}</p>
+        <p className="whitespace-pre-wrap text-base">{entry.content}</p>
       </ConversationShell>
     );
   }
@@ -364,10 +365,10 @@ function ConversationEntry({
     if (changeGroupId === null) return null;
     return (
       <ConversationShell actor={t`你 · 交付审阅`} at={entry.at} tone="human">
-        <p className="text-xs font-medium">
+        <p className="text-base font-medium">
           {entry.decision === 'approved' ? <Trans>已接受 Agent 修改</Trans> : <Trans>已要求 Agent 继续修改</Trans>}
         </p>
-        <p className="mt-1 text-xs leading-4 text-neutral-600">{entry.content}</p>
+        <p className="mt-1 whitespace-pre-wrap text-base text-neutral-600">{entry.content}</p>
         <span className="mt-1 block font-mono text-xs text-neutral-600">{changeGroupId}</span>
       </ConversationShell>
     );
@@ -483,9 +484,9 @@ function ConversationShell({
 
 function ConversationError({ message }: { readonly message: string }) {
   return (
-    <details className="mt-2 min-w-0 text-xs">
+    <details className="mt-2 min-w-0 text-base">
       <summary className="cursor-pointer select-none text-fail-text"><Trans>操作未完成，查看错误详情</Trans></summary>
-      <p className="mt-2 break-words whitespace-pre-wrap leading-5 text-neutral-600">{message}</p>
+      <p className="mt-2 break-words whitespace-pre-wrap text-neutral-600">{message}</p>
     </details>
   );
 }
@@ -554,9 +555,9 @@ function ToolCallCard({
         </summary>
         <pre className="mt-2 max-h-48 overflow-auto break-words whitespace-pre-wrap bg-neutral-50 p-2 font-mono text-xs">{JSON.stringify({ input: call.input, output: call.output, decision }, null, 2)}</pre>
       </details>
-      {failed || running || awaitingDecision || decision !== null ? <p className="mt-2 text-xs text-neutral-600">{decision?.content ?? toolSummary(call)}</p> : null}
+      {failed || running || awaitingDecision || decision !== null ? <p className="mt-2 text-base text-neutral-600">{decision?.content ?? toolSummary(call)}</p> : null}
       {!awaitingDecision || !confirmationActive ? null : (
-        <div className="mt-2 border-t border-divider pt-2">
+        <div className="mt-2 border-t border-divider pt-2 text-base">
           <p className="font-medium"><Trans>需要你的确认</Trans></p>
           <p className="mt-1 text-neutral-600">
             {confirmation.action === 'recording'
@@ -564,12 +565,12 @@ function ToolCallCard({
               : <Trans>成片已准备好导出。确认后才会写出 MP4 文件。</Trans>}
           </p>
           {!confirmationStale ? null : (
-            <p className="mt-2 text-xs leading-4 text-warn-text">
+            <p className="mt-2 text-warn-text">
               <Trans>作品版本已变化，这次请求已经过期。请拒绝后让 Agent 重新请求。</Trans>
             </p>
           )}
           {!exportBlocked ? null : (
-            <p className="mt-2 text-xs leading-4 text-warn-text">
+            <p className="mt-2 text-warn-text">
               {deliveryGatePending
                 ? <Trans>正在检查当前作品能否交付。</Trans>
                 : <Trans>时间线仍有未就绪素材；先录制、重录或重新链接后才能允许导出。</Trans>}

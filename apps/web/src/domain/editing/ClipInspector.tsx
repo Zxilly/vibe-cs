@@ -73,7 +73,7 @@ export function ClipInspector({
 }) {
   const [effectKind, setEffectKind] = useState<SupportedEditorEffectKind>('color_adjust');
   if (selected === null) {
-    return <aside className="flex items-center justify-center border-l border-divider p-5 text-sm text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
+    return <aside className="flex items-center justify-center border-l border-divider p-5 text-base text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
   }
   const clip = selected.clip;
   // Every control writes one Human Edit through `onReplace`, the same Interface
@@ -132,9 +132,9 @@ export function ClipInspector({
     Math.abs(segment.start - localTime) <= 0.5 / fps || Math.abs(segment.end - localTime) <= 0.5 / fps
   ));
   return (
-    <div key={clip.id} className="@container/clip-inspector min-h-0" aria-label={t`片段属性`}>
-      {readOnly ? <p role="status" className="mb-3 text-xs text-neutral-600"><Trans>当前片段只读，请先结束 Agent 编辑或解锁轨道。</Trans></p> : null}
-      {hasUnsupportedEnabledEffect ? <p role="status" className="mb-3 text-xs text-fail-text"><Trans>请先停用不支持的效果，再修改片段。</Trans></p> : null}
+    <div key={clip.id} className="@container/clip-inspector min-h-0">
+      {readOnly ? <p role="status" className="mb-3 text-base text-neutral-600"><Trans>当前片段只读，请先结束 Agent 编辑或解锁轨道。</Trans></p> : null}
+      {hasUnsupportedEnabledEffect ? <p role="status" className="mb-3 text-base text-fail-text"><Trans>请先停用不支持的效果，再修改片段。</Trans></p> : null}
       <label className="flex flex-col gap-1 text-xs">
         <Trans>名称</Trans>
         <CommitInput
@@ -218,7 +218,7 @@ export function ClipInspector({
       {!canTimeRemap ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`时间重映射`}>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold"><Trans>时间重映射</Trans></h3>
+            <h2 className="text-xs font-semibold"><Trans>时间重映射</Trans></h2>
             {clip.speed_segments.length === 0 ? (
               <Button
                 className="ml-auto"
@@ -242,7 +242,7 @@ export function ClipInspector({
             )}
           </div>
           {clip.speed_segments.length === 0 ? (
-            <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。</Trans></p>
+            <p className="mt-2 text-base text-neutral-500"><Trans>启用后可在播放头添加速度关键帧，并分别调整片段各区间的速度。</Trans></p>
           ) : (
             <>
               <Button
@@ -302,14 +302,14 @@ export function ClipInspector({
                   </li>
                 ))}
               </ol>
-              <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>调整速度会改变片段时长，后续片段将随之移动。</Trans></p>
+              <p className="mt-2 text-base text-neutral-500"><Trans>调整速度会改变片段时长，后续片段将随之移动。</Trans></p>
             </>
           )}
         </section>
       )}
       {clip.capture_intent === null ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`录制范围`}>
-          <h3 className="text-xs font-semibold"><Trans>录制范围</Trans></h3>
+          <h2 className="text-xs font-semibold"><Trans>录制范围</Trans></h2>
           <label className="mt-2 flex flex-col gap-1 text-xs">
             <Trans>录制视角</Trans>
             <select
@@ -352,7 +352,7 @@ export function ClipInspector({
       )}
       {textStyle === null ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`文字样式`}>
-          <h3 className="text-xs font-semibold"><Trans>文字样式</Trans></h3>
+          <h2 className="text-xs font-semibold"><Trans>文字样式</Trans></h2>
           <label className="mt-2 flex flex-col gap-1 text-xs">
             <Trans>文字内容</Trans>
             <CommitInput
@@ -486,7 +486,7 @@ export function ClipInspector({
       })()}
       {currentFrameKeyframes.length === 0 ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`关键帧插值`}>
-          <h3 className="mb-2 text-xs font-semibold"><Trans>关键帧插值</Trans></h3>
+          <h2 className="mb-2 text-xs font-semibold"><Trans>关键帧插值</Trans></h2>
           {currentFrameKeyframes.map((keyframe) => (
             <div key={keyframe.id} className="mt-2 grid grid-cols-[minmax(0,1fr)_110px] gap-2 text-xs">
               <span className="truncate font-mono text-xs">{keyframe.property}</span>
@@ -544,7 +544,7 @@ export function ClipInspector({
       {visualProperties.length === 0 ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`变换与关键帧`}>
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="text-xs font-semibold"><Trans>变换</Trans></h3>
+            <h2 className="text-xs font-semibold"><Trans>变换</Trans></h2>
             <span className="flex items-center overflow-hidden rounded-sm border border-divider">
               <button
                 type="button"
@@ -604,14 +604,14 @@ export function ClipInspector({
             );
           })}
           {clip.keyframes.some((keyframe) => ['scale_x', 'scale_y', 'rotation'].includes(keyframe.property))
-            ? <p className="mt-2 text-xs text-neutral-500"><Trans>缩放动画与旋转动画不能同时启用。</Trans></p>
+            ? <p className="mt-2 text-base text-neutral-500"><Trans>缩放动画与旋转动画不能同时启用。</Trans></p>
             : null}
         </section>
       )}
       {clip.text === null && (selected.track.kind === 'video' || selected.track.kind === 'overlay') ? (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`效果`}>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-xs text-neutral-500">{clip.effects.length}</span></h3>
+            <h2 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-xs text-neutral-500">{clip.effects.length}</span></h2>
             <select
               className="ml-auto h-7 min-w-0 border border-divider bg-bg px-2 text-xs"
               aria-label={t`添加效果类型`}
@@ -655,7 +655,7 @@ export function ClipInspector({
                     <button type="button" className="grid size-6 place-items-center hover:bg-neutral-200 disabled:text-neutral-300" aria-label={t`下移效果 ${effectLabel(effect.kind)}`} disabled={readOnly || index === clip.effects.length - 1} onClick={() => commit({ ...clip, effects: moveEditorEffect(clip.effects, effect.id, 1) })}><ChevronDown className="size-3" aria-hidden="true" /></button>
                     <button type="button" className="grid size-6 place-items-center text-fail-text hover:bg-fail-surface disabled:text-neutral-300" aria-label={t`删除效果 ${effectLabel(effect.kind)}`} disabled={readOnly} onClick={() => commit({ ...clip, effects: clip.effects.filter((candidate) => candidate.id !== effect.id) })}><Trash2 className="size-3" aria-hidden="true" /></button>
                   </div>
-                  {supportedKind === null ? <p className="mt-1 text-xs text-fail-text"><Trans>该效果不受当前渲染器支持，请禁用或删除。</Trans></p> : null}
+                  {supportedKind === null ? <p className="mt-1 text-base text-fail-text"><Trans>该效果不受当前渲染器支持，请禁用或删除。</Trans></p> : null}
                   {schema.map((parameter) => (
                     <label key={parameter.key} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px] items-center gap-2 text-xs">
                       <span>{effectParameterLabel(parameter.key)}</span>

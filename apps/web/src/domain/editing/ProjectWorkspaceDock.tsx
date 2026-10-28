@@ -71,6 +71,7 @@ export function ProjectWorkspaceDock({ panels, labels, ref, onPanelVisibilityCha
   return (
     <div
       className="project-workspace-dock flexlayout__theme_light relative size-full min-h-0 min-w-0 flex-1 overflow-hidden"
+      role="group"
       aria-label={t`作品工作区面板`}
     >
       <FlexLayout

@@ -85,10 +85,10 @@ export function RecordingConfirmDialog({
             <dt className="text-neutral-600"><Trans>预计用时</Trans></dt>
             <dd data-recording-wall-minutes><Trans>约 {minutes} 分钟</Trans></dd>
           </dl>
-          <p className="text-xs text-neutral-600">
+          <p className="text-base text-neutral-600">
             <Trans>预计用时包含启动 CS2 和逐个加载片段，实际时间会有出入。</Trans>
           </p>
-          <p className="flex items-start gap-2 text-sm text-warn-text">
+          <p className="flex items-start gap-2 text-base text-warn-text">
             <CircleAlert className="mt-0.5 size-4 flex-none" aria-hidden="true" />
             <span><Trans>录制期间 CS2 会占用屏幕和声音，请不要操作电脑。进度和结果可以在「作品任务」里查看。</Trans></span>
           </p>

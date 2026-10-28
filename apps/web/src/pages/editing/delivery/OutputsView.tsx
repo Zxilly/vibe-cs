@@ -171,11 +171,13 @@ export function OutputsView({ now }: OutputsViewProps) {
         ) : items.length === 0 ? (
           filter !== 'all' ? (
             <Empty
+              headingLevel={2}
               title={filter === 'missing' ? <Trans>没有缺失的文件</Trans> : <Trans>没有符合筛选条件的成品文件</Trans>}
               actions={<Button onClick={() => { setFilter('all'); setPage(1); }}><Trans>显示全部类型</Trans></Button>}
             />
           ) : scopeLabel === null ? (
             <Empty
+              headingLevel={2}
               preset="no-outputs"
               actions={
                 <RouteLink to="/projects/new">
@@ -185,6 +187,7 @@ export function OutputsView({ now }: OutputsViewProps) {
             />
           ) : (
             <Empty
+              headingLevel={2}
               title={<Trans>「{scopeLabel}」还没有成品文件</Trans>}
               description={<Trans>录制或导出完成后，文件会出现在这里。</Trans>}
               actions={

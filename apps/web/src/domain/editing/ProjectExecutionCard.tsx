@@ -42,7 +42,7 @@ export function ProjectExecutionCard({ execution, pending, onCancel, onOpenOutpu
       {execution.subject === null ? null : execution.kind === 'export'
         ? <details className="text-sm text-neutral-600"><summary className="cursor-pointer"><Trans>文件信息</Trans></summary><p className="mt-2 break-all font-mono text-xs">{execution.subject}</p></details>
         : <p className="break-words text-base">{execution.subject}</p>}
-      {execution.error === null ? null : <p className="break-words text-sm text-fail-text">{execution.error}</p>}
+      {execution.error === null ? null : <p className="break-words text-base text-fail-text">{execution.error}</p>}
       <div className="flex flex-wrap gap-2">
         {execution.job_id === null || !execution.available_actions.includes('cancel') ? null : <Button size="sm" variant="secondary" disabled={pending} aria-label={execution.kind === 'recording' ? t`取消录制任务` : t`取消导出任务`} onClick={() => onCancel(execution)}><Trans>取消</Trans></Button>}
         {!execution.available_actions.includes('open_outputs') ? null : <Button size="sm" variant="secondary" onClick={onOpenOutputs}><Trans>查看成品</Trans></Button>}

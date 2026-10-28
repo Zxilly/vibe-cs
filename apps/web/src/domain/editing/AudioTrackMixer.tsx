@@ -121,7 +121,7 @@ function AudioMixerStrip({ track, timelineTimeSeconds, durationSeconds, fps, pla
           />
         </Tooltip>
         <div className="relative min-h-0 overflow-hidden bg-neutral-200" aria-label={t`峰值 ${track.name} ${Math.round(peak * 100)}%`} role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(peak * 100)}>
-          <span className="absolute inset-x-0 bottom-0 bg-ok transition-[height] duration-75" style={{ height: `${peak * 100}%` }} />
+          <span className="absolute inset-0 origin-bottom bg-ok transition-transform duration-75" style={{ transform: `scaleY(${peak})` }} />
         </div>
       </div>
       <Tooltip content={faderDisabledReason} wrap wrapFocusable={faderDisabledReason !== undefined} wrapClassName="grid">

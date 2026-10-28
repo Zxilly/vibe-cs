@@ -29,7 +29,7 @@ export function ActiveProjectsPanel() {
           <Skeleton /><Skeleton width="76%" />
         </div>
       ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
-        <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>
+        <p className="text-base text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>
       ) : (
         <ul className="flex flex-col overflow-hidden rounded-md border border-divider">
           {rows.map((project) => {

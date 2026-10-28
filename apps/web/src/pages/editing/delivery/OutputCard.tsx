@@ -111,7 +111,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
             <dt className="text-neutral-600"><Trans>完整路径</Trans></dt><dd className="break-all font-mono text-xs">{shownPath}</dd>
             {sourceTaskId === null ? null : <><dt className="text-neutral-600"><Trans>来源任务</Trans></dt><dd><RouteLink to={`/tasks/${encodeURIComponent(sourceTaskId)}`} size="sm"><Trans>查看任务</Trans></RouteLink></dd></>}
           </dl>
-          {usable ? null : <p className="text-sm text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
+          {usable ? null : <p className="text-base text-neutral-700"><Trans>文件已不在原位，记录仍然保留。</Trans></p>}
           <div className="flex flex-wrap gap-2">
             {usable ? <Button size="sm" variant="secondary" onClick={() => onReveal(output)}><Trans>打开所在文件夹</Trans></Button> : null}
             <Button size="sm" variant="secondary" onClick={async () => {
@@ -123,7 +123,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
               }
             }}><Trans>复制完整路径</Trans></Button>
           </div>
-          {copyNotice === null ? null : <p role="status" className="text-sm text-neutral-700">{copyNotice}</p>}
+          {copyNotice === null ? null : <p role="status" className="text-base text-neutral-700">{copyNotice}</p>}
         </div>
       </Drawer>
     </>

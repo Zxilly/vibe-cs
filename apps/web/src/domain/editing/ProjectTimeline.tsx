@@ -2580,6 +2580,7 @@ export function ProjectTimeline({
           />
         </div>
         <div
+          role="group"
           aria-label={t`时间轴标尺`}
           className="relative min-w-0 cursor-col-resize overflow-hidden"
           onPointerDown={(event) => {
@@ -2659,7 +2660,7 @@ export function ProjectTimeline({
       >
         <div
           className={cn('relative grid min-h-full', editTool === 'hand' && 'cursor-grab active:cursor-grabbing', editTool === 'zoom' && 'cursor-zoom-in')}
-          role="rowgroup"
+          role="group"
           aria-label={t`时间轴轨道网格`}
           style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}
           onPointerDownCapture={(event) => {
@@ -2937,7 +2938,7 @@ export function ProjectTimeline({
             onChange={(event) => setNestedSequenceName(event.currentTarget.value)}
           />
         </label>
-        <p className="mt-2 text-xs leading-4 text-neutral-500"><Trans>将所选片段合并为嵌套片段，双击可继续编辑。</Trans></p>
+        <p className="mt-2 text-base text-neutral-500"><Trans>将所选片段合并为嵌套片段，双击可继续编辑。</Trans></p>
       </Dialog>
 
       <Dialog
@@ -3132,7 +3133,7 @@ export function ProjectTimeline({
                 onChange={(event) => setTextDraft({ ...textDraft, duration: Number(event.currentTarget.value) })}
               />
             </label>
-            <p className="text-xs leading-4 text-neutral-500">
+            <p className="text-base text-neutral-500">
               {textDraft.kind === 'caption'
                 ? <Trans>字幕会显示在独立字幕轨中，可前后导航、编辑样式并导出为 SRT。</Trans>
                 : <Trans>创建后双击时间轴中的文字片段，可调整字体、颜色、位置和关键帧。</Trans>}
@@ -3726,7 +3727,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         'relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider',
         crossTrackTargeted && 'bg-accent-100 ring-2 ring-inset ring-accent-500',
       )}
-      role="row"
+      role="group"
       aria-label={track.ariaLabel}
       data-timeline-track-id={track.track.id}
       data-timeline-track-kind={track.track.kind}
@@ -6197,7 +6198,7 @@ const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, selectedMar
     [markers],
   );
   return (
-    <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
+    <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="group" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
       <div className="relative isolate min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         <TimelineGrid ticks={ticks} />
@@ -6409,7 +6410,7 @@ const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentW
   readonly onSeek: (seconds: number) => void;
 }) {
   return (
-    <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`事件`}>
+    <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="group" aria-label={t`事件`}>
       <TimelineTrackHead icon={<Star className="size-4" />} label={t`事件`} controls="none" />
       <div className="relative isolate min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         <TimelineGrid ticks={ticks} />

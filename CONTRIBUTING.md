@@ -7,7 +7,7 @@ Keep changes focused on one vertical capability and preserve the dependency dire
 - Run `scripts/check.ps1` before opening a change for review.
 - Add behavior tests with production changes; long-running integrations must have a deterministic fake adapter.
 - Do not invoke a shell to run external tools. Build a program and argument list explicitly.
-- Never log access tokens, API keys, OBS passwords, or complete signed URLs.
+- Never log access tokens, API keys, passwords, or complete signed URLs.
 - Treat demo and media files as untrusted input and enforce input, memory, output, and time limits.
 - Keep the single current transport contract synchronized across Rust, desktop, and Web callers.
 - UI changes must remain keyboard-operable, readable at 1100×700, and respectful of reduced-motion preferences.
@@ -46,8 +46,10 @@ environment variable set before connecting.
 ## TypeScript bindings
 
 Rust wire types carrying `#[derive(TS)]` and `#[ts(export)]` are the source of truth for
-`apps/web/src/shared/desktop/generated/`. Running `cargo test --workspace` regenerates those files;
-never edit generated bindings by hand.
+`apps/web/src/shared/desktop/generated/`. Run `pnpm bindings` after changing those types and commit
+the generated files with the Rust change. Ordinary `cargo test --workspace` runs write their
+exports under `target/ts-rs-test-output`; they do not update the checked-in bindings. Never edit
+generated bindings by hand.
 
 The workspace keeps `ts-rs` Serde compatibility enabled so supported `#[serde(...)]` attributes
 continue to shape the generated TypeScript. It also enables `no-serde-warnings`: project-specific
@@ -59,4 +61,6 @@ shared quiet configuration; the full local check and CI both enforce it.
 
 ## Commit messages
 
-Use Conventional Commits with a concise scope, for example `feat(library): add recursive demo scan` or `fix(export): cancel owned ffmpeg process`.
+Before each commit, inspect `git log --oneline -20` and follow the recent repository style.
+The current history uses Conventional Commits, with a scope when it helps identify the change,
+for example `feat(library): add recursive demo scan` or `docs: clarify desktop setup`.

@@ -25,7 +25,8 @@ dependencies alongside the existing design, domain and data layers.
 comes from `design/timeline`, and the Program Monitor samples the same Timeline
 Transport. `domain/map` owns replay geometry used by both modes.
 
-`domain/project/AddToProjectDialog` owns the shared evidence-to-project action.
+`domain/project/quickAdd` appends selected evidence to a known target Project and offers undo.
+`domain/project/AddToProjectDialog` handles choosing or creating a target when one is needed.
 `domain/task` owns task presentation, actions, polling vocabulary and the activity
 drawer used by the app shell. Pages compose these modules through `data/*`;
 they do not create separate editing, Agent or task state authorities.

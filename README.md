@@ -1,6 +1,6 @@
 # Vibe CS
 
-Vibe CS is a local-first desktop workspace for competitive match review and video creation. It combines a watched demo library, match and player analysis, evidence-backed 2D replay, highlight planning, HLAE movie planning, optional AI review, and a multi-track editor. A managed HLAE and native Windows encoding pipeline is under end-to-end validation and remains fail-closed until its real capture gates pass.
+Vibe CS is a local-first desktop workspace for reviewing CS2 matches and creating videos from Demo files. It provides a watched Demo library, match and player analysis, tactical replay, optional AI review, and a multitrack editor. Human and Agent edits use the same Project timeline, which also supplies the clips for recording and export.
 
 The application core is implemented as a Rust workspace. The user interface is TypeScript + React and runs inside the Tauri desktop shell.
 
@@ -27,18 +27,8 @@ crates/
 
 ## Development
 
-Development is tested with Rust 1.99.1, Node.js 26.12.1, pnpm 12.15.0, and PowerShell on Windows. The desktop build
-bootstraps a checksum-verified FFmpeg 8.1.3 LGPL shared SDK and links it through `ffmpeg-next` and
-`ez-ffmpeg`; probing, waveform decoding, filters, encoding and muxing all run inside the Rust process
-without an FFmpeg executable. Movie capture does not use or require OBS: it uses an
-application-managed, integrity-pinned portable HLAE release for deterministic Source 2 frame and
-game-audio capture, followed by Windows Media Foundation H.264/AAC encoding. HLAE preparation is
-an explicit action that downloads the unmodified archive from the reviewed AdvancedFX GitHub release;
-the project does not redistribute the HLAE binary. The managed archive, launch compiler, and native
-encoder capability/timing contracts are implemented; production capture remains fail-closed until a
-real CS2 + managed HLAE MP4 gate passes. CS2 is located from Steam app 730 manifests across Steam
-library folders. Local CS2 assets supply map-overview metadata when available. Users install only
-CS2; Vibe CS acquires and verifies the reviewed HLAE runtime and uses Windows media APIs itself.
+Development uses Rust 1.99.1, Node.js 26.12.1, pnpm 12.15.0, and PowerShell on Windows.
+Install the Tauri platform prerequisites before starting the desktop host.
 
 ```powershell
 corepack pnpm install
@@ -46,11 +36,37 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk
 pnpm demo-worker:sidecar
 ```
 
-Start the native desktop development host:
+Start the native desktop development host, or build an installer:
 
 ```powershell
 corepack pnpm desktop:dev
+# or build an installer/bundle
+corepack pnpm desktop:build
 ```
+
+Both desktop commands prepare the FFmpeg SDK and Demo worker before launching Tauri.
+The standalone setup commands above are useful when preparing those dependencies separately.
+
+For browser UI development, run `corepack pnpm dev`. It serves the React interface with a
+fixture-backed IPC bridge; it does not read local Demo files or run recording jobs. Use the desktop
+host to verify native file dialogs, analysis, recording and export.
+
+## Media and desktop runtime
+
+The desktop build downloads and verifies the FFmpeg 8.1.3 LGPL shared SDK, then links it through
+`ffmpeg-next` and `ez-ffmpeg`. Probing, waveform decoding, filters, encoding and muxing run inside
+the Rust process without an FFmpeg executable.
+
+Recording uses an application-managed, integrity-pinned portable HLAE release to capture
+Source 2 frames and game audio, followed by Windows Media Foundation H.264/AAC encoding. HLAE
+preparation is an explicit action that downloads the unmodified archive from the reviewed
+AdvancedFX GitHub release; the project does not redistribute the binary. CS2 is located from
+Steam app 730 manifests across Steam library folders. Local CS2 assets supply map-overview
+metadata when available. OBS is not required.
+
+The recording pipeline checks its dependencies and validates captured frames and audio before
+publishing an MP4. Registered encoders and component tests do not establish that a complete
+CS2/HLAE recording will succeed; verify that path with the installed game and managed runtime.
 
 The React client calls Tauri commands through IPC. Demo import uses native file selection or
 native file-drop paths, so match-sized files are read by Rust without crossing WebView memory.
@@ -66,22 +82,13 @@ multithreaded vendored demoparser backend; `VIBE_CS_DEMO_BACKEND=cooperative` is
 diagnostic parser override. Fast-parser errors are returned directly and never retry another parser.
 Development runs the cooperative Source 2 parser in-process only when no generated worker manifest
 is present. Release builds fail instead of silently dropping the worker isolation boundary. Fast
-analysis performs a second selected-tick pass for exact per-round rosters. It keeps
-dense entity replay explicitly unavailable; positioned events still provide sparse replay and
-heatmaps through the unchanged worker protocol.
+analysis performs a second selected-tick pass for exact per-round rosters. Replay positions are
+extracted on demand from the verified Demo and cached, with separate whole-match and round
+requests. Positioned events also supply sparse replay and heatmap data.
 
 Update checks are opt-in and manual. Configure a public HTTPS manifest URL in Settings. The Rust
 integration rejects redirects and non-public endpoints, bounds connection time and response size, and
 only returns a validated download page; it never downloads or executes an update.
-
-For desktop development, install the Tauri platform prerequisites, then use the workspace
-scripts. The web build and desktop configuration are resolved automatically:
-
-```powershell
-corepack pnpm desktop:dev
-# or build an installer/bundle
-corepack pnpm desktop:build
-```
 
 ## Quality gates
 

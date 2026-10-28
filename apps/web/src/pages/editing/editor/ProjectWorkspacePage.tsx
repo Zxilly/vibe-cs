@@ -627,6 +627,7 @@ export function ProjectWorkspacePage() {
     return (
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
         <div className="flex flex-col gap-4 p-6" role="status" aria-busy="true">
+          <p className="text-sm text-neutral-600">{projectId === 'new' ? <Trans>正在创建作品…</Trans> : <Trans>正在加载作品…</Trans>}</p>
           <Skeleton className="h-12" />
           <Skeleton className="h-80" />
         </div>
@@ -635,12 +636,18 @@ export function ProjectWorkspacePage() {
   }
   if (project.error !== null || project.data === undefined) {
     return (
-      <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} meta={projectId} />}>
+      <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
         <div className="p-6">
           <Empty
-            title={<Trans>找不到这份作品</Trans>}
-            description={<Trans>找不到作品的当前版本。</Trans>}
-            actions={<RouteLink to="/projects"><Trans>返回作品列表</Trans></RouteLink>}
+            variant="error"
+            title={<Trans>无法打开作品</Trans>}
+            description={<Trans>无法读取作品数据，请重新加载。</Trans>}
+            actions={(
+              <>
+                <Button variant="primary" disabled={project.isFetching} onClick={() => void project.refetch()}><Trans>重新加载</Trans></Button>
+                <RouteLink to="/projects"><Trans>返回作品列表</Trans></RouteLink>
+              </>
+            )}
           />
         </div>
       </Page>
@@ -716,9 +723,11 @@ export function ProjectWorkspacePage() {
       ? t`正在检查交付状态`
       : startRecording.isPending
         ? t`正在开始录制`
-        : recordableClipIds.length === 0
-          ? (deliveryBlockers.length === 0 ? t`没有需要录制的片段` : t`未就绪的素材不能靠录制补齐`)
-          : undefined;
+        : currentDeliveryGate === null
+          ? t`没能检查交付状态`
+          : recordableClipIds.length === 0
+            ? (deliveryBlockers.length === 0 ? t`没有需要录制的片段` : t`请在素材面板检查未就绪的片段`)
+            : undefined;
   const exportDisabledReason = readOnly
     ? t`Agent 正在编辑，完成后再导出`
     : deliveryGatePending
@@ -732,7 +741,7 @@ export function ProjectWorkspacePage() {
             : currentDeliveryGate.ready
               ? undefined
               : recordableClipIds.length > 0
-                ? t`${deliveryBlockers.length} 个素材还没录制，先录制缺失片段`
+                ? t`${recordableClipIds.length} 个片段需要录制，录制后再检查素材状态`
                 : t`${deliveryBlockers.length} 个素材未就绪，检查素材面板里标红的片段`;
   const mutate = (
     summary: string,
@@ -1434,7 +1443,7 @@ export function ProjectWorkspacePage() {
         if (execution.job_id === null || !execution.available_actions.includes('cancel')) return;
         cancelTask.mutate({ kind: execution.kind, jobId: execution.job_id });
       }}
-      onOpenOutputs={() => void navigate('/delivery?view=outputs')}
+      onOpenOutputs={() => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`)}
       onOpenAgentSettings={() => void navigate('/settings?section=ai&item=model')}
       onOpenExternalUrl={nativeShell.openExternalUrl}
       confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
@@ -1666,7 +1675,7 @@ export function ProjectWorkspacePage() {
       ))}
       <Dialog
         open={pendingFitEdit !== null}
-        title={<Trans>Fit Clip：范围时长不同</Trans>}
+        title={<Trans>两个选段时长不同</Trans>}
         confirmLabel={<Trans>应用四点编辑</Trans>}
         confirmDisabled={pendingFitResolution === null}
         onConfirm={() => {
@@ -1683,8 +1692,8 @@ export function ProjectWorkspacePage() {
             ['fit_to_fill', t`更改片段速度（Fit to Fill）`],
             ['trim_head', t`裁切片段头部（左侧）`],
             ['trim_tail', t`裁切片段尾部（右侧）`],
-            ['ignore_sequence_in', t`忽略 Timeline 入点`],
-            ['ignore_sequence_out', t`忽略 Timeline 出点`],
+            ['ignore_sequence_in', t`忽略时间线入点`],
+            ['ignore_sequence_out', t`忽略时间线出点`],
           ] as const).map(([mode, label]) => {
             const available = pendingFitEdit !== null && exportRangeStart !== null && exportRangeEnd !== null
               && resolveSourceMediaFit({
@@ -1813,7 +1822,7 @@ export function ProjectWorkspacePage() {
         <div className="space-y-4">
           {externalExecutions.map((execution) => <ProjectExecutionCard key={execution.id} execution={execution} pending={cancelTask.isPending}
             onCancel={(item) => { if (item.job_id !== null) cancelTask.mutate({ kind: item.kind, jobId: item.job_id }); }}
-            onOpenOutputs={() => void navigate('/delivery')}
+            onOpenOutputs={() => void navigate(`/delivery?project=${encodeURIComponent(current.id)}`)}
             retryDisabled={readOnly || deliveryGatePending || (execution.kind === 'recording' ? recordableClipIds.length === 0 : currentDeliveryGate?.ready !== true)}
             onRetry={(item) => {
               setTaskDetailsOpen(false);

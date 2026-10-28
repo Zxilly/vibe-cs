@@ -67,12 +67,12 @@ export function ProjectsPage() {
       <div className="flex flex-col gap-5 p-6" data-projects-list>
         {projects.error === null ? null : (
           <Alert variant="danger" action={{ label: projects.isFetching ? <Trans>正在加载…</Trans> : <Trans>重新加载</Trans>, disabled: projects.isFetching, onAction: () => void projects.refetch() }}>
-            <Trans>作品列表暂时读不到。</Trans>
+            <Trans>无法加载作品列表。</Trans>
           </Alert>
         )}
         {create.error === null ? null : (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, disabled: create.isPending, onAction: createProject }}>
-            <Trans>没有创建作品。</Trans>
+            <Trans>创建作品失败。</Trans>
           </Alert>
         )}
 
@@ -138,7 +138,10 @@ function ProjectCard({ project }: { readonly project: Project }) {
       <FileVideo2 size={20} strokeWidth={1.5} className="mt-0.5 flex-none text-neutral-600" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="block truncate text-base font-medium text-text no-underline after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
-        <p className="mt-1 text-xs tabular-nums text-neutral-600">{project.document.width} × {project.document.height} · {project.document.fps} fps</p>
+        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-neutral-600">
+          <span><Trans>第 {project.revision} 版</Trans></span>
+          <span>{project.document.width} × {project.document.height} · {project.document.fps} fps</span>
+        </p>
       </div>
     </div>
     <div className="flex flex-col gap-2">

@@ -37,7 +37,7 @@ describe('RecordingConfirmDialog', () => {
   it('states the recorded length, an estimated wall time and that the machine is occupied', () => {
     const { dialog } = open();
 
-    expect(dialog.textContent).toContain('录制 3 个还没有素材的片段');
+    expect(dialog.textContent).toContain('本次录制 3 个片段');
     expect(dialog.querySelector('[data-recording-seconds]')?.textContent).toBe('18 秒');
     // 60 s launch + 18 s footage + 3 × 20 s per clip = 138 s.
     expect(dialog.querySelector('[data-recording-wall-minutes]')?.textContent).toBe('约 3 分钟');
@@ -56,10 +56,10 @@ describe('RecordingConfirmDialog', () => {
   it('narrows the recording to the selected unrecorded clips on request', () => {
     const { onConfirm, dialog } = open({ selectedClipIds: [IDS[1]!, 'not-requested'] });
 
-    expect(screen.getByRole('radio', { name: '全部 3 个未录制片段' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('radio', { name: '全部 3 个待录制片段' }).getAttribute('aria-checked')).toBe('true');
     fireEvent.click(screen.getByRole('radio', { name: '只录选中的 1 个' }));
 
-    expect(dialog.textContent).toContain('录制 1 个还没有素材的片段');
+    expect(dialog.textContent).toContain('本次录制 1 个片段');
     expect(dialog.querySelector('[data-recording-seconds]')?.textContent).toBe('6 秒');
     fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
     expect(onConfirm).toHaveBeenCalledWith([IDS[1]]);

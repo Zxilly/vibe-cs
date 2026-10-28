@@ -1,35 +1,4 @@
-/*
- * pages/delivery — 交付 › 成品文件, the `?view=outputs` face of §7's `/delivery`.
- *
- * 「11 输出与任务记录」 lays it out as: a 46px filter strip (全部 · 录制结果 ·
- * 导出成片 · 文件缺失, sort on the right), a two-column grid of cards, and a
- * 52px footer strip. Background tasks live in the shell drawer.
- *
- * ── Density (§10.3) ───────────────────────────────────────────────────────
- *
- * The grid is one column until it has room for two, and the scroll lives on the
- * grid's own container — never on the body, which `design/layout/Page` and
- * `base.css` both forbid. The footer prints 共 N 条 through `Pagination`, so a
- * library of 34 outputs (the artboard's own count) is paged rather than
- * silently cut.
- *
- * ── One deletion, one confirmation ────────────────────────────────────────
- *
- * A row leads with 播放 and 打开所在文件夹; removal sits in the row's 更多操作
- * menu, or stays visible on a row whose file is gone, where it is the only
- * useful action. It names what it does — 删除文件 for a managed file that is
- * still there, 移除记录 for everything else — and both go through
- * `DeleteOutputDialog`, which spells out the blast radius before the mutation
- * runs. What actually happened to the file is then reported from the result the
- * service returns, not from the standing policy line in the footer.
- *
- * ── Scoped to one Project ─────────────────────────────────────────────────
- *
- * `?project=` narrows the list to one Project's files. The scope is drawn as a
- * chip on the filter strip with its own clear action, and an empty scoped list
- * says whose it is — an unscoped 「还没有成片」 under a hidden filter would read
- * as the whole library being gone.
- */
+/** Filter and page recorded media and exports, with optional Project scope. */
 
 import { t } from '@lingui/core/macro';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -51,7 +20,7 @@ import { OUTPUT_ROW_COLUMNS, OutputCard, OutputCardSkeleton } from './OutputCard
 import { cn } from '../../../design/cn';
 import { outputDeletionOutcome, outputDeletionRemovesFile } from '../../../domain/media/outputModel';
 
-/** Two rows of two on a 1100px window; the artboard draws four cards. */
+/** Bound the number of previews loaded on one page. */
 export const OUTPUT_PAGE_SIZE = 12;
 
 const OUTPUT_FILTERS = ['all', 'recording', 'export', 'missing'] as const;
@@ -66,7 +35,7 @@ function filterLabels(): Readonly<Record<OutputFilter, string>> {
   };
 }
 
-/** The artboard's four chips, as an `OutputQuery`. */
+/** Translate the visible filter into the output-list query. */
 function filterQuery(filter: OutputFilter): OutputQuery {
   switch (filter) {
     case 'recording':
@@ -118,9 +87,6 @@ export function OutputsView({ now }: OutputsViewProps) {
   }, [outputs.isSuccess, outputs.data?.total, page]);
 
   const items = outputs.data?.items ?? [];
-  const errorMessage = outputs.isError
-    ? dataErrorMessage(outputs.error) ?? t`读取成片列表失败。`
-    : undefined;
   const scopedProject = projectId === null ? null : projects.data?.find((project) => project.id === projectId) ?? null;
   const scopeLabel = projectId === null ? null : scopedProject?.name
     ?? (projects.isPending ? t`正在加载作品…` : projects.isError ? t`指定作品` : t`已删除的作品`);
@@ -186,17 +152,18 @@ export function OutputsView({ now }: OutputsViewProps) {
           </Alert>
         )}
 
-        {errorMessage === undefined ? null : (
+        {!outputs.isError ? null : (
           <Alert
             variant="danger"
-            action={{ label: <Trans>重新加载</Trans>, onAction: () => void outputs.refetch() }}
+            action={{ label: <Trans>重新加载</Trans>, disabled: outputs.isFetching, onAction: () => void outputs.refetch() }}
           >
-            {errorMessage}
+            <Trans>无法加载成品文件。</Trans>
           </Alert>
         )}
 
-        {errorMessage !== undefined ? null : outputs.isPending ? (
-          <div className="grid gap-3">
+        {outputs.isError ? null : outputs.isPending ? (
+          <div role="status" aria-busy="true" className="grid gap-3">
+            <p className="text-sm text-neutral-600"><Trans>正在加载成品文件…</Trans></p>
             {Array.from({ length: 4 }, (_unused, index) => (
               <OutputCardSkeleton key={index} />
             ))}
@@ -211,7 +178,7 @@ export function OutputsView({ now }: OutputsViewProps) {
             <Empty
               preset="no-outputs"
               actions={
-                <RouteLink to="/projects/new?step=shotlist">
+                <RouteLink to="/projects/new">
                   <Trans>新建作品</Trans>
                 </RouteLink>
               }
@@ -219,7 +186,7 @@ export function OutputsView({ now }: OutputsViewProps) {
           ) : (
             <Empty
               title={<Trans>「{scopeLabel}」还没有成品文件</Trans>}
-              description={<Trans>导出后，成片会出现在这里。</Trans>}
+              description={<Trans>录制或导出完成后，文件会出现在这里。</Trans>}
               actions={
                 <RouteLink to="/delivery">
                   <Trans>查看全部成品文件</Trans>

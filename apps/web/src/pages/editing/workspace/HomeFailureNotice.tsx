@@ -1,22 +1,4 @@
-/*
- * pages/home — 「失败可恢复」 on 「01 工作台首页」.
- *
- * The artboard draws one failed task between 进行中 and 最近比赛:
- * 「导出未完成：磁盘空间不足，已保留工程与素材 · 影响范围：仅这一次导出 · 释放
- * 4.2 GB 后可继续」 with 打开输出目录 and 重试导出.
- *
- * It is drawn by `TaskCard`, not by a hand-written `Notice`: a failed
- * `TaskSummary` renders its own danger Notice with the required recovery
- * action, so this component is the query plus the decision to show at most one.
- * At most one, because the header already counts them (「1 个失败可恢复」) and a
- * landing page that lists every failure since install is a task record, which
- * is one link away. That Notice is the only failure emphasis: the block keeps
- * the neutral divider border rather than stacking a second red frame around it.
- *
- * Renders nothing when there is nothing to recover from — 「环境问题只在阻塞
- * 相应任务时出现在这里」 is the same rule applied to failures: an absent block
- * is the good state, and an empty state for it would be noise.
- */
+/** Show the most recent failed task and link to the remaining failure records. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -32,11 +14,6 @@ export interface HomeFailureNoticeProps {
 }
 
 export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
-  /*
-   * No polling. A failure does not un-fail, and a *new* one can only appear
-   * when a running task ends — which the 进行中 panel above is already polling
-   * for, and whose mutations invalidate `qk.tasks.all` for both panels.
-   */
   const feed = useTaskFeed({ state: 'failed', page: 1, page_size: 1 });
   const bind = useTaskActions(now === undefined ? {} : { now });
 
@@ -53,8 +30,7 @@ export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
     ...bound.summary,
     failure: {
       ...bound.summary.failure,
-      // The workbench is a digest. The classified reason stays here; the raw
-      // service sentence and impact belong on 查看阶段 / 后台任务详情.
+      // Keep capture diagnostics on the task detail page.
       detail: internalCaptureFailure
         ? <Trans>采集组件没能启动。打开任务详情查看原因。</Trans>
         : bound.summary.failure.detail,

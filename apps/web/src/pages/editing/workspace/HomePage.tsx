@@ -28,7 +28,7 @@ export function HomePage({ intro }: HomePageProps = {}) {
         <Toolbar
           title={<Trans>工作台</Trans>}
           primary={
-            <Button variant="primary" size="md" onClick={() => void navigate('/projects/new?step=shotlist')}>
+            <Button variant="primary" size="md" onClick={() => void navigate('/projects/new')}>
               <Trans>新建作品</Trans>
             </Button>
           }

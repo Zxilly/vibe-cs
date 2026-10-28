@@ -138,6 +138,21 @@ function renderActivity(client: Record<string, unknown>) {
 }
 
 describe('成品 › 成品文件', () => {
+  it('shows the latest update time for an unfinished output', async () => {
+    const { client } = stubs();
+    renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: { ...client, listOutputs: () => Promise.resolve({ ...OUTPUTS, items: [{
+        ...OUTPUT, status: 'failed', created_at: '2026-08-15T09:12:00.000Z', updated_at: '2026-08-16T10:30:00.000Z',
+      }] }) },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: '查看 Kael 1v3 的完整路径' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Kael 1v3' });
+    const timeLabel = within(drawer).getByText('更新时间');
+    expect(timeLabel.nextElementSibling?.textContent).toContain('08-16');
+    expect(timeLabel.nextElementSibling?.textContent).not.toContain('08-15');
+  });
+
   it('keeps a pending file deletion open and preserves its failed target for retry', async () => {
     const { client } = stubs();
     let rejectDelete!: (error: Error) => void;

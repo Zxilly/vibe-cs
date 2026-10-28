@@ -1,17 +1,4 @@
-/*
- * pages/delivery — 「删除这个成品文件？」 / 「移除这条记录？」.
- *
- * The same shape as the library's `DeleteDemosDialog`: the object, whether it
- * comes back, and what is left alone, before a brick-red confirm. Two forms
- * because the service has two outcomes for one row:
- *
- *   · a managed file that is still on disk is deleted with its record. The
- *     service stages it only to roll back a failed record change and removes
- *     the staged copy on success, so the honest sentence is 「不能恢复」;
- *   · an external file, or a file that is already gone, only loses its record.
- *     The row's own 移除记录 label is repeated as the confirm, and the dialog
- *     keeps the default tone — nothing on disk changes.
- */
+/** Confirm whether this action deletes a managed file or only removes its record. */
 
 import { Trans } from '@lingui/react/macro';
 
@@ -52,7 +39,7 @@ export function DeleteOutputDialog({ output, onClose, onDelete, deleting, error 
       onConfirm={confirm}
     >
       <div className="flex flex-col gap-3">
-        <p className="leading-normal">
+        <p className="break-words leading-normal">
           {removesFile ? (
             <Trans>「{fileName}」会从磁盘删除，不能恢复。指向它的记录一起移除。</Trans>
           ) : missing ? (

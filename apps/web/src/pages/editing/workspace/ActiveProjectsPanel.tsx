@@ -3,7 +3,6 @@ import { ArrowUpRight, FileVideo2 } from 'lucide-react';
 
 import { Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
-import { dataErrorMessage } from '../../../data/errors';
 import { useProjects } from '../../../data/projects';
 import { formatTaskClock } from '../../../domain/task';
 import { RouteLink } from '../../shared/navigation/RouteLink';
@@ -12,21 +11,23 @@ const SHOWN = 3;
 
 export function ActiveProjectsPanel() {
   const projects = useProjects();
-  const error = dataErrorMessage(projects.error);
   const rows = [...(projects.data ?? [])]
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     .slice(0, SHOWN);
 
   return (
     <div className="flex flex-col gap-3" data-home-block="projects">
-      {error === null ? null : (
-        <Alert variant="warning" action={{ label: <Trans>重试</Trans>, onAction: () => void projects.refetch() }}>
-          <Trans>作品列表没能读出来：{error}</Trans>
+      {!projects.isError ? null : (
+        <Alert variant="warning" action={{ label: <Trans>重新加载</Trans>, disabled: projects.isFetching, onAction: () => void projects.refetch() }}>
+          <Trans>无法加载作品列表。</Trans>
         </Alert>
       )}
 
       {projects.isPending ? (
-        <div className="flex flex-col gap-2.5"><Skeleton /><Skeleton width="76%" /></div>
+        <div role="status" aria-busy="true" className="flex flex-col gap-2.5">
+          <p className="text-sm text-neutral-600"><Trans>正在加载作品…</Trans></p>
+          <Skeleton /><Skeleton width="76%" />
+        </div>
       ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
         <p className="text-sm leading-relaxed text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>
       ) : (

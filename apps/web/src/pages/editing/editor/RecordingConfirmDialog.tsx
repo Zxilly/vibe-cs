@@ -17,7 +17,7 @@ export interface RecordingConfirmDialogProps {
   readonly open: boolean;
   readonly projectId: string;
   readonly revision: number;
-  /** The unrecorded clips this request covers. */
+  /** Clips whose recording is missing or no longer matches the current edit. */
   readonly clips: readonly TimelineClip[];
   /** The Timeline selection; a narrower scope is offered when it holds some, not all, of `clips`. */
   readonly selectedClipIds: readonly string[];
@@ -65,7 +65,7 @@ export function RecordingConfirmDialog({
     >
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]" data-recording-confirm>
         <div className="flex min-w-0 flex-col gap-4">
-          <p><Trans>将启动 CS2 和采集组件，录制 {count} 个还没有素材的片段。</Trans></p>
+          <p><Trans>将启动 CS2 和采集组件，本次录制 {count} 个片段。</Trans></p>
           {offersSelection ? (
             <Seg<RecordingScope>
               name="recording-scope"
@@ -74,7 +74,7 @@ export function RecordingConfirmDialog({
               value={scope}
               onChange={setScope}
               options={[
-                { value: 'all', label: t`全部 ${total} 个未录制片段` },
+                { value: 'all', label: t`全部 ${total} 个待录制片段` },
                 { value: 'selected', label: t`只录选中的 ${selectedCount} 个` },
               ]}
             />

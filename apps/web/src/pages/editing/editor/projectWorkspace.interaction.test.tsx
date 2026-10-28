@@ -632,6 +632,30 @@ function renderWorkspace({
 }
 
 describe('timeline review recovery regressions', () => {
+  it('retries a failed Project read without claiming that the Project was deleted', async () => {
+    const getProject = vi.fn()
+      .mockRejectedValueOnce(new Error('transport timed out'))
+      .mockResolvedValue(PROJECT);
+    renderWorkspace({ getProject });
+
+    expect(await screen.findByRole('heading', { name: '无法打开作品' })).toBeTruthy();
+    expect(screen.queryByText('找不到这份作品')).toBeNull();
+    expect(screen.queryByText(PROJECT.id)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '重新加载' }));
+    expect(await screen.findByRole('heading', { name: PROJECT.name })).toBeTruthy();
+    expect(getProject).toHaveBeenCalledTimes(2);
+  });
+
+  it('explains a failed delivery check on both recording and export controls', async () => {
+    renderWorkspace({ getProjectDeliveryGate: vi.fn().mockRejectedValue(new Error('delivery unavailable')) });
+    await screen.findByText('素材状态暂时不可用');
+    for (const label of ['录制缺失片段', '导出成片']) {
+      const button = screen.getByRole('button', { name: label });
+      expect(button).toHaveProperty('disabled', true);
+      expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toContain('没能检查交付状态');
+    }
+  });
+
   it('stops automatic creation after a failure and creates one Project when retried', async () => {
     const createProject = vi.fn()
       .mockRejectedValueOnce(new Error('磁盘空间不足'))
@@ -982,7 +1006,7 @@ describe('unified project workspace', () => {
     expect(document.getElementById(exportButton.getAttribute('aria-describedby')!)?.textContent).toContain('2 个素材未就绪，检查素材面板里标红的片段');
     const record = screen.getByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement;
     expect(record.disabled).toBe(true);
-    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('未就绪的素材不能靠录制补齐');
+    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('请在素材面板检查未就绪的片段');
     fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
     expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });
@@ -5564,7 +5588,7 @@ describe('unified project workspace', () => {
 
     fireEvent.click(within(panel).getByRole('option', { name: '选择素材 A' }));
     fireEvent.click(within(screen.getByRole('region', {name: '源预览'})).getByRole('button', { name: '录制片段 A' }));
-    expect(screen.getByRole('dialog', { name: '录制缺失片段' }).textContent).toContain('录制 1 个还没有素材的片段');
+    expect(screen.getByRole('dialog', { name: '录制缺失片段' }).textContent).toContain('本次录制 1 个片段');
   });
 
   it('edits one source-time Clip Marker and projects it onto every matching Timeline clip', async () => {
@@ -6109,7 +6133,7 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('option', { name: '选择素材 Fit source' }));
     fireEvent.click(screen.getByRole('button', { name: '在播放头插入 Fit source' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'Fit Clip：范围时长不同' });
+    const dialog = screen.getByRole('dialog', { name: '两个选段时长不同' });
     expect((within(dialog).getByRole('radio', { name: '更改片段速度（Fit to Fill）' }) as HTMLInputElement).checked).toBe(true);
     fireEvent.click(within(dialog).getByRole('button', { name: '应用四点编辑' }));
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({

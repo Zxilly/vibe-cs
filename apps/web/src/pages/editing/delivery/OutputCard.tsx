@@ -34,7 +34,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
   const usable = outputFileIsUsable(output.availability);
   const title = output.output_kind === 'export' ? project?.name ?? output.title : output.title;
   const size = formatBytes(output.size_bytes);
-  const stamp = formatTaskClock(output.status === 'completed' ? output.updated_at : output.created_at, {
+  const stamp = formatTaskClock(output.updated_at, {
     ...(now === undefined ? {} : { now }),
     ...(timeZone === undefined ? {} : { timeZone }),
   });
@@ -131,7 +131,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
 }
 
 export function OutputCardSkeleton() {
-  return <div role="status" aria-busy="true" className="flex min-h-24 gap-4 border border-divider p-4">
+  return <div aria-hidden="true" className="flex min-h-24 gap-4 border border-divider p-4">
     <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse bg-neutral-200" />
     <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-100" /></div>
   </div>;

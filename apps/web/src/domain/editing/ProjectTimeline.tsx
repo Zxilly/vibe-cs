@@ -78,7 +78,7 @@ import {
   projectStoryTimelineChanges,
   type TimelineClipChange,
 } from './timelineChangeProjection';
-import { timelineClipCompactLabels, timelineClipStripLabel } from './timelineClipLabel';
+import { timelineClipCompactLabels, timelineClipStripLabel, type TimelineClipCompactLabel } from './timelineClipLabel';
 import { timelineTrackLayout } from './timelineTrackLayout';
 import { TimelineFilmstrip } from './TimelineFilmstrip';
 import { TimelineToolStrip, type TimelineEditTool } from './TimelineToolStrip';
@@ -3822,7 +3822,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
             clip={rippleDrafts.get(clip.id) ?? rollingDrafts.get(clip.id) ?? rateDrafts.get(clip.id) ?? slideDrafts.get(clip.id) ?? clip}
-            compactLabel={compactLabels.get(clip.id) ?? clip.name}
+            compactLabel={compactLabels.get(clip.id)!}
             kind={track.kind}
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
@@ -4315,7 +4315,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, selected, se
 const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, kind, derivedAudio, selected, primary, selectedTransition, selectedEditPoint, displaySettings, repeatedFrames, deliveryState, sourceMarkers, outOfSyncFrames, editTool, storyTrack, canSlide, scale, fps, readOnly, razorEnabled, gainReadOnly, trackHeight, thumbnailWindowStartPx, thumbnailWindowEndPx, localTime, change, onSelect, onSelectTransition, onSelectEditPoint, onCrossTrackPreview, onMoveCrossTrack, onPromote, onInspect, onRestoreSync, onSeek, onSeekInto, onRazor, onTrackSelect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRipple, onPreviewRateStretch, onPreviewSlide, onPreviewTransition, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   /** What the name strip collapses to when the name does not fit. */
-  readonly compactLabel: string;
+  readonly compactLabel: TimelineClipCompactLabel;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
@@ -4457,6 +4457,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
   }
   const visualLeft = timeToPx(scale, visualClip.placement.start);
   const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
+  const stripLabel = timelineClipStripLabel(clip, compactLabel, visualWidth);
   const canSlip = kind !== 'text' && kind !== 'caption' && canSlipTimelineClip(clip, fps);
   const canRateStretch = kind !== 'text' && kind !== 'caption' && canRateStretchTimelineClip(clip);
   const gestureBaseClip = gesture.current?.clip ?? clip;
@@ -4988,12 +4989,12 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
         />
       ))}
       {repeatedFrames ? <span className="pointer-events-none absolute inset-x-0 top-0 z-40 h-1 bg-[repeating-linear-gradient(90deg,var(--color-warn)_0_4px,transparent_4px_8px)]" role="img" aria-label={t`重复帧 ${clip.name}`} /> : null}
-      {displaySettings.names && visualWidth >= 36 ? <span className={cn(
+      {displaySettings.names && stripLabel !== null ? <span className={cn(
         'absolute inset-x-0 bottom-0 h-[18px] truncate px-1 py-px text-xs',
         kind === 'video'
           ? 'bg-neutral-200/95 text-neutral-800'
           : 'border-divider bg-neutral-100/90 text-neutral-700',
-      )}>{timelineClipStripLabel(clip, compactLabel, visualWidth)}</span> : null}
+      )}>{stripLabel}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
         <>
           <span

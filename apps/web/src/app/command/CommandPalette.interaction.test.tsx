@@ -220,6 +220,25 @@ describe('CommandPalette selection', () => {
 });
 
 describe('CommandPalette execution', () => {
+  it('keeps available commands usable and lets Tab reach search recovery after a read fails', () => {
+    const retry = vi.fn();
+    const navigate = vi.fn();
+    const { getByRole, getByText } = renderInteractive(
+      <CommandPalette open onClose={() => {}} navigate={navigate} searchState="error" onRetrySearch={retry} />,
+    );
+
+    const search = searchBox(getByRole);
+    fireEvent.change(search, { target: { value: '设置' } });
+    expect(getByRole('option', { name: /设置/u })).toBeTruthy();
+    expect(getByText('TAB 切换焦点')).toBeTruthy();
+    expect(fireEvent.keyDown(search, { key: 'Tab' })).toBe(true);
+    fireEvent.click(getByRole('button', { name: '重试搜索' }));
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(navigate).toHaveBeenCalledWith('/settings');
+  });
+
   it('leaves composing keys to the input method before allowing a command', () => {
     const navigate = vi.fn();
     const { getByRole, queryByRole } = renderInteractive(<Harness navigate={navigate} />);

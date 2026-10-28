@@ -193,7 +193,7 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
   pageCommand({
     id: 'agent',
     title: msg`新建作品 · Agent 模式`,
-    to: '/projects/new?step=shotlist',
+    to: '/projects/new',
     keywords: ['agent', 'ai', '创作', '方案', '会话'],
   }),
   // §7 gives /delivery a `?view=outputs|tasks` query and Frame lists the two

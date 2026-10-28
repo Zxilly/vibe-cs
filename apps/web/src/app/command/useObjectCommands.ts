@@ -33,7 +33,11 @@ function literal(value: string): MessageDescriptor {
   return { id: value, message: value };
 }
 
-export function useObjectCommands(query: string, enabled: boolean): readonly CommandDefinition[] {
+export function useObjectCommands(query: string, enabled: boolean): {
+  readonly commands: readonly CommandDefinition[];
+  readonly status: 'ready' | 'loading' | 'error';
+  readonly retry: () => void;
+} {
   const terms = queryTerms(query);
   const search = terms[0] ?? '';
   const searching = enabled && search !== '';
@@ -45,9 +49,18 @@ export function useObjectCommands(query: string, enabled: boolean): readonly Com
   );
   const projects = useProjects({ enabled });
 
-  if (!searching) return [];
-
   const commands: CommandDefinition[] = [];
+  const reads = [demos, players, projects];
+  const status = !searching ? 'ready'
+    : reads.some((read) => read.isPending || read.isFetching) ? 'loading'
+    : reads.some((read) => read.isError) ? 'error' : 'ready';
+  const retry = () => {
+    void demos.refetch();
+    void players.refetch();
+    void projects.refetch();
+  };
+
+  if (!searching) return { commands, status, retry };
 
   for (const demo of demos.data?.items ?? []) {
     commands.push({
@@ -94,5 +107,5 @@ export function useObjectCommands(query: string, enabled: boolean): readonly Com
 
   /* 证据 stays a page: the index answers a query, not a name, and a row that
      matched every keystroke would take 「回车执行首条」 from every real hit. */
-  return commands;
+  return { commands, status, retry };
 }

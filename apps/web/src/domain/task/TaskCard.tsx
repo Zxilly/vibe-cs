@@ -55,7 +55,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Alert, ProgressBar, StageBar, StatusDot, type Stage } from '../../design/feedback';
-import { Button, Link, cn } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 
 import { TaskCancelButton } from './TaskCancelButton';
@@ -197,19 +197,20 @@ export function TaskCard({
                 // A missing artifact keeps its link — 「文件不在原位」 is a record
                 // that still resolves to something (the relocate flow); the
                 // colour is what says the file is gone.
-                <Link
+                <Button
                   key={artifact.id}
-                  href={artifact.href}
+                  asChild
+                  variant="ghost"
                   size="sm"
                   className={cn(artifact.missing === true && 'text-fail-text')}
                 >
-                  {artifact.label}
-                </Link>
+                  <a href={artifact.href}>{artifact.label}</a>
+                </Button>
               ))}
               {links?.map((link) => (
-                <Link key={link.id} href={link.href} size="sm">
-                  {link.label}
-                </Link>
+                <Button key={link.id} asChild variant="ghost" size="sm">
+                  <a href={link.href}>{link.label}</a>
+                </Button>
               ))}
               {onCancel !== undefined || onOpenDetail !== undefined ? (
                 <span className="ml-auto flex items-center gap-2">

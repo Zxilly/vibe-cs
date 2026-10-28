@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro';
+import { useId } from 'react';
 
 import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
@@ -36,6 +37,7 @@ interface TaskActivityListProps {
   readonly onReload: () => void;
   readonly bind: ReturnType<typeof useTaskActions>;
   readonly onSelect: (id: string) => void;
+  readonly headingLevel?: 2 | 3;
   /**
    * The state filter the list was fetched under, with the way back to 全部.
    * Absent on a surface that always shows everything (the shell drawer).
@@ -43,7 +45,9 @@ interface TaskActivityListProps {
   readonly filter?: { readonly state: ActivityStateFilter; readonly onClear: () => void } | undefined;
 }
 
-export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter }: TaskActivityListProps) {
+export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter, headingLevel = 2 }: TaskActivityListProps) {
+  const baseId = useId();
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
   if (error !== null) {
     return <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>{error}</Alert>;
   }
@@ -77,11 +81,12 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
       {GROUPS.map((group) => {
         const grouped = items.filter(group.includes);
         if (grouped.length === 0) return null;
+        const headingId = `${baseId}-activity-group-${group.id}`;
         return (
-          <section key={group.id} aria-labelledby={`activity-group-${group.id}`} className="flex flex-col border border-divider">
-            <h3 id={`activity-group-${group.id}`} className="border-b border-divider px-3 py-2 font-heading text-sm">
+          <section key={group.id} aria-labelledby={headingId} className="flex flex-col border border-divider">
+            <Heading id={headingId} className="border-b border-divider px-3 py-2 font-heading text-sm">
               {group.label} · {grouped.length}
-            </h3>
+            </Heading>
             <ul className="m-0 list-none p-0">
               {grouped.map((item, index) => {
                 const bound = bind(item);
@@ -96,6 +101,7 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
                   >
                     <TaskCard
                       task={bound.summary}
+                      headingLevel={headingLevel === 2 ? 3 : 4}
                       compact
                       showId={false}
                       links={bound.links.filter((link) => link.id !== 'detail')}

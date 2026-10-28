@@ -13,7 +13,7 @@
 
 import { act, fireEvent, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient, type DesktopClientStub } from '../data/desktopClient';
 import { COLLAPSE_BREAKPOINT_PX, COLLAPSE_MEDIA_QUERY } from '../design/layout';
@@ -36,6 +36,23 @@ const COLOGNE: Project = {
   created_at: '2026-09-01T00:00:00Z',
   updated_at: '2026-09-10T00:00:00Z',
 };
+
+function objectSearchClient(overrides: DesktopClientStub = {}): DesktopClientStub {
+  const empty = { items: [], total: 0, page: 1, page_size: 8 };
+  return {
+    listProjects: () => Promise.resolve([COLOGNE]),
+    listDemos: () => Promise.resolve(empty),
+    listPlayers: () => Promise.resolve({
+      ...empty,
+      coverage: { projected_demos: 0, total_analyses: 0, projection_complete: true },
+    }),
+    listActivities: () => Promise.resolve({
+      items: [], total: 0, page: 1, page_size: 50,
+      summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
+    }),
+    ...overrides,
+  };
+}
 
 function shellRouter(initial = '/library', client?: DesktopClientStub) {
   const shell = <AppShell adapter={null} />;
@@ -207,25 +224,13 @@ describe('AppShell — Ctrl K', () => {
     fireEvent.keyDown(search, { key: 'Enter' });
 
     expect(router.state.location.pathname).toBe('/projects/new');
-    expect(router.state.location.search).toBe('?step=shotlist');
+    expect(router.state.location.search).toBe('');
     expect(document.querySelector('[data-overlay="command-palette"]')).toBeNull();
   });
 
   it('finds the reader’s own objects — a project typed by name opens its workspace', async () => {
     media = stubMatchMedia(false);
-    const empty = { items: [], total: 0, page: 1, page_size: 8 };
-    const router = shellRouter('/library', {
-      listProjects: () => Promise.resolve([COLOGNE]),
-      listDemos: () => Promise.resolve(empty),
-      listPlayers: () => Promise.resolve({
-        ...empty,
-        coverage: { projected_demos: 0, total_analyses: 0, projection_complete: true },
-      }),
-      listActivities: () => Promise.resolve({
-        items: [], total: 0, page: 1, page_size: 50,
-        summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
-      }),
-    });
+    const router = shellRouter('/library', objectSearchClient());
     const { container } = renderInteractive(<RouterProvider router={router} />);
 
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-titlebar-command]') as HTMLElement);
@@ -239,6 +244,55 @@ describe('AppShell — Ctrl K', () => {
     });
     expect(row.textContent).toContain('NiKo · Cologne BO5 · 3分钟');
 
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(router.state.location.pathname).toBe(`/projects/${COLOGNE.id}`);
+  });
+
+  it('waits for object reads before declaring that a query has no matches', async () => {
+    media = stubMatchMedia(false);
+    let resolveProjects!: (projects: Project[]) => void;
+    const projects = new Promise<Project[]>((resolve) => { resolveProjects = resolve; });
+    const router = shellRouter('/library', objectSearchClient({ listProjects: () => projects }));
+    const { getByRole, getByText, queryByText } = renderInteractive(<RouterProvider router={router} />);
+
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+    fireEvent.change(getByRole('combobox'), { target: { value: 'Cologne' } });
+
+    expect(getByText('正在搜索比赛、选手和作品…')).toBeTruthy();
+    expect(queryByText('没有匹配的结果')).toBeNull();
+
+    await act(async () => { resolveProjects([]); });
+    await waitFor(() => expect(getByText('没有匹配的结果')).toBeTruthy());
+    expect(queryByText('正在搜索比赛、选手和作品…')).toBeNull();
+  });
+
+  it('reports a rejected object read and retries it without closing or clearing the query', async () => {
+    media = stubMatchMedia(false);
+    let resolveRetry!: (projects: Project[]) => void;
+    const retriedProjects = new Promise<Project[]>((resolve) => { resolveRetry = resolve; });
+    const listProjects = vi.fn()
+      .mockRejectedValueOnce(new Error('project read unavailable'))
+      .mockImplementationOnce(() => retriedProjects);
+    const router = shellRouter('/library', objectSearchClient({ listProjects }));
+    const { getByRole, getByText, queryByText } = renderInteractive(<RouterProvider router={router} />);
+
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+    const search = getByRole('combobox') as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'Cologne' } });
+
+    await waitFor(() => expect(getByText('搜索结果未能完整加载')).toBeTruthy());
+    expect(queryByText('没有匹配的结果')).toBeNull();
+    const retry = getByRole('button', { name: '重试搜索' });
+    retry.focus();
+    fireEvent.click(retry);
+    await waitFor(() => expect(getByText('正在搜索比赛、选手和作品…')).toBeTruthy());
+    expect(search.value).toBe('Cologne');
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => { resolveRetry([COLOGNE]); });
+    await waitFor(() => expect(getByRole('option', { name: /NiKo · Cologne/u })).toBeTruthy());
+    expect(queryByText('搜索结果未能完整加载')).toBeNull();
+    expect(listProjects).toHaveBeenCalledTimes(2);
     fireEvent.keyDown(search, { key: 'Enter' });
     expect(router.state.location.pathname).toBe(`/projects/${COLOGNE.id}`);
   });

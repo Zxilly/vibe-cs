@@ -42,7 +42,7 @@ import type { ReactNode } from 'react';
 
 import { TableSkeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { Button, Link, Badge, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
 import { TaskCancelButton } from './TaskCancelButton';
@@ -139,19 +139,20 @@ export function TaskDetail({
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
           {links?.map((link) => (
-            <Link key={link.id} href={link.href} size="sm">
-              {link.label}
-            </Link>
+            <Button key={link.id} asChild variant="ghost" size="sm">
+              <a href={link.href}>{link.label}</a>
+            </Button>
           ))}
           {artifacts?.map((artifact) => (
-            <Link
+            <Button
               key={artifact.id}
-              href={artifact.href}
+              asChild
+              variant="ghost"
               size="sm"
               className={cn(artifact.missing === true && 'text-fail-text')}
             >
-              {artifact.label}
-            </Link>
+              <a href={artifact.href}>{artifact.label}</a>
+            </Button>
           ))}
           {onCancel !== undefined ? (
             <TaskCancelButton task={task} onConfirm={onCancel} pending={cancelPending} variant="secondary" />

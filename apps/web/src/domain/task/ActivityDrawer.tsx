@@ -62,6 +62,7 @@ export function ActivityDrawer({ open, onClose, onUnreadChange }: ActivityDrawer
           onReload={() => void feed.refetch()}
           bind={bind}
           onSelect={setSelectedId}
+          headingLevel={3}
         />
       ) : (
         <div className="flex min-h-0 flex-col gap-3">

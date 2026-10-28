@@ -65,7 +65,7 @@ const ITEM_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_v
 /* The 1100×700 artboard: a 34px square — `--h-ctl-md` — per entry. */
 const CELL_CLASS = 'relative grid size-[var(--h-ctl-md)] place-items-center';
 const CELL_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
-const CELL_ACTIVE_CLASS = 'bg-accent text-on-accent';
+const CELL_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 const GROUP_HEADING_CLASS = 'px-3 pb-2 pt-4 text-xs font-medium text-neutral-600';
 
@@ -145,7 +145,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             <span
               aria-hidden="true"
               data-nav-badge={item.id}
-              className={cn('absolute top-0.5 right-0.5 size-1.5', active ? 'bg-bg' : 'bg-accent')}
+              className="absolute top-0.5 right-0.5 size-1.5 bg-accent"
             />
           ) : null}
         </Link>

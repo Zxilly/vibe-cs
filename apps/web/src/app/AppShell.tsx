@@ -148,7 +148,9 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         open={palette.open}
         onClose={palette.closePalette}
         navigate={goTo}
-        commands={buildCommandList(objectCommands)}
+        commands={buildCommandList(objectCommands.commands)}
+        searchState={objectCommands.status}
+        onRetrySearch={objectCommands.retry}
         onQueryChange={setPaletteQuery}
       />
 

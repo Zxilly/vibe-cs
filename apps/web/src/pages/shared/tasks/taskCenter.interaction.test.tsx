@@ -143,7 +143,7 @@ describe('shared task center', () => {
     } });
     const row = await screen.findByRole('heading', { name: /八月集锦 · r3/ });
     const link = screen.getByRole('link', { name: '查看成品' });
-    expect(link.getAttribute('href')).toContain('/delivery?view=outputs');
+    expect(link.getAttribute('href')).toContain('/delivery?view=outputs&project=project-1');
 
     fireEvent.click(screen.getByRole('button', { name: '查看详情' }));
     const detail = await screen.findByRole('complementary', { name: '任务详情' });

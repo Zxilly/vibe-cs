@@ -105,7 +105,7 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
     const summary = toTaskSummary(item, {
       ...(now === undefined ? {} : { now }),
       recovery: recoveryFor({ item, restartable, run, navigate }),
-      ...(status === 'cancelled' ? { note: <Trans>可重新发起</Trans> } : {}),
+      ...(status === 'cancelled' && restartable ? { note: <Trans>可重新发起</Trans> } : {}),
     });
 
     return {
@@ -181,7 +181,13 @@ function projectPathOf(item: ActivityItem): string | null {
 function destinationLink(action: ActivityAction, item: ActivityItem): { id: string; label: ReactNode; path: string } | null {
   switch (action) {
     case 'open_outputs':
-      return { id: 'outputs', label: <Trans>查看成品</Trans>, path: '/delivery?view=outputs' };
+      return {
+        id: 'outputs',
+        label: <Trans>查看成品</Trans>,
+        path: item.kind === 'export' && item.context_id !== null
+          ? `/delivery?view=outputs&project=${encodeURIComponent(item.context_id)}`
+          : '/delivery?view=outputs',
+      };
     case 'open_library':
       return { id: 'library', label: <Trans>打开资料库</Trans>, path: '/library' };
     case 'open_match_history':

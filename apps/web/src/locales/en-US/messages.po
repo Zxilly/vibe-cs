@@ -33,7 +33,7 @@ msgstr ". Try removing some filters."
 msgid "· 只扫描了一部分"
 msgstr "· only part of it was scanned"
 
-#: src/domain/task/ActivityDrawer.tsx:69
+#: src/domain/task/ActivityDrawer.tsx:70
 msgid "‹ 返回后台任务"
 msgstr "‹ Back to background tasks"
 
@@ -426,7 +426,7 @@ msgstr "{clipCount, plural, one {# clip} other {# clips}}"
 msgid "{customCount} 项自定义"
 msgstr "{customCount} custom parameters"
 
-#: src/app/command/CommandPalette.tsx:330
+#: src/app/command/CommandPalette.tsx:356
 msgid "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
 msgstr "{hidden, plural, one {# more · keep typing to narrow it down} other {# more · keep typing to narrow it down}}"
 
@@ -596,11 +596,11 @@ msgstr "Read mode only plays back automation; switch to Off or Write to adjust b
 msgid "←/→ 调整 1 帧；Shift 调整 5 帧；Ctrl/Shift 点击剪辑点切换多选；Space 或 J/K/L 循环预览"
 msgstr "←/→: move 1 frame; Shift: move 5 frames; Ctrl/Shift-click an edit point to multi-select; Space or J/K/L to loop preview"
 
-#: src/app/command/CommandPalette.tsx:341
+#: src/app/command/CommandPalette.tsx:367
 msgid "↑↓ 选择"
 msgstr "↑↓ Select"
 
-#: src/app/command/CommandPalette.tsx:344
+#: src/app/command/CommandPalette.tsx:370
 msgid "↵ 打开"
 msgstr "↵ Open"
 
@@ -949,9 +949,13 @@ msgstr "T spend"
 msgid "T 购买"
 msgstr "T purchases"
 
-#: src/app/command/CommandPalette.tsx:347
+#: src/app/command/CommandPalette.tsx:373
 msgid "TAB 切换分组"
 msgstr "TAB Switch group"
+
+#: src/app/command/CommandPalette.tsx:373
+msgid "TAB 切换焦点"
+msgstr "TAB moves focus"
 
 #: src/pages/shared/settings/AiAgentSection.tsx:704
 msgid "Temperature"
@@ -1387,7 +1391,7 @@ msgstr "Task center"
 msgid "任务地址无效，请从任务列表重新打开。"
 msgstr "Invalid task link. Open the task from the task list."
 
-#: src/domain/task/TaskDetail.tsx:201
+#: src/domain/task/TaskDetail.tsx:202
 msgid "任务概览"
 msgstr "Task overview"
 
@@ -1406,12 +1410,12 @@ msgstr "Task ID"
 msgid "任务详情"
 msgstr "Task detail"
 
-#: src/domain/task/TaskCard.tsx:258
+#: src/domain/task/TaskCard.tsx:259
 msgid "任务进度"
 msgstr "Task progress"
 
 #: src/domain/task/TaskCard.tsx:165
-#: src/domain/task/TaskDetail.tsx:173
+#: src/domain/task/TaskDetail.tsx:174
 msgid "任务阶段"
 msgstr "Task stages"
 
@@ -1908,7 +1912,7 @@ msgid "共 {total} 场对局"
 msgstr "{total} matches in total"
 
 #. placeholder {0}: firstItem + items.length - 1
-#: src/domain/task/TaskActivityList.tsx:114
+#: src/domain/task/TaskActivityList.tsx:120
 msgid "共 {total} 条 · 第 {firstItem}–{0} 条"
 msgstr "{total} total · Items {firstItem}–{0}"
 
@@ -1969,7 +1973,7 @@ msgstr "Keyword {0}"
 msgid "关键词：{0}"
 msgstr "Keyword: {0}"
 
-#: src/app/command/CommandPalette.tsx:256
+#: src/app/command/CommandPalette.tsx:264
 #: src/design/layout/Inspector.tsx:267
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1842
 msgid "关闭"
@@ -2630,7 +2634,7 @@ msgstr "Add to panel group"
 msgid "加载中"
 msgstr "Loading"
 
-#: src/domain/task/TaskCard.tsx:298
+#: src/domain/task/TaskCard.tsx:299
 msgid "加载后台任务"
 msgstr "Load Background Tasks"
 
@@ -3093,11 +3097,11 @@ msgstr "{total} hits"
 msgid "命中方式"
 msgstr "How it hit"
 
-#: src/app/command/CommandPalette.tsx:272
+#: src/app/command/CommandPalette.tsx:298
 msgid "命令"
 msgstr "Commands"
 
-#: src/app/command/CommandPalette.tsx:220
+#: src/app/command/CommandPalette.tsx:227
 msgid "命令面板"
 msgstr "Command palette"
 
@@ -3500,7 +3504,7 @@ msgid "失误"
 msgstr "Fail"
 
 #: src/design/feedback/StageBar.tsx:73
-#: src/domain/task/TaskActivityList.tsx:14
+#: src/domain/task/TaskActivityList.tsx:15
 #: src/domain/task/taskVocabulary.tsx:47
 #: src/pages/shared/tasks/TaskCenterPage.tsx:57
 msgid "失败"
@@ -3957,7 +3961,7 @@ msgstr "Deleted project"
 msgid "已加入「{name}」"
 msgstr "Added to “{name}”"
 
-#: src/domain/task/TaskActivityList.tsx:16
+#: src/domain/task/TaskActivityList.tsx:17
 #: src/domain/task/taskVocabulary.tsx:48
 #: src/pages/shared/tasks/TaskCenterPage.tsx:59
 msgid "已取消"
@@ -3985,7 +3989,7 @@ msgstr "Reused the previous review for the same evidence."
 
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/editing/ProjectAgentPanel.tsx:550
-#: src/domain/task/TaskActivityList.tsx:15
+#: src/domain/task/TaskActivityList.tsx:16
 #: src/domain/task/taskVocabulary.tsx:46
 #: src/pages/shared/onboarding/GuidePage.tsx:87
 #: src/pages/shared/tasks/TaskCenterPage.tsx:58
@@ -4345,7 +4349,7 @@ msgstr "Current project revision"
 msgid "当前占用 {conversation}"
 msgstr "Currently using {conversation}"
 
-#: src/domain/task/TaskActivityList.tsx:65
+#: src/domain/task/TaskActivityList.tsx:69
 msgid "当前只显示这一状态的后台任务。"
 msgstr "Only background tasks in this state are shown."
 
@@ -4408,7 +4412,7 @@ msgstr "The current configuration is complete, so backup restore stays off"
 msgid "录制"
 msgstr "Recording"
 
-#: src/domain/task/TaskActivityList.tsx:57
+#: src/domain/task/TaskActivityList.tsx:61
 msgid "录制、导出、下载和分析开始后会出现在这里。"
 msgstr "Recordings, exports, downloads and analyses appear here once they start."
 
@@ -4761,11 +4765,11 @@ msgstr "Open task page"
 #: src/domain/project/quickAdd.tsx:148
 #: src/domain/task/useTaskActions.tsx:148
 #: src/domain/task/useTaskActions.tsx:155
-#: src/domain/task/useTaskActions.tsx:210
+#: src/domain/task/useTaskActions.tsx:216
 msgid "打开作品"
 msgstr "Open project"
 
-#: src/app/command/useObjectCommands.ts:87
+#: src/app/command/useObjectCommands.ts:100
 msgctxt "palette-hint"
 msgid "打开作品"
 msgstr "Open project"
@@ -4774,7 +4778,7 @@ msgstr "Open project"
 msgid "打开使用引导"
 msgstr "Open getting started"
 
-#: src/domain/task/useTaskActions.tsx:192
+#: src/domain/task/useTaskActions.tsx:198
 msgid "打开分析"
 msgstr "Open analysis"
 
@@ -4786,7 +4790,7 @@ msgstr "Open the rounds view"
 msgid "打开工作区"
 msgstr "Open workspace"
 
-#: src/app/command/useObjectCommands.ts:57
+#: src/app/command/useObjectCommands.ts:70
 msgctxt "palette-hint"
 msgid "打开工作区"
 msgstr "Open workspace"
@@ -4809,7 +4813,7 @@ msgstr "Open profile"
 msgid "打开模型设置"
 msgstr "Open model settings"
 
-#: src/domain/task/useTaskActions.tsx:188
+#: src/domain/task/useTaskActions.tsx:194
 msgid "打开比赛历史"
 msgstr "Open match history"
 
@@ -4831,7 +4835,7 @@ msgstr "Open folder"
 msgid "打开第 {0} 回合"
 msgstr "Open round {0}"
 
-#: src/domain/task/useTaskActions.tsx:186
+#: src/domain/task/useTaskActions.tsx:192
 msgid "打开资料库"
 msgstr "Open library"
 
@@ -4860,7 +4864,7 @@ msgstr "Page not found"
 msgid "找不到这条任务"
 msgstr "Task not found"
 
-#: src/domain/task/TaskDetail.tsx:237
+#: src/domain/task/TaskDetail.tsx:238
 msgid "技术细节"
 msgstr "Technical details"
 
@@ -5139,8 +5143,8 @@ msgstr "Search projects"
 msgid "搜索作品…"
 msgstr "Search projects…"
 
-#: src/app/command/CommandPalette.tsx:249
-#: src/app/command/CommandPalette.tsx:351
+#: src/app/command/CommandPalette.tsx:257
+#: src/app/command/CommandPalette.tsx:377
 msgid "搜索比赛、选手、作品、页面和动作"
 msgstr "Search matches, players, projects, pages and actions"
 
@@ -5148,6 +5152,10 @@ msgstr "Search matches, players, projects, pages and actions"
 #: src/pages/shared/library/LibraryFilters.tsx:183
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
+
+#: src/app/command/CommandPalette.tsx:274
+msgid "搜索结果未能完整加载"
+msgstr "Some search results could not be loaded"
 
 #: src/pages/analysis/evidence/EvidenceConditions.tsx:207
 msgid "搜索选手、武器或事件"
@@ -6115,7 +6123,7 @@ msgstr "View projects"
 msgid "查看修改 {0}"
 msgstr "View change {0}"
 
-#: src/domain/task/TaskActivityList.tsx:68
+#: src/domain/task/TaskActivityList.tsx:72
 msgid "查看全部"
 msgstr "Show all"
 
@@ -6155,7 +6163,7 @@ msgid "查看工具详情"
 msgstr "View tool details"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
-#: src/domain/task/useTaskActions.tsx:184
+#: src/domain/task/useTaskActions.tsx:186
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1623
 msgid "查看成品"
 msgstr "View finished file"
@@ -6170,11 +6178,11 @@ msgstr "View {0} changes here"
 msgid "查看片段详情 {0}"
 msgstr "View clip details for {0}"
 
-#: src/domain/task/TaskDetail.tsx:239
+#: src/domain/task/TaskDetail.tsx:240
 msgid "查看诊断信息"
 msgstr "View diagnostics"
 
-#: src/domain/task/TaskCard.tsx:221
+#: src/domain/task/TaskCard.tsx:222
 #: src/pages/editing/delivery/OutputCard.tsx:95
 msgid "查看详情"
 msgstr "View details"
@@ -6183,7 +6191,7 @@ msgstr "View details"
 msgid "查看进度"
 msgstr "View progress"
 
-#: src/domain/task/useTaskActions.tsx:205
+#: src/domain/task/useTaskActions.tsx:211
 msgid "查看阶段"
 msgstr "View stages"
 
@@ -6517,6 +6525,10 @@ msgstr "Submitting…"
 #: src/pages/shared/library/LibraryInspector.tsx:175
 msgid "正在提交分析任务"
 msgstr "Submitting analysis task"
+
+#: src/app/command/CommandPalette.tsx:270
+msgid "正在搜索比赛、选手和作品…"
+msgstr "Searching matches, players, and projects…"
 
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:148
 msgid "正在新建作品"
@@ -6971,7 +6983,7 @@ msgstr "No matching matches"
 msgid "没有匹配的素材"
 msgstr "No matching media"
 
-#: src/app/command/CommandPalette.tsx:263
+#: src/app/command/CommandPalette.tsx:289
 msgid "没有匹配的结果"
 msgstr "No results"
 
@@ -7027,15 +7039,15 @@ msgstr "No rounds"
 msgid "没有失效记录"
 msgstr "No invalid records"
 
-#: src/domain/task/TaskActivityList.tsx:23
+#: src/domain/task/TaskActivityList.tsx:24
 msgid "没有失败的任务"
 msgstr "No failed tasks"
 
-#: src/domain/task/TaskActivityList.tsx:25
+#: src/domain/task/TaskActivityList.tsx:26
 msgid "没有已取消的任务"
 msgstr "No cancelled tasks"
 
-#: src/domain/task/TaskActivityList.tsx:24
+#: src/domain/task/TaskActivityList.tsx:25
 msgid "没有已完成的任务"
 msgstr "No completed tasks"
 
@@ -7074,7 +7086,7 @@ msgstr "No missing files"
 msgid "没有解出投掷物事件{0}"
 msgstr "No grenade events were decoded{0}"
 
-#: src/domain/task/TaskActivityList.tsx:22
+#: src/domain/task/TaskActivityList.tsx:23
 msgid "没有进行中的任务"
 msgstr "No tasks in progress"
 
@@ -8769,7 +8781,7 @@ msgstr "Check clips that are not ready in the media panel."
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
 msgstr "Enter a valid Steam ID, API key, authentication code, and latest share code"
 
-#: src/app/command/CommandPalette.tsx:268
+#: src/app/command/CommandPalette.tsx:294
 msgid "请尝试更短的关键词或页面名称。"
 msgstr "Try a shorter keyword or page name."
 
@@ -9091,7 +9103,7 @@ msgctxt "recording-stage"
 msgid "跳转"
 msgstr "Seek"
 
-#: src/app/command/CommandPalette.tsx:250
+#: src/app/command/CommandPalette.tsx:258
 #: src/app/shell/WindowTitleBar.tsx:291
 msgid "跳转、搜索比赛或作品"
 msgstr "Go to, search matches or projects"
@@ -9208,7 +9220,7 @@ msgstr "No match to show yet"
 msgid "还没有可检索的证据"
 msgstr "No evidence to search yet"
 
-#: src/domain/task/TaskActivityList.tsx:56
+#: src/domain/task/TaskActivityList.tsx:60
 msgid "还没有后台任务"
 msgstr "No background tasks yet"
 
@@ -9306,7 +9318,7 @@ msgstr "No players yet"
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "Steam match history has not been configured yet."
 
-#: src/domain/task/TaskDetail.tsx:287
+#: src/domain/task/TaskDetail.tsx:288
 msgid "还没有阶段日志"
 msgstr "No stage log yet"
 
@@ -9561,7 +9573,7 @@ msgid "进度"
 msgstr "Progress"
 
 #: src/design/feedback/StageBar.tsx:69
-#: src/domain/task/TaskActivityList.tsx:13
+#: src/domain/task/TaskActivityList.tsx:14
 #: src/pages/shared/tasks/TaskCenterPage.tsx:56
 msgid "进行中"
 msgstr "Running"
@@ -9706,7 +9718,7 @@ msgstr "Player name, Enter to apply"
 msgid "选手档案"
 msgstr "Player profile"
 
-#: src/app/command/useObjectCommands.ts:72
+#: src/app/command/useObjectCommands.ts:85
 msgctxt "palette-hint"
 msgid "选手档案"
 msgstr "Player profile"
@@ -9992,8 +10004,8 @@ msgid "重新分析"
 msgstr "Re-analyse"
 
 #: src/domain/project/AddToProjectDialog.tsx:120
-#: src/domain/task/TaskActivityList.tsx:48
-#: src/domain/task/TaskDetail.tsx:271
+#: src/domain/task/TaskActivityList.tsx:52
+#: src/domain/task/TaskDetail.tsx:272
 #: src/pages/editing/delivery/OutputsView.tsx:158
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:647
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1831
@@ -10007,7 +10019,7 @@ msgstr "Reload"
 msgid "重新加载 3D"
 msgstr "Reload 3D"
 
-#: src/domain/task/TaskDetail.tsx:161
+#: src/domain/task/TaskDetail.tsx:162
 msgid "重新发起"
 msgstr "Start again"
 
@@ -10090,7 +10102,7 @@ msgstr "Reset filters"
 #: src/domain/project/AddToProjectDialog.tsx:122
 #: src/domain/scene3d/CameraPreviewViewport.tsx:42
 #: src/domain/scene3d/Scene3DView.tsx:138
-#: src/domain/task/TaskDetail.tsx:161
+#: src/domain/task/TaskDetail.tsx:162
 #: src/domain/task/useTaskActions.tsx:148
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:185
@@ -10153,6 +10165,10 @@ msgstr "Retry saving note"
 #: src/pages/shared/library/LibraryPage.tsx:546
 msgid "重试回放"
 msgstr "Retry playback"
+
+#: src/app/command/CommandPalette.tsx:280
+msgid "重试搜索"
+msgstr "Retry search"
 
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:94
 msgid "重试操作"
@@ -10253,11 +10269,11 @@ msgctxt "task-progress"
 msgid "阶段"
 msgstr "Stages"
 
-#: src/domain/task/TaskCard.tsx:241
+#: src/domain/task/TaskCard.tsx:242
 msgid "阶段 {index}/{count} {label}"
 msgstr "Stage {index}/{count} {label}"
 
-#: src/domain/task/TaskDetail.tsx:283
+#: src/domain/task/TaskDetail.tsx:284
 msgid "阶段日志"
 msgstr "Stage log"
 

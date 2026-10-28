@@ -67,10 +67,9 @@
  * --------------
  * The list is a combobox popup, not a row of buttons: the input keeps focus and
  * `aria-activedescendant` names the active row. Two things follow, both wanted.
- * TAB is free to mean 「切换分组」 (the artboard's own hint) instead of walking
- * rows, and the focus trap has exactly one focusable element in it, so it can
- * never strand the user on a row. Rows are `role="option"`, not `<button>`,
- * for the same reason.
+ * TAB means 「切换分组」 while searching normally; a failed object read adds
+ * a retry button and lets TAB reach it. Rows stay `role="option"` so keyboard
+ * selection remains on the input rather than walking every result.
  */
 
 import { t } from '@lingui/core/macro';
@@ -82,7 +81,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
 import { useOverlayReturnFocus } from '../../design/feedback';
-import { cn, Kbd } from '../../design/primitives';
+import { Button, cn, Kbd } from '../../design/primitives';
 import {
   buildCommandList,
   COMMAND_GROUP_LABEL,
@@ -110,6 +109,9 @@ export interface CommandPaletteProps {
   readonly navigate: (to: string) => void;
   /** Defaults to `buildCommandList()`. Pass extensions through that helper. */
   readonly commands?: readonly CommandDefinition[] | undefined;
+  /** Object reads share the host's query state; page commands remain usable. */
+  readonly searchState?: 'ready' | 'loading' | 'error' | undefined;
+  readonly onRetrySearch?: (() => void) | undefined;
   /**
    * Every change of the typed query, so the host can produce the object rows
    * (`useObjectCommands`) for it and pass them back through `commands`.
@@ -125,6 +127,8 @@ export function CommandPalette({
   onClose,
   navigate,
   commands,
+  searchState = 'ready',
+  onRetrySearch,
   onQueryChange,
   limitPerGroup = DEFAULT_GROUP_LIMIT,
 }: CommandPaletteProps) {
@@ -133,6 +137,7 @@ export function CommandPalette({
   const returnFocus = useOverlayReturnFocus(open);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
+  const searchInput = useRef<HTMLInputElement>(null);
   const activeOption = useRef<HTMLDivElement>(null);
 
   // The palette stays mounted while closed (the shell renders it next to the
@@ -155,6 +160,7 @@ export function CommandPalette({
   const flat = flattenCommandResults(groups);
   const activeIndex = flat.length === 0 ? -1 : Math.min(selected, flat.length - 1);
   const active = activeIndex === -1 ? undefined : flat[activeIndex];
+  const canRetrySearch = searchState === 'error' && onRetrySearch !== undefined;
 
   useEffect(() => {
     if (open) activeOption.current?.scrollIntoView({ block: 'nearest' });
@@ -183,6 +189,7 @@ export function CommandPalette({
       return;
     }
     if (event.key === 'Tab') {
+      if (canRetrySearch) return;
       const next = nextGroupSelectionIndex(groups, activeIndex, event.shiftKey ? -1 : 1);
       if (next === -1) return;
       // Radix's focus scope also answers Tab. Stopping propagation keeps the
@@ -233,6 +240,7 @@ export function CommandPalette({
         <div className="flex h-[var(--h-topbar)] flex-none items-center gap-3 border-b border-divider px-4">
           <Search size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
           <input
+            ref={searchInput}
             type="text"
             value={query}
             onChange={(event) => {
@@ -257,7 +265,25 @@ export function CommandPalette({
           </span>
         </div>
 
-        {flat.length === 0 ? (
+        {searchState === 'loading' ? (
+          <p role="status" className="px-4 py-3 text-sm text-neutral-600">
+            <Trans>正在搜索比赛、选手和作品…</Trans>
+          </p>
+        ) : searchState === 'error' ? (
+          <div role="alert" className="flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm text-fail-text"><Trans>搜索结果未能完整加载</Trans></p>
+            {onRetrySearch === undefined ? null : (
+              <Button variant="secondary" size="sm" onClick={() => {
+                onRetrySearch();
+                searchInput.current?.focus();
+              }}>
+                <Trans>重试搜索</Trans>
+              </Button>
+            )}
+          </div>
+        ) : null}
+
+        {flat.length === 0 && searchState === 'ready' ? (
           <div role="status" className="flex flex-col gap-1 px-4 py-4">
             <p className="text-base">
               <Trans>没有匹配的结果</Trans>
@@ -268,7 +294,7 @@ export function CommandPalette({
               <Trans>请尝试更短的关键词或页面名称。</Trans>
             </p>
           </div>
-        ) : (
+        ) : flat.length > 0 ? (
           <div id={listId} role="listbox" aria-label={t`命令`} className="min-h-0 max-h-[60vh] overflow-y-auto py-2">
             {groups.map((group) => {
               const headingId = `${baseId}-group-${group.group}`;
@@ -334,7 +360,7 @@ export function CommandPalette({
               );
             })}
           </div>
-        )}
+        ) : null}
 
         <div className="flex h-[var(--h-row-compact)] flex-none items-center gap-5 border-t border-divider px-4 text-xs text-neutral-600">
           <span>
@@ -344,7 +370,7 @@ export function CommandPalette({
             <Trans>↵ 打开</Trans>
           </span>
           <span>
-            <Trans>TAB 切换分组</Trans>
+            {canRetrySearch ? <Trans>TAB 切换焦点</Trans> : <Trans>TAB 切换分组</Trans>}
           </span>
           <span className="flex-1" />
           <span className="min-w-0 truncate">

@@ -57,7 +57,7 @@ describe('PAGE_COMMANDS', () => {
       '/players',
       '/evidence',
       '/projects',
-      '/projects/new?step=shotlist',
+      '/projects/new',
       '/delivery?view=outputs',
       '/tasks',
       '/settings',

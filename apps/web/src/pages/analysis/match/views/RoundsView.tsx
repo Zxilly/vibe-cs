@@ -197,7 +197,7 @@ export function SurvivorAxis({ detail, tickRate, teamAName, teamBName }: Survivo
         {detail.moments.length === 0 ? (
           <p
             data-match-survivor-axis-empty=""
-            className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-neutral-600"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-normal text-neutral-600"
           >
             <Trans>
               没有击杀或目标事件，全程 {detail.rosterA} v {detail.rosterB}
@@ -415,7 +415,7 @@ export function RoundDetailPanels({
           className="max-h-96"
           empty={
             <Empty
-              headingLevel={4}
+              headingLevel={3}
               className="border-0"
               title={<Trans>这一回合没有击杀或目标事件</Trans>}
               actions={
@@ -487,7 +487,7 @@ export function RoundsPanels({
       {detail === null ? (
         <ViewPanel id="round-detail" title={<Trans>逐回合详情</Trans>}>
           <Empty
-            headingLevel={4}
+            headingLevel={3}
             className="m-3.5"
             title={
               selectedRound === null ? (
@@ -600,12 +600,12 @@ export function RoundInspectorBody({
       </div>
 
       <section className="flex min-h-0 flex-col gap-2">
-        <h4 className="flex items-baseline gap-2 font-heading text-sm tracking-wide">
+        <h3 className="flex items-baseline gap-2 font-heading text-sm tracking-wide">
           <Trans>回合内证据</Trans>
           <span className="font-mono text-xs text-neutral-600">{detail.moments.length}</span>
-        </h4>
+        </h3>
         {detail.moments.length === 0 ? (
-          <p className="text-xs text-neutral-700">
+          <p className="text-base leading-normal text-neutral-700">
             <Trans>这一回合没有击杀或目标事件。</Trans>
           </p>
         ) : (
@@ -628,18 +628,18 @@ export function RoundInspectorBody({
       </section>
 
       <section className="flex flex-col gap-2">
-        <h4 className="font-heading text-sm tracking-wide">
+        <h3 className="font-heading text-sm tracking-wide">
           <Trans>注释</Trans>
-        </h4>
+        </h3>
         {review.isPending ? (
           <Skeleton className="h-[var(--h-row)]" />
         ) : comment === '' && tags.length === 0 ? (
-          <p className="text-xs text-neutral-700">
+          <p className="text-base leading-normal text-neutral-700">
             <Trans>这一回合还没有注释。</Trans>
           </p>
         ) : (
           <>
-            {comment === '' ? null : <p className="text-sm text-neutral-800">{comment}</p>}
+            {comment === '' ? null : <p className="max-w-[75ch] whitespace-pre-wrap break-words text-base leading-normal text-neutral-800">{comment}</p>}
             {tags.length === 0 ? null : (
               <div className="flex flex-wrap items-center gap-1.5">
                 {tags.map((tag) => (
@@ -678,7 +678,7 @@ function RoundsInspector({ demoId, context, updateContext, addToVideo, collapsed
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>选择回合查看事件和注释。</Trans>
         </p>
       </MatchInspectorPanel>

@@ -194,7 +194,7 @@ export function TeamRosterPanel({
         onRowActivate={(id) => onUpdateContext({ player: id })}
         empty={
           <Empty
-            headingLevel={4}
+            headingLevel={3}
             className="border-0"
             title={<Trans>这一队没有选手记录</Trans>}
             description={<Trans>这场分析里没有属于这一队的选手。</Trans>}
@@ -292,7 +292,7 @@ export function EconomyPanel({
          「主队购买」 would read the second half of the match backwards. */
     >
       {!availability.present ? (
-        <p className="px-3.5 py-3 text-sm text-neutral-700">
+        <p className="px-3.5 py-3 text-base leading-normal text-neutral-700">
           <Trans>这份分析结果里没有洞察数据，经济统计无法显示。</Trans>
         </p>
       ) : !availability.available ? (
@@ -322,7 +322,7 @@ export function EconomyPanel({
           />
           <p
             data-match-economy-total=""
-            className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-divider px-3.5 py-2 text-xs text-neutral-700"
+            className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-divider px-3.5 py-2 text-base leading-normal text-neutral-700"
           >
             <span>
               <Trans>共 {totals.rounds} 回合</Trans>
@@ -380,7 +380,7 @@ export function RoundOutcomePanel({ analysis, teamAName, teamBName }: RoundOutco
       title={<Trans>回合结束方式</Trans>}
     >
       {rows.length === 0 ? (
-        <p className="px-3.5 py-3 text-sm text-neutral-700">
+        <p className="px-3.5 py-3 text-base leading-normal text-neutral-700">
           <Trans>这场比赛还没有解析出回合。</Trans>
         </p>
       ) : (
@@ -537,7 +537,7 @@ function TeamsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>点任一阵容表的一行，这里会显示这名选手的本场数据。</Trans>
         </p>
       </MatchInspectorPanel>

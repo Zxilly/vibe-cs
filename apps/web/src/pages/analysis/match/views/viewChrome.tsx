@@ -104,10 +104,10 @@ export function ViewPanel({ id, title, hint, actions, children, fill = false, cl
       className={cn('flex min-w-0 flex-col border border-divider', fill && 'min-h-0 flex-1', className)}
     >
       <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3 py-1">
-        <h3 className="min-w-0 break-words text-sm font-medium">
+        <h2 className="min-w-0 break-words text-sm font-medium">
           {title}
-        </h3>
-        {hint === undefined ? null : <p className="min-w-0 text-xs leading-normal text-neutral-600">{hint}</p>}
+        </h2>
+        {hint === undefined ? null : <p className="min-w-0 text-base leading-normal text-neutral-600">{hint}</p>}
         {actions === undefined ? null : (
           <>
             <span className="flex-1" />
@@ -214,7 +214,7 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
     <div>
     <Empty
       preset="not-analysed"
-      headingLevel={4}
+      headingLevel={3}
       className="m-3.5"
       actions={
         <>
@@ -228,7 +228,7 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
       }
     />
     {startError === null ? null : <Alert className="m-3.5" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => start.mutate([demoId]), disabled: start.isPending }}><Trans>没能开始分析：{startError}</Trans></Alert>}
-    {start.isSuccess ? <p role="status" className="px-3.5 pb-3.5 text-sm text-neutral-700"><Trans>分析任务已提交，可在后台任务中查看进度。</Trans></p> : null}
+    {start.isSuccess ? <p role="status" className="px-3.5 pb-3.5 text-base leading-normal text-neutral-700"><Trans>分析任务已提交，可在后台任务中查看进度。</Trans></p> : null}
     </div>
   );
 }
@@ -339,7 +339,7 @@ export function AnalysisFailure({ view, title, demoId, error, onRetry }: Analysi
         <div className="flex flex-col gap-3 p-3.5">
           <Empty
             preset="error"
-            headingLevel={4}
+            headingLevel={3}
             title={<Trans>这场比赛的分析结果没能打开</Trans>}
             description={
               <>

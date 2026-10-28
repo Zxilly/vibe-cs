@@ -119,7 +119,7 @@ import {
   readTimelineWorkspaceSession,
   writeTimelineWorkspaceSession,
 } from '../../../domain/editing/timelineWorkspaceSession';
-import { MapCanvas, PathLayer, type MapProjection } from '../../../domain/map';
+import { MapCanvas, PathLayer, type MapCanvasProjection } from '../../../domain/map';
 import type {
   EditorMarker,
   Project,
@@ -611,6 +611,7 @@ export function ProjectWorkspacePage() {
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
         <div className="p-6">
           <Empty
+            headingLevel={2}
             variant="error"
             title={<Trans>没有创建作品</Trans>}
             description={dataErrorMessage(create.error)}
@@ -641,6 +642,7 @@ export function ProjectWorkspacePage() {
       <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
         <div className="p-6">
           <Empty
+            headingLevel={2}
             variant="error"
             title={<Trans>无法打开作品</Trans>}
             description={<Trans>无法读取作品数据，请重新加载。</Trans>}
@@ -1821,8 +1823,8 @@ export function ProjectWorkspacePage() {
                 </option>
               </NativeSelect>
             </label>
-            {!hasExportRange ? <p id="export-range-help" className="text-xs leading-relaxed text-neutral-600"><Trans>要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。</Trans></p> : null}
-            <p id="export-quality-help" className="text-xs leading-relaxed text-neutral-600"><Trans>质量越高，画质越好，文件通常越大。</Trans></p>
+            {!hasExportRange ? <p id="export-range-help" className="text-base text-neutral-600"><Trans>要导出部分序列，请先在时间轴上用 I 和 O 设置入点、出点。</Trans></p> : null}
+            <p id="export-quality-help" className="text-base text-neutral-600"><Trans>质量越高，画质越好，文件通常越大。</Trans></p>
           </div>
         )}
       </Dialog>
@@ -2008,7 +2010,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
       cancelled = true;
     };
   }, [candidate, intent, mapName, selected]);
-  const renderTacticalLayers = useCallback((projection: MapProjection) => displayed === null ? null : (
+  const renderTacticalLayers = useCallback((projection: MapCanvasProjection) => displayed === null ? null : (
     <>
       <PathLayer projection={projection} paths={displayed.tracks} selectedPlayerId={displayed.selectedPlayerId} />
       <PlayerLayer projection={projection} markers={displayed.markers} selectedPlayerId={displayed.selectedPlayerId} />

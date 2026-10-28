@@ -199,7 +199,7 @@ export function OverviewPanels({
         }
       >
         {preview.length === 0 ? (
-          <p className="px-3.5 py-3 text-sm text-neutral-700">
+          <p className="px-3.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>未检出高光，可选择回合查看事件。</Trans>
           </p>
         ) : (
@@ -299,7 +299,7 @@ function OverviewInspector({
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>选择回合、选手或高光查看详情。</Trans>
         </p>
       </MatchInspectorPanel>
@@ -343,9 +343,9 @@ function OverviewInspector({
       }
       collapsed={collapsed}
     >
-      <div className="border-l-2 border-accent pl-3">
+      <div className="flex flex-col gap-1">
         <h3 className="font-heading text-xl">{label}</h3>
-        <p className="text-xs text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           {candidate.subject ?? <Trans>未归属选手</Trans>}
         </p>
       </div>
@@ -354,12 +354,12 @@ function OverviewInspector({
           <dt className="text-neutral-600"><Trans>回合</Trans></dt>
           <dd className="font-mono text-xs">R{candidate.round}</dd>
         </div>
-        {candidate.description === undefined ? null : (
-          <div className="border-t border-divider pt-3 text-xs leading-normal text-neutral-700">
-            {candidate.description}
-          </div>
-        )}
       </dl>
+      {candidate.description === undefined ? null : (
+        <p className="border-t border-divider pt-3 text-base leading-normal text-neutral-700">
+          {candidate.description}
+        </p>
+      )}
     </MatchInspectorPanel>
   );
 }

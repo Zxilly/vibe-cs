@@ -81,9 +81,9 @@ export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
 
   return (
     <section className="flex min-h-48 flex-none flex-col border border-divider" data-player-maps="">
-      <h3 className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-3 text-sm font-medium">
+      <h2 className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-3 text-sm font-medium">
         <Trans>按地图</Trans>
-      </h3>
+      </h2>
       <DataTable
         caption={<Trans>按地图的成绩</Trans>}
         columns={columns}

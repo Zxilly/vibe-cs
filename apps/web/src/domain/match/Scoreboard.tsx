@@ -58,6 +58,8 @@ export interface ScoreboardProps {
   readonly sidesSwapped?: boolean | undefined;
   /** `md` is the context bar's size; `sm` is for a row or a card. */
   readonly size?: ScoreboardSize | undefined;
+  /** The match context bar uses this visible identity as its page heading. */
+  readonly headingLevel?: 1 | undefined;
   readonly className?: string | undefined;
 }
 
@@ -80,9 +82,11 @@ export function Scoreboard({
   periods,
   sidesSwapped = false,
   size = 'md',
+  headingLevel,
   className,
 }: ScoreboardProps) {
   const { i18n } = useLingui();
+  const Identity = headingLevel === 1 ? 'h1' : 'div';
 
   const scoreText = (score: number | null): string => (score === null ? NO_SCORE : String(score));
   const spoken = (team: TeamScore): string =>
@@ -94,7 +98,7 @@ export function Scoreboard({
       data-size={size}
       className={cn('flex min-w-0 flex-col justify-center gap-0.5', className)}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <Identity className="flex min-w-0 items-center gap-3 font-normal">
         <SideBadge side={teamA.side} />
         <span data-scoreboard-team="a" className={cn('min-w-0 truncate', NAME_CLASS[size])}>
           {teamA.name}
@@ -113,7 +117,7 @@ export function Scoreboard({
           {teamB.name}
         </span>
         <SideBadge side={teamB.side} />
-      </div>
+      </Identity>
 
       {periods === undefined || periods.length === 0 ? null : (
         <ul data-scoreboard-periods="" className="flex flex-wrap items-center gap-2.5 text-xs text-neutral-700">

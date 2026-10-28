@@ -112,7 +112,7 @@ export function EvidenceAnnotationDetail({
         <div className="mb-2 font-heading text-xs tracking-caps text-neutral-700">
           <Trans>注释</Trans>
         </div>
-        <p data-annotation-body="" className="break-words text-sm leading-normal">
+        <p data-annotation-body="" className="max-w-[75ch] whitespace-pre-wrap break-words text-base leading-normal">
           {annotation.body}
         </p>
         {annotation.tags.length === 0 ? null : (

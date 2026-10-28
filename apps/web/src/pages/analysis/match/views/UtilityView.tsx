@@ -160,7 +160,7 @@ export function UtilityTable({
          it decoded them and nobody threw anything. */
       empty={
         <Empty
-          headingLevel={4}
+          headingLevel={3}
           className="border-0"
           title={utility.available ? <Trans>这一场没有记到任何投掷物</Trans> : <Trans>这批 Demo 没有可用的投掷物事件</Trans>}
           description={
@@ -330,14 +330,14 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
     {gate.fallback ?? <>
       <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2" data-utility-overview>
         <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`道具`}>
-          <h3 className="px-5 py-3 text-sm font-medium"><Trans>道具</Trans></h3>
+          <h2 className="px-5 py-3 text-sm font-medium"><Trans>道具</Trans></h2>
           {utility.available ? <dl className="divide-y divide-divider">
             {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
               <dt className="text-neutral-700">{i18n._(UTILITY_ITEM_LABEL[kind])}</dt>
               <dd className="font-mono"><Trans>{counts.get(kind) ?? 0} 次</Trans></dd>
             </div>)}
           </dl> : (
-            <p data-utility-unavailable="" className="border-t border-divider px-5 py-3 text-xs text-neutral-600">
+            <p data-utility-unavailable="" className="border-t border-divider px-5 py-3 text-base leading-normal text-neutral-600">
               <Trans>没有解出投掷物事件{formatReason(utility.reason)}</Trans>
             </p>
           )}
@@ -347,7 +347,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           </dl> : null}
         </section>
         <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`回合经济`}>
-          <h3 className="px-5 py-3 text-sm font-medium"><Trans>回合经济</Trans></h3>
+          <h2 className="px-5 py-3 text-sm font-medium"><Trans>回合经济</Trans></h2>
           {selected === undefined ? <Empty title={<Trans>没有回合记录</Trans>} actions={null} /> : <>
             <EquipmentChart rounds={equipment} activeRound={selected.round} teamA={names.A} teamB={names.B}
               onSelect={(round) => updateContext({ round, player: null })} />
@@ -413,7 +413,7 @@ export function PlayerUtilityDetail({
           <Trans>投掷物构成</Trans>
         </PanelHead>
         {items.length === 0 ? (
-          <p className="px-2.5 py-3 text-xs text-neutral-700">
+          <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>这一场没有记到他投出的道具。</Trans>
           </p>
         ) : (
@@ -463,14 +463,14 @@ export function RoundEconomyDetail({ row, spendAvailable }: RoundEconomyDetailPr
             ) : null}
           </dl>
           {side.items.length === 0 ? null : (
-            <p className="px-2.5 py-2.5 text-xs text-neutral-700">
+            <p className="px-2.5 py-2.5 text-base leading-normal text-neutral-700">
               {side.items.map((item) => `${item.name} ${String(item.count)}`).join(' · ')}
             </p>
           )}
         </section>
       ))}
       {row.unattributed === 0 ? null : (
-        <p className="text-xs text-neutral-600">
+        <p className="text-base leading-normal text-neutral-600">
           <Trans>还有 {row.unattributed} 条购买事件没有带阵营，无法归属到任何一方。</Trans>
         </p>
       )}

@@ -36,6 +36,7 @@ import {
   type Engagement,
   type HeatDistribution,
   type MapCanvasStatus,
+  type MapCanvasProjection,
   type MapLegendItem,
   type MapProjection,
   type OverviewTransform,
@@ -46,11 +47,11 @@ import type { ReplayProjectileRecord } from '../../shared/desktop/dto';
 
 /* ── the player layer ────────────────────────────────────────────────────── */
 
-/** Canvas units. Artboard 04 draws the marker as a 24×24 square. */
+/** CSS pixels. Marker identity stays readable when the map surface shrinks. */
 const MARKER_SIZE = 24;
 
 export interface PlayerLayerProps {
-  readonly projection: MapProjection;
+  readonly projection: MapCanvasProjection;
   readonly markers: readonly PlayerMarker[];
   readonly visible?: boolean | undefined;
   readonly selectedPlayerId?: string | null | undefined;
@@ -81,7 +82,8 @@ export function PlayerLayer({
       {markers.map((marker, index) => {
         const point = projection.toCanvas(marker);
         const focused = marker.playerId === selectedPlayerId || marker.playerId === selection.hoveredId;
-        const half = MARKER_SIZE / 2;
+        const scale = projection.annotationScale;
+        const half = MARKER_SIZE / 2 * scale;
         const facing = projection.toCanvas({ x: marker.x + Math.cos(marker.yaw * Math.PI / 180), y: marker.y + Math.sin(marker.yaw * Math.PI / 180) });
         const facingLength = Math.hypot(facing.x - point.x, facing.y - point.y);
         const dx = facingLength === 0 ? 0 : (facing.x - point.x) / facingLength;
@@ -96,21 +98,22 @@ export function PlayerLayer({
             className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             {...selection.itemProps(marker.playerId, index)}
           >
-            <line aria-hidden="true" data-player-facing="" x1={point.x + dx * (half + 2)} y1={point.y + dy * (half + 2)} x2={point.x + dx * (half + 14)} y2={point.y + dy * (half + 14)} strokeWidth={2} className={marker.team === 'A' ? 'stroke-accent' : 'stroke-team-b'} />
+            <line aria-hidden="true" data-player-facing="" x1={point.x + dx * (half + 2 * scale)} y1={point.y + dy * (half + 2 * scale)} x2={point.x + dx * (half + 14 * scale)} y2={point.y + dy * (half + 14 * scale)} strokeWidth={2} vectorEffect="non-scaling-stroke" className={marker.team === 'A' ? 'stroke-accent' : 'stroke-team-b'} />
             <rect
               x={point.x - half}
               y={point.y - half}
-              width={MARKER_SIZE}
-              height={MARKER_SIZE}
+              width={MARKER_SIZE * scale}
+              height={MARKER_SIZE * scale}
               strokeWidth={1.5}
-              className={focused ? 'fill-accent-800 stroke-accent-800' : marker.team === 'A' ? 'fill-none stroke-accent' : 'fill-none stroke-team-b'}
+              vectorEffect="non-scaling-stroke"
+              className={focused ? 'fill-accent-800 stroke-accent-800' : marker.team === 'A' ? 'fill-bg stroke-accent' : 'fill-bg stroke-team-b'}
             />
             <text
               x={point.x}
               y={point.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={13}
+              fontSize={13 * scale}
               className={focused ? 'fill-bg' : marker.team === 'A' ? 'fill-accent' : 'fill-team-b'}
             >
               {marker.initial}
@@ -224,7 +227,7 @@ export function ReplayCanvas({
       {...(footnote === undefined ? {} : { footnote })}
       legend={legend}
     >
-      {(projection: MapProjection) => (
+      {(projection: MapCanvasProjection) => (
         <>
           {/* Heat first: it is a field, and the objects on top of it have to
               stay readable. `HeatLayer` renders nothing when hidden. */}
@@ -268,7 +271,7 @@ function ReplayUtilityLayer({ projection, projectiles, trails }: {
   readonly trails: readonly ProjectileTrail[];
 }) {
   return (
-    <g data-layer="utilities" aria-label={t`投掷物与范围示意`} pointerEvents="none">
+    <g role="group" data-layer="utilities" aria-label={t`投掷物与范围示意`} pointerEvents="none">
       {trails.map((trail) => {
         const current = projectiles.find((projectile) => projectile.id === trail.id);
         const points = current === undefined ? trail.points : [...trail.points, { x: current.position[0], y: current.position[1] }];

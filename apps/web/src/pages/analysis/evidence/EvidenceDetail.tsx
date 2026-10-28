@@ -193,14 +193,14 @@ export function EvidenceDetail({
             <p role="status" aria-busy="true" className="sr-only"><Trans>正在读取注释</Trans></p>
           </div>
         ) : notes.length === 0 ? notesReadError === undefined ? (
-          <p className="text-xs leading-normal text-neutral-700">
+          <p className="text-base leading-normal text-neutral-700">
             <Trans>还没有注释。</Trans>
           </p>
         ) : null : (
           <ul className="flex list-none flex-col gap-2">
             {notes.map((note) => (
               <li key={note.id} data-evidence-note={note.id} className="flex items-start gap-2">
-                <p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{note.body}</p>
+                <p className="min-w-0 max-w-[75ch] flex-1 whitespace-pre-wrap break-words text-base leading-relaxed">{note.body}</p>
                 <Badge variant={note.review_state === 'resolved' ? 'neutral' : 'outline'}>
                   {note.review_state === 'resolved' ? <Trans>已处理</Trans> : <Trans>待处理</Trans>}
                 </Badge>

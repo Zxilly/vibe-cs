@@ -412,7 +412,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
           {!show3D && !radar.isPending && radar.data?.transform === undefined ? (
             <div
               role="status"
-              className="m-3.5 mb-0 flex items-start gap-2.5 border border-warn-border bg-warn-surface px-3 py-2.5 text-sm text-warn-text"
+              className="m-3.5 mb-0 flex items-start gap-2.5 border border-warn-border bg-warn-surface px-3 py-2.5 text-base leading-normal text-warn-text"
             >
               <StatusDot status="warn" className="mt-1" />
               <Trans>
@@ -702,7 +702,7 @@ function ViewFrame({ state, children }: { readonly state: string; readonly child
 }
 
 function RailHeading({ children }: { readonly children: ReactNode }) {
-  return <h3 className="mb-2.5 font-heading text-xs tracking-caps text-neutral-600">{children}</h3>;
+  return <h2 className="mb-2.5 font-heading text-xs tracking-caps text-neutral-600">{children}</h2>;
 }
 
 function FloorLabel({ floor }: { readonly floor: number }) {

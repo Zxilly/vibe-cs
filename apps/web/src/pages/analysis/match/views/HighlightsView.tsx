@@ -385,7 +385,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           {highlights.length === 0 ? (
             <Trans>这场比赛没有检出高光，这里没有可以加入作品的片段。</Trans>
           ) : (
@@ -457,7 +457,7 @@ function Row({ label, children }: { readonly label: ReactNode; readonly children
   return (
     <div className="flex flex-col gap-1">
       <dt className="font-heading text-xs tracking-caps text-neutral-600">{label}</dt>
-      <dd className="min-w-0 break-words text-text">{children}</dd>
+      <dd className="min-w-0 break-words text-base leading-normal text-text">{children}</dd>
     </div>
   );
 }

@@ -271,7 +271,7 @@ export function MatchContextBar({
           <>
             {/* No `periods` here on purpose — see note 3 in the header. The
                 bar shows 「13 : 11」, the breakdown is in the disclosure. */}
-            <Scoreboard teamA={teamA} teamB={teamB} size="md" className="flex-none" />
+            <Scoreboard teamA={teamA} teamB={teamB} size="md" headingLevel={1} className="flex-none" />
             <span aria-hidden="true" className={DIVIDER_CLASS} />
 
             {isCollapsed ? null : (

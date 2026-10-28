@@ -4,6 +4,8 @@ import { Trans } from '@lingui/react/macro';
 import { cn } from '../../../../design/primitives';
 import { equipmentPath, equipmentX, equipmentY, type EquipmentRound } from './equipmentModel';
 
+const CHART_WIDTH = 624;
+
 export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: {
   readonly rounds: readonly EquipmentRound[];
   readonly activeRound: number;
@@ -21,8 +23,8 @@ export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: 
         <span className="flex gap-4"><span className="text-accent">━ {teamA}</span><span className="text-team-b">━ {teamB}</span></span>
       </div>
       <div className="overflow-x-auto">
-      <div style={{ minWidth: Math.max(0, rounds.length - 1) * 20 + 72 }}>
-      {available ? <svg viewBox="0 0 624 218" className="block w-full" role="img" aria-label={t`两队逐回合装备价值`}>
+      <div style={{ minWidth: Math.max(CHART_WIDTH, Math.max(0, rounds.length - 1) * 20 + 72) }}>
+      {available ? <svg viewBox={`0 0 ${CHART_WIDTH} 218`} className="block w-full" role="img" aria-label={t`两队逐回合装备价值`}>
         {selectedIndex < 0 ? null : <rect x={equipmentX(selectedIndex, rounds.length) - 8} y={28} width={16} height={176} className="fill-accent-100" />}
         {[0, 1, 2, 3].map((index) => {
           const value = maximum * index / 3;
@@ -35,8 +37,8 @@ export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: 
           {round.a === null ? null : <circle cx={equipmentX(index, rounds.length)} cy={equipmentY(round.a, maximum)} r={2} className="fill-accent" />}
           {round.b === null ? null : <circle cx={equipmentX(index, rounds.length)} cy={equipmentY(round.b, maximum)} r={2} className="fill-team-b" />}
         </g>)}
-      </svg> : <p className="flex min-h-40 items-center justify-center text-sm text-neutral-600"><Trans>暂无装备价值数据</Trans></p>}
-      <div className="relative h-12" style={{ marginLeft: `${48 / 624 * 100}%`, marginRight: `${24 / 624 * 100}%` }} aria-label={t`选择经济回合`}>
+      </svg> : <p className="flex min-h-40 items-center justify-center text-base leading-normal text-neutral-600"><Trans>暂无装备价值数据</Trans></p>}
+      <div role="group" className="relative h-12" style={{ marginLeft: `${48 / 624 * 100}%`, marginRight: `${24 / 624 * 100}%` }} aria-label={t`选择经济回合`}>
         {rounds.map((round, index) => <button key={round.round} type="button" onClick={() => onSelect(round.round)}
           style={{ left: `${rounds.length === 1 ? 50 : index / (rounds.length - 1) * 100}%` }}
           aria-label={t`第 ${round.round} 回合装备`} aria-pressed={round.round === activeRound}

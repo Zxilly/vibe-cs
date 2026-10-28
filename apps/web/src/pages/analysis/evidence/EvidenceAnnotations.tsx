@@ -134,7 +134,7 @@ export function EvidenceAnnotations({
                     {resolved ? <Trans>已处理</Trans> : <Trans>待处理</Trans>}
                   </Badge>
                 </span>
-                <span className="max-w-full break-words text-sm leading-relaxed">{annotation.body}</span>
+                <span className="max-w-[75ch] whitespace-pre-wrap break-words text-base leading-relaxed">{annotation.body}</span>
               </button>
               <div className="flex flex-wrap items-center gap-2">
                 {annotation.tags.map((tag) => (

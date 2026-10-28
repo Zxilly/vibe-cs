@@ -225,7 +225,7 @@ export function MatchWorkspacePage() {
       )}
       <CollectTargetBar quickAdd={quickAdd} />
       <div className="flex min-h-0 min-w-0 flex-1">
-        <main
+        <div
           data-match-content=""
           /* The demo id is on the frame, not in a caption: the artboard's bar
              says 「Aurora 13 : 11 Meridian」, never the file id, but a test (and
@@ -244,7 +244,7 @@ export function MatchWorkspacePage() {
               onRetry={() => void analysis.refetch()}
             />
           )}
-        </main>
+        </div>
         {collapsed ? null : inspector}
       </div>
       <AddToProjectDialog

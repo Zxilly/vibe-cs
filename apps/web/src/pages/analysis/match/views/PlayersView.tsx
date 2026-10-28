@@ -255,7 +255,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
           (empty ? (
             <Empty
               className="m-3.5"
-              headingLevel={4}
+              headingLevel={3}
               title={<Trans>这份分析里没有选手</Trans>}
               description={
                 <Trans>
@@ -330,7 +330,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
         )}
       </div>
       {opening.unattributed > 0 && (
-        <p className="text-xs text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>{opening.unattributed} 个回合的首杀无法核实，首杀与首死总数暂不可用。</Trans>
         </p>
       )}
@@ -344,11 +344,11 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
              「他没有击杀」, and only the first one is true here. The artboard's
              「命中 34%」 is missing for good (`data/match.ts` gap 3) — there is no
              weapon-fire event, so a hit rate has no denominator. */
-          <p className="px-2.5 py-3 text-xs text-neutral-700">
+          <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>这份分析没有逐条击杀事件，武器分布无法统计。</Trans>
           </p>
         ) : weapons.total === 0 ? (
-          <p className="px-2.5 py-3 text-xs text-neutral-700">
+          <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>这一场没有记到他的击杀。</Trans>
           </p>
         ) : (
@@ -373,7 +373,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
           <Trans>这一场的高光</Trans>
         </PanelHead>
         {highlights.length === 0 ? (
-          <p className="px-2.5 py-3 text-xs text-neutral-700">
+          <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>检测器没有在这一场里给他标出高光。</Trans>
           </p>
         ) : (
@@ -501,7 +501,7 @@ function PlayersInspector({
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           {context.player === null ? (
             <Trans>选择选手查看本场表现。</Trans>
           ) : (

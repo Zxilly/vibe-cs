@@ -29,6 +29,7 @@ export {
   MAP_CANVAS_EXTENT,
   type MapCanvasError,
   type MapCanvasProps,
+  type MapCanvasProjection,
   type MapCanvasStatus,
   type MapLegendGlyph,
   type MapLegendItem,

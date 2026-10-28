@@ -194,9 +194,9 @@ export function PlayerProfilePage() {
           )}
 
           <section className="flex flex-col gap-2" data-player-recent="">
-            <h3 className="text-sm font-medium">
+            <h2 className="text-sm font-medium">
               <Trans>最近比赛</Trans>
-            </h3>
+            </h2>
             {matches.isPending ? (
               <div role="status" aria-busy="true" className="flex flex-col gap-2">
                 <Skeleton className="h-10" /><Skeleton className="h-10" />

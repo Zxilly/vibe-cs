@@ -202,7 +202,7 @@ export function PlayerComparePanel({
             {player.error === null ? (
               <div role="status" aria-busy="true" className="flex flex-col gap-2">
                 <Skeleton className="h-16" />
-                <p className="break-words text-sm text-neutral-600"><Trans>正在读取 {player.id} 的档案</Trans></p>
+                <p className="break-words text-base leading-normal text-neutral-600"><Trans>正在读取 {player.id} 的档案</Trans></p>
               </div>
             ) : (
               <Alert
@@ -247,7 +247,7 @@ export function PlayerComparePanel({
           <section data-focused-player={focusedPlayer.steam_id}>
             <header className="pb-3">
               <h3 className="break-words font-heading text-xl">{focusedPlayer.name}</h3>
-              {focusedPlayer.last_team === null ? null : <p className="text-xs text-neutral-600">{focusedPlayer.last_team}</p>}
+              {focusedPlayer.last_team === null ? null : <p className="text-base leading-normal text-neutral-600">{focusedPlayer.last_team}</p>}
             </header>
             <dl className="border-t border-divider py-3 text-sm">
               {metrics.map((metric) => (
@@ -289,7 +289,7 @@ export function PlayerComparePanel({
         <div className="flex gap-3">
           <PlayerCard player={left} emphasis />
         </div>
-        <p className="text-xs leading-normal text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>再选择一名选手进行比较。</Trans>
         </p>
       </Inspector>

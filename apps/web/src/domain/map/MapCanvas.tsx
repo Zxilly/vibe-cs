@@ -50,7 +50,7 @@
  */
 
 import { Trans } from '@lingui/react/macro';
-import { useId, type ReactNode } from 'react';
+import { useCallback, useId, useState, type ReactNode } from 'react';
 
 import { Empty } from '../../design/data';
 import { Alert, type AlertAction } from '../../design/feedback';
@@ -76,6 +76,12 @@ import {
  * pixel commitment: at any rendered width one unit stays 1/720th of the canvas.
  */
 export const MAP_CANVAS_EXTENT = 720;
+
+/** Screen-sized annotations share the map projection without changing world geometry. */
+export interface MapCanvasProjection extends MapProjection {
+  /** Canvas units per CSS pixel, measured once by the shared SVG surface. */
+  readonly annotationScale: number;
+}
 
 /**
  * Blueprint grid pitch, in canvas units. 「04」 draws the work area behind the
@@ -143,7 +149,7 @@ export interface MapCanvasProps {
   /** Provenance line, e.g. 「坐标来自本地 overview 与 VPK 雷达，采样 64 tick。」 */
   readonly footnote?: ReactNode | undefined;
   /** Layers. A callback receives the projection; plain nodes are rendered as-is. */
-  readonly children?: ReactNode | ((projection: MapProjection) => ReactNode) | undefined;
+  readonly children?: ReactNode | ((projection: MapCanvasProjection) => ReactNode) | undefined;
   readonly className?: string | undefined;
 }
 
@@ -205,6 +211,19 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const gridId = useId();
   const captionId = useId();
+  const [annotationScale, setAnnotationScale] = useState(1);
+  const measureCanvas = useCallback((element: SVGSVGElement | null) => {
+    if (element === null) return undefined;
+    const update = () => {
+      const width = element.getBoundingClientRect().width;
+      // A hidden or not-yet-laid-out canvas has no screen scale to measure.
+      if (width > 0) setAnnotationScale(MAP_CANVAS_EXTENT / width);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const resolved = calibration ?? resolveMapCalibration(mapName, overviewTransform);
   const usable = isUsableCalibration(resolved);
@@ -252,14 +271,14 @@ export function MapCanvas({
       focusBounds === null || focusBounds === undefined
         ? { x: 0, y: 0, size: 1 }
         : fitWorldBounds(resolved, focusBounds);
-    const projection = createMapProjection(
-      resolved,
-      {
-        width: MAP_CANVAS_EXTENT,
-        height: MAP_CANVAS_EXTENT,
-      },
-      focus,
-    );
+    const projection: MapCanvasProjection = {
+      ...createMapProjection(
+        resolved,
+        { width: MAP_CANVAS_EXTENT, height: MAP_CANVAS_EXTENT },
+        focus,
+      ),
+      annotationScale,
+    };
     const bounded = focus.size < 1;
     const basemapStyle = {
       width: `${100 / focus.size}%`,
@@ -280,6 +299,7 @@ export function MapCanvas({
           </div>
         )}
         <svg
+          ref={measureCanvas}
           viewBox={`0 0 ${MAP_CANVAS_EXTENT} ${MAP_CANVAS_EXTENT}`}
           className="absolute inset-0 block size-full"
           role="group"

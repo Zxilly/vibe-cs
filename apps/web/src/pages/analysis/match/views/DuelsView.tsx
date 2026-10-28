@@ -387,7 +387,7 @@ export function PairKillList({
         </Trans>
       </PanelHead>
       {kills.length === 0 ? (
-        <p className="px-2.5 py-3 text-xs text-neutral-700">
+        <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
           <Trans>这份分析没有逐条击杀事件，所以列不出这一对的交手。</Trans>
         </p>
       ) : (
@@ -565,7 +565,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
             noMatrix ? (
               <Empty
                 className="m-3.5"
-                headingLevel={4}
+                headingLevel={3}
                 title={<Trans>没有可用的对位数据</Trans>}
                 actions={
                   <Button variant="secondary" onClick={() => setMode('opening')}>
@@ -587,7 +587,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
           ) : duels.length === 0 ? (
             <Empty
               className="m-3.5"
-              headingLevel={4}
+              headingLevel={3}
               title={<Trans>没有可归属的首杀</Trans>}
               description={
                 opening.rounds > 0 ? (
@@ -616,7 +616,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
           ))}
 
         {unavailableReason === null ? null : (
-          <p className="border-t border-divider px-3.5 py-2.5 text-xs text-neutral-600">
+          <p className="border-t border-divider px-3.5 py-2.5 text-base leading-normal text-neutral-600">
             {/* The service's own English sentence, kept verbatim under the
                 authored Chinese above so a bug report can quote it. */}
             <Trans>说明：{unavailableReason}</Trans>
@@ -627,7 +627,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
       {/* The pair panel is its own block, as the artboard draws it: the matrix
           answers 「谁压制谁」 and this answers 「那七次发生在哪些回合」. */}
       {gate.fallback !== null || mode !== 'matrix' || noMatrix ? null : effectivePlayerId === null ? (
-        <p className="text-xs text-neutral-600">
+        <p className="text-base leading-normal text-neutral-600">
           <Trans>点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。</Trans>
         </p>
       ) : activeOpponent === null ? (
@@ -684,7 +684,7 @@ export function DuelSummary({ analysis, playerId, index }: DuelSummaryProps) {
           <Trans>逐个对手</Trans>
         </PanelHead>
         {matchups.length === 0 ? (
-          <p className="px-2.5 py-3 text-xs text-neutral-700">
+          <p className="px-2.5 py-3 text-base leading-normal text-neutral-700">
             <Trans>这份分析没有这名选手的对位记录。</Trans>
           </p>
         ) : (
@@ -741,7 +741,7 @@ function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         addToVideo={addToVideo}
         collapsed={collapsed}
       >
-        <p className="text-sm text-neutral-700">
+        <p className="text-base leading-normal text-neutral-700">
           <Trans>选择一组对位查看交手记录。</Trans>
         </p>
       </MatchInspectorPanel>

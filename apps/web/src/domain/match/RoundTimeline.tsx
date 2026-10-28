@@ -163,9 +163,9 @@ export function RoundTimeline({
   return (
     <section data-round-timeline="" className={cn('flex flex-col border border-divider', className)}>
       <header className={HEADER_CLASS}>
-        <h3 className="font-heading text-base tracking-wide">
+        <h2 className="font-heading text-base tracking-wide">
           <Trans>回合时间线</Trans>
-        </h3>
+        </h2>
         <span className="flex-1" />
         <LegendEntry ruleClass={WINNER_RULE.a} position="top">
           <Trans>{teamAName} 胜</Trans>
@@ -198,7 +198,7 @@ export function RoundTimeline({
         </div>
       ) : rounds.length === 0 ? (
         <div data-round-timeline-state="empty">
-          <Empty preset="not-analysed" actions={emptyActions ?? null} headingLevel={4} className="border-0" />
+          <Empty preset="not-analysed" actions={emptyActions ?? null} headingLevel={3} className="border-0" />
         </div>
       ) : (
         <div

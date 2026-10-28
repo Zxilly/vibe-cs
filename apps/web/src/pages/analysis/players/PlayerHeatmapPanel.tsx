@@ -87,9 +87,9 @@ export function PlayerHeatmapPanel({
        and the kind switch, which is what a 1100 × 700 window used to show. */
     <section className="flex flex-none flex-col gap-3" data-player-heatmap={mapName}>
       <div className="flex flex-none flex-wrap items-center gap-2.5">
-        <h3 className="text-sm font-medium">
+        <h2 className="text-sm font-medium">
           <Trans>{mapName === '' ? '—' : mapName} 热图</Trans>
-        </h3>
+        </h2>
         <div className="flex-1" aria-hidden="true" />
         <Seg
           name="player-heatmap-kind"

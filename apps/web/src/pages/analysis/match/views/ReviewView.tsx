@@ -155,16 +155,16 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             )}
 
             {review.isPending ? (
-              <p role="status" className="text-sm text-neutral-600"><Trans>正在生成点评…</Trans></p>
+              <p role="status" className="text-base leading-normal text-neutral-600"><Trans>正在生成点评…</Trans></p>
             ) : review.data === undefined && review.error == null ? (
-              <p className="text-sm leading-relaxed text-neutral-600">
+              <p className="text-base leading-relaxed text-neutral-600">
                 <Trans>
                   还没有点评。连接模型后即可生成。
                 </Trans>
               </p>
             ) : review.data === undefined ? null : (
               <>
-                <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
+                <p className="max-w-[75ch] whitespace-pre-wrap break-words text-base leading-relaxed">
                   {review.data.commentary}
                 </p>
                 <Citations
@@ -172,7 +172,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
                   analysis={analysis.data}
                   updateContext={updateContext}
                 />
-                <p className="text-xs leading-normal text-neutral-600">
+                <p className="text-base leading-normal text-neutral-600">
                   <Trans>
                     由 {review.data.provider} 的 {review.data.model} 生成。
                   </Trans>
@@ -187,7 +187,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             )}
 
             <div className="border-t border-divider pt-3">
-              <Heading>
+              <Heading level={3}>
                 <Trans>我的注释</Trans>
               </Heading>
               <AnnotationPreview
@@ -347,8 +347,8 @@ function InsightCard({
       data-insight={id}
       className="border-b border-divider pb-3"
     >
-      <h4 className="mb-1 text-sm leading-normal">{title}</h4>
-      <p className="text-sm leading-relaxed text-neutral-600">{detail}</p>
+      <h3 className="mb-1 text-sm leading-normal">{title}</h3>
+      <p className="text-base leading-relaxed text-neutral-600">{detail}</p>
       <div className="mt-1.5">{action}</div>
     </article>
   );
@@ -364,7 +364,7 @@ function UnavailableCard({ gap }: { readonly gap: CapabilityGap }) {
   return (
     <article
       data-insight-gap={gap.id}
-      className="py-2 text-sm leading-relaxed text-neutral-600"
+      className="py-2 text-base leading-relaxed text-neutral-600"
     >
       <p>
         <CapabilityName gap={gap} />
@@ -414,14 +414,14 @@ function Citations({
 
   if (citations.length === 0) {
     return (
-      <p className="text-xs leading-relaxed text-neutral-700">
+      <p className="text-base leading-relaxed text-neutral-700">
         <Trans>这段点评没有回引证据。</Trans>
       </p>
     );
   }
 
   return (
-    <div className="text-xs leading-relaxed text-neutral-700">
+    <div className="text-base leading-relaxed text-neutral-700">
       <p>
         <Trans>引用了 {citations.length} 条证据：</Trans>
       </p>
@@ -515,7 +515,7 @@ function AnnotationPreview({
   }
   if (rows.length === 0) {
     return (
-      <p className="text-xs leading-relaxed text-neutral-600">
+      <p className="text-base leading-relaxed text-neutral-600">
         <Trans>还没有注释。选择一个事件即可添加。</Trans>
       </p>
     );
@@ -525,8 +525,8 @@ function AnnotationPreview({
     <div className="flex flex-col gap-2">
       <ul className="flex list-none flex-col gap-2">
         {rows.slice(0, 3).map((row) => (
-          <li key={row.id} className="flex items-start gap-2 border-b border-divider py-2 text-sm">
-            <span className="min-w-0 flex-1 break-words">{row.body}</span>
+          <li key={row.id} className="flex items-start gap-2 border-b border-divider py-2 text-base leading-normal">
+            <span className="min-w-0 max-w-[75ch] flex-1 whitespace-pre-wrap break-words">{row.body}</span>
             <StateTag state={row.review_state} />
           </li>
         ))}
@@ -623,11 +623,11 @@ function AnnotationsPanel({
           </Button>
         </div>
         {anchor === null ? (
-          <p className="text-xs leading-normal text-neutral-600">
+          <p className="text-base leading-normal text-neutral-600">
             <Trans>先选择一个事件，再添加注释。</Trans>
           </p>
         ) : (
-          <p className="text-xs leading-normal text-neutral-600">
+          <p className="text-base leading-normal text-neutral-600">
             <Trans>
               注释将添加到第 {anchor.round} 回合的所选事件。
             </Trans>
@@ -680,7 +680,7 @@ function AnnotationsPanel({
           {rows.map((row) => (
             <li key={row.id} className="mb-2 border border-divider px-3.5 py-3">
               <div className="flex items-start gap-2.5">
-                <p className="min-w-0 flex-1 break-words text-sm">{row.body}</p>
+                <p className="min-w-0 max-w-[75ch] flex-1 whitespace-pre-wrap break-words text-base leading-normal">{row.body}</p>
                 <StateTag state={row.review_state} />
               </div>
               <p className="mt-1 font-mono text-xs text-neutral-600">
@@ -773,7 +773,7 @@ function ReviewInspector({
                 {opening.leaderName} 拿下了 {opening.roundsWithOpening} 个回合里的 {opening.leaderCount} 次首杀
               </Trans>
             </h3>
-            <p className="mt-1 text-xs leading-normal text-neutral-700">
+            <p className="mt-1 text-base leading-normal text-neutral-700">
               <Trans>首杀指每回合的第一次击杀。</Trans>
             </p>
             <Button
@@ -792,7 +792,7 @@ function ReviewInspector({
             </Button>
           </section>
         ) : (
-          <p className="text-neutral-700">
+          <p className="text-base leading-normal text-neutral-700">
             {context.evidence === null ? (
               <Trans>在回放或回合视图中选择事件，再到「我的注释」添加注释。</Trans>
             ) : (
@@ -805,7 +805,7 @@ function ReviewInspector({
             <Trans>无法加载注释：{annotationsError}</Trans>
           </Alert>
         ) : annotations.data === undefined ? (
-          <p role="status" className="text-neutral-600"><Trans>正在读取注释</Trans></p>
+          <p role="status" className="text-base leading-normal text-neutral-600"><Trans>正在读取注释</Trans></p>
         ) : <dl className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <dt className="text-neutral-700">
@@ -842,8 +842,9 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
   );
 }
 
-function Heading({ children }: { readonly children: ReactNode }) {
-  return <h3 className="text-sm font-medium">{children}</h3>;
+function Heading({ children, level = 2 }: { readonly children: ReactNode; readonly level?: 2 | 3 }) {
+  const Tag = level === 2 ? 'h2' : 'h3';
+  return <Tag className="text-sm font-medium">{children}</Tag>;
 }
 
 export const ReviewView: MatchViewModule = {

@@ -8,9 +8,9 @@
  */
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { AgentWorkspaceSettings } from '../../../shared/desktop/dto';
+import type { AgentWorkspaceSettings, LlmConfig } from '../../../shared/desktop/dto';
 import { renderPage } from '../../../test/renderPage';
 import { AiAgentSection } from './AiAgentSection';
 
@@ -23,7 +23,7 @@ const SETTINGS: AgentWorkspaceSettings = {
   commentary_tone: 'professional',
 };
 
-function render() {
+function render(overrides: Record<string, unknown> = {}) {
   const written: AgentWorkspaceSettings[] = [];
   renderPage({
     element: <AiAgentSection />,
@@ -41,10 +41,54 @@ function render() {
         written.push(next);
         return Promise.resolve(next);
       },
+      ...overrides,
     },
   });
   return { written };
 }
+
+const LLM: LlmConfig = {
+  provider: 'openai', model: 'test-model', base_url: 'https://example.com/v1', api_key: '',
+  prompt: '', parameter_style: 'openai', parameters: {},
+};
+
+describe('model connection feedback', () => {
+  it('clears the previous successful test when the model changes', async () => {
+    const testLlm = vi.fn().mockResolvedValue({
+      ok: true, provider: 'openai', model: 'test-model',
+      capabilities: { protocol: 'openai', chat: true, stream: true, tools: true },
+    });
+    render({ getConfig: async () => ({ llm: LLM, llm_has_api_key: true }), testLlm });
+    fireEvent.click(await screen.findByRole('button', { name: '测试连接' }));
+    await screen.findByText(/连接正常/u);
+
+    fireEvent.change(screen.getByRole('textbox', { name: /^模型/u }), { target: { value: 'another-model' } });
+
+    expect(screen.queryByText(/连接正常/u)).toBeNull();
+    expect(testLlm).toHaveBeenCalledTimes(1);
+  });
+
+  it('associates invalid JSON with its field and removes a stale connection retry', async () => {
+    const testLlm = vi.fn().mockRejectedValue(new Error('Connection refused'));
+    render({ getConfig: async () => ({ llm: LLM, llm_has_api_key: true }), testLlm });
+    fireEvent.click(await screen.findByRole('button', { name: '测试连接' }));
+    await screen.findByRole('button', { name: '重试' });
+
+    fireEvent.click(screen.getByText('请求参数'));
+    const json = screen.getByLabelText('完整参数 JSON');
+    fireEvent.change(json, { target: { value: '{invalid' } });
+
+    expect(json.getAttribute('aria-invalid')).toBe('true');
+    const messageId = json.getAttribute('aria-describedby');
+    expect(messageId).not.toBeNull();
+    expect(document.getElementById(messageId!)?.textContent).toContain('请输入有效的 JSON 对象');
+    await waitFor(() => expect(screen.queryByRole('button', { name: '重试' })).toBeNull());
+    const test = screen.getByRole('button', { name: '测试连接' });
+    expect(test.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(test);
+    expect(testLlm).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('默认成片时长', () => {
   it('shows the stored value itself, whatever it is', async () => {

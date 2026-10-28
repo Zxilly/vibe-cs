@@ -56,7 +56,6 @@ import { Dialog, Alert, StatusDot } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
 import { useRecoverConfiguration, useRecoveryStatus } from '../../../data/config';
-import { dataErrorMessage } from '../../../data/errors';
 import { useCleanupMissingOutputs, useCleanupStagedOutputs, useRecoveryScan } from '../../../data/outputs';
 import { formatBytes } from '../../../domain/media/outputModel';
 
@@ -69,13 +68,6 @@ export function RecoveryPage() {
   const cleanupStaged = useCleanupStagedOutputs();
   const cleanupMissing = useCleanupMissingOutputs();
   const [confirming, setConfirming] = useState<Pending | null>(null);
-
-  const statusError = dataErrorMessage(status.error);
-  const scanError = dataErrorMessage(scan.error);
-  const actionError =
-    dataErrorMessage(recoverConfig.error) ??
-    dataErrorMessage(cleanupStaged.error) ??
-    dataErrorMessage(cleanupMissing.error);
 
   const busy = recoverConfig.isPending || cleanupStaged.isPending || cleanupMissing.isPending;
   const blocked = busy;
@@ -105,17 +97,17 @@ export function RecoveryPage() {
       }
     >
       <div className="flex flex-col gap-5 p-6">
-        {statusError === null ? null : (
+        {status.isError ? (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
-            <Trans>读不到恢复状态：{statusError}</Trans>
+            <Trans>无法读取恢复状态，请重试。</Trans>
           </Alert>
-        )}
-        {scanError === null ? null : (
+        ) : null}
+        {scan.isError ? (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void scan.refetch() }}>
-            <Trans>没有扫描到清理范围：{scanError}</Trans>
+            <Trans>无法扫描清理范围，请重试。</Trans>
           </Alert>
-        )}
-        {actionError === null ? null : (
+        ) : null}
+        {recoverConfig.isError || cleanupStaged.isError || cleanupMissing.isError ? (
           <Alert
             variant="danger"
             action={{
@@ -127,9 +119,9 @@ export function RecoveryPage() {
               },
             }}
           >
-            <Trans>这次恢复没有完成：{actionError}</Trans>
+            <Trans>操作未完成，请重新检查后重试。</Trans>
           </Alert>
-        )}
+        ) : null}
 
         <div data-recovery-list className="border border-divider">
           <RecoveryCard
@@ -205,8 +197,10 @@ export function RecoveryPage() {
               </span>
             ) : stagedFiles === 0 ? (
               <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-staged="0">
-                <StatusDot status="ok" />
-                <Trans>暂存目录里没有未完成的文件</Trans>
+                <StatusDot status={scan.data.staged.scan_limited ? 'warn' : 'ok'} />
+                {scan.data.staged.scan_limited
+                  ? <Trans>本次扫描未发现暂存文件，仅检查了部分内容</Trans>
+                  : <Trans>暂存目录里没有未完成的文件</Trans>}
               </span>
             ) : (
               <span
@@ -224,7 +218,7 @@ export function RecoveryPage() {
               </span>
             )
           }
-          effect={<Trans>录制或导出中断时会留下暂存文件，它们不会自己消失。将删除暂存目录里未完成的成片文件。</Trans>}
+          effect={<Trans>删除录制或导出中断后留在暂存目录中的未完成文件。</Trans>}
           untouched={<Trans>不会删除已完成的录制结果、成片或资料库记录。</Trans>}
           action={
             <Button
@@ -232,7 +226,9 @@ export function RecoveryPage() {
               size="md"
               data-recovery-action="staged"
               disabled={blocked || scanUnavailable || stagedFiles === 0}
-              disabledReason={scanUnavailable ? scanUnavailableReason : stagedFiles === 0 ? t`没有需要清理的暂存文件` : blockedReason}
+              disabledReason={scanUnavailable ? scanUnavailableReason : stagedFiles === 0
+                ? scan.data?.staged.scan_limited ? t`请重新检查，确认清理范围` : t`没有需要清理的暂存文件`
+                : blockedReason}
               onClick={() => setConfirming('staged')}
             >
               <Trans>清理暂存成片</Trans>
@@ -249,7 +245,7 @@ export function RecoveryPage() {
                 {cleanupStaged.data.failed > 0 ? (
                   /* Reporting only the successes would leave the user pressing
                      the button again on files that are locked. */
-                  <Trans> 另有 {cleanupStaged.data.failed} 个删不掉，可能正被占用。</Trans>
+                  <Trans> 另有 {cleanupStaged.data.failed} 个文件未能删除，可能正被占用。</Trans>
                 ) : null}
                 {cleanupStaged.data.scan_limited ? (
                   <Trans> 这次只扫描了一部分，可能还有剩余。</Trans>
@@ -270,8 +266,10 @@ export function RecoveryPage() {
               </span>
             ) : missingRecords === 0 ? (
               <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-missing="0">
-                <StatusDot status="ok" />
-                <Trans>所有记录都能找到文件</Trans>
+                <StatusDot status={scan.data.missing.scan_limited ? 'warn' : 'ok'} />
+                {scan.data.missing.scan_limited
+                  ? <Trans>本次扫描未发现失效记录，仅检查了部分内容</Trans>
+                  : <Trans>所有记录都能找到文件</Trans>}
               </span>
             ) : (
               <span
@@ -301,7 +299,9 @@ export function RecoveryPage() {
               size="md"
               data-recovery-action="missing"
               disabled={blocked || scanUnavailable || missingRecords === 0}
-              disabledReason={scanUnavailable ? scanUnavailableReason : missingRecords === 0 ? t`没有失效记录` : blockedReason}
+              disabledReason={scanUnavailable ? scanUnavailableReason : missingRecords === 0
+                ? scan.data?.missing.scan_limited ? t`请重新检查，确认清理范围` : t`没有失效记录`
+                : blockedReason}
               onClick={() => setConfirming('missing')}
             >
               <Trans>清理失效记录</Trans>
@@ -338,7 +338,7 @@ export function RecoveryPage() {
         onClose={() => setConfirming(null)}
       >
         <Trans>
-          当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。
+          将用上一次自动备份覆盖当前配置。备份之后的设置改动会丢失，无法撤销。
         </Trans>
       </Dialog>
 
@@ -355,7 +355,7 @@ export function RecoveryPage() {
         onClose={() => setConfirming(null)}
       >
         <Trans>
-          暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。
+          将删除暂存目录中的未完成文件。如需保留用于恢复，请先将文件复制到其他目录。
         </Trans>
       </Dialog>
 
@@ -375,7 +375,7 @@ export function RecoveryPage() {
         onClose={() => setConfirming(null)}
       >
         <Trans>
-          指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。
+          将移除找不到文件的记录。如果文件只是被移动，请先放回原位，以免对应记录被移除。
         </Trans>
       </Dialog>
     </Page>

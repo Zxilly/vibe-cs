@@ -34,7 +34,6 @@ import { Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Seg, Input, Button } from '../../../design/primitives';
 import { useAppConfig, useUpdateAppConfig } from '../../../data/config';
-import { dataErrorMessage } from '../../../data/errors';
 import type { AppConfig } from '../../../shared/desktop/dto';
 import { SettingsBlock, SettingsRow } from './settingsShared';
 
@@ -60,9 +59,6 @@ export function AppSection() {
   const blockedReason = blocked ? t`正在保存` : undefined;
   const write = (next: AppConfig) => void update.mutateAsync(next).catch(() => undefined);
 
-  const configError = dataErrorMessage(config.error);
-  const writeError = dataErrorMessage(update.error);
-
   const manifest = manifestDraft ?? current?.update_manifest_url ?? '';
   const manifestInvalid = manifest.trim() !== '' && !isHttpsUrl(manifest.trim());
   const manifestDirty = current !== undefined && manifest.trim() !== current.update_manifest_url;
@@ -75,20 +71,20 @@ export function AppSection() {
 
   return (
     <div className="flex flex-col">
-      {configError === null ? null : (
+      {config.isError ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
-          <Trans>读不到设置：{configError}</Trans>
+          <Trans>无法读取设置，请重试。</Trans>
         </Alert>
-      )}
-      {writeError === null ? null : (
+      ) : null}
+      {update.isError ? (
         <Alert variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
-          <Trans>这次改动没有保存：{writeError}</Trans>
+          <Trans>设置未能保存，请重新修改并保存。</Trans>
         </Alert>
-      )}
+      ) : null}
 
       <SettingsBlock id="appearance" title={<Trans>外观与语言</Trans>}>
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <>
             <SettingsRow
@@ -133,7 +129,7 @@ export function AppSection() {
 
       <SettingsBlock id="updates" title={<Trans>更新</Trans>}>
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <SettingsRow
             label={<Trans>更新源</Trans>}

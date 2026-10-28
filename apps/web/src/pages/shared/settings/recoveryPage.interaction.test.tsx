@@ -72,7 +72,7 @@ describe('what the page says before anything is pressed', () => {
 
   it('keeps cleanup unavailable after a failed scan and offers a retry', async () => {
     render({ scanRecoveryOutputs: () => Promise.reject(new Error('scan unavailable')) });
-    await screen.findByText(/scan unavailable/u);
+    expect((await screen.findByRole('alert')).textContent).toContain('无法扫描清理范围');
     expect(screen.getByRole('button', { name: '清理暂存成片' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('button', { name: '清理失效记录' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
@@ -145,6 +145,18 @@ describe('what the page says before anything is pressed', () => {
     expect(document.body.textContent).toContain('不会删除 Demo、录制结果');
   });
 
+  it('does not call a partial scan with zero findings fully clean', async () => {
+    render({ scanRecoveryOutputs: async () => ({
+      staged: { files: 0, bytes: 0, scan_limited: true },
+      missing: { records: 0, scan_limited: true },
+    }) });
+
+    await screen.findByText('本次扫描未发现暂存文件，仅检查了部分内容');
+    expect(screen.getByText('本次扫描未发现失效记录，仅检查了部分内容')).toBeTruthy();
+    expect(screen.queryByText('暂存目录里没有未完成的文件')).toBeNull();
+    expect(screen.queryByText('所有记录都能找到文件')).toBeNull();
+  });
+
   it('groups all three narrowly scoped operations into comparable rows', async () => {
     render();
     await waitFor(() => expect(document.querySelector('[data-recovery-list]')).not.toBeNull());
@@ -183,7 +195,7 @@ describe('every action takes a confirmation', () => {
     fireEvent.click(document.querySelector('[data-recovery-action="config"]') as HTMLElement);
     expect(recoverConfiguration).not.toHaveBeenCalled();
     // The dialog says what is lost, not just what is done.
-    expect(document.body.textContent).toContain('备份之后做过的设置改动会丢失');
+    expect(document.body.textContent).toContain('备份之后的设置改动会丢失');
 
     fireEvent.click(confirm());
     await waitFor(() => expect(recoverConfiguration).toHaveBeenCalledTimes(1));
@@ -221,7 +233,7 @@ describe('what a cleanup reports', () => {
     fireEvent.click(confirm());
 
     await waitFor(() => {
-      expect(document.querySelector('[data-recovery-result]')?.textContent).toContain('3 个删不掉');
+      expect(document.querySelector('[data-recovery-result]')?.textContent).toContain('3 个文件未能删除');
     });
   });
 

@@ -59,7 +59,7 @@ import { ChevronRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { useAppConfig, useTestLlm, useUpdateAppConfig } from '../../../data/config';
-import { dataErrorMessage } from '../../../data/errors';
+import { dataErrorMessage, toDataError } from '../../../data/errors';
 import {
   retentionOptionId,
   useAgentSessionStorage,
@@ -130,7 +130,7 @@ export function AiAgentSection() {
   const [llmDraft, setLlmDraft] = useState<LlmConfig | null>(null);
 
   const current = settings.data;
-  const settingsError = dataErrorMessage(settings.error);
+  const settingsError = toDataError(settings.error, t`请重试`)?.message ?? null;
 
   const write = async (next: AgentWorkspaceSettings) => {
     setWriteError(null);
@@ -197,14 +197,17 @@ export function AiAgentSection() {
         draft={llmDraft ?? config.data?.llm ?? null}
         hasApiKey={config.data?.llm_has_api_key ?? null}
         loading={config.isPending}
-        error={dataErrorMessage(config.error)}
+        error={toDataError(config.error, t`请重试`)?.message ?? null}
         disabled={updateConfig.isPending || testLlm.isPending}
         disabledReason={updateConfig.isPending ? t`正在保存` : testLlm.isPending ? t`正在测试` : undefined}
         saving={updateConfig.isPending}
         testing={testLlm.isPending}
         testResult={testLlm.data === undefined ? null : `${testLlm.data.provider} · ${testLlm.data.model}`}
-        testError={dataErrorMessage(testLlm.error)}
-        onChange={setLlmDraft}
+        testError={toDataError(testLlm.error, t`请检查模型设置后重试`)?.message ?? null}
+        onChange={(draft) => {
+          setLlmDraft(draft);
+          testLlm.reset();
+        }}
         onSave={() => {
           const current = config.data;
           const draft = llmDraft ?? current?.llm;
@@ -262,7 +265,7 @@ export function AiAgentSection() {
           bytes={storage.data?.conversation_bytes ?? null}
           sessionCount={storage.data?.session_count ?? null}
           loading={storage.isPending}
-          error={dataErrorMessage(storage.error)}
+          error={toDataError(storage.error, t`请重试`)?.message ?? null}
           onRetry={() => void storage.refetch()}
           onExport={() => void exportSessions.mutateAsync().catch(() => undefined)}
           exportResult={
@@ -270,7 +273,7 @@ export function AiAgentSection() {
               ? null
               : { count: exportSessions.data.sessions.length, at: exportSessions.data.exported_at }
           }
-          exportError={dataErrorMessage(exportSessions.error)}
+          exportError={toDataError(exportSessions.error, t`请重试`)?.message ?? null}
           onClear={() => {
             setConfirming('clear');
           }}
@@ -284,7 +287,7 @@ export function AiAgentSection() {
       >
         <SettingsSwitch
           label={<Trans>录制前始终由你确认</Trans>}
-          hint={<Trans>此确认始终开启：录制会启动游戏并写出文件，每次都由你确认。</Trans>}
+          hint={<Trans>录制会启动游戏并写入文件，此确认无法关闭。</Trans>}
           name="recording-confirmation"
           ariaLabel={t`录制前始终由你确认`}
           checked={RECORDING_CONFIRMATION_LOCKED_ON}
@@ -534,6 +537,7 @@ function ModelBlock({
               onChange({ ...draft, parameters: next });
             }}
             onRawChange={(raw) => {
+              onResetTest();
               setParameterJsonDraft(raw);
               try {
                 const parsed = JSON.parse(raw) as JsonValue;
@@ -732,15 +736,14 @@ function ProviderParametersEditor({
         <Field
           label={<Trans>完整参数 JSON</Trans>}
           hint={<Trans>API 密钥和私密请求头由上方的连接配置保管。</Trans>}
+          error={rawError}
         >
           {(control) => (
             <Textarea {...control} rows={7} className="font-mono text-xs"
               value={rawDraft ?? JSON.stringify(parameters, null, 2)} disabled={disabled}
-              aria-invalid={rawError === null ? undefined : true}
               onChange={(event) => onRawChange(event.target.value)} />
           )}
         </Field>
-        {rawError === null ? null : <p className="text-xs text-danger">{rawError}</p>}
         <p className="text-xs leading-normal text-neutral-600">
           <Trans>模型、消息、工具和认证参数由应用管理，无需填写。</Trans>
         </p>

@@ -45,7 +45,6 @@ import {
   useStorageStatus,
   useUpdateAppConfig,
 } from '../../../data/config';
-import { dataErrorMessage } from '../../../data/errors';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../../data/nativeShell';
 import type { SteamConfig } from '../../../shared/desktop/dto';
 import { formatBytes, PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
@@ -67,29 +66,27 @@ export function FilesSection() {
   const blocked = busy;
   const blockedReason = blocked ? t`正在处理` : undefined;
 
-  const configError = dataErrorMessage(config.error);
-  const writeError = dataErrorMessage(update.error) ?? dataErrorMessage(setWatchPaths.error);
-
   const watchPaths = current?.demo_watch_paths ?? [];
   const steam = steamDraft ?? current?.steam ?? null;
   const steamInvalid = steam === null
     || !/^\d{17}$/u.test(steam.steam_id.trim())
-    || (!(current?.steam_has_web_api_key ?? false) && !/^[0-9a-f]{32}$/iu.test(steam.web_api_key.trim()))
-    || (!(current?.steam_has_authentication_code ?? false)
+    || ((!(current?.steam_has_web_api_key ?? false) || steam.web_api_key.trim() !== '')
+      && !/^[0-9a-f]{32}$/iu.test(steam.web_api_key.trim()))
+    || ((!(current?.steam_has_authentication_code ?? false) || steam.authentication_code.trim() !== '')
       && !/^[A-Za-z0-9]{4}-[A-Za-z0-9]{5}-[A-Za-z0-9]{4}$/u.test(steam.authentication_code.trim()))
-    || (!(current?.steam_has_share_code ?? false)
+    || ((!(current?.steam_has_share_code ?? false) || steam.known_share_code.trim() !== '')
       && !/^CSGO-(?:[A-Za-z0-9]{5}-){4}[A-Za-z0-9]{5}$/u.test(steam.known_share_code.trim()))
     || steam.maximum_results < 1
     || steam.maximum_results > 100;
 
   return (
     <div className="flex flex-col">
-      {configError === null ? null : (
+      {config.isError ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
-          <Trans>读不到设置：{configError}</Trans>
+          <Trans>无法读取设置，请重试。</Trans>
         </Alert>
-      )}
-      {writeError === null ? null : (
+      ) : null}
+      {update.isError || setWatchPaths.isError ? (
         <Alert
           variant="danger"
           action={{
@@ -100,9 +97,9 @@ export function FilesSection() {
             },
           }}
         >
-          <Trans>这次改动没有保存：{writeError}</Trans>
+          <Trans>设置未能保存，请重新修改并保存。</Trans>
         </Alert>
-      )}
+      ) : null}
 
       <SettingsBlock
         id="storage"
@@ -110,7 +107,7 @@ export function FilesSection() {
         description={<Trans>录制结果、导出成片和应用自己的数据都放在这里。</Trans>}
       >
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <>
             <SettingsRow
@@ -187,15 +184,15 @@ export function FilesSection() {
       <SettingsBlock
         id="watch-folders"
         title={<Trans>监听目录</Trans>}
-        description={<Trans>这些文件夹里出现新的 Demo 会被自动收进资料库。</Trans>}
+        description={<Trans>自动导入这些目录中的新 Demo。</Trans>}
       >
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <>
             {watchPaths.length === 0 ? (
               <p className="text-xs leading-normal text-neutral-600">
-                <Trans>还没有监听目录。加一个之后，新的 Demo 会自己进来。</Trans>
+                <Trans>尚未设置监听目录。</Trans>
               </p>
             ) : (
               <ul className="flex flex-col gap-2">
@@ -272,7 +269,7 @@ export function FilesSection() {
         description={<Trans>连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。</Trans>}
       >
         {current === undefined || steam === null ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -290,7 +287,7 @@ export function FilesSection() {
               </Field>
               <Field
                 label={<Trans>Steam Web API 密钥</Trans>}
-                required
+                required={!current.steam_has_web_api_key}
                 hint={current.steam_has_web_api_key ? <Trans>留空会保留已经安全保存的密钥。</Trans> : undefined}
               >
                 {(control) => (
@@ -307,8 +304,10 @@ export function FilesSection() {
               </Field>
               <Field
                 label={<Trans>Steam 验证码</Trans>}
-                required
-                hint={<Trans>Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。</Trans>}
+                required={!current.steam_has_authentication_code}
+                hint={current.steam_has_authentication_code
+                  ? <Trans>留空保留已保存的验证码。新验证码格式为 XXXX-XXXXX-XXXX。</Trans>
+                  : <Trans>Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。</Trans>}
               >
                 {(control) => (
                   <Input
@@ -324,8 +323,10 @@ export function FilesSection() {
               </Field>
               <Field
                 label={<Trans>最近分享代码</Trans>}
-                required
-                hint={<Trans>从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。</Trans>}
+                required={!current.steam_has_share_code}
+                hint={current.steam_has_share_code
+                  ? <Trans>留空保留已保存的分享代码。填写新代码后从该场比赛继续同步。</Trans>
+                  : <Trans>从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。</Trans>}
               >
                 {(control) => (
                   <Input

@@ -112,6 +112,37 @@ async function loaded(label: string): Promise<void> {
   await screen.findByText(label);
 }
 
+describe('settings read failures', () => {
+  it.each([
+    ['app', AppSection],
+    ['files', FilesSection],
+    ['game', GameSection],
+  ] as const)('%s offers a retry even when the failure has no displayable message', async (_name, Section) => {
+    const getConfig = vi.fn()
+      .mockRejectedValueOnce(new TypeError('Cannot read properties of undefined'))
+      .mockResolvedValue(CONFIG);
+    render(<Section />, { getConfig });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('无法读取设置');
+    expect(alert.textContent).not.toContain('undefined');
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(getConfig).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not describe a failed encoder check as an empty result', async () => {
+    const quickCheck = vi.fn().mockRejectedValue(new Error('encoder probe failed'));
+    render(<GameSection />, { quickCheck });
+
+    expect((await screen.findByRole('alert')).textContent).toContain('无法检查视频编码器');
+    expect(screen.queryByText('这次检查里没有编码器项。完整的检查列表在「高级与诊断」。')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    await waitFor(() => expect(quickCheck).toHaveBeenCalledTimes(2));
+  });
+});
+
 describe('应用', () => {
   it('writes the whole document when the theme changes', async () => {
     const { written } = render(<AppSection />);
@@ -171,7 +202,7 @@ describe('应用', () => {
     fireEvent.change(input, { target: { value: 'https://example.com/manifest.json' } });
     fireEvent.blur(input);
 
-    await screen.findByText(/disk is full/u);
+    expect((await screen.findByRole('alert')).textContent).toContain('设置未能保存');
     expect(input.value).toBe('https://example.com/manifest.json');
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(2));
@@ -246,6 +277,29 @@ describe('文件与资料库', () => {
     expect(written[0]?.steam.web_api_key).toBe('a'.repeat(32));
     expect(written[0]?.data_dir).toBe(CONFIG.data_dir);
     expect(written[0]?.llm).toEqual(CONFIG.llm);
+  });
+
+  it.each(['Steam Web API 密钥', 'Steam 验证码', '最近分享代码'])('validates replacement %s even when a value is stored', async (label) => {
+    const stored = {
+      ...CONFIG,
+      steam: { ...CONFIG.steam, steam_id: '76561198000000000' },
+      steam_has_web_api_key: true,
+      steam_has_authentication_code: true,
+      steam_has_share_code: true,
+    };
+    const { written } = render(<FilesSection />, { getConfig: async () => stored });
+    const field = await screen.findByLabelText(label);
+    expect(field.hasAttribute('aria-required')).toBe(false);
+    expect(screen.getByRole('button', { name: '保存 Steam 设置' }).hasAttribute('disabled')).toBe(false);
+
+    fireEvent.change(field, { target: { value: 'bad replacement' } });
+
+    const save = screen.getByRole('button', { name: '保存 Steam 设置' });
+    expect(save.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(save);
+    expect(written).toHaveLength(0);
+    fireEvent.change(field, { target: { value: '' } });
+    expect(screen.getByRole('button', { name: '保存 Steam 设置' }).hasAttribute('disabled')).toBe(false);
   });
 });
 

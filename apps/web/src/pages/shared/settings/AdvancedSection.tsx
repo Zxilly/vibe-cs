@@ -50,7 +50,7 @@ import {
   useRuntimeState,
 } from '../../../data/config';
 import { useRevealPath } from '../../../data/nativeShell';
-import { dataErrorMessage } from '../../../data/errors';
+import { toDataError } from '../../../data/errors';
 import type { DependencyState } from '../../../shared/desktop/dto';
 import { RouteLink } from '../navigation/RouteLink';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
@@ -63,9 +63,9 @@ export function AdvancedSection() {
   const exportDiagnostics = useExportDiagnostics();
   const revealPath = useRevealPath();
 
-  const runtimeError = dataErrorMessage(runtime.error);
-  const checksError = dataErrorMessage(checks.error);
-  const hlaeError = dataErrorMessage(hlae.error);
+  const runtimeError = toDataError(runtime.error, t`请重试`)?.message ?? null;
+  const checksError = toDataError(checks.error, t`请重试`)?.message ?? null;
+  const hlaeError = toDataError(hlae.error, t`请重试`)?.message ?? null;
 
   return (
     <div className="flex flex-col">
@@ -231,7 +231,7 @@ export function AdvancedSection() {
                 variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => prepareHlae.mutate() }}
               >
-                <Trans>采集组件没有准备完成：{dataErrorMessage(prepareHlae.error)}</Trans>
+                <Trans>采集组件未能安装，请重试。</Trans>
               </Alert>
             )}
           </>
@@ -290,7 +290,7 @@ export function AdvancedSection() {
               onAction: () => exportDiagnostics.mutate(),
             }}
           >
-            {dataErrorMessage(exportDiagnostics.error)}
+            <Trans>诊断包未能导出，请重试。</Trans>
           </Alert>
         )}
       </SettingsBlock>
@@ -299,7 +299,6 @@ export function AdvancedSection() {
         id="recovery"
         layout="split"
         title={<Trans>恢复与引导</Trans>}
-        description={<Trans>修复损坏的配置和残留文件，或重看三步引导。</Trans>}
       >
         <SettingsRow
           label={<Trans>恢复中心</Trans>}
@@ -311,7 +310,7 @@ export function AdvancedSection() {
         </SettingsRow>
         <SettingsRow
           label={<Trans>使用引导</Trans>}
-          hint={<Trans>三步做出第一条视频，以及这台机器现在能做什么。</Trans>}
+          hint={<Trans>导入比赛、创建作品，检查录制与导出环境。</Trans>}
         >
           <RouteLink to="/guide" data-settings-link="guide">
             <Trans>打开使用引导</Trans>

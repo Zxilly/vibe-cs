@@ -50,7 +50,6 @@ import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Button, Seg, Slider } from '../../../design/primitives';
 import { useAppConfig, useQuickCheck, useStorageStatus, useUpdateAppConfig } from '../../../data/config';
-import { dataErrorMessage } from '../../../data/errors';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../../data/nativeShell';
 import type {
   AppConfig,
@@ -104,21 +103,18 @@ export function GameSection() {
     write({ ...current, recording: { ...current.recording, ...patch } });
   };
 
-  const configError = dataErrorMessage(config.error);
-  const writeError = dataErrorMessage(update.error);
-
   return (
     <div className="flex flex-col">
-      {configError === null ? null : (
+      {config.isError ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
-          <Trans>读不到设置：{configError}</Trans>
+          <Trans>无法读取设置，请重试。</Trans>
         </Alert>
-      )}
-      {writeError === null ? null : (
+      ) : null}
+      {update.isError ? (
         <Alert variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
-          <Trans>这次改动没有保存：{writeError}</Trans>
+          <Trans>设置未能保存，请重新修改并保存。</Trans>
         </Alert>
-      )}
+      ) : null}
 
       <SettingsBlock
         id="game"
@@ -126,7 +122,7 @@ export function GameSection() {
         description={<Trans>更改仅影响之后的录制。</Trans>}
       >
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <>
             <SettingsRow
@@ -193,7 +189,7 @@ export function GameSection() {
 
       <SettingsBlock id="recording-defaults" title={<Trans>录制默认值</Trans>}>
         {current === undefined ? (
-          <Skeleton />
+          config.isPending ? <Skeleton /> : null
         ) : (
           <>
             <RollRow
@@ -257,9 +253,13 @@ export function GameSection() {
       <SettingsBlock
         id="video-output"
         title={<Trans>成品生成能力</Trans>}
-        description={<Trans>这里显示本机的成片生成能力，结果来自编码器检查。</Trans>}
+        description={<Trans>检查本机可用的视频编码器。</Trans>}
       >
-        {checks.isPending ? (
+        {checks.isError ? (
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
+            <Trans>无法检查视频编码器，请重试。</Trans>
+          </Alert>
+        ) : checks.isPending ? (
           <Skeleton />
         ) : (
           <>

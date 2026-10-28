@@ -81,6 +81,20 @@ function address(): string {
   return screen.getByTestId('address').textContent ?? '';
 }
 
+it.each([new Error('directory unavailable'), new TypeError('Cannot read properties of undefined')])('offers retry after a failed directory read without claiming there are no players: %s', async (failure) => {
+  const client = stubClient();
+  const listPlayers = vi.fn().mockRejectedValueOnce(failure).mockImplementation(client.listPlayers!);
+  mount('/players', { ...client, listPlayers });
+  const alert = await screen.findByRole('alert');
+  expect(alert.textContent).toContain('无法加载选手目录');
+  expect(alert.textContent).not.toContain('Cannot read properties');
+  expect(screen.queryByText('还没有选手')).toBeNull();
+  expect(screen.queryByText(/共 0 名选手/u)).toBeNull();
+  fireEvent.click(within(alert).getByRole('button', { name: '重试' }));
+  await rowCheckboxes();
+  expect(listPlayers).toHaveBeenCalledTimes(2);
+});
+
 /**
  * The body's checkboxes, once the first page has actually landed. `findByRole`
  * on the table alone would resolve against the loading state — `DataTable`

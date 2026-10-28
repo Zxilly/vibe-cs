@@ -1,36 +1,5 @@
-/*
- * pages/players — 「最近 20 场」 of 「玩家档案与趋势」.
- *
- * The artboard draws a segmented control (K/D · ADR · 爆头率), a caption
- * 「最近 20 场 · 灰线为该指标的个人均值」, and a framed 170px box holding three
- * hairline gridlines, one accent polyline and one dashed neutral rule at the
- * mean, with three axis numbers down the left.
- *
- * ── Why an inline SVG and no chart library ─────────────────────────────────
- *
- * One polyline over at most 20 points is 20 numbers in a `d` attribute — one
- * DOM node, no dependency, no runtime layout pass. `domain/map/MapCanvas`
- * makes the same argument for the map surface at a much larger scale. Bringing
- * a charting package in for this would add a bundle, a theme adapter and a
- * second set of colour decisions for a single path.
- *
- * ── The picture is never the only channel ──────────────────────────────────
- *
- * The reference's rule for the map canvas — 「右侧提供列表式替代视图，不只靠画布
- * 传达信息」 — applies to a line just as much. So the SVG carries a written
- * `aria-label` naming the metric, the window, the range and the mean; the axis
- * prints the observed extremes rather than a round number; and the 按地图 table
- * beneath it holds the same underlying matches in rows. A reader who never sees
- * the line loses nothing but the shape.
- *
- * ── Nothing is invented ────────────────────────────────────────────────────
- *
- * `trendSeries` drops a match with no value for the metric instead of plotting
- * it at zero, and the caption says how many matches the line is actually drawn
- * from. `trendGeometry` anchors the band to the observed extremes, so the axis
- * numbers are measurements — the same rule `heatBinning` states for the heat
- * ladder.
- */
+/* Plot available values from recent matches in chronological order.
+ * Missing values are omitted; the caption states the measured sample size. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -121,7 +90,7 @@ export function PlayerTrend({ matches, metric, onMetricChange, loading = false, 
         <div className="flex-1" aria-hidden="true" />
         {loading || error !== undefined ? null : <span className="text-xs text-neutral-600">
           <Trans>
-            最近 {TREND_WINDOW} 场里有 {points.length} 场有这个指标 · 虚线为个人均值
+            最近 {TREND_WINDOW} 场 · {points.length} 场有数据 · 虚线为均值
           </Trans>
         </span>}
       </div>
@@ -137,9 +106,9 @@ export function PlayerTrend({ matches, metric, onMetricChange, loading = false, 
         </Alert>
       ) : points.length === 0 ? (
         <Empty
-          title={<Trans>还没有可画的趋势</Trans>}
+          title={<Trans>暂无趋势数据</Trans>}
           description={
-            <Trans>这名选手最近的比赛里没有 {metricName(metric)} 的取值，所以这里没有线可画。</Trans>
+            <Trans>最近比赛中没有可用的 {metricName(metric)} 数据。</Trans>
           }
           actions={null}
         />

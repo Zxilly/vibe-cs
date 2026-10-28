@@ -1,47 +1,5 @@
-/*
- * pages/ — 06 选手目录 (spec §7 `/players`, phase 3d).
- *
- * ── The contract §10.3 wrote down ──────────────────────────────────────────
- *
- * 「312 人、选择上限 2 时 20 个复选框禁用 18 个且不出现全选」. All three halves of
- * that sentence are `design/data/DataTable` behaviour, reached by passing one
- * prop — `selectionLimit={PLAYER_COMPARE_LIMIT}`:
- *
- *   · 20 boxes         `PLAYER_PAGE_SIZE`, and the server pages, so the table
- *                      never holds 312 rows in the first place.
- *   · 18 disabled      `tableModel.isSelectionBlocked` disables the unselected
- *                      rows at the cap. Disabled, not hidden — §8.
- *   · no select-all    `DataTable` suppresses the header box whenever a limit
- *                      is present: 「a select-all contradicts a cap」.
- *
- * `players/density.test.tsx` renders the page against 312 rows and counts all
- * three, so the contract is a test rather than a comment.
- *
- * ── Columns the artboard draws and the service does not send ───────────────
- *
- * 「06」 has 首杀, 残局胜率 and 常用地图. `PlayerAggregateStats` carries matches,
- * kills, deaths, assists, headshots, damage, ADR and K/D — and none of those
- * three. They are omitted rather than rendered as zeros or as dashes in a
- * column header nobody can ever fill. The comparison panel uses the same
- * available statistics rather than adding permanent unavailable rows.
- *
- * 爆头率 is not a wire field either, but it *is* derivable — headshots ÷ kills
- * — so it is computed (`playerStats.headshotRate`) and shows the dash only when
- * the denominator is missing.
- *
- * ── Search ─────────────────────────────────────────────────────────────────
- *
- * The box filters as you type, `SEARCH_DEBOUNCE_MS` after the last keystroke,
- * and Enter commits at once. Writes go through `replace`, as the parity plan
- * says for search (「搜索 debounce … 使用 replace」): each keystroke is a
- * refinement of one query, not a place the back button should revisit.
- *
- * The draft is state of its own so typing never waits for the URL, but the
- * URL stays the truth (`playerDirectoryParams`): when `q` changes underneath
- * — the sidebar's 「选手目录」 resets the route, 「清空搜索」 in the empty state —
- * the draft is re-seeded from it, so the box can never show a filter the
- * table is not applying.
- */
+/* The URL owns search, sorting and comparison selection. The server pages
+ * directory rows; selected profiles are fetched independently across pages. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -49,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { usePlayer, usePlayerDirectory } from '../../../data/players';
-import { dataErrorMessage } from '../../../data/errors';
+import { toDataError } from '../../../data/errors';
 import {
   DataTable,
   Empty,
@@ -235,7 +193,7 @@ export function PlayersPage() {
   const comparePlayers = comparisonReads.flatMap(({ query }) => query.data === undefined ? [] : [query.data.player]);
   const pendingPlayers = comparisonReads
     .filter(({ query }) => query.data === undefined)
-    .map(({ id, query }) => ({ id, error: dataErrorMessage(query.error), onRetry: () => void query.refetch() }));
+    .map(({ id, query }) => ({ id, error: toDataError(query.error, t`请重试`)?.message ?? null, onRetry: () => void query.refetch() }));
 
   /*
    * `nextSortState` cycles unsorted → asc → desc → unsorted, and `listPlayers`
@@ -256,7 +214,7 @@ export function PlayersPage() {
     });
   };
 
-  const error = dataErrorMessage(directory.error);
+  const error = toDataError(directory.error, t`请重试`)?.message ?? null;
   const clearCompare = () => commit({ ...state, compare: [] });
   /* Folded, the drawer is the only action surface, so the panel gets 清空选择;
      docked, the `SelectionBar` under the table owns it. */
@@ -337,11 +295,11 @@ export function PlayersPage() {
                 action={{ label: <Trans>重试</Trans>, onAction: () => void directory.refetch() }}
 
               >
-                <Trans>选手目录没能读出来：{error}</Trans>
+                <Trans>无法加载选手目录：{error}</Trans>
               </Alert>
             </div>
           )}
-          <DataTable
+          {error !== null && directory.data === undefined ? null : <DataTable
             caption={<Trans>选手目录</Trans>}
             columns={columns}
             rows={rows}
@@ -399,7 +357,7 @@ export function PlayersPage() {
                 summary={<Trans>共 {total} 名选手</Trans>}
               />
             }
-          />
+          />}
         </div>
         {collapsed ? null : panel}
       </div>

@@ -1,45 +1,11 @@
-/*
- * pages/match/views — Review 与注释 (`?view=review`), artboard 「补齐 · 比赛工作区
- * 子视图 · Review 与结论」.
- *
- * §7 merges the retired `insights` tab into this view: 「自动洞察和 AI 点评都是
- * 结论层，应该并排出现并同样标注证据」. So the panel is two columns — rule-derived
- * insights on the left, the model's prose on the right — under one segmented
- * control that also reaches 我的注释.
- *
- * The rules are in `reviewModel.ts`, with the argument for why the artboard's
- * three example insights are not the three drawn here (two of the three need
- * joins the wire does not have). Every card states the count it was derived
- * from and links to the evidence, which is the artboard's own condition:
- * 「两者都必须标注证据」.
- *
- * ── Writing an annotation ──────────────────────────────────────────────────
- *
- * §10.4 gap 16 recorded that `DesktopClient` carried no evidence writes and
- * that `/evidence` therefore shipped with its annotate buttons disabled. The
- * `Pick` was widened for this phase and `data/match.ts` declares the three
- * mutations, so annotating **works here**.
- *
- * What it still needs is an anchor. `CreateEvidenceAnnotation` requires an
- * `evidence_id`, a `round` and a `tick` — an annotation hangs off one
- * tick-level fact, not off a match — and all three are already in the address
- * (§4.4). So the composer is enabled exactly when the address carries a
- * selection and disabled with that sentence when it does not, rather than
- * inventing a tick to hang the note on.
- *
- * ── Review tone ───────────────────────────────────────────────────────────
- *   语气        the artboard draws 「语气：专业」 as a `Tag`, not a control, so
- *               the request is sent with `tone: 'analytical'` and the tag says
- *               so. `LlmReviewTone` has three members and no artboard picks
- *               between them; a picker here would be a control the design has
- *               not drawn.
- */
+/* Match conclusions, model commentary and evidence annotations. Annotation
+ * writes require the selected evidence ID, round and tick. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
-import { dataErrorMessage } from '../../../../data/errors';
+import { dataErrorMessage, toDataError } from '../../../../data/errors';
 import {
   analysisIsMissing,
   useCreateMatchAnnotation,
@@ -92,6 +58,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
 
   const rows = annotations.data?.items ?? [];
   const tally = annotationTally(rows);
+  const annotationsError = toDataError(annotations.error, t`请重试`)?.message ?? null;
   const generateReview = () => {
     if (id === null) return;
     review.mutate({
@@ -123,7 +90,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
               value: 'annotations',
               label: (
                 <>
-                  <Trans>我的注释</Trans> {tally.total}
+                  <Trans>我的注释</Trans>{annotations.data === undefined ? null : ` ${tally.total}`}
                 </>
               ),
             },
@@ -131,10 +98,12 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
         />
         <div className="flex-1" aria-hidden="true" />
         <Button
-          variant="primary"
+          variant={tab === 'conclusions' ? 'primary' : 'secondary'}
           size="sm"
-          disabled={id === null || review.isPending}
-          {...(id === null ? { disabledReason: t`还没有打开一场比赛` } : {})}
+          disabled={id === null || analysis.data === undefined || review.isPending}
+          {...(id === null
+            ? { disabledReason: t`还没有打开一场比赛` }
+            : analysis.data === undefined ? { disabledReason: t`等待比赛分析加载完成` } : {})}
           onClick={generateReview}
         >
           {review.isPending ? <Trans>正在生成…</Trans> : <Trans>生成 AI 点评</Trans>}
@@ -180,21 +149,22 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
               <Alert
                 variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: generateReview, disabled: review.isPending }}
-                detail={<Trans>没有写入任何东西；自动洞察不受影响。</Trans>}
               >
                 <Trans>生成点评失败：{dataErrorMessage(review.error) ?? t`服务没有给出原因`}</Trans>
               </Alert>
             )}
 
-            {review.data === undefined ? (
+            {review.isPending ? (
+              <p role="status" className="text-sm text-neutral-600"><Trans>正在生成点评…</Trans></p>
+            ) : review.data === undefined && review.error == null ? (
               <p className="text-sm leading-relaxed text-neutral-600">
                 <Trans>
                   还没有点评。连接模型后即可生成。
                 </Trans>
               </p>
-            ) : (
+            ) : review.data === undefined ? null : (
               <>
-                <p className="border border-accent-300 bg-accent-100 p-3 text-sm leading-relaxed">
+                <p className="whitespace-pre-wrap break-words text-base leading-relaxed">
                   {review.data.commentary}
                 </p>
                 <Citations
@@ -209,7 +179,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
                   {review.data.cached ? (
                     <>
                       {' '}
-                      <Trans>这次直接用了同一批证据上次的结果。</Trans>
+                      <Trans>已复用同一批证据的上次点评。</Trans>
                     </>
                   ) : null}
                 </p>
@@ -223,6 +193,8 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
               <AnnotationPreview
                 rows={rows}
                 loading={annotations.isPending}
+                error={annotationsError}
+                onRetry={() => void annotations.refetch()}
                 onOpenAll={() => setTab('annotations')}
               />
             </div>
@@ -234,7 +206,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
           context={context}
           rows={rows}
           loading={annotations.isPending}
-          error={dataErrorMessage(annotations.error)}
+          error={annotationsError}
           onRetry={() => void annotations.refetch()}
         />
       )}
@@ -275,7 +247,6 @@ function InsightCards({
       {opening === null ? null : (
         <InsightCard
           id="opening-kills"
-          current
           title={
             <Trans>
               {opening.leaderName} 拿下了 {opening.roundsWithOpening} 个回合里的 {opening.leaderCount} 次首杀
@@ -346,9 +317,16 @@ function InsightCards({
         />
       )}
 
-      {gaps.map((gap) => (
-        <UnavailableCard key={gap.id} gap={gap} />
-      ))}
+      {gaps.length === 0 ? null : (
+        <details className="border-t border-divider pt-3">
+          <summary className="cursor-pointer text-sm text-neutral-600">
+            <Trans>不可用的统计（{gaps.length}）</Trans>
+          </summary>
+          <div className="mt-2 divide-y divide-divider">
+            {gaps.map((gap) => <UnavailableCard key={gap.id} gap={gap} />)}
+          </div>
+        </details>
+      )}
     </>
   );
 }
@@ -358,26 +336,19 @@ function InsightCard({
   title,
   detail,
   action,
-  current = false,
 }: {
   readonly id: string;
   readonly title: ReactNode;
   readonly detail: ReactNode;
   readonly action: ReactNode;
-  readonly current?: boolean | undefined;
 }) {
   return (
     <article
       data-insight={id}
-      aria-current={current ? true : undefined}
-      className={
-        current
-          ? 'border border-accent-300 bg-accent-100 px-3.5 py-3'
-          : 'border border-divider px-3.5 py-3'
-      }
+      className="border-b border-divider pb-3"
     >
       <h4 className="mb-1 text-sm leading-normal">{title}</h4>
-      <p className="text-xs leading-relaxed text-neutral-700">{detail}</p>
+      <p className="text-sm leading-relaxed text-neutral-600">{detail}</p>
       <div className="mt-1.5">{action}</div>
     </article>
   );
@@ -393,14 +364,14 @@ function UnavailableCard({ gap }: { readonly gap: CapabilityGap }) {
   return (
     <article
       data-insight-gap={gap.id}
-      className="border border-dashed border-neutral-400 px-3.5 py-3 text-xs leading-relaxed text-neutral-600"
+      className="py-2 text-sm leading-relaxed text-neutral-600"
     >
       <p>
         <CapabilityName gap={gap} />
       </p>
       {gap.reason === null ? (
         <p>
-          <Trans>服务没有说明原因；这一项不用推算值填空。</Trans>
+          <Trans>分析结果未提供原因。</Trans>
         </p>
       ) : (
         <p>{gap.reason}</p>
@@ -452,7 +423,7 @@ function Citations({
   return (
     <div className="text-xs leading-relaxed text-neutral-700">
       <p>
-        <Trans>引用了 {citations.length} 条证据，全部属于发送给模型的集合：</Trans>
+        <Trans>引用了 {citations.length} 条证据：</Trans>
       </p>
       <ul data-review-citations="" className="mt-1 flex list-none flex-wrap gap-x-3 gap-y-1">
         {citations.map((citation) => (
@@ -518,17 +489,27 @@ function CitationLink({
 function AnnotationPreview({
   rows,
   loading,
+  error,
+  onRetry,
   onOpenAll,
 }: {
   readonly rows: readonly EvidenceAnnotation[];
   readonly loading: boolean;
+  readonly error: string | null;
+  readonly onRetry: () => void;
   readonly onOpenAll: () => void;
 }) {
+  if (error !== null) {
+    return <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+      <Trans>无法加载注释：{error}</Trans>
+    </Alert>;
+  }
   if (loading) {
     return (
-      <div className="flex flex-col gap-2">
+      <div role="status" aria-busy="true" className="flex flex-col gap-2">
         <Skeleton width="86%" />
         <Skeleton width="70%" />
+        <span className="sr-only"><Trans>正在读取注释</Trans></span>
       </div>
     );
   }
@@ -544,8 +525,8 @@ function AnnotationPreview({
     <div className="flex flex-col gap-2">
       <ul className="flex list-none flex-col gap-2">
         {rows.slice(0, 3).map((row) => (
-          <li key={row.id} className="border border-divider px-3 py-2 text-sm">
-            <span className="mr-2">{row.body}</span>
+          <li key={row.id} className="flex items-start gap-2 border-b border-divider py-2 text-sm">
+            <span className="min-w-0 flex-1 break-words">{row.body}</span>
             <StateTag state={row.review_state} />
           </li>
         ))}
@@ -757,6 +738,7 @@ function ReviewInspector({
   const analysis = useMatchAnalysis(id);
   const annotations = useMatchAnnotations(id);
   const tally = annotationTally(annotations.data?.items);
+  const annotationsError = toDataError(annotations.error, t`请重试`)?.message ?? null;
   const opening = useMemo(() => openingKillInsight(analysis.data), [analysis.data]);
   const showDefaultInsight =
     opening !== null
@@ -771,7 +753,9 @@ function ReviewInspector({
       summary={
         showDefaultInsight
           ? <Trans>{opening.leaderName} · {opening.leaderCount} 次首杀</Trans>
-          : <Trans>注释 {tally.total} 条</Trans>
+          : annotationsError !== null ? <Trans>注释加载失败</Trans>
+            : annotations.data === undefined ? <Trans>正在读取注释</Trans>
+              : <Trans>注释 {tally.total} 条</Trans>
       }
       addToVideo={addToVideo}
       selection={{
@@ -810,13 +794,19 @@ function ReviewInspector({
         ) : (
           <p className="text-neutral-700">
             {context.evidence === null ? (
-              <Trans>先从地址中选择一条证据，再新建注释。</Trans>
+              <Trans>在回放或回合视图中选择事件，再到「我的注释」添加注释。</Trans>
             ) : (
-              <Trans>当前锚点是一条证据，可以在「我的注释」里为它写注释。</Trans>
+              <Trans>已选中事件，可在「我的注释」中添加注释。</Trans>
             )}
           </p>
         )}
-        <dl className="flex flex-col gap-2">
+        {annotationsError !== null ? (
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void annotations.refetch() }}>
+            <Trans>无法加载注释：{annotationsError}</Trans>
+          </Alert>
+        ) : annotations.data === undefined ? (
+          <p role="status" className="text-neutral-600"><Trans>正在读取注释</Trans></p>
+        ) : <dl className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <dt className="text-neutral-700">
               <Trans>待处理</Trans>
@@ -829,7 +819,7 @@ function ReviewInspector({
             </dt>
             <dd className="font-mono">{tally.resolved}</dd>
           </div>
-        </dl>
+        </dl>}
       </div>
     </MatchInspectorPanel>
   );
@@ -853,7 +843,7 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
 }
 
 function Heading({ children }: { readonly children: ReactNode }) {
-  return <h3 className="font-heading text-xs tracking-caps text-neutral-600">{children}</h3>;
+  return <h3 className="text-sm font-medium">{children}</h3>;
 }
 
 export const ReviewView: MatchViewModule = {

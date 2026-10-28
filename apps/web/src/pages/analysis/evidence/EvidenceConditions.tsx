@@ -1,29 +1,5 @@
-/*
- * pages/evidence — the condition strip of 「05 证据检索」.
- *
- * The artboard draws it as two rows on the `--color-surface` plane under the
- * top bar:
- *
- *   row 1  a segmented control, a wide search box with a magnifier, 「检索」
- *   row 2  「条件」 then the active conditions as accent chips, the ones you can
- *          still add as outline 「＋ …」 chips, and — flush right —
- *          「命中 47 条 · 排序：时间倒序」
- *
- * Two decisions worth stating.
- *
- * **The chips are the form.** There is no filter drawer and no second dialog:
- * clicking 「＋ 地图」 turns that chip into a small field, typing and pressing
- * Enter turns it back into an accent chip, and clicking an accent chip removes
- * it. Every one of those commits to the URL (§4.4), so the chip row and the
- * address bar are the same state seen twice.
- *
- * **A condition the index cannot serve is disabled, not hidden.** The response's
- * `availability` block says which filters this index can apply
- * (`data/evidence.ts`, `unsupportedEvidenceFilters`); when 「近 30 天」 is one of
- * the unusable ones the chip stays on the strip, disabled, with the service's
- * own reason attached — the shell's degradation rule (「不隐藏、不静默失败」)
- * applies to a filter as much as to a button.
- */
+/* Submitted filters live in the URL. Text drafts stay local until confirmed,
+ * and unavailable filters retain the service-provided reason. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -232,7 +208,7 @@ export function EvidenceConditions({
             />
           </InputGroup>
         </div>
-        <Button type="submit" variant="primary">
+        <Button type="submit" variant="secondary">
           <Trans>检索</Trans>
         </Button>
       </form>
@@ -348,7 +324,7 @@ export function EvidenceConditions({
         <div className="flex-1" aria-hidden="true" />
 
         {summary === undefined ? null : (
-          <span data-evidence-summary="" className="flex-none whitespace-nowrap text-sm text-neutral-700">
+          <span data-evidence-summary="" className="min-w-0 text-sm text-neutral-700">
             {summary}
           </span>
         )}

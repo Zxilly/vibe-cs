@@ -1,54 +1,11 @@
-/*
- * pages/players — 「Mirage 击杀热图」 of 「玩家档案与趋势」 / 「06 玩家目录」.
- *
- * ── §10.3 gap 7: the aggregation is still server-side missing ──────────────
- *
- * The gap says 「热力图需要服务端聚合。上万个点不能从前端顶起来」. It is still
- * true in the sense that meant: `GET /players/:id/heatmap` returns raw
- * `PlayerHeatmapPoint`s, not bins. What makes it survivable — and what this
- * panel relies on — is the ceiling the route already applies:
- *
- *     crates/application/src/routes/players.rs:353   maximum_points: 5_000
- *
- * So the front end never receives 「上万个点」; it receives at most 5 000, plus a
- * `complete` flag saying whether that ceiling cut the sample. The arithmetic
- * that follows:
- *
- *     5 000 points  ── binWorldSamples, one linear pass ──▶  ≤ 48² = 2 304 cells
- *     and in practice a few hundred, because a map's playable area is a
- *     fraction of its bounding square (`heatBinning`'s own note)
- *
- * One O(n) pass over 5 000 records per map change is not a frame budget
- * problem; 5 000 DOM nodes would have been, which is exactly why `HeatLayer`
- * takes a `HeatDistribution` and not a point list. `players/density.test.tsx`
- * pins the node count at the ceiling.
- *
- * **This is a mitigation, not a fix.** With server-side binning the response
- * would be a few hundred rows instead of 5 000 and the truncation notice below
- * would not have to exist. The gap stays open and is re-reported.
- *
- * ── §10.3 gap 8: no basemap ────────────────────────────────────────────────
- *
- * 「底图图片没有交付路径」 — the Tauri CSP is `default-src 'self'` and there is no
- * `vibe-cs-media:` route for radar artwork. So `basemap` is deliberately not
- * passed, and `MapCanvas` draws its blueprint grid instead: a stand-in that
- * 「cannot be mistaken for a map」, in its own words. No image asset is
- * introduced by this phase.
- *
- * ── Truncation is stated, never hidden ─────────────────────────────────────
- *
- * When `complete` is false the panel says which sample it is drawn from
- * (「取样 5 000 / 12 480」). §10.3's density rule is that a silent truncation is
- * a bug; that applies to a picture as much as to a table. A complete sample
- * gets no footnote of its own: the legend caption already carries the count.
- */
+/* Player position samples are binned before rendering. MapCanvas owns the
+ * loading, unavailable-map and request-failure states. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { heatmapTruncation } from '../../../data/players';
-import { Alert } from '../../../design/feedback';
 import { Seg, type SegOption } from '../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
@@ -130,9 +87,9 @@ export function PlayerHeatmapPanel({
        and the kind switch, which is what a 1100 × 700 window used to show. */
     <section className="flex flex-none flex-col gap-3" data-player-heatmap={mapName}>
       <div className="flex flex-none flex-wrap items-center gap-2.5">
-        <span className="font-heading text-xs tracking-caps text-neutral-600">
+        <h3 className="text-sm font-medium">
           <Trans>{mapName === '' ? '—' : mapName} 热图</Trans>
-        </span>
+        </h3>
         <div className="flex-1" aria-hidden="true" />
         <Seg
           name="player-heatmap-kind"
@@ -143,15 +100,15 @@ export function PlayerHeatmapPanel({
         />
       </div>
 
-      {error === undefined ? null : (
-        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}>
-          <Trans>热图没能读出来：{error.message}</Trans>
-        </Alert>
-      )}
-
       <MapCanvas
         mapName={mapName}
         label={t`${playerName} 在 ${mapName} 的位置热图`}
+        {...(error === undefined ? {} : {
+          error: {
+            message: <Trans>无法加载热图：{error.message}</Trans>,
+            action: { label: <Trans>重试</Trans>, onAction: error.onRetry },
+          },
+        })}
         status={loading ? 'loading' : distribution === null || distribution.bins.length === 0 ? 'empty' : 'ready'}
         emptyDescription={
           <Trans>还没有位置数据，请先分析该选手在这张地图上的比赛。</Trans>
@@ -175,7 +132,7 @@ export function PlayerHeatmapPanel({
         }
       </MapCanvas>
 
-      {distribution === null || distribution.bins.length === 0 ? null : (
+      {error !== undefined || distribution === null || distribution.bins.length === 0 ? null : (
         <HeatLegend
           distribution={distribution}
           caption={

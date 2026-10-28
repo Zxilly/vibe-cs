@@ -1,63 +1,5 @@
-/*
- * pages/match/views — 高光 (`?view=highlights`), artboard 「补齐 · 比赛工作区子视图 ·
- * 高光列表」.
- *
- * §7 merges the retired `clutches` tab into this view: 「残局是一种高光标签，和
- * 多杀、穿墙同级」. So 残局 is one option of the type filter and not a sub-view,
- * which is exactly what `domain/match/matchEnums`'s `HighlightKind` already
- * encodes.
- *
- * The artboard's table is 「checkbox / 回合 / 类型 / 选手 / 说明 / tick 区间 /
- * 加入视频」 — column for column what `domain/match/HighlightRow` draws at its
- * default density, which is the density that component exists for. The rows are
- * therefore `HighlightRow`s and not a page-local `<table>`: the same row appears
- * in the player profile and in the Agent's citation list, and three spellings of
- * one row is the drift `domain/` was created to stop.
- *
- * ── The batch action, and where it can go ──────────────────────────────────
- *
- * The strip under the list is `design/layout/SelectionBar` with the artboard's
- * two actions:
- *
- *   加入录制队列        disabled, with the workspace's one reason. The queue is
- *                       not server state (`data/match.ts` gap 2) and the shell
- *                       hands every view the same `addToVideo` so the nine of
- *                       them say one sentence.
- *   用 Agent 制作视频   **creates a plan from the selection and opens it.**
- *
- * ── The selection now travels, and how ────────────────────────────────────
- *
- * This note used to say the opposite: §7 fixes `/agent`'s query as
- * `plan / session / mode`, there is no parameter for a set of highlights, and a
- * fourth one would put the route table and the implementation out of step. All
- * of that is still true — what changed is that the selection no longer needs a
- * parameter. §10.6 settled the shape (the sender creates the object and
- * navigates to it) and phase 3f-be supplied the payload: `AgentPlanShot`
- * carries `recording` with `demo_id` / `player_id` / `highlight_id`, so N
- * selected highlights become N **bound** shots of a real plan.
- *
- * `useAgentVideoHandoff` owns both steps. What this view owns is the mapping
- * from its rows to `HighlightHandoffSource`. `HighlightCandidate` retains the
- * stable player id as well as the display name so the ordinary 「加入作品」
- * path can produce the same recordable Capture Intent; `demo_id` remains owned
- * by the enclosing match workspace.
- *
- * A selection that cannot be bound — no Demo, a player the analysis identifies
- * some way other than a SteamID64, a zero-length window — **disables the action
- * and says which**, rather than creating a plan the recording page could only
- * refuse.
- *
- * ── One selection, two halves ─────────────────────────────────────────────
- *
- * The checked rows are not an address, so they live in React state — but the
- * Inspector is a sibling of the list, rendered by the shell, and an Inspector
- * that keeps offering 「把这条高光加入作品」 for one row while the strip under
- * the list offers 「加入作品」 for two is two primary actions with two scopes on
- * one screen. So the set is held in `HighlightBatch`, which the module's
- * `Provider` scopes around both halves: while rows are checked the Inspector
- * describes *that* set and carries the one primary action for it, and the
- * strip's own button steps down to a secondary.
- */
+/* Browse and preview detected highlights, then collect selected clips
+ * through the shared project action. */
 
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
@@ -278,7 +220,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
           ]}
         />
         <div className="flex-1" aria-hidden="true" />
-        <p data-highlights-keys="" className="flex items-center gap-1.5 text-xs text-neutral-600">
+          <p data-highlights-keys="" className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
           <Kbd>↑</Kbd><Kbd>↓</Kbd> <Trans>切换</Trans>
           <Kbd><Trans>空格</Trans></Kbd> <Trans>预览</Trans>
           <Kbd>A</Kbd> <Trans>加入</Trans>

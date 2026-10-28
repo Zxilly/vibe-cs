@@ -98,7 +98,7 @@ describe('自动洞察', () => {
     expect(html).toContain('这批 Demo 没有购买事件，经济曲线画不出来。');
     // A refusal without a sentence still says it is a refusal.
     expect(html).toContain('data-insight-gap="purchase_spend"');
-    expect(html).toContain('服务没有说明原因；这一项不用推算值填空。');
+    expect(html).toContain('分析结果未提供原因。');
   });
 
   it('draws no card at all when every capability is off', () => {
@@ -133,7 +133,7 @@ describe('AI 点评', () => {
     expect(html).toContain('data-citation="unknown"');
     expect(html).toContain('unknown-evidence');
     expect(html).toContain('gpt-test');
-    expect(html).toContain('这次直接用了同一批证据上次的结果');
+    expect(html).toContain('已复用同一批证据的上次点评');
   });
 
   it('renders a failed generation in place, with a way out', () => {
@@ -141,7 +141,7 @@ describe('AI 点评', () => {
     const html = markupView(<ReviewView.Body {...viewProps()} />);
     expect(html).toContain('生成点评失败');
     expect(html).toContain('没有配置模型');
-    expect(html).toContain('自动洞察不受影响');
+    expect(html).not.toContain('还没有点评');
   });
 
   it('does not present an unimplemented HTML export action', () => {
@@ -175,7 +175,7 @@ describe('the Inspector', () => {
     const html = markupView(
       <Inspector {...viewProps({ context: { evidence: 'e-kill-sable', round: 21, tick: 149_128 } })} />,
     );
-    expect(html).toContain('当前锚点是一条证据');
+    expect(html).toContain('已选中事件');
   });
 });
 

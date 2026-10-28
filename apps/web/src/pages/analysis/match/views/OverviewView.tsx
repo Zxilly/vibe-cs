@@ -166,7 +166,6 @@ export function OverviewPanels({
       <ViewPanel
         id="summary"
         title={<Trans>本场结果</Trans>}
-        hint={<Trans>都由这次分析的回合与事件推出</Trans>}
       >
         <MetricStrip metrics={metrics} />
       </ViewPanel>
@@ -201,7 +200,7 @@ export function OverviewPanels({
       >
         {preview.length === 0 ? (
           <p className="px-3.5 py-3 text-sm text-neutral-700">
-            <Trans>这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。</Trans>
+            <Trans>未检出高光，可选择回合查看事件。</Trans>
           </p>
         ) : (
           <ul

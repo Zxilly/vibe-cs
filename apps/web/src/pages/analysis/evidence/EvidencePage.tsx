@@ -1,44 +1,5 @@
-/*
- * pages/ — 05 证据检索 (spec §7 `/evidence?view=evidence|annotations`, phase 3d).
- *
- * Replaces the pre-redesign `/evidence-search`; the old address redirects here.
- *
- * ── What this file does and does not do ────────────────────────────────────
- *
- * The page fetches and arranges; the pieces render. Reads go through
- * `data/evidence.ts` (§2.1 rule 6), the annotation writes through
- * `data/match.ts`, the result rows are `domain/match`'s `EvidenceRow`, and the
- * sub-components under `pages/evidence/` hold the layout. The only judgement
- * that lives *here* is where each thing goes and what the failure of each read
- * or write means.
- *
- * ── The URL is the search form (§4.4) ──────────────────────────────────────
- *
- * No filter is held in React state. `evidenceSearchParams.ts` reads the address
- * bar into an `EvidenceSearchState` and writes it back, so back / forward walk
- * the search history and a pasted link reproduces a result set exactly. The one
- * exception is the not-yet-submitted text in the search box, which lives inside
- * `EvidenceConditions` and has no meaning until 「检索」 is pressed.
- *
- * ── Two faces, two Inspectors ──────────────────────────────────────────────
- *
- * The 证据 face lists search hits and its Inspector describes the current hit;
- * the 注释 face lists every note across every match and its Inspector
- * describes the current note. Each face has its own selection field in the
- * URL (`evidence`, `annotation`), and each falls back to its first row so the
- * panel never sits empty beside a full list — the fallback writes nothing.
- *
- * ── §8 collapse ────────────────────────────────────────────────────────────
- *
- * `Inspector` already folds itself into a 46px strip plus a drawer below
- * 1100px, but the *page* still has to put it in a different place: docked it is
- * a column beside the results, folded it is a strip under them. `useCollapsed`
- * (`design/layout`) is the same observation the Inspector makes, so the two
- * cannot disagree, and no media query is written here.
- *
- * A failed read renders with a recovery action. The Inspector occupies space
- * only when there is a result or annotation to describe.
- */
+/* Evidence and annotations share URL filters and selection. Reads and writes
+ * use data modules; the Inspector follows the active view and visible result. */
 
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
@@ -286,7 +247,7 @@ export function EvidencePage() {
           <SelectionBar
             summary={<Trans>已选 1 条证据</Trans>}
             primary={
-              <Button variant="primary" size="sm" onClick={() => activeRow === null ? undefined : collect(collectedClip(activeRow))}>
+              <Button variant="secondary" size="sm" onClick={() => collect(collectedClip(activeRow))}>
                 <Trans>加入作品</Trans>
               </Button>
             }

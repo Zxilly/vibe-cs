@@ -90,13 +90,13 @@ describe('independent profile reads', () => {
     expect(screen.getByText('正在读取比赛趋势')).toBeTruthy();
     expect(screen.getByText('正在读取最近比赛')).toBeTruthy();
     expect(screen.queryByText('还没有比赛')).toBeNull();
-    expect(screen.queryByText('还没有可画的趋势')).toBeNull();
-    expect(screen.queryByText(/最近 20 场里有 0 场/u)).toBeNull();
+    expect(screen.queryByText('暂无趋势数据')).toBeNull();
+    expect(screen.queryByText(/最近 20 场 · 0 场/u)).toBeNull();
   });
 
-  it('reports a failed map read and retries it without losing the profile', async () => {
+  it.each([new Error('map statistics unavailable'), new TypeError('Cannot read properties of undefined')])('reports a failed map read and retries it without losing the profile: %s', async (failure) => {
     const client = stubClient(null);
-    const listPlayerMaps = vi.fn().mockRejectedValueOnce(new Error('map statistics unavailable')).mockImplementation(client.listPlayerMaps!);
+    const listPlayerMaps = vi.fn().mockRejectedValueOnce(failure).mockImplementation(client.listPlayerMaps!);
     mount({ ...client, listPlayerMaps });
     const error = await screen.findByRole('alert');
     expect(error.textContent).toContain('地图统计没能读出来');

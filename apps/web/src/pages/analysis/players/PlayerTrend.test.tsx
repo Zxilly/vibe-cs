@@ -37,11 +37,11 @@ describe('with matches', () => {
   });
 
   it('says how many of the window actually had the metric', () => {
-    expect(html).toContain('最近 20 场里有 6 场有这个指标');
+    expect(html).toContain('最近 20 场 · 6 场有数据');
   });
 
   it('names the one dashed line, not 「the grey line」 among three grey gridlines', () => {
-    expect(html).toContain('虚线为个人均值');
+    expect(html).toContain('虚线为均值');
     expect(html).not.toContain('灰线');
   });
 
@@ -73,7 +73,7 @@ describe('with no usable matches', () => {
         onMetricChange={noop}
       />,
     );
-    expect(html).toContain('还没有可画的趋势');
+    expect(html).toContain('暂无趋势数据');
     expect(html).not.toContain('data-trend-path');
   });
 
@@ -85,7 +85,7 @@ describe('with no usable matches', () => {
         onMetricChange={noop}
       />,
     );
-    expect(html).toContain('没有 爆头率 的取值');
+    expect(html).toContain('没有可用的 爆头率 数据');
   });
 });
 

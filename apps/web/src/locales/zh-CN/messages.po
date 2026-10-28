@@ -141,7 +141,7 @@ msgstr "{0} · {1} · 第 {2} 回合"
 #. placeholder {0}: player.last_team ?? NO_VALUE
 #. placeholder {1}: player.stats.matches
 #. placeholder {2}: player.aliases_total
-#: src/pages/analysis/players/PlayerProfilePage.tsx:146
+#: src/pages/analysis/players/PlayerProfilePage.tsx:96
 msgid "{0} · {1} 场 · 别名 {2} 个"
 msgstr "{0} · {1} 场 · 别名 {2} 个"
 
@@ -153,7 +153,7 @@ msgstr "{0} · {1} 杀"
 
 #. placeholder {0}: opening.leaderName
 #. placeholder {1}: opening.leaderCount
-#: src/pages/analysis/match/views/ReviewView.tsx:773
+#: src/pages/analysis/match/views/ReviewView.tsx:755
 msgid "{0} · {1} 次首杀"
 msgstr "{0} · {1} 次首杀"
 
@@ -252,7 +252,7 @@ msgstr "{0} 场"
 
 #. placeholder {0}: availability.indexed_demos
 #. placeholder {1}: availability.indexed_items
-#: src/pages/analysis/evidence/EvidencePage.tsx:244
+#: src/pages/analysis/evidence/EvidencePage.tsx:205
 msgid "{0} 场比赛 · {1} 条证据"
 msgstr "{0} 场比赛 · {1} 条证据"
 
@@ -260,7 +260,7 @@ msgstr "{0} 场比赛 · {1} 条证据"
 #. placeholder {1}: matchup.opponentName
 #. placeholder {2}: matchup.kills
 #. placeholder {3}: matchup.deaths
-#: src/pages/analysis/match/views/ReviewView.tsx:303
+#: src/pages/analysis/match/views/ReviewView.tsx:274
 msgid "{0} 对位 {1} 打出 {2} 比 {3}"
 msgstr "{0} 对位 {1} 打出 {2} 比 {3}"
 
@@ -282,8 +282,8 @@ msgstr "{0} 所选片段出点预览"
 #. placeholder {0}: opening.leaderName
 #. placeholder {1}: opening.roundsWithOpening
 #. placeholder {2}: opening.leaderCount
-#: src/pages/analysis/match/views/ReviewView.tsx:280
-#: src/pages/analysis/match/views/ReviewView.tsx:788
+#: src/pages/analysis/match/views/ReviewView.tsx:251
+#: src/pages/analysis/match/views/ReviewView.tsx:772
 msgid "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 msgstr "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 
@@ -320,7 +320,7 @@ msgid "{0} 段素材需检查"
 msgstr "{0} 段素材需检查"
 
 #. placeholder {0}: mapName === '' ? '—' : mapName
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:134
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:91
 msgid "{0} 热图"
 msgstr "{0} 热图"
 
@@ -336,7 +336,7 @@ msgstr "{0} 的移动路线"
 
 #. placeholder {0}: utility.playerName
 #. placeholder {1}: utility.damage
-#: src/pages/analysis/match/views/ReviewView.tsx:324
+#: src/pages/analysis/match/views/ReviewView.tsx:295
 msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "{0} 的道具打出 {1} 点伤害"
 
@@ -367,7 +367,7 @@ msgstr "{0} 胜"
 #. placeholder {2}: printValue(metric, geometry.minimum)
 #. placeholder {3}: printValue(metric, geometry.maximum)
 #. placeholder {4}: printValue(metric, average)
-#: src/pages/analysis/players/PlayerTrend.tsx:153
+#: src/pages/analysis/players/PlayerTrend.tsx:122
 msgid "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 msgstr "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 
@@ -462,7 +462,7 @@ msgstr "{minutes} 分 {rest} 秒"
 msgid "{minWeight} 次"
 msgstr "{minWeight} 次"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:154
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:105
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "{playerName} 在 {mapName} 的位置热图"
 
@@ -491,7 +491,7 @@ msgid "{score} 回合"
 msgstr "{score} 回合"
 
 #: src/domain/match/HighlightRow.tsx:167
-#: src/pages/analysis/match/views/HighlightsView.tsx:485
+#: src/pages/analysis/match/views/HighlightsView.tsx:427
 msgid "{seconds} 秒"
 msgstr "{seconds} 秒"
 
@@ -511,7 +511,7 @@ msgstr "{side} 购买"
 msgid "{stamp} 的画面"
 msgstr "{stamp} 的画面"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:182
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:139
 msgid "{subject}"
 msgstr "{subject}"
 
@@ -553,7 +553,7 @@ msgid "{total} 个成品文件 · {available} 可用"
 msgstr "{total} 个成品文件 · {available} 可用"
 
 #. placeholder {0}: directory.data.coverage.projected_demos
-#: src/pages/analysis/players/PlayersPage.tsx:282
+#: src/pages/analysis/players/PlayersPage.tsx:240
 msgid "{total} 名选手 · 来自 {0} 场已分析比赛"
 msgstr "{total} 名选手 · 来自 {0} 场已分析比赛"
 
@@ -662,9 +662,9 @@ msgstr "A"
 #: src/pages/analysis/players/PlayerComparePanel.tsx:227
 #: src/pages/analysis/players/PlayerMapTable.tsx:56
 #: src/pages/analysis/players/PlayerMapTable.tsx:57
-#: src/pages/analysis/players/PlayersPage.tsx:132
-#: src/pages/analysis/players/PlayersPage.tsx:133
-#: src/pages/analysis/players/PlayerTrend.tsx:67
+#: src/pages/analysis/players/PlayersPage.tsx:90
+#: src/pages/analysis/players/PlayersPage.tsx:91
+#: src/pages/analysis/players/PlayerTrend.tsx:36
 msgid "ADR"
 msgstr "ADR"
 
@@ -740,8 +740,8 @@ msgid "AI 与 Agent"
 msgstr "AI 与 Agent"
 
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:177
-#: src/pages/analysis/match/views/ReviewView.tsx:167
-#: src/pages/analysis/match/views/ReviewView.tsx:172
+#: src/pages/analysis/match/views/ReviewView.tsx:136
+#: src/pages/analysis/match/views/ReviewView.tsx:141
 msgid "AI 点评"
 msgstr "AI 点评"
 
@@ -852,9 +852,9 @@ msgstr "K 暂停时间轴"
 #: src/pages/analysis/players/PlayerComparePanel.tsx:226
 #: src/pages/analysis/players/PlayerMapTable.tsx:49
 #: src/pages/analysis/players/PlayerMapTable.tsx:50
-#: src/pages/analysis/players/PlayersPage.tsx:124
-#: src/pages/analysis/players/PlayersPage.tsx:125
-#: src/pages/analysis/players/PlayerTrend.tsx:65
+#: src/pages/analysis/players/PlayersPage.tsx:82
+#: src/pages/analysis/players/PlayersPage.tsx:83
+#: src/pages/analysis/players/PlayerTrend.tsx:34
 msgid "K/D"
 msgstr "K/D"
 
@@ -876,19 +876,19 @@ msgstr "R{0}"
 #. placeholder {0}: citation.round
 #. placeholder {1}: citation.actor
 #. placeholder {1}: citation.label
-#: src/pages/analysis/match/views/ReviewView.tsx:487
-#: src/pages/analysis/match/views/ReviewView.tsx:493
+#: src/pages/analysis/match/views/ReviewView.tsx:458
+#: src/pages/analysis/match/views/ReviewView.tsx:464
 msgid "R{0} · {1}"
 msgstr "R{0} · {1}"
 
 #. placeholder {0}: citation.round
 #. placeholder {1}: citation.actor
 #. placeholder {2}: citation.target
-#: src/pages/analysis/match/views/ReviewView.tsx:497
+#: src/pages/analysis/match/views/ReviewView.tsx:468
 msgid "R{0} · {1} → {2}"
 msgstr "R{0} · {1} → {2}"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:117
+#: src/pages/analysis/match/views/ReviewView.tsx:84
 msgid "Review 分区"
 msgstr "Review 分区"
 
@@ -1167,6 +1167,11 @@ msgstr "不再显示"
 msgid "不可用"
 msgstr "不可用"
 
+#. placeholder {0}: gaps.length
+#: src/pages/analysis/match/views/ReviewView.tsx:323
+msgid "不可用的统计（{0}）"
+msgstr "不可用的统计（{0}）"
+
 #: src/pages/shared/library/AddWatchDirectoryDialog.tsx:106
 msgid "不接受符号链接根目录"
 msgstr "不接受符号链接根目录"
@@ -1177,13 +1182,13 @@ msgstr "不支持的二进制回放格式"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/conditionSummary.tsx:36
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:118
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:94
 msgid "不早于 {0}"
 msgstr "不早于 {0}"
 
 #. placeholder {0}: condition.value
 #: src/pages/analysis/evidence/conditionSummary.tsx:38
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:120
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:96
 msgid "不晚于 {0}"
 msgstr "不晚于 {0}"
 
@@ -1298,8 +1303,8 @@ msgid "人数"
 msgstr "人数"
 
 #: src/pages/analysis/evidence/conditionSummary.tsx:34
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:116
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:323
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:92
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:299
 msgid "仅爆头"
 msgstr "仅爆头"
 
@@ -1439,7 +1444,7 @@ msgid "位置 Y"
 msgstr "位置 Y"
 
 #. placeholder {0}: printValue(metric, points.length === 0 ? null : geometry.minimum)
-#: src/pages/analysis/players/PlayerTrend.tsx:207
+#: src/pages/analysis/players/PlayerTrend.tsx:176
 msgid "低 {0}"
 msgstr "低 {0}"
 
@@ -1543,7 +1548,7 @@ msgstr "使用引导"
 msgid "使用提供方默认值"
 msgstr "使用提供方默认值"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:628
+#: src/pages/analysis/match/views/ReviewView.tsx:609
 msgid "例如：R21 的穿墙点可做教学"
 msgstr "例如：R21 的穿墙点可做教学"
 
@@ -1750,10 +1755,6 @@ msgstr "元数据已导出"
 msgid "元数据没能导出"
 msgstr "元数据没能导出"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:813
-msgid "先从地址中选择一条证据，再新建注释。"
-msgstr "先从地址中选择一条证据，再新建注释。"
-
 #: src/domain/editing/ProjectAgentPanel.tsx:316
 msgid "先写下要调整什么"
 msgstr "先写下要调整什么"
@@ -1762,7 +1763,7 @@ msgstr "先写下要调整什么"
 msgid "先在回放中设置不同的入点和出点"
 msgstr "先在回放中设置不同的入点和出点"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:638
+#: src/pages/analysis/match/views/ReviewView.tsx:619
 msgid "先在回放或回合中选择一个事件"
 msgstr "先在回放或回合中选择一个事件"
 
@@ -1778,7 +1779,7 @@ msgstr "先选一个回合"
 msgid "先选中要删除的片段"
 msgstr "先选中要删除的片段"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:646
+#: src/pages/analysis/match/views/ReviewView.tsx:627
 msgid "先选择一个事件，再添加注释。"
 msgstr "先选择一个事件，再添加注释。"
 
@@ -1835,10 +1836,10 @@ msgstr "全起"
 msgid "全选本页"
 msgstr "全选本页"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:49
-#: src/pages/analysis/match/views/HighlightsView.tsx:269
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:25
+#: src/pages/analysis/match/views/HighlightsView.tsx:211
 #: src/pages/analysis/match/views/ReplayView.tsx:399
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:70
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:27
 #: src/pages/editing/delivery/OutputsView.tsx:62
 #: src/pages/shared/library/LibraryFilters.tsx:156
 #: src/pages/shared/library/LibraryFilters.tsx:265
@@ -1903,17 +1904,17 @@ msgid "共 {0} 条"
 msgstr "共 {0} 条"
 
 #. placeholder {0}: highlights.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:442
+#: src/pages/analysis/match/views/HighlightsView.tsx:384
 msgid "共 {0} 条高光"
 msgstr "共 {0} 条高光"
 
 #. placeholder {0}: highlights.length
 #. placeholder {1}: visible.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:353
+#: src/pages/analysis/match/views/HighlightsView.tsx:295
 msgid "共 {0} 条高光，当前筛出 {1} 条"
 msgstr "共 {0} 条高光，当前筛出 {1} 条"
 
-#: src/pages/analysis/players/PlayersPage.tsx:399
+#: src/pages/analysis/players/PlayersPage.tsx:357
 msgid "共 {total} 名选手"
 msgstr "共 {total} 名选手"
 
@@ -1932,12 +1933,12 @@ msgstr "共 {total} 条注释"
 
 #. placeholder {0}: utility.throws
 #. placeholder {1}: utility.playersFlashed
-#: src/pages/analysis/match/views/ReviewView.tsx:332
+#: src/pages/analysis/match/views/ReviewView.tsx:303
 msgid "共投出 {0} 个道具，闪到 {1} 人次。"
 msgstr "共投出 {0} 个道具，闪到 {1} 人次。"
 
 #. placeholder {0}: utility.throws
-#: src/pages/analysis/match/views/ReviewView.tsx:330
+#: src/pages/analysis/match/views/ReviewView.tsx:301
 msgid "共投出 {0} 个道具。"
 msgstr "共投出 {0} 个道具。"
 
@@ -1964,12 +1965,12 @@ msgstr "关键帧 {0} {count} 个属性"
 msgid "关键帧插值"
 msgstr "关键帧插值"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:192
+#: src/pages/analysis/match/views/OverviewView.tsx:191
 msgid "关键时刻"
 msgstr "关键时刻"
 
 #. placeholder {0}: candidate.round
-#: src/pages/analysis/match/views/OverviewView.tsx:318
+#: src/pages/analysis/match/views/OverviewView.tsx:317
 msgid "关键时刻 · 第 {0} 回合"
 msgstr "关键时刻 · 第 {0} 回合"
 
@@ -1979,7 +1980,7 @@ msgid "关键词 {0}"
 msgstr "关键词 {0}"
 
 #. placeholder {0}: condition.value
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:108
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:84
 msgid "关键词：{0}"
 msgstr "关键词：{0}"
 
@@ -2049,7 +2050,7 @@ msgid "其余功能不受影响。你可以返回工作台，或把这次错误�
 msgstr "其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。"
 
 #. placeholder {0}: highlights.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:295
+#: src/pages/analysis/match/views/HighlightsView.tsx:237
 msgid "其余类型仍然有 {0} 条。"
 msgstr "其余类型仍然有 {0} 条。"
 
@@ -2073,26 +2074,26 @@ msgid "最小化窗口"
 msgstr "最小化窗口"
 
 #. placeholder {0}: first.label
-#: src/pages/analysis/players/PlayerTrend.tsx:194
+#: src/pages/analysis/players/PlayerTrend.tsx:163
 msgid "最早 {0}"
 msgstr "最早 {0}"
 
 #. placeholder {0}: last.label
-#: src/pages/analysis/players/PlayerTrend.tsx:197
+#: src/pages/analysis/players/PlayerTrend.tsx:166
 msgid "最近 {0}"
 msgstr "最近 {0}"
 
 #. placeholder {0}: points.length
-#: src/pages/analysis/players/PlayerTrend.tsx:123
-msgid "最近 {TREND_WINDOW} 场里有 {0} 场有这个指标 · 虚线为个人均值"
-msgstr "最近 {TREND_WINDOW} 场里有 {0} 场有这个指标 · 虚线为个人均值"
+#: src/pages/analysis/players/PlayerTrend.tsx:92
+msgid "最近 {TREND_WINDOW} 场 · {0} 场有数据 · 虚线为均值"
+msgstr "最近 {TREND_WINDOW} 场 · {0} 场有数据 · 虚线为均值"
 
-#: src/pages/analysis/players/PlayersPage.tsx:164
-#: src/pages/analysis/players/PlayersPage.tsx:165
+#: src/pages/analysis/players/PlayersPage.tsx:122
+#: src/pages/analysis/players/PlayersPage.tsx:123
 msgid "最近出场"
 msgstr "最近出场"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:153
+#: src/pages/analysis/players/PlayerProfilePage.tsx:103
 msgid "最近出场 {lastSeen}"
 msgstr "最近出场 {lastSeen}"
 
@@ -2110,11 +2111,16 @@ msgstr "最近改动"
 msgid "最近更新"
 msgstr "最近更新"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:248
+#: src/pages/analysis/players/PlayerProfilePage.tsx:198
 msgid "最近比赛"
 msgstr "最近比赛"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:260
+#. placeholder {0}: metricName(metric)
+#: src/pages/analysis/players/PlayerTrend.tsx:111
+msgid "最近比赛中没有可用的 {0} 数据。"
+msgstr "最近比赛中没有可用的 {0} 数据。"
+
+#: src/pages/analysis/players/PlayerProfilePage.tsx:210
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "最近比赛没能读出来：{matchesError}"
 
@@ -2174,14 +2180,14 @@ msgstr "出点必须晚于入点。请取消并调整选材范围，作品尚未
 msgid "出点须晚于入点"
 msgstr "出点须晚于入点"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:51
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:27
 #: src/pages/analysis/match/views/PlayersView.tsx:154
 #: src/pages/analysis/match/views/PlayersView.tsx:155
 #: src/pages/analysis/match/views/RoundsView.tsx:86
 #: src/pages/analysis/players/PlayerComparePanel.tsx:229
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:72
-#: src/pages/analysis/players/PlayersPage.tsx:148
-#: src/pages/analysis/players/PlayersPage.tsx:149
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:29
+#: src/pages/analysis/players/PlayersPage.tsx:106
+#: src/pages/analysis/players/PlayersPage.tsx:107
 msgid "击杀"
 msgstr "击杀"
 
@@ -2190,7 +2196,7 @@ msgctxt "evidence-kind"
 msgid "击杀"
 msgstr "击杀"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:81
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:38
 msgid "击杀与死亡位置"
 msgstr "击杀与死亡位置"
 
@@ -2204,7 +2210,7 @@ msgstr "击杀与目标事件 {0} 条 · 本回合共 {1} 条事件"
 msgid "击杀事件"
 msgstr "击杀事件"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:83
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:40
 msgid "击杀位置"
 msgstr "击杀位置"
 
@@ -2283,13 +2289,17 @@ msgstr "分析已提交"
 msgid "分析模式"
 msgstr "分析模式"
 
-#: src/pages/analysis/players/PlayersPage.tsx:370
+#: src/pages/analysis/players/PlayersPage.tsx:328
 msgid "分析比赛后，参赛选手会出现在这里。"
 msgstr "分析比赛后，参赛选手会出现在这里。"
 
 #: src/design/data/Empty.tsx:141
 msgid "分析比赛后即可查看回合、事件和高光。"
 msgstr "分析比赛后即可查看回合、事件和高光。"
+
+#: src/pages/analysis/match/views/ReviewView.tsx:374
+msgid "分析结果未提供原因。"
+msgstr "分析结果未提供原因。"
 
 #: src/domain/task/taskDetailModel.tsx:136
 msgid "分析被中断"
@@ -2317,7 +2327,7 @@ msgstr "分组颜色"
 msgid "分页"
 msgstr "分页"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:282
+#: src/pages/analysis/match/views/HighlightsView.tsx:224
 msgid "切换"
 msgstr "切换"
 
@@ -2429,7 +2439,7 @@ msgstr "创建并打开"
 msgid "创建第一份作品"
 msgstr "创建第一份作品"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:736
+#: src/pages/analysis/match/views/ReviewView.tsx:717
 #: src/pages/shared/library/DeleteDemosDialog.tsx:58
 msgid "删除"
 msgstr "删除"
@@ -2572,7 +2582,7 @@ msgstr "剪辑模式"
 msgid "剩余 {0}"
 msgstr "剩余 {0}"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:284
+#: src/pages/analysis/match/views/HighlightsView.tsx:226
 msgid "加入"
 msgstr "加入"
 
@@ -2586,12 +2596,12 @@ msgstr "加入位置"
 
 #: src/domain/project/AddToProjectDialog.tsx:82
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:132
-#: src/pages/analysis/evidence/EvidencePage.tsx:290
+#: src/pages/analysis/evidence/EvidencePage.tsx:251
 #: src/pages/analysis/evidence/EvidenceResults.tsx:192
 #: src/pages/analysis/match/MatchInspectorPanel.tsx:80
-#: src/pages/analysis/match/views/HighlightsView.tsx:338
-#: src/pages/analysis/match/views/HighlightsView.tsx:377
-#: src/pages/analysis/match/views/OverviewView.tsx:247
+#: src/pages/analysis/match/views/HighlightsView.tsx:280
+#: src/pages/analysis/match/views/HighlightsView.tsx:319
+#: src/pages/analysis/match/views/OverviewView.tsx:246
 #: src/pages/analysis/match/views/PlayersView.tsx:398
 #: src/pages/analysis/match/views/ReplayView.tsx:597
 msgid "加入作品"
@@ -2641,7 +2651,7 @@ msgstr "动作"
 msgid "助攻"
 msgstr "助攻"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:285
+#: src/pages/analysis/match/views/HighlightsView.tsx:227
 msgid "勾选"
 msgstr "勾选"
 
@@ -2650,7 +2660,7 @@ msgid "勾选最多 {limit} 名选手，比较 K/D、ADR 和爆头率。"
 msgstr "勾选最多 {limit} 名选手，比较 K/D、ADR 和爆头率。"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:412
+#: src/pages/analysis/match/views/HighlightsView.tsx:354
 msgid "勾选的 {0} 条会一起加入"
 msgstr "勾选的 {0} 条会一起加入"
 
@@ -2748,13 +2758,13 @@ msgstr "去设置检查 Steam 连接"
 msgid "去证据检索"
 msgstr "去证据检索"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:693
+#: src/pages/analysis/match/views/ReviewView.tsx:674
 msgid "去证据检索看全部注释"
 msgstr "去证据检索看全部注释"
 
 #: src/pages/analysis/evidence/EvidenceEmpty.tsx:76
-#: src/pages/analysis/players/PlayerProfilePage.tsx:268
-#: src/pages/analysis/players/PlayersPage.tsx:380
+#: src/pages/analysis/players/PlayerProfilePage.tsx:218
+#: src/pages/analysis/players/PlayersPage.tsx:338
 msgid "去资料库分析一场"
 msgstr "去资料库分析一场"
 
@@ -3078,7 +3088,7 @@ msgid "告诉 Agent 要调整什么…"
 msgstr "告诉 Agent 要调整什么…"
 
 #. placeholder {0}: search.data.total
-#: src/pages/analysis/evidence/EvidencePage.tsx:276
+#: src/pages/analysis/evidence/EvidencePage.tsx:237
 msgid "命中 {0} 条 · 排序：时间倒序"
 msgstr "命中 {0} 条 · 排序：时间倒序"
 
@@ -3111,7 +3121,7 @@ msgstr "回到任务中心"
 msgid "回到概览"
 msgstr "回到概览"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:381
+#: src/pages/analysis/evidence/EvidencePage.tsx:342
 msgid "回到证据视图"
 msgstr "回到证据视图"
 
@@ -3123,7 +3133,7 @@ msgstr "回到资料库"
 #: src/pages/analysis/match/views/DuelsView.tsx:247
 #: src/pages/analysis/match/views/DuelsView.tsx:248
 #: src/pages/analysis/match/views/EquipmentChart.tsx:49
-#: src/pages/analysis/match/views/OverviewView.tsx:355
+#: src/pages/analysis/match/views/OverviewView.tsx:354
 #: src/pages/analysis/match/views/TeamsView.tsx:238
 #: src/pages/analysis/match/views/UtilityView.tsx:232
 #: src/pages/analysis/match/views/UtilityView.tsx:233
@@ -3150,7 +3160,7 @@ msgstr "回合内事件"
 msgid "回合内证据"
 msgstr "回合内证据"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:59
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:35
 msgid "回合开始"
 msgstr "回合开始"
 
@@ -3257,6 +3267,10 @@ msgstr "在「文件与资料库」中更改保存位置。"
 msgid "在「文件与资料库」中更改录制保存位置。"
 msgstr "在「文件与资料库」中更改录制保存位置。"
 
+#: src/pages/analysis/match/views/ReviewView.tsx:797
+msgid "在回放或回合视图中选择事件，再到「我的注释」添加注释。"
+msgstr "在回放或回合视图中选择事件，再到「我的注释」添加注释。"
+
 #: src/pages/shared/settings/AiAgentSection.tsx:298
 msgid "在工作进度里展开 Agent 每次读取的回合与事件。"
 msgstr "在工作进度里展开 Agent 每次读取的回合与事件。"
@@ -3345,10 +3359,11 @@ msgstr "在源播放头添加或编辑片段标记"
 msgid "在节目画布中移动 {0}"
 msgstr "在节目画布中移动 {0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:73
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:84
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:49
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:60
 #: src/pages/analysis/players/PlayerMapTable.tsx:34
 #: src/pages/analysis/players/PlayerMapTable.tsx:35
+#: src/pages/analysis/players/PlayerProfilePage.tsx:177
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:112
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:113
 #: src/pages/shared/library/libraryColumns.tsx:92
@@ -3362,16 +3377,16 @@ msgstr "地图"
 msgid "地图 {0}"
 msgstr "地图 {0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:97
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:73
 msgid "地图，例如 de_mirage"
 msgstr "地图，例如 de_mirage"
 
 #. placeholder {0}: condition.value
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:112
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:88
 msgid "地图：{0}"
 msgstr "地图：{0}"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:206
+#: src/pages/analysis/players/PlayerProfilePage.tsx:156
 msgid "地图与最近比赛"
 msgstr "地图与最近比赛"
 
@@ -3392,7 +3407,7 @@ msgstr "地图暂不可用"
 msgid "地图暂不可用，当前仅显示选手与镜头。"
 msgstr "地图暂不可用，当前仅显示选手与镜头。"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:200
+#: src/pages/analysis/players/PlayerProfilePage.tsx:150
 msgid "地图统计没能读出来：{mapsError}"
 msgstr "地图统计没能读出来：{mapsError}"
 
@@ -3410,7 +3425,7 @@ msgid "场次"
 msgstr "场次"
 
 #. placeholder {0}: printValue(metric, average)
-#: src/pages/analysis/players/PlayerTrend.tsx:210
+#: src/pages/analysis/players/PlayerTrend.tsx:179
 msgid "均值 {0}"
 msgstr "均值 {0}"
 
@@ -3477,7 +3492,7 @@ msgid "多机位视图"
 msgstr "多机位视图"
 
 #: src/domain/match/matchEnums.ts:222
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:53
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:29
 msgid "多杀"
 msgstr "多杀"
 
@@ -3564,15 +3579,15 @@ msgstr "完整路径"
 #: src/pages/analysis/match/views/DuelsView.tsx:303
 #: src/pages/analysis/match/views/DuelsView.tsx:310
 #: src/pages/analysis/match/views/DuelsView.tsx:411
-#: src/pages/analysis/match/views/HighlightsView.tsx:325
+#: src/pages/analysis/match/views/HighlightsView.tsx:267
 #: src/pages/analysis/match/views/RoundsView.tsx:334
 #: src/pages/analysis/match/views/RoundsView.tsx:442
 msgid "定位"
 msgstr "定位"
 
 #. placeholder {0}: opening.round
-#: src/pages/analysis/match/views/ReviewView.tsx:293
-#: src/pages/analysis/match/views/ReviewView.tsx:807
+#: src/pages/analysis/match/views/ReviewView.tsx:264
+#: src/pages/analysis/match/views/ReviewView.tsx:791
 msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
@@ -3631,7 +3646,7 @@ msgstr "对位矩阵：行方对列方的击杀数"
 msgid "对位视图"
 msgstr "对位视图"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:415
+#: src/pages/analysis/match/views/ReviewView.tsx:386
 msgid "对位统计不可用"
 msgstr "对位统计不可用"
 
@@ -3946,14 +3961,18 @@ msgstr "已启用 {enabledEffectCount} 个效果"
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:104
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:134
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:205
-#: src/pages/analysis/match/views/ReviewView.tsx:568
-#: src/pages/analysis/match/views/ReviewView.tsx:828
+#: src/pages/analysis/match/views/ReviewView.tsx:549
+#: src/pages/analysis/match/views/ReviewView.tsx:818
 msgid "已处理"
 msgstr "已处理"
 
 #: src/pages/editing/delivery/OutputCard.tsx:120
 msgid "已复制完整路径"
 msgstr "已复制完整路径"
+
+#: src/pages/analysis/match/views/ReviewView.tsx:182
+msgid "已复用同一批证据的上次点评。"
+msgstr "已复用同一批证据的上次点评。"
 
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/editing/ProjectAgentPanel.tsx:550
@@ -4127,7 +4146,7 @@ msgid "已选 {0} 个"
 msgstr "已选 {0} 个"
 
 #. placeholder {0}: state.compare.length
-#: src/pages/analysis/players/PlayersPage.tsx:319
+#: src/pages/analysis/players/PlayersPage.tsx:277
 msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 
@@ -4142,12 +4161,12 @@ msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:361
+#: src/pages/analysis/match/views/HighlightsView.tsx:303
 msgid "已选 {0} 条"
 msgstr "已选 {0} 条"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:411
+#: src/pages/analysis/match/views/HighlightsView.tsx:353
 msgid "已选 {0} 条高光"
 msgstr "已选 {0} 条高光"
 
@@ -4164,9 +4183,13 @@ msgstr "已选 {selectedCount} 名 · 正在读取档案"
 msgid "已选 {selectedCount} 名 · 部分档案未能读取"
 msgstr "已选 {selectedCount} 名 · 部分档案未能读取"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:287
+#: src/pages/analysis/evidence/EvidencePage.tsx:248
 msgid "已选 1 条证据"
 msgstr "已选 1 条证据"
+
+#: src/pages/analysis/match/views/ReviewView.tsx:799
+msgid "已选中事件，可在「我的注释」中添加注释。"
+msgstr "已选中事件，可在「我的注释」中添加注释。"
 
 #. placeholder {0}: clips.length
 #: src/domain/project/AddToProjectDialog.tsx:93
@@ -4289,9 +4312,9 @@ msgid "开始选材"
 msgstr "开始选材"
 
 #. placeholder {0}: citations.length
-#: src/pages/analysis/match/views/ReviewView.tsx:455
-msgid "引用了 {0} 条证据，全部属于发送给模型的集合："
-msgstr "引用了 {0} 条证据，全部属于发送给模型的集合："
+#: src/pages/analysis/match/views/ReviewView.tsx:426
+msgid "引用了 {0} 条证据："
+msgstr "引用了 {0} 条证据："
 
 #: src/pages/analysis/match/views/equipmentModel.ts:50
 msgid "强起"
@@ -4375,10 +4398,6 @@ msgstr "当前运行状态"
 #: src/pages/shared/settings/RecoveryPage.tsx:182
 msgid "当前配置完整，备份恢复保持关闭"
 msgstr "当前配置完整，备份恢复保持关闭"
-
-#: src/pages/analysis/match/views/ReviewView.tsx:815
-msgid "当前锚点是一条证据，可以在「我的注释」里为它写注释。"
-msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注释。"
 
 #: src/domain/task/taskVocabulary.tsx:28
 msgid "录制"
@@ -4506,8 +4525,8 @@ msgstr "待剪素材"
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:104
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:134
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:205
-#: src/pages/analysis/match/views/ReviewView.tsx:564
-#: src/pages/analysis/match/views/ReviewView.tsx:822
+#: src/pages/analysis/match/views/ReviewView.tsx:545
+#: src/pages/analysis/match/views/ReviewView.tsx:812
 msgid "待处理"
 msgstr "待处理"
 
@@ -4644,8 +4663,8 @@ msgstr "成片预览"
 msgid "我已接管这组 Agent 修改，改为手动编辑。"
 msgstr "我已接管这组 Agent 修改，改为手动编辑。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:126
-#: src/pages/analysis/match/views/ReviewView.tsx:221
+#: src/pages/analysis/match/views/ReviewView.tsx:93
+#: src/pages/analysis/match/views/ReviewView.tsx:191
 msgid "我的注释"
 msgstr "我的注释"
 
@@ -4750,7 +4769,7 @@ msgstr "打开使用引导"
 msgid "打开分析"
 msgstr "打开分析"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:185
+#: src/pages/analysis/match/views/OverviewView.tsx:184
 msgid "打开回合视图"
 msgstr "打开回合视图"
 
@@ -4849,7 +4868,7 @@ msgid "把 .dem 或 .zip 拖到这里"
 msgstr "把 .dem 或 .zip 拖到这里"
 
 #. placeholder {0}: batch.length
-#: src/pages/analysis/match/views/HighlightsView.tsx:414
+#: src/pages/analysis/match/views/HighlightsView.tsx:356
 msgid "把已选 {0} 条加入作品"
 msgstr "把已选 {0} 条加入作品"
 
@@ -4880,8 +4899,8 @@ msgstr "把这个回合加入作品"
 msgid "把这名选手加入作品"
 msgstr "把这名选手加入作品"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:464
-#: src/pages/analysis/match/views/OverviewView.tsx:321
+#: src/pages/analysis/match/views/HighlightsView.tsx:406
+#: src/pages/analysis/match/views/OverviewView.tsx:320
 msgid "把这条高光加入作品"
 msgstr "把这条高光加入作品"
 
@@ -5014,7 +5033,7 @@ msgstr "指定作品"
 msgid "按住 Ctrl 与左右方向键可以调整片段顺序。"
 msgstr "按住 Ctrl 与左右方向键可以调整片段顺序。"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:287
+#: src/pages/analysis/match/views/HighlightsView.tsx:229
 msgid "按回合排序"
 msgstr "按回合排序"
 
@@ -5026,7 +5045,7 @@ msgstr "按地图"
 msgid "按地图的成绩"
 msgstr "按地图的成绩"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:193
+#: src/pages/analysis/match/views/OverviewView.tsx:192
 msgid "按检出置信度排序"
 msgstr "按检出置信度排序"
 
@@ -5037,10 +5056,6 @@ msgstr "按类型筛选成品文件"
 #: src/pages/analysis/match/views/OverviewView.tsx:147
 msgid "按高光类型统计，胜负未记录"
 msgstr "按高光类型统计，胜负未记录"
-
-#: src/pages/analysis/players/PlayerProfilePage.tsx:227
-msgid "换一张图"
-msgstr "换一张图"
 
 #: src/pages/shared/library/LibraryEmpty.tsx:41
 msgid "换个关键词，或清空地图、状态、平台、标签筛选。"
@@ -5137,12 +5152,12 @@ msgstr "搜索比赛、选手、作品、页面和动作"
 msgid "搜索比赛、选手或文件名"
 msgstr "搜索比赛、选手或文件名"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:231
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:207
 msgid "搜索选手、武器或事件"
 msgstr "搜索选手、武器或事件"
 
-#: src/pages/analysis/players/PlayersPage.tsx:296
-#: src/pages/analysis/players/PlayersPage.tsx:297
+#: src/pages/analysis/players/PlayersPage.tsx:254
+#: src/pages/analysis/players/PlayersPage.tsx:255
 msgid "搜索选手或别名"
 msgstr "搜索选手或别名"
 
@@ -5440,6 +5455,23 @@ msgstr "旋转节目画面 {0}"
 msgid "无"
 msgstr "无"
 
+#: src/pages/analysis/match/views/ReviewView.tsx:805
+msgid "无法加载注释：{annotationsError}"
+msgstr "无法加载注释：{annotationsError}"
+
+#: src/pages/analysis/match/views/ReviewView.tsx:504
+msgid "无法加载注释：{error}"
+msgstr "无法加载注释：{error}"
+
+#. placeholder {0}: error.message
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:108
+msgid "无法加载热图：{0}"
+msgstr "无法加载热图：{0}"
+
+#: src/pages/analysis/players/PlayersPage.tsx:298
+msgid "无法加载选手目录：{error}"
+msgstr "无法加载选手目录：{error}"
+
 #: src/domain/scene3d/Scene3DView.tsx:94
 msgid "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
 msgstr "无法启动 3D 渲染。请检查显卡驱动或重新加载视图。"
@@ -5517,7 +5549,7 @@ msgstr "日期"
 msgid "旧版本"
 msgstr "旧版本"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:484
+#: src/pages/analysis/match/views/HighlightsView.tsx:426
 #: src/pages/editing/projects/ProjectsPage.tsx:149
 #: src/pages/shared/library/libraryColumns.tsx:121
 #: src/pages/shared/library/libraryColumns.tsx:122
@@ -5685,7 +5717,7 @@ msgstr "显示 Volume 轨道自动化"
 msgid "显示与隐藏面板…"
 msgstr "显示与隐藏面板…"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:298
+#: src/pages/analysis/match/views/HighlightsView.tsx:240
 msgid "显示全部"
 msgstr "显示全部"
 
@@ -5733,6 +5765,10 @@ msgstr "暂无地图缓存"
 #: src/pages/analysis/match/views/EquipmentChart.tsx:38
 msgid "暂无装备价值数据"
 msgstr "暂无装备价值数据"
+
+#: src/pages/analysis/players/PlayerTrend.tsx:109
+msgid "暂无趋势数据"
+msgstr "暂无趋势数据"
 
 #: src/design/primitives/Button.tsx:165
 msgid "暂时不能执行：{disabledReason}"
@@ -5832,13 +5868,9 @@ msgstr "有回合缺少价格，花费合计以「—」表示而不是少算"
 msgid "服务当前按目录递归监听，子目录会一同纳入"
 msgstr "服务当前按目录递归监听，子目录会一同纳入"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:185
+#: src/pages/analysis/match/views/ReviewView.tsx:153
 msgid "服务没有给出原因"
 msgstr "服务没有给出原因"
-
-#: src/pages/analysis/match/views/ReviewView.tsx:403
-msgid "服务没有说明原因；这一项不用推算值填空。"
-msgstr "服务没有说明原因；这一项不用推算值填空。"
 
 #: src/pages/shared/tasks/TaskDetailPage.tsx:58
 msgid "服务没有返回这条后台任务。"
@@ -5874,7 +5906,7 @@ msgstr "未开始"
 msgid "未归属"
 msgstr "未归属"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:350
+#: src/pages/analysis/match/views/OverviewView.tsx:349
 msgid "未归属选手"
 msgstr "未归属选手"
 
@@ -5901,6 +5933,10 @@ msgstr "未录制 {plannedCount}"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1120
 msgid "未录制，暂不能播放"
 msgstr "未录制，暂不能播放"
+
+#: src/pages/analysis/match/views/OverviewView.tsx:203
+msgid "未检出高光，可选择回合查看事件。"
+msgstr "未检出高光，可选择回合查看事件。"
 
 #: src/domain/match/Scoreboard.tsx:45
 msgid "未知"
@@ -5943,7 +5979,7 @@ msgstr "未选中任何选手"
 msgid "未选中比赛"
 msgstr "未选中比赛"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:441
+#: src/pages/analysis/match/views/HighlightsView.tsx:383
 msgid "未选中高光"
 msgstr "未选中高光"
 
@@ -6003,7 +6039,7 @@ msgstr "机位距离墙面不足 16 单位"
 msgid "机位路径穿过地图表面"
 msgstr "机位路径穿过地图表面"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:245
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:221
 msgid "条件"
 msgstr "条件"
 
@@ -6022,7 +6058,7 @@ msgstr "来源任务"
 msgid "来源对象"
 msgstr "来源对象"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:231
+#: src/pages/analysis/match/views/OverviewView.tsx:230
 msgid "查看"
 msgstr "查看"
 
@@ -6049,8 +6085,8 @@ msgstr "查看全部"
 
 #. placeholder {0}: facts.highlights
 #. placeholder {0}: rows.length
-#: src/pages/analysis/match/views/OverviewView.tsx:197
-#: src/pages/analysis/match/views/ReviewView.tsx:554
+#: src/pages/analysis/match/views/OverviewView.tsx:196
+#: src/pages/analysis/match/views/ReviewView.tsx:535
 msgid "查看全部 {0} 条"
 msgstr "查看全部 {0} 条"
 
@@ -6058,8 +6094,8 @@ msgstr "查看全部 {0} 条"
 msgid "查看全部成品文件"
 msgstr "查看全部成品文件"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:166
-#: src/pages/analysis/players/PlayerProfilePage.tsx:169
+#: src/pages/analysis/players/PlayerProfilePage.tsx:116
+#: src/pages/analysis/players/PlayerProfilePage.tsx:119
 msgid "查看最近比赛"
 msgstr "查看最近比赛"
 
@@ -6119,7 +6155,7 @@ msgstr "查看阶段"
 msgid "查看阶段日志"
 msgstr "查看阶段日志"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:342
+#: src/pages/analysis/match/views/OverviewView.tsx:341
 msgid "查看高光"
 msgstr "查看高光"
 
@@ -6156,7 +6192,7 @@ msgstr "标记名称"
 
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:87
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:152
-#: src/pages/analysis/match/views/ReviewView.tsx:725
+#: src/pages/analysis/match/views/ReviewView.tsx:706
 msgid "标记已处理"
 msgstr "标记已处理"
 
@@ -6184,8 +6220,8 @@ msgstr "格式"
 msgid "框选范围"
 msgstr "框选范围"
 
-#: src/pages/analysis/players/PlayersPage.tsx:175
-#: src/pages/analysis/players/PlayersPage.tsx:180
+#: src/pages/analysis/players/PlayersPage.tsx:133
+#: src/pages/analysis/players/PlayersPage.tsx:138
 msgid "档案"
 msgstr "档案"
 
@@ -6216,7 +6252,7 @@ msgstr "检查镜头范围"
 msgid "检测器没有在这一场里给他标出高光。"
 msgstr "检测器没有在这一场里给他标出高光。"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:236
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:212
 msgid "检索"
 msgstr "检索"
 
@@ -6225,7 +6261,7 @@ msgstr "检索"
 msgid "检索没能完成：{0}"
 msgstr "检索没能完成：{0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:230
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:206
 msgid "检索证据"
 msgstr "检索证据"
 
@@ -6234,7 +6270,7 @@ msgstr "检索证据"
 msgid "楼层"
 msgstr "楼层"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:268
+#: src/pages/analysis/match/views/OverviewView.tsx:267
 msgid "概览"
 msgstr "概览"
 
@@ -6510,13 +6546,17 @@ msgstr "正在清理…"
 msgid "正在渲染预览…"
 msgstr "正在渲染预览…"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:140
+#: src/pages/analysis/match/views/ReviewView.tsx:109
 msgid "正在生成…"
 msgstr "正在生成…"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:962
 msgid "正在生成可拖动预览使用的低分辨率代理"
 msgstr "正在生成可拖动预览使用的低分辨率代理"
+
+#: src/pages/analysis/match/views/ReviewView.tsx:158
+msgid "正在生成点评…"
+msgstr "正在生成点评…"
 
 #: src/domain/media/FilmStrip.tsx:77
 msgid "正在生成缩略图"
@@ -6543,7 +6583,7 @@ msgstr "正在读取任务…"
 msgid "正在读取任务详情"
 msgstr "正在读取任务详情"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:253
+#: src/pages/analysis/players/PlayerProfilePage.tsx:203
 msgid "正在读取最近比赛"
 msgstr "正在读取最近比赛"
 
@@ -6563,7 +6603,7 @@ msgstr "正在读取比赛分析"
 msgid "正在读取比赛历史"
 msgstr "正在读取比赛历史"
 
-#: src/pages/analysis/players/PlayerTrend.tsx:132
+#: src/pages/analysis/players/PlayerTrend.tsx:101
 msgid "正在读取比赛趋势"
 msgstr "正在读取比赛趋势"
 
@@ -6573,6 +6613,9 @@ msgstr "正在读取波形"
 
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:87
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:193
+#: src/pages/analysis/match/views/ReviewView.tsx:512
+#: src/pages/analysis/match/views/ReviewView.tsx:757
+#: src/pages/analysis/match/views/ReviewView.tsx:808
 msgid "正在读取注释"
 msgstr "正在读取注释"
 
@@ -6593,7 +6636,7 @@ msgstr "正在读取空间证据"
 msgid "正在读取资料库"
 msgstr "正在读取资料库"
 
-#: src/pages/analysis/players/PlayersPage.tsx:361
+#: src/pages/analysis/players/PlayersPage.tsx:319
 msgid "正在读取选手目录"
 msgstr "正在读取选手目录"
 
@@ -6617,8 +6660,8 @@ msgstr "此确认始终开启：录制会启动游戏并写出文件，每次都
 msgid "此设备暂时无法保存布局，当前调整仍可使用。"
 msgstr "此设备暂时无法保存布局，当前调整仍可使用。"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:75
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:86
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:51
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:62
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:157
 #: src/pages/analysis/match/views/DuelsView.tsx:283
 #: src/pages/analysis/match/views/DuelsView.tsx:284
@@ -6631,21 +6674,21 @@ msgstr "武器"
 msgid "武器 {0}"
 msgstr "武器 {0}"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:99
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:75
 msgid "武器，例如 AK-47"
 msgstr "武器，例如 AK-47"
 
 #. placeholder {0}: condition.value
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:114
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:90
 msgid "武器：{0}"
 msgstr "武器：{0}"
 
 #: src/pages/analysis/match/views/PlayersView.tsx:162
 #: src/pages/analysis/match/views/PlayersView.tsx:163
 #: src/pages/analysis/players/PlayerComparePanel.tsx:230
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:74
-#: src/pages/analysis/players/PlayersPage.tsx:156
-#: src/pages/analysis/players/PlayersPage.tsx:157
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:31
+#: src/pages/analysis/players/PlayersPage.tsx:114
+#: src/pages/analysis/players/PlayersPage.tsx:115
 msgid "死亡"
 msgstr "死亡"
 
@@ -6654,7 +6697,7 @@ msgctxt "evidence-kind"
 msgid "死亡"
 msgstr "死亡"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:85
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:42
 msgid "死亡位置"
 msgstr "死亡位置"
 
@@ -6728,8 +6771,8 @@ msgid "比率伸缩工具 (R)"
 msgstr "比率伸缩工具 (R)"
 
 #: src/pages/analysis/players/PlayerComparePanel.tsx:225
-#: src/pages/analysis/players/PlayersPage.tsx:116
-#: src/pages/analysis/players/PlayersPage.tsx:117
+#: src/pages/analysis/players/PlayersPage.tsx:74
+#: src/pages/analysis/players/PlayersPage.tsx:75
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:104
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:105
 #: src/pages/shared/library/libraryColumns.tsx:73
@@ -6800,7 +6843,7 @@ msgid "比赛详情"
 msgstr "比赛详情"
 
 #. placeholder {0}: error.message
-#: src/pages/analysis/players/PlayerTrend.tsx:136
+#: src/pages/analysis/players/PlayerTrend.tsx:105
 msgid "比赛趋势没能读出来：{0}"
 msgstr "比赛趋势没能读出来：{0}"
 
@@ -6840,17 +6883,13 @@ msgstr "没有 {0} 的雷达图"
 msgid "没有任何数据被改动，可以直接重试。"
 msgstr "没有任何数据被改动，可以直接重试。"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:299
+#: src/pages/analysis/match/views/OverviewView.tsx:298
 msgid "没有关键时刻可预览"
 msgstr "没有关键时刻可预览"
 
 #: src/domain/editing/TimelineToolStrip.tsx:176
 msgid "没有具备可编辑相邻片段的未锁定 Story 片段"
 msgstr "没有具备可编辑相邻片段的未锁定 Story 片段"
-
-#: src/pages/analysis/match/views/ReviewView.tsx:183
-msgid "没有写入任何东西；自动洞察不受影响。"
-msgstr "没有写入任何东西；自动洞察不受影响。"
 
 #. placeholder {0}: detail.rosterA
 #. placeholder {1}: detail.rosterB
@@ -6894,7 +6933,7 @@ msgstr "没有匹配的素材"
 msgid "没有匹配的结果"
 msgstr "没有匹配的结果"
 
-#: src/pages/analysis/players/PlayersPage.tsx:366
+#: src/pages/analysis/players/PlayersPage.tsx:324
 msgid "没有匹配的选手"
 msgstr "没有匹配的选手"
 
@@ -6963,11 +7002,11 @@ msgid "没有扫描到清理范围：{scanError}"
 msgstr "没有扫描到清理范围：{scanError}"
 
 #. placeholder {0}: state.search
-#: src/pages/analysis/players/PlayersPage.tsx:372
+#: src/pages/analysis/players/PlayersPage.tsx:330
 msgid "没有找到「{0}」，请尝试其他名字或别名。"
 msgstr "没有找到「{0}」，请尝试其他名字或别名。"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:243
+#: src/pages/analysis/match/views/HighlightsView.tsx:185
 msgid "没有找到残局、多杀或穿墙等高光。"
 msgstr "没有找到残局、多杀或穿墙等高光。"
 
@@ -7067,23 +7106,27 @@ msgstr "波纹裁切片段起点到播放头"
 #: src/domain/editing/MarkerEditorFields.tsx:51
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:113
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:182
-#: src/pages/analysis/evidence/EvidencePage.tsx:255
+#: src/pages/analysis/evidence/EvidencePage.tsx:216
 #: src/pages/analysis/match/views/RoundsView.tsx:632
 msgid "注释"
 msgstr "注释"
 
 #. placeholder {0}: tally.total
-#: src/pages/analysis/match/views/ReviewView.tsx:774
+#: src/pages/analysis/match/views/ReviewView.tsx:758
 msgid "注释 {0} 条"
 msgstr "注释 {0} 条"
 
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:258
-#: src/pages/analysis/match/views/ReviewView.tsx:627
+#: src/pages/analysis/match/views/ReviewView.tsx:608
 msgid "注释内容"
 msgstr "注释内容"
 
+#: src/pages/analysis/match/views/ReviewView.tsx:756
+msgid "注释加载失败"
+msgstr "注释加载失败"
+
 #. placeholder {0}: anchor.round
-#: src/pages/analysis/match/views/ReviewView.tsx:650
+#: src/pages/analysis/match/views/ReviewView.tsx:631
 msgid "注释将添加到第 {0} 回合的所选事件。"
 msgstr "注释将添加到第 {0} 回合的所选事件。"
 
@@ -7091,11 +7134,11 @@ msgstr "注释将添加到第 {0} 回合的所选事件。"
 msgid "注释没有写成功：{noteError}"
 msgstr "注释没有写成功：{noteError}"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:670
+#: src/pages/analysis/match/views/ReviewView.tsx:651
 msgid "注释没有写成功：{writeError}"
 msgstr "注释没有写成功：{writeError}"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:309
+#: src/pages/analysis/evidence/EvidencePage.tsx:270
 msgid "注释没有改成功：{updateError}"
 msgstr "注释没有改成功：{updateError}"
 
@@ -7177,7 +7220,7 @@ msgid "添加标签"
 msgstr "添加标签"
 
 #: src/pages/analysis/match/views/PlayersView.tsx:532
-#: src/pages/analysis/match/views/ReviewView.tsx:641
+#: src/pages/analysis/match/views/ReviewView.tsx:622
 #: src/pages/analysis/match/views/RoundsView.tsx:706
 msgid "添加注释"
 msgstr "添加注释"
@@ -7263,7 +7306,7 @@ msgstr "清空全部对话？"
 msgid "清空对话"
 msgstr "清空对话"
 
-#: src/pages/analysis/players/PlayersPage.tsx:387
+#: src/pages/analysis/players/PlayersPage.tsx:345
 #: src/pages/editing/projects/ProjectsPage.tsx:94
 #: src/pages/shared/library/LibraryFilters.tsx:195
 msgid "清空搜索"
@@ -7278,12 +7321,12 @@ msgstr "清空条件"
 msgid "清空没有成功"
 msgstr "清空没有成功"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:295
-#: src/pages/analysis/match/views/HighlightsView.tsx:385
-#: src/pages/analysis/match/views/HighlightsView.tsx:419
+#: src/pages/analysis/evidence/EvidencePage.tsx:256
+#: src/pages/analysis/match/views/HighlightsView.tsx:327
+#: src/pages/analysis/match/views/HighlightsView.tsx:361
 #: src/pages/analysis/players/PlayerComparePanel.tsx:126
 #: src/pages/analysis/players/PlayerComparePanel.tsx:192
-#: src/pages/analysis/players/PlayersPage.tsx:325
+#: src/pages/analysis/players/PlayersPage.tsx:283
 msgid "清空选择"
 msgstr "清空选择"
 
@@ -7495,16 +7538,11 @@ msgstr "热力叠加：没有位置数据"
 msgid "热力图图例"
 msgstr "热力图图例"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:165
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:122
 msgid "热力图基于部分位置数据。"
 msgstr "热力图基于部分位置数据。"
 
-#. placeholder {0}: error.message
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:148
-msgid "热图没能读出来：{0}"
-msgstr "热图没能读出来：{0}"
-
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:142
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:99
 msgid "热图种类"
 msgstr "热图种类"
 
@@ -7537,10 +7575,10 @@ msgstr "爆头击杀"
 #: src/pages/analysis/players/PlayerComparePanel.tsx:228
 #: src/pages/analysis/players/PlayerMapTable.tsx:63
 #: src/pages/analysis/players/PlayerMapTable.tsx:64
-#: src/pages/analysis/players/PlayersPage.tsx:140
-#: src/pages/analysis/players/PlayersPage.tsx:141
-#: src/pages/analysis/players/PlayerTrend.tsx:69
-#: src/pages/analysis/players/PlayerTrend.tsx:80
+#: src/pages/analysis/players/PlayersPage.tsx:98
+#: src/pages/analysis/players/PlayersPage.tsx:99
+#: src/pages/analysis/players/PlayerTrend.tsx:38
+#: src/pages/analysis/players/PlayerTrend.tsx:49
 msgid "爆头率"
 msgstr "爆头率"
 
@@ -7641,7 +7679,7 @@ msgstr "环绕"
 msgid "现在按保留策略清理对话？"
 msgstr "现在按保留策略清理对话？"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:140
+#: src/pages/analysis/match/views/ReviewView.tsx:109
 msgid "生成 AI 点评"
 msgstr "生成 AI 点评"
 
@@ -7659,7 +7697,7 @@ msgid "生成低分辨率代理；导出仍使用原始素材"
 msgstr "生成低分辨率代理；导出仍使用原始素材"
 
 #. placeholder {0}: dataErrorMessage(review.error) ?? t`服务没有给出原因`
-#: src/pages/analysis/match/views/ReviewView.tsx:185
+#: src/pages/analysis/match/views/ReviewView.tsx:153
 msgid "生成点评失败：{0}"
 msgstr "生成点评失败：{0}"
 
@@ -7713,7 +7751,7 @@ msgstr "用这场比赛新建作品"
 
 #. placeholder {0}: review.data.provider
 #. placeholder {1}: review.data.model
-#: src/pages/analysis/match/views/ReviewView.tsx:206
+#: src/pages/analysis/match/views/ReviewView.tsx:176
 msgid "由 {0} 的 {1} 生成。"
 msgstr "由 {0} 的 {1} 生成。"
 
@@ -7768,7 +7806,7 @@ msgstr "目标："
 msgid "目标不在画面内"
 msgstr "目标不在画面内"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:55
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:31
 #: src/pages/analysis/match/views/RoundsView.tsx:588
 msgid "目标事件"
 msgstr "目标事件"
@@ -7807,7 +7845,7 @@ msgstr "相同内容的文件不会重复导入。"
 msgid "看回合详情"
 msgstr "看回合详情"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:314
+#: src/pages/analysis/match/views/ReviewView.tsx:285
 msgid "看对位"
 msgstr "看对位"
 
@@ -7816,13 +7854,13 @@ msgstr "看对位"
 msgid "看整场"
 msgstr "看整场"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:343
+#: src/pages/analysis/match/views/ReviewView.tsx:314
 msgid "看道具与经济"
 msgstr "看道具与经济"
 
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:215
-#: src/pages/analysis/evidence/EvidencePage.tsx:307
-#: src/pages/analysis/match/views/ReviewView.tsx:662
+#: src/pages/analysis/evidence/EvidencePage.tsx:268
+#: src/pages/analysis/match/views/ReviewView.tsx:643
 #: src/pages/editing/delivery/DeliveryPage.tsx:74
 #: src/pages/editing/delivery/OutputsView.tsx:183
 #: src/pages/shared/settings/AiAgentSection.tsx:172
@@ -7901,7 +7939,7 @@ msgid "种类 {0}"
 msgstr "种类 {0}"
 
 #. placeholder {0}: familyLabel(condition.value as EvidenceFamily)
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:106
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:82
 msgid "种类：{0}"
 msgstr "种类：{0}"
 
@@ -7943,7 +7981,7 @@ msgstr "移动面板组"
 msgid "移除"
 msgstr "移除"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:259
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:235
 msgid "移除条件"
 msgstr "移除条件"
 
@@ -7965,7 +8003,7 @@ msgstr "移除这条记录？"
 msgid "稳定"
 msgstr "稳定"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:283
+#: src/pages/analysis/match/views/HighlightsView.tsx:225
 msgid "空格"
 msgstr "空格"
 
@@ -8022,8 +8060,8 @@ msgstr "竞技 · {0}"
 #: src/domain/match/RoundTimeline.tsx:261
 #: src/domain/project/AddToProjectDialog.tsx:97
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:130
-#: src/pages/analysis/match/views/ReviewView.tsx:491
-#: src/pages/analysis/match/views/ReviewView.tsx:706
+#: src/pages/analysis/match/views/ReviewView.tsx:462
+#: src/pages/analysis/match/views/ReviewView.tsx:687
 #: src/pages/analysis/match/views/RoundsView.tsx:344
 msgid "第 {0} 回合"
 msgstr "第 {0} 回合"
@@ -8114,6 +8152,10 @@ msgstr "等待你确认"
 msgid "等待执行"
 msgstr "等待执行"
 
+#: src/pages/analysis/match/views/ReviewView.tsx:106
+msgid "等待比赛分析加载完成"
+msgstr "等待比赛分析加载完成"
+
 #: src/domain/editing/ProjectAgentPanel.tsx:549
 msgid "等待确认"
 msgstr "等待确认"
@@ -8132,7 +8174,7 @@ msgstr "简化预览"
 
 #: src/domain/editing/MarkerEditorFields.tsx:27
 #: src/domain/task/TaskDetailBody.tsx:134
-#: src/pages/analysis/match/views/HighlightsView.tsx:475
+#: src/pages/analysis/match/views/HighlightsView.tsx:417
 msgid "类型"
 msgstr "类型"
 
@@ -8240,11 +8282,11 @@ msgstr "结束原因"
 msgid "结束原因未知"
 msgstr "结束原因未知"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:121
+#: src/pages/analysis/match/views/ReviewView.tsx:88
 msgid "结论"
 msgstr "结论"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:770
+#: src/pages/analysis/match/views/ReviewView.tsx:752
 msgid "结论与注释"
 msgstr "结论与注释"
 
@@ -8374,9 +8416,9 @@ msgstr "自动启动"
 msgid "自动检测到"
 msgstr "自动检测到"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:148
-#: src/pages/analysis/match/views/ReviewView.tsx:152
-#: src/pages/analysis/match/views/ReviewView.tsx:770
+#: src/pages/analysis/match/views/ReviewView.tsx:117
+#: src/pages/analysis/match/views/ReviewView.tsx:121
+#: src/pages/analysis/match/views/ReviewView.tsx:752
 msgid "自动洞察"
 msgstr "自动洞察"
 
@@ -8551,7 +8593,7 @@ msgstr "设置已保存。"
 msgid "设置没有保存成功"
 msgstr "设置没有保存成功"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:255
+#: src/pages/analysis/evidence/EvidencePage.tsx:216
 msgid "证据"
 msgstr "证据"
 
@@ -8562,15 +8604,15 @@ msgstr "证据"
 
 #: src/app/command/commandRegistry.ts:188
 #: src/app/shell/navigation.tsx:85
-#: src/pages/analysis/evidence/EvidencePage.tsx:241
+#: src/pages/analysis/evidence/EvidencePage.tsx:202
 msgid "证据检索"
 msgstr "证据检索"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:258
+#: src/pages/analysis/evidence/EvidencePage.tsx:219
 msgid "证据检索视图"
 msgstr "证据检索视图"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:214
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:190
 msgid "证据种类"
 msgstr "证据种类"
 
@@ -8607,7 +8649,7 @@ msgstr "该片段缺少可解析的素材记录。"
 msgid "详情"
 msgstr "详情"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:175
+#: src/pages/analysis/match/views/ReviewView.tsx:144
 msgid "语气：专业"
 msgstr "语气：专业"
 
@@ -8624,7 +8666,7 @@ msgctxt "utility-item"
 msgid "诱饵弹"
 msgstr "诱饵弹"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:482
+#: src/pages/analysis/match/views/HighlightsView.tsx:424
 msgid "说明"
 msgstr "说明"
 
@@ -8716,6 +8758,17 @@ msgstr "请输入有效的 JSON 对象"
 msgid "请选择连续、启用且未锁定的 Story 片段"
 msgstr "请选择连续、启用且未锁定的 Story 片段"
 
+#: src/pages/analysis/match/views/ReviewView.tsx:61
+#: src/pages/analysis/match/views/ReviewView.tsx:741
+#: src/pages/analysis/players/PlayerProfilePage.tsx:62
+#: src/pages/analysis/players/PlayerProfilePage.tsx:63
+#: src/pages/analysis/players/PlayerProfilePage.tsx:64
+#: src/pages/analysis/players/PlayerProfilePage.tsx:65
+#: src/pages/analysis/players/PlayersPage.tsx:196
+#: src/pages/analysis/players/PlayersPage.tsx:217
+msgid "请重试"
+msgstr "请重试"
+
 #: src/pages/shared/library/history/HistoryPage.tsx:216
 msgid "请重试，或检查 Steam 连接设置。"
 msgstr "请重试，或检查 Steam 连接设置。"
@@ -8752,7 +8805,7 @@ msgstr "读不到恢复状态：{statusError}"
 msgid "读不到模型配置：{error}"
 msgstr "读不到模型配置：{error}"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:678
+#: src/pages/analysis/match/views/ReviewView.tsx:659
 msgid "读不到注释：{error}"
 msgstr "读不到注释：{error}"
 
@@ -8876,7 +8929,7 @@ msgctxt "evidence-kind"
 msgid "购买"
 msgstr "购买"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:423
+#: src/pages/analysis/match/views/ReviewView.tsx:394
 msgid "购买事件统计不可用"
 msgstr "购买事件统计不可用"
 
@@ -8892,7 +8945,7 @@ msgstr "购买条数"
 msgid "购买类型"
 msgstr "购买类型"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:425
+#: src/pages/analysis/match/views/ReviewView.tsx:396
 msgid "购买金额统计不可用"
 msgstr "购买金额统计不可用"
 
@@ -8920,7 +8973,7 @@ msgstr "超出可调整范围"
 msgid "超出源素材时长"
 msgstr "超出源素材时长"
 
-#: src/pages/analysis/players/PlayerTrend.tsx:119
+#: src/pages/analysis/players/PlayerTrend.tsx:88
 msgid "趋势指标"
 msgstr "趋势指标"
 
@@ -9025,7 +9078,7 @@ msgstr "运行中"
 msgid "运行状态"
 msgstr "运行状态"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:343
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:319
 msgid "近 {RECENT_WINDOW_DAYS} 天"
 msgstr "近 {RECENT_WINDOW_DAYS} 天"
 
@@ -9062,7 +9115,7 @@ msgstr "还原窗口"
 msgid "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 msgstr "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:157
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:114
 msgid "还没有位置数据，请先分析该选手在这张地图上的比赛。"
 msgstr "还没有位置数据，请先分析该选手在这张地图上的比赛。"
 
@@ -9086,10 +9139,6 @@ msgstr "还没有可显示的对局"
 msgid "还没有可检索的证据"
 msgstr "还没有可检索的证据"
 
-#: src/pages/analysis/players/PlayerTrend.tsx:140
-msgid "还没有可画的趋势"
-msgstr "还没有可画的趋势"
-
 #: src/domain/task/TaskActivityList.tsx:56
 msgid "还没有后台任务"
 msgstr "还没有后台任务"
@@ -9110,7 +9159,7 @@ msgstr "还没有开始录制，等你确认。"
 msgid "还没有成片"
 msgstr "还没有成片"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:137
+#: src/pages/analysis/match/views/ReviewView.tsx:105
 msgid "还没有打开一场比赛"
 msgstr "还没有打开一场比赛"
 
@@ -9123,7 +9172,7 @@ msgid "还没有按地图的数据"
 msgstr "还没有按地图的数据"
 
 #: src/design/data/Empty.tsx:136
-#: src/pages/analysis/players/PlayerProfilePage.tsx:264
+#: src/pages/analysis/players/PlayerProfilePage.tsx:214
 msgid "还没有比赛"
 msgstr "还没有比赛"
 
@@ -9131,7 +9180,7 @@ msgstr "还没有比赛"
 msgid "还没有波形"
 msgstr "还没有波形"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:373
+#: src/pages/analysis/evidence/EvidencePage.tsx:334
 msgid "还没有注释"
 msgstr "还没有注释"
 
@@ -9139,11 +9188,11 @@ msgstr "还没有注释"
 msgid "还没有注释。"
 msgstr "还没有注释。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:538
+#: src/pages/analysis/match/views/ReviewView.tsx:519
 msgid "还没有注释。选择一个事件即可添加。"
 msgstr "还没有注释。选择一个事件即可添加。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:191
+#: src/pages/analysis/match/views/ReviewView.tsx:161
 msgid "还没有点评。连接模型后即可生成。"
 msgstr "还没有点评。连接模型后即可生成。"
 
@@ -9184,7 +9233,7 @@ msgstr "还没有选中证据"
 msgid "还没有选中选手"
 msgstr "还没有选中选手"
 
-#: src/pages/analysis/players/PlayersPage.tsx:366
+#: src/pages/analysis/players/PlayersPage.tsx:324
 msgid "还没有选手"
 msgstr "还没有选手"
 
@@ -9244,7 +9293,7 @@ msgstr "这一段没有可列出的事件"
 msgid "这一队没有选手记录"
 msgstr "这一队没有选手记录"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:427
+#: src/pages/analysis/match/views/ReviewView.tsx:398
 msgid "这一项统计不可用"
 msgstr "这一项统计不可用"
 
@@ -9260,7 +9309,7 @@ msgstr "这个地址不存在。其余功能不受影响。"
 msgid "这个目录已经在监听中"
 msgstr "这个目录已经在监听中"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:294
+#: src/pages/analysis/match/views/HighlightsView.tsx:236
 msgid "这个类型下没有高光"
 msgstr "这个类型下没有高光"
 
@@ -9301,21 +9350,16 @@ msgstr "这份分析结果里没有洞察数据，经济统计无法显示。"
 msgid "这份分析里没有选手"
 msgstr "这份分析里没有选手"
 
-#. placeholder {0}: metricName(metric)
-#: src/pages/analysis/players/PlayerTrend.tsx:142
-msgid "这名选手最近的比赛里没有 {0} 的取值，所以这里没有线可画。"
-msgstr "这名选手最近的比赛里没有 {0} 的取值，所以这里没有线可画。"
-
-#: src/pages/analysis/players/PlayerProfilePage.tsx:185
+#: src/pages/analysis/players/PlayerProfilePage.tsx:135
 msgid "这名选手的档案没能读出来：{profileError}"
 msgstr "这名选手的档案没能读出来：{profileError}"
 
-#: src/pages/analysis/players/PlayerProfilePage.tsx:265
+#: src/pages/analysis/players/PlayerProfilePage.tsx:215
 msgid "这名选手还没有出现在任何一场已分析的比赛里。"
 msgstr "这名选手还没有出现在任何一场已分析的比赛里。"
 
 #. placeholder {0}: matchup.pairCount
-#: src/pages/analysis/match/views/ReviewView.tsx:307
+#: src/pages/analysis/match/views/ReviewView.tsx:278
 msgid "这场共记录了 {0} 组对位。"
 msgstr "这场共记录了 {0} 组对位。"
 
@@ -9327,15 +9371,15 @@ msgstr "这场分析里没有属于这一队的选手。"
 msgid "这场比赛会回到未分析状态，Demo 文件不受影响，可以重新分析。"
 msgstr "这场比赛会回到未分析状态，Demo 文件不受影响，可以重新分析。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:263
+#: src/pages/analysis/match/views/ReviewView.tsx:235
 msgid "这场比赛既没有解析出击杀，也没有道具与对位数据。"
 msgstr "这场比赛既没有解析出击杀，也没有道具与对位数据。"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:242
+#: src/pages/analysis/match/views/HighlightsView.tsx:184
 msgid "这场比赛没有检出高光"
 msgstr "这场比赛没有检出高光"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:448
+#: src/pages/analysis/match/views/HighlightsView.tsx:390
 msgid "这场比赛没有检出高光，这里没有可以加入作品的片段。"
 msgstr "这场比赛没有检出高光，这里没有可以加入作品的片段。"
 
@@ -9359,7 +9403,7 @@ msgstr "这场比赛还没有可用的回放帧。"
 msgid "这场比赛还没有解析出回合。"
 msgstr "这场比赛还没有解析出回合。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:262
+#: src/pages/analysis/match/views/ReviewView.tsx:234
 msgid "这场还推不出结论"
 msgstr "这场还推不出结论"
 
@@ -9367,7 +9411,7 @@ msgstr "这场还推不出结论"
 msgid "这场还没分析"
 msgstr "这场还没分析"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:690
+#: src/pages/analysis/match/views/ReviewView.tsx:671
 msgid "这场还没有注释"
 msgstr "这场还没有注释"
 
@@ -9384,7 +9428,7 @@ msgstr "这批 Demo 没有可用的投掷物事件"
 msgid "这批 Demo 没有可用的购买事件{0}"
 msgstr "这批 Demo 没有可用的购买事件{0}"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:272
+#: src/pages/analysis/evidence/EvidencePage.tsx:233
 msgid "这批证据没有比赛日期，无法按时间筛选"
 msgstr "这批证据没有比赛日期，无法按时间筛选"
 
@@ -9400,10 +9444,6 @@ msgstr "这条比赛不会导入资料库，可以稍后重新下载。"
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:186
 msgid "这条证据的注释没能读出来：{0}"
 msgstr "这条证据的注释没能读出来：{0}"
-
-#: src/pages/analysis/match/views/OverviewView.tsx:204
-msgid "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
-msgstr "这次分析没有检出高光候选。回合时间线仍然可以逐回合复盘。"
 
 #: src/domain/task/TaskCancelButton.tsx:51
 #: src/domain/task/TaskCancelButton.tsx:56
@@ -9432,15 +9472,11 @@ msgstr "这次检查没有返回任何项。"
 msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 msgstr "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:212
-msgid "这次直接用了同一批证据上次的结果。"
-msgstr "这次直接用了同一批证据上次的结果。"
-
 #: src/pages/analysis/match/views/HighlightPreview.tsx:135
 msgid "这段没有可用的回放帧。"
 msgstr "这段没有可用的回放帧。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:447
+#: src/pages/analysis/match/views/ReviewView.tsx:418
 msgid "这段点评没有回引证据。"
 msgstr "这段点评没有回引证据。"
 
@@ -9558,12 +9594,12 @@ msgid "选中：第 {0} 回合"
 msgstr "选中：第 {0} 回合"
 
 #. placeholder {0}: highlight.round
-#: src/pages/analysis/match/views/HighlightsView.tsx:461
+#: src/pages/analysis/match/views/HighlightsView.tsx:403
 msgid "选中：第 {0} 回合的高光"
 msgstr "选中：第 {0} 回合的高光"
 
 #: src/pages/analysis/match/views/DuelsView.tsx:739
-#: src/pages/analysis/match/views/OverviewView.tsx:298
+#: src/pages/analysis/match/views/OverviewView.tsx:297
 #: src/pages/analysis/match/views/PlayersView.tsx:499
 #: src/pages/analysis/match/views/RoundsView.tsx:676
 #: src/pages/analysis/match/views/TeamsView.tsx:535
@@ -9574,17 +9610,17 @@ msgstr "选中项"
 msgid "选中项详情"
 msgstr "选中项详情"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:71
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:82
-#: src/pages/analysis/match/views/HighlightsView.tsx:479
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:47
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:58
+#: src/pages/analysis/match/views/HighlightsView.tsx:421
 #: src/pages/analysis/match/views/PlayersView.tsx:133
 #: src/pages/analysis/match/views/PlayersView.tsx:134
 #: src/pages/analysis/match/views/ReplayView.tsx:311
 #: src/pages/analysis/match/views/TeamsView.tsx:128
 #: src/pages/analysis/match/views/UtilityView.tsx:72
 #: src/pages/analysis/match/views/UtilityView.tsx:73
-#: src/pages/analysis/players/PlayersPage.tsx:99
-#: src/pages/analysis/players/PlayersPage.tsx:100
+#: src/pages/analysis/players/PlayersPage.tsx:57
+#: src/pages/analysis/players/PlayersPage.tsx:58
 msgid "选手"
 msgstr "选手"
 
@@ -9604,7 +9640,7 @@ msgid "选手 {0} 的档案未能读取"
 msgstr "选手 {0} 的档案未能读取"
 
 #. placeholder {0}: condition.value
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:110
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:86
 msgid "选手：{0}"
 msgstr "选手：{0}"
 
@@ -9614,12 +9650,12 @@ msgstr "选手：{0}"
 msgid "选手位置"
 msgstr "选手位置"
 
-#: src/pages/analysis/evidence/EvidenceConditions.tsx:95
+#: src/pages/analysis/evidence/EvidenceConditions.tsx:71
 msgid "选手昵称，Enter 确认"
 msgstr "选手昵称，Enter 确认"
 
 #: src/app/routeCrumb.ts:69
-#: src/pages/analysis/players/PlayerProfilePage.tsx:136
+#: src/pages/analysis/players/PlayerProfilePage.tsx:86
 msgid "选手档案"
 msgstr "选手档案"
 
@@ -9630,14 +9666,10 @@ msgstr "选手档案"
 
 #: src/app/command/commandRegistry.ts:185
 #: src/app/shell/navigation.tsx:84
-#: src/pages/analysis/players/PlayersPage.tsx:279
-#: src/pages/analysis/players/PlayersPage.tsx:345
+#: src/pages/analysis/players/PlayersPage.tsx:237
+#: src/pages/analysis/players/PlayersPage.tsx:303
 msgid "选手目录"
 msgstr "选手目录"
-
-#: src/pages/analysis/players/PlayersPage.tsx:340
-msgid "选手目录没能读出来：{error}"
-msgstr "选手目录没能读出来：{error}"
 
 #: src/pages/analysis/match/views/UtilityView.tsx:367
 msgid "选手道具明细"
@@ -9664,11 +9696,11 @@ msgstr "选择一条片段后再加入作品。"
 msgid "选择一组对位查看交手记录。"
 msgstr "选择一组对位查看交手记录。"
 
-#: src/pages/analysis/evidence/EvidencePage.tsx:375
+#: src/pages/analysis/evidence/EvidencePage.tsx:336
 msgid "选择事件并添加注释，即可在这里检索。"
 msgstr "选择事件并添加注释，即可在这里检索。"
 
-#: src/pages/analysis/match/views/OverviewView.tsx:304
+#: src/pages/analysis/match/views/OverviewView.tsx:303
 msgid "选择回合、选手或高光查看详情。"
 msgstr "选择回合、选手或高光查看详情。"
 
@@ -9764,7 +9796,7 @@ msgstr "选择选手查看本场表现。"
 msgid "选择顺序"
 msgstr "选择顺序"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:450
+#: src/pages/analysis/match/views/HighlightsView.tsx:392
 msgid "选择高光查看详情。"
 msgstr "选择高光查看详情。"
 
@@ -9793,8 +9825,8 @@ msgstr "透明度"
 msgid "逐个对手"
 msgstr "逐个对手"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:246
-#: src/pages/analysis/match/views/ReviewView.tsx:266
+#: src/pages/analysis/match/views/HighlightsView.tsx:188
+#: src/pages/analysis/match/views/ReviewView.tsx:238
 msgid "逐回合看"
 msgstr "逐回合看"
 
@@ -9829,21 +9861,17 @@ msgstr "道具与经济"
 msgid "道具伤害"
 msgstr "道具伤害"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:419
+#: src/pages/analysis/match/views/ReviewView.tsx:390
 msgid "道具伤害归因不可用"
 msgstr "道具伤害归因不可用"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:417
+#: src/pages/analysis/match/views/ReviewView.tsx:388
 msgid "道具投掷统计不可用"
 msgstr "道具投掷统计不可用"
 
 #: src/pages/editing/workspace/EnvironmentNotice.tsx:79
 msgid "部分功能需要配置"
 msgstr "部分功能需要配置"
-
-#: src/pages/analysis/match/views/OverviewView.tsx:169
-msgid "都由这次分析的回合与事件推出"
-msgstr "都由这次分析的回合与事件推出"
 
 #: src/pages/shared/settings/RecoveryPage.tsx:136
 msgid "配置恢复"
@@ -9965,7 +9993,7 @@ msgstr "重新录制（保留旧文件）"
 
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:87
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:152
-#: src/pages/analysis/match/views/ReviewView.tsx:727
+#: src/pages/analysis/match/views/ReviewView.tsx:708
 msgid "重新打开"
 msgstr "重新打开"
 
@@ -10020,18 +10048,20 @@ msgstr "重置筛选"
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:185
 #: src/pages/analysis/evidence/EvidenceResults.tsx:132
 #: src/pages/analysis/match/MatchWorkspacePage.tsx:220
-#: src/pages/analysis/match/views/ReviewView.tsx:182
-#: src/pages/analysis/match/views/ReviewView.tsx:677
+#: src/pages/analysis/match/views/ReviewView.tsx:151
+#: src/pages/analysis/match/views/ReviewView.tsx:503
+#: src/pages/analysis/match/views/ReviewView.tsx:658
+#: src/pages/analysis/match/views/ReviewView.tsx:804
 #: src/pages/analysis/match/views/viewChrome.tsx:230
 #: src/pages/analysis/match/views/viewChrome.tsx:367
 #: src/pages/analysis/match/views/viewChrome.tsx:378
 #: src/pages/analysis/players/PlayerComparePanel.tsx:210
-#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:147
-#: src/pages/analysis/players/PlayerProfilePage.tsx:182
-#: src/pages/analysis/players/PlayerProfilePage.tsx:199
-#: src/pages/analysis/players/PlayerProfilePage.tsx:258
-#: src/pages/analysis/players/PlayersPage.tsx:337
-#: src/pages/analysis/players/PlayerTrend.tsx:135
+#: src/pages/analysis/players/PlayerHeatmapPanel.tsx:109
+#: src/pages/analysis/players/PlayerProfilePage.tsx:132
+#: src/pages/analysis/players/PlayerProfilePage.tsx:149
+#: src/pages/analysis/players/PlayerProfilePage.tsx:208
+#: src/pages/analysis/players/PlayersPage.tsx:295
+#: src/pages/analysis/players/PlayerTrend.tsx:104
 #: src/pages/editing/delivery/DeleteOutputDialog.tsx:68
 #: src/pages/editing/delivery/DeliveryPage.tsx:68
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:617
@@ -10114,7 +10144,7 @@ msgctxt "utility-item"
 msgid "闪光弹"
 msgstr "闪光弹"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:421
+#: src/pages/analysis/match/views/ReviewView.tsx:392
 msgid "闪光效果统计不可用"
 msgstr "闪光效果统计不可用"
 
@@ -10393,7 +10423,7 @@ msgstr "预演暂时不可用，请重试。"
 msgid "预演片段"
 msgstr "预演片段"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:283
+#: src/pages/analysis/match/views/HighlightsView.tsx:225
 #: src/pages/editing/delivery/OutputsView.tsx:236
 msgid "预览"
 msgstr "预览"
@@ -10454,7 +10484,7 @@ msgstr "首杀与首死"
 msgid "首杀事件缺少选手信息，无法显示对位。"
 msgstr "首杀事件缺少选手信息，无法显示对位。"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:284
+#: src/pages/analysis/match/views/ReviewView.tsx:255
 msgid "首杀取每个回合最早的一次击杀事件。"
 msgstr "首杀取每个回合最早的一次击杀事件。"
 
@@ -10466,7 +10496,7 @@ msgstr "首杀对决"
 msgid "首杀差"
 msgstr "首杀差"
 
-#: src/pages/analysis/match/views/ReviewView.tsx:793
+#: src/pages/analysis/match/views/ReviewView.tsx:777
 msgid "首杀指每回合的第一次击杀。"
 msgstr "首杀指每回合的第一次击杀。"
 
@@ -10475,7 +10505,7 @@ msgid "首次配置需要填写密钥。"
 msgstr "首次配置需要填写密钥。"
 
 #. placeholder {0}: printValue(metric, points.length === 0 ? null : geometry.maximum)
-#: src/pages/analysis/players/PlayerTrend.tsx:213
+#: src/pages/analysis/players/PlayerTrend.tsx:182
 msgid "高 {0}"
 msgstr "高 {0}"
 
@@ -10500,7 +10530,7 @@ msgctxt "evidence-event"
 msgid "高光片段"
 msgstr "高光片段"
 
-#: src/pages/analysis/match/views/HighlightsView.tsx:262
+#: src/pages/analysis/match/views/HighlightsView.tsx:204
 msgid "高光类型"
 msgstr "高光类型"
 

@@ -1,61 +1,11 @@
-/*
- * pages/ — 选手档案与趋势 (spec §7 `/players/:playerId`, phase 3d).
- *
- * ── Where the layout comes from ────────────────────────────────────────────
- *
- * There is no full-page artboard for this route. What there is:
- *
- *   · 「补齐 · 暗色与其余页面」 draws a 944 × 560 panel titled 「玩家档案与趋势」 —
- *     a 64px identity header (a square initial plate, the name, 「Aurora · 64 场
- *     · 别名 3 个 · 最近出场 08-14」, then 加入比较 and 做一条集锦), then a split:
- *     the left column holds a metric segmented control, a 170px trend box and a
- *     framed 按地图 table; the 320px right column holds a 击杀热图, a 最近比赛
- *     list.
- *   · 「06 玩家目录」's Inspector settles the vocabulary the panel above uses —
- *     the comparison bars, the heat map caption, 「查看最近比赛」 / 「做一条 Kael
- *     集锦」.
- *
- * This page is that 944px panel promoted to a route, with two adjustments the
- * promotion forces:
- *
- *   1. The identity header becomes the `Toolbar` rather than a second bar under
- *      it. A route already has a top bar, and stacking a 64px header on a 56px
- *      toolbar would spend 120px of a 700px window on saying the same name
- *      twice. Parent navigation stays in the shell breadcrumb, while the
- *      player's initial plate occupies `leading`.
- *   3. The panel's 「做一条集锦」 is not drawn. Highlights are cut in a match
- *      workspace or by the Agent, never from a profile, so a primary button
- *      here could only ever be disabled — and a main action that can never be
- *      taken is not a main action (DESIGN.md: 「蓝色优先表达主动作」; a
- *      `disabledReason` is for 「为什么现在不能点」, not for 「never」). The
- *      route offers the thing it can do instead: a secondary link into the
- *      player's most recent match workspace.
- *   2. The right column is `--w-panel` (340) rather than the panel's 320 — §3.5
- *      has no 320 token and 340 is the nearest, a 20px fold well inside the
- *      80px bound `PANEL_WIDTH_MAX_FOLD_PX` records.
- *
- * ── Trajectories are not drawn here (§10.3 gap 1) ──────────────────────────
- *
- * The gap asks phase 3c/3d to set a down-sampling strategy for `PathLayer`
- * (240 paths × 600 samples = 2.65 MB of markup). Neither the profile panel nor
- * 「06」 draws a trajectory — the only map surface on this route is the heat map,
- * which takes a `HeatDistribution` and cannot put one node per sample on screen
- * by construction. So no strategy is set here, and the gap stays with the
- * workspace's 2D replay view, which is the surface that actually renders paths.
- *
- * ── Everything else this page states is measured ───────────────────────────
- *
- * §7 says the profile links back to the matches the player appeared in, so the
- * 最近比赛 list is `listPlayerMatches`, capped at the same `TREND_WINDOW` the
- * chart uses — one read feeding both, and the chart can never be drawn from a
- * sample the list does not show.
- */
+/* Player profile, recent-match trend and map statistics. Each read exposes
+ * its own loading and recovery state without hiding the other results. */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { dataErrorMessage } from '../../../data/errors';
+import { toDataError } from '../../../data/errors';
 import { usePlayer, usePlayerHeatmap, usePlayerMaps, usePlayerMatches } from '../../../data/players';
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
@@ -109,10 +59,10 @@ export function PlayerProfilePage() {
   };
 
   const player = profile.data?.player;
-  const profileError = dataErrorMessage(profile.error);
-  const matchesError = dataErrorMessage(matches.error);
-  const mapsError = dataErrorMessage(maps.error);
-  const heatmapError = dataErrorMessage(heatmap.error);
+  const profileError = toDataError(profile.error, t`请重试`)?.message ?? null;
+  const matchesError = toDataError(matches.error, t`请重试`)?.message ?? null;
+  const mapsError = toDataError(maps.error, t`请重试`)?.message ?? null;
+  const heatmapError = toDataError(heatmap.error, t`请重试`)?.message ?? null;
   const recentMatches = matches.data?.items ?? [];
   const latestMatch = recentMatches[0];
   const lastSeen = player === undefined ? '' : formatMonthDay(player.last_match_date);
@@ -224,7 +174,7 @@ export function PlayerProfilePage() {
           {maps.data === undefined || maps.data.items.length === 0 ? null : (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-neutral-600">
-                <Trans>换一张图</Trans>
+                <Trans>地图</Trans>
               </span>
               {maps.data.items.map((item) =>
                 item.map_name === null ? null : (

@@ -60,6 +60,21 @@ function openAnnotations(): void {
 }
 
 describe('the tabs', () => {
+  it.each([new Error('annotations unavailable'), new TypeError('Cannot read properties of undefined')])('shows a retryable annotation error without an empty preview or a zero count: %s', (failure) => {
+    const refetch = vi.fn();
+    vi.mocked(useMatchAnnotations).mockReturnValue({
+      ...queryResult(undefined, { error: failure }) as object,
+      refetch,
+    } as never);
+    renderView(<ReviewView.Body {...viewProps()} />);
+    expect(screen.getByRole('alert').textContent).toContain('无法加载注释');
+    expect(screen.getByRole('alert').textContent).not.toContain('Cannot read properties');
+    expect(screen.queryByText('还没有注释。选择一个事件即可添加。')).toBeNull();
+    expect(screen.getByRole('radio', { name: '我的注释' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
   it('moves between 结论 and 我的注释', () => {
     renderView(<ReviewView.Body {...viewProps()} />);
     expect(document.querySelector('[data-review-insights]')).not.toBeNull();

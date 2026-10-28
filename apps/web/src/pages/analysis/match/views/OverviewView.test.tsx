@@ -78,7 +78,7 @@ describe('a parse with nothing but rounds', () => {
   });
 
   it('says the highlight pass found nothing, and still offers the timeline', () => {
-    expect(html).toContain('这次分析没有检出高光候选');
+    expect(html).toContain('未检出高光，可选择回合查看事件');
     expect(html).toContain('data-round-timeline');
   });
 });

@@ -177,10 +177,10 @@ export function EvidenceDetail({
         </Field>
       </div>
 
-      <div data-evidence-notes="" className="border border-divider p-3">
-        <div className="mb-2 font-heading text-xs tracking-caps text-neutral-700">
+      <div data-evidence-notes="" className="border-t border-divider pt-3">
+        <h3 className="mb-2 text-sm font-medium">
           <Trans>注释</Trans>
-        </div>
+        </h3>
         {notesReadError === undefined ? null : (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: notesReadError.onRetry }}>
             <Trans>这条证据的注释没能读出来：{notesReadError.message}</Trans>
@@ -200,7 +200,7 @@ export function EvidenceDetail({
           <ul className="flex list-none flex-col gap-2">
             {notes.map((note) => (
               <li key={note.id} data-evidence-note={note.id} className="flex items-start gap-2">
-                <p className="min-w-0 flex-1 break-words text-xs leading-normal">{note.body}</p>
+                <p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{note.body}</p>
                 <Badge variant={note.review_state === 'resolved' ? 'neutral' : 'outline'}>
                   {note.review_state === 'resolved' ? <Trans>已处理</Trans> : <Trans>待处理</Trans>}
                 </Badge>

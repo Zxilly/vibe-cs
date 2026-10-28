@@ -99,7 +99,9 @@ describe('a failed read', () => {
         error={{ message: '服务未启动', onRetry: () => undefined }}
       />,
     );
-    expect(html).toContain('热图没能读出来：服务未启动');
+    expect(html).toContain('无法加载热图：服务未启动');
     expect(html).toContain('data-notice-action="primary"');
+    expect(html).not.toContain('请先分析该选手');
+    expect(html).not.toContain('这张地图还没有空间证据');
   });
 });

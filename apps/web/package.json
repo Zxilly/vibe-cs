@@ -6,7 +6,7 @@
   "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm i18n:compile && tsc -b && vite build",
+    "build": "pnpm i18n:compile && tsc -b && vite build && node ../../scripts/check-web-bundle.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",

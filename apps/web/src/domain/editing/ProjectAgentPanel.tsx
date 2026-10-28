@@ -17,6 +17,7 @@ import remarkGfm from 'remark-gfm';
 import { Empty } from '../../design/data';
 import { Drawer, toast } from '../../design/feedback';
 import { ProjectExecutionCard } from './ProjectExecutionCard';
+import { pendingDeliveryGroup } from './projectAgentReview';
 import { Button, Textarea, cn } from '../../design/primitives';
 import type {
   AgentSession,
@@ -594,25 +595,6 @@ function ToolCallCard({
 }
 
 type ToolDecisionEntry = Extract<AgentSessionEntry, { readonly kind: 'tool_decision' }>;
-
-export function pendingDeliveryGroup(
-  changeGroups: readonly ProjectChangeGroup[],
-  session: AgentSession | null,
-): ProjectChangeGroup | null {
-  if (session === null) return null;
-  const latestUserAt = [...session.entries].reverse().find((entry) => entry.kind === 'user')?.at ?? null;
-  if (latestUserAt === null) return null;
-  const decidedGroupIds = new Set(session.entries.flatMap((entry) => {
-    const groupId = deliveryDecisionChangeGroupId(entry);
-    return groupId === null ? [] : [groupId];
-  }));
-  return changeGroups.find((group) => (
-    group.author.kind === 'agent'
-      && group.author.session_id === session.id
-      && group.created_at >= latestUserAt
-      && !decidedGroupIds.has(group.id)
-  )) ?? null;
-}
 
 function pendingConfirmationToolCall(entries: readonly AgentSessionEntry[]): string | null {
   const decided = new Set(entries.flatMap((entry) => entry.kind === 'tool_decision' ? [entry.tool_call_id] : []));

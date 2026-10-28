@@ -41,25 +41,23 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: true,
-    rollupOptions: {
+    manifest: true,
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('/node_modules/react') || id.includes('/node_modules/react-dom') || id.includes('/node_modules/react-router-dom')) {
-            return 'react';
-          }
-          if (id.includes('/node_modules/lucide-react')) {
-            return 'icons';
-          }
-          if (id.includes('/node_modules/@tanstack/react-query')) {
-            return 'query';
-          }
-          if (id.includes('/node_modules/@lingui/')) {
-            return 'i18n';
-          }
-          if (id.includes('/node_modules/zustand')) {
-            return 'state';
-          }
-          return undefined;
+        codeSplitting: {
+          groups: [
+            // Match package boundaries: react-markdown belongs to the lazy Agent panel.
+            { name: 'react', test: /\/node_modules\/(?:react|react-dom|react-router|react-router-dom)\//, priority: 30 },
+            { name: 'icons', test: /\/node_modules\/lucide-react\//, priority: 30 },
+            { name: 'query', test: /\/node_modules\/@tanstack\/react-query\//, priority: 30 },
+            { name: 'i18n', test: /\/node_modules\/@lingui\//, priority: 30 },
+            { name: 'state', test: /\/node_modules\/zustand\//, priority: 30 },
+            { name: 'editor-layout', test: /\/node_modules\/flexlayout-react\//, priority: 20 },
+            // Keep Three's core independent of its WebGL renderer. Both stay behind
+            // Scene3DView's dynamic import and can be cached across renderer edits.
+            { name: 'three-core', test: /\/node_modules\/three\/build\/three\.core\.js$/, priority: 20 },
+            { name: 'three-webgl', test: /\/node_modules\/three\/build\/three\.module\.js$/, priority: 10 },
+          ],
         },
       },
     },

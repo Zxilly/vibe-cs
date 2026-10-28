@@ -12,7 +12,7 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import {
@@ -65,7 +65,7 @@ import { Button, NativeSelect, cn } from '../../../design/primitives';
 import { formatMillisecondTimecode } from '../../../design/timeline/timeScale';
 import type { TimelineTimeDisplayMode } from '../../../design/timeline';
 import { ClipInspector } from '../../../domain/editing/ClipInspector';
-import { AgentPanel, pendingDeliveryGroup } from '../../../domain/editing/ProjectAgentPanel';
+import { pendingDeliveryGroup } from '../../../domain/editing/projectAgentReview';
 import { AudioTrackMixer } from '../../../domain/editing/AudioTrackMixer';
 import {
   ProjectMediaWorkspace,
@@ -138,6 +138,8 @@ import { RouteLink } from '../../shared/navigation/RouteLink';
 import { RecordingConfirmDialog } from './RecordingConfirmDialog';
 import { PlayerLayer } from '../../../domain/map/ReplayCanvas';
 import { buildPlayerTracks, clampTick, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from '../../../domain/map/replayModel';
+
+const AgentPanel = lazy(() => import('../../../domain/editing/ProjectAgentPanel').then((module) => ({ default: module.AgentPanel })));
 
 type EditingLens = 'quick' | 'multitrack';
 interface ProjectExportDraft {
@@ -1422,6 +1424,11 @@ export function ProjectWorkspacePage() {
     />
   );
   const agentPanel = (
+    <Suspense fallback={(
+      <div className="p-3" role="status" aria-label={t`加载中`} aria-busy="true">
+        <Skeleton className="h-20" />
+      </div>
+    )}>
     <AgentPanel
       draftMessage={agentDraft}
       onDraftChange={setAgentDraft}
@@ -1496,6 +1503,7 @@ export function ProjectWorkspacePage() {
         if (clipId !== null) workspaceDock.current?.showPanel('inspector');
       }}
     />
+    </Suspense>
   );
   const mixerPanel = (
     <AudioTrackMixer

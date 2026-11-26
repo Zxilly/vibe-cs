@@ -90,7 +90,8 @@ const BOX_SIZE_CLASS: Readonly<Record<CheckboxSize, string>> = {
 };
 
 const BOX_CLASS =
-  'grid flex-none place-items-center rounded-none border border-neutral-400 ' +
+  'grid flex-none place-items-center rounded-none border border-neutral-400 transition-colors ' +
+  'hover:not-disabled:border-neutral-600 ' +
   'data-[state=checked]:border-accent data-[state=checked]:bg-accent ' +
   'data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent ' +
   'disabled:cursor-not-allowed';

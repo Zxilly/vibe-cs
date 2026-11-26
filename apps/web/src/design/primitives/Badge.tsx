@@ -50,7 +50,7 @@ export type BadgeSize = 'md' | 'sm';
  * Every variant declares a border so switching one never changes the box size.
  */
 export const badgeVariants = cva(
-  'inline-flex items-center whitespace-nowrap text-xs leading-tight tracking-[0.02em]',
+  'inline-flex items-center whitespace-nowrap rounded-sm text-xs leading-tight tracking-[0.02em]',
   {
     variants: {
       variant: {
@@ -65,7 +65,7 @@ export const badgeVariants = cva(
         outline: 'border border-accent text-accent-700',
         /* The tally chip: a lighter hairline than `outline`, so a count beside
            a nav label reads as an annotation rather than as an action. */
-        count: 'border border-accent-300 text-accent-700',
+        count: 'border border-accent-300 tabular-nums text-accent-700',
       },
       size: {
         md: 'px-3 py-[calc(var(--spacing)*0.9)]',

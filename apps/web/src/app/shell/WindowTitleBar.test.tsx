@@ -91,6 +91,23 @@ describe('WindowTitleBar', () => {
     expect(html).toContain('aria-label="后台任务，3 条未读"');
     expect(html).toContain('data-activity-unread="3"');
   });
+
+  it('surfaces active and failed task counts on the activity bell when unread is zero', () => {
+    const html = renderMarkup(
+      <WindowTitleBar
+        adapter={null}
+        onOpenActivity={() => undefined}
+        activityActiveCount={2}
+        activityFailedCount={1}
+      />,
+    );
+
+    expect(html).toContain('aria-label="后台任务，2 条进行中，1 条失败"');
+    expect(html).toContain('data-activity-active="2"');
+    expect(html).toContain('data-activity-failed="1"');
+    expect(html).toContain('bg-fail');
+    expect(html).toContain('>3</span>');
+  });
 });
 
 /*

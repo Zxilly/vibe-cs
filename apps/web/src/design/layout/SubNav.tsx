@@ -62,12 +62,12 @@ export interface SubNavProps {
 export const SUBNAV_DEFAULT_VISIBLE_TABS = 5;
 
 const RAIL_ITEM_CLASS =
-  'flex h-[var(--h-row-compact)] w-full items-center gap-3 px-5 text-left text-base text-text disabled:opacity-45';
+  'flex h-[var(--h-row-compact)] w-full items-center gap-3 rounded-none px-5 text-left text-base text-text transition-colors hover:bg-action-hover focus-visible:-outline-offset-2 disabled:opacity-45';
 
-const RAIL_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
+const RAIL_ACTIVE_CLASS = 'bg-accent-100 font-medium text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 const TAB_ITEM_CLASS =
-  'flex h-[var(--h-nav-item)] items-center gap-2 whitespace-nowrap rounded-none px-3 text-sm font-medium text-neutral-700 hover:bg-action-hover disabled:opacity-45';
+  'flex h-[var(--h-nav-item)] items-center gap-2 whitespace-nowrap rounded-none px-3 text-sm font-medium text-neutral-700 transition-colors hover:bg-action-hover focus-visible:-outline-offset-2 disabled:opacity-45';
 
 const TAB_ACTIVE_CLASS = 'bg-accent-100 text-accent-700 shadow-[inset_0_-2px_0_var(--color-accent)]';
 

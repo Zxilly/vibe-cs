@@ -237,7 +237,7 @@ export function CommandPalette({
             'flex-col overflow-hidden rounded-lg border border-divider bg-bg shadow-[var(--shadow-lg)]'
           }
         >
-        <div className="flex h-[var(--h-topbar)] flex-none items-center gap-3 border-b border-divider px-4">
+        <div className="flex h-[var(--h-topbar)] flex-none items-center gap-3 border-b border-divider px-4 transition-colors focus-within:border-b-accent">
           <Search size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
           <input
             ref={searchInput}
@@ -256,7 +256,7 @@ export function CommandPalette({
             aria-activedescendant={activeIndex === -1 ? undefined : optionId(activeIndex)}
             aria-label={t`搜索比赛、选手、作品、页面和动作`}
             placeholder={t`跳转、搜索比赛或作品`}
-            className="min-w-0 flex-1 bg-transparent text-md placeholder:text-neutral-600"
+            className="min-w-0 flex-1 rounded-none bg-transparent text-md placeholder:text-neutral-600 focus-visible:outline-none"
           />
           {/* A key name plus its verb; the artboard prints both, so both go
               through the macro rather than only the Chinese half. */}
@@ -322,10 +322,10 @@ export function CommandPalette({
                           run(command);
                         }}
                         className={cn(
-                          'flex h-[var(--h-row-compact)] cursor-default items-center gap-3 px-4',
+                          'flex h-[var(--h-row-compact)] cursor-default items-center gap-3 px-4 transition-colors',
                           isActive
                             ? 'bg-accent-100 text-accent-900 shadow-[inset_2px_0_0_var(--color-accent)]'
-                            : 'hover:bg-surface',
+                            : 'hover:bg-neutral-100',
                         )}
                       >
                         <span className="min-w-0 truncate text-base">{command.title}</span>

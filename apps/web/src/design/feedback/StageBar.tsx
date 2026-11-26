@@ -90,8 +90,15 @@ export function StageBar({ stages, label, className }: StageBarProps) {
           aria-current={stage.state === 'active' ? 'step' : undefined}
           className="flex min-w-0 flex-col gap-1 last:text-end"
         >
-          <span aria-hidden="true" className={`block h-[6px] w-full ${SEGMENT_CLASS[stage.state]}`} />
-          <span className="truncate text-xs text-neutral-600">{stage.label}</span>
+          <span aria-hidden="true" className={`block h-[6px] w-full rounded-full ${SEGMENT_CLASS[stage.state]}`} />
+          <span
+            className={cn(
+              'truncate text-xs',
+              stage.state === 'active' ? 'font-medium text-text' : 'text-neutral-600',
+            )}
+          >
+            {stage.label}
+          </span>
           <span className="sr-only">
             <StateWord state={stage.state} />
           </span>

@@ -11,7 +11,7 @@ import { ArrowRight, ChartNoAxesCombined, Clapperboard, type LucideIcon } from '
 import { useId, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '../../design/primitives';
+import { Badge, Button, cn } from '../../design/primitives';
 import { MODE_LANDING_PATH, type WorkspaceMode } from './navigation';
 import { useShellStore } from './shellStore';
 
@@ -43,6 +43,7 @@ const MODE_CARDS: readonly ModeCard[] = [
 export function WorkspaceModeIntro() {
   const navigate = useNavigate();
   const headingId = useId();
+  const currentMode = useShellStore((state) => state.mode);
   const onboardingComplete = useShellStore((state) => state.onboardingComplete);
   const completeOnboarding = useShellStore((state) => state.completeOnboarding);
   const setMode = useShellStore((state) => state.setMode);
@@ -56,28 +57,56 @@ export function WorkspaceModeIntro() {
   };
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3" data-home-block="modes">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={headingId} className="text-base font-medium"><Trans>选择工作模式</Trans></h2>
+    <section
+      aria-labelledby={headingId}
+      className="flex flex-col gap-2 rounded-lg border border-divider bg-surface-chrome/60 px-4 py-3"
+      data-home-block="modes"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id={headingId} className="text-sm font-medium text-neutral-700"><Trans>选择工作模式</Trans></h2>
         <Button variant="ghost" size="sm" onClick={completeOnboarding}>
           <Trans>不再显示</Trans>
         </Button>
       </div>
-      <ul className="grid grid-cols-2 gap-3">
+      <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {MODE_CARDS.map((card) => {
           const Icon = card.icon;
+          const active = card.mode === currentMode;
           return (
             <li
               key={card.mode}
               data-mode-card={card.mode}
-              className="relative flex min-w-0 items-center gap-3 rounded-md border border-divider bg-bg p-3 transition-colors hover:bg-action-hover focus-within:border-accent"
+              data-mode-active={active ? 'true' : undefined}
+              className={cn(
+                'relative flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 transition-colors focus-within:border-accent',
+                active
+                  ? 'border-accent bg-accent-100/70'
+                  : 'border-divider bg-bg hover:border-neutral-400 hover:bg-neutral-100',
+              )}
             >
-              <Icon size={20} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
+              <Icon
+                size={18}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className={cn('flex-none', active ? 'text-accent-700' : 'text-neutral-600')}
+              />
               <div className="min-w-0 flex-1">
-                <h3 className="text-base font-medium">{card.title}</h3>
-                <p className="mt-0.5 text-base text-neutral-600">{card.body}</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium text-text">{card.title}</h3>
+                  {active ? (
+                    <Badge variant="accent" size="sm">
+                      <Trans>当前</Trans>
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-0.5 text-xs text-neutral-600">{card.body}</p>
               </div>
-              <Button variant="ghost" size="sm" className="flex-none after:absolute after:inset-0 after:rounded-md" onClick={() => choose(card.mode)}>
+              <Button
+                variant={active ? 'secondary' : 'ghost'}
+                size="sm"
+                className="flex-none after:absolute after:inset-0 after:rounded-md"
+                onClick={() => choose(card.mode)}
+              >
                 {card.action}<ArrowRight size={14} aria-hidden="true" />
               </Button>
             </li>

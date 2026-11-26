@@ -271,7 +271,7 @@ export function DataTable<Row>({
               return <col key={column.id} style={width === undefined ? undefined : { width }} />;
             })}
           </colgroup>
-          <thead className="sticky top-0 z-10 bg-bg">
+          <thead className="sticky top-0 z-10 bg-bg shadow-[inset_0_-1px_0_var(--color-divider)]">
             <tr>
               {selectable ? (
                 <TableHeaderCell edge="leading" className="min-w-13">
@@ -310,7 +310,10 @@ export function DataTable<Row>({
                         /* A header never breaks mid-label: `回合` wrapping to
                            two lines is a column that is too narrow, and it
                            should show as overflow rather than hide as a fold. */
-                        className="inline-flex h-[var(--h-ctl-sm)] items-center gap-1 whitespace-nowrap hover:text-text"
+                        className={cn(
+                          'inline-flex h-[var(--h-ctl-sm)] items-center gap-1 whitespace-nowrap transition-colors hover:text-text',
+                          sortState !== 'none' && 'font-medium text-text',
+                        )}
                         onClick={() => onSortChange(nextSortState(sort, column.id))}
                       >
                         <span>{column.header ?? column.headerLabel}</span>
@@ -340,8 +343,8 @@ export function DataTable<Row>({
                   onKeyDown={interactiveRows ? (event) => handleRowKeyDown(event, id, row) : undefined}
                   onClick={interactiveRows ? (event) => handleRowClick(event, id, row) : undefined}
                   className={cn(
-                    'h-[var(--h-row)]',
-                    isActive ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : 'hover:bg-surface',
+                    'h-[var(--h-row)] transition-colors focus-visible:-outline-offset-2',
+                    isActive ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : 'hover:bg-neutral-100',
                     interactiveRows && 'cursor-pointer',
                   )}
                 >

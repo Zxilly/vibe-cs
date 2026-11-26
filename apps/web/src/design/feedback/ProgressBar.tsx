@@ -85,10 +85,10 @@ export function ProgressBar({
       aria-label={label}
       {...(valueText === undefined ? {} : { getValueLabel: () => valueText })}
       data-tone={tone}
-      className={cn('w-full overflow-hidden bg-neutral-200', SIZE_CLASS[size], className)}
+      className={cn('w-full overflow-hidden rounded-full bg-neutral-200', SIZE_CLASS[size], className)}
     >
       <ProgressPrimitive.Indicator
-        className={cn('h-full w-full transition-transform', TONE_CLASS[tone])}
+        className={cn('h-full w-full rounded-full transition-transform', TONE_CLASS[tone])}
         style={{ transform: `translateX(-${String(100 - percent)}%)` }}
       />
     </ProgressPrimitive.Root>

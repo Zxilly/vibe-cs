@@ -132,6 +132,8 @@ export interface WindowTitleBarProps {
   /** Opens the shell-level background activity drawer. */
   onOpenActivity?: (() => void) | undefined;
   activityUnreadCount?: number | undefined;
+  activityActiveCount?: number | undefined;
+  activityFailedCount?: number | undefined;
   /** Overrides the persisted rail state; the brand block tracks the rail width. */
   navCollapsed?: boolean | undefined;
   /**
@@ -147,8 +149,8 @@ export interface WindowTitleBarProps {
    product spacing scale. 46px is the logical caption width; the title bar
    height remains responsive to the standard/tall Windows title-bar mode. */
 const CONTROL_CLASS =
-  'pointer-events-auto grid h-full w-[46px] flex-none place-items-center text-neutral-700 ' +
-  'hover:bg-neutral-200 hover:text-text active:bg-neutral-300';
+  'pointer-events-auto grid h-full w-[46px] flex-none place-items-center rounded-none text-neutral-700 ' +
+  'transition-colors focus-visible:-outline-offset-2 hover:bg-neutral-200 hover:text-text active:bg-neutral-300';
 
 /** A press that started on a control is that control's, not the drag region's. */
 const NO_DRAG_SELECTOR = 'button, a, input, textarea, select, [data-window-no-drag]';
@@ -164,6 +166,8 @@ export function WindowTitleBar({
   onOpenCommandPalette,
   onOpenActivity,
   activityUnreadCount = 0,
+  activityActiveCount = 0,
+  activityFailedCount = 0,
   navCollapsed,
   adapter,
   className,
@@ -282,8 +286,8 @@ export function WindowTitleBar({
         onClick={onOpenCommandPalette}
         className={
           'flex h-[var(--h-ctl-sm)] w-full min-w-0 items-center gap-2 self-center ' +
-          'border border-divider bg-bg px-3 text-sm text-neutral-600 ' +
-          'hover:border-neutral-500 hover:text-text'
+          'rounded-md border border-divider bg-bg px-3 text-sm text-neutral-600 transition-colors ' +
+          'hover:border-neutral-400 hover:bg-neutral-100 hover:text-text active:bg-neutral-200'
         }
       >
         <Search size={14} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
@@ -294,31 +298,49 @@ export function WindowTitleBar({
       </button>
 
       <div className="flex min-w-0 items-stretch justify-end">
-        {onOpenActivity === undefined ? null : (
-          <button
-            type="button"
-            data-window-no-drag
-            data-titlebar-activity
-            aria-label={
-              activityUnreadCount > 0
-                ? t`后台任务，${activityUnreadCount} 条未读`
-                : t`后台任务`
-            }
-            onClick={onOpenActivity}
-            className="relative mx-4 grid size-[var(--h-ctl-sm)] flex-none self-center place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
-          >
-            <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
-            {activityUnreadCount > 0 ? (
-              <span
-                aria-hidden="true"
-                data-activity-unread={activityUnreadCount}
-                className="absolute -right-1 -top-1 min-w-4 border border-accent bg-accent px-0.5 font-mono text-xs leading-tight text-bg"
-              >
-                {activityUnreadCount > 99 ? '99+' : activityUnreadCount}
-              </span>
-            ) : null}
-          </button>
-        )}
+        {onOpenActivity === undefined ? null : (() => {
+          const attentionCount = activityActiveCount + activityFailedCount;
+          const badgeCount = activityUnreadCount > 0 ? activityUnreadCount : attentionCount;
+          const badgeTone = activityFailedCount > 0 && activityUnreadCount === 0
+            ? 'border-fail bg-fail text-on-accent'
+            : 'border-accent bg-accent text-on-accent';
+          const activityLabel = activityUnreadCount > 0
+            ? t`后台任务，${activityUnreadCount} 条未读`
+            : activityActiveCount > 0 && activityFailedCount > 0
+              ? t`后台任务，${activityActiveCount} 条进行中，${activityFailedCount} 条失败`
+              : activityFailedCount > 0
+                ? t`后台任务，${activityFailedCount} 条失败`
+                : activityActiveCount > 0
+                  ? t`后台任务，${activityActiveCount} 条进行中`
+                  : t`后台任务`;
+
+          return (
+            <button
+              type="button"
+              data-window-no-drag
+              data-titlebar-activity
+              aria-label={activityLabel}
+              onClick={onOpenActivity}
+              className="relative mx-4 grid size-[var(--h-ctl-sm)] flex-none self-center place-items-center rounded-md border border-divider text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-action-hover hover:text-text"
+            >
+              <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
+              {badgeCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  {...(activityUnreadCount > 0 ? { 'data-activity-unread': activityUnreadCount } : {})}
+                  {...(activityActiveCount > 0 ? { 'data-activity-active': activityActiveCount } : {})}
+                  {...(activityFailedCount > 0 ? { 'data-activity-failed': activityFailedCount } : {})}
+                  className={cn(
+                    'absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 font-mono text-xs leading-none tabular-nums',
+                    badgeTone,
+                  )}
+                >
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+              ) : null}
+            </button>
+          );
+        })()}
 
         <div data-window-no-drag className="flex flex-none items-stretch">
           {actionFailed ? (
@@ -359,7 +381,7 @@ export function WindowTitleBar({
             aria-label={t`关闭窗口`}
             title={t`关闭窗口`}
             onClick={() => void controller.close()}
-            className={cn(controlClass, 'hover:bg-fail hover:text-bg')}
+            className={cn(controlClass, 'hover:bg-fail hover:text-on-accent')}
           >
             <DismissRegular className="size-4" aria-hidden="true" />
           </button>

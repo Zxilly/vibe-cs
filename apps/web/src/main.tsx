@@ -5,8 +5,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 
-import { missingRootError } from './app/boot';
-import { activateConfiguredLocale } from './app/locale';
+import { activateBootPreferences, missingRootError } from './app/boot';
 import { queryClient } from './data/queryClient';
 import { createAppRouter } from './routes';
 import { commands } from './shared/desktop/client';
@@ -34,7 +33,7 @@ if (import.meta.env.DEV) {
   await installMockBridge();
 }
 
-await activateConfiguredLocale(() => commands.getConfig(AbortSignal.timeout(2_000)));
+await activateBootPreferences(() => commands.getConfig(AbortSignal.timeout(2_000)));
 
 const root = document.getElementById('root');
 

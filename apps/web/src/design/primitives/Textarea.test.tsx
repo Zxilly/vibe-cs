@@ -48,6 +48,16 @@ describe('Textarea markup', () => {
     expect(html).not.toContain('title=');
   });
 
+  it('suppresses disabledReason announcement while enabled', () => {
+    const html = renderMarkup(
+      <Textarea aria-label="镜头意图" disabledReason="本地服务离线" />,
+    );
+
+    expect(html).not.toContain('aria-describedby');
+    expect(html).not.toContain('暂时不能输入：本地服务离线');
+    expect(html).not.toContain('tabindex="0"');
+  });
+
   it('adds nothing when there is no reason to give', () => {
     const html = renderMarkup(<Textarea aria-label="镜头意图" />);
 

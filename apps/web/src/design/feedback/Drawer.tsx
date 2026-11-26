@@ -52,6 +52,7 @@ import type { ReactNode } from 'react';
 import { OVERLAY_ACTIONS_CLASS } from './actionButton';
 import { useOverlayReturnFocus } from './overlayFocus';
 import { cn } from '../cn';
+import { Kbd } from '../primitives/Kbd';
 
 export type DrawerWidth = 'standard' | 'wide';
 
@@ -78,7 +79,7 @@ const WIDTH_CLASS: Record<DrawerWidth, string> = {
 };
 
 const PANEL_CLASS =
-  'fixed bottom-0 right-0 top-[var(--h-titlebar)] z-40 flex max-w-full flex-col border-l border-neutral-500 bg-bg ' +
+  'fixed bottom-0 right-0 top-[var(--h-titlebar)] z-40 flex max-w-full flex-col border-l border-divider bg-bg ' +
   'shadow-[var(--shadow-lg)]';
 
 export function Drawer({
@@ -129,13 +130,11 @@ export function Drawer({
               <span className="flex-1" />
               {/* The artboard prints the key next to the close affordance. It is
                   a key name, not copy, and it duplicates the button's own label. */}
-              <span aria-hidden="true" className="font-mono text-xs text-neutral-600">
-                ESC
-              </span>
+              <Kbd>ESC</Kbd>
               <DialogPrimitive.Close
                 aria-label={t`关闭抽屉`}
                 data-drawer-action="close"
-                className="flex size-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700 hover:text-text"
+                className="flex size-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700 transition-colors hover:bg-action-hover hover:text-text"
               >
                 <X size={16} strokeWidth={1.5} aria-hidden />
               </DialogPrimitive.Close>

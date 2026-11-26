@@ -50,8 +50,8 @@ describe('DataTable density', () => {
     expect(table()).toContain('font-mono');
   });
 
-  it('washes a hovered row with the surface token rather than a bare ink mix', () => {
-    expect(table()).toContain('hover:bg-surface');
+  it('washes a hovered row with the list-hover neutral-100 token rather than a bare ink mix', () => {
+    expect(table()).toContain('hover:bg-neutral-100');
   });
 });
 

@@ -11,8 +11,7 @@ describe('Kbd markup', () => {
     expect(html).toContain('border-divider');
     expect(html).toContain('text-xs');
     expect(html).toContain('font-mono');
-    // --radius-* is 0 system-wide; a rounded key would be an invention.
-    expect(html).not.toContain('rounded');
+    expect(html).toContain('rounded-sm');
   });
 
   /* A key chip beside a labelled control repeats what the control already

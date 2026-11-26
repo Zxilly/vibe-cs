@@ -104,7 +104,7 @@ export interface TooltipProps {
 }
 
 const CONTENT_CLASS =
-  'z-50 max-w-[var(--w-panel)] border border-divider bg-bg px-2 py-1 ' +
+  'z-[55] max-w-[var(--w-panel)] rounded-sm border border-divider bg-bg px-2 py-1 ' +
   'text-xs leading-normal text-text shadow-[var(--shadow-md)]';
 
 export function Tooltip({

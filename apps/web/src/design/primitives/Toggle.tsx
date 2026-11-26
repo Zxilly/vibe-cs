@@ -71,7 +71,7 @@ const TRACK_CLASS =
   'disabled:opacity-45';
 
 const KNOB_CLASS =
-  'absolute top-[1px] size-[16px] rounded-full bg-bg ' +
+  'absolute top-[1px] size-[16px] rounded-full bg-bg shadow-[var(--shadow-sm)] transition-all ' +
   'data-[state=checked]:right-[1px] data-[state=unchecked]:left-[1px]';
 
 export function Toggle({ checked, onChange, locked = false, className, ...rest }: ToggleProps) {

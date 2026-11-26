@@ -40,8 +40,8 @@ export interface InputGroupProps extends Omit<ComponentPropsWithoutRef<'div'>, '
 }
 
 const GROUP_CLASS =
-  'flex w-full min-w-0 items-center gap-2 border px-3 ' +
-  'hover:not-focus-within:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +
+  'flex w-full min-w-0 items-center gap-2 rounded-md border px-3 transition-colors ' +
+  'hover:not-focus-within:border-neutral-600 ' +
   'focus-within:border-accent ' +
   'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-offset-2 ' +
   'has-[input:disabled]:opacity-45';

@@ -74,10 +74,12 @@ export interface SliderProps
   className?: string;
 }
 
-const ROOT_CLASS = 'relative flex h-[14px] w-full touch-none select-none items-center data-[disabled]:opacity-45';
-const TRACK_CLASS = 'relative h-[4px] w-full grow bg-neutral-400';
-const RANGE_CLASS = 'absolute h-full bg-accent';
-const THUMB_CLASS = 'block size-[14px] bg-accent disabled:cursor-not-allowed';
+const ROOT_CLASS = 'relative flex h-[14px] w-full touch-none select-none items-center data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45';
+const TRACK_CLASS = 'relative h-[4px] w-full grow rounded-full bg-neutral-400';
+const RANGE_CLASS = 'absolute h-full rounded-full bg-accent';
+const THUMB_CLASS =
+  'block size-[14px] cursor-pointer rounded-full bg-accent transition-colors ' +
+  'hover:bg-accent-600 data-[disabled]:cursor-not-allowed';
 
 export function Slider({
   value,

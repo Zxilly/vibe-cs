@@ -130,7 +130,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
     <div
       role={style.role}
       data-tone={variant}
-      className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-base', style.box, style.body, className)}
+      className={cn('flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-base', style.box, style.body, className)}
     >
       <span className={`flex-none pt-1 ${style.icon}`}>
         <Icon size={15} strokeWidth={1.5} aria-hidden />
@@ -151,7 +151,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
         onClick={action.onAction}
         disabled={action.disabled ?? false}
         data-notice-action="primary"
-        className="min-h-6 flex-none px-1 text-sm text-accent-700 underline-offset-2 hover:bg-action-hover hover:underline disabled:cursor-not-allowed disabled:opacity-45"
+        className="min-h-6 flex-none px-1 text-sm text-accent-700 underline-offset-2 transition-colors hover:bg-action-hover hover:underline disabled:cursor-not-allowed disabled:opacity-45"
       >
         {action.label}
       </button>
@@ -161,7 +161,7 @@ export function Alert({ variant, children, detail, action, onDismiss, className 
           type="button"
           onClick={onDismiss}
           aria-label={t`关闭提示`}
-          className="grid size-6 flex-none place-items-center text-neutral-600 hover:bg-action-hover hover:text-text"
+          className="grid size-6 flex-none place-items-center text-neutral-600 transition-colors hover:bg-action-hover hover:text-text"
         >
           <X size={14} strokeWidth={1.5} aria-hidden />
         </button>

@@ -37,8 +37,8 @@ export interface NativeSelectProps
 }
 
 const BASE_CLASS =
-  'w-full min-w-0 border bg-bg px-2 leading-normal text-text ' +
-  'hover:not-disabled:not-focus:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +
+  'w-full min-w-0 rounded-md border bg-bg px-2 leading-normal text-text transition-colors ' +
+  'hover:not-disabled:not-focus:border-neutral-600 ' +
   'focus:border-accent disabled:cursor-not-allowed disabled:opacity-45';
 
 export function NativeSelect({

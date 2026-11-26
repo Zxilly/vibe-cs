@@ -55,10 +55,10 @@ export interface FieldProps {
  */
 const LABEL_CLASS = 'block text-xs leading-normal text-neutral-700 mb-[calc(var(--spacing)*1.5)]';
 
-/** Supporting instructions use the body role; the label remains compact. */
-const HINT_CLASS = 'max-w-[75ch] text-base leading-normal text-neutral-600 mt-1';
+/** Supporting instructions remain visually subordinate to the input value. */
+const HINT_CLASS = 'max-w-[75ch] text-xs leading-normal text-neutral-600 mt-1';
 
-const ERROR_CLASS = 'max-w-[75ch] text-base leading-normal text-fail-text mt-1';
+const ERROR_CLASS = 'max-w-[75ch] text-xs leading-normal text-fail-text mt-1';
 
 export function Field({ label, hint, error, required = false, className, children }: FieldProps) {
   const generatedId = useId();

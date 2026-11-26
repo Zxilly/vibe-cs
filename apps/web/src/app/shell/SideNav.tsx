@@ -57,14 +57,16 @@ export interface SideNavProps {
   className?: string | undefined;
 }
 
-/* Frame: 40px rows — `--h-panel-head` — 10px inline padding, 14px text. */
-const ITEM_CLASS = 'flex h-[var(--h-nav-item)] items-center gap-3 px-3 text-base font-medium';
-const ITEM_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
+/* Frame: 40px rows — `--h-nav-item` — 12px inline padding, 14px text. */
+const ITEM_CLASS =
+  'flex h-[var(--h-nav-item)] items-center gap-3 rounded-sm px-3 text-base font-medium transition-colors focus-visible:-outline-offset-2';
+const ITEM_IDLE_CLASS = 'text-neutral-800 hover:bg-action-hover';
 const ITEM_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
-/* The 1100×700 artboard: a 34px square — `--h-ctl-md` — per entry. */
-const CELL_CLASS = 'relative grid size-[var(--h-ctl-md)] place-items-center';
-const CELL_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
+/* The 1100×700 artboard: a 36px square — `--h-ctl-md` — per entry. */
+const CELL_CLASS =
+  'relative grid size-[var(--h-ctl-md)] place-items-center rounded-md transition-colors focus-visible:-outline-offset-2';
+const CELL_IDLE_CLASS = 'text-neutral-800 hover:bg-action-hover';
 const CELL_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 const GROUP_HEADING_CLASS = 'px-3 pb-2 pt-4 text-xs font-medium text-neutral-600';
@@ -100,7 +102,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             aria-current={active ? 'page' : undefined}
             className={cn(
               ITEM_CLASS,
-              footer && 'w-full pr-12',
+              footer && 'w-full',
               active ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS,
             )}
           >
@@ -145,7 +147,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             <span
               aria-hidden="true"
               data-nav-badge={item.id}
-              className="absolute top-0.5 right-0.5 size-1.5 bg-accent"
+              className="absolute top-1 right-1 size-1.5 rounded-full bg-accent"
             />
           ) : null}
         </Link>
@@ -154,8 +156,8 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
             data-nav-flyout={item.id}
             aria-hidden="true"
             className={
-              'absolute top-0 left-full z-30 ml-1 flex flex-col justify-center gap-0.5 whitespace-nowrap ' +
-              'border border-divider bg-bg px-2.5 py-1.5 shadow-[var(--shadow-md)]'
+              'absolute top-0 left-full z-30 ml-1.5 flex flex-col justify-center gap-0.5 whitespace-nowrap ' +
+              'rounded-md border border-divider bg-bg px-2.5 py-1.5 shadow-[var(--shadow-md)]'
             }
           >
             {groupLabel === null ? null : (
@@ -217,32 +219,43 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
       <div
         data-shell-nav-footer
         className={cn(
-          'relative flex w-full items-center border-t border-divider pt-1.5',
-          isCollapsed ? 'flex-col gap-1.5' : 'px-3',
+          'flex w-full flex-col border-t border-divider pt-1.5',
+          isCollapsed ? 'items-center gap-1.5' : 'gap-1.5 px-3',
         )}
       >
         <ul className={cn('flex', isCollapsed ? 'flex-col items-center gap-1.5' : 'w-full flex-col')}>
           {renderItem(SHELL_NAV_FOOTER_ITEM, null, true)}
         </ul>
-        <Button
-          icon
-          size="sm"
-          variant="ghost"
-          data-nav-toggle
-          {...(isCollapsed ? {} : { className: 'absolute right-3 top-2.5 z-10' })}
-          disabled={viewportFolded}
-          aria-label={isCollapsed ? t`展开侧栏` : t`收起侧栏`}
-          {...(viewportFolded
-            ? { disabledReason: t`窗口宽度不足 1100px，侧栏保持为图标条` }
-            : { title: isCollapsed ? t`展开侧栏` : t`收起侧栏` })}
-          onClick={toggle}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen size={16} strokeWidth={1.5} aria-hidden="true" />
-          ) : (
-            <PanelLeftClose size={16} strokeWidth={1.5} aria-hidden="true" />
+        <div
+          data-shell-nav-toggle-row
+          className={cn(
+            'flex items-center border-t border-divider/60 pt-1.5',
+            isCollapsed ? 'justify-center' : 'w-full justify-end',
           )}
-        </Button>
+        >
+          <Button
+            icon={isCollapsed}
+            size="sm"
+            variant="ghost"
+            data-nav-toggle
+            {...(isCollapsed ? {} : { className: 'w-full justify-start text-neutral-600 hover:text-text' })}
+            disabled={viewportFolded}
+            aria-label={isCollapsed ? t`展开侧栏` : t`收起侧栏`}
+            {...(viewportFolded
+              ? { disabledReason: t`窗口宽度不足 1100px，侧栏保持为图标条` }
+              : { title: isCollapsed ? t`展开侧栏` : t`收起侧栏` })}
+            onClick={toggle}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen size={16} strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <>
+                <PanelLeftClose size={16} strokeWidth={1.5} aria-hidden="true" />
+                <span className="truncate text-sm">{t`收起侧栏`}</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </nav>
   );

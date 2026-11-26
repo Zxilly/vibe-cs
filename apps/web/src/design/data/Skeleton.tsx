@@ -35,7 +35,7 @@ export function Skeleton({ width, className }: SkeletonProps) {
     <span
       aria-hidden="true"
       style={width === undefined ? undefined : { width }}
-      className={cn('block h-3 animate-pulse bg-neutral-200', className)}
+      className={cn('block h-3 animate-pulse rounded-sm bg-neutral-200', className)}
     />
   );
 }
@@ -66,7 +66,7 @@ export function TableSkeleton({ rows = 4, stage, panel = false, className }: Tab
         aria-busy="true"
         aria-label={t`加载中`}
         data-skeleton-layout="panel"
-        className={cn('flex flex-col border border-divider', className)}
+        className={cn('flex flex-col rounded-md border border-divider', className)}
       >
         <div className="flex h-[var(--h-panel-head)] items-center border-b border-divider px-4">
           <Skeleton width="8rem" className="h-3.5" />
@@ -89,7 +89,7 @@ export function TableSkeleton({ rows = 4, stage, panel = false, className }: Tab
       role="status"
       aria-busy="true"
       aria-label={t`加载中`}
-      className={cn('flex flex-col gap-3 border border-divider p-4', className)}
+      className={cn('flex flex-col gap-3 rounded-md border border-divider p-4', className)}
     >
       {/* The header bar of the artboard: shorter and one step taller than a row. */}
       <Skeleton width="40%" className="h-3.5" />

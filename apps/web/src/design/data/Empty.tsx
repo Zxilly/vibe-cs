@@ -96,7 +96,7 @@ export function Empty({
       data-tone={resolvedVariant}
       className={cn(
         EMPTY_MIN_HEIGHT_CLASS,
-        'flex flex-col items-center justify-center gap-2 border p-5 text-center',
+        'flex flex-col items-center justify-center gap-2 rounded-lg border p-5 text-center',
         resolvedVariant === 'error' ? 'border-fail-border' : 'border-divider',
         className,
       )}
@@ -118,7 +118,7 @@ export function Empty({
           {resolvedDescription}
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-center gap-2">{actions}</div>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">{actions}</div>
     </section>
   );
 }

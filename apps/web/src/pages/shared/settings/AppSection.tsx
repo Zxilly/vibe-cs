@@ -28,11 +28,12 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Seg, Input, Button } from '../../../design/primitives';
+import { applyAppTheme, normalizeAppTheme, type AppTheme } from '../../../design/themeRuntime';
 import { useAppConfig, useUpdateAppConfig } from '../../../data/config';
 import type { AppConfig } from '../../../shared/desktop/dto';
 import { SettingsBlock, SettingsRow } from './settingsShared';
@@ -46,9 +47,6 @@ const LOCALES = [
   { value: 'en-US', label: 'English' },
 ] as const;
 
-/** The two `data-theme` values `design/theme.css` defines. */
-const THEMES = ['light', 'dark'] as const;
-
 export function AppSection() {
   const config = useAppConfig();
   const update = useUpdateAppConfig();
@@ -58,6 +56,19 @@ export function AppSection() {
   const blocked = update.isPending;
   const blockedReason = blocked ? t`正在保存` : undefined;
   const write = (next: AppConfig) => void update.mutateAsync(next).catch(() => undefined);
+
+  useEffect(() => {
+    if (current !== undefined) applyAppTheme(current.theme);
+  }, [current?.theme]);
+
+  const applyAndSaveTheme = (theme: AppTheme) => {
+    if (current === undefined) return;
+    const previousTheme = current.theme;
+    applyAppTheme(theme);
+    void update.mutateAsync({ ...current, theme }).catch(() => {
+      applyAppTheme(previousTheme);
+    });
+  };
 
   const manifest = manifestDraft ?? current?.update_manifest_url ?? '';
   const manifestInvalid = manifest.trim() !== '' && !isHttpsUrl(manifest.trim());
@@ -108,19 +119,20 @@ export function AppSection() {
 
             <SettingsRow
               label={<Trans>主题</Trans>}
-              hint={<Trans>下次启动应用时生效。</Trans>}
+              hint={<Trans>切换后立即生效，跟随系统会自动适配操作系统深浅色。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <Seg
                 name="app-theme"
                 size="sm"
-                value={THEMES.includes(current.theme as (typeof THEMES)[number]) ? current.theme : 'light'}
+                value={normalizeAppTheme(current.theme)}
                 aria-label={t`主题`}
                 options={[
+                  { value: 'system', label: <Trans>跟随系统</Trans>, disabled: blocked },
                   { value: 'light', label: <Trans>浅色</Trans>, disabled: blocked },
                   { value: 'dark', label: <Trans>深色</Trans>, disabled: blocked },
                 ]}
-                onChange={(theme) => write({ ...current, theme })}
+                onChange={applyAndSaveTheme}
               />
             </SettingsRow>
           </>

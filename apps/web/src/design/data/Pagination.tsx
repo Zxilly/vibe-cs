@@ -60,7 +60,7 @@ export function Pagination({
         className,
       )}
     >
-      <span className="text-xs text-neutral-600">
+      <span className="text-xs tabular-nums text-neutral-600">
         {summary ?? <Plural value={total} other="共 # 条" />}
         {total > 0 ? (
           <>
@@ -94,10 +94,10 @@ export function Pagination({
               aria-current={slot === current ? 'page' : undefined}
               onClick={() => onPageChange(slot)}
               className={cn(
-                'inline-flex h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] items-center justify-center border px-2 text-sm tabular-nums',
+                'inline-flex h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] items-center justify-center border px-2 text-sm tabular-nums transition-colors',
                 slot === current
-                  ? 'border-accent bg-accent-100 text-accent-800'
-                  : 'border-transparent hover:bg-surface',
+                  ? 'border-accent bg-accent-100 font-medium text-accent-800'
+                  : 'border-transparent hover:bg-action-hover',
               )}
             >
               {slot}
@@ -137,7 +137,7 @@ function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex size-[var(--h-ctl-sm)] items-center justify-center border border-neutral-400 hover:bg-surface disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+      className="inline-flex size-[var(--h-ctl-sm)] items-center justify-center border border-neutral-400 transition-colors hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
     >
       {icon}
     </button>

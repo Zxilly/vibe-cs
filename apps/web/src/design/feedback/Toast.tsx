@@ -146,7 +146,7 @@ const VARIANT: Record<ToastVariant, { readonly Icon: typeof Info; readonly box: 
 };
 
 const ROOT_CLASS =
-  'flex items-start gap-2.5 border px-3 py-2.5 text-base shadow-[var(--shadow-md)] ' +
+  'flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-base shadow-[var(--shadow-md)] ' +
   'data-[state=closed]:opacity-0 data-[swipe=end]:opacity-0 transition-opacity';
 
 /**
@@ -204,7 +204,7 @@ export function Toaster() {
             <ToastPrimitive.Close
               aria-label={t`关闭提示`}
               data-toast-close=""
-              className="flex-none text-neutral-600 hover:text-text"
+              className="flex-none text-neutral-600 transition-colors hover:text-text"
             >
               <X size={14} strokeWidth={1.5} aria-hidden />
             </ToastPrimitive.Close>

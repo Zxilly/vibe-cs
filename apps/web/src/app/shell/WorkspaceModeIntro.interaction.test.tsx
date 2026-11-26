@@ -29,6 +29,8 @@ describe('WorkspaceModeIntro', () => {
     expect(screen.getByRole('region', { name: '选择工作模式' })).toBeTruthy();
     expect(screen.getByText('选材、剪辑与导出')).toBeTruthy();
     expect(screen.getByText('比赛数据与战术回放')).toBeTruthy();
+    expect(document.querySelector('[data-mode-card="edit"]')?.getAttribute('data-mode-active')).toBe('true');
+    expect(document.querySelector('[data-mode-card="analysis"]')?.getAttribute('data-mode-active')).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
   });

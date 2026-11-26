@@ -42,9 +42,9 @@ export interface TextareaProps extends Omit<ComponentPropsWithoutRef<'textarea'>
 }
 
 const BASE_CLASS =
-  'w-full min-w-0 border px-3 py-2 text-base leading-normal caret-accent ' +
+  'w-full min-w-0 rounded-md border px-3 py-2 text-base leading-normal caret-accent transition-colors ' +
   'placeholder:text-neutral-600 ' +
-  'hover:not-disabled:not-focus:border-[color-mix(in_srgb,var(--color-text)_45%,transparent)] ' +
+  'hover:not-disabled:not-focus:border-neutral-600 ' +
   'focus:border-accent disabled:cursor-not-allowed disabled:opacity-45';
 
 export function Textarea({
@@ -59,6 +59,7 @@ export function Textarea({
   const generatedId = useId();
   const reasonId = `${generatedId}-reason`;
   const hasReason = disabledReason !== undefined && disabledReason !== '';
+  const showReason = disabled && hasReason;
 
   const textarea = (
     <textarea
@@ -66,7 +67,7 @@ export function Textarea({
       ref={ref}
       disabled={disabled}
       {...(invalid ? { 'aria-invalid': true } : {})}
-      {...(hasReason ? { 'aria-describedby': reasonId } : {})}
+      {...(showReason ? { 'aria-describedby': reasonId } : {})}
       className={cn(
         BASE_CLASS,
         resize === 'none' ? 'resize-none' : 'resize-y',
@@ -83,12 +84,14 @@ export function Textarea({
       {/* `w-full` on the wrapper: the textarea is `w-full` and the wrapper is
           now the element the layout sizes, exactly as `Button` hands `block`
           and `grow` across. */}
-      <Tooltip content={disabledReason} wrap wrapFocusable={disabled} wrapClassName="w-full">
+      <Tooltip content={showReason ? disabledReason : undefined} wrap wrapFocusable={disabled} wrapClassName="w-full">
         {textarea}
       </Tooltip>
-      <span id={reasonId} className="sr-only">
-        {t`暂时不能输入：${disabledReason}`}
-      </span>
+      {showReason ? (
+        <span id={reasonId} className="sr-only">
+          {t`暂时不能输入：${disabledReason}`}
+        </span>
+      ) : null}
     </>
   );
 }

@@ -60,7 +60,7 @@ export interface SegProps<Value extends string> {
 }
 
 /** Content-sized by default; wrap options instead of hiding them in narrow panels. */
-const GROUP_CLASS = 'inline-flex flex-wrap rounded-md border border-neutral-400';
+const GROUP_CLASS = 'inline-flex flex-wrap overflow-hidden rounded-md border border-neutral-400';
 
 /**
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`
@@ -74,11 +74,11 @@ const GROUP_CLASS = 'inline-flex flex-wrap rounded-md border border-neutral-400'
  * when options wrap. Radix keeps arrow-key navigation across every option.
  */
 const OPTION_CLASS =
-  'inline-flex items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
-  'cursor-pointer select-none ' +
+  'inline-flex items-center gap-2 whitespace-nowrap rounded-none px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
+  'cursor-pointer select-none transition-colors ' +
   'data-[state=checked]:bg-accent-100 data-[state=checked]:font-medium data-[state=checked]:text-accent-700 ' +
   'data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-accent)] ' +
-  'data-[state=unchecked]:hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] ' +
+  'data-[state=unchecked]:hover:bg-action-hover ' +
   'disabled:cursor-not-allowed disabled:opacity-45 ' +
   'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2';
 

@@ -26,6 +26,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { X } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -224,7 +225,7 @@ export function Inspector({
           data-inspector-trigger
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}
-          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 border border-neutral-400 px-3 text-sm"
+          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 border border-neutral-400 px-3 text-sm transition-colors hover:bg-action-hover active:bg-action-pressed"
           onClick={() => setOpen(!isOpen)}
         >
           {openLabel ?? <Trans>详情</Trans>}
@@ -265,10 +266,10 @@ export function Inspector({
                   type="button"
                   data-inspector-close
                   aria-label={t`关闭`}
-                  className="flex h-[var(--h-ctl-sm)] w-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700"
+                  className="flex h-[var(--h-ctl-sm)] w-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700 transition-colors hover:bg-action-hover hover:text-text"
                   onClick={() => setOpen(false)}
                 >
-                  <span aria-hidden="true">✕</span>
+                  <X size={16} strokeWidth={1.5} aria-hidden="true" />
                 </button>
               }
             />

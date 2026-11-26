@@ -142,15 +142,16 @@ describe('SideNav modes', () => {
     expect(html).not.toContain('data-nav-item="agent"');
   });
 
-  it('lets the active settings row fill the expanded footer behind the overlay toggle', () => {
+  it('separates the rail collapse control into its own footer row below settings', () => {
     const html = nav({ mode: 'edit' }, '/settings');
     const footer = html.slice(html.indexOf('data-shell-nav-footer'));
-    const settings = footer.slice(footer.indexOf('data-nav-item="settings"'));
+    const settingsIndex = footer.indexOf('data-nav-item="settings"');
+    const toggleRowIndex = footer.indexOf('data-shell-nav-toggle-row');
 
-    expect(footer).toContain('relative');
-    expect(footer).toContain('absolute');
-    expect(settings.slice(0, 400)).toContain('w-full');
-    expect(settings.slice(0, 400)).toContain('pr-12');
+    expect(settingsIndex).toBeGreaterThan(-1);
+    expect(toggleRowIndex).toBeGreaterThan(settingsIndex);
+    expect(footer).toContain('data-nav-toggle');
+    expect(footer.slice(settingsIndex, settingsIndex + 400)).toContain('w-full');
   });
 
   it('shows analysis destinations in analysis mode', () => {

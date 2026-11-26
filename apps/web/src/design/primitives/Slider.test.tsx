@@ -19,11 +19,11 @@ describe('Slider markup', () => {
     expect(html).toContain('aria-valuenow="5"');
   });
 
-  it('is the reference 4px track with a 14px square thumb', () => {
+  it('is the 4px pill track with a 14px round thumb', () => {
     const html = renderMarkup(<Slider value={50} aria-label="x" />);
     expect(html).toContain('h-[4px]');
     expect(html).toContain('size-[14px]');
-    expect(html).not.toContain('rounded');
+    expect(html).toContain('rounded-full');
   });
 
   it('paints the range and the thumb from the accent token', () => {

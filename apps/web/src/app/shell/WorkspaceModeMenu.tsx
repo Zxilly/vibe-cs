@@ -24,11 +24,11 @@ export interface WorkspaceModeMenuProps {
    descriptions (「作品、剪辑单、录制与成品」) lost their last word to an
    ellipsis. It never grows past a panel width. */
 const CONTENT_CLASS =
-  'z-30 w-max min-w-[var(--w-nav)] max-w-[var(--w-panel)] border border-divider bg-bg p-1.5 shadow-[var(--shadow-md)]';
+  'z-30 w-max min-w-[var(--w-nav)] max-w-[var(--w-panel)] rounded-md border border-divider bg-bg p-1.5 shadow-[var(--shadow-md)]';
 
 const ITEM_CLASS =
-  'grid min-h-[var(--h-row-evidence)] cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-3 px-3 ' +
-  'text-left outline-none data-[highlighted]:bg-accent-100 data-[state=checked]:text-accent-800';
+  'grid min-h-[var(--h-row-evidence)] cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-3 rounded-sm px-3 ' +
+  'text-left outline-none transition-colors data-[highlighted]:bg-accent-100 data-[state=checked]:text-accent-800';
 
 export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceModeMenuProps) {
   const currentModeLabel = mode === 'edit' ? t`剪辑模式` : t`分析模式`;
@@ -40,7 +40,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
         aria-label={t`切换工作模式，当前：${currentModeLabel}`}
         data-workspace-mode-trigger
         className={cn(
-          'flex h-full w-full items-center text-text focus-visible:-outline-offset-2 hover:bg-neutral-200 ' +
+          'flex h-full w-full items-center rounded-none text-text transition-colors focus-visible:-outline-offset-2 hover:bg-neutral-200 ' +
             'data-[state=open]:bg-neutral-200',
           collapsed ? 'justify-center gap-1 px-1.5' : 'gap-3 px-6',
         )}
@@ -57,7 +57,7 @@ export function WorkspaceModeMenu({ mode, collapsed, onModeChange }: WorkspaceMo
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           align="start"
-          sideOffset={1}
+          sideOffset={4}
           aria-label={t`工作模式`}
           data-workspace-mode-menu
           className={CONTENT_CLASS}
@@ -104,9 +104,9 @@ function ModeItem({
   return (
     <DropdownMenuPrimitive.RadioItem value={value} className={ITEM_CLASS}>
       <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="text-accent-700" />
-      <span className="flex min-w-0 flex-col">
-        <span className="font-heading text-sm">{title}</span>
-        <span className="text-base text-neutral-600">{description}</span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-heading text-sm font-medium text-text">{title}</span>
+        <span className="text-xs text-neutral-600">{description}</span>
       </span>
       <DropdownMenuPrimitive.ItemIndicator>
         <Check size={14} strokeWidth={1.5} aria-hidden="true" />

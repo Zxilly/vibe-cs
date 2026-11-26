@@ -68,11 +68,11 @@ export interface OverflowMenuProps {
 }
 
 const TRIGGER_CLASS =
-  'flex h-[var(--h-row-compact)] items-center gap-2 px-3 text-sm text-neutral-600 hover:text-text';
+  'flex h-[var(--h-row-compact)] items-center gap-2 px-3 text-sm text-neutral-600 transition-colors hover:bg-action-hover hover:text-text';
 
 const LIST_CLASS =
   'z-30 flex max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[var(--w-subnav)] flex-col ' +
-  'overflow-y-auto border border-divider bg-bg py-2 shadow-[var(--shadow-md)]';
+  'overflow-y-auto rounded-md border border-divider bg-bg py-1 shadow-[var(--shadow-md)]';
 
 /**
  * `data-highlighted` is Radix's own attribute for the item the keyboard or the
@@ -85,7 +85,7 @@ const LIST_CLASS =
  */
 const ITEM_CLASS =
   'flex h-[var(--h-row-compact)] w-full flex-none cursor-pointer items-center gap-3 whitespace-nowrap px-4 ' +
-  'text-left text-sm text-text outline-none data-[highlighted]:bg-accent-100 ' +
+  'text-left text-sm text-text outline-none transition-colors data-[highlighted]:bg-accent-100 ' +
   'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45';
 
 export function OverflowMenu({
@@ -115,7 +115,7 @@ export function OverflowMenu({
         <DropdownMenuPrimitive.Content
           align={align}
           side={side}
-          sideOffset={1}
+          sideOffset={4}
           collisionPadding={8}
           /* The hand-rolled menu wrapped at both ends and spec §6.2 tests it.
              Radix does not loop by default. */

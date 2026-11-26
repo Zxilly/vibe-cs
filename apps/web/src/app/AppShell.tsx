@@ -5,6 +5,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { useTaskFeed } from '../data/tasks';
 import { ActivityDrawer } from '../domain/task/ActivityDrawer';
 import { Toaster } from '../design/feedback';
 import { useShellCollapsed } from '../design/layout';
@@ -57,6 +58,10 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
   const [paletteQuery, setPaletteQuery] = useState('');
   const mainRef = useRef<HTMLElement>(null);
   const objectCommands = useObjectCommands(paletteQuery, palette.open);
+  // Shares the exact React Query cache entry with ActivityDrawer (zero extra requests).
+  const activityFeed = useTaskFeed({ page: 1, page_size: 50 });
+  const activityActiveCount = activityFeed.data?.summary.active ?? 0;
+  const activityFailedCount = activityFeed.data?.summary.failed ?? 0;
 
   const folded = collapsed ?? viewportFolded;
   /* §8 rule 1: below the breakpoint the rail is an icon rail whatever the
@@ -115,6 +120,8 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         onOpenCommandPalette={palette.openPalette}
         onOpenActivity={() => setActivityOpen(true)}
         activityUnreadCount={activityUnread}
+        activityActiveCount={activityActiveCount}
+        activityFailedCount={activityFailedCount}
       />
 
       <div data-shell-row className="flex min-h-0 flex-1">

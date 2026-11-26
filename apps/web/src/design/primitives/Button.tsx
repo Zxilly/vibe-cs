@@ -18,7 +18,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 /** Shared Figma Button variants; state changes never change the box size. */
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap border font-heading ' +
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border font-heading ' +
     'font-medium transition-colors ' +
     'disabled:opacity-45 aria-disabled:opacity-45',
   {

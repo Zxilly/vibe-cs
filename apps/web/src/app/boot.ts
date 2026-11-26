@@ -17,6 +17,14 @@
 
 import { t } from '@lingui/core/macro';
 
+import {
+  applyAppTheme,
+  applyReduceMotion,
+  type AppTheme,
+  type ThemeAttributeTarget,
+} from '../design/themeRuntime';
+import { activateAppLocale, type AppLocale } from './locale';
+
 /**
  * Raised when `index.html` no longer carries `<div id="root">`. Nothing can be
  * rendered at that point, so this reaches the user only through the webview's
@@ -24,4 +32,33 @@ import { t } from '@lingui/core/macro';
  */
 export function missingRootError(): Error {
   return new Error(t`页面根节点 #root 不存在，应用无法启动`);
+}
+
+export interface BootConfigSlice {
+  readonly locale: string;
+  readonly theme?: string | null | undefined;
+  readonly reduce_motion?: boolean | undefined;
+}
+
+/**
+ * Loads persisted locale, theme and reduced-motion preferences once before the
+ * first paint so the window never flashes the wrong theme or language.
+ */
+export async function activateBootPreferences(
+  readConfig: () => Promise<BootConfigSlice>,
+  target?: ThemeAttributeTarget | null,
+): Promise<{ readonly locale: AppLocale; readonly theme: AppTheme }> {
+  try {
+    const config = await readConfig();
+    const theme = applyAppTheme(config.theme, target);
+    if (config.reduce_motion !== undefined) {
+      applyReduceMotion(config.reduce_motion, target);
+    }
+    const locale = await activateAppLocale(config.locale);
+    return { locale, theme };
+  } catch {
+    const theme = applyAppTheme('system', target);
+    const locale = await activateAppLocale('zh-CN');
+    return { locale, theme };
+  }
 }

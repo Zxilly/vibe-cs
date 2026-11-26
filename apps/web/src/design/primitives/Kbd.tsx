@@ -28,7 +28,7 @@ import type { ComponentPropsWithoutRef } from 'react';
 import { cn } from '../cn';
 
 const KBD_CLASS =
-  'inline-flex flex-none items-center justify-center border border-divider px-1.5 ' +
+  'inline-flex flex-none items-center justify-center rounded-sm border border-divider px-1.5 ' +
   'font-mono text-xs leading-tight text-neutral-600';
 
 export type KbdProps = ComponentPropsWithoutRef<'kbd'>;

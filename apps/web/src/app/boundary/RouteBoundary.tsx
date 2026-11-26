@@ -38,7 +38,7 @@ import { Trans } from '@lingui/react/macro';
 import { Component, Suspense, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
-import { EMPTY_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
+import { EMPTY_MIN_HEIGHT_CLASS, Skeleton, TableSkeleton } from '../../design/data';
 import { Page, Toolbar } from '../../design/layout';
 import { Button, cn } from '../../design/primitives';
 
@@ -67,20 +67,31 @@ export interface RouteLoadingProps {
   className?: string | undefined;
 }
 
-export function RouteLoading({ stage, rows = 4, className }: RouteLoadingProps) {
+export function RouteLoading({ stage, rows = 6, className }: RouteLoadingProps) {
   return (
     <Page
       toolbar={
         <Toolbar
-          leading={<span aria-hidden="true" className="block h-3.5 w-28 animate-pulse bg-neutral-200" />}
+          leading={<Skeleton width="8rem" className="h-4" />}
+          primary={<Skeleton width="5.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />}
         />
+      }
+      bar={
+        <div
+          aria-hidden="true"
+          className="flex h-[var(--h-bar)] items-center gap-3 border-b border-divider px-6"
+        >
+          <Skeleton width="10rem" className="h-3.5" />
+          <Skeleton width="5rem" className="h-3.5" />
+          <Skeleton width="5rem" className="h-3.5" />
+        </div>
       }
     >
       <TableSkeleton
         panel
         rows={rows}
         stage={stage ?? <Trans>正在打开这个页面</Trans>}
-        className={cn(EMPTY_MIN_HEIGHT_CLASS, 'm-7', className)}
+        className={cn(EMPTY_MIN_HEIGHT_CLASS, 'm-6 flex-1', className)}
       />
     </Page>
   );

@@ -22,6 +22,7 @@ function render(
   overrides: {
     readonly commands?: readonly CommandDefinition[] | undefined;
     readonly limitPerGroup?: number | undefined;
+    readonly searchState?: 'ready' | 'loading' | 'error' | undefined;
   } = {},
 ) {
   return renderMarkup(
@@ -31,6 +32,7 @@ function render(
       navigate={noop}
       commands={overrides.commands}
       limitPerGroup={overrides.limitPerGroup}
+      searchState={overrides.searchState}
     />,
   );
 }
@@ -122,6 +124,15 @@ describe('CommandPalette markup', () => {
     expect(html).toContain('没有匹配的结果');
     expect(html).toContain('请尝试更短的关键词或页面名称');
     expect(html).not.toContain('role="listbox"');
+  });
+
+  it('renders three compact row skeletons under a status header while object search is loading', () => {
+    const html = render({ commands: [], searchState: 'loading' });
+    expect(html).toContain('data-command-loading=""');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('正在搜索比赛、选手和作品…');
+    expect(html.match(/bg-skeleton/gu)).toHaveLength(6);
   });
 
   it('takes every size from a token, never from a literal', () => {

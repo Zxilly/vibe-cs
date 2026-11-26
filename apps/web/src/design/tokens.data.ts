@@ -473,6 +473,8 @@ export const LIGHT_TOKENS: Readonly<Record<string, string>> = {
   "--color-divider": "#bdc7d5",
   "--color-neutral-300": "#d8dee8",
   "--color-neutral-200": "#edf0f4",
+  "--color-skeleton": "#dde3ec",
+  "--color-skeleton-sheen": "#eef2f7",
   "--color-ok": "#4d7a5a",
   "--color-warn": "#a8792f",
   "--color-fail": "#a3453c",
@@ -636,6 +638,14 @@ export const COLOR_TOKENS: Readonly<Record<string, { readonly light: string; rea
   "--color-neutral-200": {
     "light": "#edf0f4",
     "dark": "#243449"
+  },
+  "--color-skeleton": {
+    "light": "#dde3ec",
+    "dark": "#243449"
+  },
+  "--color-skeleton-sheen": {
+    "light": "#eef2f7",
+    "dark": "#2f425b"
   },
   "--color-ok": {
     "light": "#4d7a5a",

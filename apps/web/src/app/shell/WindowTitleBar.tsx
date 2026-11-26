@@ -255,7 +255,7 @@ export function WindowTitleBar({
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'grid flex-none grid-cols-[minmax(max-content,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)] items-stretch',
+        'grid flex-none grid-cols-[minmax(0,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)] items-stretch',
         'border-b border-divider bg-surface-chrome',
         'h-[var(--h-titlebar)]',
         className,
@@ -276,7 +276,9 @@ export function WindowTitleBar({
           />
         </div>
         {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
-        <div className="flex min-w-0 items-center px-4">{crumb}</div>
+        <div className="flex min-w-0 flex-1 items-center overflow-hidden px-3 md:px-4">
+          <div className="min-w-0 flex-1 truncate">{crumb}</div>
+        </div>
       </div>
 
       <button
@@ -294,7 +296,7 @@ export function WindowTitleBar({
         <span className="min-w-0 flex-1 truncate text-left">
           <Trans>跳转、搜索比赛或作品</Trans>
         </span>
-        <Kbd className="tracking-wide">CTRL K</Kbd>
+        <Kbd className="hidden tracking-wide md:inline-flex">CTRL K</Kbd>
       </button>
 
       <div className="flex min-w-0 items-stretch justify-end">
@@ -321,7 +323,7 @@ export function WindowTitleBar({
               data-titlebar-activity
               aria-label={activityLabel}
               onClick={onOpenActivity}
-              className="relative mx-4 grid size-[var(--h-ctl-sm)] flex-none self-center place-items-center rounded-md border border-divider text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-action-hover hover:text-text"
+              className="relative mx-2 grid size-[var(--h-ctl-sm)] flex-none self-center place-items-center rounded-md border border-divider text-neutral-700 transition-colors hover:border-neutral-400 hover:bg-action-hover hover:text-text md:mx-4"
             >
               <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
               {badgeCount > 0 ? (

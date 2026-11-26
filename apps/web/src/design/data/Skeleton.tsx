@@ -29,13 +29,13 @@ export interface SkeletonProps {
   readonly className?: string | undefined;
 }
 
-/** One bar. `animate-pulse` is neutralised by the reduced-motion rules in base.css. */
+/** One bar. Shimmer falls back to static `bg-skeleton` under reduced-motion rules in base.css. */
 export function Skeleton({ width, className }: SkeletonProps) {
   return (
     <span
       aria-hidden="true"
       style={width === undefined ? undefined : { width }}
-      className={cn('block h-3 animate-pulse rounded-sm bg-neutral-200', className)}
+      className={cn('block h-3 animate-pulse rounded-sm bg-skeleton skeleton-shimmer', className)}
     />
   );
 }
@@ -53,10 +53,18 @@ export interface TableSkeletonProps {
   readonly stage?: ReactNode | undefined;
   /** Route fallback variant with a distinct header, body and stage footer. */
   readonly panel?: boolean | undefined;
+  /** Omit the outer card border when rendered inside an already bordered surface. */
+  readonly borderless?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
-export function TableSkeleton({ rows = 4, stage, panel = false, className }: TableSkeletonProps) {
+export function TableSkeleton({
+  rows = 4,
+  stage,
+  panel = false,
+  borderless = false,
+  className,
+}: TableSkeletonProps) {
   const count = Math.max(0, Math.trunc(rows));
 
   if (panel) {
@@ -66,12 +74,18 @@ export function TableSkeleton({ rows = 4, stage, panel = false, className }: Tab
         aria-busy="true"
         aria-label={t`加载中`}
         data-skeleton-layout="panel"
-        className={cn('flex flex-col rounded-md border border-divider', className)}
+        data-table-skeleton-surface=""
+        className={cn(
+          'flex flex-col bg-bg',
+          !borderless && 'rounded-md border border-divider',
+          className,
+        )}
       >
-        <div className="flex h-[var(--h-panel-head)] items-center border-b border-divider px-4">
+        <div className="flex h-[var(--h-panel-head)] flex-none items-center justify-between gap-3 border-b border-divider bg-surface-chrome px-4">
           <Skeleton width="8rem" className="h-3.5" />
+          <Skeleton width="4.5rem" className="h-3" />
         </div>
-        <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-1 flex-col gap-3.5 p-4">
           <Skeleton width="40%" className="h-3.5" />
           {Array.from({ length: count }, (_, index) => (
             <Skeleton key={index} width={ROW_WIDTHS[index % ROW_WIDTHS.length]} />
@@ -89,7 +103,12 @@ export function TableSkeleton({ rows = 4, stage, panel = false, className }: Tab
       role="status"
       aria-busy="true"
       aria-label={t`加载中`}
-      className={cn('flex flex-col gap-3 rounded-md border border-divider p-4', className)}
+      data-table-skeleton-surface=""
+      className={cn(
+        'flex flex-col gap-3 p-4',
+        !borderless && 'rounded-md border border-divider',
+        className,
+      )}
     >
       {/* The header bar of the artboard: shorter and one step taller than a row. */}
       <Skeleton width="40%" className="h-3.5" />

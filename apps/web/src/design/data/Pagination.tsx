@@ -21,6 +21,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '../cn';
+import { Skeleton } from './Skeleton';
 import { paginationRange } from './paginationModel';
 import { clampPage, pageCount as pageCountOf, pageRange } from './tableModel';
 
@@ -35,6 +36,8 @@ export interface PaginationProps {
   readonly siblings?: number | undefined;
   /** Replaces "共 N 条" when the page has a unit ("命中 47 条"). */
   readonly summary?: ReactNode | undefined;
+  /** Replaces the total count with a compact skeleton and disables page controls while loading. */
+  readonly loading?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
@@ -45,6 +48,7 @@ export function Pagination({
   onPageChange,
   siblings = 1,
   summary,
+  loading = false,
   className,
 }: PaginationProps) {
   const count = pageCountOf(total, pageSize);
@@ -60,22 +64,28 @@ export function Pagination({
         className,
       )}
     >
-      <span className="text-xs tabular-nums text-neutral-600">
-        {summary ?? <Plural value={total} other="共 # 条" />}
-        {total > 0 ? (
-          <>
-            {' · '}
-            <Trans>
-              第 {from}–{to} 条
-            </Trans>
-          </>
-        ) : null}
-      </span>
+      {loading ? (
+        <span role="status" aria-busy="true" aria-label={t`加载中`} className="inline-flex items-center">
+          <Skeleton width="6rem" />
+        </span>
+      ) : (
+        <span className="text-xs tabular-nums text-neutral-600">
+          {summary ?? <Plural value={total} other="共 # 条" />}
+          {total > 0 ? (
+            <>
+              {' · '}
+              <Trans>
+                第 {from}–{to} 条
+              </Trans>
+            </>
+          ) : null}
+        </span>
+      )}
       <div className="flex-1" />
       <div className="flex items-center gap-1">
         <StepButton
           label={t`上一页`}
-          disabled={current <= 1}
+          disabled={loading || current <= 1}
           onClick={() => onPageChange(current - 1)}
           icon={<ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden="true" />}
         />
@@ -90,12 +100,15 @@ export function Pagination({
             <button
               key={slot}
               type="button"
+              disabled={loading}
               aria-label={t`第 ${slot} 页`}
-              aria-current={slot === current ? 'page' : undefined}
-              onClick={() => onPageChange(slot)}
+              aria-current={!loading && slot === current ? 'page' : undefined}
+              onClick={() => {
+                if (!loading) onPageChange(slot);
+              }}
               className={cn(
-                'inline-flex h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] items-center justify-center border px-2 text-sm tabular-nums transition-colors',
-                slot === current
+                'inline-flex h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] items-center justify-center border px-2 text-sm tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
+                !loading && slot === current
                   ? 'border-accent bg-accent-100 font-medium text-accent-800'
                   : 'border-transparent hover:bg-action-hover',
               )}
@@ -106,7 +119,7 @@ export function Pagination({
         )}
         <StepButton
           label={t`下一页`}
-          disabled={current >= count}
+          disabled={loading || current >= count}
           onClick={() => onPageChange(current + 1)}
           icon={<ChevronRight className="size-4" strokeWidth={1.5} aria-hidden="true" />}
         />

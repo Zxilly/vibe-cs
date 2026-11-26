@@ -114,4 +114,13 @@ describe('Seg markup', () => {
     expect(html).not.toMatch(/#[0-9a-f]{3,8}/iu);
     expect(html).not.toMatch(/text-\[\d/u);
   });
+
+  it('stays on one horizontally scrollable row instead of wrapping with broken dividers', () => {
+    const html = renderMarkup(<Seg name="v" value="table" options={VIEW_OPTIONS} aria-label="视图" />);
+    expect(html).toContain('flex-nowrap');
+    expect(html).toContain('overflow-x-auto');
+    expect(html).toContain('max-w-full');
+    expect(html).toContain('shrink-0');
+    expect(html).not.toContain('flex-wrap');
+  });
 });

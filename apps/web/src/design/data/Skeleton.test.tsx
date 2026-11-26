@@ -12,6 +12,8 @@ describe('Skeleton', () => {
     const html = renderMarkup(<Skeleton width="40%" />);
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('width:40%');
+    expect(html).toContain('bg-skeleton');
+    expect(html).toContain('skeleton-shimmer');
     expect(textOf(html)).toBe('');
   });
 });
@@ -53,5 +55,12 @@ describe('TableSkeleton', () => {
   it('renders no rows when asked for none', () => {
     const html = renderMarkup(<TableSkeleton rows={0} />);
     expect(html.match(/width:100%/gu)).toBeNull();
+  });
+
+  it('can omit its outer border when embedded inside another bordered container', () => {
+    const bordered = renderMarkup(<TableSkeleton />);
+    const borderless = renderMarkup(<TableSkeleton borderless />);
+    expect(bordered).toContain('border border-divider');
+    expect(borderless).not.toContain('border border-divider');
   });
 });

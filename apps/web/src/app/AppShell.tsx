@@ -115,7 +115,7 @@ export function AppShell({ collapsed, adapter, badges }: AppShellProps) {
         mode={mode}
         onModeChange={switchMode}
         crumb={<RouteBreadcrumb segments={crumb} />}
-        navCollapsed={focusedProject ? false : navCollapsed}
+        navCollapsed={folded ? true : focusedProject ? false : navCollapsed}
         adapter={adapter}
         onOpenCommandPalette={palette.openPalette}
         onOpenActivity={() => setActivityOpen(true)}

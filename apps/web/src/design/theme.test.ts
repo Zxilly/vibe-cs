@@ -202,6 +202,12 @@ describe('base.css', () => {
   it('writes no literal colour — every value comes from a token', () => {
     expect(stripComments(baseSource)).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
+
+  it('defines the tokenised skeleton shimmer and disables it under reduced motion', () => {
+    expect(baseSource).toContain('@keyframes skeleton-shimmer');
+    expect(baseSource).toContain('var(--color-skeleton-sheen)');
+    expect(baseSource).toContain('.skeleton-shimmer');
+  });
 });
 
 // Exercise the actual theme values, including placeholder text and control edges.

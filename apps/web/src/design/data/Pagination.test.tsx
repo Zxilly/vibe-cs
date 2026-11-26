@@ -77,4 +77,15 @@ describe('Pagination', () => {
     expect(textOf(html)).toContain('第 41–41 条');
     expect(html).toContain('aria-current="page"');
   });
+
+  it('replaces the summary count with a skeleton and disables buttons while loading', () => {
+    const html = renderMarkup(<Pagination page={1} pageSize={20} total={0} loading onPageChange={() => {}} />);
+    expect(textOf(html)).not.toContain('共 0 条');
+    expect(html).toContain('width:6rem');
+    expect(html).toContain('bg-skeleton');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('aria-busy="true"');
+    // Previous, page 1, and Next buttons are all disabled while loading.
+    expect(html.match(/disabled=""/gu)).toHaveLength(3);
+  });
 });

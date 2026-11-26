@@ -63,7 +63,9 @@ describe('WindowTitleBar', () => {
     // §3.5 folds the artboard's 400px field into --w-inspector — the width of
     // the bar's centre column, which is what keeps the field on the window's
     // centre line across routes; §3.3 lifts its 28px height to the 32px floor.
-    expect(html).toContain('grid-cols-[minmax(max-content,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)]');
+    expect(html).toContain('grid-cols-[minmax(0,1fr)_minmax(0,var(--w-inspector))_minmax(max-content,1fr)]');
+    expect(html).toContain('min-w-0 flex-1 truncate');
+    expect(html).toContain('hidden tracking-wide md:inline-flex');
     expect(html).toContain('h-[var(--h-ctl-sm)]');
   });
 

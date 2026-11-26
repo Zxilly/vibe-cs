@@ -269,3 +269,40 @@
     scroll-behavior: auto !important;
   }
 }
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@layer utilities {
+  .skeleton-shimmer,
+  .skeleton-shimmer.animate-pulse {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--color-skeleton-sheen) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer,
+    .skeleton-shimmer.animate-pulse {
+      background-image: none;
+      animation: none;
+    }
+  }
+
+  :root[data-reduce-motion='true'] .skeleton-shimmer,
+  :root[data-reduce-motion='true'] .skeleton-shimmer.animate-pulse {
+    background-image: none;
+    animation: none;
+  }
+}

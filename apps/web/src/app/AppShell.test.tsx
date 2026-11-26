@@ -182,6 +182,12 @@ describe('AppShell — the §8 fold at 1100 × 700', () => {
     expect(renderShell('/library')).toContain('data-shell-titlebar="nav-expanded"');
   });
 
+  it('also collapses the title bar mode menu in a focused Project workbench when folded', () => {
+    const path = '/projects/00000000-0000-4000-8000-000000000001';
+    expect(renderShell(path, { collapsed: true })).toContain('data-shell-titlebar="nav-collapsed"');
+    expect(renderShell(path, { collapsed: false })).toContain('data-shell-titlebar="nav-expanded"');
+  });
+
   it('drops the Agent column entirely, as the 1100 × 700 board draws it', () => {
     const html = renderShell('/library', { collapsed: true });
 

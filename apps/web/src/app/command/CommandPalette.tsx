@@ -80,6 +80,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 
 import { Dialog as DialogPrimitive } from 'radix-ui';
 
+import { Skeleton } from '../../design/data';
 import { useOverlayReturnFocus } from '../../design/feedback';
 import { Button, cn, Kbd } from '../../design/primitives';
 import {
@@ -96,6 +97,12 @@ import {
   nextSelectionIndex,
   searchCommands,
 } from './commandSearch';
+
+const COMMAND_LOADING_ROWS = [
+  { title: '46%', hint: '4rem' },
+  { title: '58%', hint: '3.5rem' },
+  { title: '38%', hint: '4.5rem' },
+] as const;
 
 export interface CommandPaletteProps {
   readonly open: boolean;
@@ -266,9 +273,26 @@ export function CommandPalette({
         </div>
 
         {searchState === 'loading' ? (
-          <p role="status" className="px-4 py-3 text-base text-neutral-600">
-            <Trans>正在搜索比赛、选手和作品…</Trans>
-          </p>
+          <div
+            role="status"
+            aria-busy="true"
+            data-command-loading=""
+            className={cn('py-2', flat.length > 0 && 'border-b border-divider')}
+          >
+            <p className="px-4 pt-1 pb-1.5 font-heading text-xs tracking-caps text-neutral-600">
+              <Trans>正在搜索比赛、选手和作品…</Trans>
+            </p>
+            {COMMAND_LOADING_ROWS.map((row, index) => (
+              <div
+                key={index}
+                aria-hidden="true"
+                className="flex h-[var(--h-row-compact)] items-center justify-between gap-3 px-4"
+              >
+                <Skeleton width={row.title} className="h-3.5" />
+                <Skeleton width={row.hint} className="h-3" />
+              </div>
+            ))}
+          </div>
         ) : searchState === 'error' ? (
           <div role="alert" className="flex items-center justify-between gap-3 px-4 py-3">
             <p className="text-base text-fail-text"><Trans>搜索结果未能完整加载</Trans></p>

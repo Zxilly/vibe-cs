@@ -167,7 +167,18 @@ describe('DataTable placeholders', () => {
   it('prefers the skeleton while loading, even with rows in hand', () => {
     const html = table({ loading: true, skeleton: <p>加载中</p>, empty: <p>还没有比赛</p> });
     expect(html).toContain('加载中');
+    expect(html).toContain('data-table-skeleton=""');
     expect(html).not.toContain('还没有比赛');
+    expect(html).not.toContain('Aurora vs Meridian');
+  });
+
+  it('renders column-aligned skeleton rows when loading without a custom skeleton', () => {
+    const html = table({ rows: [], loading: true });
+    expect(html.match(/data-skeleton-row=""/gu)).toHaveLength(5);
+    expect(html.match(/h-\[var\(--h-row\)\]/gu)).toHaveLength(5);
+    expect(html.match(/<td/gu)).toHaveLength(COLUMNS.length * 5);
+    expect(html).toContain('bg-skeleton');
+    expect(html).toContain('aria-busy="true"');
   });
 
   it('renders the footer slot below the scroll area', () => {

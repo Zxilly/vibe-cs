@@ -48,6 +48,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 import { cn } from '../cn';
 import { Checkbox } from '../primitives/Checkbox';
+import { Skeleton } from './Skeleton';
 import { TableCell, TableHeaderCell, type TableCellAlign, type TableCellEdge, type TableCellVariant } from './TableCell';
 import {
   ariaSortFor,
@@ -256,7 +257,22 @@ export function DataTable<Row>({
   const blockedReason =
     selectionLimit === undefined ? undefined : t`已选满 ${selectionLimit} 项，先取消一项再选`;
 
-  const overlay = loading ? (skeleton ?? null) : rows.length === 0 ? (empty ?? null) : null;
+  const showDefaultSkeleton = loading && skeleton === undefined;
+  const showCustomSkeleton = loading && skeleton !== undefined;
+  const overlay = showCustomSkeleton ? (
+    <div
+      data-table-skeleton=""
+      className="px-6 py-4 [&_[data-table-skeleton-surface]]:m-0 [&_[data-table-skeleton-surface]]:rounded-none [&_[data-table-skeleton-surface]]:border-0 [&_[data-table-skeleton-surface]]:p-0"
+    >
+      {skeleton}
+    </div>
+  ) : showDefaultSkeleton ? (
+    <span role="status" aria-busy="true" className="sr-only">
+      {t`加载中`}
+    </span>
+  ) : rows.length === 0 ? (
+    (empty ?? null)
+  ) : null;
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
@@ -327,64 +343,95 @@ export function DataTable<Row>({
               })}
             </tr>
           </thead>
-          <tbody ref={bodyRef}>
-            {rows.map((row) => {
-              const id = rowId(row);
-              const isActive = id === activeRowId;
-              const unavailableReason = selectionDisabledReason?.(row);
-              const blocked = unavailableReason !== undefined || isSelectionBlocked(selection, id, { limit: selectionLimit });
-              return (
-                <tr
-                  key={id}
-                  data-row-id={id}
-                  data-active={isActive ? 'true' : undefined}
-                  aria-current={isActive ? 'true' : undefined}
-                  tabIndex={interactiveRows ? (id === tabStopId ? 0 : -1) : undefined}
-                  onKeyDown={interactiveRows ? (event) => handleRowKeyDown(event, id, row) : undefined}
-                  onClick={interactiveRows ? (event) => handleRowClick(event, id, row) : undefined}
-                  className={cn(
-                    'h-[var(--h-row)] transition-colors focus-visible:-outline-offset-2',
-                    isActive ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : 'hover:bg-neutral-100',
-                    interactiveRows && 'cursor-pointer',
-                  )}
-                >
-                  {selectable ? (
-                    <TableCell
-                      edge="leading"
-                      data-selection-cell=""
-                      className={cn(!blocked && onSelectedChange !== undefined && 'cursor-pointer')}
-                      onClick={(event) => {
-                        // The box answers its own click through Radix; the cell
-                        // around it is the same target, so a pointer need not
-                        // find 13px.
-                        if (event.target instanceof Element && event.target.closest('button') !== null) return;
-                        toggleRow(id);
-                      }}
-                    >
-                      <Checkbox
-                        size="sm"
-                        checked={selection.has(id)}
-                        disabled={blocked || onSelectedChange === undefined}
-                        disabledReason={unavailableReason ?? blockedReason}
-                        aria-label={rowLabel?.(row) ?? id}
-                        onChange={() => toggleRow(id)}
-                      />
-                    </TableCell>
-                  ) : null}
-                  {shown.map((column, index) => (
-                    <TableCell
-                      key={column.id}
-                      variant={column.variant}
-                      align={column.align}
-                      truncate={column.truncate}
-                      edge={edgeOf(index, shown.length, selectable)}
-                    >
-                      {column.cell(row)}
-                    </TableCell>
-                  ))}
-                </tr>
-              );
-            })}
+          <tbody ref={bodyRef} aria-busy={showDefaultSkeleton || undefined}>
+            {showDefaultSkeleton
+              ? Array.from({ length: DEFAULT_SKELETON_ROWS }, (_, rowIndex) => (
+                  <tr key={`skeleton-${rowIndex}`} data-skeleton-row="" className="h-[var(--h-row)]">
+                    {selectable ? (
+                      <TableCell edge="leading">
+                        <Skeleton width="1rem" className="h-4" />
+                      </TableCell>
+                    ) : null}
+                    {shown.map((column, columnIndex) => {
+                      const isEnd =
+                        column.align === 'end' ||
+                        (column.align === undefined &&
+                          (column.variant === 'numeric' || column.variant === 'numeric-meta'));
+                      const width = isEnd
+                        ? NUMERIC_SKELETON_WIDTHS[(rowIndex + columnIndex) % NUMERIC_SKELETON_WIDTHS.length]
+                        : TEXT_SKELETON_WIDTHS[(rowIndex + columnIndex) % TEXT_SKELETON_WIDTHS.length];
+                      return (
+                        <TableCell
+                          key={column.id}
+                          variant={column.variant}
+                          align={column.align}
+                          edge={edgeOf(columnIndex, shown.length, selectable)}
+                        >
+                          <Skeleton width={width} className={cn('min-w-6', isEnd && 'ml-auto')} />
+                        </TableCell>
+                      );
+                    })}
+                  </tr>
+                ))
+              : showCustomSkeleton
+                ? null
+                : rows.map((row) => {
+                    const id = rowId(row);
+                    const isActive = id === activeRowId;
+                    const unavailableReason = selectionDisabledReason?.(row);
+                    const blocked = unavailableReason !== undefined || isSelectionBlocked(selection, id, { limit: selectionLimit });
+                    return (
+                      <tr
+                        key={id}
+                        data-row-id={id}
+                        data-active={isActive ? 'true' : undefined}
+                        aria-current={isActive ? 'true' : undefined}
+                        tabIndex={interactiveRows ? (id === tabStopId ? 0 : -1) : undefined}
+                        onKeyDown={interactiveRows ? (event) => handleRowKeyDown(event, id, row) : undefined}
+                        onClick={interactiveRows ? (event) => handleRowClick(event, id, row) : undefined}
+                        className={cn(
+                          'h-[var(--h-row)] transition-colors focus-visible:-outline-offset-2',
+                          isActive ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : 'hover:bg-neutral-100',
+                          interactiveRows && 'cursor-pointer',
+                        )}
+                      >
+                        {selectable ? (
+                          <TableCell
+                            edge="leading"
+                            data-selection-cell=""
+                            className={cn(!blocked && onSelectedChange !== undefined && 'cursor-pointer')}
+                            onClick={(event) => {
+                              // The box answers its own click through Radix; the cell
+                              // around it is the same target, so a pointer need not
+                              // find 13px.
+                              if (event.target instanceof Element && event.target.closest('button') !== null) return;
+                              toggleRow(id);
+                            }}
+                          >
+                            <Checkbox
+                              size="sm"
+                              checked={selection.has(id)}
+                              disabled={blocked || onSelectedChange === undefined}
+                              disabledReason={unavailableReason ?? blockedReason}
+                              aria-label={rowLabel?.(row) ?? id}
+                              onChange={() => toggleRow(id)}
+                            />
+                          </TableCell>
+                        ) : null}
+                        {shown.map((column, index) => (
+                          <TableCell
+                            key={column.id}
+                            variant={column.variant}
+                            align={column.align}
+                            truncate={column.truncate}
+                            edge={edgeOf(index, shown.length, selectable)}
+                          >
+                            {column.cell(row)}
+                          </TableCell>
+                        ))}
+                      </tr>
+                    );
+                  })}
           </tbody>
         </table>
         {overlay}
@@ -397,6 +444,9 @@ export function DataTable<Row>({
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set<string>();
+const DEFAULT_SKELETON_ROWS = 5;
+const TEXT_SKELETON_WIDTHS = ['72%', '56%', '64%', '48%'] as const;
+const NUMERIC_SKELETON_WIDTHS = ['3rem', '4rem', '3.5rem', '2.5rem'] as const;
 
 /** The checkbox column already occupies the leading gutter when it is present. */
 function edgeOf(index: number, length: number, selectable: boolean): TableCellEdge {

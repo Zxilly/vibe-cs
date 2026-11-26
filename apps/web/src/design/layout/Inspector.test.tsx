@@ -82,10 +82,12 @@ describe('Inspector folded (§8 rule 2)', () => {
     );
 
     expect(html).toContain('data-inspector="summary"');
+    expect(html).toContain('px-4 sm:px-6');
     // BAR_HEIGHT_MERGE raw 50: the strip §8 calls 44 folds into --h-bar.
     expect(html).toContain('h-[var(--h-bar)]');
     expect(html).toContain('选中 R21 · 1v3 残局');
     expect(html).toContain('data-inspector-trigger');
+    expect(html).toContain('rounded-md');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('证据详情 ›');
     expect(html).not.toContain('role="dialog"');
@@ -126,6 +128,7 @@ describe('Inspector folded (§8 rule 2)', () => {
 
     expect(html).toContain('data-inspector="drawer"');
     expect(html).toContain('role="dialog"');
+    expect(html).toContain('max-w-[92vw]');
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-label="选中：第 21 回合"');
     expect(html).toContain('data-inspector-close');

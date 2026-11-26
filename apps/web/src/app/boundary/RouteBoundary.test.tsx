@@ -36,7 +36,10 @@ describe('RouteLoading — 加载中 · 表格骨架', () => {
     expect(html).toContain('data-page');
     expect(html).toContain('data-page-toolbar');
     expect(html).toContain('data-toolbar-height="topbar"');
+    expect(html).toContain('data-page-bar');
     expect(html).toContain('data-page-body');
+    expect(html).toContain('bg-skeleton');
+    expect(html).toContain('flex-1');
   });
 });
 

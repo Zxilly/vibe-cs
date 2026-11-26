@@ -59,8 +59,8 @@ export interface SegProps<Value extends string> {
   className?: string;
 }
 
-/** Content-sized by default; wrap options instead of hiding them in narrow panels. */
-const GROUP_CLASS = 'inline-flex flex-wrap overflow-hidden rounded-md border border-neutral-400';
+/** Content-sized single-row control; scrolls horizontally rather than wrapping with broken dividers. */
+const GROUP_CLASS = 'inline-flex max-w-full flex-nowrap overflow-x-auto overflow-y-hidden rounded-md border border-neutral-400';
 
 /**
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`
@@ -70,11 +70,11 @@ const GROUP_CLASS = 'inline-flex flex-wrap overflow-hidden rounded-md border bor
  * face with deep accent text and a 1px inset accent hairline, never the solid
  * accent fill. A solid fill would compete with the view's one primary button.
  *
- * The inset focus ring remains distinct from the group border, including
- * when options wrap. Radix keeps arrow-key navigation across every option.
+ * The inset focus ring remains distinct from the group border. Radix keeps
+ * arrow-key navigation across every option.
  */
 const OPTION_CLASS =
-  'inline-flex items-center gap-2 whitespace-nowrap rounded-none px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
+  'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-none px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
   'cursor-pointer select-none transition-colors ' +
   'data-[state=checked]:bg-accent-100 data-[state=checked]:font-medium data-[state=checked]:text-accent-700 ' +
   'data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-accent)] ' +

@@ -211,7 +211,7 @@ export function Inspector({
       <div
         data-inspector="summary"
         className={cn(
-          'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-6',
+          'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-4 sm:px-6',
           className,
         )}
       >
@@ -225,7 +225,7 @@ export function Inspector({
           data-inspector-trigger
           aria-expanded={isOpen}
           aria-controls={isOpen ? panelId : undefined}
-          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 border border-neutral-400 px-3 text-sm transition-colors hover:bg-action-hover active:bg-action-pressed"
+          className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-2 rounded-md border border-neutral-400 px-3 text-sm transition-colors hover:bg-action-hover active:bg-action-pressed"
           onClick={() => setOpen(!isOpen)}
         >
           {openLabel ?? <Trans>详情</Trans>}
@@ -255,7 +255,7 @@ export function Inspector({
             tabIndex={-1}
             onKeyDown={onPanelKeyDown}
             className={cn(
-              'relative flex h-full flex-col border-l border-divider bg-bg shadow-[var(--shadow-lg)]',
+              'relative flex h-full max-w-[92vw] flex-col border-l border-divider bg-bg shadow-[var(--shadow-lg)]',
               WIDTH_CLASS[width],
             )}
           >

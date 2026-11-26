@@ -1,5 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
@@ -149,13 +150,25 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
             <p role="alert">{rendererError}</p>
             <Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}><Trans>重新加载 3D</Trans></Button>
           </div>
-        ) : !rendererReady ? <p role="status" className="absolute inset-0 grid place-items-center text-sm"><Trans>正在启动 3D 视图…</Trans></p> : null)}
+        ) : !rendererReady ? (
+          <div className="absolute inset-0 grid place-items-center p-4">
+            <p role="status" aria-busy="true" className="inline-flex items-center gap-2 rounded-full border border-media-divider bg-media/90 px-3.5 py-2 text-xs text-on-media">
+              <LoaderCircle className="size-3.5 animate-spin text-accent" aria-hidden="true" />
+              <Trans>正在启动 3D 视图…</Trans>
+            </p>
+          </div>
+        ) : null)}
         {active && rendererReady && mode === 'camera' && !hasTarget && !hasCamera && <p role="status" className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded bg-media/90 p-4 text-center text-sm"><Trans>当前时刻缺少选手位置，无法预演第一人称画面。</Trans></p>}
         {presented && !showControls && rendererReady && (geometry.isError || (mapName === null)) && <p className="absolute bottom-2 left-2 right-2 rounded bg-surface-chrome px-2 py-1 text-xs text-text"><Trans>地图暂不可用，当前仅显示选手与镜头。</Trans></p>}
       </div>
       {showControls && (frames.length === 0 || geometry.isFetching || geometry.data === undefined || geometry.isError || (hasCamera && mode !== 'camera')) && <div className="flex flex-col gap-1 border-t border-media-divider px-3 py-2 text-xs leading-5 text-on-media-muted">
         {frames.length === 0 && <p role="status"><Trans>没有可用的选手位置数据。</Trans></p>}
-        {geometry.isFetching && mapName !== null ? <p role="status"><Trans>正在加载地图…</Trans></p> : geometry.data === undefined || geometry.isError ? (
+        {geometry.isFetching && mapName !== null ? (
+          <p role="status" aria-busy="true" className="inline-flex items-center gap-1.5">
+            <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+            <Trans>正在加载地图…</Trans>
+          </p>
+        ) : geometry.data === undefined || geometry.isError ? (
           <div className="flex items-start gap-2">
             <p className="min-w-0 flex-1"><Trans>地图暂不可用，当前仅显示选手与镜头。</Trans></p>
             {mapName !== null && <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => void geometry.refetch()}><Trans>重试</Trans></button>}

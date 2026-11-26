@@ -125,13 +125,14 @@ describe('what a row says', () => {
 });
 
 describe('the three states', () => {
-  it('loads with row-shaped placeholders and no fabricated percentage', () => {
+  it('loads with row-shaped placeholders, a visible top stage caption, and no fabricated percentage', () => {
     const html = render(<EvidenceResults {...base} rows={[]} total={0} loading />);
     expect(html).toContain('data-evidence-row-skeleton');
     // Only the stage name is announced; there is no denominator to report, so
     // there is no bar and no figure. (The `%` that does appear is a skeleton
     // bar's own width, which is layout, not a claim about progress.)
     expect(html).toContain('正在检索证据');
+    expect(html.indexOf('正在检索证据')).toBeLessThan(html.indexOf('data-evidence-row-skeleton'));
     expect(html).not.toMatch(/>\s*\d+\s*%/u);
     expect(html).not.toContain('role="progressbar"');
   });

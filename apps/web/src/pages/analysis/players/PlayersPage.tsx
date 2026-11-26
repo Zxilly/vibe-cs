@@ -3,7 +3,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { usePlayer, usePlayerDirectory } from '../../../data/players';
@@ -39,6 +39,11 @@ import { formatFixed, formatMonthDay, formatPercent, headshotRate, NO_VALUE } fr
 /** How long the box waits after the last keystroke before it filters. */
 export const SEARCH_DEBOUNCE_MS = 250;
 
+/** Below this table pane width (e.g. 1280px with docked Inspector = 684px, or 768px = 712px),
+ *  lower-priority raw kill/death counts hide so the identity column and trailing 档案 link never clip. */
+const COMPACT_TABLE_WIDTH_PX = 760;
+const COMPACT_HIDE_COLUMNS = ['kills', 'deaths'] as const;
+
 /**
  * Column ids *are* the service's sort names, so 「点表头排序」 needs no lookup
  * table and a column that cannot be sorted server-side simply does not declare
@@ -57,7 +62,7 @@ function directoryColumns(): readonly DataTableColumn<PlayerDirectoryItem>[] {
       header: <Trans>选手</Trans>,
       headerLabel: t`选手`,
       hideable: false,
-      minWidth: '180px',
+      minWidth: '136px',
       sortable: true,
       truncate: true,
       cell: (row) => (
@@ -132,7 +137,7 @@ function directoryColumns(): readonly DataTableColumn<PlayerDirectoryItem>[] {
       id: 'profile',
       headerLabel: t`档案`,
       hideable: false,
-      width: '90px',
+      width: '60px',
       cell: (row) => (
         <RouteLink to={`/players/${encodeURIComponent(row.steam_id)}`}>
           <Trans>档案</Trans>
@@ -147,6 +152,23 @@ export function PlayersPage() {
   const columns = useMemo(directoryColumns, []);
   const [params, setParams] = useSearchParams();
   const collapsed = useCollapsed(undefined);
+  const tablePaneRef = useRef<HTMLDivElement>(null);
+  const [compactTable, setCompactTable] = useState(false);
+
+  useEffect(() => {
+    const pane = tablePaneRef.current;
+    if (pane === null || typeof ResizeObserver === 'undefined') return undefined;
+    const update = (width: number) => {
+      if (width > 0) setCompactTable(width < COMPACT_TABLE_WIDTH_PX);
+    };
+    update(pane.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) update(entry.contentRect.width);
+    });
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
 
   const state = readPlayerDirectory(params);
   const directory = usePlayerDirectory(toPlayerQuery(state));
@@ -213,6 +235,11 @@ export function PlayersPage() {
       page: 1,
     });
   };
+
+  const hiddenColumns = useMemo(() => {
+    if (!compactTable) return undefined;
+    return new Set<string>(COMPACT_HIDE_COLUMNS.filter((id) => id !== state.sort));
+  }, [compactTable, state.sort]);
 
   const error = toDataError(directory.error, t`请重试`)?.message ?? null;
   const clearCompare = () => commit({ ...state, compare: [] });
@@ -287,7 +314,7 @@ export function PlayersPage() {
       }
     >
       <div className="flex min-h-0 min-w-0 flex-1">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div ref={tablePaneRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
           {error === null ? null : (
             <div className="p-6">
               <Alert
@@ -303,6 +330,7 @@ export function PlayersPage() {
             className="min-h-0 flex-1"
             caption={<Trans>选手目录</Trans>}
             columns={columns}
+            hiddenColumns={hiddenColumns}
             rows={rows}
             rowId={(row) => row.steam_id}
             rowLabel={(row) => row.name}
@@ -354,6 +382,7 @@ export function PlayersPage() {
                 page={state.page}
                 pageSize={PLAYER_PAGE_SIZE}
                 total={total}
+                loading={directory.isPending}
                 onPageChange={(page) => commit({ ...state, page })}
                 summary={<Trans>共 {total} 名选手</Trans>}
               />

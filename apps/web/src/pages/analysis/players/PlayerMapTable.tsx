@@ -17,7 +17,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo } from 'react';
 
-import { DataTable, Empty, type DataTableColumn } from '../../../design/data';
+import { DataTable, Empty, TableSkeleton, type DataTableColumn } from '../../../design/data';
 import type { PlayerMapItem } from '../../../shared/desktop/dto';
 import { formatFixed, formatPercent, headshotRate, NO_VALUE } from './playerStats';
 
@@ -90,6 +90,7 @@ export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
         rows={rows}
         rowId={(row) => row.map_name ?? 'unknown'}
         loading={loading}
+        skeleton={<TableSkeleton rows={4} stage={t`正在读取地图统计`} className="m-4" />}
         empty={
           <Empty
             className="m-4"

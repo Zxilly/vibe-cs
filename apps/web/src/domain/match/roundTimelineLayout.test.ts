@@ -33,11 +33,22 @@ describe('planRoundStrip at the §8 fold', () => {
     expect(plan.showLabels).toBe(true);
   });
 
-  it('still fits a long overtime on one row', () => {
+  it('splits a long overtime onto two balanced readable rows', () => {
     const plan = planRoundStrip({ roundCount: 45 });
 
-    expect(plan.rows).toBe(1);
+    expect(plan.rows).toBe(2);
+    expect(plan.perRow).toBe(23);
     expect(plan.cellWidthPx).toBeGreaterThanOrEqual(ROUND_CELL_MIN_PX);
+    expect(plan.showLabels).toBe(true);
+  });
+
+  it('splits 24-round and OT matches onto two readable rows at 768px content width', () => {
+    for (const roundCount of [24, 30]) {
+      const plan = planRoundStrip({ roundCount, availableWidthPx: 650 });
+      expect(plan.rows).toBe(2);
+      expect(plan.cellWidthPx).toBeGreaterThanOrEqual(ROUND_CELL_MIN_PX);
+      expect(plan.showLabels).toBe(true);
+    }
   });
 
   it('wraps rather than shrinking a cell below the minimum', () => {
@@ -112,12 +123,12 @@ describe('planRoundStrip edges', () => {
     expect(plan).toEqual({ rows: 1, perRow: 1, cellWidthPx: 996, showLabels: true });
   });
 
-  it('drops the label before it drops the cell', () => {
+  it('drops the label before it drops the cell when minCellPx is below labelMinPx', () => {
     // Narrow enough that a cell is a target but not a legible number.
-    const plan = planRoundStrip({ roundCount: 24, availableWidthPx: 24 * 19 + 23 * 4 });
+    const plan = planRoundStrip({ roundCount: 24, availableWidthPx: 24 * 19 + 23 * 4, minCellPx: 18 });
     expect(plan.rows).toBe(1);
     expect(plan.showLabels).toBe(false);
-    expect(plan.cellWidthPx).toBeGreaterThanOrEqual(ROUND_CELL_MIN_PX);
+    expect(plan.cellWidthPx).toBeGreaterThanOrEqual(18);
   });
 
   it('degrades to one cell per row in a zero-width container rather than hiding rounds', () => {

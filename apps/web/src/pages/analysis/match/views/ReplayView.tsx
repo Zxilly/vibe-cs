@@ -366,13 +366,16 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     : (clipOutTick - slice.startTick) / slice.tickRate;
   const effectivePlayer = analysis.data?.players.find((player) => player.id === effectivePlayerId) ?? null;
   const highlight = matchHighlights(analysis.data).find((entry) => entry.id === context.highlight) ?? null;
-  const createClipDisabledReason = addToVideo.disabled
-    ? addToVideo.disabledReason
-    : effectivePlayerId === null
-      ? t`先选择这个镜头跟随的选手`
-      : clipRange === null || slice === null
-        ? t`先在回放中设置不同的入点和出点`
-        : undefined;
+  const loadingReason = status === 'loading' ? t`正在加载回放数据` : undefined;
+  const createClipDisabledReason = loadingReason !== undefined
+    ? loadingReason
+    : addToVideo.disabled
+      ? addToVideo.disabledReason
+      : effectivePlayerId === null
+        ? t`先选择这个镜头跟随的选手`
+        : clipRange === null || slice === null
+          ? t`先在回放中设置不同的入点和出点`
+          : undefined;
   const selectedDuel = duels.engagements.find((duel) => duel.id === context.evidence) ?? null;
   const has3DTarget = slice !== null && frameIndex >= 0
     && slice.frames[frameIndex]?.players.some((player) => player.id === effectivePlayerId) === true;
@@ -384,19 +387,19 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
 
   return (
     <ViewFrame state={status === 'loading' ? 'loading' : status === 'empty' ? 'empty' : 'ready'}>
-      <div className="flex flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-divider bg-surface-chrome px-3 py-1.5 lg:gap-3 lg:px-4">
         <Seg name="replay-view" aria-label={t`回放视图`} value={show3D ? '3d' : '2d'}
           options={[{ value: '2d', label: t`2D 地图` }, { value: '3d', label: t`3D 视图` }]}
           onChange={(value) => setShow3D(value === '3d')} />
-        <NativeSelect size="sm" className="w-auto max-w-48" aria-label={t`选手`} value={effectivePlayerId ?? ''}
+        <NativeSelect size="sm" className="w-auto max-w-36 lg:max-w-48" aria-label={t`选手`} value={effectivePlayerId ?? ''}
           onChange={(event) => updateContext({ player: event.currentTarget.value || null })}>
           <option value=""><Trans>选择选手</Trans></option>
           {(analysis.data?.players ?? []).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
         </NativeSelect>
         <Button size="sm" variant="ghost" aria-expanded={showLayers} onClick={() => setShowLayers((value) => !value)}><Trans>图层</Trans></Button>
         {show3D && (
-          <div className="ml-auto flex flex-wrap items-center gap-2.5" data-replay-3d-controls="">
-            <span className="text-xs text-neutral-600"><Trans>简化预览</Trans></span>
+          <div className="ml-auto flex flex-wrap items-center gap-2" data-replay-3d-controls="">
+            <span className="hidden text-xs text-neutral-600 lg:inline"><Trans>简化预览</Trans></span>
             <NativeSelect
               size="sm"
               className="w-auto min-w-0"
@@ -613,12 +616,15 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
 
           <div
             data-replay-transport=""
-            className="flex flex-none flex-col gap-2.5 border-t border-divider px-5 py-3"
+            className="flex flex-none flex-col gap-1.5 border-t border-divider px-3 py-1.5 lg:px-4 @[860px]:flex-row @[860px]:flex-wrap @[860px]:items-center @[860px]:justify-between @[860px]:gap-x-4 @[860px]:gap-y-1.5"
           >
             <Transport
+              className="flex-wrap gap-2"
               currentTime={currentSeconds}
               durationSeconds={durationSeconds}
               playing={playing}
+              disabled={status !== 'ready'}
+              {...(loadingReason === undefined ? {} : { disabledReason: loadingReason })}
               {...(clipInSeconds === undefined ? {} : { inPoint: clipInSeconds })}
               {...(clipOutSeconds === undefined ? {} : { outPoint: clipOutSeconds })}
               timecode="clock"
@@ -635,8 +641,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               }}
               onRateChange={setRate}
             />
-            <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-divider pt-2" data-replay-clip-range="">
-              <p className="min-w-0 flex-1 font-mono text-xs tabular-nums text-neutral-600" data-replay-tick={effectiveTick ?? ''}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-divider pt-1.5 @[860px]:border-t-0 @[860px]:pt-0" data-replay-clip-range="">
+              <p className="min-w-0 flex-1 whitespace-nowrap font-mono text-xs tabular-nums text-neutral-600 @[860px]:flex-none" data-replay-tick={effectiveTick ?? ''}>
                 <Trans>选段</Trans>{' '}
                 {clipInTick === null ? '—' : formatMillisecondTimecode(clipInTick / (slice?.tickRate ?? 64))}
                 {' – '}
@@ -645,7 +651,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={effectiveTick === null}
+                disabled={status !== 'ready' || effectiveTick === null}
+                {...(loadingReason === undefined ? {} : { disabledReason: loadingReason })}
                 onClick={() => setClipInTick(effectiveTick === null ? null : Math.round(effectiveTick))}
               >
                 <Trans>设入点</Trans>
@@ -653,7 +660,8 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={effectiveTick === null}
+                disabled={status !== 'ready' || effectiveTick === null}
+                {...(loadingReason === undefined ? {} : { disabledReason: loadingReason })}
                 onClick={() => setClipOutTick(effectiveTick === null ? null : Math.round(effectiveTick))}
               >
                 <Trans>设出点</Trans>

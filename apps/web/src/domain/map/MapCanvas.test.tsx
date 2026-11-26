@@ -101,10 +101,12 @@ describe('MapCanvas', () => {
     expect(html).not.toContain('<svg');
   });
 
-  it('renders the loading state with no percentage anywhere', () => {
+  it('renders the loading state with a visible stage label and no percentage anywhere', () => {
     const html = renderMarkup(<MapCanvas mapName="de_mirage" label="Mirage" status="loading" />);
     expect(html).toContain('正在读取空间证据');
     expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('animate-spin');
+    expect(html).not.toContain('class="sr-only">正在读取空间证据');
     expect(html).not.toContain('%');
   });
 

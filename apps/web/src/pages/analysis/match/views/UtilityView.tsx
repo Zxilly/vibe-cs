@@ -300,7 +300,7 @@ export function EconomyTable({
 /* ── the body ────────────────────────────────────────────────────────────── */
 
 function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
-  const gate = useAnalysisGate(demoId);
+  const gate = useAnalysisGate(demoId, { layout: 'split' });
   const { i18n } = useLingui();
   const analysis = gate.analysis;
   const index = useMemo(() => rosterIndex(analysis), [analysis]);
@@ -328,8 +328,8 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
 
   return <ViewFrame view="utility" state={gate.state}>
     {gate.fallback ?? <>
-      <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-2" data-utility-overview>
-        <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`道具`}>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 2xl:grid-cols-[minmax(280px,1fr)_minmax(640px,1.6fr)]" data-utility-overview>
+        <section className="min-w-0 overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`道具`}>
           <h2 className="px-5 py-3 text-sm font-medium"><Trans>道具</Trans></h2>
           {utility.available ? <dl className="divide-y divide-divider">
             {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
@@ -346,7 +346,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
             {flashAvailable ? <div><dt className="text-neutral-600"><Trans>致盲人次</Trans></dt><dd className="font-mono tabular-nums">{totals.flashEvents}</dd></div> : null}
           </dl> : null}
         </section>
-        <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`回合经济`}>
+        <section className="min-w-0 overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`回合经济`}>
           <h2 className="px-5 py-3 text-sm font-medium"><Trans>回合经济</Trans></h2>
           {selected === undefined ? <Empty title={<Trans>没有回合记录</Trans>} actions={null} /> : <>
             <EquipmentChart rounds={equipment} activeRound={selected.round} teamA={names.A} teamB={names.B}

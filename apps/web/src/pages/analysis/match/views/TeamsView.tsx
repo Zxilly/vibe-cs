@@ -503,7 +503,7 @@ function normaliseSide(side: string | undefined): TeamSide | undefined {
 }
 
 function TeamsBody({ demoId, context, updateContext }: MatchViewProps) {
-  const gate = useAnalysisGate(demoId);
+  const gate = useAnalysisGate(demoId, { layout: 'split' });
   const roster = gate.analysis === undefined ? null : rosters(gate.analysis.players);
   const effectivePlayer = context.player
     ?? roster?.a[0]?.id

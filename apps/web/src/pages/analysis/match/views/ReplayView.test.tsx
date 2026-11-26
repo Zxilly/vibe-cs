@@ -152,14 +152,22 @@ describe('the body', () => {
     expect(html).toContain('回到资料库');
   });
 
-  it('shows a skeleton, no progress bar and no claim about frames while loading', () => {
+  it('shows a skeleton, disables playback and clip controls, and makes no claim about frames while loading', () => {
     loaded({ pending: true });
     const html = markupView(<ReplayView.Body {...viewProps()} />);
     expect(html).toContain('正在读取空间证据');
+    expect(html).toContain('正在加载回放数据');
     // 「加载中 · 骨架（不显示虚构百分比）」: no denominator exists, so no bar.
     expect(html).not.toContain('role="progressbar"');
     // And no provenance line either — 「这一段有 0 帧」 would be a claim.
     expect(html).not.toContain('坐标来自本地 overview');
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const play = doc.querySelector('button[aria-label="播放"]');
+    const markIn = [...doc.querySelectorAll('button')].find((button) => button.textContent?.includes('设入点'));
+    const markOut = [...doc.querySelectorAll('button')].find((button) => button.textContent?.includes('设出点'));
+    expect(play?.hasAttribute('disabled')).toBe(true);
+    expect(markIn?.hasAttribute('disabled')).toBe(true);
+    expect(markOut?.hasAttribute('disabled')).toBe(true);
   });
 });
 

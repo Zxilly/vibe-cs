@@ -1,5 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 import { useCallback, type CSSProperties } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
@@ -41,7 +42,14 @@ export function CameraPreviewViewport({ preview, sourceTimeSeconds, readSourceTi
           <p>{dataErrorMessage(replay.error) ?? t`预演暂时不可用，请重试。`}</p>
           <Button size="sm" variant="secondary" onClick={() => void replay.refetch()}><Trans>重试</Trans></Button>
         </div>
-      ) : replay.data === undefined ? active && <p role="status" className="grid flex-1 place-items-center text-sm"><Trans>正在加载预演…</Trans></p> : (
+      ) : replay.data === undefined ? active && (
+        <div className="grid flex-1 place-items-center p-4">
+          <p role="status" aria-busy="true" className="inline-flex items-center gap-2 rounded-full border border-media-divider bg-media/90 px-3.5 py-2 text-xs text-on-media">
+            <LoaderCircle className="size-3.5 animate-spin text-accent" aria-hidden="true" />
+            <Trans>正在加载预演…</Trans>
+          </p>
+        </div>
+      ) : (
         <Scene3DView mapName={preview.mapName} frames={replay.data.frames} tick={preview.startTick + time * preview.tickRate}
           readTick={readTick} tickRate={preview.tickRate} selectedPlayerId={preview.playerId}
           cameraSamples={preview.plan?.samples ?? null} cameraAspectRatio={preview.aspectRatio}

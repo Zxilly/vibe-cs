@@ -129,13 +129,14 @@ describe('MatchContextBar', () => {
     expect(html).toContain('13 : 11');
   });
 
-  it('renders a skeleton while loading without collapsing the bar height', () => {
+  it('renders a skeleton including map-plate stub while loading without collapsing the bar height', () => {
     const html = renderMarkup(
       <MatchContextBar {...BASE} loading actions={<button type="button">用 Agent 制作视频</button>} />,
     );
 
     expect(html).toContain('data-match-context-state="loading"');
     expect(html).toContain('h-[var(--h-topbar)]');
+    expect(html).toContain('width:52px');
     expect(html).toContain('animate-pulse');
     // The escape hatch and the primary action survive a load in progress.
     expect(html).toContain('用 Agent 制作视频');

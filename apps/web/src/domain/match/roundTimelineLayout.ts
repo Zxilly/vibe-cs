@@ -29,12 +29,12 @@
 export const ROUND_CELL_GAP_PX = 4;
 
 /**
- * Below this a cell stops being a target. 18px is roughly half a finger-free
- * desktop click target, and it is the point at which the winner rule and the
- * reason glyph stop being separable at a glance; wrapping to a second row is
- * strictly better than a strip nobody can hit.
+ * Below this a cell crowds its icon and two-digit round number at narrow widths
+ * (e.g. 768px viewports and docked-inspector 1280px panes). At 28px, a 30-round
+ * OT match still sits on one row at the 996px fold (29.3px/cell), while 24-round
+ * and OT matches at 768px split cleanly into two balanced rows.
  */
-export const ROUND_CELL_MIN_PX = 18;
+export const ROUND_CELL_MIN_PX = 28;
 
 /**
  * Below this the round number is dropped and the cell speaks only through its

@@ -107,7 +107,7 @@ describe('density · RoundTimeline at the §8 fold', () => {
   it('keeps cells hittable inside a 380px Inspector by taking more rows', () => {
     const plan = planRoundStrip({ roundCount: OVERTIME_ROUNDS, availableWidthPx: INSPECTOR_WIDTH_PX });
 
-    expect(plan.rows).toBe(2);
+    expect(plan.rows).toBe(3);
     expect(plan.cellWidthPx).toBeGreaterThanOrEqual(ROUND_CELL_MIN_PX);
     expect(plan.showLabels).toBe(true);
   });

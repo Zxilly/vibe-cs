@@ -50,6 +50,7 @@
  */
 
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 import { useCallback, useId, useState, type ReactNode } from 'react';
 
 import { Empty } from '../../design/data';
@@ -240,8 +241,13 @@ export function MapCanvas({
     // No percentage and no fake grid: the states artboard forbids a made-up
     // denominator, and a partially drawn map would be exactly that.
     body = (
-      <CanvasFrame fitToHeight={fitToHeight} className="animate-pulse bg-neutral-200">
-        <span role="status" aria-busy="true" className="sr-only">
+      <CanvasFrame fitToHeight={fitToHeight} className="grid place-items-center bg-surface-chrome">
+        <span
+          role="status"
+          aria-busy="true"
+          className="inline-flex items-center gap-2 rounded-full border border-divider bg-bg px-3.5 py-2 text-xs text-neutral-700"
+        >
+          <LoaderCircle className="size-3.5 animate-spin text-accent" strokeWidth={1.75} aria-hidden="true" />
           <Trans>正在读取空间证据</Trans>
         </span>
       </CanvasFrame>
@@ -350,7 +356,7 @@ export function MapCanvas({
 
   return (
     <figure className={cn('flex min-h-0 min-w-0 flex-col gap-3', className)} data-map-name={mapName}>
-      <div className="flex min-h-0 flex-1 p-5"><div className={cn('flex min-h-0 min-w-0 flex-1 items-center justify-center', fitToHeight && '[container-type:size]')}>{body}</div></div>
+      <div className={cn('flex min-h-0 flex-1', fitToHeight ? 'p-3' : 'p-5')}><div className={cn('flex min-h-0 min-w-0 flex-1 items-center justify-center', fitToHeight && '[container-type:size]')}>{body}</div></div>
       <figcaption id={captionId} className="flex flex-col gap-1 text-xs leading-normal text-neutral-700">
         {/*
           The selection's written form. `aria-live` because selecting a shape on

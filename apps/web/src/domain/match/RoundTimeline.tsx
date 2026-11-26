@@ -42,7 +42,7 @@
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
@@ -117,10 +117,30 @@ export function RoundTimeline({
 }: RoundTimelineProps) {
   const { i18n } = useLingui();
   const stripRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | undefined>(undefined);
 
+  useEffect(() => {
+    if (availableWidthPx !== undefined) {
+      setMeasuredWidth(undefined);
+      return undefined;
+    }
+    const element = stripRef.current;
+    if (element === null || typeof ResizeObserver === 'undefined') return undefined;
+    const update = (width: number) => {
+      if (width > 0) setMeasuredWidth(Math.round(width));
+    };
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) update(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [availableWidthPx, loading, failure, rounds.length]);
+
+  const effectiveWidth = availableWidthPx ?? measuredWidth;
   const plan = planRoundStrip({
     roundCount: rounds.length,
-    ...(availableWidthPx === undefined ? {} : { availableWidthPx }),
+    ...(effectiveWidth === undefined ? {} : { availableWidthPx: effectiveWidth }),
   });
 
   /* One tab stop for the whole strip. It lands on the selected cell when there

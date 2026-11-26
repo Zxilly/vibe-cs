@@ -34,6 +34,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Empty, Skeleton } from '../../../../design/data';
@@ -177,18 +178,85 @@ export function MetricStrip({ metrics }: { readonly metrics: readonly ViewMetric
 
 /* ── loading / empty / failed ────────────────────────────────────────────── */
 
-/** Row-shaped placeholders. No percentage: there is no denominator (§4.3). */
-export function ViewSkeleton({ rows = 5 }: { readonly rows?: number }) {
+export type ViewSkeletonLayout = 'rows' | 'overview' | 'split';
+
+const SKELETON_ROW_WIDTHS = ['100%', '92%', '96%', '88%', '94%'] as const;
+
+/** Layout-aware placeholders with a visible stage caption. No percentage: there is no denominator (§4.3). */
+export function ViewSkeleton({
+  rows = 5,
+  layout = 'rows',
+}: {
+  readonly rows?: number;
+  readonly layout?: ViewSkeletonLayout;
+}) {
+  const stage = (
+    <p role="status" aria-busy="true" className="flex items-center gap-2 text-xs text-neutral-600">
+      <LoaderCircle className="size-3.5 animate-spin text-accent" aria-hidden="true" />
+      <Trans>正在读取比赛分析</Trans>
+    </p>
+  );
+
+  if (layout === 'overview') {
+    return (
+      <div data-match-view-skeleton="" data-skeleton-layout="overview" className="flex flex-col gap-4 p-3.5">
+        {stage}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="flex flex-col gap-2 rounded-md border border-divider p-3">
+              <Skeleton width="45%" />
+              <Skeleton width="65%" className="h-5" />
+              <Skeleton width="80%" />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 rounded-md border border-divider p-3">
+          <Skeleton width="7rem" className="h-3.5" />
+          <div className="grid grid-cols-6 gap-1 sm:grid-cols-12">
+            {Array.from({ length: 12 }, (_, index) => (
+              <Skeleton key={index} className="h-[var(--h-row)]" />
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} width={SKELETON_ROW_WIDTHS[index % SKELETON_ROW_WIDTHS.length]} className="h-[var(--h-row)]" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === 'split') {
+    return (
+      <div data-match-view-skeleton="" data-skeleton-layout="split" className="flex flex-col gap-4 p-3.5">
+        {stage}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {Array.from({ length: 2 }, (_, index) => (
+            <div key={index} className="flex flex-col gap-3 rounded-md border border-divider p-4">
+              <Skeleton width="35%" className="h-3.5" />
+              <Skeleton width="100%" className="h-24" />
+              <Skeleton width="85%" />
+              <Skeleton width="72%" />
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} width={SKELETON_ROW_WIDTHS[index % SKELETON_ROW_WIDTHS.length]} className="h-[var(--h-row)]" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div data-match-view-skeleton="" className="flex flex-col gap-2 p-3.5">
+    <div data-match-view-skeleton="" data-skeleton-layout="rows" className="flex flex-col gap-2.5 p-3.5">
+      {stage}
+      <Skeleton width="32%" className="h-3.5" />
       {Array.from({ length: rows }, (_, index) => (
-        <Skeleton key={index} className="h-[var(--h-row)]" />
+        <Skeleton key={index} width={SKELETON_ROW_WIDTHS[index % SKELETON_ROW_WIDTHS.length]} className="h-[var(--h-row)]" />
       ))}
-      {/* The bars are decoration; without this line a screen-reader user would
-          hear nothing while the workspace loads. */}
-      <p role="status" aria-busy="true" className="sr-only">
-        <Trans>正在读取比赛分析</Trans>
-      </p>
     </div>
   );
 }
@@ -252,7 +320,10 @@ export interface AnalysisGate {
  * The analysis document plus the three states, for a view that needs nothing
  * else. Call it unconditionally at the top of a `Body`.
  */
-export function useAnalysisGate(demoId: string): AnalysisGate {
+export function useAnalysisGate(
+  demoId: string,
+  options?: { readonly layout?: ViewSkeletonLayout | undefined },
+): AnalysisGate {
   const id = demoId === '' ? null : demoId;
   const query = useMatchAnalysis(id);
 
@@ -263,7 +334,12 @@ export function useAnalysisGate(demoId: string): AnalysisGate {
   }
 
   if (query.isPending) {
-    return { analysis: undefined, fallback: <ViewSkeleton />, state: 'loading', tickRate };
+    return {
+      analysis: undefined,
+      fallback: <ViewSkeleton layout={options?.layout ?? 'rows'} />,
+      state: 'loading',
+      tickRate,
+    };
   }
 
   /* Any other rejection was rendered by the shell before this body mounted

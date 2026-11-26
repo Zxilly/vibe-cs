@@ -17,13 +17,13 @@ export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: 
   const selectedIndex = rounds.findIndex((round) => round.round === activeRound);
   const available = rounds.some((round) => round.a !== null || round.b !== null);
   return (
-    <div className="px-4 pb-3" data-equipment-chart>
+    <div className="min-w-0 px-4 pb-3" data-equipment-chart>
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <span className="text-neutral-600"><Trans>冻结结束装备价值（$）</Trans></span>
         <span className="flex gap-4"><span className="text-accent">━ {teamA}</span><span className="text-team-b">━ {teamB}</span></span>
       </div>
-      <div className="overflow-x-auto pb-1">
-      <div style={{ minWidth: Math.max(CHART_WIDTH, Math.max(0, rounds.length - 1) * 20 + 72) }}>
+      <div className="min-w-0 overflow-x-auto pb-1">
+      <div className="w-full" style={{ minWidth: Math.max(CHART_WIDTH, Math.max(0, rounds.length - 1) * 20 + 72) }}>
       {available ? <svg viewBox={`0 0 ${CHART_WIDTH} 218`} className="block w-full" role="img" aria-label={t`两队逐回合装备价值`}>
         {selectedIndex < 0 ? null : <rect x={equipmentX(selectedIndex, rounds.length) - 8} y={28} width={16} height={176} className="fill-accent-100" />}
         {[0, 1, 2, 3].map((index) => {

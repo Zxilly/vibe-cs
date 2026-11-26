@@ -252,23 +252,23 @@ export function MatchContextBar({
           </>
         )}
 
-        {match.mapCode === undefined ? null : (
-          <span
-            data-match-map-code=""
-            aria-hidden="true"
-            className="grid h-[var(--h-ctl-sm)] w-[52px] flex-none place-items-center rounded-md border border-divider bg-bg font-heading text-xs tracking-caps"
-          >
-            {match.mapCode}
-          </span>
-        )}
-
         {loading ? (
           <div data-match-context-state="loading" className="flex min-w-0 flex-1 items-center gap-3">
-            <Skeleton width="180px" className="h-3.5" />
-            <Skeleton width="220px" />
+            <Skeleton width="52px" className="h-[var(--h-ctl-sm)] flex-none rounded-md" />
+            <Skeleton width="180px" className="h-3.5 max-w-full" />
+            <Skeleton width="220px" className="hidden sm:block" />
           </div>
         ) : (
           <>
+            {match.mapCode === undefined ? null : (
+              <span
+                data-match-map-code=""
+                aria-hidden="true"
+                className="grid h-[var(--h-ctl-sm)] w-[52px] flex-none place-items-center rounded-md border border-divider bg-bg font-heading text-xs tracking-caps"
+              >
+                {match.mapCode}
+              </span>
+            )}
             {/* No `periods` here on purpose — see note 3 in the header. The
                 bar shows 「13 : 11」, the breakdown is in the disclosure. */}
             <Scoreboard teamA={teamA} teamB={teamB} size="md" headingLevel={1} className="flex-none" />

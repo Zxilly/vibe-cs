@@ -259,7 +259,7 @@ export function OverviewPanels({
 }
 
 function OverviewBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
-  const gate = useAnalysisGate(demoId);
+  const gate = useAnalysisGate(demoId, { layout: 'overview' });
 
   return (
     <ViewFrame view="overview" state={gate.state}>

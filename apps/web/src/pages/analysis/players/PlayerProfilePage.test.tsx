@@ -55,6 +55,7 @@ describe('the page frame', () => {
   it('lays out the trend column and the map column', () => {
     expect(html).toContain('data-player-trend');
     expect(html).toContain('data-player-maps');
+    expect(html).toContain('正在读取地图统计');
     expect(html).toContain('data-player-recent');
   });
 

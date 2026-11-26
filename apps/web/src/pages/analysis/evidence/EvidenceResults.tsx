@@ -33,6 +33,7 @@
 
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Pagination } from '../../../design/data';
@@ -141,6 +142,16 @@ export function EvidenceResults({
   if (loading) {
     return (
       <div data-evidence-results="loading" className="flex min-h-0 flex-1 flex-col">
+        {/* The stage name sits above the scrollable skeleton list so it is
+            visible immediately without scrolling — 「加载中 · 表格骨架（不显示虚构百分比）」. */}
+        <p
+          role="status"
+          aria-busy="true"
+          className="flex flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-6 py-2 text-xs text-neutral-600"
+        >
+          <LoaderCircle className="size-3.5 animate-spin text-accent" aria-hidden="true" />
+          <Trans>正在检索证据</Trans>
+        </p>
         {/* Row-shaped placeholders, not a spinner and not a percentage —
             「加载中 · 表格骨架（不显示虚构百分比）」. */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
@@ -148,12 +159,6 @@ export function EvidenceResults({
             <EvidenceRowSkeleton key={index} density="comfortable" />
           ))}
         </div>
-        {/* The stage name, and only the stage name — 「加载中 · 表格骨架（不显示
-            虚构百分比）」. The bars above carry `aria-hidden`, so without this
-            line a screen-reader user would hear nothing at all. */}
-        <p role="status" aria-busy="true" className="sr-only">
-          <Trans>正在检索证据</Trans>
-        </p>
       </div>
     );
   }

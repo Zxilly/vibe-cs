@@ -439,6 +439,7 @@ export function TimelineProgramMonitor({
           </div>
           <ProgramTransportBar
             title={selected?.name}
+            sourceStatus={programSourceStatus(selected, selectedDeliveryState, targetCameraKey !== null, renderPreviewPresented)}
             playing={playing}
             playbackRate={playbackRate}
             fps={project.document.fps}
@@ -720,6 +721,7 @@ export function TimelineProgramMonitor({
           </div>
           <ProgramTransportBar
             title={slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}
+            sourceStatus={slideActive || rollingActive ? null : programSourceStatus(selected, selectedDeliveryState, targetCameraKey !== null, renderPreviewPresented)}
             playing={playing}
             playbackRate={playbackRate}
             fps={project.document.fps}
@@ -925,8 +927,55 @@ export function programPreviewStreamPath(
     : mediaAssetStreamPath(assetId);
 }
 
+type ProgramSourceStatusKind = 'planned-preview' | 'planned' | 'stale' | 'rendered-preview' | 'recorded';
+
+function programSourceStatus(
+  clip: TimelineClip | null,
+  deliveryState: TimelineClipMaterializationState | undefined,
+  cameraPreviewActive: boolean,
+  renderPreviewActive: boolean,
+): ProgramSourceStatusKind | null {
+  if (renderPreviewActive) return 'rendered-preview';
+  if (clip === null) return null;
+  if (deliveryState === 'stale') return 'stale';
+  if (deliveryState === 'unbound' || deliveryState === 'unrecorded') {
+    return cameraPreviewActive ? 'planned-preview' : 'planned';
+  }
+  const state = resolveTimelineMaterial(clip.material, clip.placement).state;
+  if (state === 'stale') return 'stale';
+  if (state === 'planned') return cameraPreviewActive ? 'planned-preview' : 'planned';
+  return 'recorded';
+}
+
+function ProgramSourceStatusPill({ status }: { readonly status: ProgramSourceStatusKind }) {
+  const toneClass = status === 'recorded'
+    ? 'border-ok-border bg-ok-surface text-ok-text'
+    : status === 'rendered-preview'
+      ? 'border-accent-300 bg-accent-100 text-accent-700'
+      : status === 'planned-preview' || status === 'stale'
+        ? 'border-warn-border bg-warn-surface text-warn-text'
+        : 'border-divider bg-surface-chrome text-neutral-700';
+  return (
+    <span
+      data-program-source-status={status}
+      className={`inline-flex flex-none items-center whitespace-nowrap rounded-sm border px-1.5 py-0.5 text-xs font-medium leading-4 ${toneClass}`}
+    >
+      {status === 'planned-preview'
+        ? <Trans>待录制 · 3D 预演</Trans>
+        : status === 'planned'
+          ? <Trans>待录制</Trans>
+          : status === 'stale'
+            ? <Trans>需要重录</Trans>
+            : status === 'rendered-preview'
+              ? <Trans>已渲染预览</Trans>
+              : <Trans>已录制</Trans>}
+    </span>
+  );
+}
+
 function ProgramTransportBar({
   title,
+  sourceStatus,
   playing,
   playbackRate,
   fps,
@@ -937,6 +986,7 @@ function ProgramTransportBar({
   onStepFrame,
 }: {
   readonly title: string | undefined;
+  readonly sourceStatus: ProgramSourceStatusKind | null;
   readonly playing: boolean;
   readonly fps: number;
   readonly timeDisplayMode: TimelineTimeDisplayMode;
@@ -947,29 +997,30 @@ function ProgramTransportBar({
   readonly onStepFrame: (direction: -1 | 1) => void;
 }) {
   return (
-    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-t border-divider bg-bg px-3 text-xs text-text">
+    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-t border-divider bg-bg px-3 text-xs text-text">
       <button
         type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
         aria-label={t`上一帧`}
         onClick={() => onStepFrame(-1)}
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
       </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
       <button
         type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
         aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
         onClick={playing ? () => onShuttle(0) : onTogglePlayback}
       >
         {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
       </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
       <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
-      <span className="flex-none whitespace-nowrap text-neutral-600">{playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}</span>
-      <span className="flex-none whitespace-nowrap font-mono">{formatTimelinePosition(timeSeconds, fps, timeDisplayMode)}</span>
+      {sourceStatus === null ? null : <ProgramSourceStatusPill status={sourceStatus} />}
+      <span className="flex-none whitespace-nowrap tabular-nums text-neutral-600">{playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}</span>
+      <span className="flex-none whitespace-nowrap font-mono tabular-nums">{formatTimelinePosition(timeSeconds, fps, timeDisplayMode)}</span>
     </div>
   );
 }

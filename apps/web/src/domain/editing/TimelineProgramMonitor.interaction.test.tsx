@@ -266,3 +266,15 @@ it('uses the clip speed and the same visual transform, effects and transition wh
   expect(props().readSourceTime!()).toBe(0.5);
   expect(props().frameStyle?.opacity).toBe(0.125);
 });
+
+it('distinguishes planned 3D preview from recorded playback in the transport bar', () => {
+  const plannedView = renderInteractive(tree(planned(), 1));
+  const plannedPill = plannedView.container.querySelector('[data-program-source-status]')!;
+  expect(plannedPill.getAttribute('data-program-source-status')).toBe('planned-preview');
+  expect(plannedPill.textContent).toBe('待录制 · 3D 预演');
+
+  plannedView.rerender(tree(project(), 1));
+  const recordedPill = plannedView.container.querySelector('[data-program-source-status]')!;
+  expect(recordedPill.getAttribute('data-program-source-status')).toBe('recorded');
+  expect(recordedPill.textContent).toBe('已录制');
+});

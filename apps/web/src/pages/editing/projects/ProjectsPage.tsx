@@ -1,5 +1,5 @@
 import { t } from '@lingui/core/macro';
-import { FileVideo2, Plus, Search } from 'lucide-react';
+import { ArrowRight, FileVideo2, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useHref, useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { useCreateProject, useProjects, useProjectDeliveryGate } from '../../../
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
-import { Button, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect } from '../../../design/primitives';
+import { Button, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect, cn } from '../../../design/primitives';
 import { formatTimecode } from '../../../design/timeline';
 import type { Project, ProjectDeliveryGate } from '../../../shared/desktop/dto';
 import { ProjectOutputLink } from '../../../domain/project/ProjectOutputLink';
@@ -128,40 +128,59 @@ function ProjectCard({ project }: { readonly project: Project }) {
   const clips = project.document.tracks.flatMap((track) => track.clips).filter((clip) => clip.placement.enabled && clip.text === null);
   const currentGate = gate.data?.revision === project.revision ? gate.data : null;
   const step = currentGate === null || gate.error !== null ? null : nextStep(project, currentGate);
+  const stepToneClass = step?.status === 'ok'
+    ? 'border-ok-border bg-ok-surface text-ok-text'
+    : step?.status === 'warn'
+      ? 'border-warn-border bg-warn-surface text-warn-text'
+      : 'border-divider bg-surface-chrome text-neutral-700';
   /*
    * The whole card is the title link's hit area — `after:` stretches the one
    * real anchor over the card, so middle-click, the status bar and the focus
    * ring all stay the anchor's, and nothing is nested inside it. 继续剪辑 and
    * the 成片 link are lifted above that layer so they still take their own click.
    */
-  return <article className="relative flex min-w-0 flex-col gap-4 rounded-lg border border-divider bg-bg p-4 transition-colors hover:border-neutral-500 focus-within:border-accent" data-project-card={project.id}>
+  return <article className="group relative flex min-w-0 flex-col gap-3.5 rounded-lg border border-divider bg-bg p-4 transition-colors hover:border-neutral-500 hover:shadow-[var(--shadow-sm)] focus-within:border-accent" data-project-card={project.id}>
     <div className="flex min-w-0 items-start gap-3">
-      <FileVideo2 size={20} strokeWidth={1.5} className="mt-0.5 flex-none text-neutral-600" aria-hidden="true" />
+      <span className="grid size-9 flex-none place-items-center rounded-md border border-divider bg-surface-chrome text-neutral-600 transition-colors group-hover:border-accent-300 group-hover:bg-accent-100 group-hover:text-accent-700" aria-hidden="true">
+        <FileVideo2 size={18} strokeWidth={1.6} aria-hidden="true" />
+      </span>
       <div className="min-w-0 flex-1">
         <RouteLink to={`/projects/${encodeURIComponent(project.id)}`} title={project.name} className="block truncate text-base font-medium text-text no-underline after:absolute after:inset-0 after:rounded-lg">{project.name}</RouteLink>
-        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-neutral-600">
+        <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs tabular-nums text-neutral-600">
           <span><Trans>第 {project.revision} 版</Trans></span>
+          <span aria-hidden="true">·</span>
           <span>{project.document.width} × {project.document.height} · {project.document.fps} fps</span>
         </p>
       </div>
     </div>
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
-        <span>
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-divider/70 bg-surface-chrome/60 px-3 py-2 text-xs text-neutral-700">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-medium text-text">
           {clips.length === 0 ? <Trans>还没有素材</Trans> : <Plural value={clips.length} other="# 段素材" />}
         </span>
-        <span className="font-mono tabular-nums"><span className="sr-only"><Trans>时长</Trans>{' '}</span>{formatTimecode(project.document.duration_seconds)}</span>
+        <span className="font-mono tabular-nums text-neutral-600"><span className="sr-only"><Trans>时长</Trans>{' '}</span>{formatTimecode(project.document.duration_seconds)}</span>
       </div>
-      {step === null ? <p className="text-xs text-neutral-600">{gate.error !== null ? <Trans>素材状态暂时不可用</Trans> : gate.isFetching ? <Trans>正在检查素材…</Trans> : <Trans>素材状态待更新</Trans>}</p> : <p data-project-next-step={step.status} className="flex min-w-0 items-center gap-2 text-sm text-text">
-        <StatusDot status={step.status} /><span className="min-w-0 truncate">{step.text}</span>
-      </p>}
+      {step === null ? (
+        <span className="text-xs text-neutral-600">{gate.error !== null ? <Trans>素材状态暂时不可用</Trans> : gate.isFetching ? <Trans>正在检查素材…</Trans> : <Trans>素材状态待更新</Trans>}</span>
+      ) : (
+        <span
+          data-project-next-step={step.status}
+          className={cn('inline-flex min-w-0 items-center gap-1.5 rounded-sm border px-2 py-0.5 text-xs font-medium', stepToneClass)}
+        >
+          <StatusDot status={step.status} />
+          <span className="min-w-0 truncate">{step.text}</span>
+        </span>
+      )}
     </div>
     <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-divider pt-3">
       <time dateTime={project.updated_at} title={t`最近更新`} className="text-xs tabular-nums text-neutral-600">{formatTaskClock(project.updated_at, { now: new Date() })}</time>
       <div className="flex items-center gap-2">
         <ProjectOutputLink projectId={project.id} inline className="relative z-10" />
-        <Button asChild size="sm" variant="ghost" className="relative z-10 flex-none">
-          <a href={editorHref} data-project-continue><Trans>继续剪辑</Trans></a>
+        <Button asChild size="sm" variant="secondary" className="relative z-10 flex-none rounded-md">
+          <a href={editorHref} data-project-continue className="no-underline">
+            <Trans>继续剪辑</Trans>
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </a>
         </Button>
       </div>
     </div>

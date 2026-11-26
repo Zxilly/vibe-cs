@@ -323,8 +323,31 @@ describe('成品 › 成品文件', () => {
     expect(screen.queryByRole('button', { name: 'Kael 1v3 的更多操作' })).toBeNull();
     const remove = within(actions).getByRole('button', { name: '移除记录' });
     expect(remove.className).not.toContain('text-fail');
+    const row = container.querySelector<HTMLElement>('[data-output="out-1"]')!;
+    expect(row.className).not.toContain('border-fail-border');
     fireEvent.click(remove);
     expect(await screen.findByRole('dialog', { name: '移除这条记录？' })).toBeTruthy();
+  });
+
+  it('collapses the empty media metadata column when no outputs on the page have probed metadata', async () => {
+    const { client } = stubs();
+    renderPage({
+      element: <DeliveryPage />, route: '/delivery',
+      client: {
+        ...client,
+        listOutputs: () => Promise.resolve({
+          ...OUTPUTS,
+          items: [
+            { ...OUTPUT, id: 'out-unprobed', title: 'Unprobed export', media: null },
+            { ...OUTPUT, id: 'out-missing', title: 'Missing output', availability: 'missing', media: null },
+          ],
+        }),
+      },
+    });
+
+    await screen.findByRole('heading', { name: 'Unprobed export' });
+    expect(screen.queryByText('时长 · 分辨率 · 帧率 · 编码')).toBeNull();
+    expect(screen.getByText('记录仍在，文件已被移动或删除')).toBeTruthy();
   });
 
   it('uses one comparable file row and anchors the newest output', async () => {

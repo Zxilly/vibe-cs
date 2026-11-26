@@ -16,9 +16,9 @@ import { Badge, Button, Seg } from '../../../design/primitives';
 import type { DeleteOutputResult, OutputItem, OutputQuery } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../shared/navigation/RouteLink';
 import { DeleteOutputDialog } from './DeleteOutputDialog';
-import { OUTPUT_ROW_COLUMNS, OutputCard, OutputCardSkeleton } from './OutputCard';
+import { OUTPUT_ROW_COLUMNS, OUTPUT_ROW_COLUMNS_COMPACT, OutputCard, OutputCardSkeleton } from './OutputCard';
 import { cn } from '../../../design/cn';
-import { outputDeletionOutcome, outputDeletionRemovesFile } from '../../../domain/media/outputModel';
+import { formatOutputMedia, outputDeletionOutcome, outputDeletionRemovesFile } from '../../../domain/media/outputModel';
 
 /** Bound the number of previews loaded on one page. */
 export const OUTPUT_PAGE_SIZE = 12;
@@ -198,29 +198,38 @@ export function OutputsView({ now }: OutputsViewProps) {
             />
           )
         ) : (
-          <div className="@container/outputs border-t border-divider">
-            <div
-              className={cn('grid h-10 border-x border-b border-divider bg-neutral-50 text-xs font-medium text-neutral-700', OUTPUT_ROW_COLUMNS)}
-              aria-hidden="true"
-            >
-              <span className="flex items-center px-4"><Trans>预览</Trans></span>
-              <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
-              <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
-              <span className="hidden items-center border-l border-divider px-4 @min-[1050px]/outputs:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
-              <span className="hidden items-center justify-end border-l border-divider px-4 @min-[760px]/outputs:flex"><Trans>操作</Trans></span>
-            </div>
-            {items.map((output, index) => (
-              <OutputCard
-                key={`${output.output_kind}:${output.id}`}
-                output={output}
-                project={projects.data?.find((project) => project.id === output.project_id)}
-                emphasized={page === 1 && filter === 'all' && index === 0}
-                onReveal={onReveal}
-                onDelete={setPendingDelete}
-                {...(now === undefined ? {} : { now })}
-              />
-            ))}
-          </div>
+          (() => {
+            const showMediaColumn = items.some((output) => formatOutputMedia(output.media).length > 0);
+            const columnsClass = showMediaColumn ? OUTPUT_ROW_COLUMNS : OUTPUT_ROW_COLUMNS_COMPACT;
+            return (
+              <div className="@container/outputs overflow-hidden rounded-lg border border-divider bg-bg">
+                <div
+                  className={cn('grid h-10 border-b border-divider bg-surface-chrome text-xs font-medium text-neutral-700', columnsClass)}
+                  aria-hidden="true"
+                >
+                  <span className="flex items-center px-4"><Trans>预览</Trans></span>
+                  <span className="flex items-center border-l border-divider px-4"><Trans>成品</Trans></span>
+                  <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
+                  {showMediaColumn ? (
+                    <span className="hidden items-center border-l border-divider px-4 @min-[1050px]/outputs:flex"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
+                  ) : null}
+                  <span className="hidden items-center justify-end border-l border-divider px-4 @min-[760px]/outputs:flex"><Trans>操作</Trans></span>
+                </div>
+                {items.map((output, index) => (
+                  <OutputCard
+                    key={`${output.output_kind}:${output.id}`}
+                    output={output}
+                    project={projects.data?.find((project) => project.id === output.project_id)}
+                    showMediaColumn={showMediaColumn}
+                    emphasized={page === 1 && filter === 'all' && index === 0}
+                    onReveal={onReveal}
+                    onDelete={setPendingDelete}
+                    {...(now === undefined ? {} : { now })}
+                  />
+                ))}
+              </div>
+            );
+          })()
         )}
       </div>
 

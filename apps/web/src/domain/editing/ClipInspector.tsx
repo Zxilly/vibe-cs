@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Diamond, Plus, Trash2 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
-import { Button, cn } from '../../design/primitives';
+import { Button, Checkbox, NativeSelect, cn } from '../../design/primitives';
 import {
   DEFAULT_EDITOR_TEXT_BACKGROUND,
   DEFAULT_EDITOR_TEXT_COLOR,
@@ -186,16 +186,16 @@ export function ClipInspector({
         <span className="font-mono text-text">{formatTimelinePosition(clip.placement.duration, fps, 'timecode')}</span>
       </p>
       {clip.text !== null || selected.track.kind === 'text' || selected.track.kind === 'caption' ? null : (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={clip.placement.reverse}
-              disabled={readOnly || clip.speed_segments.length > 0 || clip.placement.frame_hold_source_time !== null}
-              onChange={(event) => commit({ ...clip, placement: { ...clip.placement, reverse: event.currentTarget.checked } })}
-            />
+        <div className="mt-3 grid grid-cols-2 items-center gap-2">
+          <Checkbox
+            size="sm"
+            className="text-xs"
+            checked={clip.placement.reverse}
+            disabled={readOnly || clip.speed_segments.length > 0 || clip.placement.frame_hold_source_time !== null}
+            onChange={(reverse) => commit({ ...clip, placement: { ...clip.placement, reverse } })}
+          >
             <Trans>反向播放</Trans>
-          </label>
+          </Checkbox>
           <Button
             size="sm"
             variant={clip.placement.frame_hold_source_time === null ? 'secondary' : 'primary'}
@@ -312,8 +312,8 @@ export function ClipInspector({
           <h2 className="text-xs font-semibold"><Trans>录制范围</Trans></h2>
           <label className="mt-2 flex flex-col gap-1 text-xs">
             <Trans>录制视角</Trans>
-            <select
-              className="border border-divider bg-bg px-2 py-1.5"
+            <NativeSelect
+              size="sm"
               disabled={readOnly}
               value={clip.capture_intent.camera_style}
               aria-label={t`录制视角`}
@@ -328,7 +328,7 @@ export function ClipInspector({
               <option value="orbit"><Trans>环绕</Trans></option>
               <option value="crane"><Trans>升降</Trans></option>
               <option value="flyby"><Trans>掠过</Trans></option>
-            </select>
+            </NativeSelect>
           </label>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <CaptureIntentNumberField label={t`开始 tick`} value={clip.capture_intent.start_tick} step={1} readOnly={readOnly} onCommit={commitNumber((value) => updateCaptureIntent(clip, { start_tick: Math.max(0, Math.trunc(value)) }))} />
@@ -401,8 +401,8 @@ export function ClipInspector({
             </label>
             <label className="flex flex-col gap-1 text-xs">
               <Trans>对齐</Trans>
-              <select
-                className="border border-divider bg-bg px-2 py-1.5"
+              <NativeSelect
+                size="sm"
                 disabled={readOnly}
                 value={textStyle.align}
                 onChange={(event) => commit({ ...clip, text: { ...textStyle, align: event.currentTarget.value } })}
@@ -410,21 +410,21 @@ export function ClipInspector({
                 <option value="left"><Trans>左对齐</Trans></option>
                 <option value="center"><Trans>居中</Trans></option>
                 <option value="right"><Trans>右对齐</Trans></option>
-              </select>
+              </NativeSelect>
             </label>
           </div>
-          <label className="mt-2 flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              disabled={readOnly}
-              checked={textStyle.background !== null}
-              onChange={(event) => commit({
-                ...clip,
-                text: { ...textStyle, background: event.currentTarget.checked ? DEFAULT_EDITOR_TEXT_BACKGROUND : null },
-              })}
-            />
+          <Checkbox
+            size="sm"
+            className="mt-2 text-xs"
+            disabled={readOnly}
+            checked={textStyle.background !== null}
+            onChange={(enabled) => commit({
+              ...clip,
+              text: { ...textStyle, background: enabled ? DEFAULT_EDITOR_TEXT_BACKGROUND : null },
+            })}
+          >
             <Trans>启用文字背景</Trans>
-          </label>
+          </Checkbox>
           {textStyle.background === null ? null : (
             <label className="mt-2 flex items-center gap-2 text-xs">
               <Trans>背景颜色</Trans>
@@ -488,10 +488,10 @@ export function ClipInspector({
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`关键帧插值`}>
           <h2 className="mb-2 text-xs font-semibold"><Trans>关键帧插值</Trans></h2>
           {currentFrameKeyframes.map((keyframe) => (
-            <div key={keyframe.id} className="mt-2 grid grid-cols-[minmax(0,1fr)_110px] gap-2 text-xs">
+            <div key={keyframe.id} className="mt-2 grid grid-cols-[minmax(0,1fr)_110px] items-center gap-2 text-xs">
               <span className="truncate font-mono text-xs">{keyframe.property}</span>
-              <select
-                className="border border-divider bg-bg px-2 py-1"
+              <NativeSelect
+                size="sm"
                 aria-label={t`${keyframe.property} 插值`}
                 disabled={readOnly}
                 value={keyframe.interpolation}
@@ -508,7 +508,7 @@ export function ClipInspector({
                 <option value="ease_in">Ease In</option>
                 <option value="ease_out">Ease Out</option>
                 <option value="ease_in_out">Ease In/Out</option>
-              </select>
+              </NativeSelect>
               {keyframe.interpolation !== 'bezier' ? null : (
                 <div className="col-span-2 grid grid-cols-2 gap-2">
                   {([
@@ -612,8 +612,9 @@ export function ClipInspector({
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`效果`}>
           <div className="flex items-center gap-2">
             <h2 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-xs text-neutral-500">{clip.effects.length}</span></h2>
-            <select
-              className="ml-auto h-7 min-w-0 border border-divider bg-bg px-2 text-xs"
+            <NativeSelect
+              size="sm"
+              className="ml-auto h-7 w-auto min-w-0 text-xs"
               aria-label={t`添加效果类型`}
               disabled={readOnly}
               value={effectKind}
@@ -622,10 +623,10 @@ export function ClipInspector({
               <option value="color_adjust"><Trans>颜色调整</Trans></option>
               <option value="grayscale"><Trans>黑白</Trans></option>
               <option value="blur"><Trans>模糊</Trans></option>
-            </select>
+            </NativeSelect>
             <button
               type="button"
-              className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              className="grid size-7 place-items-center rounded-sm border border-divider transition-colors hover:bg-neutral-100 disabled:text-neutral-300"
               aria-label={t`添加效果`}
               disabled={readOnly}
               onClick={() => commit({ ...clip, effects: [...clip.effects, createEditorEffect(effectKind, globalThis.crypto.randomUUID())] })}
@@ -636,17 +637,17 @@ export function ClipInspector({
               const supportedKind = isSupportedEditorEffectKind(effect.kind) ? effect.kind : null;
               const schema = supportedKind === null ? [] : EDITOR_EFFECT_SCHEMAS[supportedKind];
               return (
-                <li key={effect.id} className="border border-divider bg-neutral-100/50 p-2">
+                <li key={effect.id} className="rounded-md border border-divider bg-neutral-100/50 p-2">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      size="sm"
                       aria-label={t`启用效果 ${effectLabel(effect.kind)}`}
                       disabled={readOnly}
                       checked={effect.enabled}
-                      onChange={(event) => commit({
+                      onChange={(enabled) => commit({
                         ...clip,
                         effects: clip.effects.map((candidate) => candidate.id === effect.id
-                          ? { ...candidate, enabled: event.currentTarget.checked }
+                          ? { ...candidate, enabled }
                           : candidate),
                       })}
                     />
@@ -711,8 +712,8 @@ export function ClipInspector({
             <section key={item.field} className="mt-3 border-t border-divider pt-3" aria-label={item.label}>
               <label className="flex flex-col gap-1 text-xs">
                 {item.label}
-                <select
-                  className="border border-divider bg-bg px-2 py-1.5"
+                <NativeSelect
+                  size="sm"
                   disabled={readOnly || maximumDuration < 0.05}
                   value={transition?.kind ?? ''}
                   onChange={(event) => setTransitionKind(event.currentTarget.value === '' ? null : event.currentTarget.value as EditorTransitionKind)}
@@ -736,7 +737,7 @@ export function ClipInspector({
                       <option value="spin"><Trans>旋转</Trans></option>
                     </>
                   )}
-                </select>
+                </NativeSelect>
               </label>
               {transition === null ? null : (
                 <label className="mt-2 flex flex-col gap-1 text-xs">
@@ -767,10 +768,15 @@ export function ClipInspector({
             </section>
           );
         })}
-      <label className="mt-3 flex items-center gap-2 text-xs">
-        <input type="checkbox" disabled={readOnly} checked={clip.placement.enabled} onChange={(event) => commit({ ...clip, placement: { ...clip.placement, enabled: event.currentTarget.checked } })} />
+      <Checkbox
+        size="sm"
+        className="mt-3 text-xs"
+        disabled={readOnly}
+        checked={clip.placement.enabled}
+        onChange={(enabled) => commit({ ...clip, placement: { ...clip.placement, enabled } })}
+      >
         <Trans>启用片段</Trans>
-      </label>
+      </Checkbox>
     </div>
   );
 }

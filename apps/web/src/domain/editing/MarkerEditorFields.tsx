@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro';
 
+import { Input, NativeSelect, Textarea } from '../../design/primitives';
 import type { EditorMarker } from '../../shared/desktop/dto';
 import { snapTimeToFrame } from './timelineInteraction';
 
@@ -13,45 +14,67 @@ export function MarkerEditorFields({ marker, durationSeconds, fps, onChange }: {
     <div className="space-y-3">
       <label className="flex flex-col gap-1 text-xs">
         <Trans>名称</Trans>
-        <input className="border border-divider bg-bg px-2 py-1.5" value={marker.label} onChange={(event) => onChange({ ...marker, label: event.currentTarget.value })} />
+        <Input
+          size="sm"
+          ground="bg"
+          value={marker.label}
+          onChange={(event) => onChange({ ...marker, label: event.currentTarget.value })}
+        />
       </label>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>时间</Trans>
-        <input type="number" min={0} max={durationSeconds} step={1 / fps} className="border border-divider bg-bg px-2 py-1.5 font-mono" value={marker.time} onChange={(event) => onChange({ ...marker, time: Number(event.currentTarget.value) })} />
+        <Input
+          size="sm"
+          ground="bg"
+          mono
+          type="number"
+          min={0}
+          max={durationSeconds}
+          step={1 / fps}
+          value={marker.time}
+          onChange={(event) => onChange({ ...marker, time: Number(event.currentTarget.value) })}
+        />
       </label>
       <label className="flex items-center gap-2 text-xs">
         <Trans>颜色</Trans>
-        <input type="color" value={marker.color} onChange={(event) => onChange({ ...marker, color: event.currentTarget.value.toUpperCase() })} />
+        <input
+          type="color"
+          className="h-7 w-10 cursor-pointer rounded-sm border border-neutral-400 bg-bg p-0.5"
+          value={marker.color}
+          onChange={(event) => onChange({ ...marker, color: event.currentTarget.value.toUpperCase() })}
+        />
       </label>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>类型</Trans>
-        <select
-          className="border border-divider bg-bg px-2 py-1.5"
+        <NativeSelect
+          size="sm"
           value={marker.kind}
           onChange={(event) => onChange({ ...marker, kind: event.currentTarget.value as EditorMarker['kind'] })}
         >
           <option value="comment"><Trans>评论</Trans></option>
           <option value="chapter"><Trans>章节</Trans></option>
           <option value="segmentation"><Trans>分段</Trans></option>
-        </select>
+        </NativeSelect>
       </label>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>持续时间</Trans>
-        <input
+        <Input
+          size="sm"
+          ground="bg"
+          mono
           type="number"
           min={0}
           max={Math.max(0, durationSeconds - marker.time)}
           step={1 / fps}
-          className="border border-divider bg-bg px-2 py-1.5 font-mono"
           value={marker.duration}
           onChange={(event) => onChange({ ...marker, duration: Number(event.currentTarget.value) })}
         />
       </label>
       <label className="flex flex-col gap-1 text-xs">
         <Trans>注释</Trans>
-        <textarea
+        <Textarea
           rows={4}
-          className="resize-y border border-divider bg-bg px-2 py-1.5 leading-5"
+          className="bg-bg text-sm leading-5"
           value={marker.comment}
           onChange={(event) => onChange({ ...marker, comment: event.currentTarget.value })}
         />

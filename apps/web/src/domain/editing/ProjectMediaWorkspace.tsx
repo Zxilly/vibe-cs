@@ -26,9 +26,9 @@ import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { OverflowMenu } from '../../design/layout';
 import { Dialog, Drawer, Tooltip } from '../../design/feedback';
-import { Button, Input, NativeSelect, Seg, cn } from '../../design/primitives';
+import { Button, Checkbox, Input, NativeSelect, Seg, cn } from '../../design/primitives';
 import type { EditorMarker, MediaAsset, MulticamSyncMethod, TimelineClip, TimelineClipMaterializationState, TimelineTrack } from '../../shared/desktop/dto';
-import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
+import { DEFAULT_TIMELINE_MARKER_COLOR, formatTimecode } from '../../design/timeline';
 import {
   clearProjectMediaDrag,
   isStillImageMediaAsset,
@@ -339,18 +339,18 @@ export function ProjectMediaWorkspace({
             <span className="@max-[280px]:hidden"><Trans>检查源片段</Trans></span>
           </Button>
           <Seg<ProjectMediaView>
-            className="project-media-view-toggle ml-auto flex-none"
+            className="project-media-view-toggle ml-auto flex-none gap-1.5 overflow-visible border-0 [&_[role=radio]]:w-[var(--h-ctl-sm)] [&_[role=radio]]:justify-center [&_[role=radio]]:rounded-md [&_[role=radio]]:border [&_[role=radio]]:border-neutral-400 [&_[role=radio]]:px-0 [&_[role=radio][data-state=checked]]:border-accent"
             name="project-media-view"
             aria-label={t`项目素材视图`}
             value={view}
             options={[
               {
                 value: 'list',
-                label: <><List className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>列表视图</Trans></span></>,
+                label: <><List className="size-4 shrink-0" aria-hidden="true" /><span className="sr-only"><Trans>列表视图</Trans></span></>,
               },
               {
                 value: 'icon',
-                label: <><Grid2X2 className="size-3.5" aria-hidden="true" /><span className="sr-only"><Trans>图标视图</Trans></span></>,
+                label: <><Grid2X2 className="size-4 shrink-0" aria-hidden="true" /><span className="sr-only"><Trans>图标视图</Trans></span></>,
               },
             ]}
             onChange={setView}
@@ -675,52 +675,58 @@ export function ProjectMediaWorkspace({
         }}
         onClose={() => setAutomateOpen(false)}
       >
-        <div className="space-y-3 text-base">
+        <div className="space-y-3 text-sm">
           <fieldset className="space-y-1.5">
-            <legend className="font-semibold"><Trans>素材</Trans></legend>
+            <legend className="text-xs font-semibold"><Trans>素材</Trans></legend>
             {automateAssets.map((asset) => {
               const index = automateSelection.indexOf(asset.id);
-              return <label key={asset.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+              return <div key={asset.id} className="flex items-center gap-2">
+                <Checkbox
+                  size="sm"
+                  className="min-w-0 flex-1 text-sm"
                   checked={index >= 0}
-                  onChange={(event) => {
-                    const checked = event.currentTarget.checked;
+                  onChange={(checked) => {
                     setAutomateSelection((current) => checked
                       ? [...current, asset.id]
                       : current.filter((id) => id !== asset.id));
                   }}
-                />
-                <span className="min-w-0 flex-1 truncate">{asset.name}</span>
-                {index < 0 ? null : <span className="font-mono text-xs text-neutral-500">#{index + 1}</span>}
-              </label>;
+                >
+                  <span className="block truncate">{asset.name}</span>
+                </Checkbox>
+                {index < 0 ? null : <span className="font-mono text-xs tabular-nums text-neutral-500">#{index + 1}</span>}
+              </div>;
             })}
           </fieldset>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-xs">
             <Trans>排序</Trans>
-            <select className="border border-divider bg-bg px-2 py-1.5" value={automateOrdering} onChange={(event) => setAutomateOrdering(event.currentTarget.value as typeof automateOrdering)}>
+            <NativeSelect size="sm" value={automateOrdering} onChange={(event) => setAutomateOrdering(event.currentTarget.value as typeof automateOrdering)}>
               <option value="project"><Trans>项目素材顺序</Trans></option>
               <option value="selection"><Trans>选择顺序</Trans></option>
-            </select>
+            </NativeSelect>
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-xs">
             <Trans>放置</Trans>
-            <select className="border border-divider bg-bg px-2 py-1.5" value={automatePlacement} onChange={(event) => setAutomatePlacement(event.currentTarget.value as typeof automatePlacement)}>
+            <NativeSelect size="sm" value={automatePlacement} onChange={(event) => setAutomatePlacement(event.currentTarget.value as typeof automatePlacement)}>
               <option value="sequential"><Trans>连续放置</Trans></option>
               <option value="markers" disabled={sequenceMarkerCount === 0}><Trans>序列标记位置</Trans></option>
-            </select>
+            </NativeSelect>
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-xs">
             <Trans>方法</Trans>
-            <select className="border border-divider bg-bg px-2 py-1.5" value={automateMethod} onChange={(event) => setAutomateMethod(event.currentTarget.value as typeof automateMethod)}>
+            <NativeSelect size="sm" value={automateMethod} onChange={(event) => setAutomateMethod(event.currentTarget.value as typeof automateMethod)}>
               <option value="insert"><Trans>插入编辑</Trans></option>
               <option value="overwrite"><Trans>覆盖编辑</Trans></option>
-            </select>
+            </NativeSelect>
           </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={automateTransitions} disabled={automatePlacement !== 'sequential'} onChange={(event) => setAutomateTransitions(event.currentTarget.checked)} />
+          <Checkbox
+            size="sm"
+            className="text-sm"
+            checked={automateTransitions}
+            disabled={automatePlacement !== 'sequential'}
+            onChange={setAutomateTransitions}
+          >
             <Trans>应用默认视频转场（重叠 0.5 秒）</Trans>
-          </label>
+          </Checkbox>
           {automatePlacement !== 'markers' || sequenceMarkerCount >= automateSelection.length ? null : (
             <p className="text-fail-text"><Trans>需要至少 {automateSelection.length} 个序列标记；当前只有 {sequenceMarkerCount} 个。</Trans></p>
           )}
@@ -746,43 +752,49 @@ export function ProjectMediaWorkspace({
         }}
         onClose={() => setMulticamOpen(false)}
       >
-        <div className="space-y-3 text-base">
+        <div className="space-y-3 text-sm">
           <fieldset className="space-y-1.5">
-            <legend className="font-semibold"><Trans>摄像机角度（2–9）</Trans></legend>
+            <legend className="text-xs font-semibold"><Trans>摄像机角度（2–9）</Trans></legend>
             {automateAssets.map((asset) => {
               const index = multicamSelection.indexOf(asset.id);
-              return <label key={asset.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+              return <div key={asset.id} className="flex items-center gap-2">
+                <Checkbox
+                  size="sm"
+                  className="min-w-0 flex-1 text-sm"
                   checked={index >= 0}
                   disabled={index < 0 && multicamSelection.length >= 9}
-                  onChange={(event) => setMulticamSelection((current) => event.currentTarget.checked
+                  onChange={(checked) => setMulticamSelection((current) => checked
                     ? [...current, asset.id]
                     : current.filter((id) => id !== asset.id))}
-                />
-                <span className="min-w-0 flex-1 truncate">{asset.name}</span>
-                {index < 0 ? null : <span className="font-mono text-xs text-neutral-500"><Trans>角度 {index + 1}</Trans></span>}
-              </label>;
+                >
+                  <span className="block truncate">{asset.name}</span>
+                </Checkbox>
+                {index < 0 ? null : <span className="font-mono text-xs tabular-nums text-neutral-500"><Trans>角度 {index + 1}</Trans></span>}
+              </div>;
             })}
           </fieldset>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 text-xs">
             <Trans>同步点</Trans>
-            <select className="border border-divider bg-bg px-2 py-1.5" value={multicamSyncMethod} onChange={(event) => setMulticamSyncMethod(event.currentTarget.value as MulticamSyncMethod)}>
+            <NativeSelect size="sm" value={multicamSyncMethod} onChange={(event) => setMulticamSyncMethod(event.currentTarget.value as MulticamSyncMethod)}>
               <option value="timecode"><Trans>嵌入源时间码</Trans></option>
               <option value="audio"><Trans>音频波形</Trans></option>
               <option value="marker"><Trans>同名片段标记</Trans></option>
-            </select>
+            </NativeSelect>
           </label>
           {multicamSyncMethod !== 'marker' ? null : (
-            <label className="flex flex-col gap-1">
+            <label className="flex flex-col gap-1 text-xs">
               <Trans>标记名称</Trans>
-              <input className="border border-divider bg-bg px-2 py-1.5" value={multicamMarkerLabel} onChange={(event) => setMulticamMarkerLabel(event.currentTarget.value)} />
+              <Input size="sm" ground="bg" value={multicamMarkerLabel} onChange={(event) => setMulticamMarkerLabel(event.currentTarget.value)} />
             </label>
           )}
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={multicamSwitchAudio} onChange={(event) => setMulticamSwitchAudio(event.currentTarget.checked)} />
+          <Checkbox
+            size="sm"
+            className="text-sm"
+            checked={multicamSwitchAudio}
+            onChange={setMulticamSwitchAudio}
+          >
             <Trans>音频随摄像机切换；关闭时固定使用角度 1 音频</Trans>
-          </label>
+          </Checkbox>
           <p className="text-warn-text"><Trans>创建后，同步好的多机位轨道会替换当前时间轴。整个操作可以一次撤销。</Trans></p>
         </div>
       </Dialog>
@@ -825,18 +837,25 @@ function MediaItemSection({
   const shell = useNativeShell();
   if (items.length === 0) return null;
   return (
-    <section role="group" aria-label={label}>
-      <header className="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-divider bg-surface-chrome px-3 text-xs font-medium text-neutral-600">
+    <div role="group" aria-label={label}>
+      <header
+        role="presentation"
+        aria-hidden="true"
+        className="sticky top-0 z-10 flex h-8 items-center gap-2 border-b border-divider bg-surface-chrome px-3 text-xs font-medium text-neutral-600"
+      >
         <span>{label}</span>
         <span className="tabular-nums">{items.length}</span>
       </header>
       <div
+        role="presentation"
         className={view === 'icon' ? 'grid grid-cols-2 gap-2 p-2' : 'divide-y divide-divider'}
         data-project-media-view={view}
       >
         {items.map((item) => {
           const selected = item.key === selectedKey;
-          const sourceDetail = repeatedNames.has(item.name) ? mediaSourceDetail(item) : null;
+          const isRepeated = repeatedNames.has(item.name);
+          const sourceDetail = isRepeated ? mediaSourceDetail(item) : null;
+          const disambiguator = isRepeated ? compactMediaDisambiguator(item) : null;
           const description = sourceDetail === null ? stateLabel(item.state) : `${sourceDetail} · ${stateLabel(item.state)}`;
           const Icon = view === 'icon' && (item.state === 'planned' || item.state === 'stale')
             ? CircleDashed
@@ -860,14 +879,14 @@ function MediaItemSection({
               className={cn(
                 'min-w-0 text-left transition-colors hover:bg-neutral-100',
                 view === 'icon'
-                  ? 'overflow-hidden border border-divider bg-bg p-1.5'
-                  : 'grid h-[var(--h-row-compact)] w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2 rounded-none border-l border-l-transparent px-3 py-0',
+                  ? 'overflow-hidden rounded-md border border-divider bg-bg p-1.5'
+                  : 'grid h-[var(--h-row-compact)] w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2 rounded-none border-l-2 border-l-transparent px-3 py-0',
                 draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0
                   ? 'cursor-grab active:cursor-grabbing'
                   : 'cursor-default',
                 selected && (view === 'icon'
-                  ? 'bg-accent-100 ring-1 ring-inset ring-accent-300'
-                  : 'border-l-accent-500 bg-accent-100 hover:bg-accent-100'),
+                  ? 'border-accent-300 bg-accent-100 ring-1 ring-inset ring-accent-300'
+                  : 'border-l-accent bg-accent-100 hover:bg-accent-100'),
               )}
               draggable={draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0}
               onClick={() => onSelect(item)}
@@ -881,7 +900,7 @@ function MediaItemSection({
               onDragEnd={clearProjectMediaDrag}
             >
               {view === 'icon' ? (
-                <span className="relative mb-1.5 grid aspect-video w-full place-items-center overflow-hidden bg-media text-on-media-muted">
+                <span className="relative mb-1.5 grid aspect-video w-full place-items-center overflow-hidden rounded-sm bg-media text-on-media-muted">
                   {thumbnail === null ? (
                     <Icon className="size-6" aria-hidden="true" />
                   ) : (
@@ -900,7 +919,7 @@ function MediaItemSection({
                       />
                     </>
                   )}
-                  <span className="absolute bottom-1 right-1 bg-media/80 px-1 font-mono text-xs text-on-media">
+                  <span className="absolute bottom-1 right-1 rounded-sm bg-media/80 px-1 font-mono text-xs tabular-nums text-on-media">
                     {formatDuration(item.durationSeconds)}
                   </span>
                 </span>
@@ -909,8 +928,19 @@ function MediaItemSection({
                   <Icon className="size-3.5" aria-hidden="true" />
                 </span>
               )}
-              <span className="min-w-0">
+              <span className={cn('min-w-0', view === 'list' && 'flex items-baseline gap-1.5')}>
                 <span className="block truncate text-sm font-medium text-text" title={item.name}>{item.name}</span>
+                {disambiguator === null ? null : (
+                  <span
+                    data-media-disambiguator
+                    className={cn(
+                      'font-mono text-xs tabular-nums text-neutral-500',
+                      view === 'list' ? 'shrink-0' : 'block truncate',
+                    )}
+                  >
+                    {disambiguator}
+                  </span>
+                )}
               </span>
               <span className={cn(
                 'flex min-w-0 items-center gap-1.5 text-xs text-neutral-500',
@@ -934,8 +964,22 @@ function MediaItemSection({
           );
         })}
       </div>
-    </section>
+    </div>
   );
+}
+
+function compactMediaDisambiguator(item: ProjectMediaItem): string | null {
+  const clip = item.timelineClip;
+  if (clip !== null) {
+    if (clip.capture_intent !== null) {
+      return `${formatTimecode(clip.placement.start)}–${formatTimecode(clip.placement.start + clip.placement.duration)}`;
+    }
+    return `${formatTimecode(clip.placement.source_in)}–${formatTimecode(clip.placement.source_out)}`;
+  }
+  const rawPath = item.sourceAsset?.path;
+  if (!rawPath) return null;
+  const segments = rawPath.split(/[\\/]/u).filter(Boolean);
+  return segments.length >= 2 ? segments[segments.length - 2]! : null;
 }
 
 function mediaSourceDetail(item: ProjectMediaItem): string | null {

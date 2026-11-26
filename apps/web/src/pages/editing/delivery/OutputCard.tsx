@@ -1,6 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Ellipsis, Film, FolderOpen, Play } from 'lucide-react';
+import { Ellipsis, FileX2, Film, FolderOpen, Play } from 'lucide-react';
 import { useState } from 'react';
 
 import { useNativeShell } from '../../../data/nativeShell';
@@ -13,11 +13,15 @@ import { RouteLink } from '../../shared/navigation/RouteLink';
 import { displayOutputPath, formatBytes, formatOutputMedia, outputDeletionRemovesFile, outputFileIsUsable, splitDisplayOutputPath } from '../../../domain/media/outputModel';
 
 /** Keep the identity and actions visible; secondary facts remain in details. */
-export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7rem_11rem] @min-[1050px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1.35fr)_7rem_14rem_20rem]';
+export const OUTPUT_ROW_COLUMNS = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7.5rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7.5rem_11.5rem] @min-[1050px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1.35fr)_7.5rem_13.5rem_18.5rem]';
+
+/** Reclaim the metadata column when no output on the current page has probed media facts. */
+export const OUTPUT_ROW_COLUMNS_COMPACT = 'grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7.5rem] @min-[760px]/outputs:grid-cols-[calc(var(--w-output-preview)+2rem)_minmax(0,1fr)_7.5rem_18.5rem]';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
   readonly project?: Pick<Project, 'name' | 'revision'> | undefined;
+  readonly showMediaColumn?: boolean | undefined;
   readonly onReveal: (output: OutputItem) => void;
   readonly onDelete: (output: OutputItem) => void;
   readonly now?: Date | undefined;
@@ -26,7 +30,7 @@ export interface OutputCardProps {
   readonly emphasized?: boolean | undefined;
 }
 
-export function OutputCard({ output, project, onReveal, onDelete, now, timeZone, className, emphasized = false }: OutputCardProps) {
+export function OutputCard({ output, project, showMediaColumn = true, onReveal, onDelete, now, timeZone, className, emphasized = false }: OutputCardProps) {
   const shell = useNativeShell();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -54,34 +58,72 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
     <>
       <Blueprint as="article" data-output={output.id} data-output-kind={output.output_kind}
         data-output-availability={output.availability} data-output-emphasized={emphasized ? 'true' : undefined}
-        className={cn('grid min-h-24 border-x border-b', OUTPUT_ROW_COLUMNS,
-          usable ? 'border-divider' : 'border-fail-border', emphasized && usable ? 'bg-accent-100' : 'bg-bg', className)}>
-        <div className="flex items-center justify-center px-4 py-2">
-          <button type="button" className="relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-sm border border-divider bg-media text-on-media"
-            aria-label={t`预览 ${title}`} disabled={!usable}
-            onClick={play}>
-            {streamUrl !== null && output.media?.width != null ? <video className="size-full object-contain" src={streamUrl} muted preload="metadata" aria-hidden="true" />
-              : <Film className="size-5" aria-hidden="true" />}
-            {usable ? <span className="absolute grid size-8 place-items-center rounded-sm bg-media/90"><Play className="size-4" aria-hidden="true" /></span>
-              : <span className="absolute inset-0 grid place-items-center bg-media text-xs"><Trans>文件不在原位</Trans></span>}
+        className={cn(
+          'grid min-h-24 border-b border-divider transition-colors last:border-b-0',
+          showMediaColumn ? OUTPUT_ROW_COLUMNS : OUTPUT_ROW_COLUMNS_COMPACT,
+          !usable
+            ? 'bg-neutral-100/70'
+            : emphasized
+              ? 'bg-accent-100/60 hover:bg-accent-100'
+              : 'bg-bg hover:bg-neutral-100',
+          className,
+        )}>
+        <div className="flex items-center justify-center px-4 py-2.5">
+          <button
+            type="button"
+            className={cn(
+              'relative grid aspect-video w-[var(--w-output-preview)] flex-none place-items-center overflow-hidden rounded-md border transition-colors',
+              usable
+                ? 'border-divider bg-media text-on-media hover:border-accent-400'
+                : 'border-dashed border-divider bg-surface-chrome text-neutral-500',
+            )}
+            aria-label={t`预览 ${title}`}
+            disabled={!usable}
+            onClick={play}
+          >
+            {usable ? (
+              <>
+                {streamUrl !== null && output.media?.width != null ? (
+                  <video className="size-full object-contain" src={streamUrl} muted preload="metadata" aria-hidden="true" />
+                ) : (
+                  <Film className="size-5 opacity-60" aria-hidden="true" />
+                )}
+                <span className="absolute grid size-8 place-items-center rounded-full bg-media/85 text-on-media">
+                  <Play className="size-4" aria-hidden="true" />
+                </span>
+              </>
+            ) : (
+              <span className="flex flex-col items-center justify-center gap-1 px-2 text-xs text-neutral-600">
+                <FileX2 className="size-4 text-neutral-500" strokeWidth={1.6} aria-hidden="true" />
+                <span><Trans>文件不在原位</Trans></span>
+              </span>
+            )}
           </button>
         </div>
-        <div className="flex min-w-0 flex-col justify-center gap-1.5 border-l border-divider px-4 py-2">
-          <h2 className="min-w-0 text-base font-medium"><button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button></h2>
-          {version === null ? null : <p className={cn('text-xs', currentVersion ? 'text-ok-text' : 'text-neutral-600')}>
+        <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2.5">
+          <h2 className={cn('min-w-0 text-base font-medium', !usable && 'text-neutral-700')}>
+            <button type="button" className="block max-w-full break-words text-left hover:underline" onClick={openDetails}>{title}</button>
+          </h2>
+          {version === null ? null : <p className={cn('text-xs tabular-nums', currentVersion ? 'text-ok-text' : 'text-neutral-600')}>
             <Trans>第 {version} 版</Trans>{project === undefined ? null : <> · {currentVersion ? <Trans>当前作品版本</Trans> : <Trans>旧版本</Trans>}</>}
           </p>}
-          <button type="button" className="min-w-0 max-w-full truncate text-left text-xs text-neutral-600 hover:text-text hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
+          <button type="button" className="min-w-0 max-w-full truncate text-left font-mono text-xs text-neutral-600 hover:text-text hover:underline" title={shownPath} aria-label={t`查看 ${title} 的完整路径`} onClick={openDetails}>
             <span data-output-file-name>{pathParts.fileName}</span>
           </button>
+          {!showMediaColumn && !usable ? (
+            <p className="text-xs text-neutral-600"><Trans>记录仍在，文件已被移动或删除</Trans></p>
+          ) : null}
         </div>
-        <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2 text-xs text-neutral-600">
-          <span className="tabular-nums text-text">{size ?? '—'}</span><span className="tabular-nums">{usable ? stamp : <Trans>文件缺失</Trans>}</span>
+        <div className="flex min-w-0 flex-col justify-center gap-1 border-l border-divider px-4 py-2.5 text-xs text-neutral-600">
+          <span className="font-mono tabular-nums text-text">{size ?? '—'}</span>
+          <span className="tabular-nums">{usable ? stamp : <Trans>文件缺失</Trans>}</span>
         </div>
-        <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2 text-xs text-neutral-700 @min-[1050px]/outputs:flex">
-          {usable ? facts.join(' · ') || '—' : <Trans>记录仍在，文件已被移动或删除</Trans>}
-        </div>
-        <div data-output-actions className="col-span-3 flex flex-wrap items-center justify-end gap-1 border-t border-divider px-2 py-2 @min-[760px]/outputs:col-span-1 @min-[760px]/outputs:border-l @min-[760px]/outputs:border-t-0">
+        {showMediaColumn ? (
+          <div className="hidden min-w-0 items-center border-l border-divider px-4 py-2.5 text-xs tabular-nums text-neutral-700 @min-[1050px]/outputs:flex">
+            {usable ? facts.join(' · ') || '—' : <span className="text-neutral-600"><Trans>记录仍在，文件已被移动或删除</Trans></span>}
+          </div>
+        ) : null}
+        <div data-output-actions className="col-span-3 flex flex-wrap items-center justify-end gap-1.5 border-t border-divider px-4 py-2.5 @min-[760px]/outputs:col-span-1 @min-[760px]/outputs:border-l @min-[760px]/outputs:border-t-0">
           {usable ? <>
             <Button variant="ghost" size="sm" onClick={play}><Play className="size-4" aria-hidden="true" /><Trans>播放</Trans></Button>
             <Button variant="ghost" size="sm" title={t`打开所在文件夹`} className="@min-[760px]/outputs:@max-[1050px]/outputs:px-2" onClick={() => onReveal(output)}><FolderOpen className="size-4" aria-hidden="true" /><span className="@min-[760px]/outputs:@max-[1050px]/outputs:sr-only"><Trans>打开所在文件夹</Trans></span></Button>
@@ -96,7 +138,7 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
                 { id: 'delete', label: <span className={cn(removesFile && 'text-fail-text')}>{removeLabel}</span>, onSelect: () => onDelete(output) },
               ]}
             />
-          </> : <Button variant="ghost" size="sm" onClick={() => onDelete(output)}>{removeLabel}</Button>}
+          </> : <Button variant="secondary" size="sm" onClick={() => onDelete(output)}>{removeLabel}</Button>}
         </div>
       </Blueprint>
       <Drawer open={detailsOpen} title={title} description={version === null ? undefined : t`第 ${version} 版`} width="wide" onClose={() => setDetailsOpen(false)}>
@@ -131,8 +173,8 @@ export function OutputCard({ output, project, onReveal, onDelete, now, timeZone,
 }
 
 export function OutputCardSkeleton() {
-  return <div aria-hidden="true" className="flex min-h-24 gap-4 border border-divider p-4">
-    <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse bg-neutral-200" />
-    <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse bg-neutral-100" /></div>
+  return <div aria-hidden="true" className="flex min-h-24 gap-4 rounded-lg border border-divider bg-bg p-4">
+    <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse rounded-md bg-neutral-200" />
+    <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse rounded-sm bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse rounded-sm bg-neutral-100" /></div>
   </div>;
 }

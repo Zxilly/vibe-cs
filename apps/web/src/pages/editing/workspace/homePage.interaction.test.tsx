@@ -217,4 +217,48 @@ describe('工作台首页', () => {
     const layout = document.querySelector('[data-home-layout]') as HTMLElement;
     expect(layout.firstElementChild?.getAttribute('data-home-block')).toBe('intro');
   });
+
+  it('populates 开始选材 with recent demos when the library is not empty and links failures to /tasks', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: {
+        ...CLIENT,
+        listDemos: () => Promise.resolve({
+          items: [
+            {
+              id: 'demo-ready',
+              filename: 'mirage.dem',
+              path: 'D:/demos/mirage.dem',
+              display_name: 'NAVI vs FaZe',
+              map_name: 'de_mirage',
+              match_date: '2026-08-15T09:00:00.000Z',
+              cataloged_at: '2026-08-15T09:00:00.000Z',
+              duration_seconds: 2400,
+              total_rounds: 24,
+              team_a_name: 'NAVI',
+              team_b_name: 'FaZe',
+              score_team_a: 13,
+              score_team_b: 11,
+              status: 'ready',
+              lifecycle_status: 'ready',
+              players: ['s1mple'],
+              source: 'local',
+              remark: '',
+              updated_at: '2026-08-15T09:00:00.000Z',
+            },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 4,
+        }),
+      },
+      route: '/',
+    });
+
+    const matchLink = await screen.findByRole('link', { name: 'NAVI vs FaZe' });
+    expect(matchLink.getAttribute('href')).toBe('/match/demo-ready');
+    expect(document.querySelector('[data-home-block="recent-demos"]')?.textContent).toContain('Mirage');
+    const failureRegion = await screen.findByRole('region', { name: '失败可恢复' });
+    expect(within(failureRegion).getByRole('link', { name: '任务中心' }).getAttribute('href')).toBe('/tasks');
+  });
 });

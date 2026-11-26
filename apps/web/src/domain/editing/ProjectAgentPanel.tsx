@@ -172,7 +172,7 @@ export const AgentPanel = memo(function AgentPanel({
     conversationEnd.current?.scrollIntoView({ block: 'end' });
   }, [conversationEmpty, session?.id, entries.length, chat.draft, chat.activity?.length]);
   return (
-    <aside className="flex min-h-0 min-w-0 flex-col border-l border-divider bg-bg" aria-label={t`Agent 面板`}>
+    <aside className={cn('flex min-h-0 min-w-0 flex-col bg-bg', showHeader && 'border-l border-divider')} aria-label={t`Agent 面板`}>
       {showHeader ? <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-3">
         <Sparkles className="size-3.5 text-neutral-500" aria-hidden="true" />
         <h2 className="text-xs font-semibold"><Trans>Agent</Trans></h2>
@@ -185,7 +185,7 @@ export const AgentPanel = memo(function AgentPanel({
                   <CircleAlert className="size-4" aria-hidden="true" />
                   <Trans>还没配置 Agent 模型</Trans>
                 </div>
-                <p className="mt-1 text-base text-neutral-600"><Trans>连接模型后即可开始。</Trans></p>
+                <p className="mt-1 text-sm text-neutral-600"><Trans>连接模型后即可开始。</Trans></p>
                 <Button className="mt-2" size="sm" variant="secondary" onClick={onOpenAgentSettings}><Trans>打开模型设置</Trans></Button>
               </ConversationShell>
             ) : null}
@@ -193,22 +193,27 @@ export const AgentPanel = memo(function AgentPanel({
               <li className="min-w-0">
                 <Empty
                   headingLevel={showHeader ? 3 : 2}
-                  icon={<Sparkles className="size-8 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />}
+                  className="min-h-0 gap-1.5 border-0 bg-transparent px-1 py-2"
+                  icon={<Sparkles className="size-6 text-accent-600" strokeWidth={1.5} aria-hidden="true" />}
                   title={<Trans>还没有对话</Trans>}
                   description={<Trans>用一句话说明要怎么调整这条作品，Agent 会直接修改时间线并等你检查。</Trans>}
-                  actions={examplePrompts.map((example) => (
-                    <Button
-                      key={example}
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        setMessage(example);
-                        messageInput.current?.focus();
-                      }}
-                    >
-                      {example}
-                    </Button>
-                  ))}
+                  actions={
+                    <div className="flex w-full flex-col gap-1.5">
+                      {examplePrompts.map((example) => (
+                        <button
+                          key={example}
+                          type="button"
+                          className="w-full rounded-md border border-divider bg-bg px-3 py-1.5 text-left text-xs font-medium text-text transition-colors hover:border-neutral-400 hover:bg-neutral-100"
+                          onClick={() => {
+                            setMessage(example);
+                            messageInput.current?.focus();
+                          }}
+                        >
+                          {example}
+                        </button>
+                      ))}
+                    </div>
+                  }
                 />
               </li>
             ) : null}
@@ -287,38 +292,44 @@ export const AgentPanel = memo(function AgentPanel({
             }}><Trans>取消</Trans></Button>
           </div>
         )}
-        <div className="flex items-end gap-2">
-          <Textarea
-            ref={messageInput}
-            className="flex-1 rounded-md text-base"
-            rows={2}
-            resize="none"
-            aria-label={t`给 Agent 的指令`}
-            value={message}
-            disabled={composerDisabledReason !== undefined}
-            disabledReason={composerDisabledReason}
-            placeholder={!agentReady
-              ? t`先配置 Agent 模型`
-              : t`告诉 Agent 要调整什么…`}
-            onChange={(event) => setMessage(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              // Enter sends; Shift+Enter keeps a line break for a longer brief.
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                submit();
-              }
-            }}
-          />
-          {chat.streaming ? (
-            <Button variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
-          ) : (
-            <Button
-              aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送修改意见`}
-              disabled={message.trim() === '' || composerDisabledReason !== undefined}
-              disabledReason={composerDisabledReason ?? (message.trim() === '' ? t`先写下要调整什么` : undefined)}
-              onClick={submit}
-            ><Send className="size-4" aria-hidden="true" /></Button>
-          )}
+        <div className="flex items-stretch gap-2">
+          <div className="min-w-0 flex-1">
+            <Textarea
+              ref={messageInput}
+              className="block rounded-md bg-bg text-base"
+              rows={2}
+              resize="none"
+              aria-label={t`给 Agent 的指令`}
+              value={message}
+              disabled={composerDisabledReason !== undefined}
+              disabledReason={composerDisabledReason}
+              placeholder={!agentReady
+                ? t`先配置 Agent 模型`
+                : t`告诉 Agent 要调整什么…`}
+              onChange={(event) => setMessage(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                // Enter sends; Shift+Enter keeps a line break for a longer brief.
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  submit();
+                }
+              }}
+            />
+          </div>
+          <div className="flex flex-none items-stretch [&>span]:flex [&>span]:items-stretch">
+            {chat.streaming ? (
+              <Button className="h-auto min-w-[var(--h-ctl-md)] px-3" variant="secondary" aria-label={t`停止 Agent`} onClick={chat.cancel}><Square className="size-4" aria-hidden="true" /></Button>
+            ) : (
+              <Button
+                className="h-auto min-w-[var(--h-ctl-md)] px-3"
+                variant={message.trim() !== '' && composerDisabledReason === undefined ? 'primary' : 'secondary'}
+                aria-label={returningChangeGroupId === null ? t`发送给 Agent` : t`发送修改意见`}
+                disabled={message.trim() === '' || composerDisabledReason !== undefined}
+                disabledReason={composerDisabledReason ?? (message.trim() === '' ? t`先写下要调整什么` : undefined)}
+                onClick={submit}
+              ><Send className="size-4" aria-hidden="true" /></Button>
+            )}
+          </div>
         </div>
       </footer>
     </aside>

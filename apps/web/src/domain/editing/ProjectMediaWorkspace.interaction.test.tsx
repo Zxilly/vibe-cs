@@ -103,9 +103,11 @@ it('keeps same-round source evidence in descriptions and the selected source mon
   const firstOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:00.000–00:06.000$/u});
   expect(firstOption.textContent).not.toContain('Demo tick');
   expect(firstOption.textContent).not.toContain('未录制');
+  expect(firstOption.querySelector('[data-media-disambiguator]')?.textContent).toBe('00:00–00:06');
   expect(firstOption.getAttribute('aria-description')).toBe('时间线 00:00.000–00:06.000 · 未录制');
   const secondOption = screen.getByRole('option', {name: '选择素材 Mirage R1 · s1mple', description: /时间线 00:06.000–00:12.000$/u});
   expect(secondOption.textContent).not.toContain('Demo tick');
+  expect(secondOption.querySelector('[data-media-disambiguator]')?.textContent).toBe('00:06–00:12');
   expect(secondOption.getAttribute('aria-description')).toBe('时间线 00:06.000–00:12.000 · 未录制');
   fireEvent.click(secondOption);
   expect(props.onSelectTimelineClip).toHaveBeenCalledExactlyOnceWith('moment-b', 6);

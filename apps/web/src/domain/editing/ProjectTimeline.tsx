@@ -40,7 +40,7 @@ import { ReviewPanel } from '../../design/review/ReviewPanel';
 import { clusterTimelinePins } from '../../design/timeline/marker';
 import { OverflowMenu } from '../../design/layout';
 import { Dialog, Drawer, Tooltip, toast } from '../../design/feedback';
-import { Button, cn } from '../../design/primitives';
+import { Button, Checkbox, Input, NativeSelect, Textarea, cn } from '../../design/primitives';
 import {
   MAX_ZOOM,
   createFittedTimeScale,
@@ -2531,15 +2531,16 @@ export function ProjectTimeline({
               <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center hover:bg-neutral-100" aria-label={t`上一个修改`} onClick={() => selectAdjacentChange(-1)}><ChevronLeft className="size-3.5" aria-hidden="true" /></button>
               <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center border-l border-divider hover:bg-neutral-100" aria-label={t`下一个修改`} onClick={() => selectAdjacentChange(1)}><ChevronRight className="size-3.5" aria-hidden="true" /></button>
             </span>
-            <select
+            <NativeSelect
+              size="sm"
               aria-label={t`修改筛选`}
-              className="h-[var(--h-ctl-sm)] rounded-sm border border-divider bg-bg px-2 text-xs"
+              className="w-auto rounded-sm border-divider text-xs"
               value={changeFilter}
               onChange={(event) => setChangeFilter(event.currentTarget.value as 'all' | 'selected')}
             >
               <option value="all"><Trans>全部修改</Trans></option>
               <option value="selected" disabled={selectedChange === null}><Trans>所选修改</Trans></option>
-            </select>
+            </NativeSelect>
           </>
         )}
       </header>
@@ -2930,9 +2931,10 @@ export function ProjectTimeline({
       >
         <label className="flex flex-col gap-1 text-xs">
           <Trans>序列名称</Trans>
-          <input
+          <Input
             autoFocus
-            className="border border-divider bg-bg px-2 py-1.5"
+            size="sm"
+            ground="bg"
             maxLength={200}
             value={nestedSequenceName ?? ''}
             onChange={(event) => setNestedSequenceName(event.currentTarget.value)}
@@ -2958,17 +2960,18 @@ export function ProjectTimeline({
             ['transitions', t`转场`],
             ['audio', t`音量与声像`],
           ] as const).map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 rounded-sm border border-divider px-2 py-1.5 text-xs">
-              <input
-                type="checkbox"
+            <div key={key} className="rounded-md border border-divider px-2.5 py-2">
+              <Checkbox
+                size="sm"
+                className="text-xs"
                 checked={pasteAttributeSelection[key]}
-                onChange={(event) => {
-                  const checked = event.currentTarget.checked;
+                onChange={(checked) => {
                   setPasteAttributeSelection((current) => ({ ...current, [key]: checked }));
                 }}
-              />
-              {label}
-            </label>
+              >
+                {label}
+              </Checkbox>
+            </div>
           ))}
         </div>
       </Dialog>
@@ -3112,23 +3115,25 @@ export function ProjectTimeline({
           <div className="space-y-3">
             <label className="flex flex-col gap-1 text-xs">
               {textDraft.kind === 'caption' ? <Trans>字幕内容</Trans> : <Trans>文字内容</Trans>}
-              <textarea
+              <Textarea
                 autoFocus
                 rows={4}
                 maxLength={1_000}
-                className="resize-y border border-divider bg-bg px-2 py-1.5"
+                className="bg-bg text-sm"
                 value={textDraft.content}
                 onChange={(event) => setTextDraft({ ...textDraft, content: event.currentTarget.value })}
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
               <Trans>持续时间（秒）</Trans>
-              <input
+              <Input
+                size="sm"
+                ground="bg"
+                mono
                 type="number"
                 min={1 / document.fps}
                 max={textDraft.maximumDuration}
                 step={1 / document.fps}
-                className="border border-divider bg-bg px-2 py-1.5 font-mono"
                 value={textDraft.duration}
                 onChange={(event) => setTextDraft({ ...textDraft, duration: Number(event.currentTarget.value) })}
               />
@@ -4660,8 +4665,24 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
     <button
       type="button"
       className={cn(
-        'group/timeline-clip absolute inset-y-0.5 touch-none select-none overflow-hidden rounded-sm border border-neutral-300 bg-surface text-left outline-none',
-        kind === 'video' && material.streamAssetId !== null && (selected ? 'border-accent-300 bg-accent-100' : 'border-divider bg-surface-chrome'),
+        'group/timeline-clip absolute inset-y-0.5 touch-none select-none overflow-hidden rounded-sm border text-left transition-colors outline-none',
+        selected
+          ? material.state === 'stale'
+            ? 'z-20 border-accent bg-warn-surface/75'
+            : kind === 'audio' && material.streamAssetId !== null
+              ? 'z-20 border-accent bg-ok-surface/70'
+              : material.streamAssetId !== null
+                ? 'z-20 border-accent bg-accent-100'
+                : 'z-20 border-accent bg-neutral-100'
+          : material.state === 'stale'
+            ? 'border-warn-border bg-warn-surface/75'
+            : kind === 'audio'
+              ? material.streamAssetId !== null
+                ? 'border-ok-border bg-ok-surface/70'
+                : 'border-dashed border-neutral-400 bg-surface'
+              : kind === 'video' && material.streamAssetId !== null
+                ? 'border-accent-400 bg-accent-100'
+                : 'border-dashed border-neutral-400 bg-neutral-100',
         !clip.placement.enabled && 'opacity-55',
         change?.kind === 'added' && 'border-t-2 border-t-ok',
         change?.kind === 'modified' && 'border-t-2 border-t-accent-500',
@@ -4791,6 +4812,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
       }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${clip.text !== null ? t`已生成` : material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
       data-timeline-clip-id={clip.id}
+      data-clip-material-state={material.state}
       data-source-in={visualClip.placement.source_in}
       data-source-out={visualClip.placement.source_out}
       data-clip-speed={visualClip.placement.speed}
@@ -4991,10 +5013,18 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, compactLabel, ki
       ))}
       {repeatedFrames ? <span className="pointer-events-none absolute inset-x-0 top-0 z-40 h-1 bg-[repeating-linear-gradient(90deg,var(--color-warn)_0_4px,transparent_4px_8px)]" role="img" aria-label={t`重复帧 ${clip.name}`} /> : null}
       {displaySettings.names && stripLabel !== null ? <span className={cn(
-        'absolute inset-x-0 bottom-0 h-[18px] truncate px-1 py-px text-xs',
-        kind === 'video'
-          ? 'bg-neutral-200/95 text-neutral-800'
-          : 'border-divider bg-neutral-100/90 text-neutral-700',
+        'absolute inset-x-0 bottom-0 h-[18px] truncate px-1 py-px text-xs transition-colors',
+        selected
+          ? 'bg-accent font-medium text-on-accent'
+          : material.state === 'stale'
+            ? 'bg-warn-surface text-warn-text'
+            : kind === 'video'
+              ? material.streamAssetId !== null
+                ? 'bg-accent-200/95 font-medium text-accent-900'
+                : 'bg-neutral-200/95 text-neutral-700'
+              : material.streamAssetId !== null
+                ? 'bg-ok-surface/95 text-ok-text'
+                : 'bg-neutral-100/95 text-neutral-700',
       )}>{stripLabel}</span> : null}
       {primary && !readOnly && editTool === 'selection' ? (
         <>
@@ -6055,9 +6085,11 @@ function TimelineTrackHead({ icon, targetLabel = '', label, controls, track, rea
         </button>
       )}
       {nameDraft !== null ? (
-        <input
+        <Input
           autoFocus
-          className="h-6 min-w-0 flex-1 border border-accent-400 bg-bg px-1 text-xs outline-none"
+          size="sm"
+          ground="bg"
+          className="h-6 min-w-0 flex-1 border-accent-400 px-1 text-xs"
           aria-label={t`轨道名称`}
           value={nameDraft}
           onChange={(event) => setNameDraft(event.currentTarget.value)}

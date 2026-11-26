@@ -1588,7 +1588,7 @@ export function ProjectWorkspacePage() {
           </Button>
           <div className="min-w-48 flex-1">
             <h1 title={current.name} className="truncate text-md font-medium leading-6">{current.name}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-600">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-neutral-600">
               <span className="whitespace-nowrap"><Trans>第 {current.revision} 版</Trans></span>
               {deliveryGatePending ? (
                 <span className="flex items-center gap-1 whitespace-nowrap"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查素材</Trans></span>

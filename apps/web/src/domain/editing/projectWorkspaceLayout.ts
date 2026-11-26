@@ -69,8 +69,8 @@ export function createProjectWorkspaceLayout(preset: ProjectWorkspacePreset = 'e
     borders: [parkingBorder('bottom', [panelTab('inspector'), panelTab('mixer'), ...(preset === 'agent' ? [] : [panelTab('agent')])])],
     layout: {
       type: 'row', id: 'workspace-root', children: [
-        { type: 'row', id: 'workspace-upper', weight: 55, children: monitors },
-        { type: 'tabset', id: 'timeline-group', weight: 45, children: [panelTab('timeline')] },
+        { type: 'row', id: 'workspace-upper', weight: 50, children: monitors },
+        { type: 'tabset', id: 'timeline-group', weight: 50, children: [panelTab('timeline')] },
       ],
     },
   };

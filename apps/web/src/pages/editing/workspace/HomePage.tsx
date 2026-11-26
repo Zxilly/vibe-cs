@@ -11,6 +11,7 @@ import { ActiveProjectsPanel } from './ActiveProjectsPanel';
 import { EnvironmentNotice } from './EnvironmentNotice';
 import { FirstRunStrip } from '../../shared/onboarding/FirstRunStrip';
 import { HomeFailureNotice } from './HomeFailureNotice';
+import { RecentDemosPanel } from './RecentDemosPanel';
 import { RouteLink } from '../../shared/navigation/RouteLink';
 
 export interface HomePageProps {
@@ -35,7 +36,7 @@ export function HomePage({ intro }: HomePageProps = {}) {
         />
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6" data-home-layout="three-sections">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6" data-home-layout="three-sections">
         {intro}
 
         <section className="flex flex-col gap-3" data-home-block="continue">
@@ -52,6 +53,7 @@ export function HomePage({ intro }: HomePageProps = {}) {
             <Button asChild variant="secondary" size="sm"><RouteLink to="/library" className="no-underline"><FolderOpen size={16} aria-hidden="true" /><Trans>打开 Demo 资料库</Trans></RouteLink></Button>
           </div>
           <FirstRunStrip />
+          <RecentDemosPanel />
         </section>
 
         <EnvironmentNotice />

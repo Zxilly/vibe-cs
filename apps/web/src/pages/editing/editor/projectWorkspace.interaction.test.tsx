@@ -3270,7 +3270,7 @@ describe('unified project workspace', () => {
     expect((within(textStyle).getByLabelText('字体') as HTMLInputElement).value).toBe('Arial');
     expect((within(textStyle).getByLabelText('字号') as HTMLInputElement).value).toBe('72');
     expect((within(textStyle).getByLabelText('对齐') as HTMLSelectElement).value).toBe('center');
-    expect((within(textStyle).getByLabelText('启用文字背景') as HTMLInputElement).checked).toBe(true);
+    expect(within(textStyle).getByRole('checkbox', { name: '启用文字背景' }).getAttribute('aria-checked')).toBe('true');
     expect(screen.queryByLabelText('入场转场')).toBeNull();
     expect(screen.queryByLabelText('出场转场')).toBeNull();
   });

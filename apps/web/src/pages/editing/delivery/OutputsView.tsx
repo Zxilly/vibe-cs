@@ -237,6 +237,7 @@ export function OutputsView({ now }: OutputsViewProps) {
         page={page}
         pageSize={OUTPUT_PAGE_SIZE}
         total={outputs.data?.total ?? 0}
+        loading={outputs.isPending}
         onPageChange={setPage}
       />
 

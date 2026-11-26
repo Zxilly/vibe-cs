@@ -627,12 +627,131 @@ export function ProjectWorkspacePage() {
     );
   }
   if (projectId === 'new' || project.isPending) {
+    const stageCaption = projectId === 'new' ? <Trans>正在创建作品…</Trans> : <Trans>正在加载作品…</Trans>;
     return (
-      <Page toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
-        <div className="flex flex-col gap-4 p-6" role="status" aria-busy="true">
-          <p className="text-sm text-neutral-600">{projectId === 'new' ? <Trans>正在创建作品…</Trans> : <Trans>正在加载作品…</Trans>}</p>
-          <Skeleton className="h-12" />
-          <Skeleton className="h-80" />
+      <Page className="review-workbench" scroll={false} toolbar={<Toolbar title={<Trans>作品工作区</Trans>} />}>
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-chrome"
+          role="status"
+          aria-busy="true"
+          data-project-workspace-skeleton
+        >
+          <div className="flex h-[var(--h-panel-head)] flex-none items-center justify-between gap-3 border-b border-divider bg-bg px-3" aria-hidden="true">
+            <div className="flex items-center gap-2">
+              <Skeleton width="6rem" className="h-4" />
+              <Skeleton width="4rem" className="h-3" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton width="4.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+              <Skeleton width="4.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+            </div>
+          </div>
+
+          <div className="grid min-h-0 flex-1 grid-rows-2 gap-1 bg-divider p-1">
+            {/* Upper 50%: media rail + 16:9 Program Monitor & transport bar */}
+            <div className="grid min-h-0 grid-cols-1 gap-1 md:grid-cols-[minmax(14rem,0.32fr)_minmax(0,1fr)]">
+              <div className="hidden min-h-0 flex-col overflow-hidden rounded-sm border border-divider bg-bg md:flex" aria-hidden="true">
+                <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-3">
+                  <Skeleton width="4.5rem" className="h-3" />
+                </div>
+                <div className="flex flex-none flex-col gap-2 border-b border-divider px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton width="4.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+                    <Skeleton width="3.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+                  </div>
+                  <Skeleton className="h-[var(--h-ctl-sm)] w-full rounded-md" />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col divide-y divide-divider">
+                  {[0, 1, 2, 3].map((index) => (
+                    <div key={index} className="grid h-[var(--h-row-compact)] grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 px-3">
+                      <Skeleton className="size-3.5 rounded-sm" />
+                      <Skeleton width={index % 2 === 0 ? '72%' : '56%'} className="h-3" />
+                      <Skeleton width="2.25rem" className="h-3" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-divider bg-bg">
+                <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider bg-surface-chrome px-3" aria-hidden="true">
+                  <Skeleton width="4.5rem" className="h-3" />
+                  <Skeleton width="3.5rem" className="h-3" />
+                </div>
+                <div className="flex min-h-0 flex-1 items-center justify-center bg-media p-4">
+                  <div className="flex aspect-video max-h-full w-full max-w-2xl items-center justify-center rounded-sm border border-media-divider bg-media/80 px-4">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-media-divider bg-media/90 px-3 py-1.5 text-xs text-on-media">
+                      <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+                      {stageCaption}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-t border-divider bg-bg px-3" aria-hidden="true">
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2, 3, 4].map((index) => <Skeleton key={index} className="size-6 rounded-sm" />)}
+                  </div>
+                  <Skeleton width="28%" className="ml-2 h-3" />
+                  <div className="ml-auto flex items-center gap-2">
+                    <Skeleton width="5rem" className="h-5 rounded-sm" />
+                    <Skeleton width="4.5rem" className="h-3.5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Lower 50%: Timeline toolbar, ruler, track headers, and clip strips */}
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-sm border border-divider bg-bg" aria-hidden="true">
+              <div className="flex h-[var(--h-panel-head)] flex-none items-center justify-between gap-2 border-b border-divider bg-surface-chrome px-3">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2, 3].map((index) => <Skeleton key={index} className="size-6 rounded-sm" />)}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton width="5.5rem" className="h-3" />
+                  <Skeleton width="3.5rem" className="h-5 rounded-sm" />
+                </div>
+              </div>
+              <div className="grid h-7 flex-none grid-cols-[10rem_minmax(0,1fr)] border-b border-divider bg-surface-chrome/60">
+                <div className="flex items-center border-r border-divider px-3">
+                  <Skeleton width="4rem" className="h-3" />
+                </div>
+                <div className="flex items-center justify-between px-4">
+                  {[0, 1, 2, 3, 4].map((index) => <Skeleton key={index} width="2.5rem" className="h-2.5" />)}
+                </div>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col divide-y divide-divider">
+                <div className="grid min-h-14 flex-1 grid-cols-[10rem_minmax(0,1fr)]">
+                  <div className="flex items-center gap-2 border-r border-divider bg-surface-chrome/40 px-3">
+                    <Skeleton width="2rem" className="h-5 rounded-sm" />
+                    <Skeleton width="4.5rem" className="h-3" />
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-2">
+                    <Skeleton width="24%" className="h-8 rounded-sm" />
+                    <Skeleton width="30%" className="h-8 rounded-sm" />
+                    <Skeleton width="18%" className="h-8 rounded-sm" />
+                  </div>
+                </div>
+                <div className="grid min-h-14 flex-1 grid-cols-[10rem_minmax(0,1fr)]">
+                  <div className="flex items-center gap-2 border-r border-divider bg-surface-chrome/40 px-3">
+                    <Skeleton width="2rem" className="h-5 rounded-sm" />
+                    <Skeleton width="4rem" className="h-3" />
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <Skeleton width="22%" className="ml-12 h-8 rounded-sm" />
+                    <Skeleton width="16%" className="h-8 rounded-sm" />
+                  </div>
+                </div>
+                <div className="grid min-h-14 flex-1 grid-cols-[10rem_minmax(0,1fr)]">
+                  <div className="flex items-center gap-2 border-r border-divider bg-surface-chrome/40 px-3">
+                    <Skeleton width="2rem" className="h-5 rounded-sm" />
+                    <Skeleton width="3.5rem" className="h-3" />
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-2">
+                    <Skeleton width="38%" className="h-8 rounded-sm" />
+                    <Skeleton width="26%" className="h-8 rounded-sm" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </Page>
     );
@@ -1581,45 +1700,59 @@ export function ProjectWorkspacePage() {
       className="review-workbench"
       scroll={false}
       toolbar={(
-        <header className="flex min-h-[var(--h-topbar)] flex-none flex-wrap items-center gap-x-3 gap-y-2 border-b border-divider bg-bg px-3 py-2">
-          <Button size="sm" variant="ghost" type="button" data-window-no-drag className="gap-2" onClick={() => void navigate('/projects')}>
+        <header className="flex min-h-[var(--h-topbar)] flex-none items-center gap-2 border-b border-divider bg-bg px-3 py-1.5 lg:gap-3">
+          <Button
+            size="sm"
+            variant="ghost"
+            type="button"
+            data-window-no-drag
+            title={t`返回作品列表`}
+            className="flex-none gap-1.5 max-lg:px-2"
+            onClick={() => void navigate('/projects')}
+          >
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
-            <Trans>作品</Trans>
+            <span className="max-lg:sr-only"><Trans>作品</Trans></span>
           </Button>
-          <div className="min-w-48 flex-1">
-            <h1 title={current.name} className="truncate text-md font-medium leading-6">{current.name}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-neutral-600">
-              <span className="whitespace-nowrap"><Trans>第 {current.revision} 版</Trans></span>
+          <div className="min-w-0 flex-1">
+            <h1 title={current.name} className="truncate text-md font-medium leading-5">{current.name}</h1>
+            <div className="flex items-center gap-x-2.5 overflow-hidden text-xs tabular-nums text-neutral-600">
+              <span className="flex-none whitespace-nowrap"><Trans>第 {current.revision} 版</Trans></span>
               {deliveryGatePending ? (
-                <span className="flex items-center gap-1 whitespace-nowrap"><LoaderCircle className="size-3.5 animate-spin" strokeWidth={1.6} aria-hidden="true" /><Trans>检查素材</Trans></span>
+                <span className="flex min-w-0 items-center gap-1 truncate"><LoaderCircle className="size-3.5 flex-none animate-spin" strokeWidth={1.6} aria-hidden="true" /><span className="truncate"><Trans>检查素材</Trans></span></span>
               ) : deliveryGate.error !== null ? (
-                <span className="text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
+                <span className="truncate text-warn-text"><Trans>素材状态暂时不可用</Trans></span>
               ) : currentDeliveryGate?.ready === true ? (
-                <span className="flex items-center gap-1 whitespace-nowrap text-ok-text"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>素材就绪</Trans></span>
+                <span className="flex min-w-0 items-center gap-1 truncate text-ok-text"><CheckCircle2 className="size-3.5 flex-none" strokeWidth={1.6} aria-hidden="true" /><span className="truncate"><Trans>素材就绪</Trans></span></span>
               ) : timelineEmpty ? (
-                <span className="flex items-center gap-1 whitespace-nowrap"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>时间线还没有片段</Trans></span>
+                <span className="flex min-w-0 items-center gap-1 truncate"><CircleAlert className="size-3.5 flex-none" strokeWidth={1.6} aria-hidden="true" /><span className="truncate"><Trans>时间线还没有片段</Trans></span></span>
               ) : (
-                <span className="flex items-center gap-1 whitespace-nowrap text-warn-text"><CircleAlert className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span>
+                <span className="flex min-w-0 items-center gap-1 truncate text-warn-text"><CircleAlert className="size-3.5 flex-none" strokeWidth={1.6} aria-hidden="true" /><span className="truncate"><Trans>{deliveryBlockers.length} 个素材未就绪</Trans></span></span>
               )}
-              {readOnly ? <span className="text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
+              {readOnly ? <span className="truncate text-warn-text"><Trans>Agent 编辑中 · 只读</Trans></span> : null}
             </div>
           </div>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <div className="ml-auto flex flex-none items-center justify-end gap-1.5 lg:gap-2">
             {pendingAgentReviewGroup === null ? null : (
               <Button size="sm" variant="secondary" onClick={() => workspaceDock.current?.showPanel('agent')}>
                 <Trans>审阅 Agent 修改</Trans>
               </Button>
             )}
             {activeExecutions.length > 0 ? (
-              <Button size="sm" variant="ghost" onClick={() => setTaskDetailsOpen(true)}>
+              <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setTaskDetailsOpen(true)}>
                 <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
                 <Trans>作品任务 {activeExecutions.length}</Trans>
               </Button>
             ) : null}
             <ProjectWorkspaceLayoutMenu labels={panelLabels} />
-            <Button size="sm" variant="ghost" onClick={() => workspaceDock.current?.showPanel('agent')}>
+            <Button
+              size="sm"
+              variant="ghost"
+              title={t`Agent`}
+              className="max-lg:px-2"
+              onClick={() => workspaceDock.current?.showPanel('agent')}
+            >
               <Sparkles className="size-4" aria-hidden="true" />
-              <Trans>Agent</Trans>
+              <span className="max-lg:sr-only"><Trans>Agent</Trans></span>
             </Button>
             <span data-window-no-drag>
               <OverflowMenu
@@ -1641,18 +1774,19 @@ export function ProjectWorkspacePage() {
             <Button size="sm" variant={recordableClipIds.length > 0 ? 'primary' : 'secondary'}
               type="button"
               data-window-no-drag
-              className="gap-2"
+              title={t`录制缺失片段`}
+              className="gap-1.5 max-sm:px-2"
               disabled={recordDisabledReason !== undefined}
               disabledReason={recordDisabledReason}
               onClick={() => setExternalConfirm({ kind: 'recording', clipIds: recordableClipIds })}
             >
               <Video className="size-4" aria-hidden="true" />
-              <Trans>录制缺失片段</Trans>
+              <span className="max-sm:sr-only"><Trans>录制缺失片段</Trans></span>
             </Button>
             <Button size="sm" variant={currentDeliveryGate?.ready === true ? 'primary' : 'secondary'}
               type="button"
               data-window-no-drag
-              className="gap-2"
+              className="gap-1.5"
               disabled={exportDisabledReason !== undefined}
               disabledReason={exportDisabledReason}
               onClick={() => setExternalConfirm({
@@ -2048,9 +2182,11 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
               {unavailableReason}
             </div>
           ) : displayed === null ? (
-            <div className="absolute inset-0 z-10 flex animate-pulse items-center justify-center gap-2 bg-media-divider text-xs text-on-media-muted" role="status">
-              <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
-              <Trans>正在读取战术图</Trans>
+            <div className="absolute inset-0 z-10 grid place-items-center bg-media p-4" role="status" aria-busy="true">
+              <span className="inline-flex items-center gap-2 rounded-full border border-media-divider bg-media/90 px-3 py-1.5 text-xs text-on-media-muted">
+                <LoaderCircle className="size-3.5 animate-spin text-on-media" aria-hidden="true" />
+                <Trans>正在读取战术图</Trans>
+              </span>
             </div>
           ) : (
             <>
@@ -2065,7 +2201,10 @@ const TacticalPreview = memo(function TacticalPreview({ selected, timelineTimeSe
                 {renderTacticalLayers}
               </StableMapCanvas>
               {displayed.sceneKey === candidate?.sceneKey ? null : (
-                <span className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-sm bg-media/85 px-2 py-1 text-xs text-on-media">
+                <span
+                  role="status"
+                  className="pointer-events-none absolute bottom-3 left-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-media-divider bg-media/90 px-2.5 py-1 text-xs text-on-media"
+                >
                   <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                   <Trans>正在更新战术图</Trans>
                 </span>

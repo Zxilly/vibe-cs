@@ -1,5 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { LoaderCircle } from 'lucide-react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useProjectCameraPreview } from '../../data/projects';
@@ -29,7 +30,12 @@ export function ClipCameraInspection({ projectId, clipId, revision, sourceTimeSe
         <CameraPreviewViewport preview={query.data.preview} sourceTimeSeconds={sourceTimeSeconds} sourceRange={sourceRange}
           onSourceTimeChange={onSourceTimeChange} className="mt-2 h-80 rounded border border-divider" />
       )}
-      {query.isFetching && <p role="status" className="mt-1 text-neutral-600"><Trans>正在准备镜头预演…</Trans></p>}
+      {query.isFetching && (
+        <div role="status" className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-divider bg-surface-chrome px-2.5 py-1 text-xs text-neutral-600">
+          <LoaderCircle className="size-3.5 animate-spin text-accent" aria-hidden="true" />
+          <Trans>正在准备镜头预演…</Trans>
+        </div>
+      )}
       {query.isError ? (
         <p role="alert" className="mt-2 text-fail-text">{dataErrorMessage(query.error) ?? t`镜头检查失败，请重试。`}</p>
       ) : inspection == null ? null : inspection.geometryUnavailable !== null ? (

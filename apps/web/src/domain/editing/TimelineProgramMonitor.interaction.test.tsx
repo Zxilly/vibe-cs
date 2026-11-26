@@ -278,3 +278,12 @@ it('distinguishes planned 3D preview from recorded playback in the transport bar
   expect(recordedPill.getAttribute('data-program-source-status')).toBe('recorded');
   expect(recordedPill.textContent).toBe('已录制');
 });
+
+it('suppresses the competing frame-seeking pill while a planned 3D preview is booting', () => {
+  sceneSeam.preview.mockImplementation(() => new Promise(() => {}));
+  const view = renderInteractive(tree(planned(), 1));
+  expect(screen.getByRole('region', { name: '视频预览' }).className).toContain('@container/program');
+  expect(view.container.querySelector('[data-program-transport]')?.className).toContain('flex-wrap');
+  expect(screen.getByText('正在加载预演…')).toBeTruthy();
+  expect(screen.queryByText('正在定位帧')).toBeNull();
+});

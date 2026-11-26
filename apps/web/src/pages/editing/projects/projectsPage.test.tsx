@@ -16,6 +16,9 @@ describe('/projects loading skeleton', () => {
   it('renders an honest loading state without fake project facts', () => {
     expect(html).toContain('data-projects-list');
     expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('data-projects-skeleton');
+    expect(html).toContain('md:grid-cols-2 xl:grid-cols-3');
+    expect(html.match(/<article\b/gu)).toHaveLength(3);
     expect(html).not.toContain('role="progressbar"');
   });
 });

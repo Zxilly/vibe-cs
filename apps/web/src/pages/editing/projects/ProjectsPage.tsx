@@ -79,8 +79,8 @@ export function ProjectsPage() {
         {projects.isPending ? (
           <div role="status" aria-busy="true" className="flex flex-col gap-3">
             <p className="text-sm text-neutral-600"><Trans>正在加载作品…</Trans></p>
-            <div className="flex flex-col gap-px border border-divider bg-divider">
-              {[0, 1, 2].map((index) => <Skeleton key={index} className="h-[var(--h-row-task)] bg-bg" />)}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-projects-skeleton>
+              {[0, 1, 2].map((index) => <ProjectCardSkeleton key={index} />)}
             </div>
           </div>
         ) : projects.data === undefined ? null : rows.length === 0 ? searching ? (
@@ -120,6 +120,34 @@ function nextStep(project: Project, gate: ProjectDeliveryGate): { readonly statu
   return recordable > 0
     ? { status: 'warn', text: t`${recordable} 段待录制` }
     : { status: 'warn', text: t`${gate.blockers.length} 段素材需检查` };
+}
+
+function ProjectCardSkeleton() {
+  return (
+    <article
+      aria-hidden="true"
+      className="flex min-w-0 flex-col gap-3.5 rounded-lg border border-divider bg-bg p-4"
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <Skeleton className="size-9 flex-none rounded-md" />
+        <div className="flex min-w-0 flex-1 flex-col gap-2 py-0.5">
+          <Skeleton width="62%" className="h-4" />
+          <Skeleton width="48%" className="h-3" />
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-divider/70 bg-surface-chrome/60 px-3 py-2">
+        <div className="flex items-center gap-3">
+          <Skeleton width="4rem" className="h-3" />
+          <Skeleton width="2.75rem" className="h-3" />
+        </div>
+        <Skeleton width="5.5rem" className="h-5 rounded-sm" />
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-divider pt-3">
+        <Skeleton width="4.5rem" className="h-3" />
+        <Skeleton width="5.5rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+      </div>
+    </article>
+  );
 }
 
 function ProjectCard({ project }: { readonly project: Project }) {

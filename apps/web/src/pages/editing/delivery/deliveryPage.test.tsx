@@ -55,6 +55,7 @@ describe('/delivery', () => {
       expect(html).not.toContain('role="progressbar"');
       expect(html).not.toContain('%<');
       expect(html).not.toContain('Aurora');
+      expect(html).not.toContain('bg-neutral-100');
     }
   });
 
@@ -110,5 +111,7 @@ describe('/', () => {
   it('invents no data', () => {
     expect(html).not.toContain('role="progressbar"');
     expect(html).not.toContain('Aurora');
+    expect(html).toContain('data-home-block="recent-demos-skeleton"');
+    expect(html).toContain('min-h-[var(--h-row-task)]');
   });
 });

@@ -403,7 +403,7 @@ export function TimelineProgramMonitor({
 
   return (
     <section
-      className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg"
+      className="@container/program flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg"
       aria-label={t`视频预览`}
       data-monitor-selected-clip-id={selectedClipId ?? ''}
       data-monitor-target-clip-id={targetId ?? (targetCameraKey === null ? '' : selected?.id ?? '')}
@@ -712,8 +712,11 @@ export function TimelineProgramMonitor({
             {(activeRenderPreview !== null
               ? renderPreviewPresented
               : slideActive ? slideReady : rollingActive ? rollingReady : targetCameraKey !== null
-                ? presentedCamera?.key === targetCameraKey : presentedMediaKey === targetMediaKey) ? null : (
-              <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-media/75 px-2 py-1 text-xs text-on-media">
+                ? true : presentedMediaKey === targetMediaKey) ? null : (
+              <span
+                role="status"
+                className="pointer-events-none absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-media-divider bg-media/85 px-2.5 py-1 text-xs text-on-media"
+              >
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
               </span>
@@ -997,30 +1000,71 @@ function ProgramTransportBar({
   readonly onStepFrame: (direction: -1 | 1) => void;
 }) {
   return (
-    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-t border-divider bg-bg px-3 text-xs text-text">
-      <button
-        type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
-        aria-label={t`上一帧`}
-        onClick={() => onStepFrame(-1)}
+    <div
+      data-program-transport
+      className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-divider bg-bg px-2.5 py-1 text-xs text-text @min-[420px]/program:flex-nowrap @min-[420px]/program:px-3 @min-[420px]/program:py-0"
+    >
+      <div className="flex flex-none items-center gap-0.5">
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+          aria-label={t`上一帧`}
+          onClick={() => onStepFrame(-1)}
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="hidden size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 @min-[380px]/program:grid"
+          aria-label={t`J 反向播放`}
+          onClick={() => onShuttle(-1)}
+        >
+          <ChevronsLeft className="size-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+          aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
+          onClick={playing ? () => onShuttle(0) : onTogglePlayback}
+        >
+          {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          className="hidden size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 @min-[380px]/program:grid"
+          aria-label={t`L 正向播放`}
+          onClick={() => onShuttle(1)}
+        >
+          <ChevronsRight className="size-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100"
+          aria-label={t`下一帧`}
+          onClick={() => onStepFrame(1)}
+        >
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+      </div>
+      <span
+        className="hidden min-w-0 flex-1 truncate font-medium @min-[480px]/program:block"
+        title={title}
       >
-        <ChevronLeft className="size-4" aria-hidden="true" />
-      </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
-      <button
-        type="button"
-        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
-        aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
-        onClick={playing ? () => onShuttle(0) : onTogglePlayback}
-      >
-        {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
-      </button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
-      <button type="button" className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-neutral-700 transition-colors hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
-      <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
-      {sourceStatus === null ? null : <ProgramSourceStatusPill status={sourceStatus} />}
-      <span className="flex-none whitespace-nowrap tabular-nums text-neutral-600">{playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}</span>
-      <span className="flex-none whitespace-nowrap font-mono tabular-nums">{formatTimelinePosition(timeSeconds, fps, timeDisplayMode)}</span>
+        {title}
+      </span>
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+        {sourceStatus === null ? null : <ProgramSourceStatusPill status={sourceStatus} />}
+        <span
+          className={
+            playing
+              ? 'flex-none whitespace-nowrap tabular-nums text-neutral-600'
+              : 'hidden flex-none whitespace-nowrap tabular-nums text-neutral-600 @min-[420px]/program:inline'
+          }
+        >
+          {playing ? `${playbackRate.toFixed(1)}x` : <Trans>暂停</Trans>}
+        </span>
+        <span className="flex-none whitespace-nowrap font-mono tabular-nums">{formatTimelinePosition(timeSeconds, fps, timeDisplayMode)}</span>
+      </div>
     </div>
   );
 }

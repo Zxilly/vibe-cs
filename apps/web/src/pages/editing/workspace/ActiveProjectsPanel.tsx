@@ -27,7 +27,21 @@ export function ActiveProjectsPanel() {
       {projects.isPending ? (
         <div role="status" aria-busy="true" className="flex flex-col gap-2.5">
           <p className="text-sm text-neutral-600"><Trans>正在加载作品…</Trans></p>
-          <Skeleton /><Skeleton width="76%" />
+          <ul
+            aria-hidden="true"
+            className="flex flex-col divide-y divide-divider overflow-hidden rounded-lg border border-divider bg-bg"
+          >
+            {[0, 1].map((index) => (
+              <li key={index} className="flex min-h-[var(--h-row-task)] items-center gap-3.5 px-4 py-3">
+                <Skeleton className="size-9 flex-none rounded-md" />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <Skeleton width={index === 0 ? '42%' : '34%'} className="h-4" />
+                  <Skeleton width={index === 0 ? '58%' : '48%'} className="h-3" />
+                </div>
+                <Skeleton width="4.5rem" className="h-7 flex-none rounded-md" />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
         <p className="rounded-lg border border-divider bg-surface-chrome/60 px-4 py-3 text-sm text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>

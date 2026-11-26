@@ -4,6 +4,7 @@ import { Ellipsis, FileX2, Film, FolderOpen, Play } from 'lucide-react';
 import { useState } from 'react';
 
 import { useNativeShell } from '../../../data/nativeShell';
+import { Skeleton } from '../../../design/data';
 import { Drawer } from '../../../design/feedback';
 import { Blueprint, OverflowMenu } from '../../../design/layout';
 import { Button, cn } from '../../../design/primitives';
@@ -173,8 +174,26 @@ export function OutputCard({ output, project, showMediaColumn = true, onReveal, 
 }
 
 export function OutputCardSkeleton() {
-  return <div aria-hidden="true" className="flex min-h-24 gap-4 rounded-lg border border-divider bg-bg p-4">
-    <span aria-hidden="true" className="aspect-video w-[var(--w-output-preview)] flex-none animate-pulse rounded-md bg-neutral-200" />
-    <div className="flex flex-1 flex-col gap-2"><span aria-hidden="true" className="h-4 w-2/5 animate-pulse rounded-sm bg-neutral-200" /><span aria-hidden="true" className="h-3 w-3/5 animate-pulse rounded-sm bg-neutral-100" /></div>
-  </div>;
+  return (
+    <div
+      aria-hidden="true"
+      className="flex min-h-24 flex-wrap items-center gap-4 rounded-lg border border-divider bg-bg px-4 py-2.5 sm:flex-nowrap"
+    >
+      <Skeleton className="aspect-video h-auto w-[var(--w-output-preview)] flex-none rounded-md" />
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+        <Skeleton width="42%" className="h-4" />
+        <Skeleton width="28%" className="h-3" />
+        <Skeleton width="58%" className="h-3" />
+      </div>
+      <div className="hidden flex-none flex-col gap-1.5 sm:flex">
+        <Skeleton width="4.5rem" className="h-3.5" />
+        <Skeleton width="3.5rem" className="h-3" />
+      </div>
+      <div className="ml-auto flex flex-none items-center gap-1.5">
+        <Skeleton width="4rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+        <Skeleton width="2rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+        <Skeleton width="2rem" className="h-[var(--h-ctl-sm)] rounded-md" />
+      </div>
+    </div>
+  );
 }

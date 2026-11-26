@@ -1,9 +1,11 @@
 /** Compact recent-match launcher so 开始选材 is immediately useful once demos exist. */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { ArrowRight, Crosshair } from 'lucide-react';
 
 import { useDemoList } from '../../../data/demos';
+import { Skeleton } from '../../../design/data';
 import { Badge } from '../../../design/primitives';
 import { formatTaskClock } from '../../../domain/task';
 import type { DemoDisplayStatus } from '../../../shared/desktop/viewModels';
@@ -34,11 +36,42 @@ function demoStatusPriority(status: DemoDisplayStatus): number {
   return status === 'ready' ? 0 : status === 'parsing' ? 1 : 2;
 }
 
-export function RecentDemosPanel() {
+export interface RecentDemosPanelProps {
+  readonly loading?: boolean | undefined;
+}
+
+export function RecentDemosPanel({ loading = false }: RecentDemosPanelProps = {}) {
   const demos = useDemoList({ page: 1, page_size: SHOWN });
   const items = demos.data?.items ?? [];
 
-  if (demos.isPending || demos.error !== null || items.length === 0) return null;
+  if (loading || demos.isPending) {
+    return (
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={t`加载中`}
+        className="grid grid-cols-1 gap-2.5 md:grid-cols-2"
+        data-home-block="recent-demos-skeleton"
+      >
+        {[0, 1, 2, 3].map((index) => (
+          <div
+            key={index}
+            aria-hidden="true"
+            className="flex items-center gap-3 rounded-lg border border-divider bg-bg px-3.5 py-2.5"
+          >
+            <Skeleton className="size-8 flex-none rounded-md" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton width={index % 2 === 0 ? '68%' : '56%'} className="h-4" />
+              <Skeleton width={index % 2 === 0 ? '48%' : '40%'} className="h-3" />
+            </div>
+            <Skeleton width="3.5rem" className="h-5 flex-none rounded-sm" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (demos.error !== null || items.length === 0) return null;
 
   const sorted = [...items]
     .sort((left, right) => (

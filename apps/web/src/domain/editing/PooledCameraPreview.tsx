@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro';
 import { t } from '@lingui/core/macro';
+import { LoaderCircle } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
@@ -74,11 +75,18 @@ export function PooledCameraPreview({ projectId, entry, target, presented, timel
           }}
           onFramePresented={reportReady} showControls={false} presented={presented} active={target} className="h-full" />
       ) : target && (query.isError ? (
-        <div role="alert" className="absolute inset-x-3 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 rounded bg-media/90 p-4 text-center text-sm text-on-media">
+        <div role="alert" className="absolute inset-x-3 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 rounded-md border border-media-divider bg-media/90 p-4 text-center text-sm text-on-media">
           <p>{dataErrorMessage(query.error) ?? t`预演暂时不可用，请重试。`}</p>
           <Button size="sm" variant="secondary" onClick={() => void query.refetch()}><Trans>重试</Trans></Button>
         </div>
-      ) : <p role="status" className="absolute inset-0 grid place-items-center text-sm text-on-media"><Trans>正在加载预演…</Trans></p>)}
+      ) : (
+        <div role="status" aria-busy="true" className="absolute inset-0 grid place-items-center p-4">
+          <span className="inline-flex items-center gap-2 rounded-full border border-media-divider bg-media/90 px-3 py-1.5 text-xs text-on-media">
+            <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+            <Trans>正在加载预演…</Trans>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

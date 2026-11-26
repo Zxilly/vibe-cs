@@ -164,8 +164,8 @@ export function ProjectWorkspaceLayoutMenu({ labels }: {
   return <>
     <OverflowMenu
       label={t`工作区布局`}
-      triggerLabel={<><LayoutTemplate className="size-3.5" aria-hidden="true" /><span className="max-w-24 truncate" title={selectedName}>{selectedName}</span></>}
-      triggerClassName="h-[var(--h-ctl-sm)] rounded-md border border-divider"
+      triggerLabel={<><LayoutTemplate className="size-3.5" aria-hidden="true" /><span className="max-w-24 truncate max-lg:sr-only" title={selectedName}>{selectedName}</span></>}
+      triggerClassName="h-[var(--h-ctl-sm)] rounded-md border border-divider max-lg:px-2"
       items={[
         ...choices.map((entry) => ({ id: entry.id, label: entry.name, current: workspace.choice === entry.id, onSelect: () => workspace.chooseLayout(entry.id) })),
         { id: 'restore', label: t`恢复已保存布局`, onSelect: workspace.restoreLayout },

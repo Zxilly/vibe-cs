@@ -396,7 +396,10 @@ export function ProjectMediaWorkspace({
         </div>
       </header>
 
-      <div className="grid min-w-0 flex-none grid-cols-[minmax(0,1fr)_104px] gap-2 border-b border-divider px-3 py-2">
+      <div
+        data-project-media-filters
+        className="grid min-w-0 flex-none grid-cols-1 gap-2 border-b border-divider px-3 py-2 @min-[260px]:grid-cols-[minmax(0,1fr)_6.5rem]"
+      >
         <label className="relative min-w-0">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-neutral-500" aria-hidden="true" />
           <Input
@@ -424,7 +427,7 @@ export function ProjectMediaWorkspace({
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto" aria-live="polite" data-project-media-list>
-        {pending ? <Skeleton className="m-2 h-24" /> : filtered.length > 0 ? (
+        {pending ? <ProjectMediaSkeleton view={view} /> : filtered.length > 0 ? (
           <div role="listbox" aria-label={t`项目素材列表`}>
             <MediaItemSection
               label={t`未录制`}
@@ -819,6 +822,43 @@ export function ProjectMediaWorkspace({
   );
 }
 
+function ProjectMediaSkeleton({ view }: { readonly view: ProjectMediaView }) {
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label={t`加载中`}
+      data-project-media-skeleton={view}
+    >
+      {view === 'icon' ? (
+        <div className="grid grid-cols-1 gap-2 p-2 @min-[220px]:grid-cols-2">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} aria-hidden="true" className="overflow-hidden rounded-md border border-divider bg-bg p-1.5">
+              <Skeleton className="mb-1.5 aspect-video h-auto w-full rounded-sm" />
+              <Skeleton width={index % 2 === 0 ? '78%' : '62%'} className="h-3.5" />
+              <Skeleton width="42%" className="mt-1 h-3" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y divide-divider">
+          {[0, 1, 2, 3].map((index) => (
+            <div
+              key={index}
+              aria-hidden="true"
+              className="grid h-[var(--h-row-compact)] w-full grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-x-2 px-3"
+            >
+              <Skeleton className="size-3.5 rounded-sm" />
+              <Skeleton width={index % 2 === 0 ? '74%' : '58%'} className="h-3.5" />
+              <Skeleton width="2.25rem" className="h-3" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MediaItemSection({
   label,
   items,
@@ -848,7 +888,7 @@ function MediaItemSection({
       </header>
       <div
         role="presentation"
-        className={view === 'icon' ? 'grid grid-cols-2 gap-2 p-2' : 'divide-y divide-divider'}
+        className={view === 'icon' ? 'grid grid-cols-1 gap-2 p-2 @min-[220px]:grid-cols-2' : 'divide-y divide-divider'}
         data-project-media-view={view}
       >
         {items.map((item) => {

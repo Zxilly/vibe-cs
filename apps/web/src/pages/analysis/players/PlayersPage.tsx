@@ -300,6 +300,7 @@ export function PlayersPage() {
             </div>
           )}
           {error !== null && directory.data === undefined ? null : <DataTable
+            className="min-h-0 flex-1"
             caption={<Trans>选手目录</Trans>}
             columns={columns}
             rows={rows}

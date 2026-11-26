@@ -44,6 +44,8 @@ import {
   type MatchContextPatch,
 } from './workspaceContext';
 
+const CLIP_COLLECTING_VIEWS: ReadonlySet<MatchViewId> = new Set(['highlights', 'replay']);
+
 export function MatchWorkspacePage() {
   const { demoId = '' } = useParams<{ demoId: string }>();
   const [params, setParams] = useSearchParams();
@@ -223,7 +225,9 @@ export function MatchWorkspacePage() {
           <Trans>作品没能新建：{dataErrorMessage(demoProject.error)}</Trans>
         </Alert>
       )}
-      <CollectTargetBar quickAdd={quickAdd} />
+      {quickAdd.pinned || quickAdd.addedCount > 0 || CLIP_COLLECTING_VIEWS.has(context.view) ? (
+        <CollectTargetBar quickAdd={quickAdd} />
+      ) : null}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div
           data-match-content=""

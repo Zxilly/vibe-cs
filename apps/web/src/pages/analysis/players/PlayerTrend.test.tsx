@@ -19,10 +19,12 @@ describe('with matches', () => {
     <PlayerTrend matches={playerMatches(6)} metric="kd" onMetricChange={noop} />,
   );
 
-  it('draws one polyline and one average rule', () => {
+  it('draws one polyline, one average rule, explicit plot points, and Y-axis reference ticks', () => {
     expect(html).toContain('data-trend-path');
     expect(html).toContain('data-trend-average');
     expect(html).toContain('stroke-dasharray="5 4"');
+    expect(html).toContain('data-trend-y-ticks');
+    expect(html.match(/data-trend-point=/gu)).toHaveLength(6);
   });
 
   it('says in words what the line shows', () => {

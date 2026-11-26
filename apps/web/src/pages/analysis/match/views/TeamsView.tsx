@@ -52,7 +52,7 @@ import type { ReactNode } from 'react';
 
 import { DataTable, Empty, type DataTableColumn } from '../../../../design/data';
 import { Alert } from '../../../../design/feedback';
-import { Button, Badge } from '../../../../design/primitives';
+import { Button, Badge, cn } from '../../../../design/primitives';
 import {
   ROUND_END_REASON,
   ROUND_END_REASONS,
@@ -173,11 +173,27 @@ export function TeamRosterPanel({
       title={name}
       hint={
         <span className="flex items-center gap-2">
-          {side === undefined ? null : (
-            <Badge variant="neutral">{i18n._(TEAM_SIDE[side].label)}</Badge>
-          )}
+          {side === undefined ? null : (() => {
+            const meta = TEAM_SIDE[side];
+            const Icon = meta.icon;
+            return (
+              <span
+                data-team-side={side}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-xs font-medium',
+                  side === 'ct'
+                    ? 'border-accent-300 bg-accent-100 text-accent-800'
+                    : 'border-warn-border bg-warn-surface text-warn-text',
+                )}
+              >
+                <Icon size={11} strokeWidth={1.5} aria-hidden="true" />
+                <span>{meta.abbreviation}</span>
+                <span className="sr-only">{i18n._(meta.label)}</span>
+              </span>
+            );
+          })()}
           {score === null ? null : (
-            <span className="font-mono">
+            <span className="font-mono tabular-nums">
               <Trans>{score} 回合</Trans>
             </span>
           )}
@@ -322,17 +338,17 @@ export function EconomyPanel({
           />
           <p
             data-match-economy-total=""
-            className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-divider px-3.5 py-2 text-base leading-normal text-neutral-700"
+            className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-divider px-3.5 py-2 text-sm leading-normal text-neutral-700"
           >
             <span>
               <Trans>共 {totals.rounds} 回合</Trans>
             </span>
-            <span className="font-mono">
+            <span className="font-mono tabular-nums">
               <Trans>
                 CT {totals.ct.purchases} 次 · {formatMoney(totals.ct.spend)}
               </Trans>
             </span>
-            <span className="font-mono">
+            <span className="font-mono tabular-nums">
               <Trans>
                 T {totals.t.purchases} 次 · {formatMoney(totals.t.spend)}
               </Trans>
@@ -400,7 +416,7 @@ export function RoundOutcomePanel({ analysis, teamAName, teamBName }: RoundOutco
           rowId={(row) => row.reason}
         />
       )}
-      <p className="border-t border-divider px-3.5 py-2 font-mono text-xs text-neutral-700">
+      <p className="border-t border-divider px-3.5 py-2 font-mono text-xs tabular-nums text-neutral-700">
         {`${totalA} - ${totalB}`}
       </p>
     </ViewPanel>
@@ -591,7 +607,7 @@ function StatPair({ label, value }: { readonly label: ReactNode; readonly value:
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-xs text-neutral-600">{label}</dt>
-      <dd className="font-mono text-base text-accent-800">{value}</dd>
+      <dd className="font-mono text-base tabular-nums text-accent-800">{value}</dd>
     </div>
   );
 }

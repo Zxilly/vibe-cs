@@ -102,9 +102,9 @@ export function HighlightRow({
       data-kind={highlight.kind}
       aria-current={current ? true : undefined}
       className={cn(
-        'flex items-center gap-3 border-b border-divider px-3.5 text-sm',
+        'flex items-center gap-3 border-b border-divider px-3.5 text-sm transition-colors',
         HEIGHT_CLASS[density],
-        current ? CURRENT_CLASS : null,
+        current ? CURRENT_CLASS : 'hover:bg-neutral-100',
         className,
       )}
     >
@@ -119,7 +119,7 @@ export function HighlightRow({
         </span>
       )}
 
-      <span data-highlight-round={highlight.round} className="flex-none font-mono text-xs text-neutral-700">
+      <span data-highlight-round={highlight.round} className="flex-none font-mono text-xs tabular-nums text-neutral-700">
         <Trans>R{highlight.round}</Trans>
       </span>
 
@@ -160,7 +160,7 @@ export function HighlightRow({
           Compact keeps the reading a person uses. */}
       <span
         data-highlight-range=""
-        className="flex flex-none flex-col items-end font-mono text-xs text-neutral-600"
+        className="flex flex-none flex-col items-end font-mono text-xs tabular-nums text-neutral-600"
       >
         {density === 'compact' ? null : <span>{`${formatTickClock(highlight.startTick, rate)}–${formatTickClock(highlight.endTick, rate)}`}</span>}
         <span>

@@ -17,6 +17,7 @@ import {
   headshotRate,
   nameInitial,
   trendAverage,
+  trendCoordinates,
   trendGeometry,
   trendSeries,
   trendValue,
@@ -80,6 +81,26 @@ describe('the trend series', () => {
       expect.closeTo(1.85, 6),
       expect.closeTo(1.9, 6),
     ]);
+  });
+
+  it('orders matches chronologically ascending by match_date even if input order is inverted', () => {
+    const series = trendSeries(
+      [
+        playerMatch({ demo_id: 'older', map_name: 'de_mirage', match_date: '2026-08-11T18:00:00Z', kill_death_ratio: 1.41 }),
+        playerMatch({ demo_id: 'newer', map_name: 'de_ancient', match_date: '2026-08-12T18:00:00Z', kill_death_ratio: 1.29 }),
+      ],
+      'kd',
+    );
+    expect(series.map((point) => point.demoId)).toEqual(['older', 'newer']);
+    expect(series[0]?.label).toBe('de_mirage · 08-11');
+    expect(series[1]?.label).toBe('de_ancient · 08-12');
+  });
+
+  it('computes explicit plot coordinates matching the trend path endpoints', () => {
+    const coords = trendCoordinates(trendSeries(playerMatches(3), 'kd'), 560, 170);
+    expect(coords).toHaveLength(3);
+    expect(coords[0]?.x).toBe(0);
+    expect(coords[2]?.x).toBe(560);
   });
 
   it('drops a match with no value instead of plotting it at zero', () => {

@@ -22,14 +22,14 @@ export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: 
         <span className="text-neutral-600"><Trans>冻结结束装备价值（$）</Trans></span>
         <span className="flex gap-4"><span className="text-accent">━ {teamA}</span><span className="text-team-b">━ {teamB}</span></span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pb-1">
       <div style={{ minWidth: Math.max(CHART_WIDTH, Math.max(0, rounds.length - 1) * 20 + 72) }}>
       {available ? <svg viewBox={`0 0 ${CHART_WIDTH} 218`} className="block w-full" role="img" aria-label={t`两队逐回合装备价值`}>
         {selectedIndex < 0 ? null : <rect x={equipmentX(selectedIndex, rounds.length) - 8} y={28} width={16} height={176} className="fill-accent-100" />}
         {[0, 1, 2, 3].map((index) => {
           const value = maximum * index / 3;
           const y = equipmentY(value, maximum);
-          return <g key={index}><line x1={48} x2={600} y1={y} y2={y} className="stroke-divider" /><text x={38} y={y + 4} textAnchor="end" className="fill-neutral-600 font-mono text-xs">{value === 0 ? '0' : `${Number((value / 1000).toFixed(1))}k`}</text></g>;
+          return <g key={index}><line x1={48} x2={600} y1={y} y2={y} className="stroke-divider" /><text x={38} y={y + 4} textAnchor="end" className="fill-neutral-600 font-mono text-xs tabular-nums">{value === 0 ? '0' : `${Number((value / 1000).toFixed(1))}k`}</text></g>;
         })}
         <path d={equipmentPath(rounds.map((round) => round.a), maximum)} fill="none" className="stroke-accent" strokeWidth={2} />
         <path d={equipmentPath(rounds.map((round) => round.b), maximum)} fill="none" className="stroke-team-b" strokeWidth={2} />
@@ -42,13 +42,21 @@ export function EquipmentChart({ rounds, activeRound, teamA, teamB, onSelect }: 
         {rounds.map((round, index) => <button key={round.round} type="button" onClick={() => onSelect(round.round)}
           style={{ left: `${rounds.length === 1 ? 50 : index / (rounds.length - 1) * 100}%` }}
           aria-label={t`第 ${round.round} 回合装备`} aria-pressed={round.round === activeRound}
-          className={cn('absolute top-1 flex w-5 -translate-x-1/2 flex-col items-center gap-2 rounded-sm px-0.5 py-1 font-mono text-xs hover:bg-surface', round.round === activeRound ? 'bg-accent-100 text-accent-700' : 'text-neutral-600')}>
+          className={cn('absolute top-1 flex w-5 -translate-x-1/2 flex-col items-center gap-2 rounded-sm px-0.5 py-1 font-mono text-xs tabular-nums transition-colors hover:bg-neutral-100', round.round === activeRound ? 'bg-accent-100 text-accent-700' : 'text-neutral-600')}>
           {round.round}<span aria-hidden="true" className={cn('h-1 w-full rounded-sm', round.winner === 'A' ? 'bg-accent' : round.winner === 'B' ? 'bg-team-b' : 'bg-divider')} />
         </button>)}
       </div>
+      {/* Keep axis labels inside the scroll container above the horizontal
+          scrollbar so the scrollbar never cuts between round ticks and labels. */}
+      <div
+        className="flex justify-between pb-1.5 text-xs text-neutral-600"
+        style={{ marginLeft: `${48 / 624 * 100}%`, marginRight: `${24 / 624 * 100}%` }}
+      >
+        <span><Trans>胜方</Trans></span>
+        <span><Trans>回合</Trans></span>
       </div>
       </div>
-      <div className="flex justify-between text-xs text-neutral-600"><span><Trans>胜方</Trans></span><span><Trans>回合</Trans></span></div>
+      </div>
     </div>
   );
 }

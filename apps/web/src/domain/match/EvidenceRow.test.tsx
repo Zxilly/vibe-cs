@@ -97,8 +97,8 @@ describe('EvidenceRow', () => {
     const selectable = renderMarkup(<EvidenceRow evidence={EVIDENCE} onSelect={() => {}} />);
     const inert = renderMarkup(<EvidenceRow evidence={EVIDENCE} />);
 
-    expect(selectable).toContain('hover:bg-surface');
-    expect(inert).not.toContain('hover:bg-surface');
+    expect(selectable).toContain('hover:bg-neutral-100');
+    expect(inert).not.toContain('hover:bg-neutral-100');
   });
 
   it('marks the current row with aria-current and the accent plate', () => {
@@ -108,7 +108,7 @@ describe('EvidenceRow', () => {
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('bg-accent-100');
     // The selected plate replaces the hover plate rather than fighting it.
-    expect(html).not.toContain('hover:bg-surface');
+    expect(html).not.toContain('hover:bg-neutral-100');
   });
 
   it('puts the full-page row on the page gutter and the Inspector row on the panel inset', () => {

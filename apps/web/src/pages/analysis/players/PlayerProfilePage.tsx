@@ -77,7 +77,7 @@ export function PlayerProfilePage() {
             player === undefined ? null : (
               <span
                 aria-hidden="true"
-                className="grid size-9 flex-none place-items-center border border-accent font-heading text-base text-accent-800"
+                className="grid size-9 flex-none place-items-center rounded-md border border-accent bg-accent-100 font-heading text-base text-accent-800"
               >
                 {nameInitial(player.name)}
               </span>
@@ -226,7 +226,7 @@ export function PlayerProfilePage() {
                     <RouteLink to={`/match/${encodeURIComponent(match.demo_id)}`} title={match.demo_name} className="min-w-0 truncate">
                       {match.demo_name}
                     </RouteLink>
-                    <span className="flex-none font-mono text-xs text-neutral-700">
+                    <span className="flex-none font-mono text-xs tabular-nums text-neutral-700">
                       K/D {formatFixed(match.kill_death_ratio, 2)}
                     </span>
                   </li>

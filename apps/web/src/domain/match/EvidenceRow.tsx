@@ -36,7 +36,7 @@ import { formatMillisecondTimecode } from '../../design/timeline';
 
 import { Skeleton } from '../../design/data';
 import { Button, cn, Badge } from '../../design/primitives';
-import { EVIDENCE_KIND } from './matchEnums';
+import { EVIDENCE_KIND, type EvidenceKind } from './matchEnums';
 import { CS2_TICK_RATE, formatTickClock } from './matchTime';
 import type { EvidenceItem } from './types';
 
@@ -80,9 +80,18 @@ const PADDING_CLASS: Readonly<Record<EvidenceDensity, string>> = {
 
 /** The reference's selected row: accent plate plus a 2px rule down its edge. */
 const SELECTED_CLASS = 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]';
-/** A row that can be selected says so on hover — the same plate
-    `design/data/DataTable` gives its clickable rows. */
-const SELECTABLE_CLASS = 'hover:bg-surface';
+/** A row that can be selected says so on hover — canonical list hover token. */
+const SELECTABLE_CLASS = 'hover:bg-neutral-100';
+
+/** Subtle semantic icon tint by event kind, keeping the glyph and label as primary channels. */
+const KIND_BADGE_CLASS: Readonly<Record<EvidenceKind, string>> = {
+  kill: 'bg-accent-100 text-accent-700',
+  death: 'bg-fail-surface text-fail-text',
+  objective: 'bg-warn-surface text-warn-text',
+  utility: 'bg-accent-100 text-accent-700',
+  purchase: 'bg-neutral-100 text-neutral-600',
+  round: 'bg-neutral-100 text-neutral-600',
+};
 
 const LOCATE_LABEL = msg`定位`;
 
@@ -113,13 +122,21 @@ export function EvidenceRow({
           number is the identity a deep link carries, the timecode is what a
           human compares against a video. The one-line densities show the clock,
           which is what their artboards draw. */}
-      <span className="flex flex-none flex-col text-left font-mono text-xs">
+      <span className="flex flex-none flex-col text-left font-mono text-xs tabular-nums">
         <span className="text-accent-700">
           {density === 'default' ? formatMillisecondTimecode(evidence.tick / rate) : formatTickClock(evidence.tick, rate)}
         </span>
       </span>
 
-      <KindIcon size={13} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
+      <span
+        aria-hidden="true"
+        className={cn(
+          'grid size-6 flex-none place-items-center rounded-sm',
+          KIND_BADGE_CLASS[evidence.kind],
+        )}
+      >
+        <KindIcon size={13} strokeWidth={1.5} />
+      </span>
       <span className="sr-only">{i18n._(kind.label)}</span>
 
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
@@ -173,7 +190,7 @@ export function EvidenceRow({
       data-tick={evidence.tick}
       aria-current={selected ? true : undefined}
       className={cn(
-        'flex items-center gap-3 text-sm',
+        'group flex items-center gap-3 text-sm transition-colors',
         HEIGHT_CLASS[density],
         PADDING_CLASS[density],
         density === 'inline' ? null : 'border-b border-divider',
@@ -207,10 +224,17 @@ export function EvidenceRow({
       )}
 
       {onLocate === undefined ? null : (
-        <span data-evidence-locate="" className="flex-none">
+        <span
+          data-evidence-locate=""
+          className={cn(
+            'flex-none transition-opacity',
+            selected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100 group-focus-within:opacity-100',
+          )}
+        >
           <Button
             variant="ghost"
             size="sm"
+            className="text-neutral-600 hover:text-text"
             {...(locateDisabledReason === undefined
               ? {}
               : { disabled: true, disabledReason: locateDisabledReason })}
@@ -222,7 +246,13 @@ export function EvidenceRow({
       )}
 
       {action === undefined ? null : (
-        <span data-evidence-action="" className="flex-none">
+        <span
+          data-evidence-action=""
+          className={cn(
+            'flex-none transition-opacity',
+            selected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100 group-focus-within:opacity-100',
+          )}
+        >
           {action}
         </span>
       )}

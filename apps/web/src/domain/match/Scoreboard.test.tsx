@@ -92,6 +92,13 @@ describe('Scoreboard', () => {
     expect(html).not.toContain('data-scoreboard-periods');
   });
 
+  it('renders a clean h1 accessible label without mashing spoken and visual scores', () => {
+    const html = renderMarkup(<Scoreboard teamA={TEAM_A} teamB={TEAM_B} headingLevel={1} />);
+
+    expect(html).toContain('<h1 aria-label="Aurora 比分 13 比 11 Meridian"');
+    expect(html).not.toContain('sr-only">比分');
+  });
+
   it('renders with no backend, no store and no query — props in, markup out', () => {
     expect(() => renderMarkup(<Scoreboard teamA={TEAM_A} teamB={TEAM_B} />)).not.toThrow();
   });

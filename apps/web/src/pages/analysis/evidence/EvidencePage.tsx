@@ -260,7 +260,7 @@ export function EvidencePage() {
       }
     >
       <>
-      <CollectTargetBar quickAdd={quickAdd} />
+      {state.view === 'evidence' ? <CollectTargetBar quickAdd={quickAdd} /> : null}
       {updateError === null ? null : (
         <Alert
           className="mx-4 mt-4"

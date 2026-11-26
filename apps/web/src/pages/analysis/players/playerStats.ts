@@ -130,19 +130,39 @@ export function trendSeries(
   matches: readonly PlayerMatch[],
   metric: TrendMetric,
 ): readonly TrendPoint[] {
-  const points: TrendPoint[] = [];
-  for (let index = matches.length - 1; index >= 0; index -= 1) {
-    const match = matches[index];
-    if (match === undefined) continue;
-    const value = trendValue(match, metric);
-    if (value === null || !Number.isFinite(value)) continue;
-    points.push({
-      demoId: match.demo_id,
-      label: trendLabel(match),
-      value,
-    });
-  }
-  return points;
+  const indexed = matches
+    .map((match, originalIndex) => ({
+      match,
+      originalIndex,
+      timestamp: parseMatchTimestamp(match.match_date),
+      value: trendValue(match, metric),
+    }))
+    .filter((entry): entry is typeof entry & { readonly value: number } =>
+      entry.value !== null && Number.isFinite(entry.value),
+    );
+
+  /* Chronological ascending (oldest left -> newest right): compare actual
+     match timestamps when both exist so an out-of-order match list never
+     inverts the timeline, and fall back to reversing the newest-first input
+     order when dates tie or are absent. */
+  indexed.sort((left, right) => {
+    if (left.timestamp !== null && right.timestamp !== null && left.timestamp !== right.timestamp) {
+      return left.timestamp - right.timestamp;
+    }
+    return right.originalIndex - left.originalIndex;
+  });
+
+  return indexed.map(({ match, value }) => ({
+    demoId: match.demo_id,
+    label: trendLabel(match),
+    value,
+  }));
+}
+
+function parseMatchTimestamp(matchDate: string | null): number | null {
+  if (matchDate === null || matchDate.trim() === '') return null;
+  const parsed = Date.parse(matchDate);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 /**
@@ -218,6 +238,29 @@ export function trendGeometry(
     maximum,
     minimum,
   };
+}
+
+export interface TrendCoordinate {
+  readonly x: number;
+  readonly y: number;
+  readonly point: TrendPoint;
+}
+
+/** Coordinates for explicit plot points, sharing the exact band and padding of `trendGeometry`. */
+export function trendCoordinates(
+  points: readonly TrendPoint[],
+  width: number,
+  height: number,
+): readonly TrendCoordinate[] {
+  if (points.length === 0) return [];
+  const geometry = trendGeometry(points, width, height);
+  const span = geometry.maximum - geometry.minimum;
+  const step = points.length === 1 ? 0 : width / (points.length - 1);
+  return points.map((point, index) => ({
+    x: round(points.length === 1 ? width / 2 : index * step),
+    y: round(height - ((point.value - geometry.minimum) / span) * height),
+    point,
+  }));
 }
 
 /** Two decimals is under a tenth of a view-box unit at these sizes, and it

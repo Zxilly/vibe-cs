@@ -118,6 +118,17 @@ export interface RoundDetail {
   readonly eventCount: number;
 }
 
+/**
+ * The default round to open when the URL has no `?round=`: the first round in
+ * numerical order that carries at least one kill or objective axis event,
+ * falling back to the earliest round when every round is empty.
+ */
+export function defaultRoundNumber(analysis: AnalysisWorkspace): number | null {
+  const ordered = [...analysis.rounds].sort((left, right) => left.number - right.number);
+  const firstWithEvents = ordered.find((round) => round.events.some(isAxisEvent));
+  return firstWithEvents?.number ?? ordered[0]?.number ?? null;
+}
+
 /* ── the fold ────────────────────────────────────────────────────────────── */
 
 /** `null` when this match has no such round — a hand-edited `?round=99`. */

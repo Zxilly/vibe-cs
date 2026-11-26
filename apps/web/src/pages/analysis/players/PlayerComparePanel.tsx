@@ -28,6 +28,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
@@ -166,10 +167,10 @@ export function PlayerComparePanel({
     ? focusedPlayer
     : undefined;
 
-  const compareAction = (size: 'sm' | 'lg') => candidate === undefined || onComparePlayer === undefined ? undefined : (
+  const compareAction = (size: 'sm' | 'lg', variant: 'primary' | 'secondary' = 'primary') => candidate === undefined || onComparePlayer === undefined ? undefined : (
     <Button
       size={size}
-      variant="primary"
+      variant={variant}
       block={size === 'lg'}
       aria-label={left === undefined ? undefined : t`与 ${candidate.name} 比较`}
       title={candidate.name}
@@ -231,29 +232,37 @@ export function PlayerComparePanel({
       ];
       return (
         <Inspector
-          title={<Trans>比较</Trans>}
-          label={t`比较`}
+          title={<Trans>选手档案</Trans>}
+          label={t`选手档案`}
           summary={<Trans>当前查看 {focusedPlayer.name}</Trans>}
-          summaryActions={compareAction('sm')}
+          summaryActions={
+            <Button asChild size="sm" variant="primary">
+              <Link to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
+                <Trans>打开档案</Trans>
+              </Link>
+            </Button>
+          }
           footer={
             <>
-              {compareAction('lg')}
-              <RouteLink to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
-                <Trans>打开 {focusedPlayer.name} 的档案</Trans>
-              </RouteLink>
+              <Button asChild variant="primary" size="lg" block>
+                <Link to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
+                  <Trans>打开 {focusedPlayer.name} 的档案</Trans>
+                </Link>
+              </Button>
+              {compareAction('lg', 'secondary')}
             </>
           }
         >
           <section data-focused-player={focusedPlayer.steam_id}>
             <header className="pb-3">
               <h3 className="break-words font-heading text-xl">{focusedPlayer.name}</h3>
-              {focusedPlayer.last_team === null ? null : <p className="text-base leading-normal text-neutral-600">{focusedPlayer.last_team}</p>}
+              {focusedPlayer.last_team === null ? null : <p className="text-sm leading-normal text-neutral-600">{focusedPlayer.last_team}</p>}
             </header>
             <dl className="border-t border-divider py-3 text-sm">
               {metrics.map((metric) => (
                 <div key={metric.id} className="flex min-h-7 items-center justify-between gap-3">
                   <dt className="text-neutral-600">{metric.label}</dt>
-                  <dd className="font-mono text-xs">{metric.value}</dd>
+                  <dd className="font-mono text-xs tabular-nums">{metric.value}</dd>
                 </div>
               ))}
             </dl>
@@ -319,18 +328,18 @@ export function PlayerComparePanel({
           <div key={row.id} data-compare-metric={row.id}>
             <div className="mb-1 flex justify-between text-xs text-neutral-600">
               <span>{row.label}</span>
-              <span className="font-mono">
+              <span className="font-mono tabular-nums">
                 {row.print(row.left)} · {row.print(row.right)}
               </span>
             </div>
             <div className="flex flex-col gap-1">
               <div
-                className="h-1.5 bg-accent"
+                className="h-1.5 rounded-full bg-accent"
                 style={{ width: `${String(barPercent(row.left, row.right))}%` }}
                 aria-hidden="true"
               />
               <div
-                className="h-1.5 bg-neutral-400"
+                className="h-1.5 rounded-full bg-neutral-400"
                 style={{ width: `${String(barPercent(row.right, row.left))}%` }}
                 aria-hidden="true"
               />

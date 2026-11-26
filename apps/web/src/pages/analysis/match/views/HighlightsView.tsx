@@ -405,6 +405,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
       addToVideo={addToVideo}
       addLabel={<Trans>把这条高光加入作品</Trans>}
       selection={highlightSelection(highlight)}
+      openLabel={<Trans>高光预览</Trans>}
       collapsed={collapsed}
     >
       <HighlightPreview

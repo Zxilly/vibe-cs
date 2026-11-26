@@ -107,8 +107,8 @@ export function EvidenceAnnotations({
             <li
               key={annotation.id}
               className={cn(
-                'flex flex-col gap-2 border-b border-divider px-6 py-3',
-                selected ? SELECTED_CLASS : 'hover:bg-surface',
+                'flex flex-col gap-2 border-b border-divider px-6 py-3 transition-colors',
+                selected ? SELECTED_CLASS : 'hover:bg-neutral-100',
               )}
               data-annotation={annotation.id}
               aria-current={selected ? true : undefined}

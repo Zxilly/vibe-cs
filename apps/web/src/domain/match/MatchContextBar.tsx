@@ -256,7 +256,7 @@ export function MatchContextBar({
           <span
             data-match-map-code=""
             aria-hidden="true"
-            className="grid h-[var(--h-ctl-sm)] w-[52px] flex-none place-items-center border border-divider font-heading text-xs tracking-caps"
+            className="grid h-[var(--h-ctl-sm)] w-[52px] flex-none place-items-center rounded-md border border-divider bg-bg font-heading text-xs tracking-caps"
           >
             {match.mapCode}
           </span>
@@ -290,22 +290,22 @@ export function MatchContextBar({
                 aria-expanded={detailsOpen}
                 aria-controls={detailsId}
                 onClick={() => setDetailsOpen((open) => !open)}
-                className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 border border-divider px-2 text-sm text-neutral-800"
+                className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-1.5 rounded-md border border-divider bg-bg px-2 text-sm text-neutral-800 transition-colors hover:bg-action-hover"
               >
                 {i18n._(MORE_LABEL)}
                 {/* The badge counts what is *inside*, not what exists: collapsed
                     that is every focus player, expanded it is the tail that did
                     not fit. A count of what is already visible would be a lie. */}
                 {hiddenFocusCount === 0 ? null : (
-                  <span className="border border-accent-300 px-1 text-xs text-accent-700">
+                  <Badge variant="count" size="sm">
                     <Plural value={hiddenFocusCount} other="聚焦 #" />
-                  </span>
+                  </Badge>
                 )}
                 <ChevronDown
                   size={13}
                   strokeWidth={1.5}
                   aria-hidden="true"
-                  className={detailsOpen ? 'rotate-180' : undefined}
+                  className={detailsOpen ? 'rotate-180 transition-transform' : 'transition-transform'}
                 />
               </button>
             ) : null}

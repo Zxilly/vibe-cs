@@ -80,8 +80,8 @@ export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
   const columns = useMemo(mapColumns, []);
 
   return (
-    <section className="flex min-h-48 flex-none flex-col border border-divider" data-player-maps="">
-      <h2 className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-3 text-sm font-medium">
+    <section className="flex min-h-48 flex-none flex-col overflow-hidden rounded-lg border border-divider bg-bg" data-player-maps="">
+      <h2 className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider bg-surface-chrome px-3 text-sm font-medium">
         <Trans>按地图</Trans>
       </h2>
       <DataTable

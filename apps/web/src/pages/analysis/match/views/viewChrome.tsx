@@ -101,13 +101,13 @@ export function ViewPanel({ id, title, hint, actions, children, fill = false, cl
   return (
     <section
       data-match-panel={id}
-      className={cn('flex min-w-0 flex-col border border-divider', fill && 'min-h-0 flex-1', className)}
+      className={cn('flex min-w-0 flex-col overflow-hidden rounded-lg border border-divider bg-bg', fill && 'min-h-0 flex-1', className)}
     >
-      <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3 py-1">
-        <h2 className="min-w-0 break-words text-sm font-medium">
+      <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-3.5 py-1.5">
+        <h2 className="min-w-0 break-words text-sm font-medium text-text">
           {title}
         </h2>
-        {hint === undefined ? null : <p className="min-w-0 text-base leading-normal text-neutral-600">{hint}</p>}
+        {hint === undefined ? null : <p className="min-w-0 text-xs leading-normal text-neutral-600">{hint}</p>}
         {actions === undefined ? null : (
           <>
             <span className="flex-1" />
@@ -159,14 +159,16 @@ export interface ViewMetric {
 export function MetricStrip({ metrics }: { readonly metrics: readonly ViewMetric[] }) {
   if (metrics.length === 0) return null;
   return (
-    <dl data-match-metrics="" className="flex flex-wrap gap-x-6 gap-y-3 p-3">
+    <dl data-match-metrics="" className="flex flex-wrap gap-x-8 gap-y-3 p-3.5">
       {metrics.map((metric) => (
         <div key={metric.id} data-match-metric={metric.id} className="flex min-w-0 flex-col gap-0.5">
           <dt className="text-xs text-neutral-600">{metric.label}</dt>
-          <dd className="font-mono text-lg text-accent-800">{metric.value}</dd>
-          {metric.detail === undefined ? null : (
-            <dd className="text-xs text-neutral-600">{metric.detail}</dd>
-          )}
+          <dd className="flex flex-col gap-0.5">
+            <span className="font-mono text-lg tabular-nums text-accent-800">{metric.value}</span>
+            {metric.detail === undefined ? null : (
+              <span className="text-xs text-neutral-600">{metric.detail}</span>
+            )}
+          </dd>
         </div>
       ))}
     </dl>

@@ -49,7 +49,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../../data/match';
 import { dataErrorMessage } from '../../../../data/errors';
@@ -71,9 +71,10 @@ import { DEFAULT_PLAYBACK_RATES, Transport } from '../../../../domain/media';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { NotAnalysedState } from './viewChrome';
 import { mapDisplayName } from '../matchModel';
-import type { MatchViewModule, MatchViewProps } from '../viewContract';
+import type { MatchVideoAction, MatchVideoSelection, MatchViewModule, MatchViewProps } from '../viewContract';
 import { ReplayCanvas, type ReplayLayerVisibility } from '../../../../domain/map/ReplayCanvas';
 import { Scene3DView } from '../../../../domain/scene3d/Scene3DView';
+import type { Scene3DMode } from '../../../../domain/scene3d/types';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
 import {
   buildEngagements,
@@ -127,6 +128,85 @@ const DEFAULT_LAYERS: ReplayLayerVisibility = {
   utilities: true,
 };
 
+/* ── shared In/Out range between ReplayBody and ReplayInspector ──────────── */
+
+interface ReplayRangeState {
+  readonly provided: boolean;
+  readonly clipInTick: number | null;
+  readonly clipOutTick: number | null;
+  readonly setClipInTick: (tick: number | null) => void;
+  readonly setClipOutTick: (tick: number | null) => void;
+}
+
+const NO_REPLAY_RANGE: ReplayRangeState = {
+  provided: false,
+  clipInTick: null,
+  clipOutTick: null,
+  setClipInTick: () => undefined,
+  setClipOutTick: () => undefined,
+};
+
+const ReplayRangeContext = createContext<ReplayRangeState>(NO_REPLAY_RANGE);
+
+function ReplayRangeProvider({ children }: { readonly children: ReactNode }) {
+  const [clipInTick, setClipInTick] = useState<number | null>(null);
+  const [clipOutTick, setClipOutTick] = useState<number | null>(null);
+  const value = useMemo<ReplayRangeState>(
+    () => ({ provided: true, clipInTick, clipOutTick, setClipInTick, setClipOutTick }),
+    [clipInTick, clipOutTick],
+  );
+  return <ReplayRangeContext.Provider value={value}>{children}</ReplayRangeContext.Provider>;
+}
+
+function useReplayClipRange() {
+  const shared = useContext(ReplayRangeContext);
+  const [localIn, setLocalIn] = useState<number | null>(null);
+  const [localOut, setLocalOut] = useState<number | null>(null);
+  return shared.provided
+    ? shared
+    : {
+        provided: false,
+        clipInTick: localIn,
+        clipOutTick: localOut,
+        setClipInTick: setLocalIn,
+        setClipOutTick: setLocalOut,
+      };
+}
+
+function resolveMarkedClipRange(
+  clipInTick: number | null,
+  clipOutTick: number | null,
+): { readonly startTick: number; readonly endTick: number } | null {
+  if (clipInTick === null || clipOutTick === null || clipInTick === clipOutTick) return null;
+  return {
+    startTick: Math.min(clipInTick, clipOutTick),
+    endTick: Math.max(clipInTick, clipOutTick),
+  };
+}
+
+function buildMarkedClipSelection({
+  round,
+  playerId,
+  playerName,
+  range,
+  tickRate,
+}: {
+  readonly round: number | null;
+  readonly playerId: string;
+  readonly playerName: string | null;
+  readonly range: { readonly startTick: number; readonly endTick: number };
+  readonly tickRate: number;
+}): MatchVideoSelection {
+  return {
+    ...(round === null ? {} : { round }),
+    playerId,
+    label: `${playerName ?? playerId} · ${formatMillisecondTimecode(range.startTick / tickRate)}–${formatMillisecondTimecode(range.endTick / tickRate)}`,
+    startTick: range.startTick,
+    endTick: range.endTick,
+    tickRate,
+  };
+}
+
 /* ── the body ────────────────────────────────────────────────────────────── */
 
 function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
@@ -146,10 +226,13 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [show3D, setShow3D] = useState(false);
+  const [sceneMode, setSceneMode] = useState<Scene3DMode>('free');
+  const [sceneCutaway, setSceneCutaway] = useState(false);
+  const [sceneResetToken, setSceneResetToken] = useState(0);
+  const [sceneRendererReady, setSceneRendererReady] = useState(false);
   const [showLayers, setShowLayers] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
-  const [clipInTick, setClipInTick] = useState<number | null>(null);
-  const [clipOutTick, setClipOutTick] = useState<number | null>(null);
+  const { clipInTick, clipOutTick, setClipInTick, setClipOutTick } = useReplayClipRange();
 
   /* What this view last wrote into `?tick=`. Anything else arriving there came
      from somewhere the local playhead has to yield to. */
@@ -274,12 +357,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
   const durationSeconds = slice === null ? 0 : (slice.endTick - slice.startTick) / slice.tickRate;
   const currentSeconds =
     slice === null || effectiveTick === null ? 0 : (effectiveTick - slice.startTick) / slice.tickRate;
-  const clipRange = clipInTick === null || clipOutTick === null || clipInTick === clipOutTick
-    ? null
-    : {
-        startTick: Math.min(clipInTick, clipOutTick),
-        endTick: Math.max(clipInTick, clipOutTick),
-      };
+  const clipRange = resolveMarkedClipRange(clipInTick, clipOutTick);
   const clipInSeconds = slice === null || clipInTick === null
     ? undefined
     : (clipInTick - slice.startTick) / slice.tickRate;
@@ -292,10 +370,12 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
     ? addToVideo.disabledReason
     : effectivePlayerId === null
       ? t`先选择这个镜头跟随的选手`
-      : clipRange === null
+      : clipRange === null || slice === null
         ? t`先在回放中设置不同的入点和出点`
         : undefined;
   const selectedDuel = duels.engagements.find((duel) => duel.id === context.evidence) ?? null;
+  const has3DTarget = slice !== null && frameIndex >= 0
+    && slice.frames[frameIndex]?.players.some((player) => player.id === effectivePlayerId) === true;
 
   const label =
     context.round === null
@@ -314,6 +394,37 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
           {(analysis.data?.players ?? []).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
         </NativeSelect>
         <Button size="sm" variant="ghost" aria-expanded={showLayers} onClick={() => setShowLayers((value) => !value)}><Trans>图层</Trans></Button>
+        {show3D && (
+          <div className="ml-auto flex flex-wrap items-center gap-2.5" data-replay-3d-controls="">
+            <span className="text-xs text-neutral-600"><Trans>简化预览</Trans></span>
+            <NativeSelect
+              size="sm"
+              className="w-auto min-w-0"
+              aria-label={t`3D 视角`}
+              value={sceneMode}
+              onChange={(event) => setSceneMode(event.currentTarget.value as Scene3DMode)}
+            >
+              <option value="free"><Trans>自由视角</Trans></option>
+              <option value="follow" disabled={!has3DTarget}><Trans>跟随选手</Trans></option>
+              <option value="camera" disabled={!has3DTarget}><Trans>第一人称视角</Trans></option>
+            </NativeSelect>
+            {sceneMode !== 'camera' && (
+              <Checkbox size="sm" checked={sceneCutaway} disabled={!has3DTarget} onChange={setSceneCutaway}>
+                <Trans>隐藏屋顶</Trans>
+              </Checkbox>
+            )}
+            {sceneMode !== 'camera' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!sceneRendererReady}
+                onClick={() => setSceneResetToken((value) => value + 1)}
+              >
+                <Trans>复位视角</Trans>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex min-h-0 min-w-0 flex-1">
         {/* ── the layer rail ─────────────────────────────────────────────── */}
@@ -412,7 +523,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
           {!show3D && !radar.isPending && radar.data?.transform === undefined ? (
             <div
               role="status"
-              className="m-3.5 mb-0 flex items-start gap-2.5 border border-warn-border bg-warn-surface px-3 py-2.5 text-base leading-normal text-warn-text"
+              className="m-3.5 mb-0 flex items-start gap-2.5 rounded-md border border-warn-border bg-warn-surface px-3 py-2 text-sm leading-normal text-warn-text"
             >
               <StatusDot status="warn" className="mt-1" />
               <Trans>
@@ -489,6 +600,13 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 onSelectPlayer={(playerId) => updateContext({ player: playerId })}
                 showPlayers={layers.players}
                 showUtilities={layers.utilities}
+                showTopBar={false}
+                mode={sceneMode}
+                onModeChange={setSceneMode}
+                cutaway={sceneCutaway}
+                onCutawayChange={setSceneCutaway}
+                resetToken={sceneResetToken}
+                onRendererReadyChange={setSceneRendererReady}
               />
             )}
           </div>
@@ -518,7 +636,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
               onRateChange={setRate}
             />
             <div className="flex min-w-0 flex-wrap items-center gap-2 border-t border-divider pt-2" data-replay-clip-range="">
-              <p className="min-w-0 flex-1 text-xs text-neutral-600" data-replay-tick={effectiveTick ?? ''}>
+              <p className="min-w-0 flex-1 font-mono text-xs tabular-nums text-neutral-600" data-replay-tick={effectiveTick ?? ''}>
                 <Trans>选段</Trans>{' '}
                 {clipInTick === null ? '—' : formatMillisecondTimecode(clipInTick / (slice?.tickRate ?? 64))}
                 {' – '}
@@ -547,14 +665,13 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                 {...(createClipDisabledReason === undefined ? {} : { disabledReason: createClipDisabledReason })}
                 onClick={() => {
                   if (clipRange === null || effectivePlayerId === null || slice === null) return;
-                  addToVideo.onAdd?.({
-                    ...(context.round === null ? {} : { round: context.round }),
+                  addToVideo.onAdd?.(buildMarkedClipSelection({
+                    round: context.round,
                     playerId: effectivePlayerId,
-                    label: `${effectivePlayer?.name ?? effectivePlayerId} · ${formatMillisecondTimecode(clipRange.startTick / slice.tickRate)}–${formatMillisecondTimecode(clipRange.endTick / slice.tickRate)}`,
-                    startTick: clipRange.startTick,
-                    endTick: clipRange.endTick,
+                    playerName: effectivePlayer?.name ?? null,
+                    range: clipRange,
                     tickRate: slice.tickRate,
-                  });
+                  }));
                 }}
               >
                 <Trans>创建剪辑</Trans>
@@ -579,12 +696,52 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
   const bounds = useMemo(() => roundBounds(analysis.data, context.round), [analysis.data, context.round]);
   const slice = useMemo(() => sliceReplay(replay.data, bounds), [replay.data, bounds]);
   const focusedPlayerId = context.player ?? defaultFocusPlayerId(slice, analysis.data?.players ?? []);
+  const focusedPlayer = analysis.data?.players.find((player) => player.id === focusedPlayerId) ?? null;
   const events = useMemo(() => roundEvents(analysis.data, context.round), [analysis.data, context.round]);
   const rows = useMemo(() => replayEventRows(events), [events]);
   const current = currentEventId(rows, context.tick);
-  const tickRate = analysis.data?.tick_rate;
+  const tickRate = slice?.tickRate ?? analysis.data?.tick_rate;
   const names = playerNameIndex(analysis.data);
   const highlight = matchHighlights(analysis.data).find((entry) => entry.id === context.highlight) ?? null;
+  const { clipInTick, clipOutTick } = useReplayClipRange();
+  const clipRange = resolveMarkedClipRange(clipInTick, clipOutTick);
+
+  /* Unified range eligibility with the bottom 「创建剪辑」 bar: never allow
+     submitting a clip without an explicit In/Out range, highlight, or round
+     bounds. */
+  let inspectorSelection: MatchVideoSelection | undefined;
+  let inspectorAddLabel: ReactNode = <Trans>加入作品</Trans>;
+  let inspectorDisabledReason: string | undefined = addToVideo.disabled ? addToVideo.disabledReason : undefined;
+
+  if (clipRange !== null && focusedPlayerId !== null && slice !== null) {
+    inspectorSelection = buildMarkedClipSelection({
+      round: context.round,
+      playerId: focusedPlayerId,
+      playerName: focusedPlayer?.name ?? null,
+      range: clipRange,
+      tickRate: slice.tickRate,
+    });
+  } else if (highlight !== null) {
+    inspectorSelection = highlightSelection(highlight);
+    inspectorAddLabel = <Trans>加入当前高光</Trans>;
+  } else if (context.round !== null && bounds !== null && bounds.endTick > bounds.startTick) {
+    inspectorSelection = {
+      round: context.round,
+      ...(focusedPlayerId === null ? {} : { playerId: focusedPlayerId }),
+      startTick: bounds.startTick,
+      endTick: bounds.endTick,
+      ...(tickRate === undefined ? {} : { tickRate }),
+    };
+    inspectorAddLabel = <Trans>把这个回合加入作品</Trans>;
+  } else if (inspectorDisabledReason === undefined) {
+    inspectorDisabledReason = focusedPlayerId === null
+      ? t`先选择这个镜头跟随的选手`
+      : t`先在回放中设置不同的入点和出点`;
+  }
+
+  const inspectorAddToVideo: MatchVideoAction = inspectorDisabledReason === undefined
+    ? addToVideo
+    : { ...addToVideo, disabled: true, disabledReason: inspectorDisabledReason };
 
   const title =
     context.round === null ? <Trans>整场 · 事件</Trans> : <Trans>第 {context.round} 回合 · 事件</Trans>;
@@ -593,13 +750,9 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
     <MatchInspectorPanel
       title={title}
       summary={<Trans>事件 {rows.length} 条</Trans>}
-      addToVideo={addToVideo}
-      addLabel={highlight !== null ? <Trans>加入当前高光</Trans> : context.round === null ? <Trans>加入作品</Trans> : <Trans>把这个回合加入作品</Trans>}
-      selection={highlight !== null ? highlightSelection(highlight) : {
-        ...(context.round === null ? {} : { round: context.round }),
-        ...(focusedPlayerId === null ? {} : { playerId: focusedPlayerId }),
-        ...(context.tick === null ? {} : { startTick: context.tick }),
-      }}
+      addToVideo={inspectorAddToVideo}
+      addLabel={inspectorAddLabel}
+      {...(inspectorSelection === undefined ? {} : { selection: inspectorSelection })}
       collapsed={collapsed}
     >
       <div className="flex min-h-0 flex-col">
@@ -716,4 +869,5 @@ export const ReplayView: MatchViewModule = {
   id: 'replay',
   Body: ReplayBody,
   Inspector: ReplayInspector,
+  Provider: ReplayRangeProvider,
 };

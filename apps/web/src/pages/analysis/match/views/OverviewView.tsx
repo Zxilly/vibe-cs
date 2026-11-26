@@ -190,6 +190,7 @@ export function OverviewPanels({
         id="key-moments"
         title={<Trans>关键时刻</Trans>}
         hint={<Trans>按检出置信度排序</Trans>}
+        fill
         actions={
           preview.length === 0 ? undefined : (
             <Button variant="ghost" size="sm" onClick={() => onUpdateContext({ view: 'highlights' })}>
@@ -199,13 +200,13 @@ export function OverviewPanels({
         }
       >
         {preview.length === 0 ? (
-          <p className="px-3.5 py-3 text-base leading-normal text-neutral-700">
+          <p className="px-3.5 py-3 text-sm leading-normal text-neutral-700">
             <Trans>未检出高光，可选择回合查看事件。</Trans>
           </p>
         ) : (
           <ul
             data-match-key-moments=""
-            className="min-h-0 list-none overflow-y-auto overscroll-y-contain"
+            className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain"
           >
             {preview.map((highlight) => (
               <li key={highlight.id}>
@@ -352,7 +353,7 @@ function OverviewInspector({
       <dl className="flex flex-col gap-2 text-sm">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-neutral-600"><Trans>回合</Trans></dt>
-          <dd className="font-mono text-xs">R{candidate.round}</dd>
+          <dd className="font-mono text-xs tabular-nums">R{candidate.round}</dd>
         </div>
       </dl>
       {candidate.description === undefined ? null : (

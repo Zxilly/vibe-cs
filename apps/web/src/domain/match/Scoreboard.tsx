@@ -32,7 +32,7 @@
  * zero is invented.
  */
 
-import { msg } from '@lingui/core/macro';
+import { msg, t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { ArrowLeftRight } from 'lucide-react';
@@ -72,8 +72,8 @@ const NAME_CLASS: Readonly<Record<ScoreboardSize, string>> = {
 };
 
 const SCORE_CLASS: Readonly<Record<ScoreboardSize, string>> = {
-  sm: 'font-mono text-base text-accent-800',
-  md: 'font-mono text-lg text-accent-800',
+  sm: 'font-mono text-base tabular-nums text-accent-800',
+  md: 'font-mono text-lg tabular-nums text-accent-800',
 };
 
 export function Scoreboard({
@@ -91,6 +91,11 @@ export function Scoreboard({
   const scoreText = (score: number | null): string => (score === null ? NO_SCORE : String(score));
   const spoken = (team: TeamScore): string =>
     team.score === null ? i18n._(UNKNOWN_SCORE) : String(team.score);
+  const spokenScore = t`比分 ${spoken(teamA)} 比 ${spoken(teamB)}`;
+  const headingAriaLabel =
+    headingLevel === 1 && typeof teamA.name === 'string' && typeof teamB.name === 'string'
+      ? `${teamA.name} ${spokenScore} ${teamB.name}`
+      : undefined;
 
   return (
     <div
@@ -98,21 +103,29 @@ export function Scoreboard({
       data-size={size}
       className={cn('flex min-w-0 flex-col justify-center gap-0.5', className)}
     >
-      <Identity className="flex min-w-0 items-center gap-3 font-normal">
+      <Identity
+        aria-label={headingAriaLabel}
+        className="flex min-w-0 items-center gap-3 font-normal"
+      >
         <SideBadge side={teamA.side} />
         <span data-scoreboard-team="a" className={cn('min-w-0 truncate', NAME_CLASS[size])}>
           {teamA.name}
         </span>
-        {/* One readable sentence for assistive technology; the three visual
-            spans are hidden from it so the score is not read as a bare colon. */}
-        <span className="sr-only">
-          <Trans>
-            比分 {spoken(teamA)} 比 {spoken(teamB)}
-          </Trans>
-        </span>
+        {' '}
+        {/* One readable sentence for assistive technology; when `headingLevel === 1`
+            carries `aria-label`, omit the inline `sr-only` copy so DOM textContent
+            never mashes the spoken and visual score together. */}
+        {headingAriaLabel === undefined ? (
+          <span className="sr-only">
+            <Trans>
+              比分 {spoken(teamA)} 比 {spoken(teamB)}
+            </Trans>
+          </span>
+        ) : null}
         <span data-scoreboard-score="" aria-hidden="true" className={cn('flex-none', SCORE_CLASS[size])}>
           {scoreText(teamA.score)} : {scoreText(teamB.score)}
         </span>
+        {' '}
         <span data-scoreboard-team="b" className={cn('min-w-0 truncate', NAME_CLASS[size])}>
           {teamB.name}
         </span>
@@ -124,7 +137,7 @@ export function Scoreboard({
           {periods.map((period) => (
             <li key={period.id} data-scoreboard-period={period.id} className="flex items-center gap-1.5">
               <span className={period.overtime === true ? 'text-accent-700' : undefined}>{period.label}</span>
-              <span className="font-mono">
+              <span className="font-mono tabular-nums">
                 {period.teamAScore}:{period.teamBScore}
               </span>
             </li>
@@ -157,7 +170,12 @@ function SideBadge({ side }: { readonly side: TeamSide | undefined }) {
     <span
       data-team-side={side}
       title={i18n._(meta.label)}
-      className="flex flex-none items-center gap-1 border border-divider px-1.5 py-0.5 font-heading text-xs tracking-wide text-neutral-800"
+      className={cn(
+        'flex flex-none items-center gap-1 rounded-sm border px-1.5 py-0.5 font-heading text-xs tracking-wide',
+        side === 'ct'
+          ? 'border-accent-300 bg-accent-100 text-accent-800'
+          : 'border-warn-border bg-warn-surface text-warn-text',
+      )}
     >
       <Icon size={11} strokeWidth={1.5} aria-hidden="true" />
       <span className="sr-only">{i18n._(meta.label)}</span>

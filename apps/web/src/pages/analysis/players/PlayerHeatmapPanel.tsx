@@ -100,37 +100,42 @@ export function PlayerHeatmapPanel({
         />
       </div>
 
-      <MapCanvas
-        mapName={mapName}
-        label={t`${playerName} 在 ${mapName} 的位置热图`}
-        {...(error === undefined ? {} : {
-          error: {
-            message: <Trans>无法加载热图：{error.message}</Trans>,
-            action: { label: <Trans>重试</Trans>, onAction: error.onRetry },
-          },
-        })}
-        status={loading ? 'loading' : distribution === null || distribution.bins.length === 0 ? 'empty' : 'ready'}
-        emptyDescription={
-          <Trans>还没有位置数据，请先分析该选手在这张地图上的比赛。</Trans>
-        }
-        emptyActions={null}
-        /* Only a cut sample gets a footnote. A complete one is already counted
-           by the legend's caption (「共 N 个采样点」), and saying the same number
-           twice under one picture reads as two different numbers. */
-        footnote={
-          truncation === null || !truncation.truncated ? undefined : (
-            <Trans>
-              热力图基于部分位置数据。
-            </Trans>
-          )
-        }
+      <div
+        data-player-heatmap-frame=""
+        className="overflow-hidden rounded-lg border border-divider bg-surface-chrome"
       >
-        {(projection) =>
-          distribution === null ? null : (
-            <HeatLayer projection={projection} distribution={distribution} subject={subject} />
-          )
-        }
-      </MapCanvas>
+        <MapCanvas
+          mapName={mapName}
+          label={t`${playerName} 在 ${mapName} 的位置热图`}
+          {...(error === undefined ? {} : {
+            error: {
+              message: <Trans>无法加载热图：{error.message}</Trans>,
+              action: { label: <Trans>重试</Trans>, onAction: error.onRetry },
+            },
+          })}
+          status={loading ? 'loading' : distribution === null || distribution.bins.length === 0 ? 'empty' : 'ready'}
+          emptyDescription={
+            <Trans>还没有位置数据，请先分析该选手在这张地图上的比赛。</Trans>
+          }
+          emptyActions={null}
+          /* Only a cut sample gets a footnote. A complete one is already counted
+             by the legend's caption (「共 N 个采样点」), and saying the same number
+             twice under one picture reads as two different numbers. */
+          footnote={
+            truncation === null || !truncation.truncated ? undefined : (
+              <Trans>
+                热力图基于部分位置数据。
+              </Trans>
+            )
+          }
+        >
+          {(projection) =>
+            distribution === null ? null : (
+              <HeatLayer projection={projection} distribution={distribution} subject={subject} />
+            )
+          }
+        </MapCanvas>
+      </div>
 
       {error !== undefined || distribution === null || distribution.bins.length === 0 ? null : (
         <HeatLegend

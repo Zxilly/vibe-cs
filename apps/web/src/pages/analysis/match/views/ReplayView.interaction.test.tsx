@@ -259,19 +259,55 @@ describe('selection', () => {
     }));
   });
 
-  it('lets the Inspector add the player the rail already paints as followed', () => {
+  it('keeps Inspector 加入作品 disabled without a valid tick or round range and enables it once In/Out points are marked', () => {
     const onAdd = vi.fn();
     const props = viewProps({ onAdd, addDisabled: false });
+    const Provider = ReplayView.Provider!;
     const Inspector = ReplayView.Inspector!;
-    renderView(<><ReplayView.Body {...props} /><Inspector {...props} /></>);
+    renderView(<Provider><ReplayView.Body {...props} /><Inspector {...props} /></Provider>);
 
-    // No `?player=`: the rail follows Kael by default, and the Inspector's
-    // 「加入作品」 must mean the same person rather than 「先选择一个选手」.
+    // No `?player=`: the rail follows Kael by default, yet without a round,
+    // highlight, or In/Out range neither CTA may submit a zero-length clip.
     expect((screen.getByRole('combobox', { name: '选手' }) as HTMLSelectElement).value).toBe('kael');
+    const createClip = screen.getByRole('button', { name: '创建剪辑' }) as HTMLButtonElement;
+    const add = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
+    expect(createClip.disabled).toBe(true);
+    expect(add.disabled).toBe(true);
+
+    // Once distinct In/Out points are marked, both CTAs become eligible and
+    // submit the same recordable tick range for the followed player.
+    fireEvent.click(screen.getByRole('button', { name: '设入点' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一帧' }));
+    fireEvent.click(screen.getByRole('button', { name: '设出点' }));
+    const enabledCreateClip = screen.getByRole('button', { name: '创建剪辑' }) as HTMLButtonElement;
+    const enabledAdd = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
+    expect(enabledCreateClip.disabled).toBe(false);
+    expect(enabledAdd.disabled).toBe(false);
+    fireEvent.click(enabledAdd);
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
+      playerId: 'kael',
+      startTick: 149_000,
+      endTick: 149_001,
+      tickRate: 64,
+    }));
+  });
+
+  it('lets the Inspector add a selected round with its tick bounds and followed player', () => {
+    const onAdd = vi.fn();
+    const props = viewProps({ onAdd, addDisabled: false, context: { round: 21 } });
+    const Provider = ReplayView.Provider!;
+    const Inspector = ReplayView.Inspector!;
+    renderView(<Provider><ReplayView.Body {...props} /><Inspector {...props} /></Provider>);
+
     const add = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
     expect(add.disabled).toBe(false);
     fireEvent.click(add);
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ playerId: 'kael' }));
+    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
+      round: 21,
+      playerId: 'kael',
+      startTick: 148_920,
+      endTick: 150_440,
+    }));
   });
 
   it('focuses a player through the address, not through local state', () => {

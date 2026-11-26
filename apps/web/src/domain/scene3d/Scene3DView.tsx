@@ -13,7 +13,8 @@ import type { Scene3DMode, Scene3DState } from './types';
 
 export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId, onSelectPlayer,
   cameraSamples = null, cameraAspectRatio = null, cameraDiagnostics = null, showPlayers = true, showUtilities = true, className, initialMode = 'free', readTick = null,
-  onFramePresented, showControls = true, presented = true, active = true, frameStyle,
+  onFramePresented, showControls = true, showTopBar, mode: controlledMode, onModeChange, cutaway: controlledCutaway, onCutawayChange, resetToken = 0, onRendererReadyChange,
+  presented = true, active = true, frameStyle,
 }: {
   readonly mapName: string | null;
   readonly frames: readonly ReplayFrameRecord[];
@@ -31,6 +32,13 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
   readonly initialMode?: Scene3DMode;
   readonly onFramePresented?: (tick: number) => void;
   readonly showControls?: boolean;
+  readonly showTopBar?: boolean;
+  readonly mode?: Scene3DMode;
+  readonly onModeChange?: (mode: Scene3DMode) => void;
+  readonly cutaway?: boolean;
+  readonly onCutawayChange?: (cutaway: boolean) => void;
+  readonly resetToken?: number;
+  readonly onRendererReadyChange?: (ready: boolean) => void;
   readonly presented?: boolean;
   readonly active?: boolean;
   readonly frameStyle?: CSSProperties | undefined;
@@ -38,11 +46,16 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
   const geometry = useMapGeometry(mapName);
   const canvas = useRef<HTMLCanvasElement>(null);
   const controller = useRef<Scene3DRenderer | null>(null);
-  const [mode, setMode] = useState<Scene3DMode>(initialMode);
-  const [cutaway, setCutaway] = useState(false);
+  const [internalMode, setInternalMode] = useState<Scene3DMode>(initialMode);
+  const [internalCutaway, setInternalCutaway] = useState(false);
+  const mode = controlledMode ?? internalMode;
+  const setMode = onModeChange ?? setInternalMode;
+  const cutaway = controlledCutaway ?? internalCutaway;
+  const setCutaway = onCutawayChange ?? setInternalCutaway;
   const [attempt, setAttempt] = useState(0);
   const [rendererError, setRendererError] = useState<string | null>(null);
   const [rendererReady, setRendererReady] = useState(false);
+  const readyCallback = useRef(onRendererReadyChange);
   const inputs = useRef<Scene3DState>({ frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, cameraDiagnostics, showPlayers, showUtilities, cutaway });
   const map = useRef<MapGeometry | null>(geometry.isError ? null : geometry.data ?? null);
   const select = useRef(onSelectPlayer);
@@ -58,14 +71,23 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
   useLayoutEffect(() => {
     select.current = onSelectPlayer;
     presentedCallback.current = onFramePresented;
+    readyCallback.current = onRendererReadyChange;
     geometryPending.current = mapName !== null && geometry.isPending;
     inputs.current = { frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, cameraDiagnostics, showPlayers, showUtilities, cutaway };
     controller.current?.setState(inputs.current);
-  }, [frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, cameraDiagnostics, showPlayers, showUtilities, cutaway, onSelectPlayer, onFramePresented, mapName, geometry.isPending]);
+  }, [frames, tick, readTick, tickRate, selectedPlayerId, mode, cameraSamples, cameraAspectRatio, cameraDiagnostics, showPlayers, showUtilities, cutaway, onSelectPlayer, onFramePresented, onRendererReadyChange, mapName, geometry.isPending]);
   useLayoutEffect(() => {
     map.current = geometry.isError ? null : geometry.data ?? null;
     controller.current?.setGeometry(map.current);
   }, [geometry.data, geometry.isError]);
+
+  useEffect(() => {
+    if (resetToken > 0) controller.current?.resetView();
+  }, [resetToken]);
+
+  useEffect(() => {
+    readyCallback.current?.(rendererReady);
+  }, [rendererReady]);
 
   useEffect(() => {
     const element = canvas.current;
@@ -102,9 +124,10 @@ export function Scene3DView({ mapName, frames, tick, tickRate, selectedPlayerId,
 
   const hasTarget = frames[frameIndexAtTick(frames, tick)]?.players.some((player) => player.id === selectedPlayerId) === true;
   const hasCamera = cameraSamples !== null && cameraSamples.length > 0;
+  const renderTopBar = showTopBar ?? showControls;
   return (
     <section className={cn('flex min-h-0 min-w-0 flex-col text-on-media', presented ? 'bg-media' : 'bg-transparent', className)} aria-label={t`3D 回放`} aria-hidden={!presented && !active}>
-      {showControls && <div className="flex flex-wrap items-center gap-2 border-b border-media-divider bg-surface-chrome px-3 py-2 text-text">
+      {renderTopBar && <div className="flex flex-wrap items-center gap-2 border-b border-media-divider bg-surface-chrome px-3 py-2 text-text">
         <span className="mr-auto text-xs text-neutral-600"><Trans>简化预览</Trans></span>
         <NativeSelect size="sm" className="w-auto min-w-0" aria-label={t`3D 视角`} value={mode} onChange={(event) => setMode(event.currentTarget.value as Scene3DMode)}>
           <option value="free"><Trans>自由视角</Trans></option>

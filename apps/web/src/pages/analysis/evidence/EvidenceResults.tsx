@@ -184,6 +184,7 @@ export function EvidenceResults({
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="text-neutral-600 hover:text-text"
                     {...(addDisabledReason === undefined
                       ? {}
                       : { disabled: true, disabledReason: addDisabledReason })}

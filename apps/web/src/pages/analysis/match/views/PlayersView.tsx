@@ -39,7 +39,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis } from '../../../../data/match';
 import { DataTable, Empty, type DataTableColumn, type SortState } from '../../../../design/data';
-import { Button } from '../../../../design/primitives';
+import { Button, cn } from '../../../../design/primitives';
 import { HighlightRow, formatWeaponName, type HighlightCandidate } from '../../../../domain/match';
 import type { AnalysisWorkspace, Highlight } from '../../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
@@ -147,7 +147,25 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
          is short and is what tells two rows apart; it takes its own width.
          An unnamed team prints the dash rather than 「队伍 A」 — the context bar
          above already carries whatever name the demo record knows. */
-      cell: (row) => (row.teamName === '' ? NO_VALUE : row.teamName),
+      cell: (row) => (
+        row.teamName === '' ? NO_VALUE : (
+          <span
+            data-player-team={row.team}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-xs font-medium',
+              row.team === 'A'
+                ? 'border-accent-300 bg-accent-100 text-accent-800'
+                : 'border-warn-border bg-warn-surface text-warn-text',
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn('size-1.5 flex-none rounded-full', row.team === 'A' ? 'bg-accent' : 'bg-team-b')}
+            />
+            {row.teamName}
+          </span>
+        )
+      ),
     },
     {
       id: 'kills',
@@ -314,7 +332,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
       {/* The tiles wrap rather than split the width evenly: 「16 / 19 / 4」 is
           wider than 「68.8」, and an even third of a 380px panel folded it onto
           two lines. Each tile takes its content and a share of the rest. */}
-      <div className="flex flex-wrap border border-divider">
+      <div className="flex flex-wrap overflow-hidden rounded-md border border-divider">
         <StatCell label={<Trans>K / D / A</Trans>}>
           {`${formatFixed(row.kills, 0)} / ${formatFixed(row.deaths, 0)} / ${formatFixed(row.assists, 0)}`}
         </StatCell>
@@ -335,7 +353,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
         </p>
       )}
 
-      <section data-player-weapons="" className="border border-divider">
+      <section data-player-weapons="" className="overflow-hidden rounded-md border border-divider">
         <PanelHead>
           <Trans>武器</Trans>
         </PanelHead>
@@ -368,7 +386,7 @@ export function PlayerMatchDetail({ analysis, row, addToVideo }: PlayerMatchDeta
         )}
       </section>
 
-      <section data-player-highlights="" className="border border-divider">
+      <section data-player-highlights="" className="overflow-hidden rounded-md border border-divider">
         <PanelHead>
           <Trans>这一场的高光</Trans>
         </PanelHead>
@@ -438,7 +456,7 @@ function StatCell({
   return (
     <div className={last ? 'flex-auto px-3 py-2.5' : 'flex-auto border-r border-divider px-3 py-2.5'}>
       <div className="text-xs text-neutral-600">{label}</div>
-      <div className="whitespace-nowrap font-mono text-lg">{children}</div>
+      <div className="whitespace-nowrap font-mono text-lg tabular-nums">{children}</div>
     </div>
   );
 }
@@ -461,12 +479,12 @@ function WeaponBar({
     <li>
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="min-w-0 truncate">{name}</span>
-        <span className="flex-none font-mono text-xs">
+        <span className="flex-none font-mono text-xs tabular-nums">
           <Trans>{kills} 杀</Trans>
         </span>
       </div>
-      <div aria-hidden="true" className="h-2 bg-neutral-200">
-        <div className="h-2 bg-accent" style={{ width: `${String(share)}%` }} />
+      <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-neutral-200">
+        <div className="h-2 rounded-full bg-accent" style={{ width: `${String(share)}%` }} />
       </div>
     </li>
   );

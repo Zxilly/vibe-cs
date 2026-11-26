@@ -15,6 +15,7 @@ import {
   formatFixed,
   formatPercent,
   trendAverage,
+  trendCoordinates,
   trendGeometry,
   trendSeries,
   type TrendMetric,
@@ -68,6 +69,8 @@ export interface PlayerTrendProps {
 export function PlayerTrend({ matches, metric, onMetricChange, loading = false, error }: PlayerTrendProps) {
   const points = trendSeries(matches, metric);
   const geometry = trendGeometry(points, CHART_WIDTH, CHART_HEIGHT);
+  const coordinates = trendCoordinates(points, CHART_WIDTH, CHART_HEIGHT);
+  const midpoint = (geometry.maximum + geometry.minimum) / 2;
   const average = trendAverage(points);
   const first = points[0];
   const last = points[points.length - 1];
@@ -113,44 +116,70 @@ export function PlayerTrend({ matches, metric, onMetricChange, loading = false, 
           actions={null}
         />
       ) : (
-        <div className="border border-divider">
-          <svg
-            viewBox={`0 0 ${String(CHART_WIDTH)} ${String(CHART_HEIGHT)}`}
-            preserveAspectRatio="none"
-            className="block h-[170px] w-full"
-            role="img"
-            aria-label={t`${metricName(metric)} 趋势，共 ${points.length} 场，从 ${printValue(metric, geometry.minimum)} 到 ${printValue(metric, geometry.maximum)}，均值 ${printValue(metric, average)}`}
+        <div className="flex items-stretch gap-2.5 rounded-lg border border-divider bg-bg p-3">
+          <div
+            aria-hidden="true"
+            data-trend-y-ticks=""
+            className="flex flex-none flex-col justify-between py-0.5 text-right font-mono text-xs tabular-nums text-neutral-600"
           >
-            {/* Hairlines two steps lighter than the mean rule, so the one
-                dashed line the caption names cannot be mistaken for a
-                gridline when the mean happens to land on one. */}
-            <g className="stroke-neutral-200" strokeWidth={1}>
+            <span>{printValue(metric, geometry.maximum)}</span>
+            <span>{printValue(metric, midpoint)}</span>
+            <span>{printValue(metric, geometry.minimum)}</span>
+          </div>
+          <div className="relative min-w-0 flex-1 border border-divider bg-bg">
+            <svg
+              viewBox={`0 0 ${String(CHART_WIDTH)} ${String(CHART_HEIGHT)}`}
+              preserveAspectRatio="none"
+              className="block h-[170px] w-full"
+              role="img"
+              aria-label={t`${metricName(metric)} 趋势，共 ${points.length} 场，从 ${printValue(metric, geometry.minimum)} 到 ${printValue(metric, geometry.maximum)}，均值 ${printValue(metric, average)}`}
+            >
+              {/* Hairlines two steps lighter than the mean rule, so the one
+                  dashed line the caption names cannot be mistaken for a
+                  gridline when the mean happens to land on one. */}
+              <g className="stroke-neutral-200" strokeWidth={1}>
+                <path
+                  d={`M0 ${String(CHART_HEIGHT / 4)} H${String(CHART_WIDTH)} M0 ${String(CHART_HEIGHT / 2)} H${String(CHART_WIDTH)} M0 ${String((CHART_HEIGHT * 3) / 4)} H${String(CHART_WIDTH)}`}
+                  fill="none"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+              {geometry.averageY === null ? null : (
+                <path
+                  d={`M0 ${String(geometry.averageY)} H${String(CHART_WIDTH)}`}
+                  className="stroke-neutral-500"
+                  strokeWidth={1}
+                  strokeDasharray="5 4"
+                  fill="none"
+                  vectorEffect="non-scaling-stroke"
+                  data-trend-average=""
+                />
+              )}
               <path
-                d={`M0 ${String(CHART_HEIGHT / 4)} H${String(CHART_WIDTH)} M0 ${String(CHART_HEIGHT / 2)} H${String(CHART_WIDTH)} M0 ${String((CHART_HEIGHT * 3) / 4)} H${String(CHART_WIDTH)}`}
+                d={geometry.path}
+                className="stroke-accent-800"
+                strokeWidth={2}
                 fill="none"
                 vectorEffect="non-scaling-stroke"
+                data-trend-path=""
               />
-            </g>
-            {geometry.averageY === null ? null : (
-              <path
-                d={`M0 ${String(geometry.averageY)} H${String(CHART_WIDTH)}`}
-                className="stroke-neutral-500"
-                strokeWidth={1}
-                strokeDasharray="5 4"
-                fill="none"
-                vectorEffect="non-scaling-stroke"
-                data-trend-average=""
+            </svg>
+            {/* Explicit circular plot markers overlaid in CSS space so they stay
+                round even while the SVG stretches to its container width. */}
+            {coordinates.map((coord) => (
+              <span
+                key={coord.point.demoId}
+                data-trend-point={coord.point.demoId}
+                title={`${coord.point.label} · ${printValue(metric, coord.point.value)}`}
+                aria-hidden="true"
+                className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg bg-accent-800"
+                style={{
+                  left: `${String((coord.x / CHART_WIDTH) * 100)}%`,
+                  top: `${String((coord.y / CHART_HEIGHT) * 100)}%`,
+                }}
               />
-            )}
-            <path
-              d={geometry.path}
-              className="stroke-accent-800"
-              strokeWidth={2}
-              fill="none"
-              vectorEffect="non-scaling-stroke"
-              data-trend-path=""
-            />
-          </svg>
+            ))}
+          </div>
         </div>
       )}
 
@@ -158,7 +187,7 @@ export function PlayerTrend({ matches, metric, onMetricChange, loading = false, 
           list beside the chart names every match; this only anchors the two
           ends so the slope can be read as a direction in time. */}
       {loading || error !== undefined || first === undefined || last === undefined || first === last ? null : (
-        <div className="flex justify-between gap-3 text-xs text-neutral-600" data-trend-axis="">
+        <div className="flex justify-between gap-3 text-xs tabular-nums text-neutral-600" data-trend-axis="">
           <span className="min-w-0 truncate">
             <Trans>最早 {first.label}</Trans>
           </span>
@@ -171,7 +200,7 @@ export function PlayerTrend({ matches, metric, onMetricChange, loading = false, 
       {/* The axis, as text beside the box rather than inside it: a `<text>` in
           an SVG that scales with its container would scale its own type, and
           §3.2's sizes are not negotiable per container width. */}
-      {loading || error !== undefined || points.length === 0 ? null : <div className="flex justify-between font-mono text-xs text-neutral-600">
+      {loading || error !== undefined || points.length === 0 ? null : <div className="flex justify-between font-mono text-xs tabular-nums text-neutral-600">
         <span>
           <Trans>低 {printValue(metric, points.length === 0 ? null : geometry.minimum)}</Trans>
         </span>

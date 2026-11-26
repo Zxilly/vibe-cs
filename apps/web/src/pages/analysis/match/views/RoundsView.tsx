@@ -70,6 +70,7 @@ import { teamNames } from './matchAggregates';
 import {
   buildRoundDetail,
   curvePolylines,
+  defaultRoundNumber,
   roundNeighbours,
   survivorCurve,
   type RoundDetail,
@@ -197,11 +198,9 @@ export function SurvivorAxis({ detail, tickRate, teamAName, teamBName }: Survivo
         {detail.moments.length === 0 ? (
           <p
             data-match-survivor-axis-empty=""
-            className="pointer-events-none absolute inset-0 flex items-center justify-center text-base leading-normal text-neutral-600"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center font-mono text-xs tabular-nums text-neutral-600"
           >
-            <Trans>
-              没有击杀或目标事件，全程 {detail.rosterA} v {detail.rosterB}
-            </Trans>
+            {`${detail.rosterA} v ${detail.rosterB}`}
           </p>
         ) : null}
       </div>
@@ -465,7 +464,7 @@ export function RoundsPanels({
   const teamBName = names.b === '' ? <Trans>队伍 B</Trans> : names.b;
 
   const firstRound = [...analysis.rounds].sort((left, right) => left.number - right.number)[0];
-  const effectiveRound = selectedRound ?? firstRound?.number ?? null;
+  const effectiveRound = selectedRound ?? defaultRoundNumber(analysis);
   const detail = effectiveRound === null ? null : buildRoundDetail(analysis, effectiveRound);
   const neighbours = roundNeighbours(analysis.rounds, effectiveRound);
 
@@ -602,11 +601,11 @@ export function RoundInspectorBody({
       <section className="flex min-h-0 flex-col gap-2">
         <h3 className="flex items-baseline gap-2 font-heading text-sm tracking-wide">
           <Trans>回合内证据</Trans>
-          <span className="font-mono text-xs text-neutral-600">{detail.moments.length}</span>
+          <span className="font-mono text-xs tabular-nums text-neutral-600">{detail.moments.length}</span>
         </h3>
         {detail.moments.length === 0 ? (
-          <p className="text-base leading-normal text-neutral-700">
-            <Trans>这一回合没有击杀或目标事件。</Trans>
+          <p className="text-xs leading-normal text-neutral-600">
+            <Trans>这一段没有可列出的事件</Trans>
           </p>
         ) : (
           <ul
@@ -658,10 +657,7 @@ export function RoundInspectorBody({
 
 function RoundsInspector({ demoId, context, updateContext, addToVideo, collapsed }: MatchViewProps) {
   const gate = useAnalysisGate(demoId);
-  const firstRound = gate.analysis === undefined
-    ? undefined
-    : [...gate.analysis.rounds].sort((left, right) => left.number - right.number)[0];
-  const effectiveRound = context.round ?? firstRound?.number ?? null;
+  const effectiveRound = context.round ?? (gate.analysis === undefined ? null : defaultRoundNumber(gate.analysis));
   const detail =
     gate.analysis === undefined || effectiveRound === null
       ? null

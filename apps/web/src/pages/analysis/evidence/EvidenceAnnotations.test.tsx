@@ -53,7 +53,7 @@ describe('the list', () => {
 
   it('makes each row selectable with a real button', () => {
     expect(html.match(/data-annotation-select=""/gu)).toHaveLength(2);
-    expect(html).toContain('hover:bg-surface');
+    expect(html).toContain('hover:bg-neutral-100');
   });
 
   it('offers the action that changes the state, not the state the note is in', () => {

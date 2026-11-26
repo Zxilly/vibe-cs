@@ -42,6 +42,8 @@ export interface MatchInspectorPanelProps {
   readonly batch?: readonly MatchVideoSelection[] | undefined;
   /** The row of seconds under the main action. */
   readonly secondaryActions?: ReactNode | undefined;
+  /** Label for the folded strip's drawer button. Defaults to 「详情」. */
+  readonly openLabel?: ReactNode | undefined;
   /** The §8 fold, as the shell observed it. */
   readonly collapsed: boolean;
 }
@@ -55,6 +57,7 @@ export function MatchInspectorPanel({
   selection,
   batch,
   secondaryActions,
+  openLabel,
   collapsed,
 }: MatchInspectorPanelProps) {
   const label = t`选中项详情`;
@@ -86,7 +89,7 @@ export function MatchInspectorPanel({
       title={title}
       label={label}
       collapsed={collapsed}
-      openLabel={<Trans>详情</Trans>}
+      openLabel={openLabel ?? <Trans>详情</Trans>}
       {...(summary === undefined ? {} : { summary })}
       /* Docked, the action leads the footer and the seconds sit under it.
          Folded, the same action rides the summary strip — §8: 主动作在任何宽度

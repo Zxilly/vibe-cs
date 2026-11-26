@@ -175,15 +175,16 @@ export function EvidenceConditions({
   return (
     <div
       data-evidence-conditions=""
-      className="@container/conditions flex flex-col"
+      className="@container/conditions flex flex-col gap-2 border-b border-divider bg-surface-chrome px-4 py-2 @min-[900px]/conditions:px-6"
     >
       <form
         data-evidence-search-bar=""
-        className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2.5 border-b border-divider bg-surface-chrome px-4 py-2 @min-[900px]/conditions:px-6"
+        className="flex flex-none flex-wrap items-center gap-2"
         onSubmit={submitSearch}
       >
         <Seg
           name="evidence-family"
+          size="sm"
           value={state.family}
           options={familyOptions}
           onChange={(family) => commit({ ...state, family })}
@@ -208,14 +209,14 @@ export function EvidenceConditions({
             />
           </InputGroup>
         </div>
-        <Button type="submit" variant="secondary">
+        <Button type="submit" size="sm" variant="secondary">
           <Trans>检索</Trans>
         </Button>
       </form>
 
       <div
         data-evidence-condition-bar=""
-        className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2 border-b border-divider bg-surface-chrome px-4 py-2 @min-[900px]/conditions:px-6"
+        className="flex flex-none flex-wrap items-center gap-1.5"
       >
         <span className="text-xs text-neutral-600">
           <Trans>条件</Trans>
@@ -229,7 +230,7 @@ export function EvidenceConditions({
             data-condition={condition.field}
             aria-labelledby={`${conditionId}-${condition.field}`}
             onClick={() => onChange(withoutCondition(state, condition.field))}
-            className="min-h-8 max-w-full gap-1.5"
+            className="min-h-7 max-w-full gap-1.5 transition-colors"
           >
             <button type="button">
               <span id={`${conditionId}-${condition.field}`} className="min-w-0 truncate"><span className="sr-only"><Trans>移除条件</Trans>：</span>{conditionLabel(condition)}</span>
@@ -277,11 +278,11 @@ export function EvidenceConditions({
               asChild
               variant="outline"
               data-condition-add={field}
-              className="min-h-8 gap-1.5"
+              className="min-h-7 gap-1 bg-bg text-neutral-700 transition-colors hover:bg-neutral-100"
               onClick={() => openField(field)}
             >
               <button type="button">
-                <Plus size={13} strokeWidth={1.5} aria-hidden="true" />{textFieldLabel(field)}
+                <Plus size={12} strokeWidth={1.5} aria-hidden="true" />{textFieldLabel(field)}
               </button>
             </Badge>
           ),
@@ -292,11 +293,11 @@ export function EvidenceConditions({
             asChild
             variant="outline"
             data-condition-add="headshot"
-            className="min-h-8 gap-1.5"
+            className="min-h-7 gap-1 bg-bg text-neutral-700 transition-colors hover:bg-neutral-100"
             onClick={() => commit({ ...state, headshot: true })}
           >
             <button type="button">
-              <Plus size={13} strokeWidth={1.5} aria-hidden="true" /><Trans>仅爆头</Trans>
+              <Plus size={12} strokeWidth={1.5} aria-hidden="true" /><Trans>仅爆头</Trans>
             </button>
           </Badge>
         )}
@@ -306,7 +307,7 @@ export function EvidenceConditions({
             asChild
             variant="outline"
             data-condition-add="from"
-            className="min-h-8 gap-1.5 disabled:cursor-not-allowed disabled:opacity-45"
+            className="min-h-7 gap-1 bg-bg text-neutral-700 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45"
             {...(dateDisabledReason === undefined
               ? {}
               : {
@@ -316,7 +317,7 @@ export function EvidenceConditions({
             onClick={() => commit({ ...state, from: recentFrom })}
           >
             <button type="button">
-              <Plus size={13} strokeWidth={1.5} aria-hidden="true" /><Trans>近 {RECENT_WINDOW_DAYS} 天</Trans>
+              <Plus size={12} strokeWidth={1.5} aria-hidden="true" /><Trans>近 {RECENT_WINDOW_DAYS} 天</Trans>
             </button>
           </Badge>
         ) : null}
@@ -324,7 +325,7 @@ export function EvidenceConditions({
         <div className="flex-1" aria-hidden="true" />
 
         {summary === undefined ? null : (
-          <span data-evidence-summary="" className="min-w-0 text-sm text-neutral-700">
+          <span data-evidence-summary="" className="min-w-0 text-xs tabular-nums text-neutral-600">
             {summary}
           </span>
         )}

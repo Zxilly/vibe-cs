@@ -49,11 +49,10 @@ describe('the page frame', () => {
     expect(html).not.toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
   });
 
-  it('shows the condition strip without reserving an empty Inspector while loading', () => {
+  it('shows the consolidated condition strip without reserving an empty Inspector while loading', () => {
     expect(html).toContain('data-evidence-conditions');
     expect(html).toContain('data-evidence-search-bar');
     expect(html).toContain('data-evidence-condition-bar');
-    expect(html.match(/h-\[var\(--h-bar\)\]/gu)).toHaveLength(2);
     expect(html).not.toContain('data-inspector=');
   });
 

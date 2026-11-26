@@ -109,9 +109,9 @@ export function HighlightPreview({
 
   return (
     <section data-highlight-preview={highlight.id} aria-label={t`高光预览`} className="flex flex-col gap-2">
-      {/* The map keeps a square frame, so its width sets the preview's height;
-          the transport stays below it. */}
-      <div className="mx-auto w-72 max-w-full flex-none">
+      {/* The map keeps a square frame, so `aspect-square` sets an explicit height
+          for `ReplayCanvas`'s `[container-type:size]` fitToHeight container. */}
+      <div className="mx-auto aspect-square w-72 max-w-full flex-none overflow-hidden rounded-md border border-divider bg-neutral-100">
       <ReplayCanvas
         className="size-full"
         mapName={mapName ?? ''}
@@ -155,7 +155,7 @@ export function HighlightPreview({
           max={total}
           label={t`预览进度`}
         />
-        <span className="flex-none font-mono text-xs text-neutral-700">
+        <span className="flex-none font-mono text-xs tabular-nums text-neutral-700">
           {formatClock(elapsed)} / {formatClock(total)}
         </span>
       </div>

@@ -172,8 +172,8 @@ describe('density · EvidenceRow at 60–200 rows', () => {
     // is the row's own nesting (the select button, then the two-line column
     // inside it), not a second shrinking sibling.
     expect(html).toContain('<span data-evidence-annotation="" class="flex-none">');
-    expect(html).toContain('<span data-evidence-locate="" class="flex-none">');
-    expect(html).toContain('<span data-evidence-action="" class="flex-none">');
+    expect(html).toMatch(/<span data-evidence-locate="" class="[^"]*flex-none/u);
+    expect(html).toMatch(/<span data-evidence-action="" class="[^"]*flex-none/u);
     expect(html).toContain('flex flex-none flex-col text-left font-mono text-xs');
   });
 });

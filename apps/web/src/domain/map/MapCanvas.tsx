@@ -187,7 +187,7 @@ function LegendGlyph({ glyph, tone }: { glyph: MapLegendGlyph; tone: MapTone }) 
 /** The square frame every state is drawn inside, so the layout never jumps. */
 function CanvasFrame({ children, className, fitToHeight }: { children: ReactNode; className?: string; fitToHeight: boolean }) {
   return (
-    <Blueprint className={cn('relative aspect-square max-w-[720px] bg-bg', fitToHeight ? 'w-[min(100cqw,100cqh)]' : 'w-full', className)}>{children}</Blueprint>
+    <Blueprint className={cn('relative aspect-square max-w-[720px] overflow-hidden rounded-md border border-divider bg-bg', fitToHeight ? 'w-[min(100cqw,100cqh)]' : 'w-full', className)}>{children}</Blueprint>
   );
 }
 

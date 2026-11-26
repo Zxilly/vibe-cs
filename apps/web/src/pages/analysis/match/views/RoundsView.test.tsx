@@ -54,6 +54,16 @@ describe('picking a round', () => {
     expect(html).toMatch(/data-round-cell="1"[^>]*aria-current="true"/u);
   });
 
+  it('defaults to the first round with axis events when Round 1 is empty', () => {
+    const emptyFirst = {
+      ...ANALYSIS,
+      rounds: ANALYSIS.rounds.map((entry) => (entry.number === 1 ? { ...entry, events: [] } : entry)),
+    };
+    const html = panels(null, emptyFirst);
+    expect(html).toContain('第 2 回合');
+    expect(html).toMatch(/data-round-cell="2"[^>]*aria-current="true"/u);
+  });
+
   it('says so plainly when the address names a round this match does not have', () => {
     expect(panels(99)).toContain('这场比赛没有第 99 回合');
   });

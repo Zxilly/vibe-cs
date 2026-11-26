@@ -334,7 +334,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           {utility.available ? <dl className="divide-y divide-divider">
             {kinds.map((kind) => <div key={kind} className="flex min-h-11 items-center justify-between gap-4 px-5 py-2 text-sm">
               <dt className="text-neutral-700">{i18n._(UTILITY_ITEM_LABEL[kind])}</dt>
-              <dd className="font-mono"><Trans>{counts.get(kind) ?? 0} 次</Trans></dd>
+              <dd className="font-mono tabular-nums"><Trans>{counts.get(kind) ?? 0} 次</Trans></dd>
             </div>)}
           </dl> : (
             <p data-utility-unavailable="" className="border-t border-divider px-5 py-3 text-base leading-normal text-neutral-600">
@@ -342,8 +342,8 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
             </p>
           )}
           {damageAvailable || flashAvailable ? <dl className="flex flex-wrap gap-4 border-t border-divider px-5 py-3 text-xs">
-            {damageAvailable ? <div><dt className="text-neutral-600"><Trans>道具伤害</Trans></dt><dd className="font-mono">{totals.damage}</dd></div> : null}
-            {flashAvailable ? <div><dt className="text-neutral-600"><Trans>致盲人次</Trans></dt><dd className="font-mono">{totals.flashEvents}</dd></div> : null}
+            {damageAvailable ? <div><dt className="text-neutral-600"><Trans>道具伤害</Trans></dt><dd className="font-mono tabular-nums">{totals.damage}</dd></div> : null}
+            {flashAvailable ? <div><dt className="text-neutral-600"><Trans>致盲人次</Trans></dt><dd className="font-mono tabular-nums">{totals.flashEvents}</dd></div> : null}
           </dl> : null}
         </section>
         <section className="overflow-hidden rounded-lg border border-divider bg-bg" aria-label={t`回合经济`}>
@@ -356,9 +356,9 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
               <span>{names.A} / {names.B}</span>
             </div>
             <dl className="divide-y divide-divider border-t border-divider text-sm">
-              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备价值</Trans></dt><dd className="font-mono">{formatMoney(selected.a)} / {formatMoney(selected.b)}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备价值</Trans></dt><dd className="font-mono tabular-nums">{formatMoney(selected.a)} / {formatMoney(selected.b)}</dd></div>
               <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>购买类型</Trans></dt><dd>{selected.aBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.aBuyType])} / {selected.bBuyType === null ? NO_VALUE : i18n._(BUY_TYPE_LABEL[selected.bBuyType])}</dd></div>
-              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备差额</Trans></dt><dd className="font-mono">{difference === null ? NO_VALUE : difference === 0 ? t`持平` : `${difference > 0 ? names.A : names.B} +${formatMoney(Math.abs(difference))}`}</dd></div>
+              <div className="flex justify-between gap-4 px-5 py-3"><dt><Trans>装备差额</Trans></dt><dd className="font-mono tabular-nums">{difference === null ? NO_VALUE : difference === 0 ? t`持平` : `${difference > 0 ? names.A : names.B} +${formatMoney(Math.abs(difference))}`}</dd></div>
             </dl>
           </>}
         </section>
@@ -482,7 +482,7 @@ function DetailCell({ label, value }: { readonly label: ReactNode; readonly valu
   return (
     <div className="bg-bg px-3 py-2.5">
       <dt className="text-xs text-neutral-600">{label}</dt>
-      <dd className="font-mono text-lg">{value}</dd>
+      <dd className="font-mono text-lg tabular-nums">{value}</dd>
     </div>
   );
 }

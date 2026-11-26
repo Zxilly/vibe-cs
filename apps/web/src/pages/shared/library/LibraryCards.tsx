@@ -29,6 +29,7 @@ import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { DemoStatusMark } from './DemoStatusMark';
 import { LibraryEmpty } from './LibraryEmpty';
 import {
+  formatMapName,
   formatMatchDate,
   formatRounds,
   formatScore,
@@ -132,6 +133,7 @@ function DemoCard({
   onActivate: () => void;
 }) {
   const score = formatScore(demo);
+  const mapLabel = formatMapName(demo.map_name);
 
   return (
     <Blueprint
@@ -141,35 +143,39 @@ function DemoCard({
       aria-label={t`打开 ${demo.display_name} 的详情`}
       onClick={onActivate}
       className={cn(
-        'flex w-full flex-col gap-2 border p-3 text-left',
-        active ? 'border-accent bg-accent-100' : 'border-divider hover:bg-surface',
+        'flex w-full flex-col gap-2.5 rounded-lg border p-4 text-left transition-colors',
+        active
+          ? 'border-accent bg-accent-100'
+          : 'border-divider bg-bg hover:border-neutral-500 hover:bg-neutral-100',
       )}
     >
       <span className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-heading text-lg" title={demo.display_name}>{demo.display_name}</span>
+        <span className="min-w-0 truncate font-heading text-base font-medium text-text" title={demo.display_name}>
+          {demo.display_name}
+        </span>
         <span
           className={cn(
-            'flex-none font-mono text-sm tabular-nums',
-            score === EMPTY_CELL ? 'text-neutral-600' : active ? 'text-accent-800' : null,
+            'flex-none font-mono text-sm font-medium tabular-nums',
+            score === EMPTY_CELL ? 'text-neutral-600' : active ? 'text-accent-800' : 'text-text',
           )}
         >
           {score}
         </span>
       </span>
 
-      <span className="text-xs text-neutral-700">
-        {demo.map_name}
-        {' · '}
-        {formatMatchDate(demo.match_date)}
+      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs tabular-nums text-neutral-600">
+        <span className="font-medium text-neutral-700" title={demo.map_name}>{mapLabel}</span>
+        <span>·</span>
+        <span>{formatMatchDate(demo.match_date)}</span>
         {demo.total_rounds > 0 ? (
           <>
-            {' · '}
-            <Trans>{formatRounds(demo.total_rounds)} 回合</Trans>
+            <span>·</span>
+            <span><Trans>{formatRounds(demo.total_rounds)} 回合</Trans></span>
           </>
         ) : null}
       </span>
 
-      <span className="flex items-center gap-2">
+      <span className="flex items-center gap-2 pt-0.5">
         <DemoStatusMark demo={demo} />
       </span>
     </Blueprint>

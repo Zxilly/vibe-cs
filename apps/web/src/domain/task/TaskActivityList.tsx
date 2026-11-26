@@ -38,6 +38,8 @@ interface TaskActivityListProps {
   readonly bind: ReturnType<typeof useTaskActions>;
   readonly onSelect: (id: string) => void;
   readonly headingLevel?: 2 | 3;
+  /** True when a side detail pane is docked beside this list (suppresses duplicate retry CTA on the focused row). */
+  readonly hasSideDetail?: boolean | undefined;
   /**
    * The state filter the list was fetched under, with the way back to 全部.
    * Absent on a surface that always shows everything (the shell drawer).
@@ -45,7 +47,7 @@ interface TaskActivityListProps {
   readonly filter?: { readonly state: ActivityStateFilter; readonly onClear: () => void } | undefined;
 }
 
-export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter, headingLevel = 2 }: TaskActivityListProps) {
+export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter, headingLevel = 2, hasSideDetail = false }: TaskActivityListProps) {
   const baseId = useId();
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
   if (error !== null) {
@@ -83,8 +85,8 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
         if (grouped.length === 0) return null;
         const headingId = `${baseId}-activity-group-${group.id}`;
         return (
-          <section key={group.id} aria-labelledby={headingId} className="flex flex-col border border-divider">
-            <Heading id={headingId} className="border-b border-divider px-3 py-2 font-heading text-sm">
+          <section key={group.id} aria-labelledby={headingId} className="flex flex-col overflow-hidden rounded-lg border border-divider bg-bg">
+            <Heading id={headingId} className="border-b border-divider bg-surface-chrome px-3.5 py-2 font-heading text-xs font-medium tabular-nums text-neutral-700">
               {group.label} · {grouped.length}
             </Heading>
             <ul className="m-0 list-none p-0">
@@ -96,13 +98,15 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
                     key={item.id}
                     data-activity-focused={focused ? 'true' : undefined}
                     className={focused
-                      ? 'border-b border-divider bg-accent-100 p-3 shadow-[inset_2px_0_0_var(--color-accent)] last:border-b-0'
-                      : 'border-b border-divider p-3 last:border-b-0'}
+                      ? 'border-b border-divider bg-accent-100 p-3.5 shadow-[inset_2px_0_0_var(--color-accent)] transition-colors last:border-b-0'
+                      : 'border-b border-divider p-3.5 transition-colors hover:bg-neutral-100 last:border-b-0'}
                   >
                     <TaskCard
                       task={bound.summary}
                       headingLevel={headingLevel === 2 ? 3 : 4}
                       compact
+                      inlineFailure="summary"
+                      hideFailureRecovery={hasSideDetail && focused}
                       showId={false}
                       links={bound.links.filter((link) => link.id !== 'detail')}
                       {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })}
@@ -116,7 +120,7 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
           </section>
         );
       })}
-      <p className="text-xs text-neutral-600">
+      <p className="text-xs tabular-nums text-neutral-600">
         <Trans>共 {total} 条 · 第 {firstItem}–{firstItem + items.length - 1} 条</Trans>
       </p>
     </div>

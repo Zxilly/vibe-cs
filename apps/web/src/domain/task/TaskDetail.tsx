@@ -41,7 +41,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { TableSkeleton } from '../../design/data';
-import { Alert } from '../../design/feedback';
+import { Alert, StatusDot } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
@@ -49,7 +49,14 @@ import { TaskCancelButton } from './TaskCancelButton';
 import { TaskDuration } from './TaskDuration';
 import { taskDurationFor } from './duration';
 import { formatTaskTime } from './taskClock';
-import { TASK_STATUS_TAG_TONE, taskFailureLabels, taskKindLabels, taskStatusLabels } from './taskVocabulary';
+import {
+  TASK_STATUS_BADGE_CLASS,
+  TASK_STATUS_DOT,
+  TASK_STATUS_TAG_TONE,
+  taskFailureLabels,
+  taskKindLabels,
+  taskStatusLabels,
+} from './taskVocabulary';
 import type { TaskArtifact, TaskFact, TaskLink, TaskLogEntry, TaskSummary } from './types';
 
 /** The stage log, which streams in after the task record itself. */
@@ -112,18 +119,18 @@ export function TaskDetail({
       data-task-kind={task.kind}
       data-task-status={task.status}
       aria-label={t`任务详情`}
-      className={cn('flex min-h-0 flex-col bg-bg', !compact && 'border border-divider', className)}
+      className={cn('flex min-h-0 flex-col bg-bg', !compact && 'overflow-hidden rounded-lg border border-divider', className)}
     >
       {/* 52px header. `--h-topbar` is 56 and `--h-panel-head` is 40; this row
           holds a 19px title and a 32px button, so it takes the panel-head token
           and lets the padding carry the difference. */}
-      <header className="flex flex-none flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
+      <header className="flex flex-none flex-wrap items-center gap-3 border-b border-divider bg-surface-chrome px-4 py-2.5">
         {/* The compact panel is 380px wide and a recording's subject carries
             its clip count at the end (「录制 · Mirage 残局集锦 · 6 镜头」), so
             it wraps to a second line rather than losing its tail; the wide
             page has the room and clips with the subject as its tooltip. */}
         <h2
-          className={cn('min-w-0 text-xl leading-tight', compact ? 'line-clamp-2 break-words' : 'truncate')}
+          className={cn('min-w-0 text-lg font-medium leading-tight text-text', compact ? 'line-clamp-2 break-words' : 'truncate')}
           {...(compact || title !== undefined ? {} : { title: task.subject })}
         >
           {title ?? (
@@ -134,8 +141,15 @@ export function TaskDetail({
             </>
           )}
         </h2>
-        {showId ? <span className="font-mono text-xs text-neutral-600">{task.id}</span> : null}
-        <Badge variant={TASK_STATUS_TAG_TONE[task.status]}>{taskStatusLabels()[task.status]}</Badge>
+        {showId ? <span className="font-mono text-xs tabular-nums text-neutral-600">{task.id}</span> : null}
+        <Badge
+          variant={TASK_STATUS_TAG_TONE[task.status]}
+          size="sm"
+          className={cn('gap-1.5 rounded-sm py-0.5 font-medium', TASK_STATUS_BADGE_CLASS[task.status])}
+        >
+          <StatusDot status={TASK_STATUS_DOT[task.status]} size="sm" />
+          {taskStatusLabels()[task.status]}
+        </Badge>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
           {links?.map((link) => (
@@ -179,8 +193,9 @@ export function TaskDetail({
           {task.status === 'failed' ? (
             <Alert
               variant="danger"
+              className="rounded-md"
               action={{
-                label: task.failure.recovery.label,
+                label: <span className="whitespace-nowrap font-medium">{task.failure.recovery.label}</span>,
                 onAction: task.failure.recovery.onAction,
                 ...(task.failure.recovery.disabled === undefined
                   ? {}
@@ -188,8 +203,12 @@ export function TaskDetail({
               }}
               {...(task.failure.impact === undefined ? {} : { detail: task.failure.impact })}
             >
-              {taskFailureLabels()[task.failure.reason]}
-              {task.failure.detail === undefined ? null : <>{' · '}{task.failure.detail}</>}
+              <div className="flex flex-col gap-0.5 text-sm">
+                <span className="font-medium">{taskFailureLabels()[task.failure.reason]}</span>
+                {task.failure.detail === undefined ? null : (
+                  <span className="text-xs leading-relaxed text-fail-text">{task.failure.detail}</span>
+                )}
+              </div>
             </Alert>
           ) : null}
 
@@ -198,18 +217,18 @@ export function TaskDetail({
 
         <div className={cn('flex w-full flex-none flex-col gap-3 p-4', !compact && 'lg:w-[var(--w-inspector-wide)]')}>
           {facts === undefined || facts.length === 0 ? null : (
-            <section className="flex flex-col gap-3 border border-divider p-3">
-              <h3 className="font-heading text-sm"><Trans>任务概览</Trans></h3>
+            <section className="flex flex-col gap-3 rounded-md border border-divider bg-bg p-3.5">
+              <h3 className="font-heading text-sm font-medium text-text"><Trans>任务概览</Trans></h3>
               <dl className="m-0 flex flex-col gap-2 text-sm">
                 {facts.map((fact) => (
                   <div key={fact.id} className="flex items-baseline justify-between gap-3">
                     <dt className="text-neutral-600">{fact.label}</dt>
-                    <dd className="m-0 min-w-0 truncate text-end font-mono">{fact.value}</dd>
+                    <dd className="m-0 min-w-0 truncate text-end font-mono text-xs tabular-nums text-text">{fact.value}</dd>
                   </div>
                 ))}
               </dl>
               {task.durationMs === undefined ? null : (
-                <p className="text-sm">
+                <p className="border-t border-divider pt-2 text-xs tabular-nums text-neutral-700">
                   <TaskDuration value={taskDurationFor(task.durationMs, task.status)} />
                 </p>
               )}
@@ -217,7 +236,7 @@ export function TaskDetail({
           )}
 
           {facts !== undefined && facts.length > 0 ? null : task.durationMs === undefined ? null : (
-            <p className="text-sm">
+            <p className="text-sm tabular-nums">
               <TaskDuration value={taskDurationFor(task.durationMs, task.status)} />
             </p>
           )}
@@ -226,16 +245,16 @@ export function TaskDetail({
           {technicalDetails === undefined || technicalDetails.length === 0 ? null : (
             <details
               open={technicalDetailsExpanded || undefined}
-              className="group mt-auto border border-divider bg-neutral-100"
+              className="group mt-auto overflow-hidden rounded-md border border-divider bg-neutral-100"
             >
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-action-hover">
                 <ChevronRight
                   size={14}
                   strokeWidth={1.5}
                   aria-hidden
                   className="flex-none transition-transform group-open:rotate-90"
                 />
-                <Trans>技术细节</Trans>
+                <span className="font-medium text-text"><Trans>技术细节</Trans></span>
                 <span className="text-xs text-neutral-600">
                   <Trans>查看诊断信息</Trans>
                 </span>
@@ -269,7 +288,7 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
 
   if (log.status === 'error') {
     return (
-      <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: log.onRetry }}>
+      <Alert variant="danger" className="rounded-md" action={{ label: <Trans>重新加载</Trans>, onAction: log.onRetry }}>
         {log.message}
       </Alert>
     );
@@ -277,15 +296,15 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
 
   return (
     <div className={cn(
-      'flex min-h-0 flex-col border border-divider',
+      'flex min-h-0 flex-col overflow-hidden rounded-md border border-divider bg-bg',
       log.entries.length === 0 ? 'flex-none' : 'flex-1',
     )}>
-      <div className="flex h-[var(--h-thead)] flex-none items-center gap-2.5 border-b border-divider px-2.5 font-heading text-xs tracking-caps">
+      <div className="flex h-[var(--h-thead)] flex-none items-center gap-2.5 border-b border-divider bg-surface-chrome px-3 font-heading text-xs font-medium tracking-caps text-neutral-700">
         <Trans>阶段日志</Trans>
       </div>
 
       {log.entries.length === 0 ? (
-        <p className="px-3 py-4 text-base text-neutral-600"><Trans>还没有阶段日志</Trans></p>
+        <p className="px-3.5 py-4 text-sm text-neutral-600"><Trans>还没有阶段日志</Trans></p>
       ) : (
         /*
          * The log scrolls inside its own panel. A recording run logs one line
@@ -294,14 +313,14 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
          * without this the detail page grew a second scrollbar and the 阶段 bar
          * above it scrolled off the top.
          */
-        <ol className="m-0 flex min-h-0 flex-1 list-none flex-col overflow-y-auto py-2 pl-0 text-base leading-relaxed">
+        <ol className="m-0 flex min-h-0 flex-1 list-none flex-col gap-0.5 overflow-y-auto px-1.5 py-2 font-mono text-xs leading-relaxed">
           {log.entries.map((entry) => (
             <li
               key={entry.id}
               data-emphasis={entry.emphasis === true ? 'true' : undefined}
               className={cn(
-                'flex gap-3 px-3 py-1.5',
-                entry.emphasis === true && 'bg-accent-100 text-accent-900',
+                'flex gap-3 rounded-sm px-2.5 py-1.5 transition-colors',
+                entry.emphasis === true ? 'bg-accent-100 text-accent-900' : 'hover:bg-neutral-100',
               )}
             >
               <time
@@ -309,13 +328,13 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
                 className={cn(
                   // 54.4px on the `--spacing` base; the artboard's stamp column
                   // is 56px, and the mono digits are the same width either way.
-                  'w-16 flex-none font-mono text-xs',
+                  'w-16 flex-none font-mono text-xs tabular-nums',
                   entry.emphasis === true ? 'text-accent-800' : 'text-neutral-600',
                 )}
               >
                 {formatTaskTime(entry.at, timeZone === undefined ? {} : { timeZone })}
               </time>
-              <span className="min-w-0 flex-1">{entry.message}</span>
+              <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{entry.message}</span>
             </li>
           ))}
         </ol>

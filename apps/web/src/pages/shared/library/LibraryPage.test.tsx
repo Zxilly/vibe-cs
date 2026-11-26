@@ -95,9 +95,9 @@ describe('the frame', () => {
       at: '/library?map=de_mirage',
       seed: { ...ONLINE, maps: ['de_ancient', 'de_inferno', 'de_mirage'] },
     });
-    // The chip names the current map; the menu itself only opens on a press,
-    // so the catalogue is asserted through the interaction test.
-    expect(catalogue).toContain('地图：de_mirage');
+    // The chip names the current map in readable form; the menu itself only
+    // opens on a press, so the catalogue is asserted through the interaction test.
+    expect(catalogue).toContain('地图：Mirage');
   });
 
   it('docks the Inspector rather than re-implementing one', () => {

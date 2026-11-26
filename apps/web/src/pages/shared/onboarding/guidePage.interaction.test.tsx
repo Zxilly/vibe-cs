@@ -200,4 +200,17 @@ describe('使用引导', () => {
     expect(document.querySelector('a[href="/settings?section=advanced&item=dependencies"]')).not.toBeNull();
   });
 
+  it('offers an inline 去设置 link next to missing checks and omits it for ready checks', async () => {
+    render(<GuidePage />);
+    await waitFor(() => {
+      expect(document.querySelector('[data-guide-check="hlae"]')).not.toBeNull();
+    });
+    const gameRow = document.querySelector('[data-guide-check="game"]') as HTMLElement;
+    const hlaeRow = document.querySelector('[data-guide-check="hlae"]') as HTMLElement;
+    expect(gameRow.querySelector('a')).toBeNull();
+    const fixLink = hlaeRow.querySelector('a');
+    expect(fixLink?.textContent).toBe('去设置');
+    expect(fixLink?.getAttribute('href')).toBe('/settings?section=advanced&item=capture');
+  });
+
 });

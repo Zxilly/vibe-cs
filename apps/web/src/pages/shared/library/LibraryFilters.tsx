@@ -44,6 +44,7 @@ import { OverflowMenu, type OverflowMenuItem } from '../../../design/layout';
 import { Button, cn, InputGroup, InputGroupAddon, InputGroupInput } from '../../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../../shared/desktop/dto';
 import type { ActionAvailability } from './libraryColumns';
+import { formatMapName } from './libraryFormat';
 import { clearLibraryFilters, hasActiveFilter, type LibraryAddress } from './libraryQuery';
 import type { SavedLibraryView } from './librarySession';
 
@@ -123,7 +124,7 @@ export function LibraryFilters({
 
   const mapItems = withAll(
     address.map,
-    maps.map((name) => ({ value: name, label: name })),
+    maps.map((name) => ({ value: name, label: formatMapName(name) })),
     (value) => {
       onChange({ map: value });
     },
@@ -153,7 +154,7 @@ export function LibraryFilters({
     },
   );
 
-  const currentMap = address.map === '' ? t`全部` : address.map;
+  const currentMap = address.map === '' ? t`全部` : formatMapName(address.map);
   const currentStatus = labelOf(
     STATUS_OPTIONS.map((option) => ({ value: option.value, label: i18n._(option.label) })),
     address.status,

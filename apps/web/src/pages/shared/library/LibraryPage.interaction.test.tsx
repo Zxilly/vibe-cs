@@ -324,9 +324,9 @@ describe('the filter strip', () => {
     const menu = await screen.findByRole('menu', { name: '地图' });
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       '全部',
-      'de_ancient',
-      'de_inferno',
-      'de_mirage',
+      'Ancient',
+      'Inferno',
+      'Mirage',
     ]);
   });
 

@@ -26,6 +26,7 @@ import { StatusDot, type StatusDotStatus } from '../../../../design/feedback';
 import { Button } from '../../../../design/primitives';
 import type { MatchHistoryItem } from '../../../../shared/desktop/dto';
 import { RouteLink } from '../../navigation/RouteLink';
+import { formatMapName } from '../libraryFormat';
 import {
   matchHistoryState,
   type MatchHistoryState,
@@ -105,13 +106,13 @@ export function MatchHistoryTable({
       headerLabel: t`比赛`,
       hideable: false,
       truncate: true,
-      cell: (item) => <Trans>竞技 · {item.map_name ?? '—'}</Trans>,
+      cell: (item) => <Trans>竞技 · {formatMapName(item.map_name)}</Trans>,
     },
     {
       id: 'map',
       header: <Trans>地图</Trans>,
       headerLabel: t`地图`,
-      cell: (item) => item.map_name ?? '—',
+      cell: (item) => <span title={item.map_name ?? undefined}>{formatMapName(item.map_name)}</span>,
     },
     {
       id: 'played_at',
@@ -185,7 +186,7 @@ export function MatchHistoryTable({
       columns={columns}
       rows={rows}
       rowId={(item) => item.id}
-      rowLabel={(item) => `${item.map_name ?? t`未知地图`} ${item.played_at ?? ''}`}
+      rowLabel={(item) => `${item.map_name === null ? t`未知地图` : formatMapName(item.map_name)} ${item.played_at ?? ''}`}
       selectable
       selectionDisabledReason={(item) => {
         switch (stateOf(item)) {

@@ -1,6 +1,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useTaskFeed } from '../../data/tasks';
@@ -52,6 +53,14 @@ export function ActivityDrawer({ open, onClose, onUnreadChange }: ActivityDrawer
       open={open}
       title={selected === null ? <Trans>后台任务</Trans> : <Trans>后台任务详情</Trans>}
       onClose={onClose}
+      className="border-l border-divider shadow-[var(--shadow-lg)]"
+      footer={
+        <Button asChild variant="secondary" size="sm" block>
+          <Link to="/tasks" onClick={onClose} className="no-underline">
+            <Trans>查看全部任务</Trans>
+          </Link>
+        </Button>
+      }
     >
       {selected === null ? (
         <TaskActivityList

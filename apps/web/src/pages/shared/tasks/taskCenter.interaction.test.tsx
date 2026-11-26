@@ -152,4 +152,21 @@ describe('shared task center', () => {
     expect(row.textContent).not.toContain('C:\\exports');
     expect(await screen.findByText('C:\\exports\\august.mp4')).toBeTruthy();
   });
+
+  it('shows the failure alert only in the detail panel instead of duplicating it in the list row', async () => {
+    const failed: ActivityItem = {
+      id: 'download:job-fail', kind: 'download', subtype: null, job_id: 'job-fail',
+      context_id: 'match-1', subject: 'Premier · Dust II', status: 'failed', stage: null,
+      progress_percent: null, completed_units: 64, total_units: 187, unit: 'bytes',
+      error: 'Valve 回放服务器超时（3 次重试后放弃）。', failure: null,
+      created_at: '2026-09-12T08:00:00Z', updated_at: '2026-09-12T08:12:00Z',
+      available_actions: ['retry_download'],
+    };
+    renderPage({ route: '/tasks', element: <TaskCenterPage />, client: {
+      listActivities: () => Promise.resolve(feedOf([failed])),
+    } });
+    await screen.findByRole('complementary', { name: '任务详情' });
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: '重试' })).toHaveLength(1);
+  });
 });

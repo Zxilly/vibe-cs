@@ -32,6 +32,59 @@ import type { DemoSummary } from '../../../shared/desktop/viewModels';
 /** What a cell shows when the record simply has no value for it. */
 export const EMPTY_CELL = '—';
 
+/* ── map display names ───────────────────────────────────────────────────── */
+
+const MAP_DISPLAY_NAMES: Readonly<Record<string, string>> = {
+  de_mirage: 'Mirage',
+  de_inferno: 'Inferno',
+  de_dust2: 'Dust II',
+  de_ancient: 'Ancient',
+  de_anubis: 'Anubis',
+  de_nuke: 'Nuke',
+  de_overpass: 'Overpass',
+  de_vertigo: 'Vertigo',
+  de_train: 'Train',
+  de_cache: 'Cache',
+  de_cobblestone: 'Cobblestone',
+  de_cbble: 'Cobblestone',
+  de_mills: 'Mills',
+  de_thera: 'Thera',
+  de_basalt: 'Basalt',
+  de_edin: 'Edin',
+  de_palais: 'Palais',
+  de_whistle: 'Whistle',
+  cs_office: 'Office',
+  cs_italy: 'Italy',
+  cs_agency: 'Agency',
+};
+
+/**
+ * Turns an internal CS2 map identifier (`de_mirage`, `de_dust2`, `de_inferno`)
+ * into a human-readable map label (`Mirage`, `Dust II`, `Inferno`). Already
+ * readable names pass through unchanged; unknown prefixed names strip the
+ * `de_`/`cs_` prefix and title-case each word.
+ */
+export function formatMapName(raw: string | null | undefined): string {
+  if (raw == null) return EMPTY_CELL;
+  const trimmed = raw.trim();
+  if (trimmed === '') return EMPTY_CELL;
+
+  const known = MAP_DISPLAY_NAMES[trimmed.toLowerCase()];
+  if (known !== undefined) return known;
+
+  const prefixed = /^(?:de|cs|ar|gd|dz)_(.+)$/iu.exec(trimmed);
+  if (prefixed !== null) {
+    const body = prefixed[1] ?? '';
+    return body
+      .split('_')
+      .filter((part) => part !== '')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  return trimmed;
+}
+
 /* ── dates and durations ─────────────────────────────────────────────────── */
 
 /**

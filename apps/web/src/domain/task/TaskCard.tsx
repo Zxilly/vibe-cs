@@ -55,7 +55,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Alert, ProgressBar, StageBar, StatusDot, type Stage } from '../../design/feedback';
-import { Button, cn } from '../../design/primitives';
+import { Badge, Button, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 
 import { TaskCancelButton } from './TaskCancelButton';
@@ -64,6 +64,7 @@ import { taskDurationFor } from './duration';
 import { formatTaskClock } from './taskClock';
 import { formatTaskProgress } from './taskProgress';
 import {
+  TASK_STATUS_BADGE_CLASS,
   TASK_STATUS_DOT,
   taskFailureLabels,
   taskKindLabels,
@@ -98,6 +99,15 @@ export interface TaskCardProps {
   readonly showId?: boolean | undefined;
   /** Drawer summaries cap diagnostic prose; the detail surface keeps it complete. */
   readonly compact?: boolean | undefined;
+  /**
+   * How a failed task renders inside the card: `alert` draws the full danger
+   * Notice inline (standalone cards), while `summary` shows a concise single
+   * diagnostic line so list rows beside a detail pane or drawer don't duplicate
+   * identical red error banners.
+   */
+  readonly inlineFailure?: 'alert' | 'summary' | undefined;
+  /** Suppresses the inline recovery button when an adjacent detail pane already shows it. */
+  readonly hideFailureRecovery?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
@@ -113,20 +123,23 @@ export function TaskCard({
   headingLevel = 3,
   showId = true,
   compact = false,
+  inlineFailure = 'alert',
+  hideFailureRecovery = false,
   className,
 }: TaskCardProps) {
   const Heading = HEADING_TAG[headingLevel];
   const kindLabel = taskKindLabels()[task.kind];
   const statusLabel = taskStatusLabels()[task.status];
   const failed = task.status === 'failed';
+  const showSummaryRecovery = failed && inlineFailure === 'summary' && !hideFailureRecovery;
 
   const startedAt = formatTaskClock(task.startedAt, {
     ...(now === undefined ? {} : { now }),
     ...(timeZone === undefined ? {} : { timeZone }),
   });
 
-  /* The status line, in the artboard's order: 状态 · 阶段 · 时刻 · 耗时 · 备注. */
-  const facts: ReactNode[] = [statusLabel];
+  /* The metadata line, in the artboard's order: 失败原因 · 阶段 · 时刻 · 耗时 · 备注. */
+  const facts: ReactNode[] = [];
   if (failed) facts.push(taskFailureLabels()[task.failure.reason]);
   if (task.stage !== undefined) facts.push(<TaskStageText stage={task.stage} />);
   facts.push(<time dateTime={task.startedAt}>{startedAt}</time>);
@@ -141,31 +154,46 @@ export function TaskCard({
       data-task-kind={task.kind}
       data-task-status={task.status}
       data-task-density={compact ? 'compact' : 'default'}
-      className={cn('flex gap-3', className)}
+      className={cn('flex min-w-0 flex-col gap-2', className)}
     >
-      <StatusDot status={TASK_STATUS_DOT[task.status]} size="lg" className="mt-1.5" />
+      <div className="flex items-center gap-2.5">
+        <Badge
+          variant="neutral"
+          size="sm"
+          className={cn(
+            'flex-none gap-1.5 rounded-sm py-0.5 font-medium',
+            TASK_STATUS_BADGE_CLASS[task.status],
+          )}
+        >
+          <StatusDot status={TASK_STATUS_DOT[task.status]} size="sm" />
+          {statusLabel}
+        </Badge>
+        <Heading className="min-w-0 flex-1 truncate text-base leading-tight font-medium text-text">
+          {kindLabel}
+          {' · '}
+          {task.subject}
+        </Heading>
+        {showId ? <span className="ml-auto flex-none font-mono text-xs tabular-nums text-neutral-600">{task.id}</span> : null}
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex items-baseline gap-3">
-          <Heading className="min-w-0 truncate text-base leading-tight font-normal">
-            {kindLabel}
-            {' · '}
-            {task.subject}
-          </Heading>
-          {showId ? <span className="ml-auto flex-none font-mono text-xs text-neutral-600">{task.id}</span> : null}
-        </div>
+      <p className={cn('text-xs leading-normal tabular-nums', failed ? 'text-fail-text' : 'text-neutral-600')}>
+        <Separated items={facts} />
+      </p>
 
-        <p className={cn('text-xs leading-normal', failed ? 'text-fail-text' : 'text-neutral-600')}>
-          <Separated items={facts} />
-        </p>
+      {task.progress === undefined || task.status === 'succeeded'
+        ? stages === undefined || stages.length === 0
+          ? null
+          : <StageBar label={t`任务阶段`} stages={stages} />
+        : <TaskProgressRow progress={task.progress} failed={failed} />}
 
-        {task.progress === undefined || task.status === 'succeeded'
-          ? stages === undefined || stages.length === 0
-            ? null
-            : <StageBar label={t`任务阶段`} stages={stages} />
-          : <TaskProgressRow progress={task.progress} failed={failed} />}
-
-        {task.status === 'failed' ? (
+      {task.status === 'failed' ? (
+        inlineFailure === 'summary' ? (
+          task.failure.detail === undefined ? null : (
+            <p className="line-clamp-2 min-w-0 break-words text-xs leading-relaxed text-fail-text [overflow-wrap:anywhere]">
+              {task.failure.detail}
+            </p>
+          )
+        ) : (
           <Alert
             variant="danger"
             action={{
@@ -176,7 +204,7 @@ export function TaskCard({
                 : { disabled: task.failure.recovery.disabled }),
             }}
             {...(compact || task.failure.impact === undefined ? {} : { detail: task.failure.impact })}
-            className={cn(compact && 'min-w-0')}
+            className={cn('rounded-md', compact && 'min-w-0')}
           >
             {compact ? (
               <span className="line-clamp-2 min-w-0 break-words [overflow-wrap:anywhere]">
@@ -186,47 +214,58 @@ export function TaskCard({
               task.failure.detail ?? taskFailureLabels()[task.failure.reason]
             )}
           </Alert>
-        ) : null}
+        )
+      ) : null}
 
-        {(task.artifacts !== undefined && task.artifacts.length > 0)
-          || (links !== undefined && links.length > 0)
-          || onCancel !== undefined
-          || onOpenDetail !== undefined ? (
-            <div className="flex flex-wrap items-center gap-3">
-              {task.artifacts?.map((artifact) => (
-                // A missing artifact keeps its link — 「文件不在原位」 is a record
-                // that still resolves to something (the relocate flow); the
-                // colour is what says the file is gone.
-                <Button
-                  key={artifact.id}
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className={cn(artifact.missing === true && 'text-fail-text')}
-                >
-                  <a href={artifact.href}>{artifact.label}</a>
-                </Button>
-              ))}
-              {links?.map((link) => (
-                <Button key={link.id} asChild variant="ghost" size="sm">
-                  <a href={link.href}>{link.label}</a>
-                </Button>
-              ))}
-              {onCancel !== undefined || onOpenDetail !== undefined ? (
-                <span className="ml-auto flex items-center gap-2">
-                  {onCancel !== undefined ? (
-                    <TaskCancelButton task={task} onConfirm={onCancel} pending={cancelPending} />
-                  ) : null}
-                  {onOpenDetail !== undefined ? (
-                    <Button variant="ghost" size="sm" onClick={onOpenDetail}>
-                      <Trans>查看详情</Trans>
-                    </Button>
-                  ) : null}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-      </div>
+      {(task.artifacts !== undefined && task.artifacts.length > 0)
+        || (links !== undefined && links.length > 0)
+        || onCancel !== undefined
+        || onOpenDetail !== undefined
+        || showSummaryRecovery ? (
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {task.artifacts?.map((artifact) => (
+              // A missing artifact keeps its link — 「文件不在原位」 is a record
+              // that still resolves to something (the relocate flow); the
+              // colour is what says the file is gone.
+              <Button
+                key={artifact.id}
+                asChild
+                variant="ghost"
+                size="sm"
+                className={cn(artifact.missing === true && 'text-fail-text')}
+              >
+                <a href={artifact.href}>{artifact.label}</a>
+              </Button>
+            ))}
+            {links?.map((link) => (
+              <Button key={link.id} asChild variant="ghost" size="sm">
+                <a href={link.href}>{link.label}</a>
+              </Button>
+            ))}
+            {onCancel !== undefined || onOpenDetail !== undefined || showSummaryRecovery ? (
+              <span className="ml-auto flex items-center gap-2">
+                {showSummaryRecovery && task.status === 'failed' ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={task.failure.recovery.disabled ?? false}
+                    onClick={task.failure.recovery.onAction}
+                  >
+                    {task.failure.recovery.label}
+                  </Button>
+                ) : null}
+                {onCancel !== undefined ? (
+                  <TaskCancelButton task={task} onConfirm={onCancel} pending={cancelPending} />
+                ) : null}
+                {onOpenDetail !== undefined ? (
+                  <Button variant="ghost" size="sm" onClick={onOpenDetail}>
+                    <Trans>查看详情</Trans>
+                  </Button>
+                ) : null}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
     </article>
   );
 }
@@ -261,7 +300,7 @@ function TaskProgressRow({ progress, failed }: { progress: TaskProgress; failed:
         tone={failed ? 'fail' : 'accent'}
         className="flex-1"
       />
-      <span className="flex-none text-end font-mono text-sm">
+      <span className="flex-none text-end font-mono text-sm tabular-nums">
         {readout}
         <span className="sr-only"> {unitLabel}</span>
       </span>

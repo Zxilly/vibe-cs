@@ -82,12 +82,13 @@ export function FilesSection() {
   return (
     <div className="flex flex-col">
       {config.isError ? (
-        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
+        <Alert className="mb-4" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
           <Trans>无法读取设置，请重试。</Trans>
         </Alert>
       ) : null}
       {update.isError || setWatchPaths.isError ? (
         <Alert
+          className="mb-4"
           variant="danger"
           action={{
             label: <Trans>知道了</Trans>,
@@ -161,7 +162,7 @@ export function FilesSection() {
                   <Trans>读不到占用统计</Trans>
                 </span>
               ) : (
-                <span className="font-mono text-xs text-neutral-700" data-storage-usage="">
+                <span className="font-mono text-xs tabular-nums text-neutral-700" data-storage-usage="">
                   <Trans>
                     已用 {formatBytes(storage.data.directory_bytes)} · 可用{' '}
                     {formatBytes(storage.data.filesystem_available_bytes)}
@@ -170,7 +171,7 @@ export function FilesSection() {
               )}
             </SettingsRow>
             {storage.data?.scan_complete === false ? (
-              <p className="text-base leading-normal text-neutral-600">
+              <p className="text-sm leading-normal text-neutral-600">
                 {/* The service says when it stopped counting. Printing the
                     partial total as if it were complete would understate the
                     usage on exactly the libraries where it matters. */}
@@ -191,13 +192,17 @@ export function FilesSection() {
         ) : (
           <>
             {watchPaths.length === 0 ? (
-              <p className="text-base leading-normal text-neutral-600">
+              <p className="text-sm leading-normal text-neutral-600">
                 <Trans>尚未设置监听目录。</Trans>
               </p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {watchPaths.map((path) => (
-                  <li key={path} className="flex items-center justify-between gap-3" data-watch-path={path}>
+                  <li
+                    key={path}
+                    className="flex items-center justify-between gap-3 rounded-md border border-divider bg-neutral-100 px-3 py-2"
+                    data-watch-path={path}
+                  >
                     <PathReadout path={path} empty={null} />
                     <Button
                       variant="ghost"
@@ -252,7 +257,7 @@ export function FilesSection() {
                 <Trans>添加目录</Trans>
               </Button>
             </div>
-            <p className="text-base leading-normal text-neutral-600">
+            <p className="text-sm leading-normal text-neutral-600">
               <Plural
                 value={watchPaths.length}
                 _0="目前不会自动发现任何 Demo。"

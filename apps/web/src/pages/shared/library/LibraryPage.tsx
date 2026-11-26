@@ -275,11 +275,9 @@ function DemoLibraryPage() {
     [demoProject.pending, preferredProjectId, startAnalysis.isPending],
   );
 
-  // One filled action per view: once the Inspector holds a match, its
-  // contextual action is the primary and importing steps down to secondary.
   const importAction = (
     <Button
-      variant={activeDemo === undefined ? 'primary' : 'secondary'}
+      variant="primary"
       onClick={() => { setOverlay('import'); }}
     >
       <Trans>导入 Demo</Trans>

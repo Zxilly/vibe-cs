@@ -41,7 +41,7 @@ import { Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
-import { Button } from '../../../design/primitives';
+import { Badge, Button, cn } from '../../../design/primitives';
 import {
   useExportDiagnostics,
   useHlaeStatus,
@@ -84,7 +84,7 @@ export function AdvancedSection() {
         ) : (
           <>
             <SettingsRow label={<Trans>版本</Trans>} hint={<Trans>报告问题时附上这个号码。</Trans>}>
-              <span className="font-mono text-xs text-neutral-700" data-runtime-version="">
+              <span className="font-mono text-xs tabular-nums text-neutral-700" data-runtime-version="">
                 {runtime.data.version}
               </span>
             </SettingsRow>
@@ -96,7 +96,7 @@ export function AdvancedSection() {
                 </Trans>
               }
             >
-              <span className="text-xs text-neutral-700" data-runtime-session={runtime.data.runtime_session}>
+              <span className="text-xs font-medium text-neutral-700" data-runtime-session={runtime.data.runtime_session}>
                 <RuntimeSessionLabel session={runtime.data.runtime_session} />
               </span>
             </SettingsRow>
@@ -105,7 +105,7 @@ export function AdvancedSection() {
                 label={<Trans>正在录制</Trans>}
                 hint={<Trans>这项任务结束前，其它录制与回放都会被拒绝。</Trans>}
               >
-                <span className="font-mono text-xs text-neutral-700">
+                <span className="font-mono text-xs tabular-nums text-neutral-700">
                   {runtime.data.active_recording_job}
                 </span>
               </SettingsRow>
@@ -133,27 +133,40 @@ export function AdvancedSection() {
           <Skeleton />
         ) : (
           <>
-            <ul className="flex flex-col gap-2.5">
+            <ul className="flex flex-col divide-y divide-divider rounded-md border border-divider bg-bg">
               {(checks.data?.checks ?? []).map((check) => (
-                <li key={`${check.kind}:${dependencyLabel(check.kind)}`} className="flex flex-col gap-1" data-check={check.kind}>
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <StatusDot status={dotStatus(check.state)} />
-                    <span>{dependencyLabel(check.kind)}</span>
-                    <span className="text-xs text-neutral-600" data-check-state={check.state}>
+                <li
+                  key={`${check.kind}:${dependencyLabel(check.kind)}`}
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm"
+                  data-check={check.kind}
+                >
+                  <span className="font-medium text-text">{dependencyLabel(check.kind)}</span>
+                  <Badge
+                    variant="neutral"
+                    size="sm"
+                    className={cn(
+                      'gap-1.5 rounded-sm py-0.5 font-medium',
+                      check.state === 'ready'
+                        ? 'border-ok-border bg-ok-surface text-ok-text'
+                        : 'border-fail-border bg-fail-surface text-fail-text',
+                    )}
+                  >
+                    <StatusDot status={dotStatus(check.state)} size="sm" />
+                    <span data-check-state={check.state}>
                       {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>缺失</Trans>}
                     </span>
-                  </div>
+                  </Badge>
                 </li>
               ))}
             </ul>
             {(checks.data?.checks ?? []).length === 0 ? (
-              <p className="text-base leading-normal text-neutral-600">
+              <p className="text-sm leading-normal text-neutral-600">
                 <Trans>这次检查没有返回任何项。</Trans>
               </p>
             ) : null}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               {checks.data === undefined ? null : (
-                <span className="text-xs text-neutral-600">
+                <span className="text-xs tabular-nums text-neutral-600">
                   <Trans>上次检查 {new Date(checks.data.checked_at).toLocaleString()}</Trans>
                 </span>
               )}
@@ -188,15 +201,24 @@ export function AdvancedSection() {
             <SettingsRow
               label={<Trans>可用性</Trans>}
             >
-              <span className="flex items-center gap-2 text-xs text-neutral-700">
-                <StatusDot status={hlae.data.available ? 'ok' : 'fail'} />
+              <Badge
+                variant="neutral"
+                size="sm"
+                className={cn(
+                  'gap-1.5 rounded-sm py-0.5 font-medium',
+                  hlae.data.available
+                    ? 'border-ok-border bg-ok-surface text-ok-text'
+                    : 'border-fail-border bg-fail-surface text-fail-text',
+                )}
+              >
+                <StatusDot status={hlae.data.available ? 'ok' : 'fail'} size="sm" />
                 {hlae.data.available ? <Trans>就绪</Trans> : <Trans>不可用</Trans>}
-              </span>
+              </Badge>
             </SettingsRow>
             <SettingsRow
               label={<Trans>启动方式</Trans>}
             >
-              <span className="text-xs text-neutral-700">
+              <span className="text-xs font-medium text-neutral-700">
                 {hlae.data.automatic_launch_enabled ? <Trans>自动启动</Trans> : <Trans>手动启动</Trans>}
               </span>
             </SettingsRow>
@@ -221,7 +243,7 @@ export function AdvancedSection() {
                 >
                   {prepareHlae.isPending ? <Trans>正在准备</Trans> : <Trans>准备采集组件</Trans>}
                 </Button>
-                <p className="text-base leading-normal text-neutral-600">
+                <p className="text-sm leading-normal text-neutral-600">
                   <Trans>下载并安装录制所需组件。</Trans>
                 </p>
               </div>
@@ -272,7 +294,7 @@ export function AdvancedSection() {
           /* A sentence, not a `Notice`: every notice carries a recovery action
              by design, and a report that was written has nothing to recover
              from. The path is the whole message. */
-          <p className="break-words pb-3 text-base leading-normal text-neutral-700 [overflow-wrap:anywhere]" data-diagnostics-result="">
+          <p className="break-words text-sm leading-normal text-neutral-700 [overflow-wrap:anywhere]" data-diagnostics-result="">
             {/* The flag, not the assumption: this page promises 「不含密钥」 only
                 because the service said so on the wire. */}
             {exportDiagnostics.data.contains_secrets ? (

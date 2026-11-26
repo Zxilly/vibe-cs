@@ -55,6 +55,7 @@ import {
   formatDateTime,
   formatDuration,
   formatFileLocation,
+  formatMapName,
   formatMatchDate,
   formatMatchup,
   formatRounds,
@@ -149,9 +150,11 @@ export function LibraryInspector({
 
   const canOpenWorkspace = isDemoAnalysable(demo);
   const missingFile = isDemoFileMissing(demo);
+  const mapLabel = formatMapName(demo.map_name);
   const matchup = formatMatchup(demo);
   const score = formatScore(demo);
   const duration = formatDuration(demo.duration_seconds);
+  const remarkDirty = remark !== demo.remark;
 
   const primaryAction = (size: 'sm' | 'lg') => {
     if (canOpenWorkspace) {
@@ -185,7 +188,7 @@ export function LibraryInspector({
       title={<Trans>比赛详情</Trans>}
       summary={
         <Trans>
-          选中 {demo.display_name} · {demo.map_name}
+          选中 {demo.display_name} · {mapLabel}
         </Trans>
       }
       {...(collapsed === undefined ? {} : { collapsed })}
@@ -218,8 +221,8 @@ export function LibraryInspector({
         {/* Each number says what it is: 「FURIA 8 : 13 Falcons」 and 「时长 56:19」
             are both colon-separated digits, and side by side without a label
             the score read as a second clock. */}
-        <p className="mt-px text-sm text-neutral-700">
-          {demo.map_name}
+        <p className="mt-1 text-sm tabular-nums text-neutral-700">
+          <span title={demo.map_name}>{mapLabel}</span>
           {matchup !== null ? (
             <>
               {' · '}
@@ -288,18 +291,26 @@ export function LibraryInspector({
           onChange={(event) => {
             setRemark(event.target.value);
           }}
-        />
-        <div className="mt-2">
-          <Button
-            size="sm"
-            disabled={savingRemark || remark === demo.remark}
-            onClick={() => {
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && remarkDirty && !savingRemark) {
               onSaveRemark(remark);
-            }}
-          >
-            <Trans>保存备注</Trans>
-          </Button>
-        </div>
+            }
+          }}
+        />
+        {remarkDirty || savingRemark ? (
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={savingRemark}
+              onClick={() => {
+                onSaveRemark(remark);
+              }}
+            >
+              <Trans>保存备注</Trans>
+            </Button>
+          </div>
+        ) : null}
       </section>
     </Inspector>
   );
@@ -317,7 +328,7 @@ function DetailRow({
   return (
     <div className="grid grid-cols-[5rem_minmax(0,1fr)] items-baseline gap-3">
       <dt className="flex-none text-neutral-600">{term}</dt>
-      <dd className={mono ? 'min-w-0 truncate font-mono text-xs' : 'min-w-0 truncate'} title={value}>
+      <dd className={mono ? 'min-w-0 truncate font-mono text-xs tabular-nums' : 'min-w-0 truncate'} title={value}>
         {value}
       </dd>
     </div>

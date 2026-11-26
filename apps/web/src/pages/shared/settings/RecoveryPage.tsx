@@ -54,7 +54,7 @@ import { useState, type ReactNode } from 'react';
 import { Skeleton } from '../../../design/data';
 import { Dialog, Alert, StatusDot } from '../../../design/feedback';
 import { Page, Toolbar } from '../../../design/layout';
-import { Button } from '../../../design/primitives';
+import { Badge, Button } from '../../../design/primitives';
 import { useRecoverConfiguration, useRecoveryStatus } from '../../../data/config';
 import { useCleanupMissingOutputs, useCleanupStagedOutputs, useRecoveryScan } from '../../../data/outputs';
 import { formatBytes } from '../../../domain/media/outputModel';
@@ -123,29 +123,38 @@ export function RecoveryPage() {
           </Alert>
         ) : null}
 
-        <div data-recovery-list className="border border-divider">
+        <div data-recovery-list className="flex max-w-[56rem] flex-col gap-4">
           <RecoveryCard
           title={<Trans>配置恢复</Trans>}
           state={
             status.isPending ? (
               <Skeleton width="12rem" />
             ) : status.data === undefined ? (
-              <span className="text-xs text-neutral-600">
+              <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>
-              </span>
+              </Badge>
             ) : status.data.recovery_required ? (
-              <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-required="">
-                <StatusDot status="fail" />
+              <Badge
+                variant="neutral"
+                size="sm"
+                className="gap-1.5 rounded-sm border-fail-border bg-fail-surface py-0.5 font-medium text-fail-text"
+                data-recovery-required=""
+              >
+                <StatusDot status="fail" size="sm" />
                 {status.data.reason ?? <Trans>配置文件读不出来</Trans>}
-              </span>
+              </Badge>
             ) : (
-              <span className="flex items-center gap-2 text-sm text-neutral-800">
-                <StatusDot status="ok" />
+              <Badge
+                variant="neutral"
+                size="sm"
+                className="gap-1.5 rounded-sm border-ok-border bg-ok-surface py-0.5 font-medium text-ok-text"
+              >
+                <StatusDot status="ok" size="sm" />
                 {/* The normal answer, said plainly. A recovery page that is
                     silent when nothing is wrong makes the user wonder whether
                     it checked. */}
                 <Trans>配置文件状态正常</Trans>
-              </span>
+              </Badge>
             )
           }
           effect={
@@ -154,9 +163,9 @@ export function RecoveryPage() {
           untouched={<Trans>不会删除 Demo、录制结果、成片、作品或对话记录。</Trans>}
           detail={
             status.data === undefined || status.data.affected_files.length === 0 ? null : (
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1 rounded-md border border-divider bg-neutral-100 px-3 py-2">
                 {status.data.affected_files.map((file) => (
-                  <li key={file} className="break-all font-mono text-xs text-neutral-600">
+                  <li key={file} className="break-all font-mono text-xs text-neutral-700">
                     {file}
                   </li>
                 ))}
@@ -166,7 +175,7 @@ export function RecoveryPage() {
           action={
             <Button
               variant="secondary"
-              size="md"
+              size="sm"
               data-recovery-action="config"
               disabled={blocked || status.isError || status.data?.recovery_required !== true}
               disabledReason={
@@ -192,30 +201,41 @@ export function RecoveryPage() {
             scan.isPending ? (
               <Skeleton width="12rem" />
             ) : scan.data === undefined ? (
-              <span className="text-xs text-neutral-600">
+              <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>
-              </span>
+              </Badge>
             ) : stagedFiles === 0 ? (
-              <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-staged="0">
-                <StatusDot status={scan.data.staged.scan_limited ? 'warn' : 'ok'} />
+              <Badge
+                variant="neutral"
+                size="sm"
+                className={
+                  scan.data.staged.scan_limited
+                    ? 'gap-1.5 rounded-sm border-warn-border bg-warn-surface py-0.5 font-medium text-warn-text'
+                    : 'gap-1.5 rounded-sm border-ok-border bg-ok-surface py-0.5 font-medium text-ok-text'
+                }
+                data-recovery-staged="0"
+              >
+                <StatusDot status={scan.data.staged.scan_limited ? 'warn' : 'ok'} size="sm" />
                 {scan.data.staged.scan_limited
                   ? <Trans>本次扫描未发现暂存文件，仅检查了部分内容</Trans>
                   : <Trans>暂存目录里没有未完成的文件</Trans>}
-              </span>
+              </Badge>
             ) : (
-              <span
-                className="flex flex-wrap items-center gap-2 text-sm text-neutral-800"
+              <Badge
+                variant="neutral"
+                size="sm"
+                className="flex-wrap gap-1.5 rounded-sm border-warn-border bg-warn-surface py-0.5 font-medium tabular-nums text-warn-text"
                 data-recovery-staged={String(scan.data.staged.files)}
               >
-                <StatusDot status="warn" />
+                <StatusDot status="warn" size="sm" />
                 <Plural value={scan.data.staged.files} other="# 个未完成的文件" />
-                {stagedBytes === null ? null : <span className="text-neutral-600">· {stagedBytes}</span>}
+                {stagedBytes === null ? null : <span>· {stagedBytes}</span>}
                 {scan.data.staged.scan_limited ? (
-                  <span className="text-neutral-600">
+                  <span>
                     <Trans>· 只扫描了一部分</Trans>
                   </span>
                 ) : null}
-              </span>
+              </Badge>
             )
           }
           effect={<Trans>删除录制或导出中断后留在暂存目录中的未完成文件。</Trans>}
@@ -223,7 +243,7 @@ export function RecoveryPage() {
           action={
             <Button
               variant="secondary"
-              size="md"
+              size="sm"
               data-recovery-action="staged"
               disabled={blocked || scanUnavailable || stagedFiles === 0}
               disabledReason={scanUnavailable ? scanUnavailableReason : stagedFiles === 0
@@ -261,29 +281,40 @@ export function RecoveryPage() {
             scan.isPending ? (
               <Skeleton width="12rem" />
             ) : scan.data === undefined ? (
-              <span className="text-xs text-neutral-600">
+              <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>
-              </span>
+              </Badge>
             ) : missingRecords === 0 ? (
-              <span className="flex items-center gap-2 text-sm text-neutral-800" data-recovery-missing="0">
-                <StatusDot status={scan.data.missing.scan_limited ? 'warn' : 'ok'} />
+              <Badge
+                variant="neutral"
+                size="sm"
+                className={
+                  scan.data.missing.scan_limited
+                    ? 'gap-1.5 rounded-sm border-warn-border bg-warn-surface py-0.5 font-medium text-warn-text'
+                    : 'gap-1.5 rounded-sm border-ok-border bg-ok-surface py-0.5 font-medium text-ok-text'
+                }
+                data-recovery-missing="0"
+              >
+                <StatusDot status={scan.data.missing.scan_limited ? 'warn' : 'ok'} size="sm" />
                 {scan.data.missing.scan_limited
                   ? <Trans>本次扫描未发现失效记录，仅检查了部分内容</Trans>
                   : <Trans>所有记录都能找到文件</Trans>}
-              </span>
+              </Badge>
             ) : (
-              <span
-                className="flex flex-wrap items-center gap-2 text-sm text-neutral-800"
+              <Badge
+                variant="neutral"
+                size="sm"
+                className="flex-wrap gap-1.5 rounded-sm border-warn-border bg-warn-surface py-0.5 font-medium tabular-nums text-warn-text"
                 data-recovery-missing={String(scan.data.missing.records)}
               >
-                <StatusDot status="warn" />
+                <StatusDot status="warn" size="sm" />
                 <Plural value={scan.data.missing.records} other="# 条记录找不到文件" />
                 {scan.data.missing.scan_limited ? (
-                  <span className="text-neutral-600">
+                  <span>
                     <Trans>· 只扫描了一部分</Trans>
                   </span>
                 ) : null}
-              </span>
+              </Badge>
             )
           }
           effect={<Trans>文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。将删除这些失效记录。</Trans>}
@@ -296,7 +327,7 @@ export function RecoveryPage() {
           action={
             <Button
               variant="secondary"
-              size="md"
+              size="sm"
               data-recovery-action="missing"
               disabled={blocked || scanUnavailable || missingRecords === 0}
               disabledReason={scanUnavailable ? scanUnavailableReason : missingRecords === 0
@@ -397,23 +428,25 @@ interface RecoveryCardProps {
 
 function RecoveryCard({ title, state, effect, untouched, detail, action, result }: RecoveryCardProps) {
   return (
-    <section className="grid min-h-36 grid-cols-1 border-b border-divider last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(18rem,1fr)_minmax(24rem,1.6fr)_13rem]">
-      <div className="flex min-w-0 flex-col gap-2 border-b border-divider p-4 sm:col-span-2 xl:col-span-1 xl:border-r xl:border-b-0 xl:p-5">
-        <h2 className="text-lg font-medium">{title}</h2>
-        {state}
+    <section className="flex flex-col overflow-hidden rounded-lg border border-divider bg-bg transition-colors hover:border-neutral-500">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider bg-surface-chrome px-5 py-3.5">
+        <h2 className="text-md font-medium text-text">{title}</h2>
+        <div className="flex flex-wrap items-center gap-2">{state}</div>
       </div>
-      <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-divider p-4 sm:border-r sm:border-b-0 xl:p-5">
-        {detail}
-        <p className="max-w-prose text-base leading-normal text-neutral-700">{effect}</p>
-        <p className="max-w-prose text-base leading-normal text-neutral-700">{untouched}</p>
-      </div>
-      <div className="flex min-w-0 flex-col items-stretch justify-center gap-3 p-4 xl:p-5">
-        {action}
-        {result === null || result === undefined ? null : (
-          <span role="status" className="text-base leading-relaxed text-neutral-700" data-recovery-result="">
-            {result}
-          </span>
-        )}
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {detail}
+          <p className="max-w-prose text-sm leading-relaxed text-text">{effect}</p>
+          <p className="max-w-prose text-sm leading-relaxed text-neutral-600">{untouched}</p>
+          {result === null || result === undefined ? null : (
+            <p role="status" className="mt-1 text-sm font-medium leading-relaxed text-ok-text" data-recovery-result="">
+              {result}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-none flex-col items-stretch sm:items-end">
+          {action}
+        </div>
       </div>
     </section>
   );

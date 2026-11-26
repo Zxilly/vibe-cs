@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { renderPage } from '../../test/renderPage';
+import { ActivityDrawer } from './ActivityDrawer';
 import { TaskActivityList } from './TaskActivityList';
 import { useTaskActions } from './useTaskActions';
 
@@ -43,5 +44,19 @@ describe('task list semantics', () => {
     const item: ActivityItem = { ...CANCELLED, available_actions: restartable ? ['retry_download'] : [] };
     renderPage({ client: {}, element: <List item={item} /> });
     expect(screen.queryByText(/可重新发起/u) !== null).toBe(restartable);
+  });
+
+  it('offers a footer link to /tasks inside ActivityDrawer', async () => {
+    renderPage({
+      client: {
+        listActivities: () => Promise.resolve({
+          items: [CANCELLED], total: 1, page: 1, page_size: 50,
+          summary: { total: 1, active: 0, failed: 0, completed: 0, cancelled: 1 },
+        }),
+      },
+      element: <ActivityDrawer open onClose={() => undefined} onUnreadChange={() => undefined} />,
+    });
+    const allTasks = await screen.findByRole('link', { name: '查看全部任务' });
+    expect(allTasks.getAttribute('href')).toBe('/tasks');
   });
 });

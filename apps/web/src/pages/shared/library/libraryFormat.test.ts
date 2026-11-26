@@ -17,6 +17,7 @@ import {
   formatDateTime,
   formatDuration,
   formatFileLocation,
+  formatMapName,
   formatMatchDate,
   formatMatchup,
   formatRounds,
@@ -52,6 +53,24 @@ const DEMO: DemoSummary = {
 
 beforeAll(() => {
   i18n.loadAndActivate({ locale: 'zh-CN', messages: {} });
+});
+
+describe('formatMapName', () => {
+  it('turns internal CS2 map identifiers into clean display names', () => {
+    expect(formatMapName('de_mirage')).toBe('Mirage');
+    expect(formatMapName('de_inferno')).toBe('Inferno');
+    expect(formatMapName('de_dust2')).toBe('Dust II');
+    expect(formatMapName('de_ancient')).toBe('Ancient');
+    expect(formatMapName('cs_office')).toBe('Office');
+    expect(formatMapName('DE_NUKE')).toBe('Nuke');
+  });
+
+  it('title-cases unknown prefixed maps and preserves already readable names', () => {
+    expect(formatMapName('de_tuscan_night')).toBe('Tuscan Night');
+    expect(formatMapName('Mirage')).toBe('Mirage');
+    expect(formatMapName('')).toBe(EMPTY_CELL);
+    expect(formatMapName(null)).toBe(EMPTY_CELL);
+  });
 });
 
 describe('formatMatchDate', () => {

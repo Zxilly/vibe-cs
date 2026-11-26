@@ -83,7 +83,7 @@ describe('the read', () => {
   it('shows the rows the service sent, with their derived state', async () => {
     render(client());
 
-    expect(await screen.findByText('de_ancient')).toBeTruthy();
+    expect(await screen.findByText('Ancient')).toBeTruthy();
     expect(screen.getByText('未下载')).toBeTruthy();
     expect(screen.getByText('下载中')).toBeTruthy();
     // The corpus total, not the number of rows drawn.
@@ -93,7 +93,7 @@ describe('the read', () => {
   it('prints 上次同步 from the rows rather than from a local clock', async () => {
     render(client());
 
-    await screen.findByText('de_ancient');
+    await screen.findByText('Ancient');
     expect(screen.getByText(/上次同步/u)).toBeTruthy();
   });
 
@@ -121,8 +121,8 @@ describe('下载', () => {
     ];
     const stub = client({ listMatchHistory: vi.fn(() => Promise.resolve(page(items))) });
     render(stub);
-    await screen.findByText('de_ancient');
-    for (const map of ['de_nuke', 'de_mirage', 'de_anubis']) {
+    await screen.findByText('Ancient');
+    for (const map of ['Nuke', 'Mirage', 'Anubis']) {
       const checkbox = screen.getByRole('checkbox', { name: new RegExp(map, 'u') });
       expect(checkbox).toHaveProperty('disabled', true);
       fireEvent.click(checkbox);
@@ -144,8 +144,8 @@ describe('下载', () => {
     let items = [rows()[0]!];
     const stub = client({ listMatchHistory: vi.fn(() => Promise.resolve(page(items))) });
     render(stub);
-    await screen.findByText('de_ancient');
-    fireEvent.click(screen.getByRole('checkbox', { name: /de_ancient/u }));
+    await screen.findByText('Ancient');
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ancient/u }));
     expect(screen.getByText('已选 1 场')).toBeTruthy();
     items = [{ ...items[0]!, demo_status: 'downloaded', demo_id: 'demo-new' }];
     fireEvent.click(screen.getByRole('button', { name: '同步最近比赛' }));
@@ -163,10 +163,10 @@ describe('下载', () => {
       total: 51, page: pageNumber, page_size: 50,
     })) });
     render(stub);
-    fireEvent.click(await screen.findByRole('checkbox', { name: /de_ancient/u }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Ancient/u }));
     expect(screen.getByText('已选 1 场')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '下一页' }));
-    await screen.findByText('de_mirage');
+    await screen.findByText('Mirage');
     expect(screen.queryByText('已选 1 场')).toBeNull();
     expect(stub.downloadMatchDemo).not.toHaveBeenCalled();
   });
@@ -175,7 +175,7 @@ describe('下载', () => {
     const stub = client();
     render(stub);
 
-    await screen.findByText('de_ancient');
+    await screen.findByText('Ancient');
     const before = stub.listMatchHistory.mock.calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: '下载' }));
@@ -193,8 +193,8 @@ describe('下载', () => {
     const stub = client();
     render(stub);
 
-    await screen.findByText('de_ancient');
-    fireEvent.click(screen.getByRole('checkbox', { name: /de_ancient/u }));
+    await screen.findByText('Ancient');
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ancient/u }));
     expect(await screen.findByText('已选 1 场')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '下载' }));
@@ -210,7 +210,7 @@ describe('下载', () => {
     const stub = client();
     render(stub);
 
-    await screen.findByText('de_nuke');
+    await screen.findByText('Nuke');
     fireEvent.click(screen.getByRole('button', { name: '取消' }));
 
     await waitFor(() => {
@@ -224,7 +224,7 @@ describe('下载', () => {
     const stub = client({ listActiveMatchDownloadJobs: vi.fn(() => pendingJobs) });
     render(stub);
 
-    await screen.findByText('de_nuke');
+    await screen.findByText('Nuke');
     const cancel = screen.getByRole('button', { name: '取消' });
     expect(cancel).toHaveProperty('disabled', true);
     expect(document.body.textContent).toContain('正在读取下载任务');
@@ -243,7 +243,7 @@ describe('同步最近比赛', () => {
     const stub = client();
     render(stub);
 
-    await screen.findByText('de_ancient');
+    await screen.findByText('Ancient');
     const before = stub.listMatchHistory.mock.calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: /同步最近比赛/u }));
@@ -262,7 +262,7 @@ describe('同步最近比赛', () => {
     });
     render(stub);
 
-    await screen.findByText('de_ancient');
+    await screen.findByText('Ancient');
     fireEvent.click(screen.getByRole('button', { name: /同步最近比赛/u }));
 
     const notice = await screen.findByRole('alert');

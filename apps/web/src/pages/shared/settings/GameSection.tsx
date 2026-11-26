@@ -48,7 +48,7 @@ import { MapGeometrySettings } from './MapGeometrySettings';
 
 import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
-import { Button, Seg, Slider } from '../../../design/primitives';
+import { Badge, Button, cn, Seg, Slider } from '../../../design/primitives';
 import { useAppConfig, useQuickCheck, useStorageStatus, useUpdateAppConfig } from '../../../data/config';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../../data/nativeShell';
 import type {
@@ -106,12 +106,12 @@ export function GameSection() {
   return (
     <div className="flex flex-col">
       {config.isError ? (
-        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
+        <Alert className="mb-4" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
           <Trans>无法读取设置，请重试。</Trans>
         </Alert>
       ) : null}
       {update.isError ? (
-        <Alert variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
+        <Alert className="mb-4" variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
           <Trans>设置未能保存，请重新修改并保存。</Trans>
         </Alert>
       ) : null}
@@ -166,7 +166,7 @@ export function GameSection() {
             >
               <div className="flex items-center gap-2.5">
                 {storage.data === undefined ? null : (
-                  <span className="font-mono text-xs text-neutral-700">
+                  <span className="font-mono text-xs tabular-nums text-neutral-700">
                     <Trans>剩余 {formatBytes(storage.data.filesystem_available_bytes)}</Trans>
                   </span>
                 )}
@@ -263,25 +263,36 @@ export function GameSection() {
           <Skeleton />
         ) : (
           <>
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col divide-y divide-divider rounded-md border border-divider bg-bg">
               {encoderChecks(checks.data?.checks ?? []).map((check) => (
-                <li key={check.kind} className="flex items-center gap-2.5 text-sm">
-                  <StatusDot status={dotStatus(check.state)} />
-                  <span>{dependencyLabel(check.kind)}</span>
-                  <span className="text-xs text-neutral-600">{check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}</span>
+                <li key={check.kind} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
+                  <span className="font-medium text-text">{dependencyLabel(check.kind)}</span>
+                  <Badge
+                    variant="neutral"
+                    size="sm"
+                    className={cn(
+                      'gap-1.5 rounded-sm py-0.5 font-medium',
+                      check.state === 'ready'
+                        ? 'border-ok-border bg-ok-surface text-ok-text'
+                        : 'border-fail-border bg-fail-surface text-fail-text',
+                    )}
+                  >
+                    <StatusDot status={dotStatus(check.state)} size="sm" />
+                    {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
+                  </Badge>
                 </li>
               ))}
             </ul>
             {encoderChecks(checks.data?.checks ?? []).length === 0 ? (
-              <p className="text-base text-neutral-600">
+              <p className="text-sm text-neutral-600">
                 {/* Honest about *why* it is empty: the service answered, and
                     nothing it answered with was an encoder check. */}
                 <Trans>这次检查里没有编码器项。完整的检查列表在「高级与诊断」。</Trans>
               </p>
             ) : null}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               {checks.data === undefined ? null : (
-                <span className="text-xs text-neutral-600">
+                <span className="text-xs tabular-nums text-neutral-600">
                   <Trans>上次检查 {new Date(checks.data.checked_at).toLocaleString()}</Trans>
                 </span>
               )}
@@ -409,7 +420,7 @@ function RollRow({ label, value, disabled, disabledReason, onCommit }: RollRowPr
           onChange={(next) => setDraft(next)}
           onCommit={(next) => commit(next)}
         />
-        <span className="w-14 flex-none font-mono text-sm" data-roll={shown}>
+        <span className="w-14 flex-none text-end font-mono text-sm tabular-nums" data-roll={shown}>
           {t`${shown.toFixed(1)} 秒`}
         </span>
       </div>

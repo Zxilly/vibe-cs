@@ -167,6 +167,7 @@ export function AiAgentSection() {
     <div data-settings-section="ai" className="flex flex-col">
       {writeError === null ? null : (
         <Alert
+          className="mb-4"
           variant="danger"
           action={{
             label: <Trans>知道了</Trans>,
@@ -181,6 +182,7 @@ export function AiAgentSection() {
 
       {removed === null ? null : (
         <Alert
+          className="mb-4"
           variant="success"
           action={{
             label: <Trans>知道了</Trans>,
@@ -573,7 +575,7 @@ function ModelBlock({
               <Trans>连接正常：{testResult}，支持 Agent 工具调用。</Trans>
             </Alert>
           )}
-          {disabledReason === undefined ? null : <p className="text-base text-warn-text">{disabledReason}</p>}
+          {disabledReason === undefined ? null : <p className="text-sm text-warn-text">{disabledReason}</p>}
         </div>
       )}
     </SettingsBlock>
@@ -659,10 +661,10 @@ function ProviderParametersEditor({
   };
 
   return (
-    <details className="group border border-divider" data-provider-parameters="">
-      <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none items-center gap-x-3 gap-y-1 flex-wrap bg-surface-chrome px-4 py-2.5">
-        <span className="font-heading text-sm"><Trans>请求参数</Trans></span>
-        <span className="text-xs text-neutral-600" data-custom-parameter-count={customCount}>
+    <details className="group overflow-hidden rounded-md border border-divider" data-provider-parameters="">
+      <summary className="flex min-h-[var(--h-row)] cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 bg-surface-chrome px-4 py-2.5 transition-colors hover:bg-neutral-100">
+        <span className="font-heading text-sm font-medium text-text"><Trans>请求参数</Trans></span>
+        <span className="text-xs tabular-nums text-neutral-600" data-custom-parameter-count={customCount}>
           {customCount === 0 ? <Trans>使用提供方默认值</Trans> : <Trans>{customCount} 项自定义</Trans>}
         </span>
         <ChevronRight
@@ -676,7 +678,7 @@ function ProviderParametersEditor({
       <div className="flex flex-col gap-4 border-t border-divider p-4">
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex min-w-0 flex-col gap-2">
-            <p className="text-base"><Trans>接口格式</Trans></p>
+            <p className="text-sm font-medium text-text"><Trans>接口格式</Trans></p>
             <Seg
               name="llm-parameter-style"
               size="sm"
@@ -718,7 +720,7 @@ function ProviderParametersEditor({
             onChange={(value) => update('top_p', value)}
           />
         </div>
-        <p className="text-base leading-normal text-neutral-600">
+        <p className="text-sm leading-normal text-neutral-600">
           <Trans>Temperature 和 Top P 通常只需设置一个。</Trans>
         </p>
 
@@ -743,7 +745,7 @@ function ProviderParametersEditor({
               onChange={(event) => onRawChange(event.target.value)} />
           )}
         </Field>
-        <p className="text-base leading-normal text-neutral-600">
+        <p className="text-sm leading-normal text-neutral-600">
           <Trans>模型、消息、工具和认证参数由应用管理，无需填写。</Trans>
         </p>
       </div>
@@ -916,7 +918,7 @@ function VideoLengthRow({ value, disabled, disabledReason, onCommit }: VideoLeng
           </InputGroupText>
         </InputGroup>
         {invalid ? (
-          <p id={invalidId} className="text-base leading-normal text-fail-text">
+          <p id={invalidId} className="text-sm leading-normal text-fail-text">
             <Trans>
               只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒。
             </Trans>
@@ -977,7 +979,7 @@ function StorageRow({
       )}
 
       {exportResult === null ? null : (
-        <p data-export-result="" className="text-base leading-normal text-neutral-700">
+        <p data-export-result="" className="text-sm leading-normal tabular-nums text-neutral-700">
           <Plural value={exportResult.count} other="已导出 # 条对话" />
           {' · '}
           <time dateTime={exportResult.at}>{exportResult.at}</time>
@@ -990,7 +992,7 @@ function StorageRow({
             <Skeleton width="60%" />
           ) : (
             <>
-              <p>
+              <p className="font-medium tabular-nums text-text">
                 {/* Every fact here is omitted when the stat is absent — never a
                     「0 B」 standing in for 「不知道」. */}
                 {conversation === null ? null : <Trans>当前占用 {conversation}</Trans>}
@@ -999,7 +1001,7 @@ function StorageRow({
                   <Plural value={sessionCount} other="# 条对话" />
                 )}
               </p>
-              <p className="mt-1 text-base text-neutral-600">
+              <p className="mt-1 text-sm text-neutral-600">
                 <Trans>全部存在本机，不上传。</Trans>
               </p>
             </>

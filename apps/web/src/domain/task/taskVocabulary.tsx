@@ -41,7 +41,7 @@ export function taskKindLabels(): Readonly<Record<TaskKind, ReactNode>> {
 export function taskStatusLabels(): Readonly<Record<TaskStatus, ReactNode>> {
   return {
     queued: <Trans>排队中</Trans>,
-    running: <Trans>运行中</Trans>,
+    running: <Trans>进行中</Trans>,
     cancelling: <Trans>取消中</Trans>,
     succeeded: <Trans>已完成</Trans>,
     failed: <Trans>失败</Trans>,
@@ -107,4 +107,14 @@ export const TASK_STATUS_TAG_TONE: Readonly<Record<TaskStatus, BadgeVariant>> = 
   succeeded: 'accent',
   failed: 'neutral',
   cancelled: 'neutral',
+};
+
+/** Semantic surface/border/text styling for status badges across TaskCard & TaskDetail. */
+export const TASK_STATUS_BADGE_CLASS: Readonly<Record<TaskStatus, string>> = {
+  queued: 'border-divider bg-neutral-100 text-neutral-700',
+  running: 'border-accent-300 bg-accent-100 text-accent-800',
+  cancelling: 'border-warn-border bg-warn-surface text-warn-text',
+  succeeded: 'border-ok-border bg-ok-surface text-ok-text',
+  failed: 'border-fail-border bg-fail-surface text-fail-text',
+  cancelled: 'border-divider bg-neutral-100 text-neutral-700',
 };

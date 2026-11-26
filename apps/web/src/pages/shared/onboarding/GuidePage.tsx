@@ -15,6 +15,7 @@ import { dependencyLabel } from '../../../domain/environment/dependencyLabel';
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { Check } from 'lucide-react';
 
 import { Skeleton } from '../../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
@@ -23,7 +24,7 @@ import { Badge, Button } from '../../../design/primitives';
 import { cn } from '../../../design/cn';
 import { useQuickCheck } from '../../../data/config';
 import { dataErrorMessage } from '../../../data/errors';
-import type { DependencyCheck, DependencyState } from '../../../shared/desktop/dto';
+import type { DependencyCheck, DependencyKind, DependencyState } from '../../../shared/desktop/dto';
 import { useFirstRunProgress } from './firstRunProgress';
 import { FIRST_RUN_STEPS } from './firstRunSteps';
 import { RouteLink } from '../navigation/RouteLink';
@@ -46,12 +47,12 @@ export function GuidePage() {
       {/* `items-start`: the two columns are unrelated readouts, and the left
           one is three fixed cards. Stretching it to the taller column left a
           panel with a page of empty border under its last card. */}
-      <div className="grid min-h-0 grid-cols-1 items-start gap-4 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
-        <section className="flex min-w-0 flex-col gap-4">
-          <h2 className="text-lg font-medium">
+      <div className="grid min-h-0 grid-cols-1 items-start gap-5 p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-lg font-medium text-text">
             <Trans>创建第一份作品</Trans>
           </h2>
-          <ol className="flex flex-col border border-divider bg-bg">
+          <ol className="flex flex-col overflow-hidden rounded-lg border border-divider bg-bg">
             {FIRST_RUN_STEPS.map((step, index) => {
               const current = progress?.current === step.id;
               const done = progress?.done.has(step.id) ?? false;
@@ -62,16 +63,16 @@ export function GuidePage() {
                   data-guide-current={current ? 'true' : undefined}
                   data-guide-done={done ? 'true' : undefined}
                   className={cn(
-                    'relative flex min-h-28 items-center gap-4 border-b border-divider p-5 last:border-b-0 focus-within:outline-2 focus-within:outline-accent focus-within:-outline-offset-2',
+                    'relative flex min-h-28 items-center gap-4 border-b border-divider p-5 transition-colors last:border-b-0 focus-within:outline-2 focus-within:outline-accent focus-within:-outline-offset-2',
                     current
                       ? 'bg-accent-100'
-                      : 'hover:bg-action-hover',
+                      : 'hover:bg-neutral-100',
                   )}
                 >
                   <span
                     className={cn(
                       'w-10 flex-none font-heading text-2xl tabular-nums',
-                      current ? 'text-accent-800' : 'text-neutral-500',
+                      current ? 'text-accent-800' : done ? 'text-ok' : 'text-neutral-500',
                     )}
                   >
                     {String(index + 1).padStart(2, '0')}
@@ -83,13 +84,18 @@ export function GuidePage() {
                         {step.title()}
                       </RouteLink>
                       {done ? (
-                        <Badge variant="neutral" size="sm">
+                        <Badge
+                          variant="neutral"
+                          size="sm"
+                          className="gap-1 rounded-sm border-ok-border bg-ok-surface py-0.5 font-medium text-ok-text"
+                        >
+                          <Check size={12} strokeWidth={2} aria-hidden="true" />
                           <Trans>已完成</Trans>
                         </Badge>
                       ) : null}
-                      {current ? <Badge variant="accent" size="sm"><Trans>下一步</Trans></Badge> : null}
+                      {current ? <Badge variant="accent" size="sm" className="rounded-sm py-0.5 font-medium"><Trans>下一步</Trans></Badge> : null}
                     </div>
-                    <p className={cn('max-w-prose text-base leading-relaxed', current ? 'text-accent-800' : 'text-neutral-600')}>{step.description()}</p>
+                    <p className={cn('max-w-prose text-sm leading-relaxed', current ? 'text-accent-800' : 'text-neutral-600')}>{step.description()}</p>
                   </div>
                 </li>
               );
@@ -97,9 +103,9 @@ export function GuidePage() {
           </ol>
         </section>
 
-        <section className="flex min-w-0 flex-col gap-4 border border-divider p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-lg font-medium">
+        <section className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-divider bg-bg">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider bg-surface-chrome px-5 py-3.5">
+            <h2 className="text-md font-medium text-text">
               <Trans>环境检查</Trans>
             </h2>
             <Button
@@ -113,52 +119,70 @@ export function GuidePage() {
             </Button>
           </div>
 
-          {error !== null ? (
-            <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
-              <Trans>读不到环境自检：{error}</Trans>
-            </Alert>
-          ) : checks.isPending ? (
-            <div role="status" aria-label={t`正在检查环境`} className="flex flex-col gap-2.5">
-              <Skeleton />
-              <Skeleton width="82%" />
-            </div>
-          ) : (
-            <ul className="flex flex-col">
-              {(checks.data?.checks ?? []).map((check) => (
-                <li
-                  key={`${check.kind}:${dependencyLabel(check.kind)}`}
-                  className="flex flex-col gap-1 border-b border-divider py-4 first:pt-2 last:border-b-0"
-                  data-guide-check={check.kind}
-                >
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <StatusDot status={dotStatus(check.state)} />
-                    <span>{dependencyLabel(check.kind)}</span>
-                    <span className={cn('ml-auto flex-none text-sm', check.state === 'ready' ? 'text-ok-text' : 'text-fail-text')}>
-                      {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
-                    </span>
-                  </div>
-                  <p className="ms-5 text-base leading-relaxed text-neutral-600">
-                    {/* What it enables, and — when it is broken — what still
-                        works without it. A first-time user with no HLAE needs
-                        to know they can still import and analyse today. */}
-                    {enablesSentence(check)}
-                  </p>
-                </li>
-              ))}
-              {(checks.data?.checks ?? []).length === 0 ? (
-                <li className="py-3 text-sm leading-relaxed text-neutral-600">
-                  <Trans>没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。</Trans>
-                </li>
-              ) : null}
-            </ul>
-          )}
+          <div className="flex flex-col gap-4 p-5">
+            {error !== null ? (
+              <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
+                <Trans>读不到环境自检：{error}</Trans>
+              </Alert>
+            ) : checks.isPending ? (
+              <div role="status" aria-label={t`正在检查环境`} className="flex flex-col gap-2.5">
+                <Skeleton />
+                <Skeleton width="82%" />
+              </div>
+            ) : (
+              <ul className="flex flex-col divide-y divide-divider">
+                {(checks.data?.checks ?? []).map((check) => (
+                  <li
+                    key={`${check.kind}:${dependencyLabel(check.kind)}`}
+                    className="flex flex-col gap-1.5 py-3.5 first:pt-0 last:pb-0"
+                    data-guide-check={check.kind}
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="font-medium text-text">{dependencyLabel(check.kind)}</span>
+                      <Badge
+                        variant="neutral"
+                        size="sm"
+                        className={cn(
+                          'gap-1.5 rounded-sm py-0.5 font-medium',
+                          check.state === 'ready'
+                            ? 'border-ok-border bg-ok-surface text-ok-text'
+                            : 'border-fail-border bg-fail-surface text-fail-text',
+                        )}
+                      >
+                        <StatusDot status={dotStatus(check.state)} size="sm" />
+                        {check.state === 'ready' ? <Trans>就绪</Trans> : <Trans>需要配置</Trans>}
+                      </Badge>
+                      {check.state === 'missing' ? (
+                        <Button asChild variant="secondary" size="sm" className="ml-auto flex-none">
+                          <RouteLink to={dependencySettingsPath(check.kind)} className="no-underline">
+                            <Trans>去设置</Trans>
+                          </RouteLink>
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="text-sm leading-relaxed text-neutral-600">
+                      {/* What it enables, and — when it is broken — what still
+                          works without it. A first-time user with no HLAE needs
+                          to know they can still import and analyse today. */}
+                      {enablesSentence(check)}
+                    </p>
+                  </li>
+                ))}
+                {(checks.data?.checks ?? []).length === 0 ? (
+                  <li className="py-3 text-sm leading-relaxed text-neutral-600">
+                    <Trans>没有收到环境检查结果。请重新检查后确认回放、录制和导出是否可用。</Trans>
+                  </li>
+                ) : null}
+              </ul>
+            )}
 
-          <p className="text-base leading-normal text-neutral-600">
-            <Trans>
-              更多检查结果见
-              <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。
-            </Trans>
-          </p>
+            <p className="border-t border-divider pt-3 text-sm leading-normal text-neutral-600">
+              <Trans>
+                更多检查结果见
+                <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。
+              </Trans>
+            </p>
+          </div>
         </section>
       </div>
     </Page>
@@ -176,6 +200,17 @@ export function GuidePage() {
  */
 function dotStatus(state: DependencyState): StatusDotStatus {
   return state === 'ready' ? 'ok' : 'fail';
+}
+
+function dependencySettingsPath(kind: DependencyKind): string {
+  switch (kind) {
+    case 'game':
+      return settingsPath('game');
+    case 'hlae':
+      return settingsPath('capture');
+    case 'encoder':
+      return settingsPath('video-output');
+  }
 }
 
 /**

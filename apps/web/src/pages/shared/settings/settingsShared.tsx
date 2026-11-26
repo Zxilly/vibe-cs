@@ -45,9 +45,9 @@ export function SettingsBlock({
   const heading = (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="text-lg font-medium">{title}</h2>
+        <h2 className="text-md font-medium text-text">{title}</h2>
         {description === undefined ? null : (
-          <p className="max-w-prose text-base leading-relaxed text-neutral-600">{description}</p>
+          <p className="max-w-prose text-sm leading-relaxed text-neutral-600">{description}</p>
         )}
       </div>
       {actions === undefined ? null : (
@@ -64,9 +64,9 @@ export function SettingsBlock({
         data-settings-block=""
         data-settings-layout="split"
         {...identity}
-        className="mb-4 grid grid-cols-1 border border-divider bg-bg last:mb-0 lg:grid-cols-[15rem_minmax(0,1fr)]"
+        className="mb-4 grid grid-cols-1 overflow-hidden rounded-lg border border-divider bg-bg last:mb-0 lg:grid-cols-[15rem_minmax(0,1fr)]"
       >
-        <div className="border-b border-divider px-5 py-4 lg:border-r lg:border-b-0">{heading}</div>
+        <div className="border-b border-divider bg-surface-chrome px-5 py-4 lg:border-r lg:border-b-0">{heading}</div>
         <div className="flex min-w-0 flex-col gap-4 px-5 py-4">{children}</div>
       </section>
     );
@@ -77,10 +77,10 @@ export function SettingsBlock({
       data-settings-block=""
       data-settings-layout="stacked"
       {...identity}
-      className="mb-4 flex flex-col gap-4 border border-divider bg-bg px-5 py-4 last:mb-0"
+      className="mb-4 flex flex-col overflow-hidden rounded-lg border border-divider bg-bg last:mb-0"
     >
-      {heading}
-      {children}
+      <div className="border-b border-divider bg-surface-chrome px-5 py-3.5">{heading}</div>
+      <div className="flex min-w-0 flex-col gap-4 px-5 py-4">{children}</div>
     </section>
   );
 }
@@ -112,16 +112,16 @@ export function SettingsRow({ label, hint, children, disabledReason }: SettingsR
   return (
     <div data-settings-row="" className="flex flex-wrap items-start gap-x-8 gap-y-3">
       <div className="min-w-0 basis-64 flex-[2]">
-        <p className="text-base">{label}</p>
-        {hint == null ? null : <p className="mt-1 max-w-prose text-base leading-relaxed text-neutral-600">{hint}</p>}
+        <p className="text-base font-medium text-text">{label}</p>
+        {hint == null ? null : <p className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">{hint}</p>}
         {disabledReason === undefined ? null : (
-          <p className="mt-1 text-base leading-normal text-warn-text" data-disabled-reason="">
+          <p className="mt-1 text-sm leading-normal text-warn-text" data-disabled-reason="">
             {disabledReason}
           </p>
         )}
       </div>
       {children === undefined ? null : (
-        <div className="flex min-w-0 max-w-full flex-1 basis-56 flex-wrap justify-end gap-2">{children}</div>
+        <div className="flex min-w-0 max-w-full flex-1 basis-56 flex-wrap items-center justify-end gap-2">{children}</div>
       )}
     </div>
   );
@@ -164,10 +164,10 @@ export function SettingsSwitch({
         <div className="min-w-0 flex-1">
           {/* A real label: the 34×18 switch is a small target, and the title
               beside it is the one people actually aim for. */}
-          <label htmlFor={switchId} className="block text-base">
+          <label htmlFor={switchId} className="block text-base font-medium text-text">
             {label}
           </label>
-          <p id={hintId} className="mt-1 max-w-prose text-base leading-relaxed text-neutral-600">
+          <p id={hintId} className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">
             {hint}
           </p>
         </div>
@@ -183,7 +183,7 @@ export function SettingsSwitch({
         />
       </div>
       {disabledReason === undefined ? null : (
-        <p className="text-base leading-normal text-warn-text" data-disabled-reason="">
+        <p className="text-sm leading-normal text-warn-text" data-disabled-reason="">
           {disabledReason}
         </p>
       )}

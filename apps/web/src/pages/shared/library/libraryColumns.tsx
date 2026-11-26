@@ -35,6 +35,7 @@ import { DemoStatusMark } from './DemoStatusMark';
 import {
   demoSourceLabel,
   formatDuration,
+  formatMapName,
   formatMatchDate,
   formatRounds,
   isDemoAnalysable,
@@ -103,7 +104,7 @@ export function libraryColumns(
          「de_ancient」 plus the cell's inline padding; a longer name widens it. */
       width: '92px',
       sortable: true,
-      cell: (demo) => demo.map_name,
+      cell: (demo) => <span title={demo.map_name}>{formatMapName(demo.map_name)}</span>,
     },
     {
       id: 'date',

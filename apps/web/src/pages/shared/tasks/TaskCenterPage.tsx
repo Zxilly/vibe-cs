@@ -79,6 +79,7 @@ export function TaskCenterPage() {
             onReload={() => void feed.refetch()}
             bind={bind}
             onSelect={setSelectedId}
+            hasSideDetail={!collapsed && selected !== null}
             {...(state === 'all' ? {} : { filter: { state, onClear: showAll } })}
           />
         </div>
@@ -92,7 +93,7 @@ export function TaskCenterPage() {
             {chosen === null ? null : <TaskDetailBody item={chosen} compact />}
           </Drawer>
         ) : selected === null ? null : (
-          <aside className="w-[var(--w-inspector)] flex-none overflow-y-auto border-l border-divider bg-bg" aria-label={t`任务详情`}>
+          <aside className="w-[var(--w-inspector)] flex-none overflow-y-auto rounded-lg border border-divider bg-bg" aria-label={t`任务详情`}>
             <TaskDetailBody item={selected} compact />
           </aside>
         )}

@@ -54,7 +54,7 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
     return <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>{error}</Alert>;
   }
   if (isLoading) {
-    return <div className="flex flex-col gap-5">{[0, 1, 2, 3].map((index) => <TaskCardSkeleton key={index} />)}</div>;
+    return <div className="flex flex-col gap-3">{[0, 1, 2, 3].map((index) => <TaskCardSkeleton key={index} />)}</div>;
   }
   if (items.length === 0) {
     return filter === undefined ? (

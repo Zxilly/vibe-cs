@@ -336,13 +336,16 @@ export function TaskCardSkeleton({ className }: { readonly className?: string | 
       role="status"
       aria-busy="true"
       aria-label={t`加载后台任务`}
-      className={cn('flex gap-3', className)}
+      className={cn(
+        'flex min-w-0 flex-col gap-2.5 rounded-lg border border-divider bg-bg p-4',
+        className,
+      )}
     >
-      <span aria-hidden="true" className="mt-1.5 block size-[9px] flex-none animate-pulse bg-neutral-200" />
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex items-center gap-2.5">
+        <Skeleton width="4.25rem" className="h-5 flex-none rounded-sm" />
         <Skeleton width="46%" className="h-3.5" />
-        <Skeleton width="72%" />
       </div>
+      <Skeleton width="72%" />
     </div>
   );
 }

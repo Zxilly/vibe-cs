@@ -483,8 +483,23 @@ function ModelBlock({
           <Trans>读不到模型配置：{error}</Trans>
         </Alert>
       ) : loading ? (
-        <div aria-busy="true" className="flex flex-col gap-2">
-          <Skeleton width="72%" />
+        <div aria-busy="true" data-model-skeleton="" className="flex flex-col gap-3">
+          <div className="border-b border-divider pb-2">
+            <Skeleton width="5rem" className="h-4" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {MODEL_SKELETON_LABELS.map((labelWidth, index) => (
+              <div key={index} className="flex flex-col gap-1.5">
+                <Skeleton width={labelWidth} className="h-3.5" />
+                <Skeleton width="100%" className="h-[var(--h-ctl-md)] rounded-md" />
+              </div>
+            ))}
+          </div>
+          <Skeleton width="100%" className="h-[var(--h-row)] rounded-md" />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton width="5.5rem" className="h-3.5" />
+            <Skeleton width="100%" className="h-16 rounded-md" />
+          </div>
         </div>
       ) : draft === null ? null : (
         <div className="flex flex-col gap-3">
@@ -581,6 +596,8 @@ function ModelBlock({
     </SettingsBlock>
   );
 }
+
+const MODEL_SKELETON_LABELS = ['4rem', '3.5rem', '5rem', '5rem'] as const;
 
 type ProviderParameterObject = { [key: string]: JsonValue };
 
@@ -963,6 +980,12 @@ function StorageRow({
   busy,
 }: StorageRowProps) {
   const conversation = formatBytes(bytes);
+  const actionDisabled = busy || loading;
+  const actionDisabledReason = loading
+    ? t`正在读取对话占用`
+    : busy
+      ? t`正在处理上一次操作`
+      : undefined;
 
   return (
     <div className="flex flex-col gap-2.5 border-t border-divider pt-3">
@@ -986,10 +1009,13 @@ function StorageRow({
         </p>
       )}
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         <div className="min-w-0 flex-1 text-sm text-neutral-800">
           {loading ? (
-            <Skeleton width="60%" />
+            <div aria-busy="true" className="flex flex-col gap-2">
+              <Skeleton width="56%" className="h-3.5" />
+              <Skeleton width="40%" />
+            </div>
           ) : (
             <>
               <p className="font-medium tabular-nums text-text">
@@ -1012,7 +1038,9 @@ function StorageRow({
           size="sm"
           data-setting-action="export"
           onClick={onExport}
-          {...(busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
+          {...(actionDisabled
+            ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
+            : { disabled: false })}
         >
           <Trans>导出</Trans>
         </Button>
@@ -1020,7 +1048,9 @@ function StorageRow({
           size="sm"
           data-setting-action="clear"
           onClick={onClear}
-          {...(busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
+          {...(actionDisabled
+            ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
+            : { disabled: false })}
         >
           <Trans>清空对话</Trans>
         </Button>

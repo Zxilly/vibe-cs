@@ -78,7 +78,7 @@ export function libraryColumns(
       // match name would otherwise push 状态 out of a 616px pane.
       hideable: false,
       truncate: true,
-      minWidth: 'var(--w-subnav)',
+      minWidth: '136px',
       sortable: true,
       // `TableCell`'s contract: a truncated cell carries the full text as its
       // `title`, or a clipped 「Vitality vs G2 · I…」 has no way to be read.
@@ -100,9 +100,10 @@ export function libraryColumns(
          become 「de_mira…」 the way an earlier `9ch` + `truncate` pair made it.
          In px rather than `ch` because the floor also lives on the header
          cell, whose type differs from the body's — `DataTable` explains — and
-         this column has to sit at the same pixel on an empty page. 92px is
-         「de_ancient」 plus the cell's inline padding; a longer name widens it. */
-      width: '92px',
+         this column has to sit at the same pixel on an empty page. 76px fits
+         display map names like 「Mirage」/「Ancient」 plus inline padding; a
+         longer name widens it naturally. */
+      width: '76px',
       sortable: true,
       cell: (demo) => <span title={demo.map_name}>{formatMapName(demo.map_name)}</span>,
     },
@@ -114,7 +115,7 @@ export function libraryColumns(
       /* px, like 地图: 「08-14 20:11」 is eleven mono characters at the body
          size, and a `ch` floor on the header would resolve smaller and let
          the column narrow on an empty page. */
-      width: '102px',
+      width: '92px',
       cell: (demo) => formatMatchDate(demo.match_date),
     },
     {
@@ -122,7 +123,7 @@ export function libraryColumns(
       header: <Trans>时长</Trans>,
       configLabel: t`时长`,
       variant: 'numeric',
-      width: '8ch',
+      width: '6ch',
       sortable: true,
       cell: (demo) => formatDuration(demo.duration_seconds),
     },
@@ -131,13 +132,9 @@ export function libraryColumns(
       header: <Trans>回合</Trans>,
       configLabel: t`回合`,
       variant: 'numeric',
-      /* 8ch, not the 6ch its *values* need: `ch` is the width of a Latin
-         digit and the header is two CJK characters plus a sort glyph, so the
-         column has to fit its own name. It no longer *has* to — `TableCell`
-         pins every cell to one line, so a short width can no longer wrap the
-         label — but 时长 next door is the same shape, and two neighbours that
-         count things should be the same width. */
-      width: '8ch',
+      /* 6ch matches the neighbour 时长 column and fits both two-digit round
+         counts and the single-line header without claiming unnecessary slack. */
+      width: '6ch',
       sortable: true,
       cell: (demo) => formatRounds(demo.total_rounds),
     },
@@ -165,7 +162,7 @@ export function libraryColumns(
       hideable: false,
       // Keep the contextual action visible; the secondary action shares a
       // compact menu so ordinary match names get the remaining table width.
-      width: '112px',
+      width: '84px',
       cell: (demo) => <RowAction demo={demo} handlers={handlers} />,
     },
   ];
@@ -251,7 +248,7 @@ function RowAction({
 
   return (
     <span
-      className="flex items-center justify-end gap-2"
+      className="flex items-center justify-end gap-1"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >

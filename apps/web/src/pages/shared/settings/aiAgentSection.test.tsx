@@ -65,9 +65,13 @@ describe('§4.5.3 rule ① on the panel', () => {
 });
 
 describe('the empty cache', () => {
-  it('shows skeletons rather than zeroes for the stored fields', () => {
+  it('shows a 2x2 model field skeleton grid and disables storage actions while pending', () => {
     const html = section();
     expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('data-model-skeleton=""');
+    expect(html).toContain('sm:grid-cols-2');
+    expect(html).toMatch(/disabled=""[^>]*data-setting-action="export"|data-setting-action="export"[^>]*disabled=""/u);
+    expect(html).toMatch(/disabled=""[^>]*data-setting-action="clear"|data-setting-action="clear"[^>]*disabled=""/u);
     expect(html).not.toContain('0 B');
     expect(html).not.toContain('role="progressbar"');
   });

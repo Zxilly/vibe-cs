@@ -110,8 +110,8 @@ export interface SettingsRowProps {
  */
 export function SettingsRow({ label, hint, children, disabledReason }: SettingsRowProps) {
   return (
-    <div data-settings-row="" className="flex flex-wrap items-start gap-x-8 gap-y-3">
-      <div className="min-w-0 basis-64 flex-[2]">
+    <div data-settings-row="" className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
+      <div className="min-w-0 flex-1 basis-64">
         <p className="text-base font-medium text-text">{label}</p>
         {hint == null ? null : <p className="mt-1 max-w-prose text-sm leading-relaxed text-neutral-600">{hint}</p>}
         {disabledReason === undefined ? null : (
@@ -121,7 +121,7 @@ export function SettingsRow({ label, hint, children, disabledReason }: SettingsR
         )}
       </div>
       {children === undefined ? null : (
-        <div className="flex min-w-0 max-w-full flex-1 basis-56 flex-wrap items-center justify-end gap-2">{children}</div>
+        <div className="flex min-w-0 max-w-full flex-none flex-wrap items-center justify-end gap-2">{children}</div>
       )}
     </div>
   );

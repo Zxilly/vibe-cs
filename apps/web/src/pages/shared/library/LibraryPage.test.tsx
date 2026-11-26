@@ -150,9 +150,11 @@ describe('the table', () => {
   it('gives 地图 and 来源 a column width, so headers stay put across result sets', () => {
     const empty = renderLibraryMarkup({ seed: { ...ONLINE, demos: demoPage([]) } });
     for (const page of [html, empty]) {
+      expect(page).toContain('min-width:136px');
+      expect(page).toContain('<col style="width:76px"');
       expect(page).toContain('<col style="width:92px"');
       expect(page).toContain('<col style="width:72px"');
-      expect(page).toContain('min-width:92px');
+      expect(page).toContain('min-width:76px');
     }
   });
 
@@ -166,13 +168,24 @@ describe('the table', () => {
 });
 
 describe('the states', () => {
-  it('loads with a skeleton and no invented percentage', () => {
+  it('loads with a skeleton, omits misleading zero counts in meta, and invents no percentage', () => {
     const html = renderLibraryMarkup({ seed: {} });
     expect(html).toContain('正在读取资料库');
+    expect(html).not.toContain('0 场');
+    expect(html).not.toContain('0 个监听目录');
     // A percentage in *text*, not in a class or a skeleton bar's width — the
     // rule is 「有真实分母时才用进度条，否则只给阶段名」.
     expect(html).not.toMatch(TEXT_PERCENTAGE);
     expect(html).not.toContain('role="progressbar"');
+  });
+
+  it('loads the card view with six card skeletons and a visible status caption', () => {
+    const html = renderLibraryMarkup({ at: '/library?view=card', seed: {} });
+    expect(html).toContain('data-library-cards-loading="true"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('正在读取资料库');
+    expect(html.match(/data-demo-card-skeleton=/gu)).toHaveLength(6);
+    expect(html).not.toMatch(TEXT_PERCENTAGE);
   });
 
   it('offers a way to fill an empty library', () => {

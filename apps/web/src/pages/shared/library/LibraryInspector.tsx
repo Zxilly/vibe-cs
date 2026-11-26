@@ -42,6 +42,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { Skeleton } from '../../../design/data';
 import { Inspector } from '../../../design/layout';
 import { Alert } from '../../../design/feedback';
 import { Button, Badge, Input } from '../../../design/primitives';
@@ -131,9 +132,24 @@ export function LibraryInspector({
         {...(collapsed === undefined ? {} : { collapsed })}
       >
         {loading ? (
-          <p className="text-sm text-neutral-600">
-            <Trans>正在读取</Trans>
-          </p>
+          <div role="status" aria-busy="true" className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Skeleton width="72%" className="h-5" />
+              <Skeleton width="56%" className="h-3.5" />
+            </div>
+            <Skeleton width="4.5rem" className="h-5 rounded-sm" />
+            <div className="flex flex-col gap-2.5">
+              {INSPECTOR_SKELETON_ROWS.map((valueWidth, index) => (
+                <div key={index} className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-3">
+                  <Skeleton width="3.5rem" />
+                  <Skeleton width={valueWidth} />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-600">
+              <Trans>正在读取</Trans>
+            </p>
+          </div>
         ) : (
           <p className="text-base leading-normal text-neutral-700">
             <Trans>在左侧选一场比赛，这里会显示它的文件、状态与下一步。</Trans>
@@ -315,6 +331,8 @@ export function LibraryInspector({
     </Inspector>
   );
 }
+
+const INSPECTOR_SKELETON_ROWS = ['78%', '88%', '46%', '62%', '68%'] as const;
 
 function DetailRow({
   term,

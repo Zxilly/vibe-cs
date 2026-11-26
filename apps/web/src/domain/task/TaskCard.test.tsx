@@ -254,10 +254,14 @@ describe('TaskCard · results', () => {
 });
 
 describe('TaskCardSkeleton', () => {
-  it('is a busy placeholder with no fabricated percentage', () => {
+  it('is a bordered busy placeholder with no fabricated percentage', () => {
     const markup = renderMarkup(<TaskCardSkeleton />);
 
     expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain('rounded-lg');
+    expect(markup).toContain('border-divider');
+    expect(markup).toContain('bg-bg');
+    expect(markup).toContain('p-4');
     expect(markup).not.toContain('role="progressbar"');
     // Nothing is *written* — the only percentages in there are the bar widths
     // of the artboard's own skeleton, which are CSS, not a claim about how far

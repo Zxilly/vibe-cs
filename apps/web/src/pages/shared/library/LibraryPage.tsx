@@ -60,6 +60,7 @@ import {
 } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
 import { useNativeShell, useNativeShellAction, useRevealPath } from '../../../data/nativeShell';
+import { Skeleton } from '../../../design/data';
 import { Alert, toast } from '../../../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../../../design/layout';
 import { Button, Seg } from '../../../design/primitives';
@@ -418,27 +419,21 @@ function DemoLibraryPage() {
         <Toolbar
           title={<Trans>Demo 资料库</Trans>}
           meta={
-            <>
-              <Plural value={list.data?.total ?? 0} other="# 场" />
-              {' · '}
-              <Plural value={watch.data?.roots.length ?? 0} other="# 个监听目录" />
-            </>
+            list.isPending || watch.isPending ? (
+              <Skeleton width="7rem" />
+            ) : (
+              <>
+                <Plural value={list.data?.total ?? 0} other="# 场" />
+                {' · '}
+                <Plural value={watch.data?.roots.length ?? 0} other="# 个监听目录" />
+              </>
+            )
           }
-          // §10.3 缺口 2: a short-titled page keeps two actions on the bar when
-          // collapsed. Here that is the view switch and 监听目录; 导入 Demo is
-          // `primary` and never folds at all (§8).
-          inlineActionsWhenCollapsed={2}
+          // Keep only the view switch inline when collapsed (<= 1100px) so
+          // Steam 下载 and 监听目录 fold cleanly into 更多 ▾ without crushing
+          // the page title at 768px; 导入 Demo stays in `primary` (§8).
+          inlineActionsWhenCollapsed={1}
           actions={[
-            {
-              id: 'steam',
-              label: <Trans>Steam 下载</Trans>,
-              control: (
-                <Button variant="ghost" onClick={openSteam}>
-                  <Trans>Steam 下载</Trans>
-                </Button>
-              ),
-              onSelect: openSteam,
-            },
             {
               id: 'view',
               label: <Trans>切换视图</Trans>,
@@ -456,6 +451,16 @@ function DemoLibraryPage() {
                   }}
                 />
               ),
+            },
+            {
+              id: 'steam',
+              label: <Trans>Steam 下载</Trans>,
+              control: (
+                <Button variant="ghost" onClick={openSteam}>
+                  <Trans>Steam 下载</Trans>
+                </Button>
+              ),
+              onSelect: openSteam,
             },
             {
               id: 'watch',

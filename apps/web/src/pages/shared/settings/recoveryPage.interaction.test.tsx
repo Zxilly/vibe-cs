@@ -62,6 +62,7 @@ describe('what the page says before anything is pressed', () => {
     const missing = screen.getByRole('button', { name: '清理失效记录' });
     expect(staged.hasAttribute('disabled')).toBe(true);
     expect(missing.hasAttribute('disabled')).toBe(true);
+    expect(document.querySelectorAll('[data-recovery-list] span.h-6.w-32.rounded-sm').length).toBeGreaterThanOrEqual(2);
     fireEvent.click(staged);
     expect(screen.queryByRole('dialog')).toBeNull();
 

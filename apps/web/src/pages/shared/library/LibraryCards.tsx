@@ -21,7 +21,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
-import { Pagination } from '../../../design/data';
+import { Pagination, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { cn } from '../../../design/primitives';
 import type { Paginated } from '../../../shared/desktop/dto';
@@ -83,9 +83,28 @@ export function LibraryCards({
         )}
 
         {loading ? (
-          <p role="status" className="text-sm text-neutral-600">
-            <Trans>正在读取资料库</Trans>
-          </p>
+          <div
+            data-library-cards-loading
+            role="region"
+            aria-label={t`Demo 资料库 · 卡片视图`}
+            aria-busy="true"
+            className="flex flex-col gap-3"
+          >
+            <p role="status" className="text-xs text-neutral-600">
+              <Trans>正在读取资料库</Trans>
+            </p>
+            <div
+              aria-hidden="true"
+              className={cn(
+                'grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--w-panel)),1fr))]',
+                CARD_LIST_GAP_CLASS,
+              )}
+            >
+              {CARD_SKELETON_WIDTHS.map((titleWidth, index) => (
+                <DemoCardSkeleton key={index} titleWidth={titleWidth} />
+              ))}
+            </div>
+          </div>
         ) : null}
 
         {!loading && error === null && rows.length === 0 ? (
@@ -95,30 +114,55 @@ export function LibraryCards({
         {/* The grid's accessible name is what tells a screen-reader user which
             of the two §7 views they are in; the table's equivalent is
             `DataTable`'s visually hidden `<caption>`. */}
-        <ul
-          aria-label={t`Demo 资料库 · 卡片视图`}
-          className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--w-panel)),1fr))]', CARD_LIST_GAP_CLASS)}
-        >
-          {rows.map((demo) => (
-            <li key={demo.id}>
-              <DemoCard
-                demo={demo}
-                active={demo.id === activeDemoId}
-                onActivate={() => {
-                  onActivate(demo);
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+        {loading ? null : (
+          <ul
+            aria-label={t`Demo 资料库 · 卡片视图`}
+            className={cn('grid grid-cols-[repeat(auto-fill,minmax(min(100%,var(--w-panel)),1fr))]', CARD_LIST_GAP_CLASS)}
+          >
+            {rows.map((demo) => (
+              <li key={demo.id}>
+                <DemoCard
+                  demo={demo}
+                  active={demo.id === activeDemoId}
+                  onActivate={() => {
+                    onActivate(demo);
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <Pagination
         page={currentPage}
         pageSize={LIBRARY_PAGE_SIZE}
         total={total}
+        loading={loading}
         onPageChange={onPageChange}
       />
+    </div>
+  );
+}
+
+const CARD_SKELETON_WIDTHS = ['64%', '56%', '70%', '58%', '66%', '52%'] as const;
+
+function DemoCardSkeleton({ titleWidth }: { titleWidth: string }) {
+  return (
+    <div
+      data-demo-card-skeleton
+      className="flex w-full flex-col gap-2.5 rounded-lg border border-divider bg-bg p-4"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <Skeleton width={titleWidth} className="h-4" />
+        <Skeleton width="3.5rem" className="h-3.5 flex-none" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton width="74%" />
+      </div>
+      <div className="flex items-center gap-2 pt-0.5">
+        <Skeleton width="4.5rem" className="h-5 rounded-sm" />
+      </div>
     </div>
   );
 }

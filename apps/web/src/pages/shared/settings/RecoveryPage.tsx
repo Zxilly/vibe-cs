@@ -128,7 +128,7 @@ export function RecoveryPage() {
           title={<Trans>配置恢复</Trans>}
           state={
             status.isPending ? (
-              <Skeleton width="12rem" />
+              <Skeleton className="h-6 w-32 rounded-sm" />
             ) : status.data === undefined ? (
               <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>
@@ -199,7 +199,7 @@ export function RecoveryPage() {
           title={<Trans>未完成的暂存成品文件</Trans>}
           state={
             scan.isPending ? (
-              <Skeleton width="12rem" />
+              <Skeleton className="h-6 w-32 rounded-sm" />
             ) : scan.data === undefined ? (
               <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>
@@ -279,7 +279,7 @@ export function RecoveryPage() {
           title={<Trans>指向不存在文件的记录</Trans>}
           state={
             scan.isPending ? (
-              <Skeleton width="12rem" />
+              <Skeleton className="h-6 w-32 rounded-sm" />
             ) : scan.data === undefined ? (
               <Badge variant="neutral" size="sm" className="rounded-sm border-divider bg-neutral-100 py-0.5 text-neutral-600">
                 <Trans>读不到状态</Trans>

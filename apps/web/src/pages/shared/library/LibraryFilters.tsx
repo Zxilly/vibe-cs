@@ -168,7 +168,7 @@ export function LibraryFilters({
   return (
     <div
       data-library-filters
-      className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2 border-b border-divider bg-surface-chrome px-6 py-2"
+      className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-divider bg-surface-chrome px-4 py-1.5 sm:px-6"
     >
       <InputGroup
         size="sm"
@@ -205,21 +205,23 @@ export function LibraryFilters({
         )}
       </InputGroup>
 
-      <FilterMenu name={t`地图`} current={currentMap} items={mapItems} active={address.map !== ''} />
-      <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} active={address.status !== ''} />
-      <FilterMenu name={t`平台`} current={currentSource} items={sourceItems} active={address.source !== ''} />
-      <FilterMenu name={t`标签`} current={currentTag} items={tagItems} active={address.tagId !== ''} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <FilterMenu name={t`地图`} current={currentMap} items={mapItems} active={address.map !== ''} />
+        <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} active={address.status !== ''} />
+        <FilterMenu name={t`平台`} current={currentSource} items={sourceItems} active={address.source !== ''} />
+        <FilterMenu name={t`标签`} current={currentTag} items={tagItems} active={address.tagId !== ''} />
 
-      {hasActiveFilter(address) ? (
-        <Button size="sm" variant="ghost" onClick={() => {
-          onChange(clearLibraryFilters(address));
-          searchInput.current?.focus();
-        }}>
-          <Trans>重置筛选</Trans>
-        </Button>
-      ) : null}
+        {hasActiveFilter(address) ? (
+          <Button size="sm" variant="ghost" onClick={() => {
+            onChange(clearLibraryFilters(address));
+            searchInput.current?.focus();
+          }}>
+            <Trans>重置筛选</Trans>
+          </Button>
+        ) : null}
+      </div>
 
-      <div className="ml-auto flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1 lg:ml-auto">
         <OverflowMenu
           label={t`保存的视图`}
           triggerLabel={<span className="max-w-[var(--w-subnav)] truncate">{currentView?.name ?? <Trans>保存的视图</Trans>}</span>}
@@ -231,15 +233,18 @@ export function LibraryFilters({
             onSelect: () => onApplySavedView(view),
           }))}
         />
-        <Button size="sm" variant="ghost" onClick={onSaveView}>
-          <Trans>保存为视图</Trans>
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onConfigureColumns}>
-          <Trans>列配置</Trans>
-        </Button>
-        <Button size="sm" variant="ghost" {...exportButtonProps} onClick={onExport}>
-          <Trans>导出元数据</Trans>
-        </Button>
+        <span aria-hidden="true" className="mx-0.5 hidden h-4 w-px bg-divider sm:inline-block" />
+        <div className="flex flex-wrap items-center gap-1">
+          <Button size="sm" variant="ghost" onClick={onSaveView}>
+            <Trans>保存为视图</Trans>
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onConfigureColumns}>
+            <Trans>列配置</Trans>
+          </Button>
+          <Button size="sm" variant="ghost" {...exportButtonProps} onClick={onExport}>
+            <Trans>导出元数据</Trans>
+          </Button>
+        </div>
       </div>
     </div>
   );

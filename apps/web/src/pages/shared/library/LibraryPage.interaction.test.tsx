@@ -86,6 +86,70 @@ describe('library acquisition and layout views', () => {
     expect(screen.queryByRole('link', { name: /‹ Demo 资料库/u })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Steam 下载' })).toBeTruthy();
   });
+
+  it('folds Steam 下载 and 监听目录 into 更多 when collapsed, keeping 视图 and 导入 Demo inline', async () => {
+    media = stubMatchMedia(COLLAPSE_BREAKPOINT_PX);
+    renderLibrary({ seed: ONLINE });
+
+    expect(screen.getByRole('radiogroup', { name: '视图' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '导入 Demo' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Steam 下载' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '监听目录' })).toBeNull();
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: '更多操作' }), { button: 0, ctrlKey: false });
+    const menu = await screen.findByRole('menu', { name: '更多操作' });
+    expect(within(menu).getByRole('menuitem', { name: 'Steam 下载' })).toBeTruthy();
+    expect(within(menu).getByRole('menuitem', { name: '监听目录' })).toBeTruthy();
+  });
+
+  it('auto-hides lower-priority columns in narrow table panes so 状态 and row actions stay visible', async () => {
+    const originalRO = globalThis.ResizeObserver;
+    let triggerResize: ((width: number) => void) | null = null;
+    class MockResizeObserver {
+      readonly #cb: ResizeObserverCallback;
+      constructor(cb: ResizeObserverCallback) {
+        this.#cb = cb;
+      }
+      observe(target: Element) {
+        triggerResize = (width: number) => {
+          this.#cb(
+            [{ target, contentRect: { width } as DOMRectReadOnly } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        };
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    try {
+      renderLibrary({ seed: ONLINE });
+      expect(screen.getByRole('columnheader', { name: '来源' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: '时长' })).toBeTruthy();
+
+      act(() => {
+        triggerResize?.(684);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('columnheader', { name: '来源' })).toBeNull();
+        expect(screen.queryByRole('columnheader', { name: '时长' })).toBeNull();
+      });
+      expect(screen.getByRole('columnheader', { name: '状态' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: '打开' })).toBeTruthy();
+
+      act(() => {
+        triggerResize?.(844);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('columnheader', { name: '来源' })).toBeTruthy();
+        expect(screen.getByRole('columnheader', { name: '时长' })).toBeTruthy();
+      });
+    } finally {
+      globalThis.ResizeObserver = originalRO;
+    }
+  });
 });
 
 describe('the selection', () => {

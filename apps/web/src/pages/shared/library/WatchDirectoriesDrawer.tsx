@@ -16,6 +16,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
+import { Skeleton } from '../../../design/data';
 import { Drawer, Alert, StatusDot, type StatusDotStatus } from '../../../design/feedback';
 import { Button } from '../../../design/primitives';
 import type { DemoWatchStatus } from '../../../shared/desktop/dto';
@@ -33,6 +34,8 @@ const ROOT_DOT: Readonly<Record<string, StatusDotStatus>> = {
   error: 'fail',
   disabled: 'idle',
 };
+
+const WATCH_SKELETON_WIDTHS = ['78%', '64%', '86%'] as const;
 
 export interface WatchDirectoriesDrawerProps {
   readonly open: boolean;
@@ -72,7 +75,7 @@ export function WatchDirectoriesDrawer({
       open={open}
       onClose={onClose}
       title={<Trans>监听目录</Trans>}
-      description={<Plural value={roots.length} other="# 个目录" />}
+      description={loading ? undefined : <Plural value={roots.length} other="# 个目录" />}
       footer={
         <>
           <Button size="sm" onClick={onRescan} disabled={busy}>
@@ -97,9 +100,26 @@ export function WatchDirectoriesDrawer({
         )}
 
         {loading ? (
-          <p className="text-sm text-neutral-600">
-            <Trans>正在读取监听状态</Trans>
-          </p>
+          <div role="status" aria-busy="true" className="flex flex-col gap-2">
+            <p className="text-xs text-neutral-600">
+              <Trans>正在读取监听状态</Trans>
+            </p>
+            <div aria-hidden="true" className="flex flex-col">
+              {WATCH_SKELETON_WIDTHS.map((pathWidth, index) => (
+                <div
+                  key={index}
+                  className="flex min-h-[var(--h-row)] items-center gap-3 border-b border-divider py-2"
+                >
+                  <Skeleton className="size-2.5 flex-none rounded-full" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <Skeleton width={pathWidth} />
+                    <Skeleton width="44%" className="h-2.5" />
+                  </div>
+                  <Skeleton width="4rem" className="h-6 flex-none rounded-md" />
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
 
         {!loading && error === null && roots.length === 0 ? (

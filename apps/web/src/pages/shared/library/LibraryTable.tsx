@@ -26,7 +26,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import {
   DataTable,
@@ -69,6 +69,14 @@ export interface LibraryTableProps {
   readonly selectionBar: ReactNode;
 }
 
+/**
+ * Container-width floors where lower-priority columns step aside so `状态` and
+ * `行操作` stay visible without clipping at 1280px (684px table pane beside the
+ * docked Inspector) and 768px (712px folded table pane).
+ */
+const HIDE_SECONDARY_COLUMNS_BELOW_PX = 760;
+const HIDE_ROUNDS_COLUMN_BELOW_PX = 640;
+
 export function LibraryTable({
   columns,
   page,
@@ -89,11 +97,45 @@ export function LibraryTable({
   emptyActions,
   selectionBar,
 }: LibraryTableProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (node === null || typeof ResizeObserver === 'undefined') return;
+    const measure = (width: number) => {
+      const rounded = Math.round(width);
+      if (rounded > 0) setContainerWidth((prev) => (prev === rounded ? prev : rounded));
+    };
+    measure(node.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width !== undefined) measure(width);
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const effectiveHiddenColumns = useMemo(() => {
+    if (containerWidth === null || containerWidth >= HIDE_SECONDARY_COLUMNS_BELOW_PX) {
+      return hiddenColumns;
+    }
+    const next = new Set(hiddenColumns);
+    next.add('source');
+    next.add('duration');
+    if (containerWidth < HIDE_ROUNDS_COLUMN_BELOW_PX) {
+      next.add('rounds');
+    }
+    return next;
+  }, [containerWidth, hiddenColumns]);
+
   const rows = page?.items ?? [];
   const total = page?.total ?? 0;
 
   return (
-    <div data-library-table className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div ref={containerRef} data-library-table className="flex min-h-0 min-w-0 flex-1 flex-col">
       {error === null ? null : (
         <Alert
           className="m-4"
@@ -111,7 +153,7 @@ export function LibraryTable({
         rows={rows}
         rowId={(demo) => demo.id}
         rowLabel={(demo) => t`选择 ${demo.display_name}`}
-        hiddenColumns={hiddenColumns}
+        hiddenColumns={effectiveHiddenColumns}
         sort={sort}
         onSortChange={onSortChange}
         selectable
@@ -142,6 +184,7 @@ export function LibraryTable({
               page={currentPage}
               pageSize={LIBRARY_PAGE_SIZE}
               total={total}
+              loading={loading}
               onPageChange={onPageChange}
               summary={<Plural value={total} other="共 # 条" />}
             />

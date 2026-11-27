@@ -849,7 +849,7 @@ export function ProjectWorkspacePage() {
         : currentDeliveryGate === null
           ? t`没能检查交付状态`
           : recordableClipIds.length === 0
-            ? (deliveryBlockers.length === 0 ? t`没有需要录制的片段` : t`请在素材面板检查未就绪的片段`)
+            ? (deliveryBlockers.length === 0 ? t`没有需要录制的片段` : t`这些片段不能录制，点「定位未就绪片段」逐个检查素材`)
             : undefined;
   const exportDisabledReason = readOnly
     ? t`Agent 正在编辑，完成后再导出`
@@ -865,7 +865,18 @@ export function ProjectWorkspacePage() {
               ? undefined
               : recordableClipIds.length > 0
                 ? t`${recordableClipIds.length} 个片段需要录制，录制后再检查素材状态`
-                : t`${deliveryBlockers.length} 个素材未就绪，检查素材面板里标红的片段`;
+                : t`${deliveryBlockers.length} 个素材未就绪，点「定位未就绪片段」在时间线上找到它们`;
+  /* Export blockers name clips the user has to find; one action selects
+     them on the timeline and moves the playhead to the earliest one, so a
+     disabled export never leaves the user hunting for red marks. */
+  const blockedClips = deliveryBlockers.flatMap((blocker) => {
+    const clip = clipById.get(blocker.clip_id);
+    return clip === undefined ? [] : [clip];
+  });
+  const locateBlockedClips = () => {
+    selectTimelineClips(blockedClips.map((clip) => clip.id));
+    seekTimeline(Math.min(...blockedClips.map((clip) => clip.placement.start)));
+  };
   const mutate = (
     summary: string,
     scope: ProjectPatchScope,
@@ -1783,6 +1794,20 @@ export function ProjectWorkspacePage() {
               <Video className="size-4" aria-hidden="true" />
               <span className="max-sm:sr-only"><Trans>录制缺失片段</Trans></span>
             </Button>
+            {blockedClips.length > 0 ? (
+              <Button size="sm" variant="secondary"
+                type="button"
+                data-window-no-drag
+                title={t`定位未就绪片段`}
+                aria-label={t`定位 ${blockedClips.length} 个未就绪片段`}
+                className="gap-1.5 max-sm:px-2"
+                onClick={locateBlockedClips}
+              >
+                <CircleAlert className="size-4 text-warn-text" aria-hidden="true" />
+                <span className="max-sm:sr-only"><Trans>定位未就绪片段</Trans></span>
+                <span className="tabular-nums" aria-hidden="true">{blockedClips.length}</span>
+              </Button>
+            ) : null}
             <Button size="sm" variant={currentDeliveryGate?.ready === true ? 'primary' : 'secondary'}
               type="button"
               data-window-no-drag

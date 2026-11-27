@@ -1003,10 +1003,13 @@ describe('unified project workspace', () => {
     expect(screen.getByText('2 个素材未就绪')).toBeTruthy();
     const exportButton = screen.getByRole('button', { name: '导出成片' }) as HTMLButtonElement;
     expect(exportButton.disabled).toBe(true);
-    expect(document.getElementById(exportButton.getAttribute('aria-describedby')!)?.textContent).toContain('2 个素材未就绪，检查素材面板里标红的片段');
+    expect(document.getElementById(exportButton.getAttribute('aria-describedby')!)?.textContent).toContain('2 个素材未就绪，点「定位未就绪片段」在时间线上找到它们');
     const record = screen.getByRole('button', { name: '录制缺失片段' }) as HTMLButtonElement;
     expect(record.disabled).toBe(true);
-    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('请在素材面板检查未就绪的片段');
+    expect(document.getElementById(record.getAttribute('aria-describedby')!)?.textContent).toContain('这些片段不能录制，点「定位未就绪片段」逐个检查素材');
+    fireEvent.click(screen.getByRole('button', { name: '定位 2 个未就绪片段' }));
+    expect(screen.getByRole('button', { name: /A 5.0s · /u }).className).toContain('after:border-accent');
+    expect(screen.getByRole('button', { name: /B 5.0s · 需要重录/u }).className).toContain('after:border-accent');
     fireEvent.click(screen.getByRole('button', { name: '事件 B 00:05.000' }));
     expect(await screen.findByText('素材未就绪 · 当前显示可用帧')).toBeTruthy();
     const panel = screen.getByRole('region', { name: '项目素材' });

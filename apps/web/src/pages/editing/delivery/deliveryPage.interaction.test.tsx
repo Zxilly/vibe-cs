@@ -452,6 +452,7 @@ describe('成品 › 成品文件', () => {
     expect(screen.getByRole('link', { name: '查看全部成品文件' }).getAttribute('href')).toBe('/delivery');
     const chip = screen.getByRole('button', { name: '清除作品筛选：Mirage 残局' });
     expect(chip.textContent).toContain('作品：Mirage 残局');
+    expect(screen.getByRole('link', { name: '回到作品' }).getAttribute('href')).toBe('/projects/p-1');
 
     fireEvent.click(chip);
     await waitFor(() => expect(screen.queryByRole('button', { name: /清除作品筛选/u })).toBeNull());

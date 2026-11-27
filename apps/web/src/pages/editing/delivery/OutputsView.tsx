@@ -140,6 +140,13 @@ export function OutputsView({ now }: OutputsViewProps) {
             </button>
           </Badge>
         )}
+        {/* A scoped list is reached from one Project's workspace; finding the
+            finished video must not strand the user away from that Project. */}
+        {scopedProject === null ? null : (
+          <RouteLink to={`/projects/${encodeURIComponent(scopedProject.id)}`} className="text-sm">
+            <Trans>回到作品</Trans>
+          </RouteLink>
+        )}
       </Toolbar>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">

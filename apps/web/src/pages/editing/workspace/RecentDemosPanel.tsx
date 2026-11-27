@@ -6,6 +6,7 @@ import { ArrowRight, Crosshair } from 'lucide-react';
 
 import { useDemoList } from '../../../data/demos';
 import { Skeleton } from '../../../design/data';
+import { Alert } from '../../../design/feedback';
 import { Badge } from '../../../design/primitives';
 import { formatTaskClock } from '../../../domain/task';
 import type { DemoDisplayStatus } from '../../../shared/desktop/viewModels';
@@ -33,7 +34,23 @@ function displayMapName(mapName: string): string | null {
 }
 
 function demoStatusPriority(status: DemoDisplayStatus): number {
-  return status === 'ready' ? 0 : status === 'parsing' ? 1 : 2;
+  return status === 'ready' ? 0 : status === 'parsing' ? 1 : status === 'error' ? 2 : 3;
+}
+
+/* Every display status gets its own word. An `error` row used to fall through
+   to 待分析, so a Demo the library shows as failed read here as one that had
+   simply not been started. */
+function DemoStatusLabel({ status }: { readonly status: DemoDisplayStatus }) {
+  switch (status) {
+    case 'ready':
+      return <Trans>可选材</Trans>;
+    case 'parsing':
+      return <Trans>分析中</Trans>;
+    case 'pending':
+      return <Trans>待分析</Trans>;
+    case 'error':
+      return <Trans>分析失败</Trans>;
+  }
 }
 
 export interface RecentDemosPanelProps {
@@ -71,7 +88,19 @@ export function RecentDemosPanel({ loading = false }: RecentDemosPanelProps = {}
     );
   }
 
-  if (demos.error !== null || items.length === 0) return null;
+  /* A read that failed is not an empty library: say so where the rows would
+     be, with the retry, instead of leaving 开始选材 as a bare heading. */
+  if (demos.error !== null) {
+    return (
+      <Alert
+        variant="warning"
+        action={{ label: <Trans>重新加载</Trans>, disabled: demos.isFetching, onAction: () => void demos.refetch() }}
+      >
+        <Trans>无法加载最近的比赛。</Trans>
+      </Alert>
+    );
+  }
+  if (items.length === 0) return null;
 
   const sorted = [...items]
     .sort((left, right) => (
@@ -121,7 +150,7 @@ export function RecentDemosPanel({ loading = false }: RecentDemosPanelProps = {}
             </div>
             <div className="flex flex-none items-center gap-2">
               <Badge size="sm" variant={ready ? 'accent' : 'neutral'} className="rounded-sm">
-                {ready ? <Trans>可选材</Trans> : demo.status === 'parsing' ? <Trans>分析中</Trans> : <Trans>待分析</Trans>}
+                <DemoStatusLabel status={demo.status} />
               </Badge>
               <ArrowRight className="size-3.5 text-neutral-500 transition-colors group-hover:text-accent-700" aria-hidden="true" />
             </div>

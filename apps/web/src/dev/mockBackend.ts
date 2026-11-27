@@ -1281,6 +1281,7 @@ const ROUTES: Array<[string, string, Handler]> = [
 
   /* the demo library */
   ['GET', '/demos/compact', ({ query }) => {
+    if (emptyLibraryScenario()) return paged([]);
     const search = (query.get('search') ?? '').trim().toLocaleLowerCase();
     const map = query.get('map_name');
     const status = query.get('status');
@@ -1449,7 +1450,7 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['POST', '/recording/jobs/:id/cancel', () => ({ ...RECORDING_JOB_DETAIL, status: 'cancelling' as const })],
 
   /* editing and delivery */
-  ['GET', '/projects', () => [mockProject()]],
+  ['GET', '/projects', () => (noProjectsScenario() ? [] : [mockProject()])],
   ['GET', '/projects/:id', () => mockProject()],
   ['POST', '/projects/:id/clips/:clip/camera-preview', ({ params, body }) => {
     const clip = mockProject().document.tracks.flatMap((track) => track.clips).find((clip) => clip.id === params['clip']);
@@ -1499,6 +1500,26 @@ function match(template: string, path: string): Record<string, string> | null {
     if (segment !== actual) return null;
   }
   return params;
+}
+
+/**
+ * First-run stages for the workbench. Opt in from the browser console with
+ * `localStorage.setItem('vibe-cs.dev.fixture', 'empty-library')` (no Demo and
+ * no 作品) or `'no-projects'` (the sample library, no 作品) and reload; remove
+ * the key to return to the populated set. Only the reads that decide "is there
+ * anything to work on" change — tasks, settings and diagnostics keep their
+ * sample data.
+ */
+function fixtureScenario(): string | null {
+  return globalThis.localStorage?.getItem('vibe-cs.dev.fixture') ?? null;
+}
+
+function emptyLibraryScenario(): boolean {
+  return fixtureScenario() === 'empty-library';
+}
+
+function noProjectsScenario(): boolean {
+  return fixtureScenario() === 'empty-library' || fixtureScenario() === 'no-projects';
 }
 
 export async function handleRoute(method: string, target: string, body: unknown): Promise<unknown> {

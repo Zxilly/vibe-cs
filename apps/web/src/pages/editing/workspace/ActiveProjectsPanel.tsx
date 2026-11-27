@@ -43,9 +43,7 @@ export function ActiveProjectsPanel() {
             ))}
           </ul>
         </div>
-      ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? (
-        <p className="rounded-lg border border-divider bg-surface-chrome/60 px-4 py-3 text-sm text-neutral-600"><Trans>还没有作品，点击「新建作品」开始剪辑。</Trans></p>
-      ) : (
+      ) : projects.isError && projects.data === undefined ? null : rows.length === 0 ? null /* no 作品: the workbench leaves 继续 out */ : (
         <ul className="flex flex-col divide-y divide-divider overflow-hidden rounded-lg border border-divider bg-bg">
           {rows.map((project) => {
             const clipCount = project.document.tracks.reduce(

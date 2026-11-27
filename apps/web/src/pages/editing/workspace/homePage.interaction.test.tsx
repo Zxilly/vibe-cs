@@ -87,6 +87,32 @@ function feed(items: readonly ActivityItem[], active: number, failed: number): A
   };
 }
 
+const READY_DEMO = {
+  id: 'demo-ready',
+  filename: 'mirage.dem',
+  path: 'D:/demos/mirage.dem',
+  display_name: 'NAVI vs FaZe',
+  map_name: 'de_mirage',
+  match_date: '2026-08-15T09:00:00.000Z',
+  cataloged_at: '2026-08-15T09:00:00.000Z',
+  duration_seconds: 2400,
+  total_rounds: 24,
+  team_a_name: 'NAVI',
+  team_b_name: 'FaZe',
+  score_team_a: 13,
+  score_team_b: 11,
+  status: 'ready',
+  lifecycle_status: 'ready',
+  players: ['s1mple'],
+  source: 'local',
+  remark: '',
+  updated_at: '2026-08-15T09:00:00.000Z',
+};
+
+function demoPage(items: readonly unknown[]) {
+  return { items: [...items], total: items.length, page: 1, page_size: 4 };
+}
+
 const CLIENT = {
   listActivities: (query: ActivityQuery) =>
     Promise.resolve(
@@ -198,18 +224,68 @@ describe('工作台首页', () => {
     expect(primary?.closest('[data-toolbar-primary]')).not.toBeNull();
   });
 
-  it('shows one import-Demo first-run action when the library is empty', async () => {
+  it('leads an empty library with one in-place import, not an empty 作品', async () => {
     renderPage({
       element: <HomePage />,
-      client: { ...CLIENT, listDemos: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 1 }) },
+      client: { ...CLIENT, listDemos: () => Promise.resolve(demoPage([])), listProjects: () => Promise.resolve([]) },
       route: '/',
     });
 
-    expect(await screen.findByText('从导入 Demo 开始')).toBeTruthy();
-    const firstRun = document.querySelector('[data-home-block="first-run"]') as HTMLElement;
-    expect(within(firstRun).getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
-    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
+    const firstRun = await screen.findByRole('region', { name: '从导入 Demo 开始' });
     expect(firstRun.className).toContain('border-accent');
+    expect(within(firstRun).getByRole('button', { name: '导入 Demo 文件' })).toBeTruthy();
+    expect(within(firstRun).getByRole('link', { name: '从 Steam 下载' }).getAttribute('href')).toBe('/library?view=steam');
+    // The import is the view's one primary; 新建作品 stays reachable beside the title.
+    expect(document.querySelector('[data-toolbar-primary]')).toBeNull();
+    expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
+    // Nothing to continue and nothing to pick from: neither block competes with it.
+    expect(document.querySelector('[data-home-block="continue"]')).toBeNull();
+    expect(document.querySelector('[data-home-block="new"]')).toBeNull();
+    expect(screen.queryByRole('link', { name: '打开 Demo 资料库' })).toBeNull();
+  });
+
+  it('leads with 开始选材 when there are Demos but no 作品 yet', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listDemos: () => Promise.resolve(demoPage([READY_DEMO])), listProjects: () => Promise.resolve([]) },
+      route: '/',
+    });
+
+    await screen.findByRole('link', { name: 'NAVI vs FaZe' });
+    const blocks = [...document.querySelectorAll('[data-home-layout="three-sections"] > [data-home-block]')];
+    expect(blocks.map((block) => block.getAttribute('data-home-block'))).toEqual(['new']);
+    expect(screen.getByText('打开一场可选材的比赛，挑选片段加入作品，第一份作品就从这里开始。')).toBeTruthy();
+    const primary = screen.getByRole('button', { name: '新建作品' });
+    expect(primary.closest('[data-toolbar-primary]')).not.toBeNull();
+  });
+
+  it('calls a failed analysis failed rather than not yet analysed', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: {
+        ...CLIENT,
+        listDemos: () => Promise.resolve(demoPage([{ ...READY_DEMO, id: 'demo-failed', display_name: 'FACEIT Nuke', status: 'error' }])),
+      },
+      route: '/',
+    });
+
+    await screen.findByRole('link', { name: 'FACEIT Nuke' });
+    const recent = document.querySelector('[data-home-block="recent-demos"]') as HTMLElement;
+    expect(recent.textContent).toContain('分析失败');
+    expect(recent.textContent).not.toContain('待分析');
+  });
+
+  it('reports a library that would not load where the recent matches would be', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listDemos: () => Promise.reject(new Error('offline')), listProjects: () => new Promise(() => {}) },
+      route: '/',
+    });
+
+    expect(await screen.findByText('无法加载最近的比赛。')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重新加载' })).toBeTruthy();
+    // An error is not first use.
+    expect(document.querySelector('[data-home-block="first-run"]')).toBeNull();
   });
 
   it('puts the shell’s first-run intro above every other block', async () => {
@@ -227,27 +303,7 @@ describe('工作台首页', () => {
         ...CLIENT,
         listDemos: () => Promise.resolve({
           items: [
-            {
-              id: 'demo-ready',
-              filename: 'mirage.dem',
-              path: 'D:/demos/mirage.dem',
-              display_name: 'NAVI vs FaZe',
-              map_name: 'de_mirage',
-              match_date: '2026-08-15T09:00:00.000Z',
-              cataloged_at: '2026-08-15T09:00:00.000Z',
-              duration_seconds: 2400,
-              total_rounds: 24,
-              team_a_name: 'NAVI',
-              team_b_name: 'FaZe',
-              score_team_a: 13,
-              score_team_b: 11,
-              status: 'ready',
-              lifecycle_status: 'ready',
-              players: ['s1mple'],
-              source: 'local',
-              remark: '',
-              updated_at: '2026-08-15T09:00:00.000Z',
-            },
+            READY_DEMO,
           ],
           total: 1,
           page: 1,

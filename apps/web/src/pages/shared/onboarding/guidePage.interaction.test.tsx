@@ -7,7 +7,7 @@
  * steps, because the failure mode of a split feature is that the halves drift.
  */
 
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderPage } from '../../../test/renderPage';
@@ -62,7 +62,7 @@ describe('the guide pipeline and the first-run entry', () => {
       expect(document.querySelector('[data-home-block="first-run"]')).not.toBeNull();
     });
     expect(document.querySelector('[data-first-run-step]')).toBeNull();
-    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: '导入 Demo 文件' })).toHaveLength(1);
   });
 
   it('are the pipeline, not a tour of the navigation', () => {
@@ -77,8 +77,18 @@ describe('the first-run strip', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-home-block="first-run"]')).not.toBeNull();
     });
-    expect(document.body.textContent).toContain('素材为空');
-    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
+    expect(document.body.textContent).toContain('资料库还是空的');
+    expect(screen.getAllByRole('button', { name: '导入 Demo 文件' })).toHaveLength(1);
+    // No .dem on disk is a real first run too: Steam is the second way in.
+    expect(screen.getByRole('link', { name: '从 Steam 下载' }).getAttribute('href')).toBe('/library?view=steam');
+  });
+
+  it('opens the library’s own import dialog in place instead of sending the user away', async () => {
+    render(<FirstRunStrip />);
+    fireEvent.click(await screen.findByRole('button', { name: '导入 Demo 文件' }));
+
+    expect(await screen.findByRole('dialog', { name: '导入 Demo' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '选择文件' })).toBeTruthy();
   });
 
   it('disappears as soon as there is one Demo', async () => {

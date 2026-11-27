@@ -35,6 +35,16 @@ describe('WorkspaceModeIntro', () => {
     expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
   });
 
+  it('offers no action on the mode the user is already in', () => {
+    mount();
+
+    const current = document.querySelector('[data-mode-card="edit"]');
+    expect(current?.querySelector('button')).toBeNull();
+    expect(screen.queryByRole('button', { name: '开始剪辑' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '进入剪辑' })).toBeNull();
+    expect(document.querySelector('[data-mode-card="analysis"] button')?.textContent).toBe('进入分析');
+  });
+
   it('switches to analysis, goes to its landing and completes onboarding', async () => {
     const router = mount();
 
@@ -45,11 +55,12 @@ describe('WorkspaceModeIntro', () => {
     expect(useShellStore.getState().onboardingComplete).toBe(true);
   });
 
-  it('stays on the editing landing when editing is chosen', () => {
+  it('switches back to editing from the analysis lens', () => {
     useShellStore.setState({ mode: 'analysis' });
     const router = mount();
 
-    fireEvent.click(screen.getByRole('button', { name: '开始剪辑' }));
+    expect(screen.queryByRole('button', { name: '进入分析' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '进入剪辑' }));
 
     expect(router.state.location.pathname).toBe('/');
     expect(useShellStore.getState().mode).toBe('edit');

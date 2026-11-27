@@ -4,6 +4,12 @@
  * It never blocks: the workbench stays usable underneath, the cards disappear
  * once a mode is chosen or the intro is dismissed, and both count as the
  * one-time orientation `shellStore.onboardingComplete` records.
+ *
+ * Only the mode the user is *not* in carries an action. The current card used
+ * to offer 「开始剪辑」, which navigated to the page already on screen and so did
+ * exactly what 「不再显示」 does — a second, louder name for dismissing that
+ * outranked the one card that actually goes somewhere. The current mode is a
+ * state, so it reads as one: the 当前 badge and the selected surface.
  */
 
 import { Trans } from '@lingui/react/macro';
@@ -29,7 +35,7 @@ const MODE_CARDS: readonly ModeCard[] = [
     icon: Clapperboard,
     title: <Trans>剪辑</Trans>,
     body: <Trans>选材、剪辑与导出</Trans>,
-    action: <Trans>开始剪辑</Trans>,
+    action: <Trans>进入剪辑</Trans>,
   },
   {
     mode: 'analysis',
@@ -78,10 +84,10 @@ export function WorkspaceModeIntro() {
               data-mode-card={card.mode}
               data-mode-active={active ? 'true' : undefined}
               className={cn(
-                'relative flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 transition-colors focus-within:border-accent',
+                'relative flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 transition-colors',
                 active
                   ? 'border-accent bg-accent-100/70'
-                  : 'border-divider bg-bg hover:border-neutral-400 hover:bg-neutral-100',
+                  : 'border-divider bg-bg focus-within:border-accent hover:border-neutral-400 hover:bg-neutral-100',
               )}
             >
               <Icon
@@ -101,14 +107,16 @@ export function WorkspaceModeIntro() {
                 </div>
                 <p className="mt-0.5 text-xs text-neutral-600">{card.body}</p>
               </div>
-              <Button
-                variant={active ? 'secondary' : 'ghost'}
-                size="sm"
-                className="flex-none after:absolute after:inset-0 after:rounded-md"
-                onClick={() => choose(card.mode)}
-              >
-                {card.action}<ArrowRight size={14} aria-hidden="true" />
-              </Button>
+              {active ? null : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-none after:absolute after:inset-0 after:rounded-md"
+                  onClick={() => choose(card.mode)}
+                >
+                  {card.action}<ArrowRight size={14} aria-hidden="true" />
+                </Button>
+              )}
             </li>
           );
         })}

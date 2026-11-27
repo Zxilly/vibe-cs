@@ -169,6 +169,11 @@ struct ActivityItem {
     subtype: Option<String>,
     job_id: Option<String>,
     context_id: Option<String>,
+    /// The Project that owns this record, when one does: an export's Project,
+    /// or the Project a recording run was bound to in `project_recording_runs`.
+    /// A recording's `context_id` names its Demo, so recovery that has to
+    /// happen inside the Project needs this instead.
+    project_id: Option<String>,
     subject: Option<String>,
     status: ActivityStatus,
     stage: Option<String>,
@@ -285,7 +290,11 @@ fn parse_activity_kind(value: &str) -> ApiResult<StoredActivityKind> {
 
 fn activity_item(source: ActivitySource, retry_account: Option<&str>) -> ActivityItem {
     match source {
-        ActivitySource::Recording { job, retryable } => recording_activity(&job, retryable),
+        ActivitySource::Recording {
+            job,
+            retryable,
+            project_id,
+        } => recording_activity(&job, retryable, project_id),
         ActivitySource::Export {
             record,
             project_name,
@@ -363,7 +372,7 @@ impl ActivityStateFilter {
     }
 }
 
-fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
+fn recording_activity(job: &RecordingJob, retryable: bool, project_id: Option<Uuid>) -> ActivityItem {
     let message = (!job.message.trim().is_empty()).then(|| job.message.trim().to_owned());
     let completed_units = message.as_deref().and_then(recording_stage_ordinal);
     let error = (job.status == JobStatus::Failed)
@@ -382,6 +391,7 @@ fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
         subtype: None,
         job_id: Some(job.id.to_string()),
         context_id: job.items.first().map(|item| item.demo_id.to_string()),
+        project_id: project_id.map(|id| id.to_string()),
         subject: job.items.first().map(|item| item.title.clone()),
         status: job_status(job.status),
         stage: message,
@@ -429,6 +439,7 @@ fn export_activity(record: ExportJobRecord, project_name: &str) -> ActivityItem 
         subtype: Some(kind),
         job_id: Some(job.id.to_string()),
         context_id: Some(job.project_id.to_string()),
+        project_id: Some(job.project_id.to_string()),
         subject: Some(format!("{project_name} · r{}", job.project_revision)),
         status: job_status(job.status),
         stage: None,
@@ -467,6 +478,7 @@ fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
         subtype: None,
         job_id: Some(job.id.to_string()),
         context_id: Some(job.match_record_id.clone()),
+        project_id: None,
         subject: Some(job.match_record_id),
         status: match_download_status(job.status),
         stage: None,
@@ -503,6 +515,7 @@ fn analysis_activity(
         subtype: None,
         job_id: Some(run.id.to_string()),
         context_id: Some(run.demo_id.to_string()),
+        project_id: None,
         subject: Some(subject),
         status: analysis_run_status(run.status),
         stage: Some(analysis_run_stage(run.stage).to_owned()),
@@ -1045,6 +1058,47 @@ mod tests {
     }
 
     #[test]
+    fn recording_activity_names_its_project_owner_beside_its_demo_context() {
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        let project_id = Uuid::new_v4();
+        let job = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![vibe_cs_domain::RecordingRequest {
+                id: Some(Uuid::new_v4()),
+                demo_id,
+                highlight_id: None,
+                player_id: "76561198000000000".to_owned(),
+                title: "Owned capture".to_owned(),
+                start_tick: 100,
+                end_tick: 200,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                victim_pov: false,
+                camera_style: vibe_cs_domain::HlaeCameraStyle::default(),
+                presentation: None,
+            }],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            error_code: None,
+            created_at: now,
+            updated_at: now,
+        };
+
+        let owned = recording_activity(&job, true, Some(project_id));
+        let unbound = recording_activity(&job, true, None);
+
+        assert_eq!(owned.context_id, Some(demo_id.to_string()));
+        assert_eq!(owned.project_id, Some(project_id.to_string()));
+        assert_eq!(unbound.context_id, Some(demo_id.to_string()));
+        assert_eq!(unbound.project_id, None);
+    }
+
+    #[test]
     fn recording_retry_action_is_exposed_only_for_a_proven_latest_attempt() {
         let now = Utc::now();
         let job = RecordingJob {
@@ -1074,8 +1128,8 @@ mod tests {
             updated_at: now,
         };
 
-        let retryable = recording_activity(&job, true);
-        let superseded = recording_activity(&job, false);
+        let retryable = recording_activity(&job, true, None);
+        let superseded = recording_activity(&job, false, None);
 
         assert_eq!(
             retryable.available_actions,

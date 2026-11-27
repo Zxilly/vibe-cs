@@ -52,6 +52,10 @@ pub enum ActivitySource {
     Recording {
         job: RecordingJob,
         retryable: bool,
+        /// The Project this run records for, from `project_recording_runs` —
+        /// the same binding the Project feed filters on and the retry plan
+        /// re-binds to. `None` for a run that no Project owns.
+        project_id: Option<uuid::Uuid>,
     },
     Export {
         record: ExportJobRecord,
@@ -98,6 +102,7 @@ struct PersistedActivity {
     document: String,
     retryable: bool,
     owner_steam_id: Option<String>,
+    project_id: Option<String>,
     result_available: bool,
 }
 
@@ -115,10 +120,27 @@ struct ExportActivityDocument {
 
 fn decode_persisted_activity(persisted: PersistedActivity) -> Result<ActivitySource> {
     match persisted.source_kind.as_str() {
-        "recording" => decode(&persisted.document).map(|job: RecordingJob| {
-            let retryable = persisted.retryable && job.retryable_suffix().is_ok();
-            ActivitySource::Recording { job, retryable }
-        }),
+        "recording" => {
+            let project_id = persisted
+                .project_id
+                .as_deref()
+                .map(|id| {
+                    uuid::Uuid::parse_str(id).map_err(|_| {
+                        StorageError::ActivityProjection(format!(
+                            "recording activity has an invalid owning Project id {id:?}"
+                        ))
+                    })
+                })
+                .transpose()?;
+            decode(&persisted.document).map(|job: RecordingJob| {
+                let retryable = persisted.retryable && job.retryable_suffix().is_ok();
+                ActivitySource::Recording {
+                    job,
+                    retryable,
+                    project_id,
+                }
+            })
+        }
         "export" => decode::<ExportActivityDocument>(&persisted.document).map(|document| {
             ActivitySource::Export {
                 record: document.record,
@@ -283,6 +305,8 @@ const DOWNLOAD_RETRYABILITY_SQL: &str = "
     FROM match_download_jobs AS job
     LEFT JOIN steam_matches AS match_record ON match_record.id = job.match_record_id";
 
+/// Retryability and the owning Project of each recording row, read in the
+/// same snapshot as the page so the two cannot disagree.
 const RECORDING_RETRYABILITY_SQL: &str = "
     SELECT job.id,
            CASE WHEN
@@ -294,7 +318,11 @@ const RECORDING_RETRYABILITY_SQL: &str = "
                    SELECT 1 FROM recording_jobs AS active
                     WHERE active.status NOT IN ('completed', 'failed', 'cancelled')
                )
-           THEN 1 ELSE 0 END
+           THEN 1 ELSE 0 END,
+           (
+               SELECT owner.project_id FROM project_recording_runs AS owner
+                WHERE owner.recording_job_id = job.id
+           )
       FROM recording_jobs AS job";
 
 const ANALYSIS_RETRYABILITY_SQL: &str = "
@@ -467,6 +495,7 @@ impl Storage {
                             document: row.get(2)?,
                             retryable: false,
                             owner_steam_id: None,
+                            project_id: None,
                             result_available: false,
                         })
                     },
@@ -478,11 +507,13 @@ impl Storage {
             };
             match kind {
                 ActivityKind::Recording => {
-                    persisted.retryable = transaction.query_row(
+                    let (retryable, project_id) = transaction.query_row(
                         &format!("{RECORDING_RETRYABILITY_SQL} WHERE job.id = ?1"),
                         [id.to_string()],
-                        |row| row.get::<_, bool>(1),
+                        |row| Ok((row.get::<_, bool>(1)?, row.get::<_, Option<String>>(2)?)),
                     )?;
+                    persisted.retryable = retryable;
+                    persisted.project_id = project_id;
                 }
                 ActivityKind::Export => {}
                 ActivityKind::Download => {
@@ -629,6 +660,7 @@ impl Storage {
                     document: row.get(2)?,
                     retryable: false,
                     owner_steam_id: None,
+                    project_id: None,
                     result_available: false,
                 });
             }
@@ -645,14 +677,19 @@ impl Storage {
                     transaction.prepare(&recording_retryability_sql(recording_ids.len()))?;
                 let retryability = statement
                     .query_map(params_from_iter(&recording_ids), |row| {
-                        Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            (row.get::<_, bool>(1)?, row.get::<_, Option<String>>(2)?),
+                        ))
                     })?
                     .collect::<rusqlite::Result<HashMap<_, _>>>()?;
                 for activity in &mut persisted {
                     if activity.source_kind == "recording"
-                        && let Some(retryable) = retryability.get(&activity.source_id)
+                        && let Some((retryable, project_id)) =
+                            retryability.get(&activity.source_id)
                     {
                         activity.retryable = *retryable;
+                        activity.project_id.clone_from(project_id);
                     }
                 }
             }
@@ -1220,7 +1257,7 @@ mod tests {
                 .get_activity(ActivityKind::Recording, parent_id)
                 .await
                 .expect("retryable parent"),
-            Some(ActivitySource::Recording { job, retryable: true }) if job.id == parent_id
+            Some(ActivitySource::Recording { job, retryable: true, .. }) if job.id == parent_id
         ));
 
         storage
@@ -1232,8 +1269,103 @@ mod tests {
                 .get_activity(ActivityKind::Recording, parent_id)
                 .await
                 .expect("claimed parent"),
-            Some(ActivitySource::Recording { job, retryable: false }) if job.id == parent_id
+            Some(ActivitySource::Recording { job, retryable: false, .. }) if job.id == parent_id
         ));
+    }
+
+    #[tokio::test]
+    async fn recording_activity_names_its_owning_project_on_feed_and_exact_reads() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let project_id = create_export_project(&storage).await;
+        let now = chrono::Utc::now();
+        let recording = |id| vibe_cs_domain::RecordingJob {
+            id,
+            retry_of: None,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![vibe_cs_domain::RecordingRequest {
+                id: Some(uuid::Uuid::new_v4()),
+                demo_id: uuid::Uuid::new_v4(),
+                highlight_id: None,
+                player_id: "76561198000000000".to_owned(),
+                title: "Owned capture".to_owned(),
+                start_tick: 100,
+                end_tick: 200,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                victim_pov: false,
+                camera_style: vibe_cs_domain::HlaeCameraStyle::default(),
+                presentation: None,
+            }],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            error_code: None,
+            created_at: now,
+            updated_at: now,
+        };
+        let owned_id = uuid::Uuid::new_v4();
+        let unbound_id = uuid::Uuid::new_v4();
+        storage
+            .put_recording_job(recording(owned_id))
+            .await
+            .expect("owned job");
+        storage
+            .bind_project_recording_run(owned_id, project_id)
+            .await
+            .expect("bind owned job");
+        storage
+            .put_recording_job(recording(unbound_id))
+            .await
+            .expect("unbound job");
+
+        let owner_of = |source: &ActivitySource| match source {
+            ActivitySource::Recording { job, project_id, .. } => Some((job.id, *project_id)),
+            _ => None,
+        };
+        let page = storage
+            .query_activities(ActivityQuery {
+                project_id: None,
+                search: None,
+                kind: Some(ActivityKind::Recording),
+                state: None,
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .expect("recording feed");
+        let mut owners = page.items.iter().filter_map(owner_of).collect::<Vec<_>>();
+        owners.sort_by_key(|(id, _)| *id);
+        let mut expected = vec![(owned_id, Some(project_id)), (unbound_id, None)];
+        expected.sort_by_key(|(id, _)| *id);
+        assert_eq!(owners, expected);
+
+        // The cross-kind page plan reads the same owner as the single-kind one.
+        let all = storage
+            .query_activities(ActivityQuery {
+                project_id: None,
+                search: None,
+                kind: None,
+                state: None,
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .expect("cross-kind feed");
+        assert!(all.items.iter().filter_map(owner_of).any(|owner| owner == (owned_id, Some(project_id))));
+
+        let owned = storage
+            .get_activity(ActivityKind::Recording, owned_id)
+            .await
+            .expect("owned read")
+            .expect("owned row");
+        assert_eq!(owner_of(&owned), Some((owned_id, Some(project_id))));
+        let unbound = storage
+            .get_activity(ActivityKind::Recording, unbound_id)
+            .await
+            .expect("unbound read")
+            .expect("unbound row");
+        assert_eq!(owner_of(&unbound), Some((unbound_id, None)));
     }
 
     #[tokio::test]
@@ -1380,7 +1512,7 @@ mod tests {
             .expect("initial activity");
         assert!(matches!(
             initial.items.as_slice(),
-            [ActivitySource::Recording { job, retryable: true }] if job.id == parent_id
+            [ActivitySource::Recording { job, retryable: true, .. }] if job.id == parent_id
         ));
 
         storage
@@ -1393,7 +1525,7 @@ mod tests {
             .expect("superseded activity");
         assert!(matches!(
             superseded.items.as_slice(),
-            [ActivitySource::Recording { job, retryable: false }] if job.id == parent_id
+            [ActivitySource::Recording { job, retryable: false, .. }] if job.id == parent_id
         ));
     }
 

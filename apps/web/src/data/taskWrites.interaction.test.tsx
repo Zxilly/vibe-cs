@@ -41,6 +41,7 @@ const RUNNING: ActivityItem = {
   subtype: null,
   job_id: 'job-1',
   context_id: 'demo-1',
+  project_id: null,
   subject: 'Kael_Mirage_1v3',
   status: 'running',
   stage: 'recording.stage.capturing',

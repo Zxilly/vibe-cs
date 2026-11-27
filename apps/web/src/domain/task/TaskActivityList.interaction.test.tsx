@@ -9,7 +9,7 @@ import { useTaskActions } from './useTaskActions';
 
 const CANCELLED: ActivityItem = {
   id: 'download:job-1', kind: 'download', subtype: null, job_id: 'job-1',
-  context_id: 'match-1', subject: 'Mirage', status: 'cancelled', stage: null,
+  context_id: 'match-1', project_id: null, subject: 'Mirage', status: 'cancelled', stage: null,
   progress_percent: null, completed_units: null, total_units: null, unit: null,
   error: null, failure: null, available_actions: [],
   created_at: '2026-10-28T04:00:00Z', updated_at: '2026-10-28T04:01:00Z',

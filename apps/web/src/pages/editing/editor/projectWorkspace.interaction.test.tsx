@@ -804,7 +804,7 @@ describe('unified project workspace', () => {
   it('restores a project task outside the Agent without starting work or automatically resuming an old conversation', async () => {
     const task: ActivityItem = {
       id: 'export:restored-export', kind: 'export', subtype: 'project', job_id: 'restored-export',
-      context_id: PROJECT.id, subject: 'Existing export', status: 'completed', stage: null,
+      context_id: PROJECT.id, project_id: null, subject: 'Existing export', status: 'completed', stage: null,
       progress_percent: null, completed_units: null, total_units: null, unit: null,
       error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
       available_actions: ['open_outputs'],
@@ -1069,6 +1069,7 @@ describe('unified project workspace', () => {
       subtype: null,
       job_id: 'job-a',
       context_id: PROJECT.id,
+      project_id: null,
       subject: 'NiKo 3 分钟集锦',
       status: 'failed',
       stage: null,
@@ -1116,7 +1117,7 @@ describe('unified project workspace', () => {
       completed = true;
       return {
         id: 'recording:job-a', kind: 'recording', subtype: null, job_id: 'job-a',
-        context_id: PROJECT.id, subject: 'Recorded clips', status: 'completed',
+        context_id: PROJECT.id, project_id: null, subject: 'Recorded clips', status: 'completed',
         stage: null, progress_percent: 100, completed_units: 1, total_units: 1, unit: 'clips',
         error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
         available_actions: [],
@@ -1168,6 +1169,7 @@ describe('unified project workspace', () => {
       subtype: 'project',
       job_id: jobId,
       context_id: PROJECT.id,
+      project_id: null,
       subject: 'C:\\exports\\project.mp4',
       status: 'running',
       stage: null,
@@ -1203,7 +1205,7 @@ describe('unified project workspace', () => {
     const exportProject = vi.fn(() => Promise.resolve({ job_id: jobId, status: 'running' }));
     const getActivity = vi.fn(() => Promise.resolve({
       id: `export:${jobId}`, kind: 'export', subtype: 'project', job_id: jobId,
-      context_id: PROJECT.id, subject: 'C:\\exports\\range.mp4', status: 'running', stage: null,
+      context_id: PROJECT.id, project_id: null, subject: 'C:\\exports\\range.mp4', status: 'running', stage: null,
       progress_percent: 0, completed_units: null, total_units: null, unit: null,
       error: null, failure: null, created_at: PROJECT.created_at, updated_at: PROJECT.updated_at,
       available_actions: ['cancel'],

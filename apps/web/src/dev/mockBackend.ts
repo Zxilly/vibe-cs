@@ -401,6 +401,8 @@ const RECORDING_JOB = 'aa111111-1111-4111-8111-111111111111';
 const ANALYSIS_RUN = 'bb222222-2222-4222-8222-222222222222';
 const EXPORT_JOB = 'cc333333-3333-4333-8333-333333333333';
 const DOWNLOAD_JOB = 'dd444444-4444-4444-8444-444444444444';
+const FAILED_RECORDING_JOB = 'ff666666-6666-4666-8666-666666666666';
+const NAVI_DEMO = '3f2c9a10-11d4-4a6e-9d21-6b0f1a2c3d41';
 
 const ACTIVITIES: ActivityFeed = {
   items: [
@@ -410,6 +412,7 @@ const ACTIVITIES: ActivityFeed = {
       subtype: null,
       job_id: RECORDING_JOB,
       context_id: 'plan-1',
+      project_id: 'proj-highlights',
       subject: 'Mirage 残局集锦 · 6 镜头',
       status: 'running',
       /* One of the five `recording.stage.*` keys, and `completed_units` is that
@@ -431,6 +434,7 @@ const ACTIVITIES: ActivityFeed = {
       subtype: null,
       job_id: ANALYSIS_RUN,
       context_id: '5b81e4c7-22d4-4a6e-9d21-6b0f1a2c3d42',
+      project_id: null,
       subject: 'Vitality vs G2 · Inferno',
       status: 'running',
       stage: 'parser_running',
@@ -450,6 +454,7 @@ const ACTIVITIES: ActivityFeed = {
       subtype: 'montage',
       job_id: EXPORT_JOB,
       context_id: 'proj-highlights',
+      project_id: 'proj-highlights',
       subject: '八月集锦 · r3',
       status: 'completed',
       stage: null,
@@ -469,6 +474,7 @@ const ACTIVITIES: ActivityFeed = {
       subtype: null,
       job_id: DOWNLOAD_JOB,
       context_id: 'match-9921',
+      project_id: null,
       subject: 'Premier · Dust II',
       status: 'failed',
       stage: null,
@@ -484,11 +490,31 @@ const ACTIVITIES: ActivityFeed = {
       updated_at: '2026-08-14T19:52:00Z',
       available_actions: ['retry_download', 'open_match_history'],
     },
+    {
+      id: `recording:${FAILED_RECORDING_JOB}`,
+      kind: 'recording',
+      subtype: null,
+      job_id: FAILED_RECORDING_JOB,
+      context_id: NAVI_DEMO,
+      project_id: 'proj-highlights',
+      subject: '选手 POV · 三杀',
+      status: 'failed',
+      stage: 'HLAE 在录制第 2 个镜头时退出',
+      progress_percent: null,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: 'HLAE 在录制第 2 个镜头时退出',
+      failure: { code: 'dependency_failed', retryable: true },
+      created_at: '2026-08-13T21:10:00Z',
+      updated_at: '2026-08-13T21:14:00Z',
+      available_actions: ['retry_recording', 'open_outputs'],
+    },
   ],
-  total: 4,
+  total: 5,
   page: 1,
   page_size: 20,
-  summary: { total: 4, active: 2, failed: 1, completed: 1, cancelled: 0 },
+  summary: { total: 5, active: 2, failed: 2, completed: 1, cancelled: 0 },
 };
 
 const EXPORT_JOB_DETAIL: ExportJobRecord = {
@@ -1243,7 +1269,7 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['GET', '/activities', ({ query }) => {
     const projectId = query.get('project_id');
     const state = query.get('state');
-    const scoped = ACTIVITIES.items.filter((item) => projectId === null || item.context_id === projectId);
+    const scoped = ACTIVITIES.items.filter((item) => projectId === null || item.project_id === projectId);
     const filtered = scoped.filter((item) => state === null || (state === 'active'
       ? !['completed', 'failed', 'cancelled'].includes(item.status) : item.status === state));
     const page = Math.max(1, Number(query.get('page') ?? 1));

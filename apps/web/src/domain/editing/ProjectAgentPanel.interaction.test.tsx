@@ -39,7 +39,7 @@ describe('Agent edit review', () => {
   it('shows cancellation as terminal instead of a running spinner', () => {
     const view = renderInteractive(<TestPanel {...props({ externalExecutions: [{
       id: 'recording:cancelled', kind: 'recording', subtype: null, job_id: 'cancelled',
-      context_id: 'project', subject: 'Cancelled shots', status: 'cancelled', stage: null,
+      context_id: 'project', project_id: null, subject: 'Cancelled shots', status: 'cancelled', stage: null,
       progress_percent: null, completed_units: null, total_units: null, unit: null,
       error: null, failure: null, created_at: AT, updated_at: AT, available_actions: [],
     }] })} />);
@@ -50,7 +50,7 @@ describe('Agent edit review', () => {
   it('does not turn an absent completed recording percentage into zero', () => {
     const view = renderInteractive(<TestPanel {...props({ externalExecutions: [{
       id: 'recording:job', kind: 'recording', subtype: null, job_id: 'job',
-      context_id: 'project', subject: 'Recorded shots', status: 'completed', stage: null,
+      context_id: 'project', project_id: null, subject: 'Recorded shots', status: 'completed', stage: null,
       progress_percent: null, completed_units: null, total_units: null, unit: null,
       error: null, failure: null, created_at: AT, updated_at: AT, available_actions: ['open_outputs'],
     }] })} />);

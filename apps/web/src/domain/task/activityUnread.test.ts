@@ -10,6 +10,7 @@ const item = (id: string, status: ActivityItem['status']): ActivityItem => ({
   subtype: null,
   job_id: id,
   context_id: null,
+  project_id: null,
   subject: id,
   stage: null,
   progress_percent: null,

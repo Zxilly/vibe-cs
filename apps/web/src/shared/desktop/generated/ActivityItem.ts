@@ -11,6 +11,13 @@ export type ActivityItem = {
   subtype: string | null;
   job_id: string | null;
   context_id: string | null;
+  /**
+   * The Project that owns this record, when one does: an export's Project,
+   * or the Project a recording run was bound to in `project_recording_runs`.
+   * A recording's `context_id` names its Demo, so recovery that has to
+   * happen inside the Project needs this instead.
+   */
+  project_id: string | null;
   subject: string | null;
   status: ActivityStatus;
   stage: string | null;

@@ -10,7 +10,7 @@ import { TaskCenterPage } from './TaskCenterPage';
 function task(page = 1): ActivityItem {
   return {
     id: `recording:job-${page}`, kind: 'recording', subtype: null, job_id: `job-${page}`,
-    context_id: 'project-1', subject: `录制片段 ${page}`, status: 'running', stage: 'recording.stage.capturing',
+    context_id: 'project-1', project_id: null, subject: `录制片段 ${page}`, status: 'running', stage: 'recording.stage.capturing',
     progress_percent: null, completed_units: 3, total_units: 5, unit: 'stages', error: null, failure: null,
     created_at: '2026-09-12T08:00:00Z', updated_at: '2026-09-12T08:01:00Z', available_actions: [],
   };
@@ -18,7 +18,7 @@ function task(page = 1): ActivityItem {
 
 const EXPORTED: ActivityItem = {
   id: 'export:job-9', kind: 'export', subtype: 'project', job_id: 'job-9',
-  context_id: 'project-1', subject: '八月集锦 · r3', status: 'completed', stage: null,
+  context_id: 'project-1', project_id: null, subject: '八月集锦 · r3', status: 'completed', stage: null,
   progress_percent: 100, completed_units: null, total_units: null, unit: null, error: null, failure: null,
   created_at: '2026-09-12T08:00:00Z', updated_at: '2026-09-12T08:17:00Z', available_actions: ['open_outputs'],
 };
@@ -38,6 +38,33 @@ afterEach(() => {
 });
 
 describe('shared task center', () => {
+  it('re-runs a failed recording from the Project that owns it, not from the works list', async () => {
+    const failedRecording: ActivityItem = {
+      ...task(), id: 'recording:job-7', job_id: 'job-7', context_id: 'demo-1', project_id: 'project-7',
+      subject: '录制失败的片段', status: 'failed', available_actions: ['retry_recording'],
+    };
+    const listActivities = vi.fn((_query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve(feedOf([failedRecording])));
+    renderPage({ route: '/tasks?state=failed', element: <TaskCenterPage />, client: { listActivities } });
+
+    expect((await screen.findAllByRole('button', { name: '在作品中重新录制' })).length).toBeGreaterThan(0);
+    const owner = screen.getAllByRole('link', { name: '打开作品' });
+    expect(owner.length).toBeGreaterThan(0);
+    expect(owner.every((link) => link.getAttribute('href') === '/projects/project-7')).toBe(true);
+  });
+
+  it('sends a recording no Project owns to its stage log instead of to an unrelated list', async () => {
+    const unbound: ActivityItem = {
+      ...task(), id: 'recording:job-8', job_id: 'job-8', context_id: 'demo-1', project_id: null,
+      subject: '无归属的录制', status: 'failed', available_actions: ['retry_recording'],
+    };
+    const listActivities = vi.fn((_query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve(feedOf([unbound])));
+    renderPage({ route: '/tasks?state=failed', element: <TaskCenterPage />, client: { listActivities } });
+
+    expect((await screen.findAllByRole('button', { name: '查看阶段日志' })).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '在作品中重新录制' })).toBeNull();
+    expect(screen.queryByRole('link', { name: '打开作品' })).toBeNull();
+  });
+
   it('retries the current page after a read failure instead of treating it as an empty result', async () => {
     let fail = false;
     const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> => fail
@@ -156,7 +183,7 @@ describe('shared task center', () => {
   it('shows the failure alert only in the detail panel instead of duplicating it in the list row', async () => {
     const failed: ActivityItem = {
       id: 'download:job-fail', kind: 'download', subtype: null, job_id: 'job-fail',
-      context_id: 'match-1', subject: 'Premier · Dust II', status: 'failed', stage: null,
+      context_id: 'match-1', project_id: null, subject: 'Premier · Dust II', status: 'failed', stage: null,
       progress_percent: null, completed_units: 64, total_units: 187, unit: 'bytes',
       error: 'Valve 回放服务器超时（3 次重试后放弃）。', failure: null,
       created_at: '2026-09-12T08:00:00Z', updated_at: '2026-09-12T08:12:00Z',

@@ -22,6 +22,7 @@ const ANALYSIS: ActivityItem = {
   subtype: null,
   job_id: 'run-1',
   context_id: 'demo-1',
+  project_id: null,
   subject: 'Kestrel vs Halcyon',
   status: 'failed',
   stage: 'parser_running',

@@ -87,12 +87,18 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
     const jobId = item.job_id;
     const cancellable = jobId !== null && item.available_actions.includes('cancel');
     const retryAction = retryActionOf(item);
-    const restartable = jobId !== null && retryAction !== null;
+    const project = projectPathOf(item);
+    /* A recording is re-run from its owning Project's 「录制缺失片段」
+       confirmation, so it is restartable here only when the service names
+       that Project (`project_id`). A run no Project owns falls through to the
+       stage log rather than to a list it does not belong to. */
+    const restartable = jobId !== null && retryAction !== null
+      && (retryAction !== 'retry_recording' || project !== null);
 
     const run = (): void => {
       if (jobId === null || retryAction === null) return;
       if (retryAction === 'retry_recording') {
-        void navigate('/projects');
+        if (project !== null) void navigate(project);
         return;
       }
       retry.mutate({
@@ -104,13 +110,13 @@ export function useTaskActions({ now }: TaskActionsOptions = {}) {
 
     const summary = toTaskSummary(item, {
       ...(now === undefined ? {} : { now }),
-      recovery: recoveryFor({ item, restartable, run, navigate }),
+      recovery: recoveryFor({ item, project, restartable, run, navigate }),
       ...(status === 'cancelled' && restartable ? { note: <Trans>可重新发起</Trans> } : {}),
     });
 
     return {
       summary,
-      links: linksFor(item, restartable && status === 'failed', routeHref),
+      links: linksFor(item, project, restartable && status === 'failed', routeHref),
       onCancel:
         cancellable && jobId !== null
           ? () => cancel.mutate({ kind: item.kind, jobId })
@@ -137,20 +143,20 @@ function retryActionOf(item: ActivityItem): 'retry_analysis' | 'retry_download' 
 
 interface RecoveryInput {
   readonly item: ActivityItem;
+  readonly project: string | null;
   readonly restartable: boolean;
   readonly run: () => void;
   readonly navigate: (to: string) => void;
 }
 
-function recoveryFor({ item, restartable, run, navigate }: RecoveryInput) {
+function recoveryFor({ item, project, restartable, run, navigate }: RecoveryInput) {
   if (restartable) {
     return {
-      label: item.kind === 'recording' ? <Trans>打开作品</Trans> : <Trans>重试</Trans>,
+      label: item.kind === 'recording' ? <Trans>在作品中重新录制</Trans> : <Trans>重试</Trans>,
       onAction: run,
     };
   }
 
-  const project = projectPathOf(item);
   if (project !== null) {
     return { label: <Trans>打开作品</Trans>, onAction: () => void navigate(project) };
   }
@@ -162,14 +168,14 @@ function recoveryFor({ item, restartable, run, navigate }: RecoveryInput) {
 }
 
 /**
- * Where a failed export's project lives. `context_id` is the project id
- * (`crates/application/src/routes/activity.rs`) and `subtype` says which editor
- * owns it — the same two export kinds `taskModel` reads for 合辑.
+ * The workspace of the Project that owns this record: an export's Project, or
+ * the Project a recording run was bound to (`project_id`,
+ * `crates/application/src/routes/activity.rs`). A recording's `context_id` is
+ * its Demo, so it cannot stand in here.
  */
 function projectPathOf(item: ActivityItem): string | null {
-  if (item.kind !== 'export' || item.context_id === null) return null;
-  const id = encodeURIComponent(item.context_id);
-  return `/projects/${id}`;
+  if (item.project_id === null) return null;
+  return `/projects/${encodeURIComponent(item.project_id)}`;
 }
 
 /**
@@ -201,9 +207,10 @@ function destinationLink(action: ActivityAction, item: ActivityItem): { id: stri
   }
 }
 
-/** 「查看阶段」, then 「打开作品」 beside a failed export, then the record's `open_*` destinations. */
+/** 「查看阶段」, then 「打开作品」 beside a failed, retryable record, then the record's `open_*` destinations. */
 function linksFor(
   item: ActivityItem,
+  project: string | null,
   failedWithRetry: boolean,
   routeHref: (path: string) => string,
 ): readonly TaskLink[] {
@@ -211,7 +218,6 @@ function linksFor(
     { id: 'detail', label: <Trans>查看阶段</Trans>, href: routeHref(taskDetailPath(item)) },
   ];
 
-  const project = projectPathOf(item);
   if (project !== null && failedWithRetry) {
     links.push({ id: 'project', label: <Trans>打开作品</Trans>, href: routeHref(project) });
   }

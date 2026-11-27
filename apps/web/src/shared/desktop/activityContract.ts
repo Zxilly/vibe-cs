@@ -11,7 +11,7 @@ import type { ActivityFeed, ActivityItem } from './viewModels';
  * generated file is the source of truth for this list.
  */
 const itemKeys = [
-  'id', 'kind', 'subtype', 'job_id', 'context_id', 'subject', 'status', 'stage',
+  'id', 'kind', 'subtype', 'job_id', 'context_id', 'project_id', 'subject', 'status', 'stage',
   'progress_percent', 'completed_units', 'total_units', 'unit', 'error', 'failure',
   'created_at', 'updated_at', 'available_actions',
 ] as const;
@@ -98,6 +98,7 @@ export function parseActivityItem(value: unknown): ActivityItem {
     || !nullableString(value.subtype)
     || !nullableString(value.job_id)
     || !nullableString(value.context_id)
+    || !nullableString(value.project_id)
     || !nullableString(value.subject)
     || typeof value.status !== 'string'
     || !statuses.has(value.status as ActivityStatus)
@@ -131,6 +132,8 @@ export function parseActivityItem(value: unknown): ActivityItem {
     )
     || new Set(availableActions).size !== availableActions.length
     || availableActions.some((action) => !actionsByKind[kind].has(action))
+    /* Only exports and recordings have an owning Project. */
+    || ((kind === 'analysis' || kind === 'download') && value.project_id !== null)
   ) return invalid();
   const terminal = status === 'completed' || status === 'failed' || status === 'cancelled';
   if (kind === 'recording') {

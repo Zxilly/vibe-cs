@@ -31,6 +31,7 @@ const ITEM: ActivityItem = {
   subtype: null,
   job_id: 'job-1',
   context_id: 'demo-a',
+  project_id: null,
   subject: 'Kael 的 1v3',
   status: 'running',
   stage: 'capturing',

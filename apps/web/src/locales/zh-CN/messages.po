@@ -62,7 +62,7 @@ msgid "{0, plural, other {# 个未完成的文件}}"
 msgstr "{0, plural, other {# 个未完成的文件}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:428
+#: src/pages/shared/library/LibraryPage.tsx:432
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
@@ -77,7 +77,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/shared/library/LibraryPage.tsx:426
+#: src/pages/shared/library/LibraryPage.tsx:430
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
@@ -112,7 +112,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:320
+#: src/pages/shared/library/LibraryPage.tsx:321
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, other {分析选中的 # 场}}"
 
@@ -241,7 +241,7 @@ msgstr "{0} 后片段入点预览"
 
 #. placeholder {0}: formatRounds(demo.total_rounds)
 #: src/pages/shared/library/LibraryCards.tsx:217
-#: src/pages/shared/library/LibraryInspector.tsx:256
+#: src/pages/shared/library/LibraryInspector.tsx:270
 msgid "{0} 回合"
 msgstr "{0} 回合"
 
@@ -785,22 +785,22 @@ msgstr "D"
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:424
+#: src/pages/analysis/match/views/viewChrome.tsx:425
 msgid "Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。反复失败时，到<0>设置与诊断</0>导出诊断包。"
 msgstr "Demo 文件和资料库记录没有改动。重新分析会用当前版本重新生成结果并覆盖旧结果；如果只是暂时读不到，重试即可。反复失败时，到<0>设置与诊断</0>导出诊断包。"
 
-#: src/pages/shared/library/LibraryInspector.tsx:194
+#: src/pages/shared/library/LibraryInspector.tsx:202
 msgid "Demo 文件缺失，无法分析"
 msgstr "Demo 文件缺失，无法分析"
 
-#: src/pages/shared/library/LibraryInspector.tsx:218
+#: src/pages/shared/library/LibraryInspector.tsx:226
 msgid "Demo 文件缺失，无法回放"
 msgstr "Demo 文件缺失，无法回放"
 
 #: src/app/command/commandRegistry.ts:175
 #: src/app/shell/navigation.tsx:55
 #: src/app/shell/navigation.tsx:78
-#: src/pages/shared/library/LibraryPage.tsx:420
+#: src/pages/shared/library/LibraryPage.tsx:424
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
@@ -909,9 +909,9 @@ msgid "Steam Web API 密钥"
 msgstr "Steam Web API 密钥"
 
 #: src/app/routeCrumb.ts:116
-#: src/pages/shared/library/LibraryPage.tsx:114
-#: src/pages/shared/library/LibraryPage.tsx:457
-#: src/pages/shared/library/LibraryPage.tsx:460
+#: src/pages/shared/library/LibraryPage.tsx:115
+#: src/pages/shared/library/LibraryPage.tsx:461
+#: src/pages/shared/library/LibraryPage.tsx:464
 #: src/pages/shared/settings/FilesSection.tsx:273
 msgid "Steam 下载"
 msgstr "Steam 下载"
@@ -1026,6 +1026,10 @@ msgstr "上一页"
 #: src/domain/editing/ProjectMediaWorkspace.tsx:1050
 msgid "上次代理生成失败，可以重新生成"
 msgstr "上次代理生成失败，可以重新生成"
+
+#: src/pages/shared/library/LibraryInspector.tsx:245
+msgid "上次分析没有完成，回合与回放暂不可用。"
+msgstr "上次分析没有完成，回合与回放暂不可用。"
 
 #. placeholder {0}: status.imported
 #. placeholder {1}: status.updated
@@ -1318,7 +1322,7 @@ msgstr "仍有镜头问题，可调整录制视角或范围后重新检查。"
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 
-#: src/pages/shared/library/LibraryPage.tsx:383
+#: src/pages/shared/library/LibraryPage.tsx:384
 msgid "从 Demo 创建剪辑"
 msgstr "从 Demo 创建剪辑"
 
@@ -1385,7 +1389,7 @@ msgstr "以剪辑点为中心"
 #: src/app/routeCrumb.ts:105
 #: src/app/routeCrumb.ts:107
 #: src/pages/editing/workspace/HomeFailureNotice.tsx:80
-#: src/pages/shared/tasks/TaskCenterPage.tsx:47
+#: src/pages/shared/tasks/TaskCenterPage.tsx:80
 msgid "任务中心"
 msgstr "任务中心"
 
@@ -1397,7 +1401,7 @@ msgstr "任务地址无效，请从任务列表重新打开。"
 msgid "任务概览"
 msgstr "任务概览"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:51
+#: src/pages/shared/tasks/TaskCenterPage.tsx:84
 msgid "任务状态"
 msgstr "任务状态"
 
@@ -1407,8 +1411,8 @@ msgstr "任务编号"
 
 #: src/app/routeCrumb.ts:107
 #: src/domain/task/TaskDetail.tsx:121
-#: src/pages/shared/tasks/TaskCenterPage.tsx:89
-#: src/pages/shared/tasks/TaskCenterPage.tsx:96
+#: src/pages/shared/tasks/TaskCenterPage.tsx:143
+#: src/pages/shared/tasks/TaskCenterPage.tsx:150
 msgid "任务详情"
 msgstr "任务详情"
 
@@ -1431,7 +1435,7 @@ msgid "伤害 出 / 入"
 msgstr "伤害 出 / 入"
 
 #: src/app/shell/RouteBreadcrumb.tsx:44
-#: src/pages/shared/library/LibraryInspector.tsx:276
+#: src/pages/shared/library/LibraryInspector.tsx:290
 #: src/pages/shared/settings/FilesSection.tsx:115
 msgid "位置"
 msgstr "位置"
@@ -1565,7 +1569,7 @@ msgstr "保存 Steam 设置"
 msgid "保存为视图"
 msgstr "保存为视图"
 
-#: src/pages/shared/library/LibraryInspector.tsx:326
+#: src/pages/shared/library/LibraryInspector.tsx:340
 msgid "保存备注"
 msgstr "保存备注"
 
@@ -1738,11 +1742,11 @@ msgstr "允许导出"
 msgid "允许录制"
 msgstr "允许录制"
 
-#: src/pages/shared/library/LibraryPage.tsx:233
+#: src/pages/shared/library/LibraryPage.tsx:234
 msgid "元数据已导出"
 msgstr "元数据已导出"
 
-#: src/pages/shared/library/LibraryPage.tsx:236
+#: src/pages/shared/library/LibraryPage.tsx:237
 msgid "元数据没能导出"
 msgstr "元数据没能导出"
 
@@ -1799,7 +1803,7 @@ msgstr "入出点范围 {0} 到 {1}"
 msgid "入切线"
 msgstr "入切线"
 
-#: src/pages/shared/library/LibraryInspector.tsx:279
+#: src/pages/shared/library/LibraryInspector.tsx:293
 msgid "入库时间"
 msgstr "入库时间"
 
@@ -1837,7 +1841,7 @@ msgstr "全选本页"
 #: src/pages/shared/library/LibraryFilters.tsx:157
 #: src/pages/shared/library/LibraryFilters.tsx:271
 #: src/pages/shared/library/LibraryFilters.tsx:289
-#: src/pages/shared/tasks/TaskCenterPage.tsx:55
+#: src/pages/shared/tasks/TaskCenterPage.tsx:88
 msgid "全部"
 msgstr "全部"
 
@@ -1916,7 +1920,7 @@ msgid "共 {total} 场对局"
 msgstr "共 {total} 场对局"
 
 #. placeholder {0}: firstItem + items.length - 1
-#: src/domain/task/TaskActivityList.tsx:124
+#: src/domain/task/TaskActivityList.tsx:127
 msgid "共 {total} 条 · 第 {firstItem}–{0} 条"
 msgstr "共 {total} 条 · 第 {firstItem}–{0} 条"
 
@@ -2117,7 +2121,7 @@ msgstr "最近比赛中没有可用的 {0} 数据。"
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "最近比赛没能读出来：{matchesError}"
 
-#: src/pages/shared/library/LibraryInspector.tsx:306
+#: src/pages/shared/library/LibraryInspector.tsx:320
 msgid "写下这场值得回头看的地方"
 msgstr "写下这场值得回头看的地方"
 
@@ -2226,7 +2230,7 @@ msgstr "分割"
 msgid "分析"
 msgstr "分析"
 
-#: src/pages/shared/library/libraryColumns.tsx:244
+#: src/pages/shared/library/libraryColumns.tsx:248
 msgctxt "row-action"
 msgid "分析"
 msgstr "分析"
@@ -2245,7 +2249,7 @@ msgstr "分析一场比赛"
 msgid "分析中"
 msgstr "分析中"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:301
+#: src/pages/analysis/match/views/viewChrome.tsx:302
 msgid "分析任务已提交，可在后台任务中查看进度。"
 msgstr "分析任务已提交，可在后台任务中查看进度。"
 
@@ -2274,7 +2278,7 @@ msgstr "分析完成后才有位置样本、朝向与交战方向。"
 msgid "分析已取消"
 msgstr "分析已取消"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:292
+#: src/pages/analysis/match/views/viewChrome.tsx:293
 msgid "分析已提交"
 msgstr "分析已提交"
 
@@ -2366,7 +2370,7 @@ msgstr "切换时间显示模式"
 msgid "切换时间轴吸附"
 msgstr "切换时间轴吸附"
 
-#: src/pages/shared/library/LibraryPage.tsx:439
+#: src/pages/shared/library/LibraryPage.tsx:443
 msgid "切换视图"
 msgstr "切换视图"
 
@@ -2408,10 +2412,6 @@ msgstr "列配置"
 #: src/pages/editing/projects/ProjectsPage.tsx:75
 msgid "创建作品失败。"
 msgstr "创建作品失败。"
-
-#: src/pages/analysis/match/views/ReplayView.tsx:685
-msgid "创建剪辑"
-msgstr "创建剪辑"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:801
 msgid "创建后，同步好的多机位轨道会替换当前时间轴。整个操作可以一次撤销。"
@@ -2498,7 +2498,7 @@ msgstr "删除此布局…"
 msgid "删除片段标记"
 msgstr "删除片段标记"
 
-#: src/pages/shared/library/LibraryPage.tsx:363
+#: src/pages/shared/library/LibraryPage.tsx:364
 msgid "删除记录"
 msgstr "删除记录"
 
@@ -2530,7 +2530,7 @@ msgstr "到剪辑点结束"
 msgid "制作"
 msgstr "制作"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:63
+#: src/pages/shared/tasks/TaskCenterPage.tsx:96
 msgid "刷新"
 msgstr "刷新"
 
@@ -2732,7 +2732,7 @@ msgstr "单场记分板"
 msgid "占用"
 msgstr "占用"
 
-#: src/pages/shared/library/LibraryPage.tsx:447
+#: src/pages/shared/library/LibraryPage.tsx:451
 msgid "卡片"
 msgstr "卡片"
 
@@ -2844,7 +2844,7 @@ msgid "取消组合所选片段"
 msgstr "取消组合所选片段"
 
 #: src/pages/shared/library/history/HistoryPage.tsx:195
-#: src/pages/shared/library/LibraryPage.tsx:330
+#: src/pages/shared/library/LibraryPage.tsx:331
 msgid "取消选择"
 msgstr "取消选择"
 
@@ -2898,6 +2898,14 @@ msgstr "只接受 {VIDEO_LENGTH_MIN} 到 {VIDEO_LENGTH_MAX} 之间的整数秒�
 msgid "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
 msgstr "只接受 https:// 开头的完整地址，例如 https://example.com/manifest.json。"
 
+#: src/pages/shared/tasks/TaskCenterPage.tsx:109
+msgid "只显示「{demoName}」的分析任务。"
+msgstr "只显示「{demoName}」的分析任务。"
+
+#: src/pages/shared/tasks/TaskCenterPage.tsx:108
+msgid "只显示这个 Demo 的分析任务。"
+msgstr "只显示这个 Demo 的分析任务。"
+
 #: src/pages/editing/delivery/OutputsView.tsx:97
 msgid "只有桌面端能在文件管理器里定位文件。"
 msgstr "只有桌面端能在文件管理器里定位文件。"
@@ -2942,7 +2950,7 @@ msgstr "可用性"
 msgid "可选材"
 msgstr "可选材"
 
-#: src/domain/task/useTaskActions.tsx:108
+#: src/domain/task/useTaskActions.tsx:140
 msgid "可重新发起"
 msgstr "可重新发起"
 
@@ -3153,8 +3161,8 @@ msgstr "回到概览"
 msgid "回到证据视图"
 msgstr "回到证据视图"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:295
-#: src/pages/analysis/match/views/viewChrome.tsx:448
+#: src/pages/analysis/match/views/viewChrome.tsx:296
+#: src/pages/analysis/match/views/viewChrome.tsx:449
 msgid "回到资料库"
 msgstr "回到资料库"
 
@@ -3165,8 +3173,8 @@ msgstr "回到资料库"
 #: src/pages/analysis/match/views/TeamsView.tsx:254
 #: src/pages/analysis/match/views/UtilityView.tsx:232
 #: src/pages/analysis/match/views/UtilityView.tsx:233
-#: src/pages/shared/library/libraryColumns.tsx:132
 #: src/pages/shared/library/libraryColumns.tsx:133
+#: src/pages/shared/library/libraryColumns.tsx:134
 msgid "回合"
 msgstr "回合"
 
@@ -3295,6 +3303,10 @@ msgstr "在「文件与资料库」中更改保存位置。"
 msgid "在「文件与资料库」中更改录制保存位置。"
 msgstr "在「文件与资料库」中更改录制保存位置。"
 
+#: src/domain/task/useTaskActions.tsx:181
+msgid "在作品中重新录制"
+msgstr "在作品中重新录制"
+
 #: src/pages/analysis/match/views/ReviewView.tsx:797
 msgid "在回放或回合视图中选择事件，再到「我的注释」添加注释。"
 msgstr "在回放或回合视图中选择事件，再到「我的注释」添加注释。"
@@ -3303,7 +3315,7 @@ msgstr "在回放或回合视图中选择事件，再到「我的注释」添加
 msgid "在工作进度里展开 Agent 每次读取的回合与事件。"
 msgstr "在工作进度里展开 Agent 每次读取的回合与事件。"
 
-#: src/pages/shared/library/LibraryInspector.tsx:155
+#: src/pages/shared/library/LibraryInspector.tsx:162
 msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 msgstr "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 
@@ -3394,8 +3406,8 @@ msgstr "在节目画布中移动 {0}"
 #: src/pages/analysis/players/PlayerProfilePage.tsx:177
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:113
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:114
-#: src/pages/shared/library/libraryColumns.tsx:93
 #: src/pages/shared/library/libraryColumns.tsx:94
+#: src/pages/shared/library/libraryColumns.tsx:95
 #: src/pages/shared/library/LibraryFilters.tsx:209
 msgid "地图"
 msgstr "地图"
@@ -3473,12 +3485,12 @@ msgstr "填写一个目录的完整路径"
 msgid "声像"
 msgstr "声像"
 
-#: src/pages/shared/library/LibraryInspector.tsx:299
-#: src/pages/shared/library/LibraryInspector.tsx:303
+#: src/pages/shared/library/LibraryInspector.tsx:313
+#: src/pages/shared/library/LibraryInspector.tsx:317
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/shared/library/LibraryPage.tsx:517
+#: src/pages/shared/library/LibraryPage.tsx:521
 msgid "备注没有保存。重试会保存到原来的比赛。"
 msgstr "备注没有保存。重试会保存到原来的比赛。"
 
@@ -3538,7 +3550,7 @@ msgstr "失误"
 #: src/design/feedback/StageBar.tsx:73
 #: src/domain/task/TaskActivityList.tsx:15
 #: src/domain/task/taskVocabulary.tsx:47
-#: src/pages/shared/tasks/TaskCenterPage.tsx:57
+#: src/pages/shared/tasks/TaskCenterPage.tsx:90
 msgid "失败"
 msgstr "失败"
 
@@ -3620,7 +3632,7 @@ msgstr "定位"
 msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
-#: src/pages/shared/library/LibraryInspector.tsx:223
+#: src/pages/shared/library/LibraryInspector.tsx:231
 #: src/pages/shared/settings/AdvancedSection.tsx:288
 msgid "定位文件"
 msgstr "定位文件"
@@ -3714,7 +3726,7 @@ msgid "导入 .dem 文件，或添加监听目录，自动导入新文件。"
 msgstr "导入 .dem 文件，或添加监听目录，自动导入新文件。"
 
 #: src/pages/shared/library/ImportDemoDialog.tsx:75
-#: src/pages/shared/library/LibraryPage.tsx:284
+#: src/pages/shared/library/LibraryPage.tsx:285
 #: src/pages/shared/onboarding/firstRunSteps.ts:37
 #: src/pages/shared/onboarding/FirstRunStrip.tsx:67
 msgid "导入 Demo"
@@ -3846,7 +3858,7 @@ msgstr "导出诊断包"
 msgid "导出质量"
 msgstr "导出质量"
 
-#: src/pages/shared/library/LibraryPage.tsx:226
+#: src/pages/shared/library/LibraryPage.tsx:227
 msgid "导出资料库元数据"
 msgstr "导出资料库元数据"
 
@@ -3995,7 +4007,7 @@ msgstr "已加入「{name}」"
 
 #: src/domain/task/TaskActivityList.tsx:17
 #: src/domain/task/taskVocabulary.tsx:48
-#: src/pages/shared/tasks/TaskCenterPage.tsx:59
+#: src/pages/shared/tasks/TaskCenterPage.tsx:92
 msgid "已取消"
 msgstr "已取消"
 
@@ -4024,7 +4036,7 @@ msgstr "已复用同一批证据的上次点评。"
 #: src/domain/task/TaskActivityList.tsx:16
 #: src/domain/task/taskVocabulary.tsx:46
 #: src/pages/shared/onboarding/GuidePage.tsx:93
-#: src/pages/shared/tasks/TaskCenterPage.tsx:58
+#: src/pages/shared/tasks/TaskCenterPage.tsx:91
 msgid "已完成"
 msgstr "已完成"
 
@@ -4206,7 +4218,7 @@ msgid "已选 {0} 场"
 msgstr "已选 {0} 场"
 
 #. placeholder {0}: selected.size
-#: src/pages/shared/library/LibraryPage.tsx:307
+#: src/pages/shared/library/LibraryPage.tsx:308
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
@@ -4328,8 +4340,8 @@ msgstr "开始 tick"
 msgid "开始准备回放"
 msgstr "开始准备回放"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:292
-#: src/pages/shared/library/LibraryInspector.tsx:196
+#: src/pages/analysis/match/views/viewChrome.tsx:293
+#: src/pages/shared/library/LibraryInspector.tsx:204
 msgid "开始分析"
 msgstr "开始分析"
 
@@ -4378,7 +4390,7 @@ msgstr "当前"
 msgid "当前 {round}"
 msgstr "当前 {round}"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:136
+#: src/pages/analysis/match/views/viewChrome.tsx:137
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
@@ -4390,7 +4402,7 @@ msgstr "当前作品版本"
 msgid "当前占用 {conversation}"
 msgstr "当前占用 {conversation}"
 
-#: src/domain/task/TaskActivityList.tsx:71
+#: src/domain/task/TaskActivityList.tsx:74
 msgid "当前只显示这一状态的后台任务。"
 msgstr "当前只显示这一状态的后台任务。"
 
@@ -4453,7 +4465,7 @@ msgstr "当前配置完整，备份恢复保持关闭"
 msgid "录制"
 msgstr "录制"
 
-#: src/domain/task/TaskActivityList.tsx:63
+#: src/domain/task/TaskActivityList.tsx:66
 msgid "录制、导出、下载和分析开始后会出现在这里。"
 msgstr "录制、导出、下载和分析开始后会出现在这里。"
 
@@ -4788,7 +4800,7 @@ msgctxt "utility-item"
 msgid "手雷"
 msgstr "手雷"
 
-#: src/pages/shared/library/libraryColumns.tsx:229
+#: src/pages/shared/library/libraryColumns.tsx:230
 msgid "打开"
 msgstr "打开"
 
@@ -4817,9 +4829,8 @@ msgid "打开任务页"
 msgstr "打开任务页"
 
 #: src/domain/project/quickAdd.tsx:148
-#: src/domain/task/useTaskActions.tsx:148
-#: src/domain/task/useTaskActions.tsx:155
-#: src/domain/task/useTaskActions.tsx:216
+#: src/domain/task/useTaskActions.tsx:187
+#: src/domain/task/useTaskActions.tsx:248
 msgid "打开作品"
 msgstr "打开作品"
 
@@ -4832,7 +4843,7 @@ msgstr "打开作品"
 msgid "打开使用引导"
 msgstr "打开使用引导"
 
-#: src/domain/task/useTaskActions.tsx:198
+#: src/domain/task/useTaskActions.tsx:230
 msgid "打开分析"
 msgstr "打开分析"
 
@@ -4868,11 +4879,11 @@ msgstr "打开档案"
 msgid "打开模型设置"
 msgstr "打开模型设置"
 
-#: src/domain/task/useTaskActions.tsx:194
+#: src/domain/task/useTaskActions.tsx:226
 msgid "打开比赛历史"
 msgstr "打开比赛历史"
 
-#: src/pages/shared/library/LibraryPage.tsx:383
+#: src/pages/shared/library/LibraryPage.tsx:384
 msgid "打开比赛工作区"
 msgstr "打开比赛工作区"
 
@@ -4890,7 +4901,7 @@ msgstr "打开目录"
 msgid "打开第 {0} 回合"
 msgstr "打开第 {0} 回合"
 
-#: src/domain/task/useTaskActions.tsx:192
+#: src/domain/task/useTaskActions.tsx:224
 msgid "打开资料库"
 msgstr "打开资料库"
 
@@ -4963,6 +4974,10 @@ msgstr "把这名选手加入作品"
 #: src/pages/analysis/match/views/OverviewView.tsx:321
 msgid "把这条高光加入作品"
 msgstr "把这条高光加入作品"
+
+#: src/pages/analysis/match/views/ReplayView.tsx:685
+msgid "把选段加入作品"
+msgstr "把选段加入作品"
 
 #: src/pages/analysis/match/views/UtilityView.tsx:80
 #: src/pages/analysis/match/views/UtilityView.tsx:81
@@ -5383,7 +5398,7 @@ msgstr "整场 · 事件"
 msgid "整场比赛"
 msgstr "整场比赛"
 
-#: src/pages/shared/library/LibraryInspector.tsx:275
+#: src/pages/shared/library/LibraryInspector.tsx:289
 msgid "文件"
 msgstr "文件"
 
@@ -5640,8 +5655,8 @@ msgstr "无音频目标"
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
-#: src/pages/shared/library/libraryColumns.tsx:112
 #: src/pages/shared/library/libraryColumns.tsx:113
+#: src/pages/shared/library/libraryColumns.tsx:114
 msgid "日期"
 msgstr "日期"
 
@@ -5651,8 +5666,8 @@ msgstr "旧版本"
 
 #: src/pages/analysis/match/views/HighlightsView.tsx:427
 #: src/pages/editing/projects/ProjectsPage.tsx:189
-#: src/pages/shared/library/libraryColumns.tsx:123
 #: src/pages/shared/library/libraryColumns.tsx:124
+#: src/pages/shared/library/libraryColumns.tsx:125
 msgid "时长"
 msgstr "时长"
 
@@ -5660,7 +5675,7 @@ msgstr "时长"
 msgid "时长 · 分辨率 · 帧率 · 编码"
 msgstr "时长 · 分辨率 · 帧率 · 编码"
 
-#: src/pages/shared/library/LibraryInspector.tsx:262
+#: src/pages/shared/library/LibraryInspector.tsx:276
 msgid "时长 {duration}"
 msgstr "时长 {duration}"
 
@@ -5825,7 +5840,7 @@ msgstr "显示全部"
 msgid "显示全部类型"
 msgstr "显示全部类型"
 
-#: src/pages/shared/library/libraryColumns.tsx:213
+#: src/pages/shared/library/libraryColumns.tsx:214
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
@@ -5895,7 +5910,7 @@ msgid "更多操作"
 msgstr "更多操作"
 
 #. placeholder {0}: demo.display_name
-#: src/pages/shared/library/libraryColumns.tsx:257
+#: src/pages/shared/library/libraryColumns.tsx:261
 msgid "更多操作：{0}"
 msgstr "更多操作：{0}"
 
@@ -6067,7 +6082,7 @@ msgstr "未选中任何对位"
 msgid "未选中任何选手"
 msgstr "未选中任何选手"
 
-#: src/pages/shared/library/LibraryInspector.tsx:131
+#: src/pages/shared/library/LibraryInspector.tsx:138
 msgid "未选中比赛"
 msgstr "未选中比赛"
 
@@ -6144,9 +6159,9 @@ msgid "条件"
 msgstr "条件"
 
 #: src/domain/project/AddToProjectDialog.tsx:97
-#: src/pages/shared/library/libraryColumns.tsx:143
 #: src/pages/shared/library/libraryColumns.tsx:144
-#: src/pages/shared/library/LibraryInspector.tsx:277
+#: src/pages/shared/library/libraryColumns.tsx:145
+#: src/pages/shared/library/LibraryInspector.tsx:291
 msgid "来源"
 msgstr "来源"
 
@@ -6170,7 +6185,7 @@ msgstr "查看 {title} 的完整路径"
 msgid "查看任务"
 msgstr "查看任务"
 
-#: src/pages/shared/library/LibraryPage.tsx:564
+#: src/pages/shared/library/LibraryPage.tsx:568
 msgid "查看作品"
 msgstr "查看作品"
 
@@ -6179,7 +6194,7 @@ msgstr "查看作品"
 msgid "查看修改 {0}"
 msgstr "查看修改 {0}"
 
-#: src/domain/task/TaskActivityList.tsx:74
+#: src/domain/task/TaskActivityList.tsx:77
 msgid "查看全部"
 msgstr "查看全部"
 
@@ -6191,6 +6206,8 @@ msgid "查看全部 {0} 条"
 msgstr "查看全部 {0} 条"
 
 #: src/domain/task/ActivityDrawer.tsx:60
+#: src/pages/shared/tasks/TaskCenterPage.tsx:106
+#: src/pages/shared/tasks/TaskCenterPage.tsx:132
 msgid "查看全部任务"
 msgstr "查看全部任务"
 
@@ -6203,9 +6220,9 @@ msgstr "查看全部成品文件"
 msgid "查看最近比赛"
 msgstr "查看最近比赛"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:295
-#: src/pages/analysis/match/views/viewChrome.tsx:448
-#: src/pages/shared/library/LibraryInspector.tsx:186
+#: src/pages/analysis/match/views/viewChrome.tsx:296
+#: src/pages/analysis/match/views/viewChrome.tsx:449
+#: src/pages/shared/library/LibraryInspector.tsx:194
 msgid "查看分析进度"
 msgstr "查看分析进度"
 
@@ -6213,6 +6230,10 @@ msgstr "查看分析进度"
 #: src/domain/scene3d/Scene3DView.tsx:177
 msgid "查看原因"
 msgstr "查看原因"
+
+#: src/pages/shared/library/LibraryInspector.tsx:244
+msgid "查看失败原因"
+msgstr "查看失败原因"
 
 #: src/domain/editing/ProjectAgentPanel.tsx:398
 msgid "查看完整回复"
@@ -6223,7 +6244,7 @@ msgid "查看工具详情"
 msgstr "查看工具详情"
 
 #: src/domain/editing/ProjectExecutionCard.tsx:48
-#: src/domain/task/useTaskActions.tsx:186
+#: src/domain/task/useTaskActions.tsx:218
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:1766
 msgid "查看成品"
 msgstr "查看成品"
@@ -6248,15 +6269,15 @@ msgstr "查看诊断信息"
 msgid "查看详情"
 msgstr "查看详情"
 
-#: src/pages/shared/library/libraryColumns.tsx:223
+#: src/pages/shared/library/libraryColumns.tsx:224
 msgid "查看进度"
 msgstr "查看进度"
 
-#: src/domain/task/useTaskActions.tsx:211
+#: src/domain/task/useTaskActions.tsx:244
 msgid "查看阶段"
 msgstr "查看阶段"
 
-#: src/domain/task/useTaskActions.tsx:159
+#: src/domain/task/useTaskActions.tsx:191
 msgid "查看阶段日志"
 msgstr "查看阶段日志"
 
@@ -6265,11 +6286,11 @@ msgid "查看高光"
 msgstr "查看高光"
 
 #: src/pages/shared/library/LibraryFilters.tsx:212
-#: src/pages/shared/library/LibraryInspector.tsx:285
+#: src/pages/shared/library/LibraryInspector.tsx:299
 msgid "标签"
 msgstr "标签"
 
-#: src/pages/shared/library/LibraryPage.tsx:525
+#: src/pages/shared/library/LibraryPage.tsx:529
 msgid "标签没有添加。重试会使用原来选择的比赛和标签。"
 msgstr "标签没有添加。重试会使用原来选择的比赛和标签。"
 
@@ -6473,7 +6494,7 @@ msgstr "正在创建作品…"
 msgid "正在创建对话"
 msgstr "正在创建对话"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:63
+#: src/pages/shared/tasks/TaskCenterPage.tsx:96
 msgid "正在刷新"
 msgstr "正在刷新"
 
@@ -6533,7 +6554,7 @@ msgstr "正在同步…"
 msgid "正在启动 3D 视图…"
 msgstr "正在启动 3D 视图…"
 
-#: src/pages/shared/library/LibraryInspector.tsx:218
+#: src/pages/shared/library/LibraryInspector.tsx:226
 #: src/pages/shared/settings/AdvancedSection.tsx:357
 msgid "正在启动回放"
 msgstr "正在启动回放"
@@ -6582,11 +6603,11 @@ msgstr "正在打开这个页面"
 msgid "正在扫描清理范围"
 msgstr "正在扫描清理范围"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:292
+#: src/pages/analysis/match/views/viewChrome.tsx:293
 msgid "正在提交…"
 msgstr "正在提交…"
 
-#: src/pages/shared/library/LibraryInspector.tsx:194
+#: src/pages/shared/library/LibraryInspector.tsx:202
 msgid "正在提交分析任务"
 msgstr "正在提交分析任务"
 
@@ -6688,7 +6709,7 @@ msgstr "正在生成点评…"
 msgid "正在生成缩略图"
 msgstr "正在生成缩略图"
 
-#: src/pages/shared/library/LibraryInspector.tsx:150
+#: src/pages/shared/library/LibraryInspector.tsx:157
 msgid "正在读取"
 msgstr "正在读取"
 
@@ -6729,7 +6750,7 @@ msgstr "正在读取恢复状态"
 msgid "正在读取战术图"
 msgstr "正在读取战术图"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:196
+#: src/pages/analysis/match/views/viewChrome.tsx:197
 msgid "正在读取比赛分析"
 msgstr "正在读取比赛分析"
 
@@ -6778,7 +6799,7 @@ msgstr "正在读取选手目录"
 msgid "正在读取镜头路径与战术上下文…"
 msgstr "正在读取镜头路径与战术上下文…"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:439
+#: src/pages/analysis/match/views/viewChrome.tsx:440
 msgid "正在重新分析，完成后这里会自动刷新"
 msgstr "正在重新分析，完成后这里会自动刷新"
 
@@ -6888,7 +6909,7 @@ msgstr "比分"
 msgid "比分 {0} 比 {1}"
 msgstr "比分 {0} 比 {1}"
 
-#: src/pages/shared/library/LibraryInspector.tsx:250
+#: src/pages/shared/library/LibraryInspector.tsx:264
 msgid "比分 {score}"
 msgstr "比分 {score}"
 
@@ -6906,8 +6927,8 @@ msgstr "比率伸缩工具 (R)"
 #: src/pages/analysis/players/PlayersPage.tsx:80
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:105
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:106
-#: src/pages/shared/library/libraryColumns.tsx:74
 #: src/pages/shared/library/libraryColumns.tsx:75
+#: src/pages/shared/library/libraryColumns.tsx:76
 msgid "比赛"
 msgstr "比赛"
 
@@ -6962,14 +6983,14 @@ msgstr "比赛数据与战术回放"
 msgid "比赛日期"
 msgstr "比赛日期"
 
-#: src/pages/shared/library/LibraryInspector.tsx:278
+#: src/pages/shared/library/LibraryInspector.tsx:292
 msgid "比赛时间"
 msgstr "比赛时间"
 
-#: src/pages/shared/library/LibraryInspector.tsx:129
-#: src/pages/shared/library/LibraryInspector.tsx:130
-#: src/pages/shared/library/LibraryInspector.tsx:203
-#: src/pages/shared/library/LibraryInspector.tsx:204
+#: src/pages/shared/library/LibraryInspector.tsx:136
+#: src/pages/shared/library/LibraryInspector.tsx:137
+#: src/pages/shared/library/LibraryInspector.tsx:211
+#: src/pages/shared/library/LibraryInspector.tsx:212
 msgid "比赛详情"
 msgstr "比赛详情"
 
@@ -7172,11 +7193,11 @@ msgstr "没有需要清理的暂存文件"
 msgid "没能定位这个文件"
 msgstr "没能定位这个文件"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:300
+#: src/pages/analysis/match/views/viewChrome.tsx:301
 msgid "没能开始分析：{startError}"
 msgstr "没能开始分析：{startError}"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:458
+#: src/pages/analysis/match/views/viewChrome.tsx:459
 msgid "没能开始重新分析：{startError}"
 msgstr "没能开始重新分析：{startError}"
 
@@ -7330,8 +7351,8 @@ msgstr "添加文字"
 msgid "添加文字轨道"
 msgstr "添加文字轨道"
 
-#: src/pages/shared/library/LibraryPage.tsx:340
 #: src/pages/shared/library/LibraryPage.tsx:341
+#: src/pages/shared/library/LibraryPage.tsx:342
 msgid "添加标签"
 msgstr "添加标签"
 
@@ -7349,7 +7370,7 @@ msgstr "添加片段"
 msgid "添加监听目录"
 msgstr "添加监听目录"
 
-#: src/pages/shared/library/LibraryPage.tsx:292
+#: src/pages/shared/library/LibraryPage.tsx:293
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:85
 #: src/pages/shared/settings/FilesSection.tsx:257
 msgid "添加目录"
@@ -7483,7 +7504,7 @@ msgstr "游戏"
 msgid "游戏与录制"
 msgstr "游戏与录制"
 
-#: src/pages/shared/library/LibraryInspector.tsx:220
+#: src/pages/shared/library/LibraryInspector.tsx:228
 msgid "游戏内回放"
 msgstr "游戏内回放"
 
@@ -7752,8 +7773,8 @@ msgstr "版本、数据目录和当前录制占用。"
 #: src/pages/analysis/evidence/EvidenceAnnotationDetail.tsx:102
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:133
 #: src/pages/shared/library/history/MatchHistoryTable.tsx:134
-#: src/pages/shared/library/libraryColumns.tsx:152
 #: src/pages/shared/library/libraryColumns.tsx:153
+#: src/pages/shared/library/libraryColumns.tsx:154
 #: src/pages/shared/library/LibraryFilters.tsx:210
 msgid "状态"
 msgstr "状态"
@@ -7827,16 +7848,16 @@ msgstr "生效"
 msgid "用 {0} 替换所选片段"
 msgstr "用 {0} 替换所选片段"
 
-#: src/pages/shared/library/LibraryPage.tsx:337
+#: src/pages/shared/library/LibraryPage.tsx:338
 msgid "用 Agent 创作"
 msgstr "用 Agent 创作"
 
-#: src/pages/shared/library/libraryColumns.tsx:264
+#: src/pages/shared/library/libraryColumns.tsx:268
 msgid "用 Agent 制作"
 msgstr "用 Agent 制作"
 
 #. placeholder {0}: handlers.createButtonProps.disabledReason
-#: src/pages/shared/library/libraryColumns.tsx:265
+#: src/pages/shared/library/libraryColumns.tsx:269
 msgid "用 Agent 制作（{0}）"
 msgstr "用 Agent 制作（{0}）"
 
@@ -7902,8 +7923,8 @@ msgid "百分比"
 msgstr "百分比"
 
 #: src/pages/shared/library/libraryFormat.ts:222
-#: src/pages/shared/library/LibraryPage.tsx:467
-#: src/pages/shared/library/LibraryPage.tsx:473
+#: src/pages/shared/library/LibraryPage.tsx:471
+#: src/pages/shared/library/LibraryPage.tsx:477
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:77
 #: src/pages/shared/settings/FilesSection.tsx:187
 msgid "监听目录"
@@ -8000,7 +8021,7 @@ msgstr "知道了"
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
 
-#: src/pages/shared/library/LibraryPage.tsx:443
+#: src/pages/shared/library/LibraryPage.tsx:447
 msgid "视图"
 msgstr "视图"
 
@@ -8592,12 +8613,12 @@ msgstr "节目画布"
 msgid "花费"
 msgstr "花费"
 
-#: src/pages/shared/library/LibraryPage.tsx:565
+#: src/pages/shared/library/LibraryPage.tsx:569
 msgid "若作品已创建，可从作品列表打开并继续添加素材。"
 msgstr "若作品已创建，可从作品列表打开并继续添加素材。"
 
-#: src/pages/shared/library/libraryColumns.tsx:160
 #: src/pages/shared/library/libraryColumns.tsx:161
+#: src/pages/shared/library/libraryColumns.tsx:162
 msgid "行操作"
 msgstr "行操作"
 
@@ -8609,7 +8630,7 @@ msgstr "行方 ＼ 列方"
 msgid "行方与列方"
 msgstr "行方与列方"
 
-#: src/pages/shared/library/LibraryPage.tsx:446
+#: src/pages/shared/library/LibraryPage.tsx:450
 msgid "表格"
 msgstr "表格"
 
@@ -8830,7 +8851,7 @@ msgstr "请先停用不支持的效果"
 msgid "请先停用不支持的效果，再修改片段。"
 msgstr "请先停用不支持的效果，再修改片段。"
 
-#: src/pages/shared/library/LibraryPage.tsx:659
+#: src/pages/shared/library/LibraryPage.tsx:663
 msgid "请先读取应用配置"
 msgstr "请先读取应用配置"
 
@@ -8991,7 +9012,7 @@ msgstr "读不到采集组件状态：{hlaeError}"
 msgid "读取 · Read"
 msgstr "读取 · Read"
 
-#: src/pages/shared/tasks/TaskCenterPage.tsx:78
+#: src/pages/shared/tasks/TaskCenterPage.tsx:118
 msgid "读取任务失败"
 msgstr "读取任务失败"
 
@@ -9233,8 +9254,8 @@ msgstr "运行状态"
 msgid "近 {RECENT_WINDOW_DAYS} 天"
 msgstr "近 {RECENT_WINDOW_DAYS} 天"
 
-#: src/pages/shared/library/LibraryPage.tsx:117
-#: src/pages/shared/library/LibraryPage.tsx:119
+#: src/pages/shared/library/LibraryPage.tsx:118
+#: src/pages/shared/library/LibraryPage.tsx:120
 msgid "返回 Demo 资料库"
 msgstr "返回 Demo 资料库"
 
@@ -9291,7 +9312,7 @@ msgstr "还没有可显示的对局"
 msgid "还没有可检索的证据"
 msgstr "还没有可检索的证据"
 
-#: src/domain/task/TaskActivityList.tsx:62
+#: src/domain/task/TaskActivityList.tsx:65
 msgid "还没有后台任务"
 msgstr "还没有后台任务"
 
@@ -9442,6 +9463,14 @@ msgstr "这一队没有选手记录"
 msgid "这一项统计不可用"
 msgstr "这一项统计不可用"
 
+#: src/pages/shared/tasks/TaskCenterPage.tsx:129
+msgid "这个 Demo 没有符合当前状态的分析任务"
+msgstr "这个 Demo 没有符合当前状态的分析任务"
+
+#: src/pages/shared/tasks/TaskCenterPage.tsx:128
+msgid "这个 Demo 还没有分析任务"
+msgstr "这个 Demo 还没有分析任务"
+
 #: src/data/nativeShell.ts:268
 msgid "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgstr "这个动作需要桌面应用，浏览器里无法访问本机文件"
@@ -9532,7 +9561,7 @@ msgstr "这场比赛没有第 {selectedRound} 回合"
 msgid "这场比赛没有该选手，请重新选择。"
 msgstr "这场比赛没有该选手，请重新选择。"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:421
+#: src/pages/analysis/match/views/viewChrome.tsx:422
 msgid "这场比赛的分析结果没能打开"
 msgstr "这场比赛的分析结果没能打开"
 
@@ -9643,7 +9672,7 @@ msgstr "进度"
 #: src/design/feedback/StageBar.tsx:69
 #: src/domain/task/TaskActivityList.tsx:14
 #: src/domain/task/taskVocabulary.tsx:44
-#: src/pages/shared/tasks/TaskCenterPage.tsx:56
+#: src/pages/shared/tasks/TaskCenterPage.tsx:89
 msgid "进行中"
 msgstr "进行中"
 
@@ -9688,7 +9717,7 @@ msgid "适应整个序列"
 msgstr "适应整个序列"
 
 #. placeholder {0}: demo.display_name
-#: src/pages/shared/library/LibraryInspector.tsx:206
+#: src/pages/shared/library/LibraryInspector.tsx:214
 msgid "选中 {0} · {mapLabel}"
 msgstr "选中 {0} · {mapLabel}"
 
@@ -10018,7 +10047,7 @@ msgstr "配置文件状态正常"
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
-#: src/pages/shared/library/LibraryPage.tsx:254
+#: src/pages/shared/library/LibraryPage.tsx:255
 msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
@@ -10073,12 +10102,18 @@ msgstr "重复帧标记"
 msgid "重排时间线"
 msgstr "重排时间线"
 
-#: src/pages/analysis/match/views/viewChrome.tsx:442
+#: src/pages/analysis/match/views/viewChrome.tsx:443
+#: src/pages/shared/library/LibraryInspector.tsx:204
+msgid "重新分析"
+msgstr "重新分析"
+
+#: src/pages/shared/library/libraryColumns.tsx:247
+msgctxt "row-action"
 msgid "重新分析"
 msgstr "重新分析"
 
 #: src/domain/project/AddToProjectDialog.tsx:120
-#: src/domain/task/TaskActivityList.tsx:54
+#: src/domain/task/TaskActivityList.tsx:56
 #: src/domain/task/TaskDetail.tsx:291
 #: src/pages/editing/delivery/OutputsView.tsx:158
 #: src/pages/editing/editor/ProjectWorkspacePage.tsx:770
@@ -10098,7 +10133,7 @@ msgid "重新发起"
 msgstr "重新发起"
 
 #: src/domain/editing/ProjectMediaWorkspace.tsx:539
-#: src/pages/shared/library/libraryColumns.tsx:215
+#: src/pages/shared/library/libraryColumns.tsx:216
 msgid "重新定位"
 msgstr "重新定位"
 
@@ -10177,7 +10212,7 @@ msgstr "重置筛选"
 #: src/domain/scene3d/CameraPreviewViewport.tsx:43
 #: src/domain/scene3d/Scene3DView.tsx:174
 #: src/domain/task/TaskDetail.tsx:176
-#: src/domain/task/useTaskActions.tsx:148
+#: src/domain/task/useTaskActions.tsx:181
 #: src/pages/analysis/evidence/EvidenceAnnotations.tsx:72
 #: src/pages/analysis/evidence/EvidenceDetail.tsx:185
 #: src/pages/analysis/evidence/EvidenceResults.tsx:133
@@ -10186,9 +10221,9 @@ msgstr "重置筛选"
 #: src/pages/analysis/match/views/ReviewView.tsx:503
 #: src/pages/analysis/match/views/ReviewView.tsx:658
 #: src/pages/analysis/match/views/ReviewView.tsx:804
-#: src/pages/analysis/match/views/viewChrome.tsx:300
-#: src/pages/analysis/match/views/viewChrome.tsx:445
-#: src/pages/analysis/match/views/viewChrome.tsx:456
+#: src/pages/analysis/match/views/viewChrome.tsx:301
+#: src/pages/analysis/match/views/viewChrome.tsx:446
+#: src/pages/analysis/match/views/viewChrome.tsx:457
 #: src/pages/analysis/players/PlayerComparePanel.tsx:211
 #: src/pages/analysis/players/PlayerHeatmapPanel.tsx:113
 #: src/pages/analysis/players/PlayerProfilePage.tsx:132
@@ -10205,9 +10240,9 @@ msgstr "重置筛选"
 #: src/pages/shared/library/history/HistoryPage.tsx:211
 #: src/pages/shared/library/ImportDemoDialog.tsx:105
 #: src/pages/shared/library/LibraryCards.tsx:79
-#: src/pages/shared/library/LibraryInspector.tsx:159
-#: src/pages/shared/library/LibraryInspector.tsx:230
-#: src/pages/shared/library/LibraryPage.tsx:533
+#: src/pages/shared/library/LibraryInspector.tsx:166
+#: src/pages/shared/library/LibraryInspector.tsx:238
+#: src/pages/shared/library/LibraryPage.tsx:537
 #: src/pages/shared/library/LibraryTable.tsx:143
 #: src/pages/shared/library/WatchDirectoriesDrawer.tsx:92
 #: src/pages/shared/onboarding/GuidePage.tsx:124
@@ -10232,11 +10267,11 @@ msgstr "重置筛选"
 msgid "重试"
 msgstr "重试"
 
-#: src/pages/shared/library/LibraryPage.tsx:514
+#: src/pages/shared/library/LibraryPage.tsx:518
 msgid "重试保存备注"
 msgstr "重试保存备注"
 
-#: src/pages/shared/library/LibraryPage.tsx:549
+#: src/pages/shared/library/LibraryPage.tsx:553
 msgid "重试回放"
 msgstr "重试回放"
 
@@ -10248,7 +10283,7 @@ msgstr "重试搜索"
 msgid "重试操作"
 msgstr "重试操作"
 
-#: src/pages/shared/library/LibraryPage.tsx:522
+#: src/pages/shared/library/LibraryPage.tsx:526
 msgid "重试添加标签"
 msgstr "重试添加标签"
 

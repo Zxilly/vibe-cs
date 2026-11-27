@@ -682,7 +682,7 @@ function ReplayBody({ demoId, context, updateContext, addToVideo }: MatchViewPro
                   }));
                 }}
               >
-                <Trans>创建剪辑</Trans>
+                <Trans>把选段加入作品</Trans>
               </Button>
               {highlight === null ? null : <Button size="sm" variant="secondary" disabled={addToVideo.disabled} onClick={() => addToVideo.onAdd?.(highlightSelection(highlight))}><Trans>加入当前高光</Trans></Button>}
             </div>
@@ -714,7 +714,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
   const { clipInTick, clipOutTick } = useReplayClipRange();
   const clipRange = resolveMarkedClipRange(clipInTick, clipOutTick);
 
-  /* Unified range eligibility with the bottom 「创建剪辑」 bar: never allow
+  /* Unified range eligibility with the bottom 「把选段加入作品」 bar: never allow
      submitting a clip without an explicit In/Out range, highlight, or round
      bounds. */
   let inspectorSelection: MatchVideoSelection | undefined;

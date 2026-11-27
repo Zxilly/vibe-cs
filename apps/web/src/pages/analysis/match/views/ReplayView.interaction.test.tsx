@@ -249,7 +249,7 @@ describe('selection', () => {
     fireEvent.click(screen.getByRole('button', { name: '设入点' }));
     fireEvent.click(screen.getByRole('button', { name: '下一帧' }));
     fireEvent.click(screen.getByRole('button', { name: '设出点' }));
-    fireEvent.click(screen.getByRole('button', { name: '创建剪辑' }));
+    fireEvent.click(screen.getByRole('button', { name: '把选段加入作品' }));
 
     expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
       playerId: 'kael',
@@ -269,7 +269,7 @@ describe('selection', () => {
     // No `?player=`: the rail follows Kael by default, yet without a round,
     // highlight, or In/Out range neither CTA may submit a zero-length clip.
     expect((screen.getByRole('combobox', { name: '选手' }) as HTMLSelectElement).value).toBe('kael');
-    const createClip = screen.getByRole('button', { name: '创建剪辑' }) as HTMLButtonElement;
+    const createClip = screen.getByRole('button', { name: '把选段加入作品' }) as HTMLButtonElement;
     const add = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
     expect(createClip.disabled).toBe(true);
     expect(add.disabled).toBe(true);
@@ -279,7 +279,7 @@ describe('selection', () => {
     fireEvent.click(screen.getByRole('button', { name: '设入点' }));
     fireEvent.click(screen.getByRole('button', { name: '下一帧' }));
     fireEvent.click(screen.getByRole('button', { name: '设出点' }));
-    const enabledCreateClip = screen.getByRole('button', { name: '创建剪辑' }) as HTMLButtonElement;
+    const enabledCreateClip = screen.getByRole('button', { name: '把选段加入作品' }) as HTMLButtonElement;
     const enabledAdd = document.querySelector('[data-match-add-to-video]') as HTMLButtonElement;
     expect(enabledCreateClip.disabled).toBe(false);
     expect(enabledAdd.disabled).toBe(false);

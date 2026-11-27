@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 
 import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
@@ -45,9 +45,11 @@ interface TaskActivityListProps {
    * Absent on a surface that always shows everything (the shell drawer).
    */
   readonly filter?: { readonly state: ActivityStateFilter; readonly onClear: () => void } | undefined;
+  /** Replaces the empty state when the caller's scope is narrower than a state filter (one Demo). */
+  readonly empty?: ReactNode | undefined;
 }
 
-export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter, headingLevel = 2, hasSideDetail = false }: TaskActivityListProps) {
+export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLoading, error, onReload, bind, onSelect, filter, empty, headingLevel = 2, hasSideDetail = false }: TaskActivityListProps) {
   const baseId = useId();
   const Heading = headingLevel === 2 ? 'h2' : 'h3';
   if (error !== null) {
@@ -57,6 +59,7 @@ export function TaskActivityList({ items, total, firstItem = 1, selectedId, isLo
     return <div className="flex flex-col gap-3">{[0, 1, 2, 3].map((index) => <TaskCardSkeleton key={index} />)}</div>;
   }
   if (items.length === 0) {
+    if (empty !== undefined) return empty;
     return filter === undefined ? (
       <Empty
         title={<Trans>还没有后台任务</Trans>}

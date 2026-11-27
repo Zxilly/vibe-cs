@@ -45,6 +45,7 @@ import { dataErrorMessage } from '../../../../data/errors';
 import { useMatchAnalysis } from '../../../../data/match';
 import { CS2_TICK_RATE } from '../../../../domain/match';
 import type { AnalysisWorkspace } from '../../../../shared/desktop/viewModels';
+import { taskCenterPath } from '../../../../domain/task/useTaskActions';
 import { RouteLink } from '../../../shared/navigation/RouteLink';
 import type { MatchViewId } from '../viewContract';
 
@@ -291,7 +292,7 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
           <Button variant="primary" disabled={start.isPending || start.isSuccess} onClick={() => start.mutate([demoId])}>
             {start.isPending ? <Trans>正在提交…</Trans> : start.isSuccess ? <Trans>分析已提交</Trans> : <Trans>开始分析</Trans>}
           </Button>
-          <RouteLink to={start.isSuccess ? '/tasks' : '/library'}>
+          <RouteLink to={start.isSuccess ? taskCenterPath({ demoId }) : '/library'}>
             {start.isSuccess ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
           </RouteLink>
         </>
@@ -444,7 +445,7 @@ export function AnalysisFailure({ view, title, demoId, error, onRetry }: Analysi
                 <Button onClick={onRetry}>
                   <Trans>重试</Trans>
                 </Button>
-                <RouteLink to={running ? '/tasks' : '/library'}>
+                <RouteLink to={running ? taskCenterPath({ demoId }) : '/library'}>
                   {running ? <Trans>查看分析进度</Trans> : <Trans>回到资料库</Trans>}
                 </RouteLink>
               </>

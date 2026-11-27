@@ -30,6 +30,7 @@ import { useHref } from 'react-router-dom';
 import type { DataTableColumn } from '../../../design/data';
 import { OverflowMenu } from '../../../design/layout';
 import { Button } from '../../../design/primitives';
+import { taskCenterPath } from '../../../domain/task/useTaskActions';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { DemoStatusMark } from './DemoStatusMark';
 import {
@@ -219,7 +220,7 @@ function RowAction({
     // 「查看进度」 — the run itself lives on the delivery task list, which is
     // where §7 puts 「分析、录制与导出的执行记录」.
     existing = (
-      <RowLink to="/tasks">
+      <RowLink to={taskCenterPath({ demoId: demo.id })}>
         <Trans>查看进度</Trans>
       </RowLink>
     );
@@ -240,8 +241,11 @@ function RowAction({
         }}
       >
         {/* A verb — Analyze. The bare 「分析」 msgid is the task-kind noun
-            (Analysis) in `domain/task/taskVocabulary`. */}
-        <Trans context="row-action">分析</Trans>
+            (Analysis) in `domain/task/taskVocabulary`. A failed run says it
+            is a second attempt, so it does not read like a fresh Demo. */}
+        {demo.lifecycle_status === 'failed'
+          ? <Trans context="row-action">重新分析</Trans>
+          : <Trans context="row-action">分析</Trans>}
       </Button>
     );
   }

@@ -38,6 +38,22 @@ afterEach(() => {
 });
 
 describe('shared task center', () => {
+  it('opens on the state filter named in the address and writes changes back to it', async () => {
+    const listActivities = vi.fn((_query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve(feedOf([EXPORTED])));
+    renderPage({ route: '/tasks?state=failed', element: <TaskCenterPage />, client: { listActivities } });
+
+    await waitFor(() => {
+      expect(listActivities.mock.calls.some(([query]) => query.state === 'failed')).toBe(true);
+    });
+    expect(screen.getByRole('radio', { name: '失败' }).getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(screen.getByRole('radio', { name: '全部' }));
+    await waitFor(() => {
+      expect(listActivities.mock.calls.at(-1)?.[0].state).toBeUndefined();
+    });
+    expect(screen.getByRole('radio', { name: '全部' }).getAttribute('aria-checked')).toBe('true');
+  });
+
   it('re-runs a failed recording from the Project that owns it, not from the works list', async () => {
     const failedRecording: ActivityItem = {
       ...task(), id: 'recording:job-7', job_id: 'job-7', context_id: 'demo-1', project_id: 'project-7',
@@ -63,6 +79,51 @@ describe('shared task center', () => {
     expect((await screen.findAllByRole('button', { name: '查看阶段日志' })).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: '在作品中重新录制' })).toBeNull();
     expect(screen.queryByRole('link', { name: '打开作品' })).toBeNull();
+  });
+
+  it('scopes a Demo link to the analysis runs of that Demo, says so, and leads back to every task', async () => {
+    const failedAnalysis: ActivityItem = {
+      id: 'analysis:run-3', kind: 'analysis', subtype: null, job_id: 'run-3', context_id: 'demo-x', project_id: null,
+      subject: 'FACEIT 排位 · Nuke', status: 'failed', stage: 'failed', progress_percent: null, completed_units: null,
+      total_units: null, unit: null, error: '解析器读到损坏的数据包', failure: null,
+      created_at: '2026-09-12T08:00:00Z', updated_at: '2026-09-12T08:01:00Z', available_actions: ['retry_analysis', 'open_library'],
+    };
+    const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> =>
+      Promise.resolve(feedOf(query.search === 'demo-x' ? [failedAnalysis] : [EXPORTED, failedAnalysis])));
+    const getDemo = vi.fn(() => Promise.resolve({ id: 'demo-x', display_name: 'FACEIT 排位 · Nuke' }));
+    renderPage({ route: '/tasks?demo=demo-x', element: <TaskCenterPage />, client: { listActivities, getDemo } });
+
+    expect(await screen.findByText('只显示「FACEIT 排位 · Nuke」的分析任务。')).toBeTruthy();
+    expect(listActivities.mock.calls.every(([query]) => query.kind === 'analysis' && query.search === 'demo-x')).toBe(true);
+    expect(screen.queryByRole('heading', { name: /八月集锦/u })).toBeNull();
+    expect(screen.getAllByText('解析器读到损坏的数据包').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '查看全部任务' }));
+    await screen.findByRole('heading', { name: /八月集锦/u });
+    const last = listActivities.mock.calls.at(-1)?.[0];
+    expect(last?.kind).toBeUndefined();
+    expect(last?.search).toBeUndefined();
+    expect(screen.queryByText(/只显示/u)).toBeNull();
+  });
+
+  it('says a Demo has no task record instead of falling back to unrelated failures', async () => {
+    const listActivities = vi.fn((query: ActivityQuery): Promise<ActivityFeed> =>
+      Promise.resolve(feedOf(query.search === undefined ? [EXPORTED] : [])));
+    const getDemo = vi.fn(() => Promise.resolve({ id: 'demo-y', display_name: 'Premier · Dust II' }));
+    renderPage({ route: '/tasks?demo=demo-y', element: <TaskCenterPage />, client: { listActivities, getDemo } });
+
+    expect(await screen.findByText('这个 Demo 还没有分析任务')).toBeTruthy();
+    expect(screen.queryByText('还没有后台任务')).toBeNull();
+    expect(screen.queryByRole('heading', { name: /八月集锦/u })).toBeNull();
+    expect(screen.getAllByRole('button', { name: '查看全部任务' }).length).toBe(2);
+  });
+
+  it('reads an unknown state filter as 全部', async () => {
+    const listActivities = vi.fn((_query: ActivityQuery): Promise<ActivityFeed> => Promise.resolve(feedOf([EXPORTED])));
+    renderPage({ route: '/tasks?state=bogus', element: <TaskCenterPage />, client: { listActivities } });
+
+    await screen.findByRole('heading', { name: /八月集锦/u });
+    expect(listActivities.mock.calls.every(([query]) => query.state === undefined)).toBe(true);
   });
 
   it('retries the current page after a read failure instead of treating it as an empty result', async () => {

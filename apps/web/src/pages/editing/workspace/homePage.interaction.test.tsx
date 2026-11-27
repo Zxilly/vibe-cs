@@ -261,6 +261,6 @@ describe('工作台首页', () => {
     expect(matchLink.getAttribute('href')).toBe('/match/demo-ready');
     expect(document.querySelector('[data-home-block="recent-demos"]')?.textContent).toContain('Mirage');
     const failureRegion = await screen.findByRole('region', { name: '失败可恢复' });
-    expect(within(failureRegion).getByRole('link', { name: '任务中心' }).getAttribute('href')).toBe('/tasks');
+    expect(within(failureRegion).getByRole('link', { name: '任务中心' }).getAttribute('href')).toBe('/tasks?state=failed');
   });
 });

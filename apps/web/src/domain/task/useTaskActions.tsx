@@ -32,9 +32,35 @@ import { useHref, useNavigate } from 'react-router-dom';
 
 import { useCancelTask, useRetryTask } from '../../data/tasks';
 import type { TaskLink, TaskSummary } from '.';
-import type { ActivityAction } from '../../shared/desktop/dto';
+import type { ActivityAction, ActivityStateFilter } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskStatusOfActivity, toTaskSummary } from './taskModel';
+
+/**
+ * The task center's own state filters, in the order its segmented control shows
+ * them. `/tasks?state=…` opens the list already filtered, so a 「查看进度」 or a
+ * failure notice lands on the records it talks about instead of on 全部.
+ */
+export const TASK_CENTER_STATES = ['active', 'failed', 'completed', 'cancelled'] as const satisfies readonly ActivityStateFilter[];
+
+/**
+ * What a task-center link narrows to. `demoId` scopes the list to that Demo's
+ * analysis runs (`kind=analysis` plus the Demo id, which the service keeps in
+ * every analysis row's search text); it is for links that start from one Demo.
+ */
+export interface TaskCenterScope {
+  readonly state?: ActivityStateFilter;
+  readonly demoId?: string;
+}
+
+/** The task center, optionally opened on one state filter and/or one Demo. */
+export function taskCenterPath({ state, demoId }: TaskCenterScope = {}): string {
+  const params = new URLSearchParams();
+  if (state !== undefined) params.set('state', state);
+  if (demoId !== undefined) params.set('demo', demoId);
+  const query = params.toString();
+  return query === '' ? '/tasks' : `/tasks?${query}`;
+}
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {

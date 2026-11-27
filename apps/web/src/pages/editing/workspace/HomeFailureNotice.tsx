@@ -9,7 +9,7 @@ import { Button } from '../../../design/primitives';
 import { useTaskFeed } from '../../../data/tasks';
 import { formatTaskClock, taskFailureLabels, taskKindLabels } from '../../../domain/task';
 import { RouteLink } from '../../shared/navigation/RouteLink';
-import { taskDetailPath, useTaskActions } from '../../../domain/task/useTaskActions';
+import { taskCenterPath, taskDetailPath, useTaskActions } from '../../../domain/task/useTaskActions';
 
 export interface HomeFailureNoticeProps {
   readonly now?: Date | undefined;
@@ -76,7 +76,7 @@ export function HomeFailureNotice({ now }: HomeFailureNoticeProps = {}) {
           </Button>
         )}
         <Button asChild size="sm" variant="ghost">
-          <RouteLink to="/tasks" className="no-underline">
+          <RouteLink to={taskCenterPath({ state: 'failed' })} className="no-underline">
             <Trans>任务中心</Trans>
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </RouteLink>

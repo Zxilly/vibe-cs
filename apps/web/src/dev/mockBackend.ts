@@ -401,7 +401,12 @@ const RECORDING_JOB = 'aa111111-1111-4111-8111-111111111111';
 const ANALYSIS_RUN = 'bb222222-2222-4222-8222-222222222222';
 const EXPORT_JOB = 'cc333333-3333-4333-8333-333333333333';
 const DOWNLOAD_JOB = 'dd444444-4444-4444-8444-444444444444';
+/* The FACEIT Demo is the library's failed row: its run is the record 「查看失败原因」
+   has to land on, among unrelated analysis, recording and download records. */
+const FAILED_ANALYSIS_RUN = 'ee555555-5555-4555-8555-555555555555';
+const COMPLETED_ANALYSIS_RUN = 'ab777777-7777-4777-8777-777777777777';
 const FAILED_RECORDING_JOB = 'ff666666-6666-4666-8666-666666666666';
+const FACEIT_DEMO = '9a17c5e2-44d4-4a6e-9d21-6b0f1a2c3d44';
 const NAVI_DEMO = '3f2c9a10-11d4-4a6e-9d21-6b0f1a2c3d41';
 
 const ACTIVITIES: ActivityFeed = {
@@ -491,6 +496,26 @@ const ACTIVITIES: ActivityFeed = {
       available_actions: ['retry_download', 'open_match_history'],
     },
     {
+      id: `analysis:${FAILED_ANALYSIS_RUN}`,
+      kind: 'analysis',
+      subtype: null,
+      job_id: FAILED_ANALYSIS_RUN,
+      context_id: FACEIT_DEMO,
+      project_id: null,
+      subject: 'FACEIT 排位 · Nuke',
+      status: 'failed',
+      stage: 'failed',
+      progress_percent: null,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: 'Demo 解析器在第 14 回合读到损坏的数据包，分析已停止。',
+      failure: { code: 'dependency_failed', retryable: true },
+      created_at: '2026-08-10T07:55:00Z',
+      updated_at: '2026-08-10T08:02:00Z',
+      available_actions: ['retry_analysis', 'open_library'],
+    },
+    {
       id: `recording:${FAILED_RECORDING_JOB}`,
       kind: 'recording',
       subtype: null,
@@ -510,12 +535,42 @@ const ACTIVITIES: ActivityFeed = {
       updated_at: '2026-08-13T21:14:00Z',
       available_actions: ['retry_recording', 'open_outputs'],
     },
+    {
+      id: `analysis:${COMPLETED_ANALYSIS_RUN}`,
+      kind: 'analysis',
+      subtype: null,
+      job_id: COMPLETED_ANALYSIS_RUN,
+      context_id: NAVI_DEMO,
+      project_id: null,
+      subject: 'NAVI vs FaZe · Mirage',
+      status: 'completed',
+      stage: 'completed',
+      progress_percent: null,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: null,
+      failure: null,
+      created_at: '2026-08-11T18:40:00Z',
+      updated_at: '2026-08-11T18:52:00Z',
+      available_actions: ['open_analysis', 'open_library'],
+    },
   ],
-  total: 5,
+  total: 7,
   page: 1,
   page_size: 20,
-  summary: { total: 5, active: 2, failed: 2, completed: 1, cancelled: 0 },
+  summary: { total: 7, active: 2, failed: 3, completed: 2, cancelled: 0 },
 };
+
+/* The service's `search_text` for each row, close enough for the fixture: the
+   locator, kind, ids, status, stage, error and subject. An analysis row carries
+   its Demo id here, which is what a Demo-scoped task link searches for. */
+function activitySearchText(item: ActivityFeed['items'][number]): string {
+  return [item.id, item.kind, item.job_id, item.context_id, item.status, item.stage, item.error, item.subject]
+    .filter((part) => part !== null)
+    .join(' ')
+    .toLowerCase();
+}
 
 const EXPORT_JOB_DETAIL: ExportJobRecord = {
   kind: 'montage',
@@ -1269,7 +1324,11 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['GET', '/activities', ({ query }) => {
     const projectId = query.get('project_id');
     const state = query.get('state');
-    const scoped = ACTIVITIES.items.filter((item) => projectId === null || item.project_id === projectId);
+    const kind = query.get('kind');
+    const search = query.get('search')?.toLowerCase() ?? null;
+    const scoped = ACTIVITIES.items.filter((item) => (projectId === null || item.project_id === projectId)
+      && (kind === null || item.kind === kind)
+      && (search === null || activitySearchText(item).includes(search)));
     const filtered = scoped.filter((item) => state === null || (state === 'active'
       ? !['completed', 'failed', 'cancelled'].includes(item.status) : item.status === state));
     const page = Math.max(1, Number(query.get('page') ?? 1));

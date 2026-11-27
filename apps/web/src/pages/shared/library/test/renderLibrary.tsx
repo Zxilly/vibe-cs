@@ -41,6 +41,12 @@ import { libraryDemoQuery, readLibraryAddress } from '../libraryQuery';
 
 /* ── fixtures ────────────────────────────────────────────────────────────── */
 
+/** Where a library link into the task center landed, query included. */
+function TasksProbe() {
+  const { search } = useLocation();
+  return <span data-tasks data-search={search} />;
+}
+
 export const DEMO_FIXTURE: DemoSummary = {
   id: 'demo-a',
   path: 'D:\\CS2\\demos\\aurora-meridian-mirage.dem',
@@ -194,7 +200,7 @@ function tree(
                 <Route path="/match/:demoId" element={<span data-workspace />} />
                 <Route path="/projects/:projectId" element={<span data-project-workspace />} />
                 <Route path="/projects" element={<span data-projects />} />
-                <Route path="/tasks" element={<span data-tasks />} />
+                <Route path="/tasks" element={<TasksProbe />} />
               </Routes>
             </MemoryRouter>
           </NativeShellProvider>

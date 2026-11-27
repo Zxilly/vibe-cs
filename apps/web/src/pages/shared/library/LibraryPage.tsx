@@ -66,6 +66,7 @@ import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '..
 import { Button, Seg } from '../../../design/primitives';
 import { CollectTargetBar, useQuickAddToProject } from '../../../domain/project/quickAdd';
 import { useCreateDemoProject } from '../../../domain/project/createDemoProject';
+import { taskCenterPath } from '../../../domain/task/useTaskActions';
 import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { AddWatchDirectoryDialog } from './AddWatchDirectoryDialog';
 import { ColumnConfigDialog } from './ColumnConfigDialog';
@@ -392,7 +393,10 @@ function DemoLibraryPage() {
         if (activeDemo !== undefined) analyse([activeDemo.id]);
       }}
       onViewAnalysis={() => {
-        void navigate('/tasks');
+        if (activeDemo !== undefined) void navigate(taskCenterPath({ demoId: activeDemo.id }));
+      }}
+      onViewFailure={() => {
+        if (activeDemo !== undefined) void navigate(taskCenterPath({ demoId: activeDemo.id }));
       }}
       onPlay={() => {
         if (activeDemo !== undefined) launchPlayback.mutate(activeDemo.id);

@@ -45,7 +45,7 @@ describe('starting analysis from an empty workspace', () => {
     vi.mocked(useStartDemoAnalysis).mockReturnValue(mutationResult({ mutate, isSuccess: true }) as never);
     view.rerender(<MemoryRouter><NotAnalysedState demoId={DEMO_ID} /></MemoryRouter>);
     expect(screen.getByRole('button', { name: '分析已提交' })).toHaveProperty('disabled', true);
-    expect(screen.getByRole('link', { name: '查看分析进度' }).getAttribute('href')).toBe('/tasks');
+    expect(screen.getByRole('link', { name: '查看分析进度' }).getAttribute('href')).toBe(`/tasks?demo=${DEMO_ID}`);
     expect(screen.getByRole('status').textContent).toContain('分析任务已提交');
   });
 
@@ -95,7 +95,7 @@ describe('AnalysisFailure', () => {
     const again = screen.getByRole('button', { name: '重新分析' }) as HTMLButtonElement;
     expect(again.disabled).toBe(true);
     expect(document.body.textContent).toContain('正在重新分析，完成后这里会自动刷新');
-    expect(screen.getByRole('link', { name: '查看分析进度' }).getAttribute('href')).toBe('/tasks');
+    expect(screen.getByRole('link', { name: '查看分析进度' }).getAttribute('href')).toBe(`/tasks?demo=${DEMO_ID}`);
     expect(onRetry).not.toHaveBeenCalled();
     // The record is polled only while a run started here is on.
     expect(vi.mocked(useDemo)).toHaveBeenLastCalledWith(DEMO_ID, { pollMs: 2_000 });

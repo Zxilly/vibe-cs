@@ -18,6 +18,10 @@
  *   analysing   「查看分析进度」 → `onViewAnalysis`, the same place the table
  *               row's 「查看」 goes. A disabled 「开始分析」 with no reason was
  *               what stood here before.
+ *   failed      「重新分析」 → `onAnalyse`, with a warning whose action opens
+ *               this Demo's analysis runs in the task center
+ *               (`onViewFailure`): the reason lives on the run, not on the
+ *               Demo record.
  *   otherwise   「开始分析」 → `onAnalyse`.
  *
  * ## What the artboard draws and the wire cannot answer
@@ -82,6 +86,8 @@ export interface LibraryInspectorProps {
   readonly onAnalyse: () => void;
   /** 「查看分析进度」 — where the running analysis can be watched. */
   readonly onViewAnalysis: () => void;
+  /** Opens this Demo's analysis runs, where its failure reason is recorded. */
+  readonly onViewFailure: () => void;
   readonly onPlay: () => void;
   /** 「定位文件」 — reveal the demo in the file manager. */
   readonly onReveal: () => void;
@@ -106,6 +112,7 @@ export function LibraryInspector({
   onOpenWorkspace,
   onAnalyse,
   onViewAnalysis,
+  onViewFailure,
   onPlay,
   onReveal,
   revealButtonProps,
@@ -166,6 +173,7 @@ export function LibraryInspector({
 
   const canOpenWorkspace = isDemoAnalysable(demo);
   const missingFile = isDemoFileMissing(demo);
+  const analysisFailed = demo.lifecycle_status === 'failed';
   const mapLabel = formatMapName(demo.map_name);
   const matchup = formatMatchup(demo);
   const score = formatScore(demo);
@@ -193,7 +201,7 @@ export function LibraryInspector({
         disabled={missingFile || startingAnalysis}
         disabledReason={missingFile ? t`Demo 文件缺失，无法分析` : startingAnalysis ? t`正在提交分析任务` : undefined}
       >
-        <Trans>开始分析</Trans>
+        {analysisFailed ? <Trans>重新分析</Trans> : <Trans>开始分析</Trans>}
       </Button>
     );
   };
@@ -231,6 +239,12 @@ export function LibraryInspector({
           {error}
         </Alert>
       )}
+
+      {analysisFailed ? (
+        <Alert variant="warning" action={{ label: <Trans>查看失败原因</Trans>, onAction: onViewFailure }}>
+          <Trans>上次分析没有完成，回合与回放暂不可用。</Trans>
+        </Alert>
+      ) : null}
 
       <div>
         <h3 className="font-heading text-xl">{demo.display_name}</h3>

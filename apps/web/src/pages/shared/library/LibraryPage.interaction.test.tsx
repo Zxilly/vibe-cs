@@ -263,9 +263,26 @@ describe('the Inspector', () => {
 
     const view = await screen.findByRole('button', { name: '查看分析进度' });
     expect(screen.queryByRole('button', { name: '开始分析' })).toBeNull();
+    // The row's 查看进度 and the inspector both carry the Demo into the task center.
+    expect(screen.getAllByRole('link', { name: '查看进度' })[0]?.getAttribute('href')).toBe('/tasks?demo=demo-a');
     fireEvent.click(view);
     await waitFor(() => {
-      expect(document.querySelector('[data-tasks]')).not.toBeNull();
+      expect(document.querySelector('[data-tasks]')?.getAttribute('data-search')).toBe('?demo=demo-a');
+    });
+  });
+
+  it('marks a failed run as a second attempt and points at where its reason lives', async () => {
+    const failed = { ...DEMO_FIXTURE, lifecycle_status: 'failed' as const };
+    renderLibrary({ seed: { ...ONLINE, demos: demoPage([failed]), detail: failed } });
+
+    const retries = await screen.findAllByRole('button', { name: '重新分析' });
+    expect(screen.queryByRole('button', { name: '开始分析' })).toBeNull();
+    expect(screen.getByText('上次分析没有完成，回合与回放暂不可用。')).toBeTruthy();
+    expect(retries.length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '查看失败原因' }));
+    await waitFor(() => {
+      expect(document.querySelector('[data-tasks]')?.getAttribute('data-search')).toBe('?demo=demo-a');
     });
   });
 
